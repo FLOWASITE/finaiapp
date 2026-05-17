@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listSuperadminAuditLogs } from "@/lib/superadmin.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
