@@ -43,6 +43,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -213,6 +214,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
+  id: '/tenant/$id',
+  path: '/tenant/$id',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/superadmin/tenant/$id'
   id:
     | '__root__'
     | '/'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -673,6 +685,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/superadmin/tenant/$id': {
+      id: '/_app/superadmin/tenant/$id'
+      path: '/tenant/$id'
+      fullPath: '/superadmin/tenant/$id'
+      preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
   }
 }
 
@@ -698,10 +717,12 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 
 interface AppSuperadminRouteChildren {
   AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
+  AppSuperadminTenantIdRoute: typeof AppSuperadminTenantIdRoute
 }
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminIndexRoute: AppSuperadminIndexRoute,
+  AppSuperadminTenantIdRoute: AppSuperadminTenantIdRoute,
 }
 
 const AppSuperadminRouteWithChildren = AppSuperadminRoute._addFileChildren(
