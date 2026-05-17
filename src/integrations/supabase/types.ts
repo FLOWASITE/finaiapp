@@ -1201,13 +1201,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sales_invoice_lines_invoice_fk"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "sales_invoices"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sales_invoice_lines_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
