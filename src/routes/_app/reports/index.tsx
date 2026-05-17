@@ -113,7 +113,7 @@ function ReportsPage() {
                 <ReportTable
                   cols={["Chỉ tiêu", "Mã số", "Số cuối kỳ", compareEnabled ? "Số đầu năm" : null]}
                   rows={bs.data.items.filter(it => !hideZero || it.bold || it.current !== 0 || it.previous !== 0).map(it => ({
-                    name: it.name, code: it.ma_so, indent: it.level === 1 ? 1 : 0, bold: it.bold,
+                    name: it.name, code: it.ma_so, indent: it.level === 2 ? 2 : it.level === 1 ? 1 : 0, bold: it.bold,
                     vals: [it.current, compareEnabled ? it.previous : null],
                   }))}
                 />
