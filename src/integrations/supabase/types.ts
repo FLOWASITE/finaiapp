@@ -14,7 +14,305 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_suggestions: {
+        Row: {
+          chosen_index: number | null
+          created_at: string
+          feedback: string | null
+          id: string
+          invoice_id: string
+          suggestions: Json
+          user_id: string
+        }
+        Insert: {
+          chosen_index?: number | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          invoice_id: string
+          suggestions: Json
+          user_id: string
+        }
+        Update: {
+          chosen_index?: number | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          invoice_id?: string
+          suggestions?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_suggestions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          code: string
+          name: string
+          parent_code: string | null
+          type: string
+        }
+        Insert: {
+          code: string
+          name: string
+          parent_code?: string | null
+          type: string
+        }
+        Update: {
+          code?: string
+          name?: string
+          parent_code?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      invoice_lines: {
+        Row: {
+          amount: number | null
+          description: string | null
+          id: string
+          invoice_id: string
+          qty: number | null
+          unit_price: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          amount?: number | null
+          description?: string | null
+          id?: string
+          invoice_id: string
+          qty?: number | null
+          unit_price?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number | null
+          description?: string | null
+          id?: string
+          invoice_id?: string
+          qty?: number | null
+          unit_price?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          currency: string | null
+          file_path: string
+          id: string
+          invoice_no: string | null
+          issue_date: string | null
+          notes: string | null
+          raw_ocr: Json | null
+          status: string
+          subtotal: number | null
+          supplier_id: string | null
+          supplier_name: string | null
+          supplier_tax_id: string | null
+          total: number | null
+          updated_at: string
+          user_id: string
+          vat_amount: number | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          file_path: string
+          id?: string
+          invoice_no?: string | null
+          issue_date?: string | null
+          notes?: string | null
+          raw_ocr?: Json | null
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          supplier_tax_id?: string | null
+          total?: number | null
+          updated_at?: string
+          user_id: string
+          vat_amount?: number | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          file_path?: string
+          id?: string
+          invoice_no?: string | null
+          issue_date?: string | null
+          notes?: string | null
+          raw_ocr?: Json | null
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          supplier_tax_id?: string | null
+          total?: number | null
+          updated_at?: string
+          user_id?: string
+          vat_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          description: string | null
+          entry_date: string
+          id: string
+          invoice_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          id?: string
+          invoice_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          id?: string
+          invoice_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_code: string
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+          line_order: number
+        }
+        Insert: {
+          account_code: string
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+          line_order?: number
+        }
+        Update: {
+          account_code?: string
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+          line_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_code_fkey"
+            columns: ["account_code"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          accounting_standard: string
+          company_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          tax_id: string | null
+        }
+        Insert: {
+          accounting_standard?: string
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id: string
+          tax_id?: string | null
+        }
+        Update: {
+          accounting_standard?: string
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          tax_id?: string | null
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          name: string
+          risk_flag: string | null
+          tax_id: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          risk_flag?: string | null
+          tax_id?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          risk_flag?: string | null
+          tax_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
