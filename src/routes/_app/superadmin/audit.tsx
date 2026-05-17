@@ -400,7 +400,7 @@ function AuditPage() {
         )}
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Dialog open={modalOpen && !!selected} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
           {selected && (
             <>
