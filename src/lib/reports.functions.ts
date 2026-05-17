@@ -87,6 +87,9 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
             }
           });
         }
+        // Items after the target ma_so cannot affect its collected lines —
+        // stop replay early to save CPU on long mappings.
+        if (target) break;
       }
       return {
         item: { ma_so: item.ma_so, name: item.name },
