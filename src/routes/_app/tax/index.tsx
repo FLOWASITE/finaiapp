@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/tax/")({ component: TaxPage });
 
@@ -62,8 +63,7 @@ function VatPanel() {
   return (
     <div className="space-y-4 pt-4">
       <div className="flex items-end gap-3">
-        <div><Label>Từ ngày</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div><Label>Đến ngày</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         <Button variant="outline" onClick={() => dl.mutate()} disabled={dl.isPending || isFetching}>
           <FileCode2 className="mr-2 h-4 w-4" />Xuất XML HTKK
         </Button>

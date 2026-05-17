@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Printer, AlertTriangle, ExternalLink } from "lucide-react";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/reports/ledgers")({
   component: LedgersPage,
@@ -51,14 +52,7 @@ function LedgersPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4 print:hidden">
-        <div>
-          <Label className="text-xs">Từ ngày</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" />
-        </div>
-        <div>
-          <Label className="text-xs">Đến ngày</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" />
-        </div>
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         <Button size="sm" onClick={() => { j.refetch(); gl.refetch(); al.refetch(); tb.refetch(); }}>Cập nhật</Button>
       </div>
 
