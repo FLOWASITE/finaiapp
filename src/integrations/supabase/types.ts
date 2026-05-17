@@ -844,6 +844,60 @@ export type Database = {
         }
         Relationships: []
       }
+      report_notes: {
+        Row: {
+          content: string
+          id: string
+          section: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          section: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          section?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      report_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          period_from: string | null
+          period_to: string
+          report_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload: Json
+          period_from?: string | null
+          period_to: string
+          report_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          period_from?: string | null
+          period_to?: string
+          report_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sales_invoice_lines: {
         Row: {
           amount: number
