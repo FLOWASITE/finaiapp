@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 
 export const Route = createFileRoute("/_app/sales/")({ component: SalesPage });
 
@@ -109,7 +110,7 @@ function NewInvoiceDialog() {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2"><Label>Khách hàng</Label><Input value={head.customer_name} onChange={(e) => setHead({ ...head, customer_name: e.target.value })} /></div>
-            <div><Label>MST</Label><Input value={head.customer_tax_id} onChange={(e) => setHead({ ...head, customer_tax_id: e.target.value })} /></div>
+            <div><Label>MST</Label><TaxIdLookupInput value={head.customer_tax_id} onChange={(v) => setHead({ ...head, customer_tax_id: v })} onResolved={(d) => setHead((p) => ({ ...p, customer_tax_id: d.taxId, customer_name: p.customer_name || d.name }))} /></div>
             <div><Label>Ngày</Label><Input type="date" value={head.issue_date} onChange={(e) => setHead({ ...head, issue_date: e.target.value })} /></div>
             <div className="col-span-2"><Label>Ghi chú</Label><Input value={head.notes} onChange={(e) => setHead({ ...head, notes: e.target.value })} /></div>
           </div>

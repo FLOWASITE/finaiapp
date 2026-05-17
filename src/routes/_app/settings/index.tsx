@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Lock, Unlock, Upload, X, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
@@ -80,7 +81,7 @@ function OrganizationTab() {
       <CardContent className="grid md:grid-cols-2 gap-4">
         <div><Label>Tên hiển thị</Label><Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} /></div>
         <div><Label>Tên pháp nhân</Label><Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
-        <div><Label>Mã số thuế</Label><Input disabled={!canEdit} value={form.tax_id ?? ""} onChange={(e) => set("tax_id", e.target.value)} /></div>
+        <div><Label>Mã số thuế</Label><TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} /></div>
         <div><Label>Điện thoại</Label><Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
         <div className="md:col-span-2"><Label>Địa chỉ</Label><Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
         <div><Label>Chuẩn kế toán</Label>
@@ -242,7 +243,7 @@ function CompanyTab() {
       <CardHeader><CardTitle>Hồ sơ doanh nghiệp & người ký BCTC</CardTitle></CardHeader>
       <CardContent className="grid md:grid-cols-2 gap-4">
         <div><Label>Tên DN</Label><Input value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
-        <div><Label>Mã số thuế</Label><Input value={form.tax_id ?? ""} onChange={(e) => set("tax_id", e.target.value)} /></div>
+        <div><Label>Mã số thuế</Label><TaxIdLookupInput value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} /></div>
         <div className="md:col-span-2"><Label>Địa chỉ</Label><Input value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
         <div><Label>Điện thoại</Label><Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
         <div><Label>Tài khoản NH</Label><Input value={form.bank_account ?? ""} onChange={(e) => set("bank_account", e.target.value)} /></div>

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 
 export const Route = createFileRoute("/_app/suppliers/")({
   component: SuppliersPage,
@@ -159,9 +160,15 @@ function SuppliersPage() {
             </div>
             <div>
               <Label>Mã số thuế</Label>
-              <Input
+              <TaxIdLookupInput
                 value={editing?.tax_id ?? ""}
-                onChange={(e) => setEditing({ ...editing, tax_id: e.target.value })}
+                onChange={(v) => setEditing({ ...editing, tax_id: v })}
+                onResolved={(d) => setEditing((p: any) => ({
+                  ...p,
+                  tax_id: d.taxId,
+                  name: p?.name || d.name,
+                  address: p?.address || d.address || "",
+                }))}
               />
             </div>
             <div>
