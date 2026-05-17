@@ -371,7 +371,12 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       }
       const usedI = new Set<number>(), usedO = new Set<number>();
       const v: Record<string, number> = {};
+      const openL = data.from ? await fetchLines(supabase, userId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
+      const closeL = await fetchLines(supabase, userId, undefined, data.to);
+      const cashBal = (ls: any[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
+      const opening = cashBal(openL), closing = cashBal(closeL);
       for (const it of B03_TT99) {
+        if (it.cashBalance === "opening") { v[it.ma_so] = opening; continue; }
         if (it.counterpart) {
           const { prefixes, direction } = it.counterpart;
           let total = 0;
@@ -380,6 +385,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
           v[it.ma_so] = total;
         } else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
       }
+      // dùng closing thực tế nếu lệch
+      if (Math.abs((v["70"] ?? 0) - closing) > 0.5) v["70"] = closing;
       for (const it of B03_TT99) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
