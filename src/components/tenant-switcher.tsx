@@ -61,7 +61,7 @@ export function TenantSwitcher() {
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
             <Building2 className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate text-xs">
-              {isLoading ? "Đang tải…" : active?.name ?? "Chưa chọn tổ chức"}
+              {isLoading ? "Đang tải…" : (active?.company_name || active?.name) ?? "Chưa chọn tổ chức"}
             </span>
             <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
           </Button>
@@ -77,10 +77,10 @@ export function TenantSwitcher() {
               className="flex items-start gap-2 py-2"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted text-xs font-semibold">
-                {t.name.charAt(0).toUpperCase()}
+                {(t.company_name || t.name).charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{t.name}</div>
+                <div className="text-sm font-medium truncate">{t.company_name || t.name}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                     {ROLE_LABEL[t.role] ?? t.role}
