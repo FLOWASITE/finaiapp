@@ -100,127 +100,140 @@ function OrganizationTab() {
   const initials = (form.name ?? form.company_name ?? "?").trim().split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-6 pb-24">
       {/* Hero */}
-      <Card className="overflow-hidden">
-        <div className="h-20 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent" />
-        <CardContent className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5">
-          <Avatar className="h-20 w-20 ring-4 ring-background shadow-md">
+      <Card>
+        <CardContent className="flex items-center gap-4 py-5">
+          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm">
             {form.logo_url ? <AvatarImage src={form.logo_url} alt={form.name} className="object-contain bg-white" /> : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">{initials || "?"}</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">{initials || "?"}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold truncate">{form.name || "(chưa đặt tên)"}</h2>
-              <Badge variant="outline" className="text-xs">{ROLE_LABEL[data.myRole ?? ""] ?? data.myRole}</Badge>
-              {!canEdit && <Badge variant="secondary" className="text-xs">Chỉ đọc</Badge>}
+              <h2 className="text-base font-semibold truncate">{form.company_name || form.name || "(chưa đặt tên)"}</h2>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{ROLE_LABEL[data.myRole ?? ""] ?? data.myRole}</Badge>
+              {!canEdit && <Badge variant="outline" className="text-[10px]">Chỉ đọc</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground truncate">
-              {form.company_name || "Chưa cấu hình tên pháp nhân"}
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {form.name && form.name !== form.company_name ? form.name : "Hồ sơ tổ chức đang hoạt động"}
               {form.tax_id ? ` · MST ${form.tax_id}` : ""}
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Thông tin doanh nghiệp */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-4 w-4 text-primary" />Thông tin doanh nghiệp</CardTitle>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Tên hiển thị</Label>
-            <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: Công ty ABC" />
-            <p className="text-xs text-muted-foreground">Tên ngắn dùng trong giao diện.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Tên pháp nhân</Label>
-            <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
-            <p className="text-xs text-muted-foreground">Tên đầy đủ in trên hóa đơn, BCTC.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Mã số thuế</Label>
-            <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
-            <p className="text-xs text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Điện thoại</Label>
-            <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 0901234567" />
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Địa chỉ trụ sở</Label>
-            <Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Row 1: Thông tin (2/3) + Thương hiệu (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Building2 className="h-4 w-4 text-primary" />Thông tin doanh nghiệp
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tên hiển thị</Label>
+                <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: Công ty ABC" />
+                <p className="text-[11px] text-muted-foreground">Tên ngắn dùng trong giao diện.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tên pháp nhân</Label>
+                <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
+                <p className="text-[11px] text-muted-foreground">In trên hoá đơn, BCTC.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Mã số thuế</Label>
+                <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+                <p className="text-[11px] text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Điện thoại</Label>
+                <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 0901234567" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Địa chỉ trụ sở</Label>
+              <Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Thương hiệu */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><ImageIcon className="h-4 w-4 text-primary" />Thương hiệu & chữ ký</CardTitle>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <ImageUploader label="Logo" url={form.logo_url} onChange={(u) => set("logo_url", u)} prefix="logo" />
-          <ImageUploader label="Chữ ký (PNG nền trong)" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" />
-          <ImageUploader label="Con dấu (PNG nền trong)" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <ImageIcon className="h-4 w-4 text-primary" />Thương hiệu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <CompactImageRow label="Logo" hint="PNG / JPG" url={form.logo_url} onChange={(u) => set("logo_url", u)} prefix="logo" disabled={!canEdit} />
+            <Separator />
+            <CompactImageRow label="Chữ ký" hint="PNG nền trong" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" disabled={!canEdit} />
+            <Separator />
+            <CompactImageRow label="Con dấu" hint="PNG nền trong" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" disabled={!canEdit} />
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Cấu hình kế toán */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><Calculator className="h-4 w-4 text-primary" />Cấu hình kế toán</CardTitle>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>Chuẩn kế toán</Label>
-            <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TT133">TT133 — Doanh nghiệp nhỏ và vừa</SelectItem>
-                <SelectItem value="TT200">TT200 — Đầy đủ</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Đồng tiền hạch toán</Label>
-            <Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value.toUpperCase())} maxLength={3} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Tháng bắt đầu năm tài chính</Label>
-            <Select disabled={!canEdit} value={String(form.fiscal_year_start ?? 1)} onValueChange={(v) => set("fiscal_year_start", Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Row 2: Cấu hình kế toán + Người ký BCTC */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Calculator className="h-4 w-4 text-primary" />Cấu hình kế toán
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5 sm:col-span-3">
+              <Label className="text-xs">Chuẩn kế toán</Label>
+              <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TT133">TT133 — Doanh nghiệp nhỏ và vừa</SelectItem>
+                  <SelectItem value="TT200">TT200 — Đầy đủ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Đồng tiền hạch toán</Label>
+              <Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value.toUpperCase())} maxLength={3} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">Tháng bắt đầu năm tài chính</Label>
+              <Select disabled={!canEdit} value={String(form.fiscal_year_start ?? 1)} onValueChange={(v) => set("fiscal_year_start", Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Người ký BCTC */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><FileSignature className="h-4 w-4 text-primary" />Người ký Báo cáo tài chính</CardTitle>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>Người lập biểu</Label>
-            <Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Kế toán trưởng</Label>
-            <Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Đại diện pháp luật</Label>
-            <Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <FileSignature className="h-4 w-4 text-primary" />Người ký Báo cáo tài chính
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Người lập biểu</Label>
+              <Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} placeholder="Nhập họ tên" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Kế toán trưởng</Label>
+              <Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} placeholder="Nhập họ tên" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Đại diện pháp luật</Label>
+              <Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} placeholder="Nhập họ tên" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Sticky save bar */}
       {canEdit && dirty && (
