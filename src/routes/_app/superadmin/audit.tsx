@@ -280,11 +280,18 @@ function AuditPage() {
                 </td>
               </tr>
             )}
-            {logs.map((l: any) => (
+            {logs.map((l: any) => {
+              const isSelected = selected?.id === l.id;
+              return (
               <tr
                 key={l.id}
                 onClick={() => setSelected(l)}
-                className="cursor-pointer border-t border-border align-top hover:bg-muted/30"
+                aria-selected={isSelected}
+                className={`cursor-pointer border-t align-top transition-colors ${
+                  isSelected
+                    ? "border-l-2 border-l-primary bg-primary/10 hover:bg-primary/15"
+                    : "border-border hover:bg-muted/30"
+                }`}
               >
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
                   {new Date(l.created_at).toLocaleString("vi-VN")}
@@ -305,7 +312,8 @@ function AuditPage() {
                   Bấm để xem chi tiết
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 
