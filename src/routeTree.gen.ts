@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AppSuperadminRouteImport } from './routes/_app/superadmin'
+import { Route as AppSetupRouteImport } from './routes/_app/setup'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
@@ -70,6 +71,11 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
 const AppSuperadminRoute = AppSuperadminRouteImport.update({
   id: '/superadmin',
   path: '/superadmin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSetupRoute = AppSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/setup': typeof AppSetupRoute
   '/superadmin': typeof AppSuperadminRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
@@ -286,6 +293,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/setup': typeof AppSetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/backup': typeof AppAdminBackupRoute
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/setup': typeof AppSetupRoute
   '/_app/superadmin': typeof AppSuperadminRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
@@ -367,6 +376,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/setup'
     | '/superadmin'
     | '/invite/$token'
     | '/admin/audit'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/setup'
     | '/invite/$token'
     | '/admin/audit'
     | '/admin/backup'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/journal'
+    | '/_app/setup'
     | '/_app/superadmin'
     | '/invite/$token'
     | '/_app/admin/audit'
@@ -517,6 +529,13 @@ declare module '@tanstack/react-router' {
       path: '/superadmin'
       fullPath: '/superadmin'
       preLoaderRoute: typeof AppSuperadminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/setup': {
+      id: '/_app/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof AppSetupRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/journal': {
@@ -800,6 +819,7 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppJournalRoute: typeof AppJournalRoute
+  AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
@@ -827,6 +847,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppJournalRoute: AppJournalRoute,
+  AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
