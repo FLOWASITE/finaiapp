@@ -32,6 +32,7 @@ import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
+import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
@@ -163,6 +164,11 @@ const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   path: '/inventory/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCoaIndexRoute = AppCoaIndexRouteImport.update({
   id: '/coa/',
   path: '/coa/',
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AppAdminIndexRoute
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
+  '/customers/': typeof AppCustomersIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AppAdminIndexRoute
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
+  '/customers': typeof AppCustomersIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/payables': typeof AppPayablesIndexRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
+  '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/cash/'
     | '/coa/'
+    | '/customers/'
     | '/inventory/'
     | '/invoices/'
     | '/payables/'
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/cash'
     | '/coa'
+    | '/customers'
     | '/inventory'
     | '/invoices'
     | '/payables'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/_app/admin/'
     | '/_app/cash/'
     | '/_app/coa/'
+    | '/_app/customers/'
     | '/_app/inventory/'
     | '/_app/invoices/'
     | '/_app/payables/'
@@ -657,6 +669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/customers/': {
+      id: '/_app/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof AppCustomersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/coa/': {
       id: '/_app/coa/'
       path: '/coa'
@@ -828,6 +847,7 @@ interface AppRouteChildren {
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppCoaIndexRoute: typeof AppCoaIndexRoute
+  AppCustomersIndexRoute: typeof AppCustomersIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
@@ -856,6 +876,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSuppliersIdRoute: AppSuppliersIdRoute,
   AppCashIndexRoute: AppCashIndexRoute,
   AppCoaIndexRoute: AppCoaIndexRoute,
+  AppCustomersIndexRoute: AppCustomersIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppPayablesIndexRoute: AppPayablesIndexRoute,
