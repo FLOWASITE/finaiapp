@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
   MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
   Search, Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
-  Plus, FileSpreadsheet, Bot, CreditCard, UserCog, Shield, ShieldAlert,
+  Plus, FileSpreadsheet, Bot, CreditCard, UserCog, Shield, ShieldAlert, TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -33,6 +33,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Bán hàng",
     items: [
+      { to: "/sales-dashboard", label: "Dashboard bán hàng", icon: TrendingUp },
       { to: "/sales", label: "Hoá đơn bán ra", icon: ShoppingCart },
       { to: "/customers", label: "Khách hàng", icon: Users },
       { to: "/receipts", label: "Phiếu thu khách hàng", icon: Wallet },
