@@ -907,13 +907,54 @@ export type Database = {
         }
         Relationships: []
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          barcode: string | null
+          category_id: string | null
           code: string
           cogs_account: string
           created_at: string
           id: string
+          is_active: boolean
+          max_stock: number
+          min_stock: number
           name: string
+          notes: string | null
           on_hand: number
           revenue_account: string
           stock_account: string
@@ -925,11 +966,17 @@ export type Database = {
           vat_rate: number
         }
         Insert: {
+          barcode?: string | null
+          category_id?: string | null
           code: string
           cogs_account?: string
           created_at?: string
           id?: string
+          is_active?: boolean
+          max_stock?: number
+          min_stock?: number
           name: string
+          notes?: string | null
           on_hand?: number
           revenue_account?: string
           stock_account?: string
@@ -941,11 +988,17 @@ export type Database = {
           vat_rate?: number
         }
         Update: {
+          barcode?: string | null
+          category_id?: string | null
           code?: string
           cogs_account?: string
           created_at?: string
           id?: string
+          is_active?: boolean
+          max_stock?: number
+          min_stock?: number
           name?: string
+          notes?: string | null
           on_hand?: number
           revenue_account?: string
           stock_account?: string
@@ -956,7 +1009,15 @@ export type Database = {
           user_id?: string
           vat_rate?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1312,6 +1373,95 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stock_take_lines: {
+        Row: {
+          counted_qty: number
+          diff_qty: number
+          diff_value: number
+          id: string
+          note: string | null
+          product_id: string
+          stock_take_id: string
+          system_qty: number
+          unit_cost: number
+        }
+        Insert: {
+          counted_qty?: number
+          diff_qty?: number
+          diff_value?: number
+          id?: string
+          note?: string | null
+          product_id: string
+          stock_take_id: string
+          system_qty?: number
+          unit_cost?: number
+        }
+        Update: {
+          counted_qty?: number
+          diff_qty?: number
+          diff_value?: number
+          id?: string
+          note?: string | null
+          product_id?: string
+          stock_take_id?: string
+          system_qty?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_take_lines_stock_take_id_fkey"
+            columns: ["stock_take_id"]
+            isOneToOne: false
+            referencedRelation: "stock_takes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_takes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          posted_at: string | null
+          status: string
+          take_date: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+          warehouse: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          posted_at?: string | null
+          status?: string
+          take_date?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+          warehouse?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          posted_at?: string | null
+          status?: string
+          take_date?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+          warehouse?: string | null
+        }
+        Relationships: []
       }
       supplier_payments: {
         Row: {
