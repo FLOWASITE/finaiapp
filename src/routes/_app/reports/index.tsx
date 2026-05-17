@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useMemo, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,11 +13,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Printer, AlertTriangle, FileText, Search } from "lucide-react";
+import { Download, Printer, AlertTriangle, FileText, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
 
+type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string };
+
 export const Route = createFileRoute("/_app/reports/")({
+  validateSearch: (s: Record<string, unknown>): DrillSearch => ({
+    drillR: (s.drillR === "B01" || s.drillR === "B02" || s.drillR === "B03") ? s.drillR : undefined,
+    drillM: typeof s.drillM === "string" ? s.drillM : undefined,
+    drillN: typeof s.drillN === "string" ? s.drillN : undefined,
+  }),
   component: ReportsPage,
 });
 
