@@ -1,74 +1,91 @@
+## Giai đoạn 2 — Multi-tenancy (một tài khoản, nhiều tổ chức)
 
-## Mục tiêu
+Cho phép một user thuộc nhiều tổ chức với vai trò khác nhau, chuyển đổi tổ chức trong header, và mọi dữ liệu nghiệp vụ được phân tách theo `tenant_id` thay vì `user_id`.
 
-Bạn chọn 2 hướng phát triển cho Super Admin → Tổ chức:
-1. **Thống kê & sức khỏe tổ chức** — bổ sung KPI trên từng dòng (số hóa đơn, doanh thu, số thành viên, lần hoạt động gần nhất…).
-2. **Một tài khoản nhiều tổ chức** — mỗi user có thể tạo/tham gia nhiều org và chuyển qua lại.
+### 1. Schema mới
 
-(2) là thay đổi lớn về kiến trúc dữ liệu (hiện tại "tổ chức = chính user owner", `profiles.id = auth user id`, `*.user_id` mọi nơi). Tôi đề nghị làm theo 2 giai đoạn để không phá dữ liệu hiện có.
-
----
-
-## Giai đoạn 1 — Thống kê & sức khỏe (làm ngay, ít rủi ro)
-
-### Backend
-Thêm server function mới `listOrganizationsWithStats` trong `src/lib/superadmin.functions.ts`:
-- Trả về danh sách orgs (như cũ) + cho mỗi org các số liệu, tính bằng query `supabaseAdmin` gộp theo `user_id`:
-  - `invoice_count` (bảng `invoices`)
-  - `sales_total` 12 tháng gần nhất (SUM `sales_invoices.total`)
-  - `members_count` (đếm rows `user_roles` thuộc owner đó — sẽ có nghĩa khi GĐ2 chạy; tạm bằng 1)
-  - `last_activity_at` = MAX(`updated_at`) qua `invoices`, `sales_invoices`, `journal_entries`, `audit_logs`
-  - `storage_invoices_bytes` (sum object size từ bucket `invoices` theo prefix `user_id/`)
-- Hiệu năng: 1 query cho mỗi chỉ số dùng `IN (user_id…)` rồi group, không N+1.
-
-### UI (`src/routes/_app/superadmin/organizations.tsx`)
-- Thêm cột: **Số hóa đơn**, **Doanh thu 12T**, **Hoạt động gần nhất**, **Thành viên** (badge), **Trạng thái** (active / idle >90 ngày / new <7 ngày).
-- Thêm bộ lọc nhanh: `Tất cả / Đang hoạt động / Không hoạt động (>90 ngày) / Mới tạo (<7 ngày)`.
-- Sort theo từng cột (click header).
-- Thẻ tóm tắt phía trên: tổng số tổ chức, tổng hóa đơn, tổng doanh thu, số org idle.
-- Giữ nguyên Tìm kiếm, Sửa, Xóa hiện có.
-
----
-
-## Giai đoạn 2 — Một tài khoản nhiều tổ chức (ask trước khi code)
-
-Đây là refactor lớn, tôi muốn xác nhận hướng trước khi viết migration.
-
-### Mô hình đề xuất
 ```text
-tenants (id, name, owner_user_id, accounting_standard, base_currency, fiscal_year_start, tax_id, address, phone, logo_url, …)  ← tách khỏi profiles
-tenant_members (tenant_id, user_id, role: owner|accountant|viewer, created_at)
-profiles (id, email, display_name, active_tenant_id)  ← chỉ còn thông tin user cá nhân
+tenants
+  id, name, company_name, tax_id, address, phone,
+  accounting_standard, base_currency, fiscal_year_start,
+  logo_url, signature_url, stamp_url,
+  legal_rep_name, chief_accountant_name, preparer_name,
+  owner_user_id, created_at
+
+tenant_members
+  id, tenant_id, user_id, role (owner|admin|accountant|viewer),
+  status (active|invited|disabled), created_at
+  UNIQUE(tenant_id, user_id)
+
+profiles
+  + active_tenant_id uuid  -- tổ chức đang chọn
 ```
-- Mọi bảng dữ liệu hiện có (`invoices`, `sales_invoices`, `journal_entries`, `employees`, `products`, `bank_*`, `cash_vouchers`, `payroll_*`, `fixed_assets`, `audit_logs`, …) thêm `tenant_id uuid not null`.
-- RLS đổi từ `auth.uid() = user_id` → `is_tenant_member(auth.uid(), tenant_id)` (security definer).
 
-### Migration data hiện có
-- Tạo `tenants` row cho mỗi `profiles` hiện hữu (`tenant_id = profiles.id`, `owner_user_id = profiles.id`, copy các trường công ty).
-- Tạo `tenant_members` (user_id = owner, role = owner).
-- Cho mọi bảng: `ALTER TABLE … ADD COLUMN tenant_id uuid; UPDATE … SET tenant_id = user_id; ALTER … SET NOT NULL`.
-- Drop policy cũ, tạo policy mới theo `tenant_id`.
-- Đổi mọi server function/UI từ `user_id` filter → `tenant_id` filter (lấy từ `profiles.active_tenant_id`).
+- Hàm bảo mật: `is_tenant_member(_uid, _tid)`, `has_tenant_role(_uid, _tid, _roles[])`, `current_tenant_id()` (đọc `profiles.active_tenant_id`).
+- `user_invitations` mở rộng: thêm `tenant_id`.
 
-### UI bổ sung
-- Switcher tổ chức ở header (`<TenantSwitcher />`) — dropdown các tenant user là thành viên + nút "Tạo tổ chức mới" + "Chấp nhận lời mời".
-- Trang `/settings/members`: chủ tổ chức mời người khác (đã có sẵn `user_invitations`, chỉ cần gắn `tenant_id`).
-- Super Admin → Tổ chức: cột "Owner" + "Số thành viên" thực sự có ý nghĩa.
+### 2. Migration dữ liệu
 
-### Rủi ro / lưu ý
-- Refactor cỡ trung-lớn: chạm ~20 file route + ~10 server-fn. Cần thử kỹ với 1 dataset thật.
-- Audit log: cần thêm `tenant_id` để Super Admin lọc theo org đúng.
+- Với mỗi user hiện có: tạo 1 `tenants` từ `profiles` (company_name/tax_id/...), thêm `tenant_members(role=owner)`, set `profiles.active_tenant_id`.
+- Thêm cột `tenant_id uuid` (nullable trước) vào tất cả bảng nghiệp vụ:
+  `invoices, invoice_lines (qua invoice), sales_invoices, sales_invoice_lines, journal_entries, journal_lines, bank_accounts, bank_transactions, cash_vouchers, customers, suppliers, supplier_payments, products, stock_movements, fixed_assets, depreciation_entries, employees, payroll_runs, payroll_lines, exchange_rates, period_locks, report_snapshots, report_notes, ai_suggestions`.
+- Backfill `tenant_id = (tenant của owner = user_id)`.
+- Sau backfill: `NOT NULL` + index `(tenant_id)` + `(tenant_id, created_at)` cho bảng lớn.
 
----
+### 3. RLS viết lại
 
-## Đề xuất thực thi
+Thay thế `auth.uid() = user_id` bằng:
+```sql
+USING (is_tenant_member(auth.uid(), tenant_id))
+WITH CHECK (is_tenant_member(auth.uid(), tenant_id)
+            AND tenant_id = current_tenant_id())
+```
+- Hành động ghi (insert/update/delete) chỉ cho `owner|admin|accountant`; `viewer` chỉ select.
+- `period_locks` chỉ `owner|admin`.
+- `audit_logs` ghi thêm `tenant_id` qua trigger.
 
-Tôi sẽ **làm GĐ1 ngay** (xong sớm, có giá trị ngay) và **chờ bạn xác nhận GĐ2** trước khi tạo migration để tránh phá vỡ dữ liệu hiện có.
+### 4. Server functions
 
-Sau khi GĐ1 xong, nếu bạn đồng ý mô hình `tenants + tenant_members + active_tenant_id` ở trên, tôi sẽ:
-1. Tạo migration (bạn duyệt).
-2. Refactor server functions.
-3. Thêm TenantSwitcher + trang quản lý thành viên.
-4. Cập nhật trang Super Admin với dữ liệu thành viên thật.
+`src/lib/tenants.functions.ts`:
+- `listMyTenants()` — trả tenants user thuộc về + role + active flag.
+- `switchTenant({ tenantId })` — kiểm tra membership, update `profiles.active_tenant_id`.
+- `createTenant({ name, ... })` — tạo tenant + membership owner; set active.
+- `inviteMember({ tenantId, email, role })`, `acceptInvitation({ token })`, `removeMember`, `updateMemberRole`.
+- `updateTenantProfile({ ... })` — chỉ owner/admin.
 
-Bấm "Implement plan" để bắt đầu GĐ1, hoặc trả lời nếu muốn đổi thứ tự / phạm vi.
+Cập nhật server fns hiện có (sales/invoices/reports/...) để đọc `current_tenant_id()` và set `tenant_id` khi insert.
+
+### 5. UI
+
+- `<TenantSwitcher />` ở `AppHeader`: dropdown các tổ chức, nút "Tạo tổ chức mới", hiển thị role.
+- `/settings/organization`: chỉnh sửa tenant hiện hành (thay cho việc edit profile công ty).
+- `/settings/members`: danh sách thành viên, mời, đổi role, gỡ.
+- `/onboarding/create-tenant`: hiện khi user chưa có tenant nào (edge case).
+- Superadmin → Organizations: đổi từ "list profiles" sang "list tenants" với stats Giai đoạn 1; cho phép xem thành viên của mỗi tenant.
+
+### 6. Cache & state
+
+- `useTenant()` hook đọc `profiles.active_tenant_id` (react-query, key `['active-tenant']`).
+- Khi `switchTenant` xong: `queryClient.invalidateQueries()` toàn bộ + `router.invalidate()` để reload mọi loader.
+
+### 7. Triển khai theo bước (mỗi bước có migration riêng để rollback)
+
+```text
+B1. Tạo tenants + tenant_members + helpers + RLS cho 2 bảng đó.
+B2. Migration backfill: tạo tenant per-user, gán active_tenant_id.
+B3. Thêm cột tenant_id (nullable) + backfill cho TẤT CẢ bảng nghiệp vụ.
+B4. Thêm RLS mới song song với RLS cũ (cùng đúng → không vỡ).
+B5. Cập nhật server fns + UI: TenantSwitcher, settings/organization, members.
+B6. Set tenant_id NOT NULL, gỡ RLS cũ user_id, gỡ logic user_id ở code.
+B7. Superadmin Organizations chuyển sang tenants + tab thành viên.
+```
+
+### 8. Rủi ro & lưu ý
+
+- **Khối lượng RLS lớn** — viết script kiểm thử per-table trước khi drop policy cũ.
+- **invoice_lines / journal_lines** dùng RLS qua parent: giữ pattern đó, không cần thêm `tenant_id` ở bảng con (tuỳ chọn để tăng tốc query).
+- **Period locks** hiện theo user_id → chuyển theo tenant_id (1 khoá kỳ áp dụng cho cả tenant).
+- **Audit logs** cần `tenant_id` để superadmin lọc theo tổ chức.
+- Bước B6 là điểm "không quay lại" — chỉ chạy khi B1–B5 đã verify trên dữ liệu thật.
+
+Sau khi bạn duyệt, mình sẽ bắt đầu bằng **B1 + B2** (tạo bảng tenants, helpers, migration backfill) và dừng để bạn kiểm tra trước khi đụng vào các bảng nghiệp vụ.
