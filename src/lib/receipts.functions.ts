@@ -13,18 +13,63 @@ const ReceiptSchema = z.object({
 
 export const listReceipts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { invoice_id?: string }) => i)
+  .inputValidator((i: { invoice_id?: string; from?: string; to?: string; method?: string; customer_id?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     let q = supabase
       .from("customer_receipts")
-      .select("*")
+      .select("*, sales_invoices(invoice_no, total, paid_amount, payment_status, due_date)")
       .order("pay_date", { ascending: false })
-      .limit(200);
+      .limit(500);
     if (data.invoice_id) q = q.eq("invoice_id", data.invoice_id);
+    if (data.customer_id) q = q.eq("customer_id", data.customer_id);
+    if (data.method && data.method !== "all") q = q.eq("method", data.method);
+    if (data.from) q = q.gte("pay_date", data.from);
+    if (data.to) q = q.lte("pay_date", data.to);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows;
+  });
+
+export const listOutstandingInvoices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("sales_invoices")
+      .select("id, invoice_no, customer_id, customer_name, issue_date, due_date, total, paid_amount, payment_status, currency")
+      .eq("status", "issued")
+      .in("payment_status", ["unpaid", "partial", "overdue"])
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
+export const receiptsStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { from?: string; to?: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    let q = supabase.from("customer_receipts").select("amount, method, pay_date");
+    if (data.from) q = q.gte("pay_date", data.from);
+    if (data.to) q = q.lte("pay_date", data.to);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const total = (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
+    const cash = (rows ?? []).filter((r) => r.method === "cash").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const bank = (rows ?? []).filter((r) => r.method === "bank").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const other = total - cash - bank;
+    const { data: outRows } = await supabase
+      .from("sales_invoices")
+      .select("total, paid_amount")
+      .eq("status", "issued")
+      .in("payment_status", ["unpaid", "partial", "overdue"]);
+    const outstanding = (outRows ?? []).reduce(
+      (s, r) => s + (Number(r.total || 0) - Number(r.paid_amount || 0)),
+      0,
+    );
+    return { total, cash, bank, other, count: (rows ?? []).length, outstanding };
   });
 
 export const recordReceipt = createServerFn({ method: "POST" })
