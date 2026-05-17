@@ -63,7 +63,7 @@ function Journal() {
 
       <div className="mt-6 space-y-4">
         {(entries ?? []).map((e) => (
-          <div key={e.id} className="rounded-lg border border-border bg-card p-5">
+          <div key={e.id} id={`entry-${e.id}`} className={`rounded-lg border bg-card p-5 transition-colors ${highlight === e.id ? "border-primary ring-2 ring-primary/40" : "border-border"}`}>
             <div className="flex items-center justify-between border-b border-border pb-2">
               <div>
                 <div className="font-medium">{e.description}</div>
