@@ -100,20 +100,20 @@ export const createTenant = createServerFn({ method: "POST" })
   });
 
 const UpdateTenantSchema = z.object({
-  name: z.string().max(255).optional(),
-  company_name: z.string().max(255).optional(),
-  tax_id: z.string().max(50).optional(),
-  address: z.string().max(500).optional(),
-  phone: z.string().max(50).optional(),
-  accounting_standard: z.enum(["TT133", "TT200"]).optional(),
-  base_currency: z.string().max(10).optional(),
-  fiscal_year_start: z.number().int().min(1).max(12).optional(),
-  logo_url: z.string().nullable().optional(),
-  signature_url: z.string().nullable().optional(),
-  stamp_url: z.string().nullable().optional(),
-  legal_rep_name: z.string().max(255).optional(),
-  chief_accountant_name: z.string().max(255).optional(),
-  preparer_name: z.string().max(255).optional(),
+  name: z.string().max(255).nullish(),
+  company_name: z.string().max(255).nullish(),
+  tax_id: z.string().max(50).nullish(),
+  address: z.string().max(500).nullish(),
+  phone: z.string().max(50).nullish(),
+  accounting_standard: z.enum(["TT133", "TT200"]).nullish(),
+  base_currency: z.string().max(10).nullish(),
+  fiscal_year_start: z.number().int().min(1).max(12).nullish(),
+  logo_url: z.string().nullish(),
+  signature_url: z.string().nullish(),
+  stamp_url: z.string().nullish(),
+  legal_rep_name: z.string().max(255).nullish(),
+  chief_accountant_name: z.string().max(255).nullish(),
+  preparer_name: z.string().max(255).nullish(),
 });
 
 export const updateActiveTenant = createServerFn({ method: "POST" })
@@ -129,7 +129,15 @@ export const updateActiveTenant = createServerFn({ method: "POST" })
     const tid = profile?.active_tenant_id;
     if (!tid) throw new Error("Chưa chọn tổ chức");
 
-    const { error } = await supabase.from("tenants").update(data).eq("id", tid);
+    // Loại bỏ null cho các cột NOT NULL; giữ null cho cột nullable (logo_url, signature_url, stamp_url).
+    const NULLABLE = new Set(["logo_url", "signature_url", "stamp_url", "address", "tax_id", "phone", "company_name", "legal_rep_name", "chief_accountant_name", "preparer_name"]);
+    const patch: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v === undefined) continue;
+      if (v === null && !NULLABLE.has(k)) continue;
+      patch[k] = v;
+    }
+    const { error } = await supabase.from("tenants").update(patch as any).eq("id", tid);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
