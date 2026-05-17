@@ -161,6 +161,7 @@ function AuditPage() {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const pageCount = data?.pages.length ?? 0;
 
   useEffect(() => {
@@ -444,7 +445,14 @@ function AuditPage() {
       </div>
 
       <Dialog open={modalOpen && !!selected} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
+        <DialogContent
+          className="max-h-[85vh] max-w-3xl overflow-hidden"
+          onOpenAutoFocus={(e) => {
+            // Đảm bảo focus rơi vào nút "Đóng" để Enter/Escape thao tác ngay.
+            e.preventDefault();
+            closeBtnRef.current?.focus();
+          }}
+        >
           {selected && (
             <>
               <DialogHeader>
@@ -514,7 +522,7 @@ function AuditPage() {
                   <Copy className="mr-2 h-3.5 w-3.5" />
                   Copy JSON
                 </Button>
-                <Button size="sm" onClick={() => setModalOpen(false)}>
+                <Button ref={closeBtnRef} size="sm" onClick={() => setModalOpen(false)}>
                   Đóng
                 </Button>
               </DialogFooter>
