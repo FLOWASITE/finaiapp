@@ -413,6 +413,19 @@ function AuditPage() {
               </DialogHeader>
 
               <div className="max-h-[60vh] space-y-3 overflow-auto pr-1">
+                <div className="rounded border border-dashed border-border bg-muted/30 p-2">
+                  <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Bộ lọc đang áp dụng
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {activeFilters.map((f) => (
+                      <Badge key={f.label} variant="outline" className="font-normal">
+                        <span className="text-muted-foreground">{f.label}:</span>
+                        <span className="ml-1 font-mono">{f.value}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <DetailRow label="Log ID" value={selected.id} mono />
                   <DetailRow label="Người thao tác (email)" value={selected.actor_email ?? "—"} />
