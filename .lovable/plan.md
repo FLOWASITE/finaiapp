@@ -1,98 +1,58 @@
-## Kết quả research thị trường
+# Kế hoạch: Sidebar hiện đại – phá cách – AI-first
 
-Khảo sát MISA AMIS, MISA SME 2026, FAST Accounting, AccNet ERP, 1C:Finance, Viindoo. Tất cả phần mềm kế toán Việt đang dẫn đầu đều có chung **9 phân hệ chuẩn** ngoài bộ nhập liệu + sổ kế toán + BCTC:
+Mục tiêu: nâng cấp sidebar AccuVN hiện tại (tĩnh, phẳng, danh sách link đơn giản) thành một "command surface" hiện đại, có chiều sâu thị giác và tích hợp AI ngay trong sidebar.
 
-| Phân hệ | AccuVN hiện tại | Đối thủ |
-|---|---|---|
-| Hóa đơn đầu vào + OCR + định khoản AI | ✅ Có | Có |
-| Sổ nhật ký + Sổ cái | ⚠️ Mới sổ nhật ký | Có đủ |
-| BCTC B01/B02/B03 | ✅ Có | Có |
-| Đối soát ngân hàng | ✅ Có | Có |
-| Khấu hao TSCĐ | ✅ Có | Có |
-| Trợ lý AI hỏi-đáp dữ liệu | ✅ Có (USP) | Không có |
-| **Mua hàng / Bán hàng (đơn hàng → hóa đơn)** | ❌ | ✅ |
-| **Quản lý kho (Nhập–Xuất–Tồn, giá xuất kho)** | ❌ | ✅ |
-| **Công nợ phải thu / phải trả + tuổi nợ** | ❌ | ✅ |
-| **Quỹ tiền mặt (Phiếu thu / Phiếu chi)** | ❌ | ✅ |
-| **Tờ khai thuế GTGT 01/GTGT + bảng kê + XML HTKK** | ❌ | ✅ |
-| **Hóa đơn điện tử đầu ra + nộp TCT** | ❌ | ✅ |
-| Tiền lương + BHXH | ❌ | ✅ |
-| Giá thành sản xuất | ❌ | ✅ (gói cao) |
-| Đa tiền tệ + chênh lệch tỷ giá | ❌ | ✅ |
-| Kết chuyển cuối kỳ (Nợ 911) | ❌ | ✅ |
+## Tham chiếu thiết kế (research)
+- **Linear / Vercel / Raycast**: sidebar tối, dày dặn, group có thể thu gọn, phím tắt, command palette ⌘K luôn nổi bật trên cùng.
+- **Notion / ChatGPT**: ô "Ask AI" lớn, gợi ý prompt nhanh, lịch sử hội thoại pin lên đầu.
+- **Vercel Geist / Arc Browser**: collapsible rail (mở rộng khi hover), section dividers mảnh, micro-animation khi active.
+- **MISA AMIS / FAST**: giữ nhóm chức năng kế toán truyền thống (Mua–Bán, Kho–Quỹ, Sổ–Thuế) để kế toán viên không bị lạc.
 
-## Đề xuất Phase 3 — 5 phân hệ ưu tiên
+## Hướng thiết kế đề xuất
+1. **Layout & cấu trúc**
+   - Dùng `Sidebar` của shadcn với `collapsible="icon"` → mặc định 240px, thu gọn còn 56px (icon-only), có `SidebarTrigger` ở header.
+   - Header sidebar: logo "A" gradient + tên AccuVN + badge phiên bản nhỏ.
+   - 3 vùng dọc: **AI zone** (trên) · **Navigation groups** (giữa, cuộn) · **User card** (dưới).
 
-Chọn theo nguyên tắc: bịt khoảng cách lớn nhất với MISA, tận dụng dữ liệu sẵn có (invoices, journal, bank), giữ vai trò AI làm USP. Bỏ qua tiền lương / giá thành / đa tiền tệ — để Phase 4.
+2. **AI zone – điểm phá cách**
+   - Khối "Ask AccuVN" nổi: nền gradient mềm (`--gradient-primary`), shadow `--shadow-elegant`, input giả lập + phím tắt ⌘K.
+   - Click → mở Command Dialog (cmdk) với: tìm trang, hỏi AI, lệnh nhanh ("Tạo phiếu thu", "BCTC tháng này"…).
+   - 2–3 "AI suggestions" động bên dưới (chip pill, icon Sparkles) – mock tĩnh ở phase này, hook vào dữ liệu sau.
+   - Link nhanh "Trợ lý AI" → `/chat`.
 
-### 1. Quản lý kho — Nhập–Xuất–Tồn
-- Bảng `products` (mã, tên, ĐVT, TK kho 156/152, TK doanh thu 511, TK giá vốn 632)
-- Bảng `stock_movements` (in/out, qty, unit_cost, ref đến invoice/sales_order)
-- Tính giá xuất kho **bình quân gia quyền cuối kỳ** (chuẩn TT133, đơn giản nhất)
-- Báo cáo: Sổ chi tiết vật tư, Bảng tổng hợp Nhập–Xuất–Tồn
-- AI bonus: gợi ý map line hóa đơn → mã hàng có sẵn
+3. **Navigation groups**
+   - Collapsible group (Mua–Bán / Kho–Quỹ / Sổ–Thuế) – nhớ trạng thái mở theo route active.
+   - NavItem: icon trong khung bo nhẹ, active state dùng thanh accent trái + nền `bg-accent/10`, animation `fade-in` + scale icon.
+   - Badge số (vd: HĐ chờ duyệt) bên phải, dùng token semantic.
+   - Khi collapsed: chỉ icon + tooltip (shadcn Tooltip), giữ accent strip.
 
-### 2. Phiếu thu / Phiếu chi + Sổ quỹ tiền mặt
-- Bảng `cash_vouchers` (loại receipt/payment, TK đối ứng, người nộp/nhận, lý do)
-- Tự sinh bút toán: Nợ 111/Có X (thu) hoặc Nợ X/Có 111 (chi)
-- In phiếu thu/chi theo mẫu TT133 (PDF A5)
-- Sổ quỹ tiền mặt — số dư đầu/cuối, đối chiếu thủ quỹ
+4. **User card (dưới)**
+   - Avatar + email + role chip, menu dropdown: Hồ sơ / Cài đặt / Đăng xuất.
+   - Indicator "Lovable Cloud" online (chấm xanh pulse).
 
-### 3. Công nợ phải thu / phải trả
-- View tự suy ra từ `journal_lines` lọc TK 131 (phải thu) và 331 (phải trả) group theo supplier/customer
-- Báo cáo tuổi nợ (aging): 0–30, 31–60, 61–90, >90 ngày
-- Trang chi tiết công nợ 1 đối tượng: sổ chi tiết phát sinh + số dư
-- Cảnh báo AI: top 5 khoản nợ quá hạn cần đòi
+5. **Visual system**
+   - Bổ sung token trong `src/styles.css`: `--sidebar-bg`, `--sidebar-accent`, `--gradient-ai`, `--shadow-ai-card`.
+   - Hỗ trợ light/dark. Phá cách = nền hơi tối hơn main (`oklch` lệch ~3%), border gần như vô hình, dùng inner-shadow thay border ở AI card.
+   - Animation: `animate-fade-in` cho group, `hover-scale` cho AI card, transition 200ms cho collapse.
 
-### 4. Tờ khai thuế GTGT 01/GTGT + Bảng kê
-- Tổng hợp từ `invoices` (đầu vào) + hóa đơn đầu ra (sẽ thêm ở mục 5)
-- Bảng kê hóa đơn mua vào / bán ra theo định dạng HTKK
-- Tính số thuế GTGT phải nộp = Đầu ra − Đầu vào được khấu trừ
-- Export XML đúng schema HTKK của TCT để nộp qua thuedientu.gdt.gov.vn
+6. **Tương thích & a11y**
+   - Phím tắt ⌘K / Ctrl+K mở command palette toàn app.
+   - aria-label đầy đủ, focus ring rõ ràng, keyboard nav cho group expand.
+   - Responsive: <768px chuyển sang `Sheet` (offcanvas) với cùng nội dung.
 
-### 5. Hóa đơn điện tử đầu ra (mock + chuẩn bị TCT)
-- Bảng `sales_invoices` (số hóa đơn, ký hiệu, khách hàng, lines, VAT)
-- UI tạo / in mẫu HĐĐT theo TT78/2021
-- Server function `issueEInvoice` — đầu Phase 3 trả mock số hóa đơn + QR; để hook sẵn cho T-VAN (Viettel/VNPT/Misa Meinvoice) ở Phase 4
-- Tự sinh bút toán bán hàng: Nợ 131/Có 511, Có 33311
+## Phạm vi kỹ thuật
+- Refactor `src/routes/_app.tsx` để dùng `SidebarProvider` + component `AppSidebar` mới tại `src/components/app-sidebar.tsx`.
+- Tạo `src/components/sidebar/ai-launcher.tsx` (AI card + cmdk dialog) và `src/components/sidebar/user-card.tsx`.
+- Cài `cmdk` (đã có qua shadcn `command`) – kiểm tra, nếu chưa có thì thêm `bun add cmdk`.
+- Thêm tokens vào `src/styles.css` (không đổi palette gốc, chỉ thêm biến).
+- KHÔNG đổi business logic, KHÔNG đổi routes hiện có.
 
-## Kiến trúc kỹ thuật
+## Ngoài phạm vi (phase sau)
+- AI suggestions thật từ dữ liệu (cần serverFn riêng).
+- Pin/sắp xếp menu theo người dùng (cần bảng `user_preferences`).
+- Đa ngôn ngữ.
 
-```text
-src/lib/
-  inventory.functions.ts     (CRUD products, post stock movements, calcCogs)
-  cash.functions.ts          (vouchers + auto journal)
-  receivables.functions.ts   (AR/AP aging queries)
-  tax.functions.ts           (build VAT return + XML export)
-  sales.functions.ts         (sales invoice + e-invoice issue)
-
-src/routes/_app/
-  inventory/index.tsx        (products list + stock report)
-  cash/index.tsx             (vouchers + cash book)
-  receivables/index.tsx      (AR/AP tabs + aging)
-  tax/index.tsx              (01/GTGT preview + export)
-  sales/index.tsx            (sales invoices list)
-  sales/$id.tsx              (detail + issue button)
-```
-
-- Migrations Supabase cho 5 bảng mới + RLS theo `user_id` (giữ pattern hiện tại)
-- Mở rộng nav sidebar 5 mục mới — gom thành nhóm: "Mua–Bán", "Kho", "Quỹ", "Công nợ", "Thuế"
-- Tái sử dụng `chart_of_accounts` đã seed TT133 — không sửa schema cũ
-- Module Trợ lý AI mở rộng tool `runQuery` để truy vấn 5 bảng mới
-
-## Thứ tự thực hiện
-
-1. Migrations + RLS (5 bảng)
-2. Quản lý kho (nền tảng cho bán hàng + giá vốn)
-3. Phiếu thu / Phiếu chi
-4. Công nợ — chỉ là báo cáo, không cần bảng mới
-5. Hóa đơn bán ra + mock e-invoice
-6. Tờ khai 01/GTGT + bảng kê + XML
-7. Cập nhật sidebar + AI chatbot tool schema
-
-## Ngoài phạm vi Phase 3 (để Phase 4)
-- Tiền lương + BHXH (nghiệp vụ phức tạp, cần bảng nhân sự riêng)
-- Giá thành sản xuất (chỉ doanh nghiệp SX)
-- Đa tiền tệ + tỷ giá
-- Tích hợp T-VAN thật cho HĐĐT + nộp tờ khai
-- Multi-company / phân quyền nhiều user
+## Câu hỏi trước khi build
+1. Tone màu: giữ light mặc định hay làm sidebar **dark mode-only** (kiểu Linear/Vercel) để tạo cảm giác phá cách?
+2. AI launcher: chỉ là **command palette ⌘K** hay kèm **mini-chat inline** (gõ câu hỏi ngay trong sidebar, kết quả mở `/chat`)?
+3. Có cần **collapsible icon-rail** (thu gọn còn 56px) ngay phase này không?
