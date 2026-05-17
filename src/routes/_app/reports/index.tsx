@@ -36,10 +36,13 @@ function ReportsPage() {
   const [to, setTo] = useState(today);
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
+  const [showSignature, setShowSignature] = useState(true);
+  const [drill, setDrill] = useState<null | { report: "B01" | "B02"; ma_so: string; name: string }>(null);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
-  const fiscalStart = Number(profileQ.data?.fiscal_year_start ?? 1);
+  const profile: any = profileQ.data ?? {};
+  const fiscalStart = Number(profile?.fiscal_year_start ?? 1);
 
   // Tính 'Số đầu năm' = ngày trước khi bắt đầu năm tài chính chứa `to`
   const { prevFrom, prevTo, prevAsOf } = useMemo(() => {
