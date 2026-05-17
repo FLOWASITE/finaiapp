@@ -1,158 +1,136 @@
-## Mục tiêu
+# Hoàn thiện Phân hệ Bán hàng
 
-Nâng cấp "Khai báo Tổ chức" theo chuẩn Xero / QuickBooks / MISA / Fast:
-hồ sơ pháp lý đầy đủ, dữ liệu nhập 1 lần dùng xuyên suốt hệ thống (hoá đơn,
-BCTC, kê khai thuế). Bắt buộc đầy đủ + auto-fill từ MST.
+Phạm vi rộng → triển khai theo **7 phase** đóng gói. Mỗi phase tự đứng được, có thể duyệt từng cái. Phase 1–3 là core value (đa số khách hàng dùng), Phase 4–7 mở rộng.
 
-## 1. Mở rộng schema `tenants`
-
-Thêm các cột (đều nullable, không phá dữ liệu cũ):
-
-**Hồ sơ pháp lý**
-- `trade_name` — tên giao dịch (khác tên pháp nhân)
-- `legal_form` — enum: `llc` (TNHH), `jsc` (CP), `partnership` (Hợp danh),
-  `sole_prop` (DNTN), `household` (HKD), `branch` (Chi nhánh), `other`
-- `business_reg_no` — số GPKD/ĐKKD
-- `business_reg_date` — ngày cấp
-- `business_reg_place` — nơi cấp (Sở KH-ĐT…)
-- `established_date` — ngày thành lập
-- `industry_code` — mã ngành VSIC chính (vd "6920")
-- `industry_name` — tên ngành chính
-
-**Thuế**
-- `tax_authority` — chi cục thuế quản lý
-- `tax_method` — enum: `deduction` (khấu trừ) / `direct_revenue` /
-  `direct_gtgt` (trực tiếp trên GTGT)
-- `vat_period` — enum: `monthly` / `quarterly`
-- `pit_method` — enum: `monthly` / `quarterly`
-
-**Liên hệ mở rộng**
-- `email`, `website`, `fax`
-- `billing_address`, `shipping_address` (toggle "giống trụ sở")
-
-**Đại diện chi tiết** (mở rộng từ 3 cột tên đã có)
-- `legal_rep_title` — chức danh (Giám đốc / Tổng giám đốc…)
-- `legal_rep_id_no` — CCCD/CMND
-- `legal_rep_id_date` — ngày cấp
-- `legal_rep_phone`
-- `chief_accountant_cert_no` — số chứng chỉ hành nghề kế toán
-
-**Trạng thái khai báo**
-- `setup_completed` — boolean, default false
-- `setup_completed_at` — timestamp
-
-CHECK constraints cho enum, validation trigger cho ngày (không tương lai
-cho `established_date`, `business_reg_date`).
-
-## 2. Server functions (`src/lib/tenants.functions.ts`)
-
-- Mở rộng `UpdateTenantSchema` (Zod) với mọi field mới — `max/min`, regex
-  cho mã ngành 4-6 số, format ngày, format CCCD 9/12 số.
-- Hàm mới `completeTenantSetup(data)` — validate đầy đủ trường cốt lõi
-  rồi set `setup_completed=true`, `setup_completed_at=now()`.
-- Hàm mới `getSetupProgress()` — trả `{percent, missing[]}` cho thanh tiến độ.
-- Mở rộng `getActiveTenant` trả thêm field mới + `setup_completed`.
-
-## 3. UI flow
-
-### A. Setup Wizard `/_app/setup` (tenant mới hoặc `setup_completed=false`)
-
-Layout: header steps progress + body card + footer Back/Next. 5 bước:
-
-1. **Pháp lý cơ bản** — MST (TaxIdLookupInput auto-fill), Tên pháp nhân,
-   Tên giao dịch, Loại hình DN, GPKD số/ngày/nơi cấp, Ngày thành lập, Mã
-   ngành (combobox tra cứu VSIC top 20 + nhập tay).
-2. **Liên hệ & địa chỉ** — Địa chỉ trụ sở, Email, ĐT, Website, Fax;
-   toggle billing/shipping khác trụ sở.
-3. **Cấu hình tài chính** — Chuẩn kế toán (TT133/TT200), Đồng tiền hạch
-   toán, Tháng bắt đầu năm tài chính, PP tính thuế GTGT, Kỳ kê khai
-   GTGT/TNCN, Chi cục thuế.
-4. **Người ký BCTC** — Đại diện pháp luật (tên, chức danh, CCCD + ngày
-   cấp, ĐT), Kế toán trưởng (tên, số chứng chỉ), Người lập biểu.
-5. **Thương hiệu** — Logo, chữ ký, con dấu (CompactImageRow).
-
-Sau bước 5: nút "Hoàn tất khai báo" gọi `completeTenantSetup`, redirect
-`/dashboard`. Cho phép "Bỏ qua, hoàn tất sau" — set `setup_completed=false`
-và đi tiếp; sidebar hiện badge nhắc.
-
-Route guard: nếu `setup_completed=false` và đường dẫn ≠ `/setup`/`/settings`,
-hiện banner mềm "Hoàn tất khai báo tổ chức" với link, KHÔNG ép redirect
-(tránh chặn user khám phá).
-
-### B. Edit form `/_app/settings` (long-form + side-nav, Xero style)
-
-Cấu trúc tab Tổ chức:
+## Tổng quan luồng nghiệp vụ
 
 ```text
-┌─────────────────┬───────────────────────────────────┐
-│ ▸ Pháp lý       │  [Card] Hồ sơ pháp lý             │
-│ ▸ Liên hệ       │   ...                             │
-│ ▸ Tài chính     │  [Card] Liên hệ & Địa chỉ         │
-│ ▸ Người ký      │   ...                             │
-│ ▸ Thương hiệu   │  [Card] Cấu hình tài chính        │
-│ ▸ Tiến độ 85%   │   ...                             │
-└─────────────────┴───────────────────────────────────┘
-                            [sticky save bar]
+Báo giá (Quote) ──► Đơn bán (SO) ──► Phiếu giao (DN) ──► Hoá đơn (Invoice) ──► Phiếu thu (Receipt)
+                                                              │
+                                                              ├─► Credit Note (điều chỉnh/trả hàng)
+                                                              └─► Recurring (định kỳ)
 ```
 
-- Side-nav sticky bên trái (lg breakpoint), mobile thu thành tab cuộn ngang.
-- Mỗi mục là `<section id="...">` để anchor scroll mượt, highlight active
-  bằng IntersectionObserver.
-- Thanh tiến độ hồ sơ ở cuối side-nav (vd 85% — 3 trường còn thiếu).
-- Sticky save bar giữ nguyên design hiện tại.
+---
 
-## 4. Component mới
+## Phase 1 — Customer Master + Bộ khung dữ liệu
 
-- `src/components/legal-form-select.tsx` — Select với 7 loại hình DN.
-- `src/components/industry-combobox.tsx` — combobox tra cứu mã ngành VSIC
-  (data top 50 ngành phổ biến hard-code trong `src/lib/vsic.ts`, kèm input
-  tay nếu không có).
-- `src/components/setup-stepper.tsx` — UI bước cho wizard.
-- `src/components/settings-section-nav.tsx` — side-nav anchor + scrollspy.
-- Tái dùng: `TaxIdLookupInput`, `CompactImageRow`, `Input/Select`.
+**Migration `tenants/sales/v2`**
 
-## 5. Auto-fill từ MST
+- Mở rộng `customers`: `code`, `payment_terms_days`, `currency`, `opening_balance`, `email_cc`, `contact_person`, `notes`, `is_active`. Validation trigger: `code` unique trong tenant.
+- Mở rộng `sales_invoices`: `discount_percent`, `discount_amount`, `shipping_fee`, `other_fees`, `fx_rate`, `payment_status` (unpaid/partial/paid/overdue), `paid_amount`, `due_date`, `payment_terms_days`, `billing_address`, `shipping_address`, `customer_email`, `quote_id`, `sales_order_id`, `einvoice_template_id`, `send_status`, `sent_at`.
+- Mở rộng `sales_invoice_lines`: `line_discount_percent`, `line_discount_amount`, `vat_code` (text: `0`/`5`/`8`/`10`/`KCT`/`KKKNT`), `pre_vat_amount`, `vat_amount`.
+- Bảng mới `customer_receipts` (mirror `supplier_payments`): `invoice_id`, `customer_id`, `pay_date`, `method`, `amount`, `reference`, `journal_entry_id`. RLS + trigger refresh `sales_invoices.payment_status`.
+- Tất cả bảng mới có RLS theo `tenant_id` + `has_tenant_role` (owner/admin/accountant).
 
-Mở rộng `taxLookup` đã có để map đầy đủ vào form:
-- `name` → company_name
-- `address` → address
-- `taxId` → tax_id
-- Nếu API trả `legal_rep`/`industry` → điền tương ứng (chỉ khi field đang trống).
+**Code mới**
 
-## 6. Validation
+- `src/lib/customers.functions.ts` — list/get/upsert/archive.
+- `src/lib/vat-codes.ts` — danh mục mã thuế VN + helper `calcLineTax`.
+- `src/components/customer-combobox.tsx` — popover search + nút "Tạo mới nhanh".
+- `src/routes/_app/customers/index.tsx` — table + dialog CRUD (theo style settings/index.tsx).
 
-- Client (Zod + react-hook-form): MST 10/13 số, ngày không tương lai,
-  email, website URL, CCCD 9/12 số, mã ngành 4-6 chữ số.
-- Server (Zod): cùng schema, là nguồn chân lý.
-- Mỗi bước wizard chỉ validate trường thuộc bước đó trước khi Next.
-- `completeTenantSetup` validate full schema "required cốt lõi": MST,
-  tên pháp nhân, loại hình, GPKD số + ngày, địa chỉ, chuẩn kế toán, đồng
-  tiền, năm tài chính, đại diện pháp luật (tên + chức danh).
+---
 
-## 7. Cập nhật điểm khác
+## Phase 2 — Editor Hoá đơn nâng cấp
 
-- Sidebar: badge cảnh báo "Khai báo chưa đủ" khi `setup_completed=false`.
-- Tenant switcher: hiển thị tên giao dịch (`trade_name`) nếu có, fallback
-  `company_name` → `name`.
-- Hoá đơn / BCTC: kéo legal_rep_title, chief_accountant_cert_no, GPKD…
-  vào template in.
+**Mục tiêu**: thay editor hiện tại bằng form đầy đủ chuẩn Xero/QB.
 
-## Phân chia file thực hiện
+- `src/routes/_app/sales/new.tsx` + `sales/$id/edit.tsx` — editor mới (full-page, không dialog).
+  - Header: Khách hàng (customer-combobox, auto-fill địa chỉ/email/term), Ngày HĐ, Ngày đến hạn (auto = +term), Tham chiếu, Ghi chú công khai.
+  - Tiền tệ: chọn VND/USD/EUR…, auto lấy `fx_rate` từ `exchange_rates`, cảnh báo nếu thiếu.
+  - Bảng dòng: Sản phẩm (combobox), Diễn giải, SL, Đơn giá, **Chiết khấu (%/số)**, **Mã thuế** (select), Thành tiền sau thuế.
+  - Tổng kết phải: Cộng tiền hàng → Chiết khấu HĐ (% hoặc số) → Phí vận chuyển → Phí khác → Thuế GTGT (chi tiết từng mã) → **Tổng thanh toán**.
+  - Sticky action bar: Lưu nháp / Lưu & Phát hành / Lưu & In / Lưu & Gửi email.
+- `upsertSalesInvoice` & `issueSalesInvoice` cập nhật:
+  - Tính lại subtotal/vat/discount/total bám đúng mã thuế (KCT/KKKNT không tạo dòng 33311).
+  - Multi-currency: lưu cả `total` (ngoại tệ) và `total_vnd = total * fx_rate`; bút toán hạch toán bằng VND.
+  - Phân bổ chiết khấu HĐ về từng dòng để tính VAT đúng.
+- Server fn mới `voidSalesInvoice` (hủy + reverse bút toán nếu chưa thu).
 
-- `supabase/migrations/...` — ALTER TABLE tenants + CHECK + trigger.
-- `src/lib/tenants.functions.ts` — mở rộng schema, thêm
-  `completeTenantSetup`, `getSetupProgress`.
-- `src/lib/vsic.ts` — danh mục mã ngành (mới).
-- `src/components/legal-form-select.tsx`, `industry-combobox.tsx`,
-  `setup-stepper.tsx`, `settings-section-nav.tsx` (mới).
-- `src/routes/_app/setup.tsx` (mới) — wizard 5 bước.
-- `src/routes/_app/settings/index.tsx` — viết lại OrganizationTab theo
-  long-form + side-nav.
-- `src/components/tenant-switcher.tsx` — ưu tiên `trade_name`.
-- `src/components/app-sidebar.tsx` — badge cảnh báo setup chưa đủ.
+---
 
-## Ngoài phạm vi lần này
+## Phase 3 — Phiếu thu + Theo dõi công nợ + PDF + Email
 
-- Khu vực & định dạng (timezone, locale, decimal): để lần sau.
-- Multi-branch (nhiều chi nhánh dưới 1 tổ chức): cần schema riêng.
-- Import VSIC đầy đủ ~600 mã: tạm dùng top 50.
+**Phiếu thu (Customer Receipts)**
+
+- `src/lib/receipts.functions.ts`: `listReceipts`, `recordReceipt` (auto bút toán Nợ 111/112 / Có 131, set `payment_status`), `deleteReceipt`.
+- Tại trang `sales/$id`: panel "Lịch sử thanh toán" + nút "Ghi nhận thanh toán" mở dialog (ngày, số tiền, phương thức, tham chiếu).
+- Cập nhật `receivables` để dùng `payment_status` thay vì tính lại từ đầu.
+
+**PDF + In**
+
+- Component `src/components/invoice-print-template.tsx` — layout chuẩn TT78: logo + thông tin DN (lấy từ tenant), thông tin khách, bảng dòng, tổng tiền, người ký, mã CQT + QR.
+- Route `src/routes/_app/sales/$id.print.tsx` — render template + auto `window.print()` (no extra dep, dùng `@media print` CSS).
+- Server fn `generateInvoicePdf` dùng `@react-pdf/renderer` (Worker-compatible) trả base64 để dùng cho email.
+
+**Email**
+
+- Nếu hạ tầng email chưa thiết lập, gọi `setup_email_infra` + `scaffold_transactional_email` trước.
+- Server fn `sendInvoiceEmail(invoiceId, to, cc, subject, body)`: tạo PDF, push vào hàng đợi email, đánh dấu `send_status='sent'`, `sent_at=now()`.
+- UI: dialog "Gửi email" trong trang chi tiết (prefill từ customer.email).
+
+**Dashboard bán hàng**
+
+- Trang `/sales` redesign: 4 KPI cards (Doanh thu tháng, Doanh thu YTD, Công nợ chưa thu, Quá hạn), filter (khoảng ngày, trạng thái, khách hàng, mã thuế), search invoice_no/customer, export CSV.
+
+---
+
+## Phase 4 — Credit Note (Hoá đơn điều chỉnh/trả hàng)
+
+- Bảng `credit_notes` + `credit_note_lines` (FK → `sales_invoices`).
+- Route `/sales/credit-notes` list + form. Nút "Tạo CN" từ trang chi tiết HĐ → prefill dòng từ HĐ gốc, cho phép giảm SL/tiền.
+- Server fn `issueCreditNote`: bút toán đảo (Nợ 5213 — Hàng bán bị trả lại / Nợ 33311 / Có 131), nếu liên quan tồn kho → tạo `stock_movements` "in" và đảo COGS.
+
+---
+
+## Phase 5 — Quote / Sales Order / Delivery Note
+
+- 3 module song song, schema giống `sales_invoices` (header + lines + status).
+- `quotes`: status `draft/sent/accepted/rejected/expired`, có `valid_until`. Nút "Convert to SO" hoặc "Convert to Invoice".
+- `sales_orders`: status `open/partial/fulfilled/cancelled`, link tới Quote/Invoice.
+- `delivery_notes`: status `draft/delivered/cancelled`, khi xác nhận → tạo `stock_movements` "out" + giảm `on_hand`.
+- Routes `/sales/quotes`, `/sales/orders`, `/sales/deliveries` cùng pattern list + editor.
+
+---
+
+## Phase 6 — Recurring Invoices
+
+- Bảng `recurring_invoices`: customer, lines template (jsonb), `frequency` (monthly/quarterly/yearly), `next_run_date`, `until_date`, `is_active`, `last_invoice_id`.
+- Route `/sales/recurring` quản lý.
+- Server route public `/api/public/cron/recurring-invoices` (xác thực header `x-cron-secret`) — sinh HĐ nháp khi `next_run_date <= today`, advance `next_run_date`. Người dùng cấu hình pg_cron gọi URL stable này.
+
+---
+
+## Phase 7 — E-invoice Provider Schema (chuẩn bị provider thật)
+
+- Bảng `einvoice_providers` (1 dòng/tenant): `provider` (viettel/vnpt/misa/easyca/m_invoice/mock), `api_url`, `username`, `password_encrypted`, `default_template_id`, `test_mode`.
+- Bảng `einvoice_templates`: `symbol` (ký hiệu, vd `1C25TAA`), `template_no` (số mẫu `1/001`), `series`, `current_no`, `is_default`.
+- Tab "Hoá đơn điện tử" trong Settings để cấu hình provider + template.
+- Refactor `issueSalesInvoice`: lấy template default → tăng `current_no` → format `invoice_no`. Tách `provider-adapter.ts` với interface `IssueEInvoice(payload) → {code, qr, xml}` + 1 implementation `MockAdapter` để giữ hành vi hiện tại; các provider thật để stub `throw new Error("TODO: tích hợp ${provider}")`.
+
+---
+
+## Technical details (cho người triển khai)
+
+**Tech stack**
+- Migration đơn lẻ cho mỗi phase (tránh patch khổng lồ).
+- Server logic: `createServerFn` + `requireSupabaseAuth` (không Edge Function).
+- PDF: `@react-pdf/renderer` (pure JS, chạy được trong Worker SSR).
+- Email: dựa vào `email_domain.setup_email_infra` + `scaffold_transactional_email` đã có.
+- Form: react-hook-form + Zod (như Setup Wizard).
+
+**Tax code mapping (Phase 2)**
+```text
+0     → 0% chịu thuế, có dòng 33311=0
+5/8/10 → tỷ lệ tương ứng, có dòng 33311
+KCT   → Không chịu thuế (xuất khẩu, miễn), không tạo 33311
+KKKNT → Không kê khai nộp thuế (hỗ trợ, trợ cấp), không 33311
+```
+
+**Đề nghị tiến độ**
+1. Phase 1 (Customer + schema) — duyệt rồi triển khai.
+2. Phase 2 + 3 trong cùng một bước (gắn liền nhau, không tách được).
+3. Phase 4–7 mỗi cái 1 bước riêng theo nhu cầu.
+
+Bắt đầu từ **Phase 1** nhé?

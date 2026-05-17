@@ -273,13 +273,69 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          method: string
+          notes: string | null
+          pay_date: string
+          reference: string | null
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          method?: string
+          notes?: string | null
+          pay_date?: string
+          reference?: string | null
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          method?: string
+          notes?: string | null
+          pay_date?: string
+          reference?: string | null
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
+          code: string | null
+          contact_person: string | null
           created_at: string
+          currency: string
           email: string | null
+          email_cc: string | null
           id: string
+          is_active: boolean
           name: string
+          notes: string | null
+          opening_balance: number
+          payment_terms_days: number
           phone: string | null
           tax_id: string | null
           tenant_id: string | null
@@ -287,10 +343,18 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          code?: string | null
+          contact_person?: string | null
           created_at?: string
+          currency?: string
           email?: string | null
+          email_cc?: string | null
           id?: string
+          is_active?: boolean
           name: string
+          notes?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
           phone?: string | null
           tax_id?: string | null
           tenant_id?: string | null
@@ -298,10 +362,18 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          code?: string | null
+          contact_person?: string | null
           created_at?: string
+          currency?: string
           email?: string | null
+          email_cc?: string | null
           id?: string
+          is_active?: boolean
           name?: string
+          notes?: string | null
+          opening_balance?: number
+          payment_terms_days?: number
           phone?: string | null
           tax_id?: string | null
           tenant_id?: string | null
@@ -1018,9 +1090,14 @@ export type Database = {
           description: string
           id: string
           invoice_id: string
+          line_discount_amount: number
+          line_discount_percent: number
+          line_vat_amount: number
+          pre_vat_amount: number
           product_id: string | null
           qty: number
           unit_price: number
+          vat_code: string
           vat_rate: number
         }
         Insert: {
@@ -1028,9 +1105,14 @@ export type Database = {
           description: string
           id?: string
           invoice_id: string
+          line_discount_amount?: number
+          line_discount_percent?: number
+          line_vat_amount?: number
+          pre_vat_amount?: number
           product_id?: string | null
           qty?: number
           unit_price?: number
+          vat_code?: string
           vat_rate?: number
         }
         Update: {
@@ -1038,9 +1120,14 @@ export type Database = {
           description?: string
           id?: string
           invoice_id?: string
+          line_discount_amount?: number
+          line_discount_percent?: number
+          line_vat_amount?: number
+          pre_vat_amount?: number
           product_id?: string | null
           qty?: number
           unit_price?: number
+          vat_code?: string
           vat_rate?: number
         }
         Relationships: [
@@ -1055,19 +1142,36 @@ export type Database = {
       }
       sales_invoices: {
         Row: {
+          billing_address: string | null
           created_at: string
           currency: string
+          customer_email: string | null
           customer_id: string | null
           customer_name: string | null
           customer_tax_id: string | null
+          discount_amount: number
+          discount_percent: number
+          due_date: string | null
           einvoice_code: string | null
           einvoice_qr: string | null
+          einvoice_template_id: string | null
+          fx_rate: number
           id: string
           invoice_no: string | null
           invoice_series: string | null
           issue_date: string
           journal_entry_id: string | null
           notes: string | null
+          other_fees: number
+          paid_amount: number
+          payment_status: string
+          payment_terms_days: number | null
+          quote_id: string | null
+          sales_order_id: string | null
+          send_status: string
+          sent_at: string | null
+          shipping_address: string | null
+          shipping_fee: number
           status: string
           subtotal: number
           tenant_id: string | null
@@ -1077,19 +1181,36 @@ export type Database = {
           vat_amount: number
         }
         Insert: {
+          billing_address?: string | null
           created_at?: string
           currency?: string
+          customer_email?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_id?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          due_date?: string | null
           einvoice_code?: string | null
           einvoice_qr?: string | null
+          einvoice_template_id?: string | null
+          fx_rate?: number
           id?: string
           invoice_no?: string | null
           invoice_series?: string | null
           issue_date?: string
           journal_entry_id?: string | null
           notes?: string | null
+          other_fees?: number
+          paid_amount?: number
+          payment_status?: string
+          payment_terms_days?: number | null
+          quote_id?: string | null
+          sales_order_id?: string | null
+          send_status?: string
+          sent_at?: string | null
+          shipping_address?: string | null
+          shipping_fee?: number
           status?: string
           subtotal?: number
           tenant_id?: string | null
@@ -1099,19 +1220,36 @@ export type Database = {
           vat_amount?: number
         }
         Update: {
+          billing_address?: string | null
           created_at?: string
           currency?: string
+          customer_email?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_id?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          due_date?: string | null
           einvoice_code?: string | null
           einvoice_qr?: string | null
+          einvoice_template_id?: string | null
+          fx_rate?: number
           id?: string
           invoice_no?: string | null
           invoice_series?: string | null
           issue_date?: string
           journal_entry_id?: string | null
           notes?: string | null
+          other_fees?: number
+          paid_amount?: number
+          payment_status?: string
+          payment_terms_days?: number | null
+          quote_id?: string | null
+          sales_order_id?: string | null
+          send_status?: string
+          sent_at?: string | null
+          shipping_address?: string | null
+          shipping_fee?: number
           status?: string
           subtotal?: number
           tenant_id?: string | null
