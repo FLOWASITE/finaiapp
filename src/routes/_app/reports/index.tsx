@@ -250,50 +250,82 @@ function CashFlowTable({ items, hideZero }: { items: any[]; hideZero: boolean })
   );
 }
 
-const NOTE_SECTIONS = [
-  { key: "policy.general", label: "1. Đặc điểm hoạt động của doanh nghiệp" },
-  { key: "policy.currency", label: "2. Đơn vị tiền tệ sử dụng" },
-  { key: "policy.depreciation", label: "3. Chính sách khấu hao TSCĐ" },
-  { key: "policy.inventory", label: "4. Phương pháp tính giá hàng tồn kho" },
-  { key: "policy.revenue", label: "5. Nguyên tắc ghi nhận doanh thu" },
+const NOTE_SECTIONS_POLICY = [
+  { key: "policy.dac_diem", label: "1. Đặc điểm hoạt động của doanh nghiệp", placeholder: "Hình thức sở hữu, lĩnh vực kinh doanh, ngành nghề..." },
+  { key: "policy.ky_ke_toan", label: "2. Kỳ kế toán, đơn vị tiền tệ sử dụng", placeholder: "Kỳ kế toán năm bắt đầu từ ... đến ..., đơn vị tiền tệ VND" },
+  { key: "policy.chuan_muc", label: "3. Chuẩn mực và chế độ kế toán áp dụng", placeholder: "Áp dụng Thông tư 99/2025/TT-BTC..." },
+  { key: "policy.tien_te", label: "4. Nguyên tắc chuyển đổi ngoại tệ", placeholder: "Tỷ giá giao dịch thực tế tại ngày phát sinh..." },
+  { key: "policy.tien", label: "5. Tiền và các khoản tương đương tiền", placeholder: "Tiền mặt, tiền gửi ngân hàng, khoản đầu tư có thời hạn ≤ 3 tháng" },
+  { key: "policy.phai_thu", label: "6. Các khoản phải thu — nguyên tắc dự phòng", placeholder: "Phân loại nợ phải thu, lập dự phòng theo TT48" },
+  { key: "policy.htk", label: "7. Hàng tồn kho — phương pháp tính giá", placeholder: "Bình quân gia quyền / FIFO / Thực tế đích danh; hạch toán kê khai thường xuyên" },
+  { key: "policy.tscd", label: "8. Tài sản cố định — nguyên tắc và phương pháp khấu hao", placeholder: "Khấu hao đường thẳng, thời gian SD theo TT45" },
+  { key: "policy.doanh_thu", label: "9. Nguyên tắc ghi nhận doanh thu", placeholder: "Ghi nhận khi chuyển giao quyền sở hữu, dịch vụ hoàn thành..." },
+  { key: "policy.chi_phi", label: "10. Nguyên tắc ghi nhận chi phí", placeholder: "Chi phí ghi nhận theo nguyên tắc phù hợp với doanh thu" },
+  { key: "policy.thue", label: "11. Thuế thu nhập doanh nghiệp", placeholder: "Thuế suất hiện hành 20%, các ưu đãi (nếu có)" },
+  { key: "policy.vcsh", label: "12. Nguyên tắc ghi nhận vốn chủ sở hữu", placeholder: "Vốn góp ghi nhận theo số thực góp..." },
 ];
+
+const TAX_NAMES: Record<string, string> = {
+  "3331": "Thuế GTGT đầu ra", "3332": "Thuế tiêu thụ đặc biệt", "3333": "Thuế XNK", "3334": "Thuế TNDN",
+  "3335": "Thuế TNCN", "3336": "Thuế tài nguyên", "3337": "Thuế nhà đất", "3338": "Thuế khác", "3339": "Phí, lệ phí",
+};
+
+const EQUITY_NAMES: Record<string, string> = {
+  "4111": "Vốn góp của chủ sở hữu", "4112": "Thặng dư vốn cổ phần", "4118": "Vốn khác",
+  "412": "Chênh lệch đánh giá lại TS", "413": "Chênh lệch tỷ giá", "414": "Quỹ đầu tư phát triển",
+  "418": "Quỹ khác", "419": "Cổ phiếu quỹ", "421": "LN sau thuế chưa phân phối", "441": "Nguồn vốn ĐTXDCB",
+};
 
 function NotesPanel({ data, onRefetch, upsert }: { data: any; onRefetch: () => void; upsert: any }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* I. Đặc điểm doanh nghiệp */}
       <section>
-        <h3 className="mb-2 font-semibold">I. Đặc điểm hoạt động</h3>
+        <h3 className="mb-2 font-semibold">I. Đặc điểm hoạt động của doanh nghiệp</h3>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
           <dt className="text-muted-foreground">Tên doanh nghiệp</dt><dd>{data.profile?.company_name ?? "—"}</dd>
-          <dt className="text-muted-foreground">Mã số thuế</dt><dd>{data.profile?.tax_id ?? "—"}</dd>
+          <dt className="text-muted-foreground">Mã số thuế</dt><dd className="font-mono">{data.profile?.tax_id ?? "—"}</dd>
           <dt className="text-muted-foreground">Địa chỉ</dt><dd>{data.profile?.address ?? "—"}</dd>
           <dt className="text-muted-foreground">Đơn vị tiền tệ</dt><dd>{data.profile?.base_currency ?? "VND"}</dd>
+          <dt className="text-muted-foreground">Chế độ kế toán</dt><dd>{data.profile?.accounting_standard ?? "TT99"}</dd>
+          <dt className="text-muted-foreground">Năm tài chính bắt đầu tháng</dt><dd>{data.profile?.fiscal_year_start ?? 1}</dd>
         </dl>
       </section>
 
+      {/* II. Chính sách kế toán */}
       <section>
-        <h3 className="mb-2 font-semibold">II. Chính sách kế toán áp dụng</h3>
+        <h3 className="mb-3 font-semibold">II. Chính sách kế toán áp dụng</h3>
         <div className="space-y-3">
-          {NOTE_SECTIONS.map(s => (
-            <NoteEditor key={s.key} sectionKey={s.key} label={s.label} initial={data.userNotes[s.key] ?? ""} upsert={upsert} onSaved={onRefetch} />
+          {NOTE_SECTIONS_POLICY.map(s => (
+            <NoteEditor key={s.key} sectionKey={s.key} label={s.label} placeholder={s.placeholder} initial={data.userNotes[s.key] ?? ""} upsert={upsert} onSaved={onRefetch} />
           ))}
         </div>
       </section>
 
+      {/* III. Tài sản cố định */}
       <section>
-        <h3 className="mb-2 font-semibold">III. Tài sản cố định ({data.fixedAssets.length})</h3>
+        <h3 className="mb-2 font-semibold">III. Tài sản cố định</h3>
+        <div className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-4">
+          <div><div className="text-xs text-muted-foreground">Số TSCĐ đầu kỳ</div><div className="font-semibold">{data.tscdSummary?.openingCount ?? 0}</div></div>
+          <div><div className="text-xs text-muted-foreground">Tăng trong kỳ</div><div className="font-semibold text-green-600">+{data.tscdSummary?.additionsCount ?? 0}</div></div>
+          <div><div className="text-xs text-muted-foreground">Thanh lý / giảm</div><div className="font-semibold text-red-600">−{data.tscdSummary?.disposalsCount ?? 0}</div></div>
+          <div><div className="text-xs text-muted-foreground">Giá trị còn lại</div><div className="font-mono font-semibold">{fmt(data.tscdSummary?.netBookValue ?? 0)}</div></div>
+          <div><div className="text-xs text-muted-foreground">Tổng nguyên giá</div><div className="font-mono">{fmt(data.tscdSummary?.totalCost ?? 0)}</div></div>
+          <div><div className="text-xs text-muted-foreground">Hao mòn lũy kế</div><div className="font-mono">{fmt(data.tscdSummary?.totalDepreciation ?? 0)}</div></div>
+        </div>
         {data.fixedAssets.length === 0 ? <p className="text-sm text-muted-foreground">Không có TSCĐ.</p> : (
           <table className="w-full text-sm">
-            <thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="py-2 text-left">Mã</th><th className="text-left">Tên TSCĐ</th><th className="text-right">Nguyên giá</th><th className="text-center">Thời gian SD (tháng)</th><th className="text-center">Bắt đầu</th></tr></thead>
+            <thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="py-2 text-left">Mã</th><th className="text-left">Tên TSCĐ</th><th className="text-right">Nguyên giá</th><th className="text-center">T.gian SD</th><th className="text-center">Bắt đầu</th><th className="text-center">Trạng thái</th></tr></thead>
             <tbody>{data.fixedAssets.map((a: any) => (
-              <tr key={a.code} className="border-b border-border/40"><td className="py-1 font-mono text-xs">{a.code}</td><td>{a.name}</td><td className="text-right font-mono">{fmt(a.cost)}</td><td className="text-center">{a.life}</td><td className="text-center text-xs">{a.start}</td></tr>
+              <tr key={a.code} className="border-b border-border/40"><td className="py-1 font-mono text-xs">{a.code}</td><td>{a.name}{a.addedInPeriod && <span className="ml-1 rounded bg-green-100 px-1 text-[10px] text-green-700">Mới</span>}</td><td className="text-right font-mono">{fmt(a.cost)}</td><td className="text-center">{a.life}</td><td className="text-center text-xs">{a.start}</td><td className="text-center text-xs">{a.status}</td></tr>
             ))}</tbody>
           </table>
         )}
       </section>
 
+      {/* IV. Hàng tồn kho */}
       <section>
-        <h3 className="mb-2 font-semibold">IV. Hàng tồn kho ({data.inventory.length})</h3>
+        <h3 className="mb-2 font-semibold">IV. Hàng tồn kho — Tổng giá trị: <span className="font-mono">{fmt(data.inventoryTotal ?? 0)}</span></h3>
         {data.inventory.length === 0 ? <p className="text-sm text-muted-foreground">Không có tồn kho.</p> : (
           <table className="w-full text-sm">
             <thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="py-2 text-left">Mã</th><th className="text-left">Tên</th><th className="text-right">SL tồn</th><th className="text-right">Giá trị</th></tr></thead>
@@ -304,18 +336,97 @@ function NotesPanel({ data, onRefetch, upsert }: { data: any; onRefetch: () => v
         )}
       </section>
 
+      {/* V. Công nợ + Aging */}
       <section>
-        <h3 className="mb-2 font-semibold">V. Công nợ</h3>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-          <dt className="text-muted-foreground">Tổng phải thu khách hàng</dt><dd className="font-mono">{fmt(data.summary.totalReceivables)}</dd>
-          <dt className="text-muted-foreground">Tổng phải trả nhà cung cấp</dt><dd className="font-mono">{fmt(data.summary.totalPayables)}</dd>
-        </dl>
+        <h3 className="mb-2 font-semibold">V. Phân tích tuổi nợ</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <AgingTable title="Phải thu khách hàng" total={data.summary.totalReceivables} buckets={data.arAging} />
+          <AgingTable title="Phải trả nhà cung cấp" total={data.summary.totalPayables} buckets={data.apAging} />
+        </div>
+      </section>
+
+      {/* VI. Vốn chủ sở hữu */}
+      <section>
+        <h3 className="mb-2 font-semibold">VI. Vốn chủ sở hữu — số dư cuối kỳ</h3>
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="py-2 text-left">Mã TK</th><th className="text-left">Tên tài khoản</th><th className="text-right">Số dư</th></tr></thead>
+          <tbody>{Object.entries(data.equityBalances ?? {}).filter(([_, v]) => Math.abs(Number(v)) > 0.5).map(([code, val]) => (
+            <tr key={code} className="border-b border-border/40"><td className="py-1 font-mono text-xs">{code}</td><td>{EQUITY_NAMES[code] ?? code}</td><td className="text-right font-mono">{fmt(Number(val))}</td></tr>
+          ))}</tbody>
+        </table>
+      </section>
+
+      {/* VII. Thuế phải nộp */}
+      <section>
+        <h3 className="mb-2 font-semibold">VII. Tình hình thực hiện nghĩa vụ với NSNN</h3>
+        {Object.keys(data.taxBreakdown ?? {}).length === 0 ? <p className="text-sm text-muted-foreground">Không có thuế phải nộp.</p> : (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-border text-xs uppercase text-muted-foreground"><th className="py-2 text-left">Mã TK</th><th className="text-left">Loại thuế</th><th className="text-right">Số phải nộp</th></tr></thead>
+            <tbody>{Object.entries(data.taxBreakdown).map(([code, val]) => (
+              <tr key={code} className="border-b border-border/40"><td className="py-1 font-mono text-xs">{code}</td><td>{TAX_NAMES[code] ?? code}</td><td className="text-right font-mono">{fmt(Number(val))}</td></tr>
+            ))}</tbody>
+          </table>
+        )}
+      </section>
+
+      {/* VIII. Doanh thu chi phí */}
+      <section>
+        <h3 className="mb-2 font-semibold">VIII. Thông tin bổ sung KQKD</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <div className="mb-1 text-sm font-medium">Doanh thu theo tháng (TK 511)</div>
+            {data.revenueMonthly.length === 0 ? <p className="text-xs text-muted-foreground">Không có dữ liệu.</p> : (
+              <table className="w-full text-xs">
+                <tbody>{data.revenueMonthly.map((r: any) => (
+                  <tr key={r.month} className="border-b border-border/40"><td className="py-1">{r.month}</td><td className="text-right font-mono">{fmt(r.amount)}</td></tr>
+                ))}</tbody>
+              </table>
+            )}
+          </div>
+          <div>
+            <div className="mb-1 text-sm font-medium">Chi phí theo loại</div>
+            {data.expenseByType.length === 0 ? <p className="text-xs text-muted-foreground">Không có dữ liệu.</p> : (
+              <table className="w-full text-xs">
+                <tbody>{data.expenseByType.map((e: any) => (
+                  <tr key={e.code} className="border-b border-border/40"><td className="py-1 font-mono">{e.code}</td><td>{e.name}</td><td className="text-right font-mono">{fmt(e.amount)}</td></tr>
+                ))}</tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* IX. Thông tin khác */}
+      <section>
+        <h3 className="mb-3 font-semibold">IX. Những thông tin khác</h3>
+        <NoteEditor sectionKey="other.info" label="Thông tin bổ sung khác (sự kiện sau ngày kết thúc kỳ, cam kết, nghĩa vụ tiềm tàng...)" placeholder="Nhập các thông tin bổ sung..." initial={data.userNotes["other.info"] ?? ""} upsert={upsert} onSaved={onRefetch} />
       </section>
     </div>
   );
 }
 
-function NoteEditor({ sectionKey, label, initial, upsert, onSaved }: { sectionKey: string; label: string; initial: string; upsert: any; onSaved: () => void }) {
+function AgingTable({ title, total, buckets }: { title: string; total: number; buckets: Record<string, number> }) {
+  return (
+    <div className="rounded border border-border p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-sm font-medium">{title}</div>
+        <div className="font-mono text-sm">{fmt(total)}</div>
+      </div>
+      <table className="w-full text-xs">
+        <tbody>
+          {["0-30", "31-60", "61-90", "90+"].map(k => (
+            <tr key={k} className="border-b border-border/40">
+              <td className="py-1">{k} ngày</td>
+              <td className="text-right font-mono">{fmt(Math.round(buckets?.[k] ?? 0))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function NoteEditor({ sectionKey, label, placeholder, initial, upsert, onSaved }: { sectionKey: string; label: string; placeholder?: string; initial: string; upsert: any; onSaved: () => void }) {
   const upsertFn = useServerFn(upsert);
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -334,7 +445,7 @@ function NoteEditor({ sectionKey, label, initial, upsert, onSaved }: { sectionKe
           }}>Lưu</Button>
         )}
       </div>
-      <Textarea value={value} onChange={(e) => setValue(e.target.value)} rows={3} placeholder="Nhập nội dung..." />
+      <Textarea value={value} onChange={(e) => setValue(e.target.value)} rows={2} placeholder={placeholder ?? "Nhập nội dung..."} />
     </div>
   );
 }
