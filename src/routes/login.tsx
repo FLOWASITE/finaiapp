@@ -18,12 +18,14 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { mode } = Route.useSearch();
+  const { mode, next } = Route.useSearch();
   const navigate = useNavigate();
   const [isSignup, setIsSignup] = useState(mode === "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const dest = next && next.startsWith("/") ? next : "/dashboard";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +35,7 @@ function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: { emailRedirectTo: `${window.location.origin}${dest}` },
         });
         if (error) throw error;
         toast.success("Tạo tài khoản thành công");
@@ -41,7 +43,7 @@ function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate({ to: "/dashboard" });
+      navigate({ to: dest });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Đăng nhập thất bại");
     } finally {
