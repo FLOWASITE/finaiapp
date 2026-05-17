@@ -236,6 +236,12 @@ export function AppSidebar() {
                   {s.items.map((item) => (
                     <NavLink key={item.to} item={item} active={isActive(item.to)} />
                   ))}
+                  {s.label === "Hệ thống" && isSuperadmin && (
+                    <NavLink
+                      item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
+                      active={isActive("/superadmin")}
+                    />
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
