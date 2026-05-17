@@ -165,23 +165,23 @@ function SalesHubPage() {
     setTab("invoices", { status: s });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bán hàng</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bán hàng</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Tổng quan doanh thu, hoá đơn và phiếu thu — đối ứng công nợ TK 131
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
           <NewInvoiceDialog />
         </div>
       </div>
 
       {/* Money strip — Xero-style click-to-filter cards */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <MoneyCard
           tone="primary"
           icon={<TrendingUp className="h-4 w-4" />}
@@ -225,7 +225,7 @@ function SalesHubPage() {
       </div>
 
       {/* Collected windows */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-3">
         <MiniKpi label="Đã thu 30 ngày" value={fmt(dash?.kpi.collected_30 ?? 0)} />
         <MiniKpi label="Đã thu 60 ngày" value={fmt(dash?.kpi.collected_60 ?? 0)} />
         <MiniKpi label="Đã thu 90 ngày" value={fmt(dash?.kpi.collected_90 ?? 0)} />
@@ -237,7 +237,7 @@ function SalesHubPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Doanh thu vs Đã thu — 6 tháng</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-56 sm:h-64 px-2 sm:px-6">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dash?.trend ?? []}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -267,7 +267,7 @@ function SalesHubPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Tuổi nợ phải thu</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-56 sm:h-64 px-2 sm:px-6">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -302,18 +302,22 @@ function SalesHubPage() {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as SalesTab, { status: undefined })}>
-        <TabsList>
+        <TabsList className="flex w-full overflow-x-auto sm:w-auto sm:inline-flex">
           <TabsTrigger value="invoices">
-            <FileText className="mr-2 h-4 w-4" /> Hoá đơn
+            <FileText className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Hoá đơn</span>
           </TabsTrigger>
           <TabsTrigger value="receipts">
-            <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
+            <Banknote className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Phiếu thu</span>
           </TabsTrigger>
           <TabsTrigger value="overdue">
-            <AlertTriangle className="mr-2 h-4 w-4" /> Quá hạn
+            <AlertTriangle className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Quá hạn</span>
           </TabsTrigger>
           <TabsTrigger value="customers">
-            <Users className="mr-2 h-4 w-4" /> Top khách nợ
+            <Users className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Top khách nợ</span>
           </TabsTrigger>
         </TabsList>
 
@@ -368,16 +372,16 @@ function MoneyCard({
     <button
       type="button"
       onClick={onClick}
-      className={`text-left rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40 ${
+      className={`text-left rounded-lg border bg-card p-3 sm:p-4 transition-colors hover:bg-muted/40 ${
         active ? "border-primary ring-1 ring-primary/30" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
         <span>{icon}</span>
       </div>
-      <div className={`mt-2 text-2xl font-bold font-mono ${toneCls}`}>{value}</div>
-      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+      <div className={`mt-2 text-lg sm:text-2xl font-bold font-mono ${toneCls}`}>{value}</div>
+      {sub && <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground truncate">{sub}</div>}
     </button>
   );
 }
@@ -385,11 +389,12 @@ function MoneyCard({
 function MiniKpi({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <CardContent className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" /> {label}
+      <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div className="flex items-center gap-1.5 text-[11px] sm:text-sm text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+          <span className="truncate">{label}</span>
         </div>
-        <div className="font-mono font-semibold">{value}</div>
+        <div className="font-mono font-semibold text-sm sm:text-base">{value}</div>
       </CardContent>
     </Card>
   );
@@ -427,18 +432,18 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px]">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Tìm theo khách, số HĐ, mã CQT, MST…"
+            placeholder="Tìm khách, số HĐ, mã CQT, MST…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -456,15 +461,15 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase">
             <tr>
-              <th className="px-4 py-2 text-left">Ngày</th>
-              <th className="px-4 py-2 text-left">Số HĐ</th>
-              <th className="px-4 py-2 text-left">Khách hàng</th>
-              <th className="px-4 py-2 text-left">Hạn TT</th>
-              <th className="px-4 py-2 text-right">Tổng</th>
-              <th className="px-4 py-2 text-right">Đã thu</th>
-              <th className="px-4 py-2 text-right">Còn lại</th>
-              <th className="px-4 py-2 text-left">Trạng thái</th>
-              <th className="px-4 py-2"></th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Ngày</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Số HĐ</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Khách hàng</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Hạn TT</th>
+              <th className="px-2 sm:px-4 py-2 text-right hidden md:table-cell">Tổng</th>
+              <th className="px-2 sm:px-4 py-2 text-right hidden lg:table-cell">Đã thu</th>
+              <th className="px-2 sm:px-4 py-2 text-right">Còn lại</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Trạng thái</th>
+              <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -473,8 +478,8 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
               const ps = inv.status === "void" ? "void" : inv.payment_status;
               return (
                 <tr key={inv.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{inv.issue_date}</td>
-                  <td className="px-4 py-2 font-mono">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap hidden sm:table-cell">{inv.issue_date}</td>
+                  <td className="px-2 sm:px-4 py-2 font-mono">
                     <Link
                       to="/sales/$id"
                       params={{ id: inv.id }}
@@ -482,24 +487,36 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
                     >
                       {inv.einvoice_code || inv.invoice_no || "(nháp)"}
                     </Link>
+                    <div className="sm:hidden text-[11px] text-muted-foreground font-sans mt-0.5">
+                      {inv.issue_date}
+                    </div>
                   </td>
-                  <td className="px-4 py-2">
-                    <div className="font-medium">{inv.customer_name || "—"}</div>
+                  <td className="px-2 sm:px-4 py-2">
+                    <div className="font-medium truncate max-w-[160px] sm:max-w-none">{inv.customer_name || "—"}</div>
                     {inv.customers?.code && (
                       <div className="text-xs text-muted-foreground font-mono">
                         {inv.customers.code}
                       </div>
                     )}
+                    <div className="sm:hidden mt-1">
+                      {inv.status === "draft" ? (
+                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-600">Nháp</span>
+                      ) : (
+                        <span className={`rounded px-2 py-0.5 text-[10px] ${STATUS_BADGE[ps] ?? ""}`}>
+                          {STATUS_LABEL[ps] ?? ps}
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">{inv.due_date || "—"}</td>
-                  <td className="px-4 py-2 text-right font-mono">{fmt(inv.total)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-emerald-700">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap hidden lg:table-cell">{inv.due_date || "—"}</td>
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono hidden md:table-cell">{fmt(inv.total)}</td>
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono text-emerald-700 hidden lg:table-cell">
                     {fmt(inv.paid_amount)}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono">
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono">
                     {remaining > 0 ? fmt(remaining) : "—"}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 sm:px-4 py-2 hidden sm:table-cell">
                     {inv.status === "draft" ? (
                       <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                         Nháp
@@ -510,11 +527,12 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-2 sm:px-4 py-2 text-right">
                     {remaining > 0 && inv.status !== "void" && (
                       <Button size="sm" variant="outline" asChild className="h-7">
                         <Link to="/sales" search={{ tab: "receipts", invoice: inv.id }}>
-                          <Banknote className="mr-1 h-3 w-3" /> Thu
+                          <Banknote className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Thu</span>
                         </Link>
                       </Button>
                     )}
@@ -764,7 +782,7 @@ function ReceiptsTab({
   return (
     <div className="space-y-3">
       {/* Method KPIs */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <MiniReceiptCard
           label="Tổng thu kỳ"
           value={fmt(stats?.total ?? 0)}
@@ -791,14 +809,14 @@ function ReceiptsTab({
 
       {/* Filters */}
       <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+        <CardContent className="grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-wrap items-end gap-3 p-4">
           <div className="space-y-1">
             <Label className="text-xs">Từ ngày</Label>
             <Input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="w-40"
+              className="w-full lg:w-40"
             />
           </div>
           <div className="space-y-1">
@@ -807,13 +825,13 @@ function ReceiptsTab({
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="w-40"
+              className="w-full lg:w-40"
             />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Hình thức</Label>
             <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="w-full lg:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -825,36 +843,38 @@ function ReceiptsTab({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 flex-1 min-w-[200px]">
+          <div className="space-y-1 col-span-2 sm:col-span-1 lg:flex-1 lg:min-w-[200px]">
             <Label className="text-xs">Tìm kiếm</Label>
             <Input
-              placeholder="Khách hàng, số HĐ, tham chiếu..."
+              placeholder="Khách, số HĐ, tham chiếu..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" onClick={exportCsv}>
-            <Download className="mr-2 h-4 w-4" /> CSV
-          </Button>
-          <Button onClick={() => setOpenNew(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Tạo phiếu thu
-          </Button>
+          <div className="col-span-2 sm:col-span-4 lg:col-span-1 flex gap-2 justify-end lg:justify-start">
+            <Button variant="outline" onClick={exportCsv} className="flex-1 sm:flex-none">
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button onClick={() => setOpenNew(true)} className="flex-1 sm:flex-none">
+              <Plus className="mr-2 h-4 w-4" /> Tạo phiếu thu
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase">
             <tr>
-              <th className="px-4 py-2 text-left">Ngày</th>
-              <th className="px-4 py-2 text-left">Khách hàng</th>
-              <th className="px-4 py-2 text-left">Hoá đơn</th>
-              <th className="px-4 py-2 text-left">Hình thức</th>
-              <th className="px-4 py-2 text-left">Tham chiếu</th>
-              <th className="px-4 py-2 text-right">Số tiền</th>
-              <th className="px-4 py-2 text-center">Đối soát</th>
-              <th className="px-4 py-2"></th>
+              <th className="px-2 sm:px-4 py-2 text-left">Ngày</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Khách hàng</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden md:table-cell">Hoá đơn</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Hình thức</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Tham chiếu</th>
+              <th className="px-2 sm:px-4 py-2 text-right">Số tiền</th>
+              <th className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">Đối soát</th>
+              <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -863,9 +883,14 @@ function ReceiptsTab({
               const status = inv?.payment_status ?? "—";
               return (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{r.pay_date}</td>
-                  <td className="px-4 py-2">{r.customer_name ?? "—"}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap">{r.pay_date}</td>
+                  <td className="px-2 sm:px-4 py-2">
+                    <div className="truncate max-w-[140px] sm:max-w-none">{r.customer_name ?? "—"}</div>
+                    <div className="md:hidden text-[11px] text-muted-foreground font-mono mt-0.5">
+                      {inv?.invoice_no ?? ""} · {METHOD_LABEL[r.method] ?? r.method}
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-4 py-2 hidden md:table-cell">
                     {inv?.invoice_no ? (
                       <Link
                         to="/sales/$id"
@@ -878,14 +903,14 @@ function ReceiptsTab({
                       "—"
                     )}
                   </td>
-                  <td className="px-4 py-2">{METHOD_LABEL[r.method] ?? r.method}</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">
+                  <td className="px-2 sm:px-4 py-2 hidden lg:table-cell">{METHOD_LABEL[r.method] ?? r.method}</td>
+                  <td className="px-2 sm:px-4 py-2 text-xs text-muted-foreground hidden lg:table-cell">
                     {r.reference ?? "—"}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold">
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono font-semibold whitespace-nowrap">
                     {fmt(r.amount)}
                   </td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">
                     <PaymentBadge status={status} />
                   </td>
                   <td className="px-4 py-2 text-right">
