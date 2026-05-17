@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listSuperadminAuditLogs } from "@/lib/superadmin.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -105,6 +105,22 @@ function AuditPage() {
     }
     return Array.from(set).sort();
   }, [logs]);
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="space-y-4">
@@ -239,19 +255,27 @@ function AuditPage() {
         </table>
 
         {hasNextPage && (
-          <div className="flex justify-center border-t border-border p-3">
+          <div
+            ref={sentinelRef}
+            className="flex justify-center border-t border-border p-3"
+          >
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
             >
               {isFetchingNextPage ? (
-                <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                <>
+                  <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Đang tải thêm…
+                </>
               ) : (
-                <ChevronDown className="mr-2 h-3.5 w-3.5" />
+                <>
+                  <ChevronDown className="mr-2 h-3.5 w-3.5" />
+                  Cuộn xuống để tải thêm
+                </>
               )}
-              Tải thêm {Math.min(pageSize, total - logs.length)} dòng
             </Button>
           </div>
         )}
