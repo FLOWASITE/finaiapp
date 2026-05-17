@@ -307,8 +307,8 @@ function ReportCard({ title, subtitle, children, onExport }: { title: string; su
   );
 }
 
-type Row = { name: string; code: string; indent: number; bold?: boolean; vals: (number | null)[] };
-function ReportTable({ cols, rows }: { cols: (string | null)[]; rows: Row[] }) {
+type Row = { name: string; code: string; indent: number; bold?: boolean; drillable?: boolean; vals: (number | null)[] };
+function ReportTable({ cols, rows, onDrill }: { cols: (string | null)[]; rows: Row[]; onDrill?: (code: string, name: string) => void }) {
   const visibleCols = cols.filter(c => c !== null) as string[];
   return (
     <table className="w-full text-sm">
@@ -318,15 +318,22 @@ function ReportTable({ cols, rows }: { cols: (string | null)[]; rows: Row[] }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, idx) => (
-          <tr key={idx} className={`border-b border-border/40 ${r.bold ? "bg-muted/30" : ""}`}>
-            <td className={`py-1.5 ${r.bold ? "font-semibold" : ""}`} style={{ paddingLeft: 8 + r.indent * 16 }}>{r.name}</td>
-            <td className="text-center font-mono text-xs text-muted-foreground">{r.code}</td>
-            {r.vals.filter(v => v !== null).map((v, i) => (
-              <td key={i} className={`text-right font-mono tabular-nums ${r.bold ? "font-semibold" : ""}`}>{fmt(v as number)}</td>
-            ))}
-          </tr>
-        ))}
+        {rows.map((r, idx) => {
+          const canDrill = !!onDrill && r.drillable !== false && !r.bold;
+          return (
+            <tr
+              key={idx}
+              className={`border-b border-border/40 ${r.bold ? "bg-muted/30" : ""} ${canDrill ? "cursor-pointer hover:bg-muted/40" : ""}`}
+              onClick={canDrill ? () => onDrill!(r.code, r.name) : undefined}
+            >
+              <td className={`py-1.5 ${r.bold ? "font-semibold" : ""}`} style={{ paddingLeft: 8 + r.indent * 16 }}>{r.name}</td>
+              <td className="text-center font-mono text-xs text-muted-foreground">{r.code}</td>
+              {r.vals.filter(v => v !== null).map((v, i) => (
+                <td key={i} className={`text-right font-mono tabular-nums ${r.bold ? "font-semibold" : ""}`}>{fmt(v as number)}</td>
+              ))}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
