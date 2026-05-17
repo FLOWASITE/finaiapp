@@ -286,9 +286,20 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
           </div>
         ) : (
           <div className="max-h-[60vh] overflow-auto">
-            <div className="mb-2 text-xs text-muted-foreground">
-              {q.data.lines.length} dòng — Tổng cộng đóng góp: <b className="font-mono">{fmt(q.data.total)}</b>
-              {q.data.prefixes?.length ? ` — TK: ${q.data.prefixes.join(", ")}` : ""}
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <div>
+                {q.data.lines.length} dòng — Tổng cộng đóng góp: <b className="font-mono">{fmt(q.data.total)}</b>
+                {q.data.prefixes?.length ? ` — TK: ${q.data.prefixes.join(", ")}` : ""}
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={newTabDefault}
+                  onChange={(e) => toggleNewTab(e.target.checked)}
+                />
+                Mặc định mở "Sổ cái" ở tab mới
+              </label>
             </div>
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-background">
