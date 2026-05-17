@@ -1,89 +1,149 @@
-# Kế hoạch: Hoàn thiện phân hệ Mua hàng
+## Bối cảnh
+
+**Thông tư 99/2025/TT-BTC** (ban hành 27/10/2025, hiệu lực 01/01/2026) thay thế TT200/2014. Thay đổi chính ảnh hưởng đến module Báo cáo của AccuVN:
+
+- "Bảng cân đối kế toán" → **"Báo cáo tình hình tài chính" (B01-DN)** (tên + cấu trúc IFRS-like)
+- Bổ sung chỉ tiêu mới (vd. *Tài sản sinh học*), sắp xếp lại theo Tài sản ngắn hạn/dài hạn
+- Mã số chỉ tiêu cố định (không được đánh lại), chỉ tiêu không có số liệu được phép ẩn
+- B02-DN KQKD, B03-DN Lưu chuyển tiền tệ (trực tiếp & gián tiếp), B09-DN Thuyết minh
+- Có bộ báo cáo riêng cho DN **không hoạt động liên tục** (DNKLT) và **giữa niên độ** (đầy đủ + tóm lược)
 
 ## Hiện trạng
-- Upload ảnh/PDF hoá đơn → AI bóc tách trường (supplier, số, ngày, subtotal, VAT, total, lines).
-- Trang chi tiết: review trường + gợi ý định khoản AI + ghi sổ.
-- Bảng `invoices`, `invoice_lines`, `suppliers` đã có. Đã có `supplier_payments` (phải trả).
 
-## Gap so với MISA / FAST
-1. **Không có Purchase Order / Đơn đặt mua** — quy trình mua không bắt đầu từ PO.
-2. **Không liên kết hoá đơn ↔ nhập kho** — mua hàng hoá không tự sinh phiếu nhập kho, không tự cộng tồn.
-3. **Lines không gắn `product_id`** — không biết hoá đơn mua món gì → không cộng tồn được, không tính giá vốn bình quân.
-4. **Không có danh sách nhà cung cấp** (chỉ tạo ngầm khi OCR). Không có trang `/suppliers`.
-5. **Không có lọc/tìm kiếm/tổng hợp** ở list hoá đơn (theo NCC, kỳ, trạng thái).
-6. **Trạng thái thiếu**: chưa có `unpaid`/`partial`/`paid` (đã có `supplier_payments` nhưng status invoice không cập nhật).
-7. **Không nhập tay** — chỉ upload file. Cần form nhập hoá đơn không có file (mua dịch vụ, hoá đơn nhỏ).
-8. **Không tách loại chi phí**: hoá đơn dịch vụ vs hàng hoá vs TSCĐ → định khoản khác nhau. Hiện AI đoán hết.
-9. **Không có bảng kê thuế GTGT đầu vào** liên kết tự động sang `/tax`.
-10. **Khoá sổ chưa được tôn trọng**: ghi sổ không check `is_period_locked`.
+`src/lib/reports.functions.ts` + `src/routes/_app/reports.tsx` đang triển khai mức rất sơ sài theo TT133:
+- BCĐKT gom theo prefix 1/2/3/4 — không có mã số chỉ tiêu, không phân tách ngắn hạn/dài hạn
+- KQKD chỉ liệt kê doanh thu/chi phí theo account, không theo Mã số 01–60 chuẩn TT
+- LCTT gom thô theo classifier 21/22/24/34/41 — chưa đúng cấu trúc Mã số 01–70
+- Chưa có Thuyết minh, chưa xuất Excel/PDF, chưa lưu kỳ báo cáo
 
-## Phạm vi Phase 6 — Mua hàng
+## Phạm vi (Phase 7)
 
-### A. Đơn đặt mua (Purchase Order)
-- Bảng `purchase_orders`, `purchase_order_lines` (supplier, ngày, trạng thái draft/sent/received/closed, expected_date).
-- Trang `/purchases/orders` — danh sách + form tạo PO chọn supplier + products.
-- Nút "Tạo hoá đơn từ PO" — kéo dòng PO vào `invoices`/`invoice_lines` với `product_id`.
+### A. Báo cáo tình hình tài chính B01-DN (TT99)
 
-### B. Liên kết hoá đơn ↔ kho ↔ sản phẩm
-- Thêm cột `product_id` (nullable) và `type` (`goods`/`service`/`asset`) cho `invoice_lines`.
-- Thêm cột `expense_account` cho hoá đơn dịch vụ (mặc định 642/641/627).
-- Khi duyệt ghi sổ hoá đơn có dòng `goods` + `product_id` → tự sinh `stock_movements` (in) với `unit_cost` từ dòng, cập nhật `products.on_hand` + bình quân gia quyền (dùng lại logic `recordMovement`).
-- Hạch toán đúng:
-  - Hàng hoá: Nợ 156/152 / Nợ 1331 / Có 331
-  - Dịch vụ: Nợ 642/641/627 / Nợ 1331 / Có 331
-  - TSCĐ: Nợ 211 / Nợ 1331 / Có 331 + tự tạo `fixed_assets`
+Map account → **mã số chỉ tiêu** theo Phụ lục IV TT99. Cấu trúc:
 
-### C. Quản lý Nhà cung cấp
-- Trang `/suppliers` — danh sách, thêm, sửa, xoá, xem dư nợ + 10 HĐ gần nhất.
-- Form trên trang chi tiết HĐ: dropdown chọn supplier (thay vì chỉ text).
-- Thêm trường `email`, `phone`, `payment_terms_days` cho `suppliers`.
+```text
+A. TÀI SẢN NGẮN HẠN                          (100)
+  I.   Tiền và tương đương tiền              (110)  111, 112, 113
+  II.  Đầu tư tài chính ngắn hạn             (120)  121, 128, 229
+  III. Phải thu ngắn hạn                     (130)  131, 136, 138, 141, 151, 244, 2293
+  IV.  Hàng tồn kho                          (140)  151–158, 2294
+  V.   Tài sản ngắn hạn khác                 (150)  133, 242, 333, 338
+B. TÀI SẢN DÀI HẠN                            (200)
+  I.   Phải thu dài hạn                      (210)
+  II.  Tài sản cố định                       (220)  211/214, 212/214, 213/214
+  III. Bất động sản đầu tư                   (230)  217/2147
+  IV.  Tài sản dở dang dài hạn               (240)  241
+  V.   Đầu tư tài chính dài hạn              (250)  221, 222, 228, 2292
+  VI.  Tài sản dài hạn khác                  (260)  242, 243, 244
+  VII. Tài sản sinh học (MỚI TT99)           (270)
+TỔNG CỘNG TÀI SẢN                            (280)
 
-### D. UX trang hoá đơn
-- Trang list: filter theo NCC, khoảng ngày, trạng thái, search số HĐ. Tổng tiền + tổng VAT theo bộ lọc.
-- Cột "Đã trả / Còn nợ" lấy từ `supplier_payments`.
-- Tab `Nhập tay` trên list — form nhập hoá đơn không cần file (chọn loại goods/service/asset, dòng item).
-- Trên detail: thêm chọn `type` cho từng line, dropdown `product` khi `goods`.
-- Trạng thái mới: `draft`/`extracted`/`approved`/`paid`/`partial` — cập nhật tự động khi insert payment.
+C. NỢ PHẢI TRẢ                                (300)
+  I.   Nợ ngắn hạn                           (310)  331, 333, 334, 335, 3382-3389, 341 ngắn hạn …
+  II.  Nợ dài hạn                            (330)  341 dài hạn, 343 …
+D. VỐN CHỦ SỞ HỮU                             (400)
+  I.   Vốn chủ                               (410)  411, 412, 413, 414, 418, 421, 441 …
+  II.  Nguồn kinh phí và quỹ khác            (430)
+TỔNG NGUỒN VỐN                               (440)
+```
 
-### E. Bảng kê thuế GTGT đầu vào
-- Hàm `getInputVatList(month)` đọc `invoice_lines` (loại `goods`+`service`) trong kỳ → trả mẫu PL-01-1/GTGT.
-- Trang `/tax` thêm tab "Đầu vào" hiển thị bảng + export.
+- Hỗ trợ cột "Số đầu năm" và "Số cuối kỳ"
+- Tự ẩn dòng có cả 2 cột = 0
+- Lưu mã số chuẩn, không đánh lại
 
-### F. Tôn trọng khoá sổ
-- Trong `approveJournalEntry` + bất kỳ serverFn ghi sổ nào: gọi `is_period_locked(userId, entry_date)` → từ chối nếu khoá.
+### B. KQKD B02-DN
 
-## Kỹ thuật
+Cấu trúc mã số chuẩn (01 doanh thu bán hàng, 02 các khoản giảm trừ, 10 doanh thu thuần, 11 GVHB, 20 lợi nhuận gộp, 21 doanh thu HĐTC, 22 chi phí TC, 25 chi phí bán hàng, 26 chi phí QLDN, 30 LNT, 31 thu nhập khác, 32 chi phí khác, 40 LN khác, 50 LNTT, 51 chi phí thuế TNDN, 60 LNST) — map từ 511/521/632/635/515/641/642/711/811/821.
 
-### Migration
-- `purchase_orders(id, user_id, supplier_id, order_date, expected_date, status, total, notes)`
-- `purchase_order_lines(id, po_id, product_id, description, qty, unit_price, amount, vat_rate)`
-- `ALTER invoice_lines ADD product_id uuid, line_type text DEFAULT 'goods'`
-- `ALTER invoices ADD payment_status text DEFAULT 'unpaid', expense_account text, po_id uuid`
-- `ALTER suppliers ADD email text, phone text, payment_terms_days int DEFAULT 30`
-- Trigger: sau khi insert/delete `supplier_payments` → update `invoices.payment_status` theo `paid/total`.
-- Cho phép EXECUTE `is_period_locked` cho `authenticated` (để serverFn gọi được), hoặc query trực tiếp `period_locks`.
+### C. LCTT B03-DN — phương pháp trực tiếp
 
-### Server functions mới
-- `src/lib/purchases.functions.ts`: `listPOs`, `upsertPO`, `convertPOToInvoice`, `listSuppliers`, `upsertSupplier`, `getSupplierDetail`, `createManualInvoice`, `getInputVatReport`.
-- Mở rộng `approveJournalEntry` để: sinh `stock_movements` cho dòng `goods` có `product_id`, sinh `fixed_assets` cho dòng `asset`, check `is_period_locked`.
+Mã số 01–70: Thu từ bán hàng (01), Chi trả NCC (02), Chi trả NLĐ (03), Chi nộp thuế (05), Tiền lãi vay đã trả (04), … Hoạt động đầu tư (21–30), Hoạt động tài chính (31–40). Giữ phương pháp đơn giản hiện tại làm fallback.
 
-### Routes mới
-- `/_app/purchases/orders/index.tsx` — list PO
-- `/_app/purchases/orders/$id.tsx` — detail PO + convert
-- `/_app/suppliers/index.tsx` — list + form
-- `/_app/suppliers/$id.tsx` — detail + công nợ
-- `/_app/tax/index.tsx` — thêm tab "Đầu vào"
-- Sidebar nhóm **Mua hàng**: + Đơn đặt mua, + Nhà cung cấp.
+### D. B09-DN Thuyết minh
 
-## Ngoài phạm vi (Phase sau)
-- Quy trình duyệt PO nhiều cấp.
-- Nhập kho có chứng từ riêng + biên bản giao nhận.
-- Đối chiếu 3 chiều PO ↔ phiếu nhập ↔ hoá đơn.
-- Hoá đơn ngoại tệ (chờ phase đa tiền tệ hoàn chỉnh).
-- Import Excel danh mục NCC / hoá đơn hàng loạt.
+Sinh tự động các phần cố định: chính sách kế toán áp dụng, đặc điểm hoạt động DN (từ `profiles`), chi tiết tăng/giảm TSCĐ (từ `fixed_assets` + `depreciation_entries`), chi tiết phải thu/phải trả theo tuổi nợ, hàng tồn kho theo SP. Phần văn bản cho phép người dùng chỉnh sửa & lưu.
 
-## Câu hỏi cho bạn
-1. **Đơn đặt mua (PO)**: build đầy đủ ở phase này, hay chỉ làm B+C+D+E+F trước (PO để phase sau)?
-2. **Tự sinh phiếu nhập kho khi ghi sổ HĐ hàng hoá**: bạn muốn tự động hoàn toàn, hay luôn yêu cầu kế toán xác nhận thủ công ở bước riêng?
-3. **Form nhập tay**: ưu tiên dùng cho mua dịch vụ (tiền điện, internet, thuê văn phòng) hay cả mua hàng có sản phẩm trong kho?
-4. **Bảng kê VAT đầu vào**: chỉ cần view trong app, hay cần export Excel theo mẫu PL-01-1/GTGT để nộp thuế?
+### E. UX
+
+- Tab cho B01 / B02 / B03 / B09 thay vì 3 thẻ song song
+- Bộ lọc: Năm tài chính, Quý (1–4), Tháng, Kỳ tuỳ chọn; auto chọn năm theo `profiles.fiscal_year_start`
+- Cột So sánh: Kỳ này / Kỳ trước (đầu năm hoặc cùng kỳ năm trước)
+- Toggle "Ẩn chỉ tiêu = 0" (mặc định bật)
+- Nút **Xuất Excel** mỗi báo cáo (sử dụng `xlsx` skill, theo Phụ lục IV)
+- Nút **In** (print-friendly CSS)
+- Badge cảnh báo nếu kỳ đã khoá (`period_locks`) — chỉ hiển thị read-only
+
+### F. Database
+
+Thêm bảng `report_snapshots` để lưu BCTC đã chốt (kỳ + JSON nội dung) → audit trail, không phải tính lại:
+
+```sql
+CREATE TABLE public.report_snapshots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  report_type text NOT NULL,        -- 'B01' | 'B02' | 'B03' | 'B09'
+  period_from date,
+  period_to date NOT NULL,
+  payload jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+-- RLS: own report_snapshots
+```
+
+Thêm bảng `report_notes` cho phần văn bản B09 (chính sách, thuyết minh tự nhập):
+
+```sql
+CREATE TABLE public.report_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  section text NOT NULL,             -- 'policy.depreciation', 'policy.inventory', 'note.custom.1' …
+  content text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(user_id, section)
+);
+```
+
+Cập nhật `profiles.accounting_standard` default → `'TT99'` cho user mới (giữ `'TT133'`/`'TT200'` cho user cũ; B01 mapping chọn theo giá trị này).
+
+### G. Chi tiết kỹ thuật
+
+- Tạo `src/lib/report-mappings.ts`: hằng số mapping `MA_SO_B01_TT99`, `MA_SO_B02`, `MA_SO_B03` (account code → mã số + dấu).
+- Refactor `reports.functions.ts`:
+  - `getBalanceSheetTT99({ asOf, compareWith })` → trả về `{ items: [{ ma_so, name, level, current, previous }], totals }`
+  - `getIncomeStatementTT99({ from, to, compareFrom?, compareTo? })`
+  - `getCashFlowDirect({ from, to })` & giữ `getCashFlowIndirect` cũ
+  - `getNotes({ from, to })` cho B09
+  - `saveSnapshot`, `listSnapshots`, `getSnapshot`
+  - `upsertReportNote`, `listReportNotes`
+- Tất cả check `is_period_locked` cho thao tác chốt snapshot
+- Xuất Excel: server-side `xlsx` (đã có trong devDeps?) — nếu chưa, dùng `exceljs` (Worker-compatible) tạo workbook đúng Phụ lục IV, trả về base64 cho client tải.
+
+### H. Ngoài phạm vi (để sau)
+
+- DN không hoạt động liên tục (B01-DNKLT)
+- Báo cáo giữa niên độ dạng tóm lược B016/B026/B036
+- Hợp nhất công ty mẹ-con
+- Chuyển đổi tự động số dư đầu kỳ TT133/TT200 → TT99
+- XBRL/eXML nộp Thuế
+
+## File dự kiến
+
+**Mới**
+- `src/lib/report-mappings.ts`
+- `src/lib/report-export.ts` (Excel)
+- `src/routes/_app/reports/index.tsx` (tabs)
+- `src/routes/_app/reports/notes.tsx` (chỉnh B09)
+- 2 migration: `report_snapshots`, `report_notes` + RLS
+
+**Sửa**
+- `src/lib/reports.functions.ts` (refactor lớn)
+- `src/routes/_app/reports.tsx` → redirect tới `/reports` index
+- `src/components/app-sidebar.tsx` (nếu cần submenu Báo cáo)
+
+## Câu hỏi cần xác nhận
+
+1. **Chuẩn áp dụng**: triển khai mặc định **TT99** (mới), hay giữ TT133 cho DN nhỏ & thêm tuỳ chọn TT99? AccuVN hiện default `TT133`.
+2. **Xuất file**: Excel theo Phụ lục IV là đủ, hay cần thêm PDF in sẵn?
+3. **B09 Thuyết minh**: tự sinh tối thiểu (TSCĐ + tồn kho + công nợ) + cho phép user nhập tay phần chính sách, OK?
+4. **LCTT**: làm phương pháp **trực tiếp** (chuẩn TT99 khuyến nghị) hay **gián tiếp**, hay cả hai?
