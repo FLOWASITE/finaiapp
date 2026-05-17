@@ -318,16 +318,34 @@ function ReceiptsPage() {
 
       <NewReceiptDialog
         open={openNew}
-        onOpenChange={setOpenNew}
-        outstanding={outstanding}
+        onOpenChange={(v) => {
+          setOpenNew(v);
+          if (!v) {
+            setPreselectInvoice(undefined);
+            if (invoiceParam || customerParam) {
+              navigate({ search: {} as ReceiptsSearch, replace: true });
+            }
+          }
+        }}
+        outstanding={
+          customerParam
+            ? outstanding.filter((i: any) => i.customer_id === customerParam)
+            : outstanding
+        }
+        preselectInvoiceId={preselectInvoice}
         onSubmit={async (payload) => {
           try {
             await recordFn({ data: payload });
             toast.success("Đã ghi nhận phiếu thu");
             setOpenNew(false);
+            setPreselectInvoice(undefined);
+            if (invoiceParam || customerParam) {
+              navigate({ search: {} as ReceiptsSearch, replace: true });
+            }
             qc.invalidateQueries({ queryKey: ["receipts"] });
             qc.invalidateQueries({ queryKey: ["receipts-stats"] });
             qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
+            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
