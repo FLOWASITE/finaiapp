@@ -132,6 +132,11 @@ function OrganizationTab() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs">Mã số thuế</Label>
+                <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+                <p className="text-[11px] text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Tên hiển thị</Label>
                 <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: Công ty ABC" />
@@ -142,12 +147,7 @@ function OrganizationTab() {
                 <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
                 <p className="text-[11px] text-muted-foreground">In trên hoá đơn, BCTC.</p>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Mã số thuế</Label>
-                <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
-                <p className="text-[11px] text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
-              </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 md:col-span-2">
                 <Label className="text-xs">Điện thoại</Label>
                 <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 0901234567" />
               </div>
