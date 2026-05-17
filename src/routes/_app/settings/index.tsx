@@ -34,14 +34,16 @@ function SettingsPage() {
         <p className="text-sm text-muted-foreground">Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền</p>
       </div>
       <Tabs defaultValue="organization">
-        <TabsList>
-          <TabsTrigger value="organization">Tổ chức</TabsTrigger>
-          <TabsTrigger value="members">Thành viên</TabsTrigger>
-          <TabsTrigger value="company">Hồ sơ cá nhân</TabsTrigger>
-          <TabsTrigger value="periods">Khoá sổ</TabsTrigger>
-          <TabsTrigger value="fx">Tỷ giá</TabsTrigger>
-          <TabsTrigger value="roles">Phân quyền</TabsTrigger>
-        </TabsList>
+        <div className="-mx-1 overflow-x-auto">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="organization">Tổ chức</TabsTrigger>
+            <TabsTrigger value="members">Thành viên</TabsTrigger>
+            <TabsTrigger value="company">Hồ sơ cá nhân</TabsTrigger>
+            <TabsTrigger value="periods">Khoá sổ</TabsTrigger>
+            <TabsTrigger value="fx">Tỷ giá</TabsTrigger>
+            <TabsTrigger value="roles">Phân quyền</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="organization"><OrganizationTab /></TabsContent>
         <TabsContent value="members"><MembersTab /></TabsContent>
         <TabsContent value="company"><CompanyTab /></TabsContent>
