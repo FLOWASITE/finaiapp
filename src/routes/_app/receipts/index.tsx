@@ -43,7 +43,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Download, Wallet, Banknote, CreditCard, FileText } from "lucide-react";
 
-export const Route = createFileRoute("/_app/receipts/")({ component: ReceiptsPage });
+type ReceiptsSearch = { invoice?: string; customer?: string };
+
+export const Route = createFileRoute("/_app/receipts/")({
+  component: ReceiptsPage,
+  validateSearch: (s: Record<string, unknown>): ReceiptsSearch => ({
+    invoice: typeof s.invoice === "string" ? s.invoice : undefined,
+    customer: typeof s.customer === "string" ? s.customer : undefined,
+  }),
+});
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
