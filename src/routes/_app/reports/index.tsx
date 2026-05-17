@@ -37,7 +37,7 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
-  const [drill, setDrill] = useState<null | { report: "B01" | "B02"; ma_so: string; name: string }>(null);
+  const [drill, setDrill] = useState<null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }>(null);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
