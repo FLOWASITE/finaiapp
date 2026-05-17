@@ -351,7 +351,7 @@ function ReportTable({ cols, rows, onDrill }: { cols: (string | null)[]; rows: R
   );
 }
 
-function CashFlowTable({ items, hideZero }: { items: any[]; hideZero: boolean }) {
+function CashFlowTable({ items, hideZero, onDrill }: { items: any[]; hideZero: boolean; onDrill?: (code: string, name: string) => void }) {
   const groups = [
     { key: "operating", label: "I. Lưu chuyển tiền từ hoạt động kinh doanh" },
     { key: "investing", label: "II. Lưu chuyển tiền từ hoạt động đầu tư" },
@@ -371,13 +371,20 @@ function CashFlowTable({ items, hideZero }: { items: any[]; hideZero: boolean })
         {groups.map(g => (
           <>
             {g.label && <tr key={g.key + "-h"}><td colSpan={3} className="bg-muted/20 px-2 py-1.5 text-sm font-semibold">{g.label}</td></tr>}
-            {items.filter(it => it.section === g.key).filter(it => !hideZero || it.bold || it.amount !== 0).map(it => (
-              <tr key={it.ma_so} className={`border-b border-border/40 ${it.bold ? "bg-muted/30" : ""}`}>
-                <td className={`py-1.5 pl-4 ${it.bold ? "font-semibold" : ""}`}>{it.name}</td>
-                <td className="text-center font-mono text-xs text-muted-foreground">{it.ma_so}</td>
-                <td className={`text-right font-mono tabular-nums ${it.bold ? "font-semibold" : ""}`}>{fmt(it.amount)}</td>
-              </tr>
-            ))}
+            {items.filter(it => it.section === g.key).filter(it => !hideZero || it.bold || it.amount !== 0).map(it => {
+              const canDrill = !!onDrill && !it.bold && it.section !== "summary";
+              return (
+                <tr
+                  key={it.ma_so}
+                  className={`border-b border-border/40 ${it.bold ? "bg-muted/30" : ""} ${canDrill ? "cursor-pointer hover:bg-muted/40" : ""}`}
+                  onClick={canDrill ? () => onDrill!(it.ma_so, it.name) : undefined}
+                >
+                  <td className={`py-1.5 pl-4 ${it.bold ? "font-semibold" : ""}`}>{it.name}</td>
+                  <td className="text-center font-mono text-xs text-muted-foreground">{it.ma_so}</td>
+                  <td className={`text-right font-mono tabular-nums ${it.bold ? "font-semibold" : ""}`}>{fmt(it.amount)}</td>
+                </tr>
+              );
+            })}
           </>
         ))}
       </tbody>
