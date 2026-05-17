@@ -120,7 +120,7 @@ function ReportsPage() {
         </TabsList>
 
         <TabsContent value="b01">
-          <ReportCard title="Báo cáo tình hình tài chính (Mẫu B01-DN)" subtitle={`Tại ngày ${to}`} onExport={() => handleExport("B01")}>
+          <ReportCard title="Báo cáo tình hình tài chính (Mẫu B01-DN)" subtitle={`Tại ngày ${to}${compareEnabled ? ` — So sánh với ${prevAsOf}` : ""}`} onExport={() => handleExport("B01")}>
             {!bs.data ? <Loading /> : (
               <>
                 {!bs.data.balanced && (
