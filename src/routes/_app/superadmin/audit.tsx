@@ -241,15 +241,28 @@ function AuditPage() {
           <Switch checked={showTotal} onCheckedChange={setShowTotal} />
           Hiển thị tổng
         </label>
-        <div className="ml-auto text-xs text-muted-foreground">
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{logs.length} bản ghi</span>
+          <span className="text-border">•</span>
           {filtersSettling ? (
             <span className="italic">đang chờ bộ lọc…</span>
+          ) : !showTotal ? (
+            <Badge variant="outline" className="font-normal">
+              tổng: chưa khả dụng (bật “Hiển thị tổng”)
+            </Badge>
+          ) : isFetching && typeof total !== "number" ? (
+            <Badge variant="secondary" className="font-normal">
+              <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+              đang tính tổng…
+            </Badge>
           ) : typeof total === "number" ? (
-            <>
-              {logs.length} / {total} bản ghi
-            </>
+            <Badge variant="secondary" className="font-normal">
+              tổng: {total}
+            </Badge>
           ) : (
-            <>{logs.length} bản ghi (tổng: tắt)</>
+            <Badge variant="outline" className="font-normal">
+              tổng: chưa khả dụng
+            </Badge>
           )}
         </div>
       </div>
