@@ -26,32 +26,52 @@ type NavSection = { label: string; items: NavLeaf[] };
 
 const PRIMARY: NavLeaf[] = [
   { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { to: "/chat", label: "Trợ lý AI", icon: MessageSquare },
+  { to: "/chat", label: "Trợ lý AI", icon: Sparkles },
 ];
 
 const SECTIONS: NavSection[] = [
   {
-    label: "Mua – Bán",
+    label: "Bán hàng",
     items: [
-      { to: "/invoices", label: "HĐ mua vào", icon: FileText },
-      { to: "/sales", label: "HĐ bán ra", icon: ShoppingCart },
-      { to: "/receivables", label: "Công nợ", icon: Users },
+      { to: "/sales", label: "Hoá đơn bán ra", icon: ShoppingCart },
+      { to: "/receivables", label: "Công nợ phải thu", icon: Users },
     ],
   },
   {
-    label: "Kho – Quỹ",
+    label: "Mua hàng",
+    items: [
+      { to: "/invoices", label: "Hoá đơn mua vào", icon: FileText },
+    ],
+  },
+  {
+    label: "Kho vận",
     items: [
       { to: "/inventory", label: "Kho hàng", icon: Package },
-      { to: "/cash", label: "Quỹ tiền mặt", icon: Wallet },
-      { to: "/bank", label: "Đối soát NH", icon: Landmark },
-      { to: "/assets", label: "TSCĐ", icon: Boxes },
     ],
   },
   {
-    label: "Sổ sách – Thuế",
+    label: "Tiền & Ngân hàng",
+    items: [
+      { to: "/cash", label: "Quỹ tiền mặt", icon: Wallet },
+      { to: "/bank", label: "Đối soát ngân hàng", icon: Landmark },
+    ],
+  },
+  {
+    label: "Tài sản",
+    items: [
+      { to: "/assets", label: "Tài sản cố định", icon: Boxes },
+    ],
+  },
+  {
+    label: "Kế toán tổng hợp",
     items: [
       { to: "/journal", label: "Sổ nhật ký", icon: BookOpen },
-      { to: "/reports", label: "Báo cáo TC", icon: BarChart3 },
+      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Thuế",
+    items: [
       { to: "/tax", label: "Tờ khai GTGT", icon: Receipt },
     ],
   },
