@@ -156,7 +156,7 @@ function SalesHubPage() {
 
   const setTab = (t: SalesTab, extra: Partial<SalesSearch> = {}) =>
     navigate({
-      search: (prev) => ({ ...prev, tab: t, ...extra }),
+      search: (prev: SalesSearch) => ({ ...prev, tab: t, ...extra }),
       replace: true,
     });
 
@@ -726,7 +726,7 @@ function ReceiptsTab({
   const clearPreselect = () => {
     if (preselectInvoice || preselectCustomer) {
       navigate({
-        search: (prev) => ({ ...prev, invoice: undefined, customer: undefined }),
+        search: (prev: SalesSearch) => ({ ...prev, invoice: undefined, customer: undefined }),
         replace: true,
       });
     }
