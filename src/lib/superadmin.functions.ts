@@ -12,6 +12,41 @@ async function assertSuperadmin(supabase: any, userId: string) {
   if (!ok) throw new Error("Cần quyền Super-admin để thực hiện thao tác này.");
 }
 
+async function logSuperadminAction(params: {
+  actorId: string;
+  action: string;
+  targetTable?: string;
+  targetId?: string | null;
+  before?: any;
+  after?: any;
+}) {
+  try {
+    let actorEmail: string | null = null;
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", params.actorId)
+      .maybeSingle();
+    actorEmail = prof?.email ?? null;
+    if (!actorEmail) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(params.actorId);
+      actorEmail = u?.user?.email ?? null;
+    }
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: params.actorId,
+      actor_email: actorEmail,
+      action: params.action,
+      table_name: params.targetTable ?? null,
+      record_id: params.targetId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+    } as any);
+  } catch (e) {
+    // Never block the primary operation due to audit failure
+    console.error("[audit] failed to log superadmin action", e);
+  }
+}
+
 const ROLE_ENUM = z.enum(["owner", "accountant", "viewer", "superadmin"]);
 
 export const listAllTenants = createServerFn({ method: "GET" })
