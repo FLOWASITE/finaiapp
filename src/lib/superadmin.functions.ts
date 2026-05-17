@@ -436,6 +436,7 @@ export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
       target_id: z.string().uuid().optional(),
       from: z.string().optional(),
       to: z.string().optional(),
+      with_total: z.boolean().optional(),
     }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
@@ -443,9 +444,12 @@ export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
     await assertSuperadmin(supabase, userId);
     const limit = data.limit ?? 50;
     const offset = data.offset ?? 0;
+    const withTotal = data.with_total === true;
+    // Chỉ yêu cầu Postgres đếm `count: "exact"` khi client thật sự cần tổng
+    // (toggle "Hiển thị tổng" hoặc khi bộ lọc đã ổn định) — tránh full scan mỗi keystroke.
     let q = supabaseAdmin
       .from("audit_logs")
-      .select("*", { count: "exact" })
+      .select("*", withTotal ? { count: "exact" } : undefined)
       .like("action", `${data.action_prefix ?? "superadmin."}%`)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -455,5 +459,11 @@ export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
     if (data.to) q = q.lte("created_at", data.to);
     const { data: logs, error, count } = await q;
     if (error) throw new Error(error.message);
-    return { logs: logs ?? [], total: count ?? 0, limit, offset };
+    return {
+      logs: logs ?? [],
+      total: withTotal ? count ?? 0 : null,
+      limit,
+      offset,
+      has_more: (logs?.length ?? 0) === limit,
+    };
   });
