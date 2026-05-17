@@ -278,6 +278,93 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          bank_account: string | null
+          base_salary: number
+          citizen_id: string | null
+          code: string
+          created_at: string
+          department: string | null
+          dependents: number
+          end_date: string | null
+          full_name: string
+          id: string
+          insurance_salary: number
+          position: string | null
+          start_date: string | null
+          status: string
+          tax_id: string | null
+          user_id: string
+        }
+        Insert: {
+          bank_account?: string | null
+          base_salary?: number
+          citizen_id?: string | null
+          code: string
+          created_at?: string
+          department?: string | null
+          dependents?: number
+          end_date?: string | null
+          full_name: string
+          id?: string
+          insurance_salary?: number
+          position?: string | null
+          start_date?: string | null
+          status?: string
+          tax_id?: string | null
+          user_id: string
+        }
+        Update: {
+          bank_account?: string | null
+          base_salary?: number
+          citizen_id?: string | null
+          code?: string
+          created_at?: string
+          department?: string | null
+          dependents?: number
+          end_date?: string | null
+          full_name?: string
+          id?: string
+          insurance_salary?: number
+          position?: string | null
+          start_date?: string | null
+          status?: string
+          tax_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exchange_rates: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          rate: number
+          rate_date: string
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          id?: string
+          rate: number
+          rate_date: string
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          rate?: number
+          rate_date?: string
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       fixed_assets: {
         Row: {
           accumulated_account: string
@@ -515,6 +602,140 @@ export type Database = {
           },
         ]
       }
+      payroll_lines: {
+        Row: {
+          allowance: number
+          base_salary: number
+          bhtn_co: number
+          bhtn_emp: number
+          bhxh_co: number
+          bhxh_emp: number
+          bhyt_co: number
+          bhyt_emp: number
+          dependents: number
+          employee_id: string
+          gross: number
+          id: string
+          net: number
+          pit: number
+          run_id: string
+          taxable: number
+        }
+        Insert: {
+          allowance?: number
+          base_salary?: number
+          bhtn_co?: number
+          bhtn_emp?: number
+          bhxh_co?: number
+          bhxh_emp?: number
+          bhyt_co?: number
+          bhyt_emp?: number
+          dependents?: number
+          employee_id: string
+          gross?: number
+          id?: string
+          net?: number
+          pit?: number
+          run_id: string
+          taxable?: number
+        }
+        Update: {
+          allowance?: number
+          base_salary?: number
+          bhtn_co?: number
+          bhtn_emp?: number
+          bhxh_co?: number
+          bhxh_emp?: number
+          bhyt_co?: number
+          bhyt_emp?: number
+          dependents?: number
+          employee_id?: string
+          gross?: number
+          id?: string
+          net?: number
+          pit?: number
+          run_id?: string
+          taxable?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          period_month: string
+          status: string
+          total_gross: number
+          total_insurance_co: number
+          total_insurance_emp: number
+          total_net: number
+          total_pit: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month: string
+          status?: string
+          total_gross?: number
+          total_insurance_co?: number
+          total_insurance_emp?: number
+          total_net?: number
+          total_pit?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month?: string
+          status?: string
+          total_gross?: number
+          total_insurance_co?: number
+          total_insurance_emp?: number
+          total_net?: number
+          total_pit?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      period_locks: {
+        Row: {
+          id: string
+          locked_at: string
+          month: number
+          note: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          id?: string
+          locked_at?: string
+          month: number
+          note?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          id?: string
+          locked_at?: string
+          month?: number
+          note?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           code: string
@@ -566,26 +787,47 @@ export type Database = {
       profiles: {
         Row: {
           accounting_standard: string
+          address: string | null
+          bank_account: string | null
+          base_currency: string
           company_name: string | null
           created_at: string
           email: string | null
+          fiscal_year_start: number
           id: string
+          logo_url: string | null
+          phone: string | null
+          signer_name: string | null
           tax_id: string | null
         }
         Insert: {
           accounting_standard?: string
+          address?: string | null
+          bank_account?: string | null
+          base_currency?: string
           company_name?: string | null
           created_at?: string
           email?: string | null
+          fiscal_year_start?: number
           id: string
+          logo_url?: string | null
+          phone?: string | null
+          signer_name?: string | null
           tax_id?: string | null
         }
         Update: {
           accounting_standard?: string
+          address?: string | null
+          bank_account?: string | null
+          base_currency?: string
           company_name?: string | null
           created_at?: string
           email?: string | null
+          fiscal_year_start?: number
           id?: string
+          logo_url?: string | null
+          phone?: string | null
+          signer_name?: string | null
           tax_id?: string | null
         }
         Relationships: []
@@ -747,6 +989,48 @@ export type Database = {
           },
         ]
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          method: string
+          pay_date: string
+          reference: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          method?: string
+          pay_date?: string
+          reference?: string | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          method?: string
+          pay_date?: string
+          reference?: string | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -777,15 +1061,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_period_locked: {
+        Args: { _date: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "chief_accountant" | "accountant" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -912,6 +1227,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "chief_accountant", "accountant", "viewer"],
+    },
   },
 } as const
