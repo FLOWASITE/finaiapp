@@ -782,7 +782,7 @@ function ReceiptsTab({
   return (
     <div className="space-y-3">
       {/* Method KPIs */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <MiniReceiptCard
           label="Tổng thu kỳ"
           value={fmt(stats?.total ?? 0)}
