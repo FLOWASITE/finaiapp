@@ -88,6 +88,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Hệ thống",
     items: [
+      { to: "/admin", label: "Quản trị", icon: Shield },
       { to: "/settings", label: "Cài đặt", icon: Settings },
     ],
   },
