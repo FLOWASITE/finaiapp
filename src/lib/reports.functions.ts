@@ -208,38 +208,131 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     };
   });
 
-// ============ B09 — Thuyết minh BCTC (dữ liệu sinh tự động) ============
+// ============ Profile (cho tính kỳ so sánh theo năm tài chính) ============
+export const getCompanyProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, base_currency, fiscal_year_start, accounting_standard, signer_name").eq("id", userId).maybeSingle();
+    return data ?? { fiscal_year_start: 1, base_currency: "VND" };
+  });
+
+// ============ B09 — Thuyết minh BCTC (đầy đủ theo TT99) ============
 export const getNotesData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const [profile, assets, products, payables, receivables, notes] = await Promise.all([
+    const [profile, assets, products, payables, receivables, notes, deprec, lines, salesLines] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("fixed_assets").select("id, code, name, cost, useful_life_months, start_date, status").eq("user_id", userId),
+      supabase.from("fixed_assets").select("id, code, name, cost, useful_life_months, start_date, status, asset_account, accumulated_account, salvage_value, created_at").eq("user_id", userId),
       supabase.from("products").select("id, code, name, on_hand, unit_cost").eq("user_id", userId),
       supabase.from("invoices").select("supplier_name, total, payment_status, issue_date").eq("user_id", userId),
       supabase.from("sales_invoices").select("customer_name, total, status, issue_date").eq("user_id", userId),
       supabase.from("report_notes").select("section, content").eq("user_id", userId),
+      supabase.from("depreciation_entries").select("amount, period_month, asset_id").eq("asset_id", "00000000-0000-0000-0000-000000000000"), // placeholder, see below
+      fetchLines(supabase, userId, data.from, data.to),
+      supabase.from("sales_invoice_lines").select("amount, qty, unit_price, sales_invoices!inner(issue_date, user_id, status)").eq("sales_invoices.user_id", userId),
     ]);
 
+    // Re-fetch depreciation properly (asset_id filter above is wrong; do explicit)
+    const dep = await supabase
+      .from("depreciation_entries")
+      .select("amount, period_month, fixed_assets!inner(user_id)")
+      .eq("fixed_assets.user_id", userId);
+
+    // Tài sản cố định + biến động trong kỳ
+    const inPeriod = (d?: string) => d && (!data.from || d >= data.from) && (!data.to || d <= data.to);
+    const allAssets = assets.data ?? [];
+    const fixedAssets = allAssets.map((a: any) => ({
+      code: a.code, name: a.name, cost: Number(a.cost) || 0, life: a.useful_life_months,
+      start: a.start_date, status: a.status, account: a.asset_account,
+      addedInPeriod: inPeriod(a.created_at),
+    }));
+    const tscdSummary = {
+      openingCount: allAssets.filter((a: any) => !inPeriod(a.created_at)).length,
+      additionsCount: allAssets.filter((a: any) => inPeriod(a.created_at)).length,
+      disposalsCount: allAssets.filter((a: any) => a.status === "disposed").length,
+      totalCost: allAssets.reduce((s: number, a: any) => s + (Number(a.cost) || 0), 0),
+      totalDepreciation: (dep.data ?? []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0),
+    };
+
+    // Hàng tồn kho
     const inventory = (products.data ?? []).map((p: any) => ({
       code: p.code, name: p.name, qty: Number(p.on_hand) || 0, value: (Number(p.on_hand) || 0) * (Number(p.unit_cost) || 0),
     })).filter((p: any) => p.qty > 0);
+    const inventoryTotal = inventory.reduce((s: number, p: any) => s + p.value, 0);
 
-    const fixedAssets = (assets.data ?? []).map((a: any) => ({
-      code: a.code, name: a.name, cost: Number(a.cost) || 0, life: a.useful_life_months, start: a.start_date, status: a.status,
-    }));
+    // Aging công nợ
+    const today = data.to ?? new Date().toISOString().slice(0, 10);
+    const ageDays = (d: string) => Math.max(0, Math.floor((new Date(today).getTime() - new Date(d).getTime()) / 86400000));
+    const bucket = (days: number) => days <= 30 ? "0-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
+    const apList = (payables.data ?? []).filter((i: any) => i.payment_status !== "paid");
+    const arList = (receivables.data ?? []).filter((i: any) => i.status !== "paid");
+    const aging = (list: any[], nameField: string) => {
+      const buckets: Record<string, number> = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
+      for (const x of list) buckets[bucket(ageDays(x.issue_date ?? today))] += Number(x.total) || 0;
+      return buckets;
+    };
+    const apAging = aging(apList, "supplier_name");
+    const arAging = aging(arList, "customer_name");
 
-    const ap = (payables.data ?? []).filter((i: any) => i.payment_status !== "paid").reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
-    const ar = (receivables.data ?? []).filter((i: any) => i.status !== "paid").reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    // Doanh thu theo tháng + chi phí theo loại (từ journal lines trong kỳ)
+    const revenueByMonth: Record<string, number> = {};
+    const expenseByAccount: Record<string, number> = {};
+    const accountNames: Record<string, string> = {
+      "511": "Doanh thu bán hàng & CCDV", "515": "Doanh thu tài chính", "711": "Thu nhập khác",
+      "632": "Giá vốn hàng bán", "635": "Chi phí tài chính", "641": "Chi phí bán hàng",
+      "642": "Chi phí quản lý DN", "6421": "Chi phí bán hàng", "6422": "Chi phí QLDN",
+      "811": "Chi phí khác", "821": "Chi phí thuế TNDN",
+    };
+    for (const l of lines) {
+      const c = l.account_code;
+      if (c.startsWith("511")) {
+        const m = l.entry_date.slice(0, 7);
+        revenueByMonth[m] = (revenueByMonth[m] ?? 0) + (l.credit - l.debit);
+      }
+      for (const prefix of Object.keys(accountNames)) {
+        if (c.startsWith(prefix)) {
+          const amt = prefix.startsWith("5") || prefix.startsWith("7") ? l.credit - l.debit : l.debit - l.credit;
+          expenseByAccount[prefix] = (expenseByAccount[prefix] ?? 0) + amt;
+          break;
+        }
+      }
+    }
+    const expenseByType = Object.entries(expenseByAccount).map(([code, amount]) => ({ code, name: accountNames[code] ?? code, amount: Math.round(amount) })).filter(x => Math.abs(x.amount) > 0.5);
+    const revenueMonthly = Object.entries(revenueByMonth).sort().map(([month, amount]) => ({ month, amount: Math.round(amount) }));
+
+    // Vốn chủ sở hữu (số dư cuối kỳ trên 411, 4111, 4112, 421, 414, 418, 441)
+    const equityBalances: Record<string, number> = {};
+    const equityCodes = ["4111", "4112", "4118", "412", "413", "414", "418", "419", "421", "441"];
+    const fullLines = await fetchLines(supabase, userId, undefined, data.to);
+    for (const code of equityCodes) {
+      equityBalances[code] = balanceForPrefix(fullLines, code, "credit");
+    }
+
+    // Thuế phải nộp/đã nộp theo loại (333*)
+    const taxBreakdown: Record<string, number> = {};
+    const taxNames: Record<string, string> = { "3331": "GTGT đầu ra phải nộp", "3332": "Thuế tiêu thụ đặc biệt", "3333": "Thuế XNK", "3334": "Thuế TNDN", "3335": "Thuế TNCN", "3336": "Thuế tài nguyên", "3337": "Thuế nhà đất", "3338": "Thuế khác", "3339": "Phí, lệ phí" };
+    for (const code of Object.keys(taxNames)) {
+      const bal = balanceForPrefix(fullLines, code, "credit");
+      if (Math.abs(bal) > 0.5) taxBreakdown[code] = Math.round(bal);
+    }
+
+    const ap = apList.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const ar = arList.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
 
     const userNotes: Record<string, string> = {};
     for (const n of notes.data ?? []) userNotes[n.section] = n.content;
 
     return {
       profile: profile.data ?? null,
-      inventory, fixedAssets,
+      inventory, inventoryTotal: Math.round(inventoryTotal),
+      fixedAssets, tscdSummary: { ...tscdSummary, totalCost: Math.round(tscdSummary.totalCost), totalDepreciation: Math.round(tscdSummary.totalDepreciation), netBookValue: Math.round(tscdSummary.totalCost - tscdSummary.totalDepreciation) },
+      apAging, arAging,
+      revenueMonthly, expenseByType,
+      equityBalances: Object.fromEntries(Object.entries(equityBalances).map(([k, v]) => [k, Math.round(v)])),
+      taxBreakdown,
       summary: { totalPayables: Math.round(ap), totalReceivables: Math.round(ar) },
       userNotes,
       period: { from: data.from ?? null, to: data.to ?? null },
