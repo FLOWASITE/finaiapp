@@ -144,6 +144,51 @@ export type Database = {
           },
         ]
       }
+      cash_vouchers: {
+        Row: {
+          amount: number
+          cash_account: string
+          counter_account: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          party_name: string | null
+          reason: string | null
+          user_id: string
+          voucher_date: string
+          voucher_no: string
+          voucher_type: string
+        }
+        Insert: {
+          amount: number
+          cash_account?: string
+          counter_account: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          party_name?: string | null
+          reason?: string | null
+          user_id: string
+          voucher_date?: string
+          voucher_no: string
+          voucher_type: string
+        }
+        Update: {
+          amount?: number
+          cash_account?: string
+          counter_account?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          party_name?: string | null
+          reason?: string | null
+          user_id?: string
+          voucher_date?: string
+          voucher_no?: string
+          voucher_type?: string
+        }
+        Relationships: []
+      }
       chart_of_accounts: {
         Row: {
           code: string
@@ -162,6 +207,39 @@ export type Database = {
           name?: string
           parent_code?: string | null
           type?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          tax_id: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          tax_id?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          tax_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -437,6 +515,54 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          code: string
+          cogs_account: string
+          created_at: string
+          id: string
+          name: string
+          on_hand: number
+          revenue_account: string
+          stock_account: string
+          unit: string
+          unit_cost: number
+          unit_price: number
+          user_id: string
+          vat_rate: number
+        }
+        Insert: {
+          code: string
+          cogs_account?: string
+          created_at?: string
+          id?: string
+          name: string
+          on_hand?: number
+          revenue_account?: string
+          stock_account?: string
+          unit?: string
+          unit_cost?: number
+          unit_price?: number
+          user_id: string
+          vat_rate?: number
+        }
+        Update: {
+          code?: string
+          cogs_account?: string
+          created_at?: string
+          id?: string
+          name?: string
+          on_hand?: number
+          revenue_account?: string
+          stock_account?: string
+          unit?: string
+          unit_cost?: number
+          unit_price?: number
+          user_id?: string
+          vat_rate?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           accounting_standard: string
@@ -463,6 +589,163 @@ export type Database = {
           tax_id?: string | null
         }
         Relationships: []
+      }
+      sales_invoice_lines: {
+        Row: {
+          amount: number
+          description: string
+          id: string
+          invoice_id: string
+          product_id: string | null
+          qty: number
+          unit_price: number
+          vat_rate: number
+        }
+        Insert: {
+          amount?: number
+          description: string
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          qty?: number
+          unit_price?: number
+          vat_rate?: number
+        }
+        Update: {
+          amount?: number
+          description?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          qty?: number
+          unit_price?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_invoices: {
+        Row: {
+          created_at: string
+          currency: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_id: string | null
+          einvoice_code: string | null
+          einvoice_qr: string | null
+          id: string
+          invoice_no: string | null
+          invoice_series: string | null
+          issue_date: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          user_id: string
+          vat_amount: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          einvoice_code?: string | null
+          einvoice_qr?: string | null
+          id?: string
+          invoice_no?: string | null
+          invoice_series?: string | null
+          issue_date?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id: string
+          vat_amount?: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          einvoice_code?: string | null
+          einvoice_qr?: string | null
+          id?: string
+          invoice_no?: string | null
+          invoice_series?: string | null
+          issue_date?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id?: string
+          vat_amount?: number
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          movement_date: string
+          movement_type: string
+          note: string | null
+          product_id: string
+          qty: number
+          ref_id: string | null
+          ref_type: string | null
+          unit_cost: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          movement_date?: string
+          movement_type: string
+          note?: string | null
+          product_id: string
+          qty: number
+          ref_id?: string | null
+          ref_type?: string | null
+          unit_cost?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          movement_date?: string
+          movement_type?: string
+          note?: string | null
+          product_id?: string
+          qty?: number
+          ref_id?: string | null
+          ref_type?: string | null
+          unit_cost?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
