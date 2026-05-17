@@ -312,7 +312,6 @@ function AuditPage() {
                   Bấm để xem chi tiết
                 </td>
               </tr>
-              </tr>
               );
             })}
           </tbody>
