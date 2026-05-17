@@ -103,13 +103,23 @@ const QUICK_AI = [
 export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
   const [email, setEmail] = React.useState<string>("");
+  const [isSuperadmin, setIsSuperadmin] = React.useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setEmail(data.user?.email ?? "");
+      if (data.user?.id) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+        setIsSuperadmin((roles ?? []).some((r) => r.role === "superadmin"));
+      }
+    });
   }, []);
 
   React.useEffect(() => {
