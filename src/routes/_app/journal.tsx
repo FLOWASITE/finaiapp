@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,15 @@ export const Route = createFileRoute("/_app/journal")({
 });
 
 function Journal() {
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useEffect(() => {
+    const h = window.location.hash;
+    if (h.startsWith("#entry-")) {
+      const id = h.slice("#entry-".length);
+      setHighlight(id);
+      setTimeout(() => document.getElementById(h.slice(1))?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+    }
+  }, []);
   const { data: entries } = useQuery({
     queryKey: ["journal"],
     queryFn: async () => {
