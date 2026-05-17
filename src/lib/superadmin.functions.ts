@@ -12,6 +12,41 @@ async function assertSuperadmin(supabase: any, userId: string) {
   if (!ok) throw new Error("Cần quyền Super-admin để thực hiện thao tác này.");
 }
 
+async function logSuperadminAction(params: {
+  actorId: string;
+  action: string;
+  targetTable?: string;
+  targetId?: string | null;
+  before?: any;
+  after?: any;
+}) {
+  try {
+    let actorEmail: string | null = null;
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", params.actorId)
+      .maybeSingle();
+    actorEmail = prof?.email ?? null;
+    if (!actorEmail) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(params.actorId);
+      actorEmail = u?.user?.email ?? null;
+    }
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: params.actorId,
+      actor_email: actorEmail,
+      action: params.action,
+      table_name: params.targetTable ?? null,
+      record_id: params.targetId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+    } as any);
+  } catch (e) {
+    // Never block the primary operation due to audit failure
+    console.error("[audit] failed to log superadmin action", e);
+  }
+}
+
 const ROLE_ENUM = z.enum(["owner", "accountant", "viewer", "superadmin"]);
 
 export const listAllTenants = createServerFn({ method: "GET" })
@@ -117,6 +152,13 @@ export const setSuperadminRole = createServerFn({ method: "POST" })
         .eq("user_id", data.user_id)
         .eq("role", "superadmin" as any);
     }
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.enable ? "superadmin.role.grant" : "superadmin.role.revoke",
+      targetTable: "user_roles",
+      targetId: data.user_id,
+      after: { role: "superadmin", enable: data.enable },
+    });
     return { ok: true };
   });
 
@@ -197,6 +239,13 @@ export const setUserRole = createServerFn({ method: "POST" })
         .eq("user_id", data.user_id)
         .eq("role", data.role as any);
     }
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.enable ? "superadmin.role.grant" : "superadmin.role.revoke",
+      targetTable: "user_roles",
+      targetId: data.user_id,
+      after: { role: data.role, enable: data.enable },
+    });
     return { ok: true };
   });
 
@@ -213,6 +262,12 @@ export const resetUserPassword = createServerFn({ method: "POST" })
       email: data.email,
     });
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.account.reset_password",
+      targetTable: "auth.users",
+      after: { email: data.email },
+    });
     return { ok: true };
   });
 
@@ -232,6 +287,13 @@ export const setAccountBanned = createServerFn({ method: "POST" })
       ban_duration: data.banned ? "876000h" : "none",
     } as any);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.banned ? "superadmin.account.ban" : "superadmin.account.unban",
+      targetTable: "auth.users",
+      targetId: data.user_id,
+      after: { banned: data.banned },
+    });
     return { ok: true };
   });
 
@@ -251,6 +313,13 @@ export const deleteAccount = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.account.delete",
+      targetTable: "auth.users",
+      targetId: data.user_id,
+      before: { email: u?.user?.email ?? null },
+    });
     return { ok: true };
   });
 
@@ -290,8 +359,21 @@ export const updateOrganization = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertSuperadmin(supabase, userId);
     const { tenant_id, ...patch } = data;
+    const { data: before } = await supabaseAdmin
+      .from("profiles")
+      .select("company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start")
+      .eq("id", tenant_id)
+      .maybeSingle();
     const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", tenant_id);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.org.update",
+      targetTable: "profiles",
+      targetId: tenant_id,
+      before,
+      after: patch,
+    });
     return { ok: true };
   });
 
@@ -307,7 +389,7 @@ export const deleteOrganization = createServerFn({ method: "POST" })
 
     const { data: prof } = await supabaseAdmin
       .from("profiles")
-      .select("email")
+      .select("email, company_name, tax_id")
       .eq("id", data.tenant_id)
       .maybeSingle();
     if (!prof) throw new Error("Không tìm thấy tổ chức.");
@@ -329,5 +411,46 @@ export const deleteOrganization = createServerFn({ method: "POST" })
     await supabaseAdmin.from("profiles").delete().eq("id", data.tenant_id);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.tenant_id);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.org.delete",
+      targetTable: "profiles",
+      targetId: data.tenant_id,
+      before: prof,
+    });
     return { ok: true };
+  });
+
+// ============================================================
+// AUDIT LOG VIEWER (Super-admin actions)
+// ============================================================
+
+export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      limit: z.number().int().min(1).max(500).optional(),
+      action_prefix: z.string().max(64).optional(),
+      actor_email: z.string().max(255).optional(),
+      target_id: z.string().uuid().optional(),
+      from: z.string().optional(),
+      to: z.string().optional(),
+    }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    let q = supabaseAdmin
+      .from("audit_logs")
+      .select("*")
+      .like("action", `${data.action_prefix ?? "superadmin."}%`)
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 200);
+    if (data.actor_email) q = q.ilike("actor_email", `%${data.actor_email}%`);
+    if (data.target_id) q = q.eq("record_id", data.target_id);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    const { data: logs, error } = await q;
+    if (error) throw new Error(error.message);
+    return { logs: logs ?? [] };
   });
