@@ -165,23 +165,23 @@ function SalesHubPage() {
     setTab("invoices", { status: s });
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bán hàng</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bán hàng</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Tổng quan doanh thu, hoá đơn và phiếu thu — đối ứng công nợ TK 131
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
           <NewInvoiceDialog />
         </div>
       </div>
 
       {/* Money strip — Xero-style click-to-filter cards */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <MoneyCard
           tone="primary"
           icon={<TrendingUp className="h-4 w-4" />}
