@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
   getBalanceSheetTT99, getIncomeStatementTT99, getCashFlowDirect,
-  getNotesData, upsertReportNote, exportReportXlsx,
+  getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
 } from "@/lib/reports.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ const fmt = (n: number) => {
   return n < 0 ? `(${abs})` : abs;
 };
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 function ReportsPage() {
   const today = new Date().toISOString().slice(0, 10);
   const year = new Date().getFullYear();
@@ -32,9 +34,25 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
 
-  const prevFrom = `${year - 1}-01-01`;
-  const prevTo = `${year - 1}-12-31`;
-  const prevAsOf = `${year - 1}-12-31`;
+  const profileFn = useServerFn(getCompanyProfile);
+  const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
+  const fiscalStart = Number(profileQ.data?.fiscal_year_start ?? 1);
+
+  // Tính 'Số đầu năm' = ngày trước khi bắt đầu năm tài chính chứa `to`
+  const { prevFrom, prevTo, prevAsOf } = useMemo(() => {
+    const d = new Date(to);
+    const m = d.getMonth() + 1, y = d.getFullYear();
+    const fyStartYear = m >= fiscalStart ? y : y - 1;
+    const fyStart = new Date(`${fyStartYear}-${pad(fiscalStart)}-01`);
+    const fyEnd = new Date(fyStart); fyEnd.setFullYear(fyEnd.getFullYear() + 1); fyEnd.setDate(fyEnd.getDate() - 1);
+    const prevFyEnd = new Date(fyStart); prevFyEnd.setDate(prevFyEnd.getDate() - 1);
+    const prevFyStart = new Date(prevFyEnd); prevFyStart.setFullYear(prevFyStart.getFullYear() - 1); prevFyStart.setDate(prevFyStart.getDate() + 1);
+    return {
+      prevFrom: prevFyStart.toISOString().slice(0, 10),
+      prevTo: prevFyEnd.toISOString().slice(0, 10),
+      prevAsOf: prevFyEnd.toISOString().slice(0, 10),
+    };
+  }, [to, fiscalStart]);
 
   const bsFn = useServerFn(getBalanceSheetTT99);
   const isFn = useServerFn(getIncomeStatementTT99);
