@@ -263,6 +263,7 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                   <th className="py-2 text-left w-24">Ngày</th>
                   <th className="text-left">Diễn giải</th>
                   <th className="w-20 text-center">TK</th>
+                  {drill?.report === "B03" && <th className="w-20 text-center">Đối ứng</th>}
                   <th className="w-28 text-right">Nợ</th>
                   <th className="w-28 text-right">Có</th>
                   <th className="w-28 text-right">Đóng góp</th>
@@ -275,6 +276,9 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                     <td className="py-1 text-xs">{l.entry_date}</td>
                     <td className="text-xs">{l.description ?? "—"}</td>
                     <td className="text-center font-mono text-xs">{l.account_code}</td>
+                    {drill?.report === "B03" && (
+                      <td className="text-center font-mono text-xs text-muted-foreground">{l.counter_account || "—"}</td>
+                    )}
                     <td className="text-right font-mono text-xs">{fmt(l.debit)}</td>
                     <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
                     <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
