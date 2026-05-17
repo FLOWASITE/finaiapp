@@ -267,7 +267,7 @@ function SalesHubPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Tuổi nợ phải thu</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-56 sm:h-64 px-2 sm:px-6">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
