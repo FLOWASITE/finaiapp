@@ -332,60 +332,90 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          bank_account_no: string | null
+          bank_branch: string | null
+          bank_name: string | null
           code: string | null
           contact_person: string | null
           created_at: string
           currency: string
           email: string | null
           email_cc: string | null
+          fax: string | null
           id: string
           is_active: boolean
+          legal_rep: string | null
           name: string
           notes: string | null
           opening_balance: number
+          opening_balance_credit: number
+          opening_balance_debit: number
+          party_type: string
           payment_terms_days: number
           phone: string | null
+          receivable_account: string
           tax_id: string | null
           tenant_id: string | null
           user_id: string
+          website: string | null
         }
         Insert: {
           address?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           code?: string | null
           contact_person?: string | null
           created_at?: string
           currency?: string
           email?: string | null
           email_cc?: string | null
+          fax?: string | null
           id?: string
           is_active?: boolean
+          legal_rep?: string | null
           name: string
           notes?: string | null
           opening_balance?: number
+          opening_balance_credit?: number
+          opening_balance_debit?: number
+          party_type?: string
           payment_terms_days?: number
           phone?: string | null
+          receivable_account?: string
           tax_id?: string | null
           tenant_id?: string | null
           user_id: string
+          website?: string | null
         }
         Update: {
           address?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           code?: string | null
           contact_person?: string | null
           created_at?: string
           currency?: string
           email?: string | null
           email_cc?: string | null
+          fax?: string | null
           id?: string
           is_active?: boolean
+          legal_rep?: string | null
           name?: string
           notes?: string | null
           opening_balance?: number
+          opening_balance_credit?: number
+          opening_balance_debit?: number
+          party_type?: string
           payment_terms_days?: number
           phone?: string | null
+          receivable_account?: string
           tax_id?: string | null
           tenant_id?: string | null
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -1541,42 +1571,87 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          bank_account_no: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          code: string | null
+          contact_person: string | null
           created_at: string
+          currency: string
           email: string | null
+          fax: string | null
           id: string
+          is_active: boolean
+          legal_rep: string | null
           name: string
+          notes: string | null
+          opening_balance_credit: number
+          opening_balance_debit: number
+          party_type: string
+          payable_account: string
           payment_terms_days: number
           phone: string | null
           risk_flag: string | null
           tax_id: string | null
           tenant_id: string | null
           user_id: string
+          website: string | null
         }
         Insert: {
           address?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          code?: string | null
+          contact_person?: string | null
           created_at?: string
+          currency?: string
           email?: string | null
+          fax?: string | null
           id?: string
+          is_active?: boolean
+          legal_rep?: string | null
           name: string
+          notes?: string | null
+          opening_balance_credit?: number
+          opening_balance_debit?: number
+          party_type?: string
+          payable_account?: string
           payment_terms_days?: number
           phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
           tenant_id?: string | null
           user_id: string
+          website?: string | null
         }
         Update: {
           address?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          code?: string | null
+          contact_person?: string | null
           created_at?: string
+          currency?: string
           email?: string | null
+          fax?: string | null
           id?: string
+          is_active?: boolean
+          legal_rep?: string | null
           name?: string
+          notes?: string | null
+          opening_balance_credit?: number
+          opening_balance_debit?: number
+          party_type?: string
+          payable_account?: string
           payment_terms_days?: number
           phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
           tenant_id?: string | null
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
