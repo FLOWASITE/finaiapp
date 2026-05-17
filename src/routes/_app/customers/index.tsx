@@ -107,7 +107,22 @@ function CustomersPage() {
                 <td className="px-4 py-2 text-right">{c.currency ?? "VND"}</td>
                 <td className="px-4 py-2 text-right font-mono">{Number(c.opening_balance ?? 0).toLocaleString("vi-VN")}</td>
                 <td className="px-4 py-2 text-right">
-                  <Button variant="ghost" size="icon" onClick={() => setEditing({ ...blank, ...c, email: c.email ?? "", email_cc: c.email_cc ?? "", phone: c.phone ?? "", address: c.address ?? "", tax_id: c.tax_id ?? "", contact_person: c.contact_person ?? "", notes: c.notes ?? "" })}>
+                  <Button variant="ghost" size="icon" onClick={() => setEditing({
+                    id: c.id,
+                    code: c.code ?? "",
+                    name: c.name,
+                    tax_id: c.tax_id ?? "",
+                    email: c.email ?? "",
+                    email_cc: c.email_cc ?? "",
+                    phone: c.phone ?? "",
+                    address: c.address ?? "",
+                    contact_person: c.contact_person ?? "",
+                    payment_terms_days: c.payment_terms_days ?? 30,
+                    currency: c.currency ?? "VND",
+                    opening_balance: Number(c.opening_balance ?? 0),
+                    notes: c.notes ?? "",
+                    is_active: c.is_active !== false,
+                  })}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <ArchiveButton id={c.id} archived={c.is_active === false} />
@@ -180,7 +195,7 @@ function CustomerForm({ initial, onDone }: { initial: typeof blank; onDone: () =
             <TaxIdLookupInput
               value={f.tax_id}
               onChange={(v) => setF({ ...f, tax_id: v })}
-              onResolved={(d) => setF((p) => ({ ...p, tax_id: d.taxId, name: p.name || d.name, address: p.address || d.address }))}
+              onResolved={(d) => setF((p) => ({ ...p, tax_id: d.taxId, name: p.name || d.name, address: p.address || d.address || "" }))}
             />
           </div>
         </div>
