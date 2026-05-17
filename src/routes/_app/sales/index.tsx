@@ -389,11 +389,12 @@ function MoneyCard({
 function MiniKpi({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <CardContent className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" /> {label}
+      <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div className="flex items-center gap-1.5 text-[11px] sm:text-sm text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+          <span className="truncate">{label}</span>
         </div>
-        <div className="font-mono font-semibold">{value}</div>
+        <div className="font-mono font-semibold text-sm sm:text-base">{value}</div>
       </CardContent>
     </Card>
   );
