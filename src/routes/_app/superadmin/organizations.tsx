@@ -19,8 +19,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Pencil, Trash2, Building2 } from "lucide-react";
+import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
-export const Route = createFileRoute("/_app/superadmin/organizations")({ component: OrgsPage });
+export const Route = createFileRoute("/_app/superadmin/organizations")({
+  beforeLoad: requireSuperadminGuard,
+  component: OrgsPage,
+});
 
 function OrgsPage() {
   const list = useServerFn(listOrganizations);
