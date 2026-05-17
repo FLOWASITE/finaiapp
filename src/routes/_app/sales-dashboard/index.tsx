@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Users,
   Clock,
+  Banknote,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales-dashboard/")({ component: SalesDashboardPage });
