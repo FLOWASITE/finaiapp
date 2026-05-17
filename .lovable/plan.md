@@ -1,58 +1,61 @@
-# Kế hoạch: Sidebar hiện đại – phá cách – AI-first
+# Kế hoạch: Bổ sung các phân hệ kế toán còn thiếu
 
-Mục tiêu: nâng cấp sidebar AccuVN hiện tại (tĩnh, phẳng, danh sách link đơn giản) thành một "command surface" hiện đại, có chiều sâu thị giác và tích hợp AI ngay trong sidebar.
+## Hiện trạng AccuVN
+Đã có: Bán hàng, Mua hàng (hoá đơn vào), Kho, Quỹ tiền mặt, Ngân hàng, TSCĐ, Sổ nhật ký, BCTC, Thuế GTGT, Công nợ phải thu, Trợ lý AI.
 
-## Tham chiếu thiết kế (research)
-- **Linear / Vercel / Raycast**: sidebar tối, dày dặn, group có thể thu gọn, phím tắt, command palette ⌘K luôn nổi bật trên cùng.
-- **Notion / ChatGPT**: ô "Ask AI" lớn, gợi ý prompt nhanh, lịch sử hội thoại pin lên đầu.
-- **Vercel Geist / Arc Browser**: collapsible rail (mở rộng khi hover), section dividers mảnh, micro-animation khi active.
-- **MISA AMIS / FAST**: giữ nhóm chức năng kế toán truyền thống (Mua–Bán, Kho–Quỹ, Sổ–Thuế) để kế toán viên không bị lạc.
+## Đối chiếu với MISA AMIS / FAST / Bravo
+Các phân hệ phổ biến trong phần mềm kế toán VN còn **thiếu** trong AccuVN:
 
-## Hướng thiết kế đề xuất
-1. **Layout & cấu trúc**
-   - Dùng `Sidebar` của shadcn với `collapsible="icon"` → mặc định 240px, thu gọn còn 56px (icon-only), có `SidebarTrigger` ở header.
-   - Header sidebar: logo "A" gradient + tên AccuVN + badge phiên bản nhỏ.
-   - 3 vùng dọc: **AI zone** (trên) · **Navigation groups** (giữa, cuộn) · **User card** (dưới).
+### Nhóm 1 — Bắt buộc (gap rõ nhất)
+1. **Công nợ phải trả** (`/payables`) — đối ứng với phải thu. Theo dõi dư nợ NCC, tuổi nợ, lịch thanh toán, đối chiếu với hoá đơn mua.
+2. **Tiền lương & nhân sự** (`/payroll`) — bảng lương, BHXH/BHYT/BHTN, thuế TNCN, hạch toán 334/338/3383/3384/3389.
+3. **Giá thành sản xuất** (`/costing`) — tập hợp chi phí 621/622/627 → tính giá thành thành phẩm 154→155 (cho DN sản xuất).
+4. **Hợp đồng & dự án** (`/projects`) — theo dõi doanh thu/chi phí theo hợp đồng, dự án, công trình.
 
-2. **AI zone – điểm phá cách**
-   - Khối "Ask AccuVN" nổi: nền gradient mềm (`--gradient-primary`), shadow `--shadow-elegant`, input giả lập + phím tắt ⌘K.
-   - Click → mở Command Dialog (cmdk) với: tìm trang, hỏi AI, lệnh nhanh ("Tạo phiếu thu", "BCTC tháng này"…).
-   - 2–3 "AI suggestions" động bên dưới (chip pill, icon Sparkles) – mock tĩnh ở phase này, hook vào dữ liệu sau.
-   - Link nhanh "Trợ lý AI" → `/chat`.
+### Nhóm 2 — Quan trọng
+5. **Thuế TNCN / Tờ khai 05-KK-TNCN** (mở rộng `/tax`) — hiện chỉ có GTGT.
+6. **Thuế TNDN tạm tính & quyết toán** (mở rộng `/tax`) — tờ khai 03/TNDN.
+7. **Ngân sách & dự toán** (`/budget`) — lập kế hoạch tháng/quý, so sánh thực tế vs kế hoạch.
+8. **Báo cáo quản trị** (mở rộng `/reports`) — Lãi/lỗ theo SP, khách hàng, kênh; dòng tiền dự kiến (cashflow forecast).
 
-3. **Navigation groups**
-   - Collapsible group (Mua–Bán / Kho–Quỹ / Sổ–Thuế) – nhớ trạng thái mở theo route active.
-   - NavItem: icon trong khung bo nhẹ, active state dùng thanh accent trái + nền `bg-accent/10`, animation `fade-in` + scale icon.
-   - Badge số (vd: HĐ chờ duyệt) bên phải, dùng token semantic.
-   - Khi collapsed: chỉ icon + tooltip (shadcn Tooltip), giữ accent strip.
+### Nhóm 3 — Hỗ trợ vận hành
+9. **Đơn đặt hàng (Sales Order / Purchase Order)** — quy trình đặt → hoá đơn → giao hàng.
+10. **Phiếu nhập/xuất kho có chứng từ riêng** (mở rộng `/inventory`) — hiện chỉ có movement đơn giản.
+11. **Đa chi nhánh / kho** — `branch_id`, `warehouse_id` trên các bảng chính.
+12. **Đa tiền tệ & tỷ giá** — bảng `exchange_rates`, đánh giá chênh lệch tỷ giá cuối kỳ (515/635).
+13. **Khoá sổ kỳ kế toán** (`period_locks`) — cấm sửa chứng từ đã khoá.
+14. **Nhật ký hoạt động / Audit log** — ai tạo/sửa/xoá chứng từ.
 
-4. **User card (dưới)**
-   - Avatar + email + role chip, menu dropdown: Hồ sơ / Cài đặt / Đăng xuất.
-   - Indicator "Lovable Cloud" online (chấm xanh pulse).
+### Nhóm 4 — Quản trị hệ thống
+15. **Phân quyền theo vai trò** (admin/kế toán trưởng/kế toán viên/xem) — bảng `user_roles` + RLS theo role.
+16. **Cài đặt doanh nghiệp** (`/settings`) — logo, chữ ký, mẫu hoá đơn, kỳ kế toán, chuẩn TT133/TT200.
+17. **Import/Export Excel** — nhập bảng kê hoá đơn, danh mục KH/NCC/SP từ Excel.
 
-5. **Visual system**
-   - Bổ sung token trong `src/styles.css`: `--sidebar-bg`, `--sidebar-accent`, `--gradient-ai`, `--shadow-ai-card`.
-   - Hỗ trợ light/dark. Phá cách = nền hơi tối hơn main (`oklch` lệch ~3%), border gần như vô hình, dùng inner-shadow thay border ở AI card.
-   - Animation: `animate-fade-in` cho group, `hover-scale` cho AI card, transition 200ms cho collapse.
+## Đề xuất ưu tiên Phase 5 (build ngay)
+Đề xuất tập trung 4 phân hệ tạo giá trị cao nhất, cân đối thời gian:
 
-6. **Tương thích & a11y**
-   - Phím tắt ⌘K / Ctrl+K mở command palette toàn app.
-   - aria-label đầy đủ, focus ring rõ ràng, keyboard nav cho group expand.
-   - Responsive: <768px chuyển sang `Sheet` (offcanvas) với cùng nội dung.
+**A. Công nợ phải trả** (`/payables`)
+- Sinh từ `invoices` (mua) đã ghi sổ + `cash_vouchers` chi
+- View: dư nợ NCC, tuổi nợ (0-30/31-60/61-90/>90), lịch đến hạn
 
-## Phạm vi kỹ thuật
-- Refactor `src/routes/_app.tsx` để dùng `SidebarProvider` + component `AppSidebar` mới tại `src/components/app-sidebar.tsx`.
-- Tạo `src/components/sidebar/ai-launcher.tsx` (AI card + cmdk dialog) và `src/components/sidebar/user-card.tsx`.
-- Cài `cmdk` (đã có qua shadcn `command`) – kiểm tra, nếu chưa có thì thêm `bun add cmdk`.
-- Thêm tokens vào `src/styles.css` (không đổi palette gốc, chỉ thêm biến).
-- KHÔNG đổi business logic, KHÔNG đổi routes hiện có.
+**B. Tiền lương** (`/payroll`)
+- Bảng `employees`, `payroll_runs`, `payroll_lines`
+- Tính: lương cơ bản, phụ cấp, BHXH (10.5%), BHYT (1.5%), BHTN (1%), TNCN luỹ tiến
+- Sinh bút toán: 642/641 → 334, 338x
 
-## Ngoài phạm vi (phase sau)
-- AI suggestions thật từ dữ liệu (cần serverFn riêng).
-- Pin/sắp xếp menu theo người dùng (cần bảng `user_preferences`).
-- Đa ngôn ngữ.
+**C. Phân quyền + Cài đặt DN** (`/settings`)
+- `user_roles` enum (owner/accountant/viewer) + `has_role()` security definer
+- Trang `/settings` chỉnh hồ sơ DN, chuẩn TT, kỳ kế toán
 
-## Câu hỏi trước khi build
-1. Tone màu: giữ light mặc định hay làm sidebar **dark mode-only** (kiểu Linear/Vercel) để tạo cảm giác phá cách?
-2. AI launcher: chỉ là **command palette ⌘K** hay kèm **mini-chat inline** (gõ câu hỏi ngay trong sidebar, kết quả mở `/chat`)?
-3. Có cần **collapsible icon-rail** (thu gọn còn 56px) ngay phase này không?
+**D. Đa tiền tệ + Khoá sổ** (nâng cấp ngầm)
+- `exchange_rates(date, currency, rate)`
+- `period_locks(year, month, locked_at)` + check trong serverFn ghi sổ
+
+## Ngoài phạm vi Phase 5
+Giá thành sản xuất, dự án, ngân sách, đơn hàng, đa chi nhánh, import Excel — để Phase 6+.
+
+## Câu hỏi cho bạn trước khi build
+1. **Ưu tiên đúng không?** Build 4 phân hệ A+B+C+D, hay bạn muốn đảo thứ tự / thêm / bỏ?
+2. **Quy mô DN mục tiêu**: SME dịch vụ/thương mại (TT133, không cần giá thành SX) hay có sản xuất (cần Giá thành — TT200)?
+3. **Lương**: tính theo công thức VN chuẩn (BHXH 10.5%/BHYT 1.5%/BHTN 1%, TNCN luỹ tiến 7 bậc) hay đơn giản hoá (lương net + thuế phẳng) ở phase này?
+4. **Phân quyền**: chỉ cần 2 vai trò (owner/viewer) hay đầy đủ 4 (owner/kế toán trưởng/kế toán viên/viewer)?
