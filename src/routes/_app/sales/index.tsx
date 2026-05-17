@@ -863,18 +863,18 @@ function ReceiptsTab({
       </Card>
 
       {/* Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase">
             <tr>
-              <th className="px-4 py-2 text-left">Ngày</th>
-              <th className="px-4 py-2 text-left">Khách hàng</th>
-              <th className="px-4 py-2 text-left">Hoá đơn</th>
-              <th className="px-4 py-2 text-left">Hình thức</th>
-              <th className="px-4 py-2 text-left">Tham chiếu</th>
-              <th className="px-4 py-2 text-right">Số tiền</th>
-              <th className="px-4 py-2 text-center">Đối soát</th>
-              <th className="px-4 py-2"></th>
+              <th className="px-2 sm:px-4 py-2 text-left">Ngày</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Khách hàng</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden md:table-cell">Hoá đơn</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Hình thức</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Tham chiếu</th>
+              <th className="px-2 sm:px-4 py-2 text-right">Số tiền</th>
+              <th className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">Đối soát</th>
+              <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -883,9 +883,14 @@ function ReceiptsTab({
               const status = inv?.payment_status ?? "—";
               return (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{r.pay_date}</td>
-                  <td className="px-4 py-2">{r.customer_name ?? "—"}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap">{r.pay_date}</td>
+                  <td className="px-2 sm:px-4 py-2">
+                    <div className="truncate max-w-[140px] sm:max-w-none">{r.customer_name ?? "—"}</div>
+                    <div className="md:hidden text-[11px] text-muted-foreground font-mono mt-0.5">
+                      {inv?.invoice_no ?? ""} · {METHOD_LABEL[r.method] ?? r.method}
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-4 py-2 hidden md:table-cell">
                     {inv?.invoice_no ? (
                       <Link
                         to="/sales/$id"
@@ -898,14 +903,14 @@ function ReceiptsTab({
                       "—"
                     )}
                   </td>
-                  <td className="px-4 py-2">{METHOD_LABEL[r.method] ?? r.method}</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">
+                  <td className="px-2 sm:px-4 py-2 hidden lg:table-cell">{METHOD_LABEL[r.method] ?? r.method}</td>
+                  <td className="px-2 sm:px-4 py-2 text-xs text-muted-foreground hidden lg:table-cell">
                     {r.reference ?? "—"}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold">
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono font-semibold whitespace-nowrap">
                     {fmt(r.amount)}
                   </td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">
                     <PaymentBadge status={status} />
                   </td>
                   <td className="px-4 py-2 text-right">
