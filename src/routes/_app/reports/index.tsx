@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, Printer, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/reports/")({
   component: ReportsPage,
