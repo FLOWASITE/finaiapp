@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
-  LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes,
+  LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
   MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
   Search, Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
   Plus, FileSpreadsheet, Bot, CreditCard, UserCog,
@@ -68,6 +68,7 @@ const SECTIONS: NavSection[] = [
     label: "Kế toán tổng hợp",
     items: [
       { to: "/journal", label: "Sổ nhật ký", icon: BookOpen },
+      { to: "/coa", label: "Hệ thống tài khoản", icon: BookOpenCheck },
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
     ],
   },
