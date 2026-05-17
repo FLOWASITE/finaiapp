@@ -144,79 +144,56 @@ export function AppSidebar() {
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-r-0">
-        <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-3">
+      <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+        <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
           <Link to="/dashboard" className="flex items-center gap-2.5">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)]"
-              style={{ background: "var(--gradient-ai)" }}
-            >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground text-background font-bold text-sm">
               A
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-tight animate-fade-in">
-                <span className="font-semibold tracking-tight text-sidebar-foreground">AccuVN</span>
-                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
-                  AI Accounting · v3
+                <span className="font-semibold tracking-tight text-foreground text-sm">AccuVN</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Accounting Suite
                 </span>
               </div>
             )}
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="gap-1">
-          {/* AI LAUNCHER */}
-          <div className="px-2 pt-3 pb-2">
+        <SidebarContent className="gap-0">
+          {/* AI LAUNCHER — minimal input style */}
+          <div className="px-2 pt-3 pb-1">
             {collapsed ? (
               <button
                 onClick={() => setOpenCmd(true)}
                 aria-label="Ask AccuVN AI"
-                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] hover-scale"
-                style={{ background: "var(--gradient-ai)" }}
+                className="flex h-8 w-8 mx-auto items-center justify-center rounded-md border border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
               >
                 <Sparkles className="h-4 w-4" />
               </button>
             ) : (
               <button
                 onClick={() => setOpenCmd(true)}
-                className="group relative w-full overflow-hidden rounded-xl p-[1px] hover-scale animate-fade-in"
-                style={{ background: "var(--gradient-ai)" }}
+                className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-background px-2.5 py-1.5 text-left hover:border-foreground/30 transition-colors"
               >
-                <div className="rounded-[11px] bg-sidebar/90 backdrop-blur-sm px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-sidebar-primary" />
-                    <span className="text-xs font-medium text-sidebar-foreground/90 flex-1 text-left">
-                      Hỏi AccuVN AI…
-                    </span>
-                    <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
-                      <CommandIcon className="h-2.5 w-2.5" />K
-                    </kbd>
-                  </div>
-                </div>
+                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground flex-1 truncate">
+                  Hỏi AccuVN AI…
+                </span>
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border bg-sidebar-accent px-1 py-0 text-[10px] font-mono text-muted-foreground">
+                  <CommandIcon className="h-2.5 w-2.5" />K
+                </kbd>
               </button>
-            )}
-
-            {!collapsed && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {QUICK_AI.map((q) => (
-                  <button
-                    key={q.label}
-                    onClick={() => go(q.to)}
-                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2 py-0.5 text-[10px] text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
-                  >
-                    {q.label}
-                  </button>
-                ))}
-              </div>
             )}
           </div>
 
           {/* PRIMARY */}
-          <SidebarGroup className="py-0">
+          <SidebarGroup className="py-1">
             <SidebarGroupContent>
               <SidebarMenu>
                 {PRIMARY.map((item) => (
-                  <NavLink key={item.to} item={item} active={isActive(item.to)} />
+                  <NavLink key={item.to} item={item} active={isActive(item.to)} pathname={pathname} />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -224,19 +201,20 @@ export function AppSidebar() {
 
           {/* SECTIONS */}
           {SECTIONS.map((s) => (
-            <SidebarGroup key={s.label}>
-              <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
+            <SidebarGroup key={s.label} className="py-0">
+              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 px-3 pt-3 pb-1 h-auto">
                 {s.label}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {s.items.map((item) => (
-                    <NavLink key={item.to} item={item} active={isActive(item.to)} />
+                    <NavLink key={item.to} item={item} active={isActive(item.to)} pathname={pathname} />
                   ))}
                   {s.label === "Hệ thống" && isSuperadmin && (
                     <NavLink
                       item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
                       active={isActive("/superadmin")}
+                      pathname={pathname}
                     />
                   )}
                 </SidebarMenu>
