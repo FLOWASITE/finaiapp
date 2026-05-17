@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
@@ -22,6 +21,7 @@ import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppReceivablesIndexRouteImport } from './routes/_app/receivables/index'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
@@ -46,11 +46,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
@@ -95,6 +90,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
 const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
   id: '/sales/',
   path: '/sales/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReceivablesIndexRoute = AppReceivablesIndexRouteImport.update({
@@ -156,7 +156,6 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
-  '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -167,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/payables/': typeof AppPayablesIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
   '/receivables/': typeof AppReceivablesIndexRoute
+  '/reports/': typeof AppReportsIndexRoute
   '/sales/': typeof AppSalesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
@@ -180,7 +180,6 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
-  '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -191,6 +190,7 @@ export interface FileRoutesByTo {
   '/payables': typeof AppPayablesIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
   '/receivables': typeof AppReceivablesIndexRoute
+  '/reports': typeof AppReportsIndexRoute
   '/sales': typeof AppSalesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
@@ -206,7 +206,6 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
-  '/_app/reports': typeof AppReportsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
@@ -217,6 +216,7 @@ export interface FileRoutesById {
   '/_app/payables/': typeof AppPayablesIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
   '/_app/receivables/': typeof AppReceivablesIndexRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
@@ -232,7 +232,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
-    | '/reports'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/sales/$id'
@@ -243,6 +242,7 @@ export interface FileRouteTypes {
     | '/payables/'
     | '/payroll/'
     | '/receivables/'
+    | '/reports/'
     | '/sales/'
     | '/settings/'
     | '/suppliers/'
@@ -256,7 +256,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
-    | '/reports'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/sales/$id'
@@ -267,6 +266,7 @@ export interface FileRouteTypes {
     | '/payables'
     | '/payroll'
     | '/receivables'
+    | '/reports'
     | '/sales'
     | '/settings'
     | '/suppliers'
@@ -281,7 +281,6 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/journal'
-    | '/_app/reports'
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
     | '/_app/sales/$id'
@@ -292,6 +291,7 @@ export interface FileRouteTypes {
     | '/_app/payables/'
     | '/_app/payroll/'
     | '/_app/receivables/'
+    | '/_app/reports/'
     | '/_app/sales/'
     | '/_app/settings/'
     | '/_app/suppliers/'
@@ -326,13 +326,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
     }
     '/_app/journal': {
       id: '/_app/journal'
@@ -395,6 +388,13 @@ declare module '@tanstack/react-router' {
       path: '/sales'
       fullPath: '/sales/'
       preLoaderRoute: typeof AppSalesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/receivables/': {
@@ -476,7 +476,6 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppJournalRoute: typeof AppJournalRoute
-  AppReportsRoute: typeof AppReportsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
@@ -487,6 +486,7 @@ interface AppRouteChildren {
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
   AppReceivablesIndexRoute: typeof AppReceivablesIndexRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
@@ -499,7 +499,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppJournalRoute: AppJournalRoute,
-  AppReportsRoute: AppReportsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
   AppSalesIdRoute: AppSalesIdRoute,
@@ -510,6 +509,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayablesIndexRoute: AppPayablesIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
   AppReceivablesIndexRoute: AppReceivablesIndexRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
@@ -526,3 +526,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
