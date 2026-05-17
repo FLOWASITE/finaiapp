@@ -66,6 +66,8 @@ const METHOD_LABEL: Record<string, string> = {
 
 function ReceiptsPage() {
   const qc = useQueryClient();
+  const navigate = Route.useNavigate();
+  const { invoice: invoiceParam, customer: customerParam } = Route.useSearch();
   const listFn = useServerFn(listReceipts);
   const statsFn = useServerFn(receiptsStats);
   const outFn = useServerFn(listOutstandingInvoices);
@@ -77,6 +79,15 @@ function ReceiptsPage() {
   const [method, setMethod] = useState("all");
   const [search, setSearch] = useState("");
   const [openNew, setOpenNew] = useState(false);
+  const [preselectInvoice, setPreselectInvoice] = useState<string | undefined>(undefined);
+
+  // Auto-open dialog from ?invoice= or ?customer= query
+  useEffect(() => {
+    if (invoiceParam || customerParam) {
+      setPreselectInvoice(invoiceParam);
+      setOpenNew(true);
+    }
+  }, [invoiceParam, customerParam]);
 
   const filter = { from, to, method };
   const { data: rows = [] } = useQuery({
