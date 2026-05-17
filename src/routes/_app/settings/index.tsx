@@ -7,9 +7,10 @@ import {
 } from "@/lib/settings.functions";
 import {
   getActiveTenant, updateActiveTenant, listTenantMembers, inviteTenantMember,
-  updateMemberRole, removeMember,
+  updateMemberRole, removeMember, getSetupProgress,
 } from "@/lib/tenants.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +19,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
+import { IndustryCombobox } from "@/components/industry-combobox";
+import { SectionNav } from "@/components/settings-section-nav";
+import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
@@ -55,13 +61,30 @@ function SettingsPage() {
   );
 }
 
+const SECTIONS = [
+  { id: "sec-legal", label: "Hồ sơ pháp lý", icon: <Scale className="h-4 w-4" /> },
+  { id: "sec-contact", label: "Liên hệ & Địa chỉ", icon: <MapPin className="h-4 w-4" /> },
+  { id: "sec-financial", label: "Cấu hình kế toán", icon: <Calculator className="h-4 w-4" /> },
+  { id: "sec-reps", label: "Người đại diện", icon: <UsersIcon className="h-4 w-4" /> },
+  { id: "sec-branding", label: "Thương hiệu & Chữ ký", icon: <ImageIcon className="h-4 w-4" /> },
+];
+
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
+  const getProgress = useServerFn(getSetupProgress);
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get() });
+  const { data: progress } = useQuery({ queryKey: ["setup-progress"], queryFn: () => getProgress() });
   const [form, setForm] = React.useState<any>(null);
-  React.useEffect(() => { if (data?.tenant && !form) setForm(data.tenant); }, [data, form]);
+  const [diffShipping, setDiffShipping] = React.useState(false);
+  React.useEffect(() => {
+    if (data?.tenant && !form) {
+      setForm(data.tenant);
+      const t: any = data.tenant;
+      setDiffShipping(!!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)));
+    }
+  }, [data, form]);
 
   const canEdit = data?.myRole === "owner" || data?.myRole === "admin";
   const mutate = useMutation({
@@ -70,6 +93,7 @@ function OrganizationTab() {
       toast.success("Đã lưu thay đổi");
       qc.invalidateQueries({ queryKey: ["active-tenant"] });
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
+      qc.invalidateQueries({ queryKey: ["setup-progress"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -84,23 +108,46 @@ function OrganizationTab() {
 
   const dirty = JSON.stringify(form) !== JSON.stringify(data.tenant);
   const reset = () => setForm(data.tenant);
-  const save = () => mutate.mutate({
-    name: form.name, company_name: form.company_name, tax_id: form.tax_id,
-    address: form.address, phone: form.phone,
-    accounting_standard: form.accounting_standard, base_currency: form.base_currency,
-    fiscal_year_start: form.fiscal_year_start,
-    logo_url: form.logo_url, signature_url: form.signature_url, stamp_url: form.stamp_url,
-    preparer_name: form.preparer_name, chief_accountant_name: form.chief_accountant_name,
-    legal_rep_name: form.legal_rep_name,
-  });
+  const save = () => {
+    const payload: any = { ...form };
+    if (!diffShipping) payload.shipping_address = null;
+    // strip readonly keys
+    ["id","user_id","created_at","updated_at","setup_completed","setup_completed_at"].forEach((k) => delete payload[k]);
+    mutate.mutate(payload);
+  };
 
   const ROLE_LABEL: Record<string, string> = {
     owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
   };
   const initials = (form.name ?? form.company_name ?? "?").trim().split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
+  const isComplete = !!progress?.completed;
+  const pct = progress?.percent ?? 0;
 
   return (
     <div className="space-y-6 pb-24">
+      {/* Setup banner */}
+      {!isComplete && (
+        <Card className="border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10">
+          <CardContent className="flex flex-wrap items-center gap-3 py-3">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-medium">Hồ sơ tổ chức chưa hoàn tất ({pct}%)</p>
+              <p className="text-xs text-muted-foreground">
+                Còn {progress?.missing?.length ?? 0} trường bắt buộc theo chuẩn kế toán Việt Nam.
+              </p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/setup"><Wand2 className="mr-1 h-3.5 w-3.5" />Hoàn tất bằng Wizard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {isComplete && (
+        <div className="flex items-center gap-2 text-xs text-emerald-600">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Hồ sơ đã hoàn tất.
+        </div>
+      )}
+
       {/* Hero */}
       <Card>
         <CardContent className="flex items-center gap-4 py-5">
@@ -115,124 +162,254 @@ function OrganizationTab() {
               {!canEdit && <Badge variant="outline" className="text-[10px]">Chỉ đọc</Badge>}
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {form.name && form.name !== form.company_name ? form.name : "Hồ sơ tổ chức đang hoạt động"}
+              {form.trade_name || (form.name && form.name !== form.company_name ? form.name : "Hồ sơ tổ chức đang hoạt động")}
               {form.tax_id ? ` · MST ${form.tax_id}` : ""}
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Row 1: Thông tin (2/3) + Thương hiệu (1/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Building2 className="h-4 w-4 text-primary" />Thông tin doanh nghiệp
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Mã số thuế</Label>
-                <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
-                <p className="text-[11px] text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tên hiển thị</Label>
-                <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: Công ty ABC" />
-                <p className="text-[11px] text-muted-foreground">Tên ngắn dùng trong giao diện.</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tên pháp nhân</Label>
-                <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
-                <p className="text-[11px] text-muted-foreground">In trên hoá đơn, BCTC.</p>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs">Điện thoại</Label>
-                <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 0901234567" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Địa chỉ trụ sở</Label>
-              <Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* 2-col layout: side nav + form */}
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        <aside className="hidden lg:block">
+          <div className="sticky top-4">
+            <SectionNav sections={SECTIONS} progress={{ percent: pct, missingCount: progress?.missing?.length ?? 0 }} />
+          </div>
+        </aside>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <ImageIcon className="h-4 w-4 text-primary" />Thương hiệu
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <CompactImageRow label="Logo" hint="PNG / JPG" url={form.logo_url} onChange={(u) => set("logo_url", u)} prefix="logo" disabled={!canEdit} />
-            <Separator />
-            <CompactImageRow label="Chữ ký" hint="PNG nền trong" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" disabled={!canEdit} />
-            <Separator />
-            <CompactImageRow label="Con dấu" hint="PNG nền trong" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" disabled={!canEdit} />
-          </CardContent>
-        </Card>
-      </div>
+        <div className="space-y-6 min-w-0">
+          {/* 1. Hồ sơ pháp lý */}
+          <section id="sec-legal" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Scale className="h-4 w-4 text-primary" />Hồ sơ pháp lý
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Mã số thuế" required className="md:col-span-2">
+                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+                    <Hint>Nhấn kính lúp để tự điền tên & địa chỉ từ Tổng cục Thuế.</Hint>
+                  </Field>
+                  <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
+                    <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
+                    <Hint>In trên hoá đơn, BCTC, hợp đồng.</Hint>
+                  </Field>
+                  <Field label="Tên giao dịch / Thương hiệu">
+                    <Input disabled={!canEdit} value={form.trade_name ?? ""} onChange={(e) => set("trade_name", e.target.value)} placeholder="VD: ABC Group" />
+                  </Field>
+                  <Field label="Tên hiển thị nội bộ">
+                    <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: ABC" />
+                  </Field>
+                  <Field label="Loại hình doanh nghiệp" required>
+                    <Select disabled={!canEdit} value={form.legal_form ?? ""} onValueChange={(v) => set("legal_form", v)}>
+                      <SelectTrigger><SelectValue placeholder="Chọn loại hình…" /></SelectTrigger>
+                      <SelectContent>
+                        {LEGAL_FORMS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Ngày thành lập">
+                    <Input type="date" disabled={!canEdit} value={form.established_date ?? ""} onChange={(e) => set("established_date", e.target.value || null)} />
+                  </Field>
+                  <Field label="Số GPKD / ĐKKD" required>
+                    <Input disabled={!canEdit} value={form.business_reg_no ?? ""} onChange={(e) => set("business_reg_no", e.target.value)} placeholder="VD: 0123456789" />
+                  </Field>
+                  <Field label="Ngày cấp GPKD" required>
+                    <Input type="date" disabled={!canEdit} value={form.business_reg_date ?? ""} onChange={(e) => set("business_reg_date", e.target.value || null)} />
+                  </Field>
+                  <Field label="Nơi cấp GPKD" className="md:col-span-2">
+                    <Input disabled={!canEdit} value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="VD: Sở KH&ĐT TP. Hà Nội" />
+                  </Field>
+                  <Field label="Ngành nghề kinh doanh chính" className="md:col-span-2">
+                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => setForm({ ...form, industry_code: c, industry_name: n })} />
+                  </Field>
+                  <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
+                    <Input disabled={!canEdit} value={form.tax_authority ?? ""} onChange={(e) => set("tax_authority", e.target.value)} placeholder="VD: Chi cục Thuế Quận 1" />
+                  </Field>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
-      {/* Row 2: Cấu hình kế toán + Người ký BCTC */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Calculator className="h-4 w-4 text-primary" />Cấu hình kế toán
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5 sm:col-span-3">
-              <Label className="text-xs">Chuẩn kế toán</Label>
-              <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TT133">TT133 — Doanh nghiệp nhỏ và vừa</SelectItem>
-                  <SelectItem value="TT200">TT200 — Đầy đủ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Đồng tiền hạch toán</Label>
-              <Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value.toUpperCase())} maxLength={3} />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs">Tháng bắt đầu năm tài chính</Label>
-              <Select disabled={!canEdit} value={String(form.fiscal_year_start ?? 1)} onValueChange={(v) => set("fiscal_year_start", Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                    <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+          {/* 2. Liên hệ */}
+          <section id="sec-contact" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <MapPin className="h-4 w-4 text-primary" />Liên hệ & Địa chỉ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field label="Địa chỉ trụ sở chính" required>
+                  <Textarea disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" rows={2} />
+                </Field>
+                <Field label="Địa chỉ xuất hoá đơn (nếu khác)">
+                  <Textarea disabled={!canEdit} value={form.billing_address ?? ""} onChange={(e) => set("billing_address", e.target.value)} placeholder="Để trống nếu trùng địa chỉ trụ sở" rows={2} />
+                </Field>
+                <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
+                  <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={setDiffShipping} />
+                  <div className="text-sm">
+                    <p className="font-medium">Có địa chỉ giao hàng riêng</p>
+                    <p className="text-xs text-muted-foreground">Bật nếu kho/giao nhận khác trụ sở.</p>
+                  </div>
+                </div>
+                {diffShipping && (
+                  <Field label="Địa chỉ giao hàng">
+                    <Textarea disabled={!canEdit} value={form.shipping_address ?? ""} onChange={(e) => set("shipping_address", e.target.value)} rows={2} />
+                  </Field>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Điện thoại">
+                    <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 02838123456" />
+                  </Field>
+                  <Field label="Fax">
+                    <Input disabled={!canEdit} value={form.fax ?? ""} onChange={(e) => set("fax", e.target.value)} />
+                  </Field>
+                  <Field label="Email">
+                    <Input type="email" disabled={!canEdit} value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} placeholder="ketoan@congty.com" />
+                  </Field>
+                  <Field label="Website">
+                    <Input disabled={!canEdit} value={form.website ?? ""} onChange={(e) => set("website", e.target.value)} placeholder="https://congty.com" />
+                  </Field>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <FileSignature className="h-4 w-4 text-primary" />Người ký Báo cáo tài chính
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Người lập biểu</Label>
-              <Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} placeholder="Nhập họ tên" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Kế toán trưởng</Label>
-              <Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} placeholder="Nhập họ tên" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Đại diện pháp luật</Label>
-              <Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} placeholder="Nhập họ tên" />
-            </div>
-          </CardContent>
-        </Card>
+          {/* 3. Cấu hình kế toán */}
+          <section id="sec-financial" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Calculator className="h-4 w-4 text-primary" />Cấu hình kế toán
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field label="Chuẩn kế toán áp dụng" required>
+                  <Select disabled={!canEdit} value={form.accounting_standard ?? ""} onValueChange={(v) => set("accounting_standard", v)}>
+                    <SelectTrigger><SelectValue placeholder="Chọn chuẩn…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TT133">TT 133/2016/TT-BTC — Doanh nghiệp nhỏ và vừa</SelectItem>
+                      <SelectItem value="TT200">TT 200/2014/TT-BTC — Áp dụng đầy đủ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Hint>Lưu ý: Sau khi phát sinh dữ liệu, đổi chuẩn có thể ảnh hưởng bảng tài khoản.</Hint>
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Đồng tiền hạch toán" required>
+                    <Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value.toUpperCase())} maxLength={3} />
+                  </Field>
+                  <Field label="Tháng bắt đầu năm tài chính" required>
+                    <Select disabled={!canEdit} value={String(form.fiscal_year_start ?? 1)} onValueChange={(v) => set("fiscal_year_start", Number(v))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                          <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Phương pháp tính thuế GTGT" required>
+                    <Select disabled={!canEdit} value={form.tax_method ?? ""} onValueChange={(v) => set("tax_method", v)}>
+                      <SelectTrigger><SelectValue placeholder="Chọn phương pháp…" /></SelectTrigger>
+                      <SelectContent>
+                        {TAX_METHODS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Kỳ kê khai GTGT" required>
+                    <Select disabled={!canEdit} value={form.vat_period ?? ""} onValueChange={(v) => set("vat_period", v)}>
+                      <SelectTrigger><SelectValue placeholder="Chọn kỳ…" /></SelectTrigger>
+                      <SelectContent>
+                        {DECLARE_PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Kỳ kê khai TNCN">
+                    <Select disabled={!canEdit} value={form.pit_period ?? ""} onValueChange={(v) => set("pit_period", v)}>
+                      <SelectTrigger><SelectValue placeholder="Chọn kỳ…" /></SelectTrigger>
+                      <SelectContent>
+                        {DECLARE_PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 4. Đại diện */}
+          <section id="sec-reps" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <UsersIcon className="h-4 w-4 text-primary" />Người đại diện
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Đại diện theo pháp luật</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field label="Họ và tên" required>
+                      <Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} />
+                    </Field>
+                    <Field label="Chức danh" required>
+                      <Input disabled={!canEdit} value={form.legal_rep_title ?? ""} onChange={(e) => set("legal_rep_title", e.target.value)} placeholder="VD: Giám đốc" />
+                    </Field>
+                    <Field label="Số CCCD / CMND">
+                      <Input disabled={!canEdit} value={form.legal_rep_id_no ?? ""} onChange={(e) => set("legal_rep_id_no", e.target.value)} placeholder="9 hoặc 12 số" />
+                    </Field>
+                    <Field label="Ngày cấp CCCD">
+                      <Input type="date" disabled={!canEdit} value={form.legal_rep_id_date ?? ""} onChange={(e) => set("legal_rep_id_date", e.target.value || null)} />
+                    </Field>
+                    <Field label="Điện thoại" className="md:col-span-2">
+                      <Input disabled={!canEdit} value={form.legal_rep_phone ?? ""} onChange={(e) => set("legal_rep_phone", e.target.value)} />
+                    </Field>
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Kế toán trưởng</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field label="Họ và tên">
+                      <Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} />
+                    </Field>
+                    <Field label="Số chứng chỉ hành nghề">
+                      <Input disabled={!canEdit} value={form.chief_accountant_cert_no ?? ""} onChange={(e) => set("chief_accountant_cert_no", e.target.value)} />
+                    </Field>
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Người lập biểu</p>
+                  <Field label="Họ và tên">
+                    <Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} />
+                  </Field>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 5. Branding */}
+          <section id="sec-branding" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <FileSignature className="h-4 w-4 text-primary" />Thương hiệu & Chữ ký
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <CompactImageRow label="Logo công ty" hint="PNG / JPG · nền trắng" url={form.logo_url} onChange={(u) => set("logo_url", u)} prefix="logo" disabled={!canEdit} />
+                <Separator />
+                <CompactImageRow label="Chữ ký đại diện" hint="PNG nền trong" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" disabled={!canEdit} />
+                <Separator />
+                <CompactImageRow label="Con dấu công ty" hint="PNG nền trong" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" disabled={!canEdit} />
+              </CardContent>
+            </Card>
+          </section>
+        </div>
       </div>
 
       {/* Sticky save bar */}
@@ -252,6 +429,22 @@ function OrganizationTab() {
       )}
     </div>
   );
+}
+
+function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs flex items-center gap-1">
+        {label}
+        {required && <span className="text-destructive">*</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] text-muted-foreground">{children}</p>;
 }
 
 function MembersTab() {
