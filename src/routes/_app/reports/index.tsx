@@ -327,15 +327,44 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                     <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
                     <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
                     <td className="text-center">
-                      <a
-                        href={`/journal#entry-${l.entry_id}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        title="Mở sổ cái — bút toán tương ứng"
-                      >
-                        <FileText className="h-3 w-3" />Mở
-                      </a>
+                      <span className="inline-flex items-center gap-0.5">
+                        {newTabDefault ? (
+                          <a
+                            href={`/journal#entry-${l.entry_id}`}
+                            target="_blank"
+                            rel="noopener"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            title="Mở sổ cái (tab mới)"
+                          >
+                            <FileText className="h-3 w-3" />Mở
+                          </a>
+                        ) : (
+                          <Link
+                            to="/journal"
+                            hash={`entry-${l.entry_id}`}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            title="Mở sổ cái trong cùng tab (drill-down vẫn giữ)"
+                          >
+                            <FileText className="h-3 w-3" />Mở
+                          </Link>
+                        )}
+                        <a
+                          href={`/journal#entry-${l.entry_id}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="ml-0.5 text-muted-foreground hover:text-primary"
+                          title={newTabDefault ? "Mở trong cùng tab" : "Mở trong tab mới"}
+                          onClick={(e) => {
+                            if (newTabDefault) {
+                              // Force same-tab override
+                              e.preventDefault();
+                              window.location.href = `/journal#entry-${l.entry_id}`;
+                            }
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </span>
                     </td>
                   </tr>
                 ))}
