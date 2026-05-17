@@ -239,6 +239,13 @@ export const setUserRole = createServerFn({ method: "POST" })
         .eq("user_id", data.user_id)
         .eq("role", data.role as any);
     }
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.enable ? "superadmin.role.grant" : "superadmin.role.revoke",
+      targetTable: "user_roles",
+      targetId: data.user_id,
+      after: { role: data.role, enable: data.enable },
+    });
     return { ok: true };
   });
 
@@ -255,6 +262,12 @@ export const resetUserPassword = createServerFn({ method: "POST" })
       email: data.email,
     });
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.account.reset_password",
+      targetTable: "auth.users",
+      after: { email: data.email },
+    });
     return { ok: true };
   });
 
@@ -274,6 +287,13 @@ export const setAccountBanned = createServerFn({ method: "POST" })
       ban_duration: data.banned ? "876000h" : "none",
     } as any);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.banned ? "superadmin.account.ban" : "superadmin.account.unban",
+      targetTable: "auth.users",
+      targetId: data.user_id,
+      after: { banned: data.banned },
+    });
     return { ok: true };
   });
 
@@ -293,6 +313,13 @@ export const deleteAccount = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (error) throw new Error(error.message);
+    await logSuperadminAction({
+      actorId: userId,
+      action: "superadmin.account.delete",
+      targetTable: "auth.users",
+      targetId: data.user_id,
+      before: { email: u?.user?.email ?? null },
+    });
     return { ok: true };
   });
 
