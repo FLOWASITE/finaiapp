@@ -28,6 +28,10 @@ import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/audit")({
   beforeLoad: requireSuperadminGuard,
+  validateSearch: (search: Record<string, unknown>) => ({
+    selected: typeof search.selected === "string" ? search.selected : undefined,
+    modal: search.modal === "1" || search.modal === true ? true : undefined,
+  }),
   component: AuditPage,
 });
 
@@ -78,6 +82,8 @@ function useDebounced<T>(value: T, delay = 500): T {
 
 function AuditPage() {
   const fetchLogs = useServerFn(listSuperadminAuditLogs);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [actorEmail, setActorEmail] = useState("");
   const [targetId, setTargetId] = useState("");
   const [from, setFrom] = useState("");
@@ -85,7 +91,7 @@ function AuditPage() {
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
   const [selected, setSelected] = useState<any | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(!!search.modal);
   const [showTotal, setShowTotal] = useState(false);
 
   // Debounce 500ms để bộ lọc "ổn định" rồi mới gọi API kèm count đắt đỏ.
@@ -184,13 +190,25 @@ function AuditPage() {
   }, [selected?.id, pageCount]);
 
   // Giữ selected đồng bộ với bản ghi mới nhất sau khi bộ lọc/refetch trả về.
-  // Nếu cùng id còn trong dữ liệu mới → cập nhật payload mới nhất.
-  // Nếu không còn → vẫn giữ snapshot cũ để user không bị mất ngữ cảnh.
+  // Đồng thời khôi phục selected từ URL search (reload / back-forward).
   useEffect(() => {
-    if (!selected?.id) return;
-    const fresh = (logs as any[]).find((l) => l.id === selected.id);
+    const targetId = selected?.id ?? search.selected;
+    if (!targetId) return;
+    const fresh = (logs as any[]).find((l) => l.id === targetId);
     if (fresh && fresh !== selected) setSelected(fresh);
-  }, [logs, selected?.id]);
+  }, [logs, selected, search.selected]);
+
+  // Đồng bộ selected/modal lên URL để giữ trạng thái khi reload / back-forward.
+  useEffect(() => {
+    const nextSelected = selected?.id;
+    const nextModal = modalOpen ? true : undefined;
+    if (search.selected === nextSelected && !!search.modal === !!nextModal) return;
+    navigate({
+      search: (prev: any) => ({ ...prev, selected: nextSelected, modal: nextModal }),
+      replace: true,
+    });
+  }, [selected?.id, modalOpen, navigate, search.selected, search.modal]);
+
 
   // Tóm tắt bộ lọc hiện đang áp dụng (dùng giá trị đã debounce — khớp dữ liệu hiển thị).
   const activeFilters = useMemo(() => {
