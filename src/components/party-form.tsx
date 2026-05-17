@@ -119,8 +119,8 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
   };
 
   const form = useForm<PartyFormValues>({
-    resolver: zodResolver(partySchema),
-    defaultValues: defaults,
+    resolver: zodResolver(partySchema) as any,
+    defaultValues: defaults as any,
     mode: "onBlur",
   });
 
