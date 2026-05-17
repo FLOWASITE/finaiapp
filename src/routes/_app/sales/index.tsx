@@ -809,14 +809,14 @@ function ReceiptsTab({
 
       {/* Filters */}
       <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+        <CardContent className="grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-wrap items-end gap-3 p-4">
           <div className="space-y-1">
             <Label className="text-xs">Từ ngày</Label>
             <Input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="w-40"
+              className="w-full lg:w-40"
             />
           </div>
           <div className="space-y-1">
@@ -825,13 +825,13 @@ function ReceiptsTab({
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="w-40"
+              className="w-full lg:w-40"
             />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Hình thức</Label>
             <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="w-full lg:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -843,20 +843,22 @@ function ReceiptsTab({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 flex-1 min-w-[200px]">
+          <div className="space-y-1 col-span-2 sm:col-span-1 lg:flex-1 lg:min-w-[200px]">
             <Label className="text-xs">Tìm kiếm</Label>
             <Input
-              placeholder="Khách hàng, số HĐ, tham chiếu..."
+              placeholder="Khách, số HĐ, tham chiếu..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" onClick={exportCsv}>
-            <Download className="mr-2 h-4 w-4" /> CSV
-          </Button>
-          <Button onClick={() => setOpenNew(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Tạo phiếu thu
-          </Button>
+          <div className="col-span-2 sm:col-span-4 lg:col-span-1 flex gap-2 justify-end lg:justify-start">
+            <Button variant="outline" onClick={exportCsv} className="flex-1 sm:flex-none">
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button onClick={() => setOpenNew(true)} className="flex-1 sm:flex-none">
+              <Plus className="mr-2 h-4 w-4" /> Tạo phiếu thu
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
