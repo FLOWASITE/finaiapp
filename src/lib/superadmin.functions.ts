@@ -430,6 +430,7 @@ export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z.object({
       limit: z.number().int().min(1).max(500).optional(),
+      offset: z.number().int().min(0).max(100000).optional(),
       action_prefix: z.string().max(64).optional(),
       actor_email: z.string().max(255).optional(),
       target_id: z.string().uuid().optional(),
@@ -440,17 +441,19 @@ export const listSuperadminAuditLogs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertSuperadmin(supabase, userId);
+    const limit = data.limit ?? 50;
+    const offset = data.offset ?? 0;
     let q = supabaseAdmin
       .from("audit_logs")
-      .select("*")
+      .select("*", { count: "exact" })
       .like("action", `${data.action_prefix ?? "superadmin."}%`)
       .order("created_at", { ascending: false })
-      .limit(data.limit ?? 200);
+      .range(offset, offset + limit - 1);
     if (data.actor_email) q = q.ilike("actor_email", `%${data.actor_email}%`);
     if (data.target_id) q = q.eq("record_id", data.target_id);
     if (data.from) q = q.gte("created_at", data.from);
     if (data.to) q = q.lte("created_at", data.to);
-    const { data: logs, error } = await q;
+    const { data: logs, error, count } = await q;
     if (error) throw new Error(error.message);
-    return { logs: logs ?? [] };
+    return { logs: logs ?? [], total: count ?? 0, limit, offset };
   });
