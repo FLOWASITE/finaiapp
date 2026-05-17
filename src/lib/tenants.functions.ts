@@ -129,7 +129,15 @@ export const updateActiveTenant = createServerFn({ method: "POST" })
     const tid = profile?.active_tenant_id;
     if (!tid) throw new Error("Chưa chọn tổ chức");
 
-    const { error } = await supabase.from("tenants").update(data).eq("id", tid);
+    // Loại bỏ null cho các cột NOT NULL; giữ null cho cột nullable (logo_url, signature_url, stamp_url).
+    const NULLABLE = new Set(["logo_url", "signature_url", "stamp_url", "address", "tax_id", "phone", "company_name", "legal_rep_name", "chief_accountant_name", "preparer_name"]);
+    const patch: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v === undefined) continue;
+      if (v === null && !NULLABLE.has(k)) continue;
+      patch[k] = v;
+    }
+    const { error } = await supabase.from("tenants").update(patch as any).eq("id", tid);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
