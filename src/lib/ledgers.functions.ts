@@ -59,26 +59,28 @@ export const getJournal = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true });
     const { data: rows, error } = await q;
     if (error) throw error;
-    const entries = (rows ?? []).map((e: any) => ({
+    type JLine = { account_code: string; debit: number; credit: number };
+    type JEntry = { id: string; entry_date: string; description: string | null; lines: JLine[] };
+    const entries: JEntry[] = (rows ?? []).map((e: any) => ({
       id: e.id,
       entry_date: e.entry_date,
       description: e.description,
-      lines: (e.journal_lines ?? [])
-        .sort((a: any, b: any) => (a.line_order ?? 0) - (b.line_order ?? 0))
-        .map((l: any) => ({
+      lines: ((e.journal_lines ?? []) as any[])
+        .sort((a, b) => (a.line_order ?? 0) - (b.line_order ?? 0))
+        .map((l) => ({
           account_code: l.account_code,
           debit: Number(l.debit) || 0,
           credit: Number(l.credit) || 0,
         })),
     }));
-    const filtered = data.search
+    const filtered: JEntry[] = data.search
       ? entries.filter((e) =>
           (e.description ?? "").toLowerCase().includes(data.search!.toLowerCase()) ||
-          e.lines.some((l) => l.account_code.includes(data.search!))
+          e.lines.some((l: JLine) => l.account_code.includes(data.search!))
         )
       : entries;
-    const totalDebit = filtered.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.debit, 0), 0);
-    const totalCredit = filtered.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.credit, 0), 0);
+    const totalDebit = filtered.reduce((s, e) => s + e.lines.reduce((x: number, l: JLine) => x + l.debit, 0), 0);
+    const totalCredit = filtered.reduce((s, e) => s + e.lines.reduce((x: number, l: JLine) => x + l.credit, 0), 0);
     return { entries: filtered, totalDebit, totalCredit };
   });
 

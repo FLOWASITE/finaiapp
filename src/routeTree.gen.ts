@@ -31,6 +31,7 @@ import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
+import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 
@@ -143,6 +144,11 @@ const AppSalesIdRoute = AppSalesIdRouteImport.update({
   path: '/sales/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsLedgersRoute = AppReportsLedgersRouteImport.update({
+  id: '/reports/ledgers',
+  path: '/reports/ledgers',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   id: '/payroll/$id',
   path: '/payroll/$id',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AppJournalRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/cash/': typeof AppCashIndexRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/journal': typeof AppJournalRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/cash': typeof AppCashIndexRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_app/journal': typeof AppJournalRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
   '/_app/cash/': typeof AppCashIndexRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/invoices/$id'
     | '/payroll/$id'
+    | '/reports/ledgers'
     | '/sales/$id'
     | '/suppliers/$id'
     | '/cash/'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/invoices/$id'
     | '/payroll/$id'
+    | '/reports/ledgers'
     | '/sales/$id'
     | '/suppliers/$id'
     | '/cash'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/_app/journal'
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
+    | '/_app/reports/ledgers'
     | '/_app/sales/$id'
     | '/_app/suppliers/$id'
     | '/_app/cash/'
@@ -472,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/ledgers': {
+      id: '/_app/reports/ledgers'
+      path: '/reports/ledgers'
+      fullPath: '/reports/ledgers'
+      preLoaderRoute: typeof AppReportsLedgersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/$id': {
       id: '/_app/payroll/$id'
       path: '/payroll/$id'
@@ -497,6 +516,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
@@ -521,6 +541,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppSalesIdRoute: AppSalesIdRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
   AppCashIndexRoute: AppCashIndexRoute,

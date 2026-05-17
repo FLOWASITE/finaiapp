@@ -95,7 +95,7 @@ function LedgersPage() {
                           <Link to="/journal/$entryId" params={{ entryId: e.id }} className="text-primary"><ExternalLink className="h-3 w-3" /></Link>
                         </td>
                       </tr>
-                      {e.lines.map((l, i) => (
+                      {e.lines.map((l: { account_code: string; debit: number; credit: number }, i: number) => (
                         <tr key={e.id + "-" + i} className="border-b border-border/40">
                           <td></td>
                           <td className="pl-4 text-muted-foreground text-xs">— {l.account_code}</td>
