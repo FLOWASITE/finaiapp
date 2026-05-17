@@ -338,7 +338,10 @@ function AuditPage() {
                   if (el) rowRefs.current.set(l.id, el);
                   else rowRefs.current.delete(l.id);
                 }}
-                onClick={() => setSelected(l)}
+                onClick={() => {
+                  setSelected(l);
+                  setModalOpen(true);
+                }}
                 aria-selected={isSelected}
                 className={`cursor-pointer border-t align-top transition-colors ${
                   isSelected
