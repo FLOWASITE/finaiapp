@@ -67,6 +67,15 @@ const ACTION_PREFIXES: Array<{ value: string; label: string }> = [
 
 const EMAIL_DATALIST_ID = "audit-actor-email-suggestions";
 
+function useDebounced<T>(value: T, delay = 500): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
+
 function AuditPage() {
   const fetchLogs = useServerFn(listSuperadminAuditLogs);
   const [actorEmail, setActorEmail] = useState("");
@@ -76,6 +85,18 @@ function AuditPage() {
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
   const [selected, setSelected] = useState<any | null>(null);
+  const [showTotal, setShowTotal] = useState(false);
+
+  // Debounce 500ms để bộ lọc "ổn định" rồi mới gọi API kèm count đắt đỏ.
+  const dActorEmail = useDebounced(actorEmail);
+  const dTargetId = useDebounced(targetId);
+  const dFrom = useDebounced(from);
+  const dTo = useDebounced(to);
+  const filtersSettling =
+    dActorEmail !== actorEmail ||
+    dTargetId !== targetId ||
+    dFrom !== from ||
+    dTo !== to;
 
   const {
     data,
@@ -86,7 +107,16 @@ function AuditPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ["superadmin-audit", actionPrefix, actorEmail, targetId, from, to, pageSize],
+    queryKey: [
+      "superadmin-audit",
+      actionPrefix,
+      dActorEmail,
+      dTargetId,
+      dFrom,
+      dTo,
+      pageSize,
+      showTotal,
+    ],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       fetchLogs({
@@ -94,20 +124,25 @@ function AuditPage() {
           limit: pageSize,
           offset: pageParam as number,
           action_prefix: actionPrefix || undefined,
-          actor_email: actorEmail || undefined,
-          target_id: targetId || undefined,
-          from: from || undefined,
-          to: to ? `${to}T23:59:59` : undefined,
+          actor_email: dActorEmail || undefined,
+          target_id: dTargetId || undefined,
+          from: dFrom || undefined,
+          to: dTo ? `${dTo}T23:59:59` : undefined,
+          // Chỉ đếm tổng khi user bật toggle, và CHỈ ở trang đầu.
+          with_total: showTotal && (pageParam as number) === 0,
         },
       }),
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((s, p) => s + (p.logs?.length ?? 0), 0);
-      return loaded < (lastPage.total ?? 0) ? loaded : undefined;
+      if (typeof lastPage.total === "number") {
+        return loaded < lastPage.total ? loaded : undefined;
+      }
+      return lastPage.has_more ? loaded : undefined;
     },
   });
 
   const logs = useMemo(() => data?.pages.flatMap((p) => p.logs) ?? [], [data]);
-  const total = data?.pages[0]?.total ?? 0;
+  const total = data?.pages[0]?.total;
 
   const emailSuggestions = useMemo(() => {
     const set = new Set<string>();
