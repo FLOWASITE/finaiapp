@@ -153,6 +153,9 @@ function AuditPage() {
   }, [logs]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const pageCount = data?.pages.length ?? 0;
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasNextPage || typeof IntersectionObserver === "undefined") return;
@@ -167,6 +170,17 @@ function AuditPage() {
     obs.observe(el);
     return () => obs.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Tự cuộn dòng đang chọn vào giữa khi: mở modal, hoặc khi tải thêm trang mới.
+  useEffect(() => {
+    if (!selected?.id) return;
+    const el = rowRefs.current.get(selected.id);
+    if (!el) return;
+    const id = requestAnimationFrame(() => {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selected?.id, pageCount]);
 
   return (
     <div className="space-y-4">
