@@ -41,6 +41,7 @@ const SECTIONS: NavSection[] = [
     label: "Mua hàng",
     items: [
       { to: "/invoices", label: "Hoá đơn mua vào", icon: FileText },
+      { to: "/suppliers", label: "Nhà cung cấp", icon: Users },
       { to: "/payables", label: "Công nợ phải trả", icon: CreditCard },
     ],
   },

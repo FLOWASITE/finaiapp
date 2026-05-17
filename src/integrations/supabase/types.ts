@@ -425,6 +425,8 @@ export type Database = {
           description: string | null
           id: string
           invoice_id: string
+          line_type: string
+          product_id: string | null
           qty: number | null
           unit_price: number | null
           vat_rate: number | null
@@ -434,6 +436,8 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_id: string
+          line_type?: string
+          product_id?: string | null
           qty?: number | null
           unit_price?: number | null
           vat_rate?: number | null
@@ -443,6 +447,8 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_id?: string
+          line_type?: string
+          product_id?: string | null
           qty?: number | null
           unit_price?: number | null
           vat_rate?: number | null
@@ -461,11 +467,13 @@ export type Database = {
         Row: {
           created_at: string
           currency: string | null
+          expense_account: string | null
           file_path: string
           id: string
           invoice_no: string | null
           issue_date: string | null
           notes: string | null
+          payment_status: string
           raw_ocr: Json | null
           status: string
           subtotal: number | null
@@ -480,11 +488,13 @@ export type Database = {
         Insert: {
           created_at?: string
           currency?: string | null
+          expense_account?: string | null
           file_path: string
           id?: string
           invoice_no?: string | null
           issue_date?: string | null
           notes?: string | null
+          payment_status?: string
           raw_ocr?: Json | null
           status?: string
           subtotal?: number | null
@@ -499,11 +509,13 @@ export type Database = {
         Update: {
           created_at?: string
           currency?: string | null
+          expense_account?: string | null
           file_path?: string
           id?: string
           invoice_no?: string | null
           issue_date?: string | null
           notes?: string | null
+          payment_status?: string
           raw_ocr?: Json | null
           status?: string
           subtotal?: number | null
@@ -1035,8 +1047,11 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          email: string | null
           id: string
           name: string
+          payment_terms_days: number
+          phone: string | null
           risk_flag: string | null
           tax_id: string | null
           user_id: string
@@ -1044,8 +1059,11 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name: string
+          payment_terms_days?: number
+          phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
           user_id: string
@@ -1053,8 +1071,11 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string
+          payment_terms_days?: number
+          phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
           user_id?: string

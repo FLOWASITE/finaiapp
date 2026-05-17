@@ -124,6 +124,15 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
       throw new Error(`Bút toán không cân: Nợ ${totalDebit} ≠ Có ${totalCredit}`);
     }
 
+    // Check kỳ kế toán đã khoá
+    const { data: locked } = await supabase.rpc("is_period_locked", {
+      _user_id: userId,
+      _date: data.entry_date,
+    });
+    if (locked === true) {
+      throw new Error("Kỳ kế toán đã khoá, không thể ghi sổ vào ngày này");
+    }
+
     const { data: entry, error } = await supabase
       .from("journal_entries")
       .insert({
@@ -145,6 +154,58 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
         line_order: i,
       })),
     );
+
+    // Tự sinh phiếu nhập kho / tài sản từ dòng hoá đơn
+    const { data: invLines } = await supabase
+      .from("invoice_lines")
+      .select("description, qty, unit_price, amount, product_id, line_type")
+      .eq("invoice_id", data.invoiceId);
+
+    for (const line of invLines ?? []) {
+      // Hàng hoá có gắn product → nhập kho + bình quân gia quyền
+      if (line.line_type === "goods" && line.product_id) {
+        const qty = Number(line.qty || 0);
+        const unitCost = qty > 0 ? Number(line.amount || 0) / qty : Number(line.unit_price || 0);
+        const { data: prod } = await supabase
+          .from("products")
+          .select("on_hand, unit_cost")
+          .eq("id", line.product_id)
+          .single();
+        if (prod) {
+          const oldQty = Number(prod.on_hand);
+          const oldCost = Number(prod.unit_cost);
+          const newQty = oldQty + qty;
+          const newCost = newQty > 0 ? (oldQty * oldCost + qty * unitCost) / newQty : unitCost;
+          await supabase.from("stock_movements").insert({
+            user_id: userId,
+            product_id: line.product_id,
+            movement_type: "in",
+            qty,
+            unit_cost: unitCost,
+            movement_date: data.entry_date,
+            ref_type: "invoice",
+            ref_id: data.invoiceId,
+            note: `Nhập từ HĐ — ${line.description}`,
+          });
+          await supabase
+            .from("products")
+            .update({ on_hand: newQty, unit_cost: newCost })
+            .eq("id", line.product_id);
+        }
+      }
+
+      // Tài sản → tự tạo TSCĐ (chờ kế toán bổ sung thời gian khấu hao)
+      if (line.line_type === "asset") {
+        await supabase.from("fixed_assets").insert({
+          user_id: userId,
+          code: `TS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          name: line.description ?? "Tài sản",
+          cost: Number(line.amount || 0),
+          useful_life_months: 60,
+          start_date: data.entry_date,
+        });
+      }
+    }
 
     await supabase
       .from("invoices")
