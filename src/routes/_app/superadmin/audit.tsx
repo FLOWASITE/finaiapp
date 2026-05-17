@@ -239,19 +239,27 @@ function AuditPage() {
         </table>
 
         {hasNextPage && (
-          <div className="flex justify-center border-t border-border p-3">
+          <div
+            ref={sentinelRef}
+            className="flex justify-center border-t border-border p-3"
+          >
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
             >
               {isFetchingNextPage ? (
-                <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                <>
+                  <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Đang tải thêm…
+                </>
               ) : (
-                <ChevronDown className="mr-2 h-3.5 w-3.5" />
+                <>
+                  <ChevronDown className="mr-2 h-3.5 w-3.5" />
+                  Cuộn xuống để tải thêm
+                </>
               )}
-              Tải thêm {Math.min(pageSize, total - logs.length)} dòng
             </Button>
           </div>
         )}
