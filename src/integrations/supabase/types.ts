@@ -52,6 +52,48 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          ip: string | null
+          record_id: string | null
+          table_name: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_no: string | null
@@ -1157,6 +1199,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: string
+          tenant_owner_id: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role: string
+          tenant_owner_id: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          tenant_owner_id?: string
+          token?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1183,6 +1264,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_any_role: {
+        Args: { _roles: string[]; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1194,9 +1279,16 @@ export type Database = {
         Args: { _date: string; _user_id: string }
         Returns: boolean
       }
+      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "owner" | "chief_accountant" | "accountant" | "viewer"
+      app_role:
+        | "owner"
+        | "chief_accountant"
+        | "accountant"
+        | "viewer"
+        | "approver"
+        | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1324,7 +1416,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["owner", "chief_accountant", "accountant", "viewer"],
+      app_role: [
+        "owner",
+        "chief_accountant",
+        "accountant",
+        "viewer",
+        "approver",
+        "superadmin",
+      ],
     },
   },
 } as const
