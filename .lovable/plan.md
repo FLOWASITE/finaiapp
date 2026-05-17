@@ -1,149 +1,60 @@
-## Bối cảnh
+## Mục tiêu
 
-**Thông tư 99/2025/TT-BTC** (ban hành 27/10/2025, hiệu lực 01/01/2026) thay thế TT200/2014. Thay đổi chính ảnh hưởng đến module Báo cáo của AccuVN:
+File `src/lib/report-mappings.ts` hiện đang dùng cấu trúc B01 cũ (gần với TT200 — "Bảng cân đối kế toán"), không khớp mẫu chuẩn **Báo cáo tình hình tài chính** trong TT 99/2025/TT-BTC mà user vừa gửi. Cần viết lại đầy đủ danh mục B01 cho khớp 100% mã số, tên và thứ tự trong thông tư.
 
-- "Bảng cân đối kế toán" → **"Báo cáo tình hình tài chính" (B01-DN)** (tên + cấu trúc IFRS-like)
-- Bổ sung chỉ tiêu mới (vd. *Tài sản sinh học*), sắp xếp lại theo Tài sản ngắn hạn/dài hạn
-- Mã số chỉ tiêu cố định (không được đánh lại), chỉ tiêu không có số liệu được phép ẩn
-- B02-DN KQKD, B03-DN Lưu chuyển tiền tệ (trực tiếp & gián tiếp), B09-DN Thuyết minh
-- Có bộ báo cáo riêng cho DN **không hoạt động liên tục** (DNKLT) và **giữa niên độ** (đầy đủ + tóm lược)
+## Phạm vi
 
-## Hiện trạng
+Chỉ chỉnh `B01_TT99` trong `src/lib/report-mappings.ts`. Không động đến B02/B03/B09 hay logic tính toán trong `reports.functions.ts` — bộ engine hiện tại (`accounts` + `formula`) đã đủ để render đúng nếu mapping chính xác.
 
-`src/lib/reports.functions.ts` + `src/routes/_app/reports.tsx` đang triển khai mức rất sơ sài theo TT133:
-- BCĐKT gom theo prefix 1/2/3/4 — không có mã số chỉ tiêu, không phân tách ngắn hạn/dài hạn
-- KQKD chỉ liệt kê doanh thu/chi phí theo account, không theo Mã số 01–60 chuẩn TT
-- LCTT gom thô theo classifier 21/22/24/34/41 — chưa đúng cấu trúc Mã số 01–70
-- Chưa có Thuyết minh, chưa xuất Excel/PDF, chưa lưu kỳ báo cáo
+UI bảng (`src/routes/_app/reports/index.tsx`) đã hỗ trợ 3 cấp (level 0/1/2) và auto kỳ so sánh nên không phải đổi.
 
-## Phạm vi (Phase 7)
+## Cấu trúc B01 mới (theo TT99)
 
-### A. Báo cáo tình hình tài chính B01-DN (TT99)
+### A — TÀI SẢN NGẮN HẠN (100 = 110+120+130+140+150+160)
 
-Map account → **mã số chỉ tiêu** theo Phụ lục IV TT99. Cấu trúc:
+- **110 Tiền và tương đương tiền** → 111 Tiền, 112 Tương đương tiền
+- **120 Đầu tư tài chính ngắn hạn** → 121 CK kinh doanh, 122 Dự phòng giảm giá CKKD (*), 123 ĐT nắm giữ đến đáo hạn NH, 124 Dự phòng (*), 125 ĐT NH khác, 126 Dự phòng (*)
+- **130 Phải thu ngắn hạn** → 131 KH, 132 Trả trước người bán NH, 133 Phải thu nội bộ NH, 134 Phải thu theo tiến độ HĐXD, 135 Phải thu NH khác, 136 Dự phòng khó đòi (*), 137 Tài sản thiếu chờ xử lý
+- **140 Hàng tồn kho** → 141 HTK, 142 Dự phòng giảm giá HTK (*)
+- **150 Tài sản sinh học ngắn hạn** (MỚI) → 151 Súc vật nuôi lấy SP 1 lần NH, 152 Cây trồng mùa vụ NH, 153 Dự phòng tổn thất (*)
+- **160 Tài sản ngắn hạn khác** → 161 Chi phí chờ phân bổ NH, 162 Thuế GTGT khấu trừ, 163 Thuế phải thu NN, 164 Giao dịch repo TPCP, 165 TS NH khác
 
-```text
-A. TÀI SẢN NGẮN HẠN                          (100)
-  I.   Tiền và tương đương tiền              (110)  111, 112, 113
-  II.  Đầu tư tài chính ngắn hạn             (120)  121, 128, 229
-  III. Phải thu ngắn hạn                     (130)  131, 136, 138, 141, 151, 244, 2293
-  IV.  Hàng tồn kho                          (140)  151–158, 2294
-  V.   Tài sản ngắn hạn khác                 (150)  133, 242, 333, 338
-B. TÀI SẢN DÀI HẠN                            (200)
-  I.   Phải thu dài hạn                      (210)
-  II.  Tài sản cố định                       (220)  211/214, 212/214, 213/214
-  III. Bất động sản đầu tư                   (230)  217/2147
-  IV.  Tài sản dở dang dài hạn               (240)  241
-  V.   Đầu tư tài chính dài hạn              (250)  221, 222, 228, 2292
-  VI.  Tài sản dài hạn khác                  (260)  242, 243, 244
-  VII. Tài sản sinh học (MỚI TT99)           (270)
-TỔNG CỘNG TÀI SẢN                            (280)
+### B — TÀI SẢN DÀI HẠN (200 = 210+220+230+240+250+260+270)
 
-C. NỢ PHẢI TRẢ                                (300)
-  I.   Nợ ngắn hạn                           (310)  331, 333, 334, 335, 3382-3389, 341 ngắn hạn …
-  II.  Nợ dài hạn                            (330)  341 dài hạn, 343 …
-D. VỐN CHỦ SỞ HỮU                             (400)
-  I.   Vốn chủ                               (410)  411, 412, 413, 414, 418, 421, 441 …
-  II.  Nguồn kinh phí và quỹ khác            (430)
-TỔNG NGUỒN VỐN                               (440)
-```
+- **210 Phải thu dài hạn** → 211–215 + 216 Dự phòng (*)
+- **220 Tài sản cố định** → 221 TSCĐ hữu hình (222 nguyên giá, 223 hao mòn*), 224 TSCĐ thuê TC (225, 226*), 227 TSCĐ vô hình (228, 229*)
+- **230 Tài sản sinh học dài hạn** (MỚI, chi tiết phức tạp) → 231 Súc vật nuôi SP định kỳ (232 chưa trưởng thành, 233 đã trưởng thành: 234 nguyên giá, 235 khấu hao*), 236 Súc vật nuôi SP 1 lần DH, 237 Cây trồng mùa vụ DH, 238 Dự phòng (*)
+- **240 Bất động sản đầu tư** → 241 nguyên giá, 242 hao mòn (*)
+- **250 Tài sản dở dang dài hạn** → 251 CP SXKD dở dang DH, 252 CP XDCB dở dang
+- **260 Đầu tư tài chính dài hạn** → 261 Cty con, 262 LDLK, 263 Góp vốn khác, 264 Dự phòng (*), 265 ĐT nắm giữ đến đáo hạn DH, 266 Dự phòng (*)
+- **270 Tài sản dài hạn khác** → 271 CP chờ phân bổ DH, 272 TS thuế TNDN hoãn lại, 273 Thiết bị/vật tư/phụ tùng thay thế DH, 274 TS DH khác
 
-- Hỗ trợ cột "Số đầu năm" và "Số cuối kỳ"
-- Tự ẩn dòng có cả 2 cột = 0
-- Lưu mã số chuẩn, không đánh lại
+**280 TỔNG CỘNG TÀI SẢN = 100 + 200**
 
-### B. KQKD B02-DN
+### C — NỢ PHẢI TRẢ (300 = 310 + 330)
 
-Cấu trúc mã số chuẩn (01 doanh thu bán hàng, 02 các khoản giảm trừ, 10 doanh thu thuần, 11 GVHB, 20 lợi nhuận gộp, 21 doanh thu HĐTC, 22 chi phí TC, 25 chi phí bán hàng, 26 chi phí QLDN, 30 LNT, 31 thu nhập khác, 32 chi phí khác, 40 LN khác, 50 LNTT, 51 chi phí thuế TNDN, 60 LNST) — map từ 511/521/632/635/515/641/642/711/811/821.
+- **310 Nợ ngắn hạn** (15 mục): 311 Phải trả người bán NH, 312 Người mua trả trước NH, 313 Phải trả cổ tức/LN, 314 Thuế phải nộp NN NH, 315 Phải trả NLĐ, 316 Chi phí phải trả NH, 317 Phải trả nội bộ NH, 318 Phải trả theo tiến độ HĐXD NH, 319 Doanh thu chờ phân bổ NH, 320 Phải trả NH khác, 321 Vay & nợ thuê TC NH, 322 Dự phòng phải trả NH, 323 Quỹ KT-PL, 324 Quỹ bình ổn giá, 325 Giao dịch repo TPCP
+- **330 Nợ dài hạn** (14 mục): 331–344 theo đúng thứ tự TT99 (Trái phiếu chuyển đổi = 340, Cổ phiếu ưu đãi = 341, Thuế TNDN hoãn lại phải trả = 342, Dự phòng phải trả DH = 343, Quỹ KH&CN = 344)
 
-### C. LCTT B03-DN — phương pháp trực tiếp
+### D — VỐN CHỦ SỞ HỮU (400 = 410)
 
-Mã số 01–70: Thu từ bán hàng (01), Chi trả NCC (02), Chi trả NLĐ (03), Chi nộp thuế (05), Tiền lãi vay đã trả (04), … Hoạt động đầu tư (21–30), Hoạt động tài chính (31–40). Giữ phương pháp đơn giản hiện tại làm fallback.
+- **410 Vốn chủ sở hữu**: 411 Vốn góp CSH (411a cổ phần phổ thông có quyền biểu quyết, 411b cổ phần ưu đãi), 412 Thặng dư VCP, 413 Quyền chọn chuyển đổi TP, 414 Vốn khác CSH, 415 Cổ phiếu quỹ (*), 416 Chênh lệch ĐGL tài sản, 417 Chênh lệch tỷ giá, 418 Quỹ ĐTPT, 419 Quỹ khác thuộc VCSH, 420 LNST chưa phân phối (420a lũy kế kỳ trước, 420b kỳ này)
+- **Bỏ mục 430** (TT99 không còn "Nguồn kinh phí và quỹ khác" trong B01 cho DN HĐ liên tục)
 
-### D. B09-DN Thuyết minh
+**440 TỔNG CỘNG NGUỒN VỐN = 300 + 400**
 
-Sinh tự động các phần cố định: chính sách kế toán áp dụng, đặc điểm hoạt động DN (từ `profiles`), chi tiết tăng/giảm TSCĐ (từ `fixed_assets` + `depreciation_entries`), chi tiết phải thu/phải trả theo tuổi nợ, hàng tồn kho theo SP. Phần văn bản cho phép người dùng chỉnh sửa & lưu.
+## Kỹ thuật
 
-### E. UX
+- Giữ nguyên `BSItem` type và helper `D()/C()`.
+- Mỗi mã lá (level 2) gắn `accounts` theo chart of accounts TT200 (đã dùng); mã tổng/mục dùng `formula`.
+- Các mục mới (tài sản sinh học, quỹ bình ổn giá, repo TPCP, cổ phiếu ưu đãi, phải trả cổ tức, phải trả nội bộ về vốn KD…) gắn `accounts: []` khi chưa có TK chuẩn — vẫn hiển thị dòng để khớp mẫu, giá trị = 0 cho đến khi user khai báo TK tương ứng.
+- Mã có dấu (*) (dự phòng / hao mòn / cổ phiếu quỹ) dùng `sign: -1` để trừ vào mục cha.
+- 411a / 411b / 420a / 420b: level 2, parent (411, 420) dùng `formula` cộng hai sub-code.
 
-- Tab cho B01 / B02 / B03 / B09 thay vì 3 thẻ song song
-- Bộ lọc: Năm tài chính, Quý (1–4), Tháng, Kỳ tuỳ chọn; auto chọn năm theo `profiles.fiscal_year_start`
-- Cột So sánh: Kỳ này / Kỳ trước (đầu năm hoặc cùng kỳ năm trước)
-- Toggle "Ẩn chỉ tiêu = 0" (mặc định bật)
-- Nút **Xuất Excel** mỗi báo cáo (sử dụng `xlsx` skill, theo Phụ lục IV)
-- Nút **In** (print-friendly CSS)
-- Badge cảnh báo nếu kỳ đã khoá (`period_locks`) — chỉ hiển thị read-only
+## Kiểm tra sau khi sửa
 
-### F. Database
+- Build TS phải pass (type `BSItem` đã hỗ trợ mọi field cần dùng).
+- Mở `/reports` chọn B01 — bảng phải hiện đủ A/B/C/D với các mã 100, 110…165, 200, 210…274, 280, 300, 310…344, 400, 410…420b, 440 đúng thứ tự thông tư.
+- Tổng kiểm tra: 280 = 100+200, 440 = 300+400, và 280 = 440 (cân đối) với dữ liệu hiện có.
 
-Thêm bảng `report_snapshots` để lưu BCTC đã chốt (kỳ + JSON nội dung) → audit trail, không phải tính lại:
-
-```sql
-CREATE TABLE public.report_snapshots (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  report_type text NOT NULL,        -- 'B01' | 'B02' | 'B03' | 'B09'
-  period_from date,
-  period_to date NOT NULL,
-  payload jsonb NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
--- RLS: own report_snapshots
-```
-
-Thêm bảng `report_notes` cho phần văn bản B09 (chính sách, thuyết minh tự nhập):
-
-```sql
-CREATE TABLE public.report_notes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  section text NOT NULL,             -- 'policy.depreciation', 'policy.inventory', 'note.custom.1' …
-  content text NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(user_id, section)
-);
-```
-
-Cập nhật `profiles.accounting_standard` default → `'TT99'` cho user mới (giữ `'TT133'`/`'TT200'` cho user cũ; B01 mapping chọn theo giá trị này).
-
-### G. Chi tiết kỹ thuật
-
-- Tạo `src/lib/report-mappings.ts`: hằng số mapping `MA_SO_B01_TT99`, `MA_SO_B02`, `MA_SO_B03` (account code → mã số + dấu).
-- Refactor `reports.functions.ts`:
-  - `getBalanceSheetTT99({ asOf, compareWith })` → trả về `{ items: [{ ma_so, name, level, current, previous }], totals }`
-  - `getIncomeStatementTT99({ from, to, compareFrom?, compareTo? })`
-  - `getCashFlowDirect({ from, to })` & giữ `getCashFlowIndirect` cũ
-  - `getNotes({ from, to })` cho B09
-  - `saveSnapshot`, `listSnapshots`, `getSnapshot`
-  - `upsertReportNote`, `listReportNotes`
-- Tất cả check `is_period_locked` cho thao tác chốt snapshot
-- Xuất Excel: server-side `xlsx` (đã có trong devDeps?) — nếu chưa, dùng `exceljs` (Worker-compatible) tạo workbook đúng Phụ lục IV, trả về base64 cho client tải.
-
-### H. Ngoài phạm vi (để sau)
-
-- DN không hoạt động liên tục (B01-DNKLT)
-- Báo cáo giữa niên độ dạng tóm lược B016/B026/B036
-- Hợp nhất công ty mẹ-con
-- Chuyển đổi tự động số dư đầu kỳ TT133/TT200 → TT99
-- XBRL/eXML nộp Thuế
-
-## File dự kiến
-
-**Mới**
-- `src/lib/report-mappings.ts`
-- `src/lib/report-export.ts` (Excel)
-- `src/routes/_app/reports/index.tsx` (tabs)
-- `src/routes/_app/reports/notes.tsx` (chỉnh B09)
-- 2 migration: `report_snapshots`, `report_notes` + RLS
-
-**Sửa**
-- `src/lib/reports.functions.ts` (refactor lớn)
-- `src/routes/_app/reports.tsx` → redirect tới `/reports` index
-- `src/components/app-sidebar.tsx` (nếu cần submenu Báo cáo)
-
-## Câu hỏi cần xác nhận
-
-1. **Chuẩn áp dụng**: triển khai mặc định **TT99** (mới), hay giữ TT133 cho DN nhỏ & thêm tuỳ chọn TT99? AccuVN hiện default `TT133`.
-2. **Xuất file**: Excel theo Phụ lục IV là đủ, hay cần thêm PDF in sẵn?
-3. **B09 Thuyết minh**: tự sinh tối thiểu (TSCĐ + tồn kho + công nợ) + cho phép user nhập tay phần chính sách, OK?
-4. **LCTT**: làm phương pháp **trực tiếp** (chuẩn TT99 khuyến nghị) hay **gián tiếp**, hay cả hai?
+Không sửa file khác. Sau khi user duyệt sẽ áp dụng trong một lượt edit duy nhất.
