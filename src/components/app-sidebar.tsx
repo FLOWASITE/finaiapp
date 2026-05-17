@@ -70,6 +70,7 @@ const SECTIONS: NavSection[] = [
       { to: "/journal", label: "Sổ nhật ký", icon: BookOpen },
       { to: "/coa", label: "Hệ thống tài khoản", icon: BookOpenCheck },
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
     ],
   },
   {
@@ -81,7 +82,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Thuế",
     items: [
-      { to: "/tax", label: "Tờ khai GTGT", icon: Receipt },
+      { to: "/tax", label: "Báo cáo thuế (GTGT/TNDN/TNCN)", icon: Receipt },
     ],
   },
   {
