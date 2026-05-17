@@ -1,30 +1,61 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   FileText,
   Trash2,
   Search,
-  TrendingUp,
   AlertTriangle,
   Wallet,
   Receipt,
+  Users,
+  Banknote,
+  CreditCard,
+  Download,
+  ArrowRight,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
+import {
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   listSalesInvoices,
   upsertSalesInvoice,
-  salesDashboardStats,
 } from "@/lib/sales.functions";
+import { salesDashboard } from "@/lib/sales-dashboard.functions";
+import {
+  listReceipts,
+  listOutstandingInvoices,
+  receiptsStats,
+  recordReceipt,
+  deleteReceipt,
+} from "@/lib/receipts.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -36,21 +67,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { CustomerCombobox, type CustomerLite } from "@/components/customer-combobox";
 import { VAT_CODES, type VatCode, calcLineTax } from "@/lib/vat-codes";
 
-export const Route = createFileRoute("/_app/sales/")({ component: SalesPage });
-
-type EditorLine = {
-  product_id?: string | null;
-  description: string;
-  qty: number;
-  unit_price: number;
-  vat_code: VatCode;
-  line_discount_percent: number;
-  line_discount_amount: number;
+type SalesTab = "invoices" | "receipts" | "overdue" | "customers";
+type SalesSearch = {
+  tab?: SalesTab;
+  status?: string;
+  invoice?: string;
+  customer?: string;
 };
+
+export const Route = createFileRoute("/_app/sales/")({
+  component: SalesHubPage,
+  validateSearch: (s: Record<string, unknown>): SalesSearch => {
+    const tab = s.tab;
+    return {
+      tab:
+        tab === "receipts" || tab === "overdue" || tab === "customers"
+          ? tab
+          : "invoices",
+      status: typeof s.status === "string" ? s.status : undefined,
+      invoice: typeof s.invoice === "string" ? s.invoice : undefined,
+      customer: typeof s.customer === "string" ? s.customer : undefined,
+    };
+  },
+});
+
+// ---------- helpers ----------
+const fmt = (n: number | string | null | undefined) =>
+  Number(n ?? 0).toLocaleString("vi-VN");
+const fmtShort = (n: number) => {
+  const v = Math.abs(n);
+  if (v >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (v >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (v >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return String(n);
+};
+const today = () => new Date().toISOString().slice(0, 10);
+const firstOfMonth = () => today().slice(0, 8) + "01";
 
 const STATUS_BADGE: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-700",
@@ -66,18 +133,283 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: "Quá hạn",
   void: "Đã hủy",
 };
+const METHOD_LABEL: Record<string, string> = {
+  cash: "Tiền mặt",
+  bank: "Chuyển khoản",
+  card: "Thẻ",
+  other: "Khác",
+};
+const AGING_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#f97316", "#ef4444"];
 
-function fmt(n: number | string | null | undefined) {
-  return Number(n ?? 0).toLocaleString("vi-VN");
+// ============================================================
+// MAIN HUB PAGE
+// ============================================================
+function SalesHubPage() {
+  const navigate = Route.useNavigate();
+  const { tab = "invoices", status, invoice, customer } = Route.useSearch();
+
+  const dashFn = useServerFn(salesDashboard);
+  const { data: dash } = useQuery({
+    queryKey: ["sales-dashboard"],
+    queryFn: () => dashFn(),
+  });
+
+  const setTab = (t: SalesTab, extra: Partial<SalesSearch> = {}) =>
+    navigate({
+      search: (prev: SalesSearch) => ({ ...prev, tab: t, ...extra }),
+      replace: true,
+    });
+
+  // money-strip click handlers — bring user to invoice tab with status filter
+  const clickStatus = (s: string | undefined) =>
+    setTab("invoices", { status: s });
+
+  return (
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Bán hàng</h1>
+          <p className="text-sm text-muted-foreground">
+            Tổng quan doanh thu, hoá đơn và phiếu thu — đối ứng công nợ TK 131
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
+          <NewInvoiceDialog />
+        </div>
+      </div>
+
+      {/* Money strip — Xero-style click-to-filter cards */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <MoneyCard
+          tone="primary"
+          icon={<TrendingUp className="h-4 w-4" />}
+          label="Doanh thu tháng"
+          value={fmt(dash?.kpi.revenue_month ?? 0)}
+          sub={`${dash?.kpi.invoices_month ?? 0} hoá đơn`}
+          onClick={() => clickStatus(undefined)}
+          active={tab === "invoices" && !status}
+        />
+        <MoneyCard
+          tone="success"
+          icon={<Wallet className="h-4 w-4" />}
+          label="Đã thu tháng"
+          value={fmt(dash?.kpi.collected_month ?? 0)}
+          sub={
+            dash && dash.kpi.revenue_month > 0
+              ? `${Math.round((dash.kpi.collected_month / dash.kpi.revenue_month) * 100)}% doanh thu`
+              : "—"
+          }
+          onClick={() => setTab("receipts")}
+          active={tab === "receipts"}
+        />
+        <MoneyCard
+          tone="warning"
+          icon={<Receipt className="h-4 w-4" />}
+          label="Phải thu"
+          value={fmt(dash?.kpi.outstanding_total ?? 0)}
+          sub={`${dash?.kpi.open_invoices ?? 0} HĐ chưa thanh toán`}
+          onClick={() => clickStatus("unpaid")}
+          active={tab === "invoices" && status === "unpaid"}
+        />
+        <MoneyCard
+          tone="danger"
+          icon={<AlertTriangle className="h-4 w-4" />}
+          label="Quá hạn"
+          value={fmt(dash?.kpi.overdue_total ?? 0)}
+          sub={`${dash?.kpi.overdue_count ?? 0} HĐ trễ hạn`}
+          onClick={() => setTab("overdue")}
+          active={tab === "overdue"}
+        />
+      </div>
+
+      {/* Collected windows */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <MiniKpi label="Đã thu 30 ngày" value={fmt(dash?.kpi.collected_30 ?? 0)} />
+        <MiniKpi label="Đã thu 60 ngày" value={fmt(dash?.kpi.collected_60 ?? 0)} />
+        <MiniKpi label="Đã thu 90 ngày" value={fmt(dash?.kpi.collected_90 ?? 0)} />
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Doanh thu vs Đã thu — 6 tháng</CardTitle>
+          </CardHeader>
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={dash?.trend ?? []}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis tickFormatter={fmtShort} className="text-xs" />
+                <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                <Legend />
+                <Bar
+                  dataKey="revenue"
+                  name="Doanh thu"
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="collected"
+                  name="Đã thu"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Tuổi nợ phải thu</CardTitle>
+          </CardHeader>
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={
+                    dash
+                      ? [
+                          { name: "Trong hạn", value: dash.aging.current },
+                          { name: "1–30", value: dash.aging["1-30"] },
+                          { name: "31–60", value: dash.aging["31-60"] },
+                          { name: "61–90", value: dash.aging["61-90"] },
+                          { name: ">90", value: dash.aging["90+"] },
+                        ]
+                      : []
+                  }
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={40}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {AGING_COLORS.map((c, i) => (
+                    <Cell key={i} fill={c} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as SalesTab, { status: undefined })}>
+        <TabsList>
+          <TabsTrigger value="invoices">
+            <FileText className="mr-2 h-4 w-4" /> Hoá đơn
+          </TabsTrigger>
+          <TabsTrigger value="receipts">
+            <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
+          </TabsTrigger>
+          <TabsTrigger value="overdue">
+            <AlertTriangle className="mr-2 h-4 w-4" /> Quá hạn
+          </TabsTrigger>
+          <TabsTrigger value="customers">
+            <Users className="mr-2 h-4 w-4" /> Top khách nợ
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="invoices" className="mt-4">
+          <InvoicesTab statusFilter={status} />
+        </TabsContent>
+        <TabsContent value="receipts" className="mt-4">
+          <ReceiptsTab preselectInvoice={invoice} preselectCustomer={customer} />
+        </TabsContent>
+        <TabsContent value="overdue" className="mt-4">
+          <OverdueTab overdue={dash?.overdue ?? []} />
+        </TabsContent>
+        <TabsContent value="customers" className="mt-4">
+          <TopCustomersTab top={dash?.top_customers ?? []} onPick={(cid) => setTab("receipts", { customer: cid })} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
-function SalesPage() {
+// ============================================================
+// MONEY STRIP CARDS
+// ============================================================
+function MoneyCard({
+  label,
+  value,
+  sub,
+  icon,
+  tone,
+  onClick,
+  active,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon?: React.ReactNode;
+  tone?: "primary" | "success" | "warning" | "danger";
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const toneCls =
+    tone === "success"
+      ? "text-emerald-600"
+      : tone === "warning"
+      ? "text-amber-600"
+      : tone === "danger"
+      ? "text-rose-600"
+      : tone === "primary"
+      ? "text-primary"
+      : "";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40 ${
+        active ? "border-primary ring-1 ring-primary/30" : "border-border"
+      }`}
+    >
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span>{icon}</span>
+      </div>
+      <div className={`mt-2 text-2xl font-bold font-mono ${toneCls}`}>{value}</div>
+      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+    </button>
+  );
+}
+
+function MiniKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" /> {label}
+        </div>
+        <div className="font-mono font-semibold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================
+// TAB: INVOICES
+// ============================================================
+function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
   const list = useServerFn(listSalesInvoices);
-  const stats = useServerFn(salesDashboardStats);
-  const { data: invoices } = useQuery({ queryKey: ["sales-invoices"], queryFn: () => list({}) });
-  const { data: kpi } = useQuery({ queryKey: ["sales-stats"], queryFn: () => stats({}) });
+  const { data: invoices } = useQuery({
+    queryKey: ["sales-invoices"],
+    queryFn: () => list({}),
+  });
   const [q, setQ] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>(statusFilter ?? "all");
+
+  useEffect(() => {
+    if (statusFilter) setFilterStatus(statusFilter);
+  }, [statusFilter]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -94,47 +426,7 @@ function SalesPage() {
   }, [invoices, q, filterStatus]);
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bán hàng</h1>
-          <p className="text-sm text-muted-foreground">
-            Quản lý hóa đơn bán ra, doanh thu & công nợ phải thu
-          </p>
-        </div>
-        <NewInvoiceDialog />
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard
-          icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-          label="Doanh thu tháng này"
-          value={fmt(kpi?.revenue_month)}
-          sub={`${kpi?.invoices_month ?? 0} hóa đơn`}
-        />
-        <KpiCard
-          icon={<Receipt className="h-5 w-5 text-blue-600" />}
-          label="Phải thu tháng này"
-          value={fmt(kpi?.outstanding)}
-          sub="Tổng còn phải thu"
-        />
-        <KpiCard
-          icon={<AlertTriangle className="h-5 w-5 text-red-600" />}
-          label="Công nợ quá hạn"
-          value={fmt(kpi?.overdue)}
-          sub="Cần đôn đốc"
-          tone={Number(kpi?.overdue ?? 0) > 0 ? "danger" : undefined}
-        />
-        <KpiCard
-          icon={<Wallet className="h-5 w-5 text-violet-600" />}
-          label="Đã thu (luỹ kế)"
-          value={fmt(Number(kpi?.revenue_month ?? 0) - Number(kpi?.outstanding ?? 0))}
-          sub="Tháng này"
-        />
-      </div>
-
-      {/* Filters */}
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -146,7 +438,9 @@ function SalesPage() {
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
             <SelectItem value="unpaid">Chưa thu</SelectItem>
@@ -170,6 +464,7 @@ function SalesPage() {
               <th className="px-4 py-2 text-right">Đã thu</th>
               <th className="px-4 py-2 text-right">Còn lại</th>
               <th className="px-4 py-2 text-left">Trạng thái</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -215,12 +510,21 @@ function SalesPage() {
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-2 text-right">
+                    {remaining > 0 && inv.status !== "void" && (
+                      <Button size="sm" variant="outline" asChild className="h-7">
+                        <Link to="/sales" search={{ tab: "receipts", invoice: inv.id }}>
+                          <Banknote className="mr-1 h-3 w-3" /> Thu
+                        </Link>
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                   Không có hóa đơn nào
                 </td>
               </tr>
@@ -232,32 +536,775 @@ function SalesPage() {
   );
 }
 
-function KpiCard({
-  icon,
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "danger";
-}) {
+// ============================================================
+// TAB: OVERDUE
+// ============================================================
+function OverdueTab({ overdue }: { overdue: any[] }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`mt-2 text-2xl font-bold font-mono ${tone === "danger" ? "text-red-600" : ""}`}>
-        {value}
-      </div>
-      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+    <div className="rounded-lg border border-border bg-card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-xs uppercase">
+          <tr>
+            <th className="px-4 py-2 text-left">Số HĐ</th>
+            <th className="px-4 py-2 text-left">Khách hàng</th>
+            <th className="px-4 py-2 text-right">Trễ</th>
+            <th className="px-4 py-2 text-right">Còn nợ</th>
+            <th className="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {overdue.map((o: any) => (
+            <tr key={o.id} className="border-t border-border hover:bg-muted/30">
+              <td className="px-4 py-2">
+                <Link
+                  to="/sales/$id"
+                  params={{ id: o.id }}
+                  className="text-primary hover:underline"
+                >
+                  {o.invoice_no ?? "—"}
+                </Link>
+              </td>
+              <td className="px-4 py-2">{o.customer_name ?? "—"}</td>
+              <td className="px-4 py-2 text-right">
+                <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+                  {o.days_late} ngày
+                </Badge>
+              </td>
+              <td className="px-4 py-2 text-right font-mono font-semibold text-rose-600">
+                {fmt(o.remaining)}
+              </td>
+              <td className="px-4 py-2 text-right">
+                <Button size="sm" variant="outline" asChild className="h-7">
+                  <Link to="/sales" search={{ tab: "receipts", invoice: o.id }}>
+                    <Banknote className="mr-1 h-3 w-3" /> Thu
+                  </Link>
+                </Button>
+              </td>
+            </tr>
+          ))}
+          {overdue.length === 0 && (
+            <tr>
+              <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                Không có hoá đơn quá hạn 🎉
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
+
+// ============================================================
+// TAB: TOP CUSTOMERS
+// ============================================================
+function TopCustomersTab({
+  top,
+  onPick,
+}: {
+  top: any[];
+  onPick: (customerId: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-xs uppercase">
+          <tr>
+            <th className="px-4 py-2 text-left">Khách hàng</th>
+            <th className="px-4 py-2 text-right">HĐ</th>
+            <th className="px-4 py-2 text-right">Quá hạn</th>
+            <th className="px-4 py-2 text-right">Tổng nợ</th>
+            <th className="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {top.map((c: any, i: number) => (
+            <tr key={i} className="border-t border-border hover:bg-muted/30">
+              <td className="px-4 py-2">{c.customer_name}</td>
+              <td className="px-4 py-2 text-right">{c.invoices}</td>
+              <td className="px-4 py-2 text-right font-mono text-rose-600">
+                {c.overdue > 0 ? fmt(c.overdue) : "—"}
+              </td>
+              <td className="px-4 py-2 text-right font-mono font-semibold">
+                {fmt(c.outstanding)}
+              </td>
+              <td className="px-4 py-2 text-right">
+                {c.customer_id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7"
+                    onClick={() => onPick(c.customer_id)}
+                  >
+                    <Banknote className="mr-1 h-3 w-3" /> Thu
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {top.length === 0 && (
+            <tr>
+              <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                Chưa có công nợ
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============================================================
+// TAB: RECEIPTS
+// ============================================================
+function ReceiptsTab({
+  preselectInvoice,
+  preselectCustomer,
+}: {
+  preselectInvoice?: string;
+  preselectCustomer?: string;
+}) {
+  const qc = useQueryClient();
+  const navigate = Route.useNavigate();
+  const listFn = useServerFn(listReceipts);
+  const statsFn = useServerFn(receiptsStats);
+  const outFn = useServerFn(listOutstandingInvoices);
+  const recordFn = useServerFn(recordReceipt);
+  const delFn = useServerFn(deleteReceipt);
+
+  const [from, setFrom] = useState(firstOfMonth());
+  const [to, setTo] = useState(today());
+  const [method, setMethod] = useState("all");
+  const [search, setSearch] = useState("");
+  const [openNew, setOpenNew] = useState(false);
+  const [preInv, setPreInv] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (preselectInvoice || preselectCustomer) {
+      setPreInv(preselectInvoice);
+      setOpenNew(true);
+    }
+  }, [preselectInvoice, preselectCustomer]);
+
+  const filter = { from, to, method };
+  const { data: rows = [] } = useQuery({
+    queryKey: ["receipts", filter],
+    queryFn: () => listFn({ data: filter }),
+  });
+  const { data: stats } = useQuery({
+    queryKey: ["receipts-stats", from, to],
+    queryFn: () => statsFn({ data: { from, to } }),
+  });
+  const { data: outstanding = [] } = useQuery({
+    queryKey: ["outstanding-invoices"],
+    queryFn: () => outFn(),
+  });
+
+  const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r: any) =>
+      [r.customer_name, r.reference, r.notes, r.sales_invoices?.invoice_no]
+        .filter(Boolean)
+        .some((v: string) => v.toLowerCase().includes(s)),
+    );
+  }, [rows, search]);
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá phiếu thu (đảo bút toán)");
+      qc.invalidateQueries({ queryKey: ["receipts"] });
+      qc.invalidateQueries({ queryKey: ["receipts-stats"] });
+      qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
+      qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Không xoá được"),
+  });
+
+  const clearPreselect = () => {
+    if (preselectInvoice || preselectCustomer) {
+      navigate({
+        search: (prev: SalesSearch) => ({ ...prev, invoice: undefined, customer: undefined }),
+        replace: true,
+      });
+    }
+  };
+
+  const exportCsv = () => {
+    const header = [
+      "Ngày",
+      "Khách hàng",
+      "Hoá đơn",
+      "PT thanh toán",
+      "Tham chiếu",
+      "Số tiền",
+      "Ghi chú",
+    ];
+    const lines = filtered.map((r: any) => [
+      r.pay_date,
+      r.customer_name ?? "",
+      r.sales_invoices?.invoice_no ?? "",
+      METHOD_LABEL[r.method] ?? r.method,
+      r.reference ?? "",
+      r.amount,
+      (r.notes ?? "").replace(/\n/g, " "),
+    ]);
+    const csv = [header, ...lines]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `phieu-thu_${from}_${to}.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Method KPIs */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <MiniReceiptCard
+          label="Tổng thu kỳ"
+          value={fmt(stats?.total ?? 0)}
+          sub={`${stats?.count ?? 0} phiếu`}
+          icon={<Wallet className="h-4 w-4" />}
+        />
+        <MiniReceiptCard
+          label="Tiền mặt (111)"
+          value={fmt(stats?.cash ?? 0)}
+          icon={<Banknote className="h-4 w-4" />}
+        />
+        <MiniReceiptCard
+          label="Ngân hàng (112)"
+          value={fmt(stats?.bank ?? 0)}
+          icon={<CreditCard className="h-4 w-4" />}
+        />
+        <MiniReceiptCard
+          label="Công nợ còn lại (131)"
+          value={fmt(stats?.outstanding ?? 0)}
+          tone="warning"
+          icon={<FileText className="h-4 w-4" />}
+        />
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+          <div className="space-y-1">
+            <Label className="text-xs">Từ ngày</Label>
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Đến ngày</Label>
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Hình thức</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="cash">Tiền mặt</SelectItem>
+                <SelectItem value="bank">Chuyển khoản</SelectItem>
+                <SelectItem value="card">Thẻ</SelectItem>
+                <SelectItem value="other">Khác</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 flex-1 min-w-[200px]">
+            <Label className="text-xs">Tìm kiếm</Label>
+            <Input
+              placeholder="Khách hàng, số HĐ, tham chiếu..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" /> CSV
+          </Button>
+          <Button onClick={() => setOpenNew(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Tạo phiếu thu
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase">
+            <tr>
+              <th className="px-4 py-2 text-left">Ngày</th>
+              <th className="px-4 py-2 text-left">Khách hàng</th>
+              <th className="px-4 py-2 text-left">Hoá đơn</th>
+              <th className="px-4 py-2 text-left">Hình thức</th>
+              <th className="px-4 py-2 text-left">Tham chiếu</th>
+              <th className="px-4 py-2 text-right">Số tiền</th>
+              <th className="px-4 py-2 text-center">Đối soát</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r: any) => {
+              const inv = r.sales_invoices;
+              const status = inv?.payment_status ?? "—";
+              return (
+                <tr key={r.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="px-4 py-2 whitespace-nowrap">{r.pay_date}</td>
+                  <td className="px-4 py-2">{r.customer_name ?? "—"}</td>
+                  <td className="px-4 py-2">
+                    {inv?.invoice_no ? (
+                      <Link
+                        to="/sales/$id"
+                        params={{ id: r.invoice_id }}
+                        className="text-primary hover:underline"
+                      >
+                        {inv.invoice_no}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-2">{METHOD_LABEL[r.method] ?? r.method}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">
+                    {r.reference ?? "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono font-semibold">
+                    {fmt(r.amount)}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <PaymentBadge status={status} />
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-600 hover:text-rose-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Xoá phiếu thu?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Sẽ tạo bút toán đảo và cập nhật lại công nợ hoá đơn.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => delMut.mutate(r.id)}>
+                            Xoá
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </td>
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  Không có phiếu thu trong kỳ
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <NewReceiptDialog
+        open={openNew}
+        onOpenChange={(v) => {
+          setOpenNew(v);
+          if (!v) {
+            setPreInv(undefined);
+            clearPreselect();
+          }
+        }}
+        outstanding={
+          preselectCustomer
+            ? outstanding.filter((i: any) => i.customer_id === preselectCustomer)
+            : outstanding
+        }
+        preselectInvoiceId={preInv}
+        onSubmit={async (payload) => {
+          try {
+            await recordFn({ data: payload });
+            toast.success("Đã ghi nhận phiếu thu");
+            setOpenNew(false);
+            setPreInv(undefined);
+            clearPreselect();
+            qc.invalidateQueries({ queryKey: ["receipts"] });
+            qc.invalidateQueries({ queryKey: ["receipts-stats"] });
+            qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
+            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+            qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+          } catch (e: any) {
+            toast.error(e?.message || "Lỗi khi ghi nhận");
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function MiniReceiptCard({
+  label,
+  value,
+  sub,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon?: React.ReactNode;
+  tone?: "warning";
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+        <span className="text-muted-foreground">{icon}</span>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold ${tone === "warning" ? "text-amber-600" : ""}`}>
+          {value}
+        </div>
+        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    paid: { label: "Đã thu đủ", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    partial: { label: "Thu một phần", cls: "bg-amber-100 text-amber-700 border-amber-200" },
+    unpaid: { label: "Chưa thu", cls: "bg-slate-100 text-slate-700 border-slate-200" },
+    overdue: { label: "Quá hạn", cls: "bg-rose-100 text-rose-700 border-rose-200" },
+  };
+  const info = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
+  return (
+    <Badge variant="outline" className={info.cls}>
+      {info.label}
+    </Badge>
+  );
+}
+
+// ============================================================
+// NEW RECEIPT — inline trigger (header) + dialog
+// ============================================================
+function NewReceiptInline({
+  preselectInvoiceId,
+  preselectCustomerId,
+}: {
+  preselectInvoiceId?: string;
+  preselectCustomerId?: string;
+}) {
+  const qc = useQueryClient();
+  const recordFn = useServerFn(recordReceipt);
+  const outFn = useServerFn(listOutstandingInvoices);
+  const [open, setOpen] = useState(false);
+
+  const { data: outstanding = [] } = useQuery({
+    queryKey: ["outstanding-invoices"],
+    queryFn: () => outFn(),
+  });
+
+  const filteredOut = preselectCustomerId
+    ? outstanding.filter((i: any) => i.customer_id === preselectCustomerId)
+    : outstanding;
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
+      </Button>
+      <NewReceiptDialog
+        open={open}
+        onOpenChange={setOpen}
+        outstanding={filteredOut}
+        preselectInvoiceId={preselectInvoiceId}
+        onSubmit={async (payload) => {
+          try {
+            await recordFn({ data: payload });
+            toast.success("Đã ghi nhận phiếu thu");
+            setOpen(false);
+            qc.invalidateQueries({ queryKey: ["receipts"] });
+            qc.invalidateQueries({ queryKey: ["receipts-stats"] });
+            qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
+            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+            qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+          } catch (e: any) {
+            toast.error(e?.message || "Lỗi khi ghi nhận");
+          }
+        }}
+      />
+    </>
+  );
+}
+
+function NewReceiptDialog({
+  open,
+  onOpenChange,
+  outstanding,
+  preselectInvoiceId,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  outstanding: any[];
+  preselectInvoiceId?: string;
+  onSubmit: (p: any) => Promise<void>;
+}) {
+  const [invoiceId, setInvoiceId] = useState("");
+  const [payDate, setPayDate] = useState(today());
+  const [method, setMethod] = useState<"cash" | "bank" | "card" | "other">("bank");
+  const [amount, setAmount] = useState("");
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const selected = outstanding.find((i) => i.id === invoiceId);
+  const remaining = selected ? Number(selected.total) - Number(selected.paid_amount) : 0;
+
+  useEffect(() => {
+    if (open && preselectInvoiceId) {
+      const inv = outstanding.find((i) => i.id === preselectInvoiceId);
+      if (inv) {
+        setInvoiceId(preselectInvoiceId);
+        setAmount(String(Number(inv.total) - Number(inv.paid_amount)));
+      }
+    }
+  }, [open, preselectInvoiceId, outstanding]);
+
+  const reset = () => {
+    setInvoiceId("");
+    setAmount("");
+    setReference("");
+    setNotes("");
+    setMethod("bank");
+    setPayDate(today());
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) reset();
+      }}
+    >
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Tạo phiếu thu</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>Hoá đơn còn nợ *</Label>
+            <Select
+              value={invoiceId}
+              onValueChange={(v) => {
+                setInvoiceId(v);
+                const inv = outstanding.find((i) => i.id === v);
+                if (inv) setAmount(String(Number(inv.total) - Number(inv.paid_amount)));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn hoá đơn..." />
+              </SelectTrigger>
+              <SelectContent>
+                {outstanding.length === 0 && (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Không có hoá đơn còn nợ
+                  </div>
+                )}
+                {outstanding.map((inv) => {
+                  const rem = Number(inv.total) - Number(inv.paid_amount);
+                  return (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoice_no ?? "—"} · {inv.customer_name ?? "?"} · còn {fmt(rem)}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {selected && (
+              <p className="text-xs text-muted-foreground">
+                Tổng HĐ {fmt(selected.total)} · đã thu {fmt(selected.paid_amount)} ·{" "}
+                <span className="text-amber-600 font-medium">
+                  còn lại {fmt(remaining)}
+                </span>
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Ngày thu *</Label>
+              <Input
+                type="date"
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Hình thức *</Label>
+              <Select value={method} onValueChange={(v) => setMethod(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Tiền mặt (111)</SelectItem>
+                  <SelectItem value="bank">Chuyển khoản (112)</SelectItem>
+                  <SelectItem value="card">Thẻ (112)</SelectItem>
+                  <SelectItem value="other">Khác</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label>Số tiền *</Label>
+              {selected && remaining > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setAmount(String(remaining))}
+                >
+                  Lấy số còn lại ({fmt(remaining)})
+                </Button>
+              )}
+            </div>
+            <Input
+              type="number"
+              min={0}
+              step="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              className="font-mono"
+            />
+            {amount && Number(amount) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {fmt(Number(amount))} đ
+                {selected && Number(amount) > remaining + 0.01 && (
+                  <span className="ml-2 text-rose-600 font-medium">
+                    Vượt công nợ còn lại
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <Label>Số tham chiếu (UNC, sao kê, mã GD...)</Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="VD: UNC-2026/05/0123"
+              maxLength={255}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Ghi chú</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Diễn giải nội dung thu tiền..."
+              rows={2}
+              maxLength={500}
+            />
+          </div>
+
+          {amount && Number(amount) > 0 && (
+            <div className="rounded-md border border-dashed bg-muted/30 p-3 text-xs space-y-1">
+              <div className="font-medium text-foreground">Bút toán đối ứng</div>
+              <div className="flex justify-between font-mono">
+                <span>
+                  Nợ {method === "cash" ? "111" : "112"} —{" "}
+                  {method === "cash" ? "Tiền mặt" : "Tiền gửi NH"}
+                </span>
+                <span>{fmt(Number(amount))}</span>
+              </div>
+              <div className="flex justify-between font-mono text-muted-foreground">
+                <span>     Có 131 — Phải thu khách hàng</span>
+                <span>{fmt(Number(amount))}</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Huỷ
+          </Button>
+          <Button
+            disabled={
+              !invoiceId ||
+              !amount ||
+              submitting ||
+              Number(amount) <= 0 ||
+              (selected && Number(amount) > remaining + 0.01)
+            }
+            onClick={async () => {
+              setSubmitting(true);
+              try {
+                await onSubmit({
+                  invoice_id: invoiceId,
+                  pay_date: payDate,
+                  method,
+                  amount: Number(amount),
+                  reference: reference || null,
+                  notes: notes || null,
+                });
+                reset();
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+          >
+            {submitting ? "Đang lưu..." : "Ghi nhận"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+// NEW INVOICE DIALOG (kept from previous file)
+// ============================================================
+type EditorLine = {
+  product_id?: string | null;
+  description: string;
+  qty: number;
+  unit_price: number;
+  vat_code: VatCode;
+  line_discount_percent: number;
+  line_discount_amount: number;
+};
 
 function NewInvoiceDialog() {
   const upsert = useServerFn(upsertSalesInvoice);
@@ -270,10 +1317,10 @@ function NewInvoiceDialog() {
     enabled: open,
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const todayStr = today();
   const [customer, setCustomer] = useState<CustomerLite | null>(null);
   const [head, setHead] = useState({
-    issue_date: today,
+    issue_date: todayStr,
     due_date: "",
     payment_terms_days: 30,
     currency: "VND",
@@ -297,7 +1344,6 @@ function NewInvoiceDialog() {
     },
   ]);
 
-  // Auto sync customer to head when picked
   const onPickCustomer = (c: CustomerLite | null) => {
     setCustomer(c);
     if (c) {
@@ -311,10 +1357,9 @@ function NewInvoiceDialog() {
     }
   };
 
-  // Compute totals client-side preview
   const totals = useMemo(() => {
-    let preVat = 0,
-      vat = 0;
+    let preVat = 0;
+    let vat = 0;
     for (const l of lines) {
       const t = calcLineTax({
         qty: l.qty,
@@ -332,7 +1377,8 @@ function NewInvoiceDialog() {
     );
     const subtotal = Math.max(0, preVat - headerDisc);
     const vatScaled = preVat > 0 ? vat * (subtotal / preVat) : 0;
-    const total = subtotal + vatScaled + Number(head.shipping_fee) + Number(head.other_fees);
+    const total =
+      subtotal + vatScaled + Number(head.shipping_fee) + Number(head.other_fees);
     return { subtotal, vat: vatScaled, total };
   }, [lines, head]);
 
@@ -364,7 +1410,7 @@ function NewInvoiceDialog() {
     onSuccess: () => {
       toast.success("Đã lưu hóa đơn nháp");
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
-      qc.invalidateQueries({ queryKey: ["sales-stats"] });
+      qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
       setOpen(false);
       setCustomer(null);
       setLines([
@@ -378,7 +1424,7 @@ function NewInvoiceDialog() {
         },
       ]);
       setHead({
-        issue_date: today,
+        issue_date: todayStr,
         due_date: "",
         payment_terms_days: 30,
         currency: "VND",
@@ -399,7 +1445,8 @@ function NewInvoiceDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" />Tạo HĐ bán
+          <Plus className="mr-2 h-4 w-4" />
+          Tạo HĐ bán
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -411,7 +1458,6 @@ function NewInvoiceDialog() {
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Customer & header */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <Label>Khách hàng *</Label>
@@ -454,8 +1500,13 @@ function NewInvoiceDialog() {
             </div>
             <div>
               <Label>Tiền tệ</Label>
-              <Select value={head.currency} onValueChange={(v) => setHead({ ...head, currency: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={head.currency}
+                onValueChange={(v) => setHead({ ...head, currency: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="VND">VND</SelectItem>
                   <SelectItem value="USD">USD</SelectItem>
@@ -484,7 +1535,6 @@ function NewInvoiceDialog() {
             </div>
           </div>
 
-          {/* Lines */}
           <div className="rounded-md border border-border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs uppercase">
@@ -524,7 +1574,7 @@ function NewInvoiceDialog() {
                               product_id: v,
                               description: p?.name ?? l.description,
                               unit_price: p?.unit_price ?? l.unit_price,
-                              vat_code: ((p?.vat_rate ?? 10).toString() as VatCode),
+                              vat_code: (p?.vat_rate ?? 10).toString() as VatCode,
                             });
                           }}
                         >
@@ -578,11 +1628,16 @@ function NewInvoiceDialog() {
                           value={l.vat_code}
                           onValueChange={(v) => upd({ vat_code: v as VatCode })}
                         >
-                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             {VAT_CODES.map((v) => (
                               <SelectItem key={v.code} value={v.code}>
-                                {v.code === "0" || v.code === "5" || v.code === "8" || v.code === "10"
+                                {v.code === "0" ||
+                                v.code === "5" ||
+                                v.code === "8" ||
+                                v.code === "10"
                                   ? `${v.code}%`
                                   : v.code}
                               </SelectItem>
@@ -627,11 +1682,11 @@ function NewInvoiceDialog() {
                 ])
               }
             >
-              <Plus className="mr-1 h-3 w-3" />Thêm dòng
+              <Plus className="mr-1 h-3 w-3" />
+              Thêm dòng
             </Button>
           </div>
 
-          {/* Footer */}
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Ghi chú</Label>
@@ -666,14 +1721,18 @@ function NewInvoiceDialog() {
                   type="number"
                   className="h-8"
                   value={head.shipping_fee}
-                  onChange={(e) => setHead({ ...head, shipping_fee: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setHead({ ...head, shipping_fee: Number(e.target.value) })
+                  }
                 />
                 <Label>Phí khác</Label>
                 <Input
                   type="number"
                   className="h-8"
                   value={head.other_fees}
-                  onChange={(e) => setHead({ ...head, other_fees: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setHead({ ...head, other_fees: Number(e.target.value) })
+                  }
                 />
               </div>
               <div className="border-t border-border pt-2 space-y-1">
