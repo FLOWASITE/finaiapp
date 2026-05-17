@@ -237,8 +237,20 @@ function AuditPage() {
           <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           Làm mới
         </Button>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Switch checked={showTotal} onCheckedChange={setShowTotal} />
+          Hiển thị tổng
+        </label>
         <div className="ml-auto text-xs text-muted-foreground">
-          {logs.length} / {total} bản ghi
+          {filtersSettling ? (
+            <span className="italic">đang chờ bộ lọc…</span>
+          ) : typeof total === "number" ? (
+            <>
+              {logs.length} / {total} bản ghi
+            </>
+          ) : (
+            <>{logs.length} bản ghi (tổng: tắt)</>
+          )}
         </div>
       </div>
 
