@@ -39,7 +39,7 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
       }
       // Replay assignment in B03_TT99 order so "first match wins" matches displayed totals
       const usedIn = new Set<number>(); const usedOut = new Set<number>();
-      type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; debit: number; credit: number; contribution: number };
+      type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; counter_account: string; debit: number; credit: number; contribution: number };
       const collected: DLine[] = [];
       let total = 0;
       for (const it of B03_TT99) {
@@ -52,7 +52,7 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
             usedIn.add(i);
             if (target) {
               const contrib = f.amount;
-              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, debit: f.amount, credit: 0, contribution: contrib });
+              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, counter_account: f.counter, debit: f.amount, credit: 0, contribution: contrib });
               total += contrib;
             }
           });
@@ -63,7 +63,7 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
             usedOut.add(i);
             if (target) {
               const contrib = direction === "net" ? -f.amount : f.amount;
-              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, debit: 0, credit: f.amount, contribution: contrib });
+              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, counter_account: f.counter, debit: 0, credit: f.amount, contribution: contrib });
               total += contrib;
             }
           });
