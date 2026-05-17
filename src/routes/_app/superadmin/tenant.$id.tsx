@@ -7,8 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ShieldAlert, ShieldOff } from "lucide-react";
+import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
-export const Route = createFileRoute("/_app/superadmin/tenant/$id")({ component: TenantDetailPage });
+export const Route = createFileRoute("/_app/superadmin/tenant/$id")({
+  beforeLoad: requireSuperadminGuard,
+  component: TenantDetailPage,
+});
 
 function TenantDetailPage() {
   const { id } = Route.useParams();

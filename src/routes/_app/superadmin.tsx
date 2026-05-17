@@ -1,19 +1,11 @@
-import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { ShieldAlert, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert } from "lucide-react";
+import { requireSuperadminGuard, checkSuperadminNow } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin")({
-  beforeLoad: async () => {
-    if (typeof window === "undefined") return;
-    const { data: sess } = await supabase.auth.getSession();
-    if (!sess.session) throw redirect({ to: "/login" });
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", sess.session.user.id);
-    const allowed = (roles ?? []).some((r) => r.role === "superadmin");
-    if (!allowed) throw redirect({ to: "/dashboard" });
-  },
+  beforeLoad: requireSuperadminGuard,
   component: SuperadminLayout,
 });
 
@@ -26,6 +18,46 @@ const TABS = [
 
 function SuperadminLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const navigate = useNavigate();
+  // 'pending' = still verifying on client (prevents flash of protected UI).
+  // 'allowed' / 'denied' = verified.
+  const [state, setState] = useState<"pending" | "allowed" | "denied">("pending");
+
+  useEffect(() => {
+    let cancelled = false;
+    const verify = async () => {
+      const ok = await checkSuperadminNow();
+      if (cancelled) return;
+      if (!ok) {
+        setState("denied");
+        navigate({ to: "/dashboard", replace: true });
+      } else {
+        setState("allowed");
+      }
+    };
+    verify();
+
+    // Re-verify whenever the auth session changes (sign-out, token refresh,
+    // user switching). Catches role revocation mid-session.
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      verify();
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (state !== "allowed") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        {state === "pending" ? "Đang xác thực quyền Super-admin…" : "Bạn không có quyền truy cập trang này."}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl p-4 md:p-6 space-y-4">
       <div className="flex items-center gap-3">

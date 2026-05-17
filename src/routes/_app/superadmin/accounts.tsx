@@ -22,8 +22,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { MoreHorizontal, KeyRound, Lock, Unlock, Trash2, ShieldPlus } from "lucide-react";
+import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
-export const Route = createFileRoute("/_app/superadmin/accounts")({ component: AccountsPage });
+export const Route = createFileRoute("/_app/superadmin/accounts")({
+  beforeLoad: requireSuperadminGuard,
+  component: AccountsPage,
+});
 
 const ROLES = ["owner", "accountant", "viewer", "superadmin"] as const;
 
