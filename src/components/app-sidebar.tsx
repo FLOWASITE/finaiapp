@@ -255,6 +255,9 @@ export function AppSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+
 
       <CommandDialog open={openCmd} onOpenChange={setOpenCmd}>
         <CommandInput placeholder="Tìm trang, hỏi AI, hoặc thực hiện lệnh nhanh…" />
