@@ -341,6 +341,66 @@ export const listOrganizations = createServerFn({ method: "GET" })
     return { organizations: profiles ?? [] };
   });
 
+export const listOrganizationsWithStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start, created_at")
+      .order("created_at", { ascending: false });
+
+    const orgs = profiles ?? [];
+    const ids = orgs.map((o) => o.id);
+    if (ids.length === 0) return { organizations: [] };
+
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    const twelveIso = twelveMonthsAgo.toISOString().slice(0, 10);
+
+    const [invRes, salesRes, rolesRes, salesActRes, invActRes, jeActRes] = await Promise.all([
+      supabaseAdmin.from("invoices").select("user_id").in("user_id", ids),
+      supabaseAdmin.from("sales_invoices").select("user_id, total, issue_date").in("user_id", ids).gte("issue_date", twelveIso),
+      supabaseAdmin.from("user_roles").select("user_id").in("user_id", ids),
+      supabaseAdmin.from("sales_invoices").select("user_id, updated_at").in("user_id", ids),
+      supabaseAdmin.from("invoices").select("user_id, updated_at").in("user_id", ids),
+      supabaseAdmin.from("journal_entries").select("user_id, created_at").in("user_id", ids),
+    ]);
+
+    const invCount = new Map<string, number>();
+    (invRes.data ?? []).forEach((r: any) => invCount.set(r.user_id, (invCount.get(r.user_id) ?? 0) + 1));
+
+    const salesTotal = new Map<string, number>();
+    (salesRes.data ?? []).forEach((r: any) =>
+      salesTotal.set(r.user_id, (salesTotal.get(r.user_id) ?? 0) + Number(r.total ?? 0)),
+    );
+
+    const members = new Map<string, number>();
+    (rolesRes.data ?? []).forEach((r: any) => members.set(r.user_id, (members.get(r.user_id) ?? 0) + 1));
+
+    const lastActivity = new Map<string, string>();
+    const bump = (uid: string, ts: string | null | undefined) => {
+      if (!ts) return;
+      const prev = lastActivity.get(uid);
+      if (!prev || ts > prev) lastActivity.set(uid, ts);
+    };
+    (salesActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.updated_at));
+    (invActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.updated_at));
+    (jeActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.created_at));
+
+    const organizations = orgs.map((o) => ({
+      ...o,
+      invoice_count: invCount.get(o.id) ?? 0,
+      sales_total_12m: salesTotal.get(o.id) ?? 0,
+      members_count: Math.max(1, members.get(o.id) ?? 1),
+      last_activity_at: lastActivity.get(o.id) ?? null,
+    }));
+
+    return { organizations };
+  });
+
 export const updateOrganization = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
