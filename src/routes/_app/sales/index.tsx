@@ -478,8 +478,8 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
               const ps = inv.status === "void" ? "void" : inv.payment_status;
               return (
                 <tr key={inv.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{inv.issue_date}</td>
-                  <td className="px-4 py-2 font-mono">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap hidden sm:table-cell">{inv.issue_date}</td>
+                  <td className="px-2 sm:px-4 py-2 font-mono">
                     <Link
                       to="/sales/$id"
                       params={{ id: inv.id }}
@@ -487,24 +487,36 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
                     >
                       {inv.einvoice_code || inv.invoice_no || "(nháp)"}
                     </Link>
+                    <div className="sm:hidden text-[11px] text-muted-foreground font-sans mt-0.5">
+                      {inv.issue_date}
+                    </div>
                   </td>
-                  <td className="px-4 py-2">
-                    <div className="font-medium">{inv.customer_name || "—"}</div>
+                  <td className="px-2 sm:px-4 py-2">
+                    <div className="font-medium truncate max-w-[160px] sm:max-w-none">{inv.customer_name || "—"}</div>
                     {inv.customers?.code && (
                       <div className="text-xs text-muted-foreground font-mono">
                         {inv.customers.code}
                       </div>
                     )}
+                    <div className="sm:hidden mt-1">
+                      {inv.status === "draft" ? (
+                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-600">Nháp</span>
+                      ) : (
+                        <span className={`rounded px-2 py-0.5 text-[10px] ${STATUS_BADGE[ps] ?? ""}`}>
+                          {STATUS_LABEL[ps] ?? ps}
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">{inv.due_date || "—"}</td>
-                  <td className="px-4 py-2 text-right font-mono">{fmt(inv.total)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-emerald-700">
+                  <td className="px-2 sm:px-4 py-2 whitespace-nowrap hidden lg:table-cell">{inv.due_date || "—"}</td>
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono hidden md:table-cell">{fmt(inv.total)}</td>
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono text-emerald-700 hidden lg:table-cell">
                     {fmt(inv.paid_amount)}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono">
+                  <td className="px-2 sm:px-4 py-2 text-right font-mono">
                     {remaining > 0 ? fmt(remaining) : "—"}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 sm:px-4 py-2 hidden sm:table-cell">
                     {inv.status === "draft" ? (
                       <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                         Nháp
@@ -515,11 +527,12 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-2 sm:px-4 py-2 text-right">
                     {remaining > 0 && inv.status !== "void" && (
                       <Button size="sm" variant="outline" asChild className="h-7">
                         <Link to="/sales" search={{ tab: "receipts", invoice: inv.id }}>
-                          <Banknote className="mr-1 h-3 w-3" /> Thu
+                          <Banknote className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Thu</span>
                         </Link>
                       </Button>
                     )}
