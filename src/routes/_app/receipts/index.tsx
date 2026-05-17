@@ -370,11 +370,13 @@ function NewReceiptDialog({
   open,
   onOpenChange,
   outstanding,
+  preselectInvoiceId,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   outstanding: any[];
+  preselectInvoiceId?: string;
   onSubmit: (p: any) => Promise<void>;
 }) {
   const [invoiceId, setInvoiceId] = useState("");
@@ -387,6 +389,17 @@ function NewReceiptDialog({
 
   const selected = outstanding.find((i) => i.id === invoiceId);
   const remaining = selected ? Number(selected.total) - Number(selected.paid_amount) : 0;
+
+  // Apply preselect when dialog opens
+  useEffect(() => {
+    if (open && preselectInvoiceId) {
+      const inv = outstanding.find((i) => i.id === preselectInvoiceId);
+      if (inv) {
+        setInvoiceId(preselectInvoiceId);
+        setAmount(String(Number(inv.total) - Number(inv.paid_amount)));
+      }
+    }
+  }, [open, preselectInvoiceId, outstanding]);
 
   const reset = () => {
     setInvoiceId(""); setAmount(""); setReference(""); setNotes("");
