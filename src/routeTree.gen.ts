@@ -35,6 +35,7 @@ import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
+import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
@@ -175,6 +176,12 @@ const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   path: '/suppliers/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuperadminOrganizationsRoute =
+  AppSuperadminOrganizationsRouteImport.update({
+    id: '/organizations',
+    path: '/organizations',
+    getParentRoute: () => AppSuperadminRoute,
+  } as any)
 const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
@@ -246,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/cash/': typeof AppCashIndexRoute
@@ -281,6 +289,7 @@ export interface FileRoutesByTo {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/cash': typeof AppCashIndexRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/sales/$id'
     | '/superadmin/accounts'
+    | '/superadmin/organizations'
     | '/suppliers/$id'
     | '/admin/'
     | '/cash/'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/sales/$id'
     | '/superadmin/accounts'
+    | '/superadmin/organizations'
     | '/suppliers/$id'
     | '/admin'
     | '/cash'
@@ -432,6 +444,7 @@ export interface FileRouteTypes {
     | '/_app/reports/ledgers'
     | '/_app/sales/$id'
     | '/_app/superadmin/accounts'
+    | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
     | '/_app/admin/'
     | '/_app/cash/'
@@ -641,6 +654,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuppliersIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/superadmin/organizations': {
+      id: '/_app/superadmin/organizations'
+      path: '/organizations'
+      fullPath: '/superadmin/organizations'
+      preLoaderRoute: typeof AppSuperadminOrganizationsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
     '/_app/superadmin/accounts': {
       id: '/_app/superadmin/accounts'
       path: '/accounts'
@@ -736,12 +756,14 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 
 interface AppSuperadminRouteChildren {
   AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
+  AppSuperadminOrganizationsRoute: typeof AppSuperadminOrganizationsRoute
   AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
   AppSuperadminTenantIdRoute: typeof AppSuperadminTenantIdRoute
 }
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
+  AppSuperadminOrganizationsRoute: AppSuperadminOrganizationsRoute,
   AppSuperadminIndexRoute: AppSuperadminIndexRoute,
   AppSuperadminTenantIdRoute: AppSuperadminTenantIdRoute,
 }
