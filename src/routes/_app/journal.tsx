@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,15 @@ export const Route = createFileRoute("/_app/journal")({
 });
 
 function Journal() {
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useEffect(() => {
+    const h = window.location.hash;
+    if (h.startsWith("#entry-")) {
+      const id = h.slice("#entry-".length);
+      setHighlight(id);
+      setTimeout(() => document.getElementById(h.slice(1))?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+    }
+  }, []);
   const { data: entries } = useQuery({
     queryKey: ["journal"],
     queryFn: async () => {
@@ -53,7 +63,7 @@ function Journal() {
 
       <div className="mt-6 space-y-4">
         {(entries ?? []).map((e) => (
-          <div key={e.id} className="rounded-lg border border-border bg-card p-5">
+          <div key={e.id} id={`entry-${e.id}`} className={`rounded-lg border bg-card p-5 transition-colors ${highlight === e.id ? "border-primary ring-2 ring-primary/40" : "border-border"}`}>
             <div className="flex items-center justify-between border-b border-border pb-2">
               <div>
                 <div className="font-medium">{e.description}</div>

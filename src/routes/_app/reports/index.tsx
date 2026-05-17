@@ -37,7 +37,7 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
-  const [drill, setDrill] = useState<null | { report: "B01" | "B02"; ma_so: string; name: string }>(null);
+  const [drill, setDrill] = useState<null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }>(null);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
@@ -168,7 +168,7 @@ function ReportsPage() {
           <ReportCard title="Báo cáo lưu chuyển tiền tệ (Mẫu B03-DN) — phương pháp trực tiếp" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B03")}>
             <PrintHeader profile={profile} title="BÁO CÁO LƯU CHUYỂN TIỀN TỆ" subtitle={`Mẫu số B03-DN (trực tiếp) — Kỳ từ ${from} đến ${to}`} />
             {!cf.data ? <Loading /> : (
-              <CashFlowTable items={cf.data.items} hideZero={hideZero} />
+              <CashFlowTable items={cf.data.items} hideZero={hideZero} onDrill={(code, name) => setDrill({ report: "B03", ma_so: code, name })} />
             )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
@@ -230,7 +230,7 @@ function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: st
   );
 }
 
-function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
+function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
   const drillFn = useServerFn(drilldownReportItem);
   const q = useQuery({
     queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
@@ -266,6 +266,7 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                   <th className="w-28 text-right">Nợ</th>
                   <th className="w-28 text-right">Có</th>
                   <th className="w-28 text-right">Đóng góp</th>
+                  <th className="w-20 text-center">Sổ cái</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,6 +278,17 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                     <td className="text-right font-mono text-xs">{fmt(l.debit)}</td>
                     <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
                     <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
+                    <td className="text-center">
+                      <a
+                        href={`/journal#entry-${l.entry_id}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        title="Mở sổ cái — bút toán tương ứng"
+                      >
+                        <FileText className="h-3 w-3" />Mở
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -339,7 +351,7 @@ function ReportTable({ cols, rows, onDrill }: { cols: (string | null)[]; rows: R
   );
 }
 
-function CashFlowTable({ items, hideZero }: { items: any[]; hideZero: boolean }) {
+function CashFlowTable({ items, hideZero, onDrill }: { items: any[]; hideZero: boolean; onDrill?: (code: string, name: string) => void }) {
   const groups = [
     { key: "operating", label: "I. Lưu chuyển tiền từ hoạt động kinh doanh" },
     { key: "investing", label: "II. Lưu chuyển tiền từ hoạt động đầu tư" },
@@ -359,13 +371,20 @@ function CashFlowTable({ items, hideZero }: { items: any[]; hideZero: boolean })
         {groups.map(g => (
           <>
             {g.label && <tr key={g.key + "-h"}><td colSpan={3} className="bg-muted/20 px-2 py-1.5 text-sm font-semibold">{g.label}</td></tr>}
-            {items.filter(it => it.section === g.key).filter(it => !hideZero || it.bold || it.amount !== 0).map(it => (
-              <tr key={it.ma_so} className={`border-b border-border/40 ${it.bold ? "bg-muted/30" : ""}`}>
-                <td className={`py-1.5 pl-4 ${it.bold ? "font-semibold" : ""}`}>{it.name}</td>
-                <td className="text-center font-mono text-xs text-muted-foreground">{it.ma_so}</td>
-                <td className={`text-right font-mono tabular-nums ${it.bold ? "font-semibold" : ""}`}>{fmt(it.amount)}</td>
-              </tr>
-            ))}
+            {items.filter(it => it.section === g.key).filter(it => !hideZero || it.bold || it.amount !== 0).map(it => {
+              const canDrill = !!onDrill && !it.bold && it.section !== "summary";
+              return (
+                <tr
+                  key={it.ma_so}
+                  className={`border-b border-border/40 ${it.bold ? "bg-muted/30" : ""} ${canDrill ? "cursor-pointer hover:bg-muted/40" : ""}`}
+                  onClick={canDrill ? () => onDrill!(it.ma_so, it.name) : undefined}
+                >
+                  <td className={`py-1.5 pl-4 ${it.bold ? "font-semibold" : ""}`}>{it.name}</td>
+                  <td className="text-center font-mono text-xs text-muted-foreground">{it.ma_so}</td>
+                  <td className={`text-right font-mono tabular-nums ${it.bold ? "font-semibold" : ""}`}>{fmt(it.amount)}</td>
+                </tr>
+              );
+            })}
           </>
         ))}
       </tbody>
