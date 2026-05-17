@@ -324,7 +324,7 @@ export const deleteOrganization = createServerFn({ method: "POST" })
       "supplier_payments", "suppliers", "employees", "user_roles",
     ];
     for (const t of tables) {
-      await supabaseAdmin.from(t).delete().eq("user_id", data.tenant_id);
+      await (supabaseAdmin.from(t as any) as any).delete().eq("user_id", data.tenant_id);
     }
     await supabaseAdmin.from("profiles").delete().eq("id", data.tenant_id);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.tenant_id);
