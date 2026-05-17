@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
-import { LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes, MessageSquare } from "lucide-react";
+import { LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes, MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -31,28 +31,27 @@ function AppLayout() {
             <span className="font-semibold tracking-tight">AccuVN</span>
           </Link>
         </div>
-        <nav className="flex-1 space-y-1 p-3">
-          <NavItem to="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />}>
-            Tổng quan
-          </NavItem>
-          <NavItem to="/invoices" icon={<FileText className="h-4 w-4" />}>
-            Hóa đơn
-          </NavItem>
-          <NavItem to="/journal" icon={<BookOpen className="h-4 w-4" />}>
-            Sổ nhật ký
-          </NavItem>
-          <NavItem to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
-            Báo cáo TC
-          </NavItem>
-          <NavItem to="/bank" icon={<Landmark className="h-4 w-4" />}>
-            Đối soát NH
-          </NavItem>
-          <NavItem to="/assets" icon={<Boxes className="h-4 w-4" />}>
-            Khấu hao TSCĐ
-          </NavItem>
-          <NavItem to="/chat" icon={<MessageSquare className="h-4 w-4" />}>
-            Trợ lý AI
-          </NavItem>
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+          <div className="space-y-1">
+            <NavItem to="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />}>Tổng quan</NavItem>
+            <NavItem to="/chat" icon={<MessageSquare className="h-4 w-4" />}>Trợ lý AI</NavItem>
+          </div>
+          <NavGroup label="Mua – Bán">
+            <NavItem to="/invoices" icon={<FileText className="h-4 w-4" />}>HĐ mua vào</NavItem>
+            <NavItem to="/sales" icon={<ShoppingCart className="h-4 w-4" />}>HĐ bán ra</NavItem>
+            <NavItem to="/receivables" icon={<Users className="h-4 w-4" />}>Công nợ</NavItem>
+          </NavGroup>
+          <NavGroup label="Kho – Quỹ">
+            <NavItem to="/inventory" icon={<Package className="h-4 w-4" />}>Kho hàng</NavItem>
+            <NavItem to="/cash" icon={<Wallet className="h-4 w-4" />}>Quỹ tiền mặt</NavItem>
+            <NavItem to="/bank" icon={<Landmark className="h-4 w-4" />}>Đối soát NH</NavItem>
+            <NavItem to="/assets" icon={<Boxes className="h-4 w-4" />}>TSCĐ</NavItem>
+          </NavGroup>
+          <NavGroup label="Sổ sách – Thuế">
+            <NavItem to="/journal" icon={<BookOpen className="h-4 w-4" />}>Sổ nhật ký</NavItem>
+            <NavItem to="/reports" icon={<BarChart3 className="h-4 w-4" />}>Báo cáo TC</NavItem>
+            <NavItem to="/tax" icon={<Receipt className="h-4 w-4" />}>Tờ khai GTGT</NavItem>
+          </NavGroup>
         </nav>
         <div className="border-t border-border p-3">
           <Button variant="ghost" className="w-full justify-start" onClick={signOut}>
@@ -64,6 +63,15 @@ function AppLayout() {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <div className="space-y-1">{children}</div>
     </div>
   );
 }
