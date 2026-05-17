@@ -28,6 +28,7 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/ind
 import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppReceivablesIndexRouteImport } from './routes/_app/receivables/index'
+import { Route as AppReceiptsIndexRouteImport } from './routes/_app/receipts/index'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
@@ -142,6 +143,11 @@ const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
 const AppReceivablesIndexRoute = AppReceivablesIndexRouteImport.update({
   id: '/receivables/',
   path: '/receivables/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReceiptsIndexRoute = AppReceiptsIndexRouteImport.update({
+  id: '/receipts/',
+  path: '/receipts/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPayrollIndexRoute = AppPayrollIndexRouteImport.update({
@@ -283,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/invoices/': typeof AppInvoicesIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
+  '/receipts/': typeof AppReceiptsIndexRoute
   '/receivables/': typeof AppReceivablesIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/sales/': typeof AppSalesIndexRoute
@@ -322,6 +329,7 @@ export interface FileRoutesByTo {
   '/invoices': typeof AppInvoicesIndexRoute
   '/payables': typeof AppPayablesIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
+  '/receipts': typeof AppReceiptsIndexRoute
   '/receivables': typeof AppReceivablesIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/sales': typeof AppSalesIndexRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
+  '/_app/receipts/': typeof AppReceiptsIndexRoute
   '/_app/receivables/': typeof AppReceivablesIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
@@ -408,6 +417,7 @@ export interface FileRouteTypes {
     | '/invoices/'
     | '/payables/'
     | '/payroll/'
+    | '/receipts/'
     | '/receivables/'
     | '/reports/'
     | '/sales/'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/payables'
     | '/payroll'
+    | '/receipts'
     | '/receivables'
     | '/reports'
     | '/sales'
@@ -489,6 +500,7 @@ export interface FileRouteTypes {
     | '/_app/invoices/'
     | '/_app/payables/'
     | '/_app/payroll/'
+    | '/_app/receipts/'
     | '/_app/receivables/'
     | '/_app/reports/'
     | '/_app/sales/'
@@ -639,6 +651,13 @@ declare module '@tanstack/react-router' {
       path: '/receivables'
       fullPath: '/receivables/'
       preLoaderRoute: typeof AppReceivablesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/receipts/': {
+      id: '/_app/receipts/'
+      path: '/receipts'
+      fullPath: '/receipts/'
+      preLoaderRoute: typeof AppReceiptsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/payroll/': {
@@ -852,6 +871,7 @@ interface AppRouteChildren {
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
+  AppReceiptsIndexRoute: typeof AppReceiptsIndexRoute
   AppReceivablesIndexRoute: typeof AppReceivablesIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
@@ -881,6 +901,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppPayablesIndexRoute: AppPayablesIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
+  AppReceiptsIndexRoute: AppReceiptsIndexRoute,
   AppReceivablesIndexRoute: AppReceivablesIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
