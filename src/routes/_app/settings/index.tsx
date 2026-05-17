@@ -425,6 +425,53 @@ function CompanyTab() {
   );
 }
 
+function CompactImageRow({ label, hint, url, onChange, prefix, disabled }: { label: string; hint?: string; url?: string | null; onChange: (u: string | null) => void; prefix: string; disabled?: boolean }) {
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  async function handleFile(file: File) {
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Chưa đăng nhập");
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/${prefix}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("branding").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("branding").getPublicUrl(path);
+      onChange(data.publicUrl);
+      toast.success("Đã tải ảnh");
+    } catch (e: any) {
+      toast.error(e.message ?? "Tải ảnh thất bại");
+    } finally { setUploading(false); }
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted/30 flex items-center justify-center">
+        {url ? (
+          <>
+            <img src={url} alt={label} className="h-full w-full object-contain bg-white" />
+            {!disabled && (
+              <button type="button" onClick={() => onChange(null)} className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground">
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
+          </>
+        ) : (
+          <ImageIcon className="h-4 w-4 text-muted-foreground/60" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium">{label}</p>
+        {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+      </div>
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <Button type="button" variant="outline" size="sm" disabled={disabled || uploading} onClick={() => inputRef.current?.click()}>
+        <Upload className="mr-1 h-3 w-3" />{uploading ? "..." : url ? "Đổi" : "Chọn"}
+      </Button>
+    </div>
+  );
+}
+
 function ImageUploader({ label, url, onChange, prefix }: { label: string; url?: string | null; onChange: (u: string | null) => void; prefix: string }) {
   const [uploading, setUploading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
