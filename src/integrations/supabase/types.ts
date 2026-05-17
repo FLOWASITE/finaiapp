@@ -847,6 +847,7 @@ export type Database = {
       profiles: {
         Row: {
           accounting_standard: string
+          active_tenant_id: string | null
           address: string | null
           bank_account: string | null
           base_currency: string
@@ -867,6 +868,7 @@ export type Database = {
         }
         Insert: {
           accounting_standard?: string
+          active_tenant_id?: string | null
           address?: string | null
           bank_account?: string | null
           base_currency?: string
@@ -887,6 +889,7 @@ export type Database = {
         }
         Update: {
           accounting_standard?: string
+          active_tenant_id?: string | null
           address?: string | null
           bank_account?: string | null
           base_currency?: string
@@ -1199,6 +1202,104 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_members: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["tenant_role"]
+          status: Database["public"]["Enums"]["tenant_member_status"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["tenant_role"]
+          status?: Database["public"]["Enums"]["tenant_member_status"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["tenant_role"]
+          status?: Database["public"]["Enums"]["tenant_member_status"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          accounting_standard: string
+          address: string | null
+          base_currency: string
+          chief_accountant_name: string | null
+          company_name: string | null
+          created_at: string
+          fiscal_year_start: number
+          id: string
+          legal_rep_name: string | null
+          logo_url: string | null
+          name: string
+          owner_user_id: string
+          phone: string | null
+          preparer_name: string | null
+          signature_url: string | null
+          stamp_url: string | null
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          accounting_standard?: string
+          address?: string | null
+          base_currency?: string
+          chief_accountant_name?: string | null
+          company_name?: string | null
+          created_at?: string
+          fiscal_year_start?: number
+          id?: string
+          legal_rep_name?: string | null
+          logo_url?: string | null
+          name: string
+          owner_user_id: string
+          phone?: string | null
+          preparer_name?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accounting_standard?: string
+          address?: string | null
+          base_currency?: string
+          chief_accountant_name?: string | null
+          company_name?: string | null
+          created_at?: string
+          fiscal_year_start?: number
+          id?: string
+          legal_rep_name?: string | null
+          logo_url?: string | null
+          name?: string
+          owner_user_id?: string
+          phone?: string | null
+          preparer_name?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_invitations: {
         Row: {
           accepted_at: string | null
@@ -1264,6 +1365,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_tenant_id: { Args: never; Returns: string }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -1275,11 +1377,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_tenant_role: {
+        Args: { _roles: string[]; _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_period_locked: {
         Args: { _date: string; _user_id: string }
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      is_tenant_member: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
@@ -1289,6 +1399,8 @@ export type Database = {
         | "viewer"
         | "approver"
         | "superadmin"
+      tenant_member_status: "active" | "invited" | "disabled"
+      tenant_role: "owner" | "admin" | "accountant" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1424,6 +1536,8 @@ export const Constants = {
         "approver",
         "superadmin",
       ],
+      tenant_member_status: ["active", "invited", "disabled"],
+      tenant_role: ["owner", "admin", "accountant", "viewer"],
     },
   },
 } as const
