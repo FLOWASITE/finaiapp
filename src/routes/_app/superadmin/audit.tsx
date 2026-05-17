@@ -85,6 +85,7 @@ function AuditPage() {
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
   const [selected, setSelected] = useState<any | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [showTotal, setShowTotal] = useState(false);
 
   // Debounce 500ms để bộ lọc "ổn định" rồi mới gọi API kèm count đắt đỏ.
