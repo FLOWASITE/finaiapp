@@ -18,7 +18,13 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppAssetsRouteImport } from './routes/_app/assets'
+import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
+import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
+import { Route as AppReceivablesIndexRouteImport } from './routes/_app/receivables/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
+import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
+import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -65,9 +71,39 @@ const AppAssetsRoute = AppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTaxIndexRoute = AppTaxIndexRouteImport.update({
+  id: '/tax/',
+  path: '/tax/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
+  id: '/sales/',
+  path: '/sales/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReceivablesIndexRoute = AppReceivablesIndexRouteImport.update({
+  id: '/receivables/',
+  path: '/receivables/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   id: '/invoices/',
   path: '/invoices/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCashIndexRoute = AppCashIndexRouteImport.update({
+  id: '/cash/',
+  path: '/cash/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalesIdRoute = AppSalesIdRouteImport.update({
+  id: '/sales/$id',
+  path: '/sales/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
@@ -86,7 +122,13 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AppJournalRoute
   '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/sales/$id': typeof AppSalesIdRoute
+  '/cash/': typeof AppCashIndexRoute
+  '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
+  '/receivables/': typeof AppReceivablesIndexRoute
+  '/sales/': typeof AppSalesIndexRoute
+  '/tax/': typeof AppTaxIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,7 +140,13 @@ export interface FileRoutesByTo {
   '/journal': typeof AppJournalRoute
   '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/sales/$id': typeof AppSalesIdRoute
+  '/cash': typeof AppCashIndexRoute
+  '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
+  '/receivables': typeof AppReceivablesIndexRoute
+  '/sales': typeof AppSalesIndexRoute
+  '/tax': typeof AppTaxIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,7 +160,13 @@ export interface FileRoutesById {
   '/_app/journal': typeof AppJournalRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
+  '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/cash/': typeof AppCashIndexRoute
+  '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
+  '/_app/receivables/': typeof AppReceivablesIndexRoute
+  '/_app/sales/': typeof AppSalesIndexRoute
+  '/_app/tax/': typeof AppTaxIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -126,7 +180,13 @@ export interface FileRouteTypes {
     | '/journal'
     | '/reports'
     | '/invoices/$id'
+    | '/sales/$id'
+    | '/cash/'
+    | '/inventory/'
     | '/invoices/'
+    | '/receivables/'
+    | '/sales/'
+    | '/tax/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -138,7 +198,13 @@ export interface FileRouteTypes {
     | '/journal'
     | '/reports'
     | '/invoices/$id'
+    | '/sales/$id'
+    | '/cash'
+    | '/inventory'
     | '/invoices'
+    | '/receivables'
+    | '/sales'
+    | '/tax'
   id:
     | '__root__'
     | '/'
@@ -151,7 +217,13 @@ export interface FileRouteTypes {
     | '/_app/journal'
     | '/_app/reports'
     | '/_app/invoices/$id'
+    | '/_app/sales/$id'
+    | '/_app/cash/'
+    | '/_app/inventory/'
     | '/_app/invoices/'
+    | '/_app/receivables/'
+    | '/_app/sales/'
+    | '/_app/tax/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -225,11 +297,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tax/': {
+      id: '/_app/tax/'
+      path: '/tax'
+      fullPath: '/tax/'
+      preLoaderRoute: typeof AppTaxIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales/': {
+      id: '/_app/sales/'
+      path: '/sales'
+      fullPath: '/sales/'
+      preLoaderRoute: typeof AppSalesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/receivables/': {
+      id: '/_app/receivables/'
+      path: '/receivables'
+      fullPath: '/receivables/'
+      preLoaderRoute: typeof AppReceivablesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/invoices/': {
       id: '/_app/invoices/'
       path: '/invoices'
       fullPath: '/invoices/'
       preLoaderRoute: typeof AppInvoicesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventory/': {
+      id: '/_app/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof AppInventoryIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash/': {
+      id: '/_app/cash/'
+      path: '/cash'
+      fullPath: '/cash/'
+      preLoaderRoute: typeof AppCashIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales/$id': {
+      id: '/_app/sales/$id'
+      path: '/sales/$id'
+      fullPath: '/sales/$id'
+      preLoaderRoute: typeof AppSalesIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/invoices/$id': {
@@ -250,7 +364,13 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppReportsRoute: typeof AppReportsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
+  AppSalesIdRoute: typeof AppSalesIdRoute
+  AppCashIndexRoute: typeof AppCashIndexRoute
+  AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
+  AppReceivablesIndexRoute: typeof AppReceivablesIndexRoute
+  AppSalesIndexRoute: typeof AppSalesIndexRoute
+  AppTaxIndexRoute: typeof AppTaxIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -261,7 +381,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppReportsRoute: AppReportsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
+  AppSalesIdRoute: AppSalesIdRoute,
+  AppCashIndexRoute: AppCashIndexRoute,
+  AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
+  AppReceivablesIndexRoute: AppReceivablesIndexRoute,
+  AppSalesIndexRoute: AppSalesIndexRoute,
+  AppTaxIndexRoute: AppTaxIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
