@@ -230,7 +230,7 @@ function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: st
   );
 }
 
-function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
+function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
   const drillFn = useServerFn(drilldownReportItem);
   const q = useQuery({
     queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
@@ -266,6 +266,7 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                   <th className="w-28 text-right">Nợ</th>
                   <th className="w-28 text-right">Có</th>
                   <th className="w-28 text-right">Đóng góp</th>
+                  <th className="w-20 text-center">Sổ cái</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,6 +278,17 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                     <td className="text-right font-mono text-xs">{fmt(l.debit)}</td>
                     <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
                     <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
+                    <td className="text-center">
+                      <a
+                        href={`/journal#entry-${l.entry_id}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        title="Mở sổ cái — bút toán tương ứng"
+                      >
+                        <FileText className="h-3 w-3" />Mở
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
