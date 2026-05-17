@@ -62,14 +62,28 @@ function CompanyTab() {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Hồ sơ doanh nghiệp</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Hồ sơ doanh nghiệp & người ký BCTC</CardTitle></CardHeader>
       <CardContent className="grid md:grid-cols-2 gap-4">
         <div><Label>Tên DN</Label><Input value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
         <div><Label>Mã số thuế</Label><Input value={form.tax_id ?? ""} onChange={(e) => set("tax_id", e.target.value)} /></div>
         <div className="md:col-span-2"><Label>Địa chỉ</Label><Input value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
         <div><Label>Điện thoại</Label><Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
         <div><Label>Tài khoản NH</Label><Input value={form.bank_account ?? ""} onChange={(e) => set("bank_account", e.target.value)} /></div>
-        <div><Label>Người ký</Label><Input value={form.signer_name ?? ""} onChange={(e) => set("signer_name", e.target.value)} /></div>
+
+        <div className="md:col-span-2 mt-2 border-t pt-3">
+          <div className="text-sm font-semibold mb-2">Người ký Báo cáo tài chính</div>
+        </div>
+        <div><Label>Người lập biểu</Label><Input value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} placeholder="VD: Nguyễn Văn A" /></div>
+        <div><Label>Kế toán trưởng</Label><Input value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} placeholder="VD: Trần Thị B" /></div>
+        <div><Label>Người đại diện theo pháp luật / Giám đốc</Label><Input value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} placeholder="VD: Lê Văn C" /></div>
+        <div><Label>Người ký mặc định khác (tuỳ chọn)</Label><Input value={form.signer_name ?? ""} onChange={(e) => set("signer_name", e.target.value)} /></div>
+
+        <ImageUploader label="Ảnh chữ ký (PNG nền trong)" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" />
+        <ImageUploader label="Ảnh dấu công ty (PNG nền trong)" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" />
+
+        <div className="md:col-span-2 mt-2 border-t pt-3">
+          <div className="text-sm font-semibold mb-2">Chế độ kế toán</div>
+        </div>
         <div><Label>Chuẩn kế toán</Label>
           <Select value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -87,12 +101,58 @@ function CompanyTab() {
           <Button onClick={() => mutate.mutate({
             company_name: form.company_name, tax_id: form.tax_id, address: form.address,
             phone: form.phone, bank_account: form.bank_account, signer_name: form.signer_name,
+            legal_rep_name: form.legal_rep_name, chief_accountant_name: form.chief_accountant_name,
+            preparer_name: form.preparer_name, signature_url: form.signature_url, stamp_url: form.stamp_url,
             accounting_standard: form.accounting_standard, fiscal_year_start: form.fiscal_year_start,
             base_currency: form.base_currency,
           })} disabled={mutate.isPending}>Lưu thay đổi</Button>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ImageUploader({ label, url, onChange, prefix }: { label: string; url?: string | null; onChange: (u: string | null) => void; prefix: string }) {
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  async function handleFile(file: File) {
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Chưa đăng nhập");
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/${prefix}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("branding").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("branding").getPublicUrl(path);
+      onChange(data.publicUrl);
+      toast.success("Đã tải ảnh");
+    } catch (e: any) {
+      toast.error(e.message ?? "Tải ảnh thất bại");
+    } finally {
+      setUploading(false);
+    }
+  }
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="mt-1 flex items-center gap-3">
+        {url ? (
+          <div className="relative inline-block">
+            <img src={url} alt={label} className="h-20 w-auto rounded border bg-white object-contain p-1" />
+            <button type="button" onClick={() => onChange(null)} className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-20 w-32 items-center justify-center rounded border border-dashed text-xs text-muted-foreground">Chưa có ảnh</div>
+        )}
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+          <Upload className="mr-1 h-3 w-3" />{uploading ? "Đang tải..." : "Chọn ảnh"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
