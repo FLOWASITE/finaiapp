@@ -345,9 +345,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         row++;
       }
     } else {
-      // B03: chạy lại logic CF
-      const r = await (getCashFlowDirect as any)({ data: { from: data.from, to: data.to } } as any, context);
-      // Fallback: gọi lại bằng cách dùng cùng query
+      // B03 — chạy lại logic CF trực tiếp
       let q = supabase.from("journal_entries").select("id, entry_date, journal_lines(account_code, debit, credit)").eq("user_id", userId);
       if (data.from) q = q.gte("entry_date", data.from);
       if (data.to) q = q.lte("entry_date", data.to);
