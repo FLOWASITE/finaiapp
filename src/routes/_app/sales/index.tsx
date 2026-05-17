@@ -225,7 +225,7 @@ function SalesHubPage() {
       </div>
 
       {/* Collected windows */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-3">
         <MiniKpi label="Đã thu 30 ngày" value={fmt(dash?.kpi.collected_30 ?? 0)} />
         <MiniKpi label="Đã thu 60 ngày" value={fmt(dash?.kpi.collected_60 ?? 0)} />
         <MiniKpi label="Đã thu 90 ngày" value={fmt(dash?.kpi.collected_90 ?? 0)} />
@@ -237,7 +237,7 @@ function SalesHubPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Doanh thu vs Đã thu — 6 tháng</CardTitle>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-56 sm:h-64 px-2 sm:px-6">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dash?.trend ?? []}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
