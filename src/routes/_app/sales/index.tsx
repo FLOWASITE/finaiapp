@@ -372,16 +372,16 @@ function MoneyCard({
     <button
       type="button"
       onClick={onClick}
-      className={`text-left rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40 ${
+      className={`text-left rounded-lg border bg-card p-3 sm:p-4 transition-colors hover:bg-muted/40 ${
         active ? "border-primary ring-1 ring-primary/30" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
         <span>{icon}</span>
       </div>
-      <div className={`mt-2 text-2xl font-bold font-mono ${toneCls}`}>{value}</div>
-      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+      <div className={`mt-2 text-lg sm:text-2xl font-bold font-mono ${toneCls}`}>{value}</div>
+      {sub && <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground truncate">{sub}</div>}
     </button>
   );
 }
