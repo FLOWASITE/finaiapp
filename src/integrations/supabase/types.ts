@@ -192,18 +192,24 @@ export type Database = {
       chart_of_accounts: {
         Row: {
           code: string
+          is_active: boolean
+          level: number | null
           name: string
           parent_code: string | null
           type: string
         }
         Insert: {
           code: string
+          is_active?: boolean
+          level?: number | null
           name: string
           parent_code?: string | null
           type: string
         }
         Update: {
           code?: string
+          is_active?: boolean
+          level?: number | null
           name?: string
           parent_code?: string | null
           type?: string
