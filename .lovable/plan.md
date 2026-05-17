@@ -1,106 +1,98 @@
+## Kết quả research thị trường
 
-# AccuVN MVP — Pipeline OCR + AI định khoản
+Khảo sát MISA AMIS, MISA SME 2026, FAST Accounting, AccNet ERP, 1C:Finance, Viindoo. Tất cả phần mềm kế toán Việt đang dẫn đầu đều có chung **9 phân hệ chuẩn** ngoài bộ nhập liệu + sổ kế toán + BCTC:
 
-Xây một web app demo chạy được trên Lovable, tập trung vào luồng cốt lõi: upload hóa đơn → OCR bóc tách → AI gợi ý định khoản theo TT133 → kế toán viên duyệt → ghi vào sổ nhật ký chung. Đây là MVP để chứng minh giá trị USP, không phải full ERP.
+| Phân hệ | AccuVN hiện tại | Đối thủ |
+|---|---|---|
+| Hóa đơn đầu vào + OCR + định khoản AI | ✅ Có | Có |
+| Sổ nhật ký + Sổ cái | ⚠️ Mới sổ nhật ký | Có đủ |
+| BCTC B01/B02/B03 | ✅ Có | Có |
+| Đối soát ngân hàng | ✅ Có | Có |
+| Khấu hao TSCĐ | ✅ Có | Có |
+| Trợ lý AI hỏi-đáp dữ liệu | ✅ Có (USP) | Không có |
+| **Mua hàng / Bán hàng (đơn hàng → hóa đơn)** | ❌ | ✅ |
+| **Quản lý kho (Nhập–Xuất–Tồn, giá xuất kho)** | ❌ | ✅ |
+| **Công nợ phải thu / phải trả + tuổi nợ** | ❌ | ✅ |
+| **Quỹ tiền mặt (Phiếu thu / Phiếu chi)** | ❌ | ✅ |
+| **Tờ khai thuế GTGT 01/GTGT + bảng kê + XML HTKK** | ❌ | ✅ |
+| **Hóa đơn điện tử đầu ra + nộp TCT** | ❌ | ✅ |
+| Tiền lương + BHXH | ❌ | ✅ |
+| Giá thành sản xuất | ❌ | ✅ (gói cao) |
+| Đa tiền tệ + chênh lệch tỷ giá | ❌ | ✅ |
+| Kết chuyển cuối kỳ (Nợ 911) | ❌ | ✅ |
 
-## 1. Phạm vi MVP (làm)
+## Đề xuất Phase 3 — 5 phân hệ ưu tiên
 
-- Auth (đăng nhập email + mật khẩu, 1 doanh nghiệp/tài khoản)
-- Dashboard: thống kê hóa đơn tháng, số bút toán chờ duyệt, tổng chi phí theo nhóm TK
-- Module **Hóa đơn đầu vào**:
-  - Upload ảnh/PDF hóa đơn (1 file hoặc batch)
-  - OCR + LLM hậu xử lý → trích: MST người bán, tên NCC, số HĐ, ngày, mặt hàng, đơn giá, VAT, tổng tiền
-  - Form review: kế toán sửa các trường sai trước khi lưu
-- Module **AI định khoản**:
-  - Với mỗi hóa đơn đã OCR, AI gợi ý cặp Nợ/Có theo hệ thống TK TT133 + độ tin cậy + lý do
-  - Hiển thị top-3 gợi ý, kế toán chọn/sửa
-  - Lưu feedback để cải thiện prompt (few-shot từ lịch sử)
-- Module **Sổ nhật ký chung**: danh sách bút toán đã duyệt, filter theo ngày/TK, export CSV
-- Danh mục: Hệ thống tài khoản TT133 (seed sẵn), nhà cung cấp (auto tạo khi gặp MST mới)
+Chọn theo nguyên tắc: bịt khoảng cách lớn nhất với MISA, tận dụng dữ liệu sẵn có (invoices, journal, bank), giữ vai trò AI làm USP. Bỏ qua tiền lương / giá thành / đa tiền tệ — để Phase 4.
 
-## 2. Ngoài phạm vi MVP (không làm)
+### 1. Quản lý kho — Nhập–Xuất–Tồn
+- Bảng `products` (mã, tên, ĐVT, TK kho 156/152, TK doanh thu 511, TK giá vốn 632)
+- Bảng `stock_movements` (in/out, qty, unit_cost, ref đến invoice/sales_order)
+- Tính giá xuất kho **bình quân gia quyền cuối kỳ** (chuẩn TT133, đơn giản nhất)
+- Báo cáo: Sổ chi tiết vật tư, Bảng tổng hợp Nhập–Xuất–Tồn
+- AI bonus: gợi ý map line hóa đơn → mã hàng có sẵn
 
-Tích hợp API Tổng cục Thuế, T-VAN, ngân hàng, BCTC đầy đủ (B01-B09), khấu hao TSCĐ, đa chi nhánh, mobile app, chatbot, dự báo dòng tiền, đối soát ngân hàng, phát hành HĐĐT. Những phần này thuộc Pha 2-3, chỉ mock UI nếu cần demo.
+### 2. Phiếu thu / Phiếu chi + Sổ quỹ tiền mặt
+- Bảng `cash_vouchers` (loại receipt/payment, TK đối ứng, người nộp/nhận, lý do)
+- Tự sinh bút toán: Nợ 111/Có X (thu) hoặc Nợ X/Có 111 (chi)
+- In phiếu thu/chi theo mẫu TT133 (PDF A5)
+- Sổ quỹ tiền mặt — số dư đầu/cuối, đối chiếu thủ quỹ
 
-## 3. Luồng người dùng chính
+### 3. Công nợ phải thu / phải trả
+- View tự suy ra từ `journal_lines` lọc TK 131 (phải thu) và 331 (phải trả) group theo supplier/customer
+- Báo cáo tuổi nợ (aging): 0–30, 31–60, 61–90, >90 ngày
+- Trang chi tiết công nợ 1 đối tượng: sổ chi tiết phát sinh + số dư
+- Cảnh báo AI: top 5 khoản nợ quá hạn cần đòi
 
-```text
-[Upload hóa đơn .jpg/.pdf]
-        │
-        ▼
-[Edge: OCR pipeline]
-   ├─ Gemini 3 Flash (vision) bóc field structured JSON
-   └─ Validate: MST regex, tổng tiền = Σ dòng + VAT
-        │
-        ▼
-[Form review của kế toán] ─── sửa nếu sai
-        │
-        ▼
-[Edge: AI suggest định khoản]
-   ├─ Input: NCC, mặt hàng, số tiền, VAT
-   ├─ Context: hệ thống TK TT133 + 5 bút toán tương tự gần nhất
-   └─ Output: 3 gợi ý {Nợ, Có, diễn giải, confidence, lý do}
-        │
-        ▼
-[Kế toán chọn / sửa / approve]
-        │
-        ▼
-[Ghi vào bảng journal_entries]
-```
+### 4. Tờ khai thuế GTGT 01/GTGT + Bảng kê
+- Tổng hợp từ `invoices` (đầu vào) + hóa đơn đầu ra (sẽ thêm ở mục 5)
+- Bảng kê hóa đơn mua vào / bán ra theo định dạng HTKK
+- Tính số thuế GTGT phải nộp = Đầu ra − Đầu vào được khấu trừ
+- Export XML đúng schema HTKK của TCT để nộp qua thuedientu.gdt.gov.vn
 
-## 4. Kiến trúc kỹ thuật trên Lovable
+### 5. Hóa đơn điện tử đầu ra (mock + chuẩn bị TCT)
+- Bảng `sales_invoices` (số hóa đơn, ký hiệu, khách hàng, lines, VAT)
+- UI tạo / in mẫu HĐĐT theo TT78/2021
+- Server function `issueEInvoice` — đầu Phase 3 trả mock số hóa đơn + QR; để hook sẵn cho T-VAN (Viettel/VNPT/Misa Meinvoice) ở Phase 4
+- Tự sinh bút toán bán hàng: Nợ 131/Có 511, Có 33311
 
-- **Frontend**: TanStack Start (sẵn có) + Tailwind + shadcn/ui
-- **Backend**: Lovable Cloud (Supabase) — Postgres + Auth + Storage cho file hóa đơn
-- **AI**: Lovable AI Gateway qua AI SDK, model `google/gemini-3-flash-preview` (multimodal, đọc ảnh trực tiếp — không cần OCR riêng giai đoạn MVP)
-- **Server functions** (TanStack `createServerFn`):
-  - `extractInvoice({ fileUrl })` → structured output với Zod schema
-  - `suggestJournalEntry({ invoiceId })` → trả 3 gợi ý
-- **Storage**: bucket `invoices` (private, RLS theo user_id)
-
-### Schema DB tối thiểu
+## Kiến trúc kỹ thuật
 
 ```text
-profiles(id, email, company_name, tax_id)
-chart_of_accounts(code, name, type, parent_code)   -- seed TT133
-suppliers(id, user_id, tax_id, name, address, risk_flag)
-invoices(id, user_id, file_path, supplier_id, invoice_no, issue_date,
-         subtotal, vat_amount, total, status, raw_ocr jsonb)
-invoice_lines(id, invoice_id, description, qty, unit_price, amount, vat_rate)
-journal_entries(id, user_id, invoice_id, entry_date, description, created_at)
-journal_lines(id, entry_id, account_code, debit, credit)
-ai_suggestions(id, invoice_id, suggestions jsonb, chosen_index, feedback)
+src/lib/
+  inventory.functions.ts     (CRUD products, post stock movements, calcCogs)
+  cash.functions.ts          (vouchers + auto journal)
+  receivables.functions.ts   (AR/AP aging queries)
+  tax.functions.ts           (build VAT return + XML export)
+  sales.functions.ts         (sales invoice + e-invoice issue)
+
+src/routes/_app/
+  inventory/index.tsx        (products list + stock report)
+  cash/index.tsx             (vouchers + cash book)
+  receivables/index.tsx      (AR/AP tabs + aging)
+  tax/index.tsx              (01/GTGT preview + export)
+  sales/index.tsx            (sales invoices list)
+  sales/$id.tsx              (detail + issue button)
 ```
 
-Tất cả bảng bật RLS theo `user_id = auth.uid()`. Role admin tách bảng `user_roles` riêng.
+- Migrations Supabase cho 5 bảng mới + RLS theo `user_id` (giữ pattern hiện tại)
+- Mở rộng nav sidebar 5 mục mới — gom thành nhóm: "Mua–Bán", "Kho", "Quỹ", "Công nợ", "Thuế"
+- Tái sử dụng `chart_of_accounts` đã seed TT133 — không sửa schema cũ
+- Module Trợ lý AI mở rộng tool `runQuery` để truy vấn 5 bảng mới
 
-## 5. AI prompt strategy (điểm khác biệt)
+## Thứ tự thực hiện
 
-**Extraction prompt**: dùng `Output.object` với Zod schema cho hóa đơn VN (MST 10/13 ký tự, thuế suất 0/5/8/10%, ngày DD/MM/YYYY). Gemini 3 Flash đọc ảnh trực tiếp.
+1. Migrations + RLS (5 bảng)
+2. Quản lý kho (nền tảng cho bán hàng + giá vốn)
+3. Phiếu thu / Phiếu chi
+4. Công nợ — chỉ là báo cáo, không cần bảng mới
+5. Hóa đơn bán ra + mock e-invoice
+6. Tờ khai 01/GTGT + bảng kê + XML
+7. Cập nhật sidebar + AI chatbot tool schema
 
-**Suggestion prompt** (system):
-- Context tĩnh: bảng TK TT133 rút gọn (~80 TK thường dùng), quy tắc định khoản chuẩn (mua hàng hóa → 156/1331/331, dịch vụ → 642/1331/331, TSCĐ → 211...).
-- Few-shot động: lấy 5 bút toán gần nhất của cùng NCC hoặc cùng loại mặt hàng từ `journal_entries` user này.
-- Output bắt buộc structured: `{ suggestions: [{ debit_account, credit_account, amount, description, confidence: 0-1, reasoning }] }`.
-
-**Nguyên tắc an toàn**: AI không bao giờ auto-post. Mọi bút toán phải có kế toán nhấn "Duyệt". Lưu cả phiên bản AI đề xuất + phiên bản kế toán sửa để audit và fine-tune sau.
-
-## 6. Lộ trình build (trong Lovable)
-
-1. Enable Lovable Cloud + Auth (email/password)
-2. Tạo migrations cho 7 bảng + seed `chart_of_accounts` TT133
-3. Storage bucket `invoices` + RLS
-4. Trang đăng nhập + dashboard layout (sidebar: Hóa đơn / Bút toán / Danh mục)
-5. Trang Upload hóa đơn + server fn `extractInvoice`
-6. Trang Review hóa đơn (form chỉnh sửa các trường OCR)
-7. Server fn `suggestJournalEntry` + UI chọn gợi ý
-8. Trang Sổ nhật ký + export CSV
-9. Seed demo data + polish UI
-
-## 7. Câu hỏi cần xác nhận trước khi code
-
-- **Chuẩn áp dụng cho MVP**: TT133 (SME) — đúng chứ? Hay cần cả TT200?
-- **Style/branding**: dùng tông gì? (đề xuất: clean fintech, xanh navy + accent emerald, font Inter — hợp tài chính VN). Có muốn tôi tạo design directions không?
-- **Seed dữ liệu demo**: có muốn tôi tạo 5-10 hóa đơn mẫu (ảnh giả lập) để demo ngay không?
-
-Sau khi bạn xác nhận 3 điểm trên, tôi sẽ bắt đầu enable Cloud và build theo thứ tự ở mục 6.
+## Ngoài phạm vi Phase 3 (để Phase 4)
+- Tiền lương + BHXH (nghiệp vụ phức tạp, cần bảng nhân sự riêng)
+- Giá thành sản xuất (chỉ doanh nghiệp SX)
+- Đa tiền tệ + tỷ giá
+- Tích hợp T-VAN thật cho HĐĐT + nộp tờ khai
+- Multi-company / phân quyền nhiều user
