@@ -119,11 +119,16 @@ export const getSalesInvoice = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: inv, error } = await supabase
       .from("sales_invoices")
-      .select("*, sales_invoice_lines(*), customers(name, code, email, contact_person), customer_receipts(*)")
+      .select("*, sales_invoice_lines(*), customers(name, code, email, contact_person)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    return inv;
+    const { data: receipts } = await supabase
+      .from("customer_receipts")
+      .select("*")
+      .eq("invoice_id", data.id)
+      .order("pay_date", { ascending: false });
+    return { ...inv, customer_receipts: receipts ?? [] };
   });
 
 export const upsertSalesInvoice = createServerFn({ method: "POST" })
