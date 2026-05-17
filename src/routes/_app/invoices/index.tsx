@@ -227,15 +227,10 @@ function InvoicesList() {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={filter.fromDate ?? ""}
-          onChange={(e) => setFilter({ ...filter, fromDate: e.target.value || undefined })}
-        />
-        <Input
-          type="date"
-          value={filter.toDate ?? ""}
-          onChange={(e) => setFilter({ ...filter, toDate: e.target.value || undefined })}
+        <DateRangeFilter
+          from={filter.fromDate ?? `${new Date().getFullYear()}-01-01`}
+          to={filter.toDate ?? `${new Date().getFullYear()}-12-31`}
+          onChange={(r) => setFilter({ ...filter, fromDate: r.from, toDate: r.to })}
         />
         <Select
           value={filter.status ?? "all"}
