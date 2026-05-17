@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
+    if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });
   },
