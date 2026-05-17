@@ -217,7 +217,7 @@ export const buildVatXml = createServerFn({ method: "POST" })
     lines.push(`      <ct24>${summary.outputVat.toFixed(0)}</ct24>`);
     lines.push(`      <ct25>${summary.inputBase.toFixed(0)}</ct25>`);
     lines.push(`      <ct26>${summary.inputVat.toFixed(0)}</ct26>`);
-    lines.push(`      <ct27>${summary.summary?.byRate?.["0"]?.base?.toFixed(0) ?? "0"}</ct27>`);
+    lines.push(`      <ct27>${summary.byRate["0"].base.toFixed(0)}</ct27>`);
     lines.push(`      <ct29>${summary.byRate["5"].base.toFixed(0)}</ct29>`);
     lines.push(`      <ct30>${summary.byRate["5"].vat.toFixed(0)}</ct30>`);
     lines.push(`      <ct31>${summary.byRate["8"].base.toFixed(0)}</ct31>`);
