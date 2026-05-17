@@ -77,8 +77,7 @@ function CashPage() {
 
         <TabsContent value="book" className="rounded-lg border border-border bg-card">
           <div className="flex items-center gap-3 border-b border-border p-3">
-            <Label>Từ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
-            <Label>Đến</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+            <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
           </div>
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase">
