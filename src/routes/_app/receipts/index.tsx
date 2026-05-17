@@ -488,7 +488,7 @@ function NewReceiptDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button
-            disabled={!invoiceId || !amount || submitting || Number(amount) <= 0}
+            disabled={!invoiceId || !amount || submitting || Number(amount) <= 0 || (selected && Number(amount) > remaining + 0.01)}
             onClick={async () => {
               setSubmitting(true);
               try {
