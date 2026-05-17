@@ -39,16 +39,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { dashboardOverview } from "@/lib/dashboard-overview.functions";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { useNavigate } from "@tanstack/react-router";
 
-const searchSchema = z.object({
-  period: fallback(z.enum(["month", "quarter", "ytd"]), "month").default("month"),
-});
+type Period = "month" | "quarter" | "ytd";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (search: Record<string, unknown>): { period: Period } => {
+    const p = search.period;
+    return { period: p === "quarter" || p === "ytd" ? p : "month" };
+  },
   component: Dashboard,
 });
 
