@@ -182,6 +182,27 @@ function AuditPage() {
     return () => cancelAnimationFrame(id);
   }, [selected?.id, pageCount]);
 
+  // Giữ selected đồng bộ với bản ghi mới nhất sau khi bộ lọc/refetch trả về.
+  // Nếu cùng id còn trong dữ liệu mới → cập nhật payload mới nhất.
+  // Nếu không còn → vẫn giữ snapshot cũ để user không bị mất ngữ cảnh.
+  useEffect(() => {
+    if (!selected?.id) return;
+    const fresh = (logs as any[]).find((l) => l.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [logs, selected?.id]);
+
+  // Tóm tắt bộ lọc hiện đang áp dụng (dùng giá trị đã debounce — khớp dữ liệu hiển thị).
+  const activeFilters = useMemo(() => {
+    const items: Array<{ label: string; value: string }> = [];
+    const prefixLabel = ACTION_PREFIXES.find((p) => p.value === actionPrefix)?.label ?? actionPrefix;
+    items.push({ label: "Loại hành động", value: prefixLabel });
+    if (dActorEmail) items.push({ label: "Email", value: dActorEmail });
+    if (dTargetId) items.push({ label: "Target ID", value: dTargetId });
+    if (dFrom) items.push({ label: "Từ", value: dFrom });
+    if (dTo) items.push({ label: "Đến", value: dTo });
+    return items;
+  }, [actionPrefix, dActorEmail, dTargetId, dFrom, dTo]);
+
   return (
     <div className="space-y-4">
       <datalist id={EMAIL_DATALIST_ID}>
