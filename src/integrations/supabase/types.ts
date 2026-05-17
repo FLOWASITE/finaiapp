@@ -808,14 +808,19 @@ export type Database = {
           address: string | null
           bank_account: string | null
           base_currency: string
+          chief_accountant_name: string | null
           company_name: string | null
           created_at: string
           email: string | null
           fiscal_year_start: number
           id: string
+          legal_rep_name: string | null
           logo_url: string | null
           phone: string | null
+          preparer_name: string | null
+          signature_url: string | null
           signer_name: string | null
+          stamp_url: string | null
           tax_id: string | null
         }
         Insert: {
@@ -823,14 +828,19 @@ export type Database = {
           address?: string | null
           bank_account?: string | null
           base_currency?: string
+          chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
           email?: string | null
           fiscal_year_start?: number
           id: string
+          legal_rep_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          preparer_name?: string | null
+          signature_url?: string | null
           signer_name?: string | null
+          stamp_url?: string | null
           tax_id?: string | null
         }
         Update: {
@@ -838,14 +848,19 @@ export type Database = {
           address?: string | null
           bank_account?: string | null
           base_currency?: string
+          chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
           email?: string | null
           fiscal_year_start?: number
           id?: string
+          legal_rep_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          preparer_name?: string | null
+          signature_url?: string | null
           signer_name?: string | null
+          stamp_url?: string | null
           tax_id?: string | null
         }
         Relationships: []
