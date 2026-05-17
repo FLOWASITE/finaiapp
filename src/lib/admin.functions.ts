@@ -284,7 +284,7 @@ export const exportTenantBackup = createServerFn({ method: "POST" })
     ];
     const dump: Record<string, any[]> = {};
     for (const t of tables) {
-      const { data } = await supabase.from(t).select("*");
+      const { data } = await (supabase as any).from(t).select("*");
       dump[t] = data ?? [];
     }
     return {
