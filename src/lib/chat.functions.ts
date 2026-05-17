@@ -8,13 +8,19 @@ const SCHEMA_HINT = `Bảng dữ liệu (Postgres) — luôn lọc theo user_id 
 - invoices(id, supplier_name, supplier_tax_id, invoice_no, issue_date, subtotal, vat_amount, total, status, user_id)
 - invoice_lines(invoice_id, description, qty, unit_price, amount, vat_rate)
 - suppliers(id, name, tax_id, user_id)
+- customers(id, name, tax_id, user_id)
 - journal_entries(id, entry_date, description, user_id)
 - journal_lines(entry_id, account_code, debit, credit)
 - chart_of_accounts(code, name, type)
 - bank_accounts(id, name, bank_name, user_id)
 - bank_transactions(id, bank_account_id, txn_date, description, amount, status, user_id)
 - fixed_assets(id, code, name, cost, useful_life_months, start_date, user_id)
-- depreciation_entries(asset_id, period_month, amount)`;
+- depreciation_entries(asset_id, period_month, amount)
+- products(id, code, name, unit, on_hand, unit_cost, unit_price, user_id)
+- stock_movements(id, product_id, movement_type, qty, unit_cost, movement_date, user_id)
+- cash_vouchers(id, voucher_no, voucher_type, voucher_date, amount, counter_account, party_name, reason, user_id)
+- sales_invoices(id, einvoice_code, invoice_no, issue_date, customer_name, customer_tax_id, subtotal, vat_amount, total, status, user_id)
+- sales_invoice_lines(invoice_id, description, qty, unit_price, amount, vat_rate)`;
 
 export const askAccounting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -31,8 +37,9 @@ export const askAccounting = createServerFn({ method: "POST" })
       description: "Truy vấn dữ liệu kế toán. Truyền tên bảng và filter object (cột=giá trị). Hỗ trợ select cột, group_by, aggregate (sum/count), order, limit.",
       inputSchema: z.object({
         table: z.enum([
-          "invoices", "invoice_lines", "suppliers", "journal_entries", "journal_lines",
+          "invoices", "invoice_lines", "suppliers", "customers", "journal_entries", "journal_lines",
           "chart_of_accounts", "bank_accounts", "bank_transactions", "fixed_assets", "depreciation_entries",
+          "products", "stock_movements", "cash_vouchers", "sales_invoices", "sales_invoice_lines",
         ]),
         select: z.string().default("*").describe("Cột cần lấy, ví dụ 'supplier_name, total' hoặc '*'"),
         filters: z.record(z.string(), z.union([z.string(), z.number()])).optional().describe("Cột=giá trị eq filter"),
@@ -44,8 +51,10 @@ export const askAccounting = createServerFn({ method: "POST" })
       }),
       execute: async (input) => {
         let q: any = supabase.from(input.table).select(input.select);
-        // Scope to user when table has user_id
-        const userScoped = ["invoices", "suppliers", "journal_entries", "bank_accounts", "bank_transactions", "fixed_assets"];
+        const userScoped = [
+          "invoices", "suppliers", "customers", "journal_entries", "bank_accounts", "bank_transactions", "fixed_assets",
+          "products", "stock_movements", "cash_vouchers", "sales_invoices",
+        ];
         if (userScoped.includes(input.table)) q = q.eq("user_id", userId);
         if (input.filters) for (const [k, v] of Object.entries(input.filters)) q = q.eq(k, v);
         if (input.gte) for (const [k, v] of Object.entries(input.gte)) q = q.gte(k, v);
