@@ -177,7 +177,7 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
   });
 
   // KH bắt buộc code → thêm rule khi mode = customer
-  const submit = form.handleSubmit((v) => {
+  const submit = form.handleSubmit((v: PartyFormValues) => {
     if (isCustomer && !v.code.trim()) {
       form.setError("code", { message: "Bắt buộc" });
       form.setFocus("code");
