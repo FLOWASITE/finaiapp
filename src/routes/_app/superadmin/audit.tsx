@@ -204,6 +204,31 @@ function AuditPage() {
     return items;
   }, [actionPrefix, dActorEmail, dTargetId, dFrom, dTo]);
 
+  // Điều hướng bàn phím: ↑/↓ đổi selected, Enter mở modal chi tiết.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (modalOpen) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const editable = (e.target as HTMLElement | null)?.isContentEditable;
+      if (editable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (logs.length === 0) return;
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = selected ? (logs as any[]).findIndex((l) => l.id === selected.id) : -1;
+        let next = idx;
+        if (e.key === "ArrowDown") next = idx < 0 ? 0 : Math.min(idx + 1, logs.length - 1);
+        else next = idx < 0 ? 0 : Math.max(idx - 1, 0);
+        setSelected((logs as any[])[next]);
+      } else if (e.key === "Enter" && selected) {
+        e.preventDefault();
+        setModalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [logs, selected, modalOpen]);
+
   return (
     <div className="space-y-4">
       <datalist id={EMAIL_DATALIST_ID}>
