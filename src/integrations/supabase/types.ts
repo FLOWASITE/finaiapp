@@ -1302,61 +1302,133 @@ export type Database = {
           accounting_standard: string
           address: string | null
           base_currency: string
+          billing_address: string | null
+          business_reg_date: string | null
+          business_reg_no: string | null
+          business_reg_place: string | null
+          chief_accountant_cert_no: string | null
           chief_accountant_name: string | null
           company_name: string | null
           created_at: string
+          email: string | null
+          established_date: string | null
+          fax: string | null
           fiscal_year_start: number
           id: string
+          industry_code: string | null
+          industry_name: string | null
+          legal_form: string | null
+          legal_rep_id_date: string | null
+          legal_rep_id_no: string | null
           legal_rep_name: string | null
+          legal_rep_phone: string | null
+          legal_rep_title: string | null
           logo_url: string | null
           name: string
           owner_user_id: string
           phone: string | null
+          pit_period: string | null
           preparer_name: string | null
+          setup_completed: boolean
+          setup_completed_at: string | null
+          shipping_address: string | null
           signature_url: string | null
           stamp_url: string | null
+          tax_authority: string | null
           tax_id: string | null
+          tax_method: string | null
+          trade_name: string | null
           updated_at: string
+          vat_period: string | null
+          website: string | null
         }
         Insert: {
           accounting_standard?: string
           address?: string | null
           base_currency?: string
+          billing_address?: string | null
+          business_reg_date?: string | null
+          business_reg_no?: string | null
+          business_reg_place?: string | null
+          chief_accountant_cert_no?: string | null
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          email?: string | null
+          established_date?: string | null
+          fax?: string | null
           fiscal_year_start?: number
           id?: string
+          industry_code?: string | null
+          industry_name?: string | null
+          legal_form?: string | null
+          legal_rep_id_date?: string | null
+          legal_rep_id_no?: string | null
           legal_rep_name?: string | null
+          legal_rep_phone?: string | null
+          legal_rep_title?: string | null
           logo_url?: string | null
           name: string
           owner_user_id: string
           phone?: string | null
+          pit_period?: string | null
           preparer_name?: string | null
+          setup_completed?: boolean
+          setup_completed_at?: string | null
+          shipping_address?: string | null
           signature_url?: string | null
           stamp_url?: string | null
+          tax_authority?: string | null
           tax_id?: string | null
+          tax_method?: string | null
+          trade_name?: string | null
           updated_at?: string
+          vat_period?: string | null
+          website?: string | null
         }
         Update: {
           accounting_standard?: string
           address?: string | null
           base_currency?: string
+          billing_address?: string | null
+          business_reg_date?: string | null
+          business_reg_no?: string | null
+          business_reg_place?: string | null
+          chief_accountant_cert_no?: string | null
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          email?: string | null
+          established_date?: string | null
+          fax?: string | null
           fiscal_year_start?: number
           id?: string
+          industry_code?: string | null
+          industry_name?: string | null
+          legal_form?: string | null
+          legal_rep_id_date?: string | null
+          legal_rep_id_no?: string | null
           legal_rep_name?: string | null
+          legal_rep_phone?: string | null
+          legal_rep_title?: string | null
           logo_url?: string | null
           name?: string
           owner_user_id?: string
           phone?: string | null
+          pit_period?: string | null
           preparer_name?: string | null
+          setup_completed?: boolean
+          setup_completed_at?: string | null
+          shipping_address?: string | null
           signature_url?: string | null
           stamp_url?: string | null
+          tax_authority?: string | null
           tax_id?: string | null
+          tax_method?: string | null
+          trade_name?: string | null
           updated_at?: string
+          vat_period?: string | null
+          website?: string | null
         }
         Relationships: []
       }
