@@ -40,6 +40,18 @@ function AppLayout() {
           <NavItem to="/journal" icon={<BookOpen className="h-4 w-4" />}>
             Sổ nhật ký
           </NavItem>
+          <NavItem to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
+            Báo cáo TC
+          </NavItem>
+          <NavItem to="/bank" icon={<Landmark className="h-4 w-4" />}>
+            Đối soát NH
+          </NavItem>
+          <NavItem to="/assets" icon={<Boxes className="h-4 w-4" />}>
+            Khấu hao TSCĐ
+          </NavItem>
+          <NavItem to="/chat" icon={<MessageSquare className="h-4 w-4" />}>
+            Trợ lý AI
+          </NavItem>
         </nav>
         <div className="border-t border-border p-3">
           <Button variant="ghost" className="w-full justify-start" onClick={signOut}>
