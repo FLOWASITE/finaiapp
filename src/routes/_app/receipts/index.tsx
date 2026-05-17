@@ -12,6 +12,7 @@ import {
 } from "@/lib/receipts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -414,29 +415,80 @@ function NewReceiptDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Số tiền *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Số tiền *</Label>
+              {selected && remaining > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setAmount(String(remaining))}
+                >
+                  Lấy số còn lại ({fmt(remaining)})
+                </Button>
+              )}
+            </div>
             <Input
               type="number"
+              min={0}
+              step="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
+              className="font-mono"
+            />
+            {amount && Number(amount) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {fmt(Number(amount))} đ
+                {selected && Number(amount) > remaining + 0.01 && (
+                  <span className="ml-2 text-rose-600 font-medium">
+                    Vượt công nợ còn lại
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <Label>Số tham chiếu (UNC, sao kê, mã GD...)</Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="VD: UNC-2026/05/0123"
+              maxLength={255}
             />
           </div>
 
           <div className="space-y-1">
-            <Label>Số tham chiếu (UNC, sao kê...)</Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} />
+            <Label>Ghi chú</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Diễn giải nội dung thu tiền..."
+              rows={2}
+              maxLength={500}
+            />
           </div>
 
-          <div className="space-y-1">
-            <Label>Ghi chú</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          {amount && Number(amount) > 0 && (
+            <div className="rounded-md border border-dashed bg-muted/30 p-3 text-xs space-y-1">
+              <div className="font-medium text-foreground">Bút toán đối ứng</div>
+              <div className="flex justify-between font-mono">
+                <span>Nợ {method === "cash" ? "111" : "112"} — {method === "cash" ? "Tiền mặt" : "Tiền gửi NH"}</span>
+                <span>{fmt(Number(amount))}</span>
+              </div>
+              <div className="flex justify-between font-mono text-muted-foreground">
+                <span>     Có 131 — Phải thu khách hàng</span>
+                <span>{fmt(Number(amount))}</span>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button
-            disabled={!invoiceId || !amount || submitting || Number(amount) <= 0}
+            disabled={!invoiceId || !amount || submitting || Number(amount) <= 0 || (selected && Number(amount) > remaining + 0.01)}
             onClick={async () => {
               setSubmitting(true);
               try {
