@@ -40,6 +40,23 @@ function badgeVariant(action: string): "default" | "destructive" | "secondary" |
 
 const PAGE_SIZES = [25, 50, 100, 200];
 
+const ACTION_PREFIXES: Array<{ value: string; label: string }> = [
+  { value: "superadmin.", label: "Tất cả (superadmin.*)" },
+  { value: "superadmin.role.", label: "Vai trò (grant/revoke)" },
+  { value: "superadmin.role.grant", label: "Cấp vai trò" },
+  { value: "superadmin.role.revoke", label: "Thu hồi vai trò" },
+  { value: "superadmin.account.", label: "Tài khoản (mọi thao tác)" },
+  { value: "superadmin.account.reset_password", label: "Reset mật khẩu" },
+  { value: "superadmin.account.ban", label: "Khóa tài khoản" },
+  { value: "superadmin.account.unban", label: "Mở khóa tài khoản" },
+  { value: "superadmin.account.delete", label: "Xóa tài khoản" },
+  { value: "superadmin.org.", label: "Tổ chức (mọi thao tác)" },
+  { value: "superadmin.org.update", label: "Cập nhật tổ chức" },
+  { value: "superadmin.org.delete", label: "Xóa tổ chức" },
+];
+
+const EMAIL_DATALIST_ID = "audit-actor-email-suggestions";
+
 function AuditPage() {
   const fetchLogs = useServerFn(listSuperadminAuditLogs);
   const [actorEmail, setActorEmail] = useState("");
@@ -47,6 +64,7 @@ function AuditPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [pageSize, setPageSize] = useState(50);
+  const [actionPrefix, setActionPrefix] = useState("superadmin.");
 
   const {
     data,
@@ -57,13 +75,14 @@ function AuditPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ["superadmin-audit", actorEmail, targetId, from, to, pageSize],
+    queryKey: ["superadmin-audit", actionPrefix, actorEmail, targetId, from, to, pageSize],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       fetchLogs({
         data: {
           limit: pageSize,
           offset: pageParam as number,
+          action_prefix: actionPrefix || undefined,
           actor_email: actorEmail || undefined,
           target_id: targetId || undefined,
           from: from || undefined,
@@ -79,14 +98,43 @@ function AuditPage() {
   const logs = useMemo(() => data?.pages.flatMap((p) => p.logs) ?? [], [data]);
   const total = data?.pages[0]?.total ?? 0;
 
+  const emailSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of logs as any[]) {
+      if (l.actor_email) set.add(l.actor_email);
+    }
+    return Array.from(set).sort();
+  }, [logs]);
+
   return (
     <div className="space-y-4">
+      <datalist id={EMAIL_DATALIST_ID}>
+        {emailSuggestions.map((e) => (
+          <option key={e} value={e} />
+        ))}
+      </datalist>
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-card p-3">
+        <div className="flex flex-col">
+          <label className="text-xs text-muted-foreground">Loại hành động</label>
+          <Select value={actionPrefix} onValueChange={setActionPrefix}>
+            <SelectTrigger className="h-8 w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTION_PREFIXES.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-col">
           <label className="text-xs text-muted-foreground">Email người thao tác</label>
           <Input
             className="h-8 w-56"
             placeholder="admin@..."
+            list={EMAIL_DATALIST_ID}
             value={actorEmail}
             onChange={(e) => setActorEmail(e.target.value)}
           />
