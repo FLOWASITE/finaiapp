@@ -68,14 +68,30 @@ async function tryTTDN(taxCode: string): Promise<TaxLookupResult | null> {
   }
 }
 
+// Server-side in-memory cache (per worker instance). Public data → an toàn để share.
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const NEG_TTL_MS = 5 * 60 * 1000; // 5 phút cho "không tìm thấy"
+const cache = new Map<string, { at: number; data: TaxLookupResult | null }>();
+
 export const lookupTaxId = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     const code = data.taxCode.trim();
+    const now = Date.now();
+    const hit = cache.get(code);
+    if (hit) {
+      const ttl = hit.data ? CACHE_TTL_MS : NEG_TTL_MS;
+      if (now - hit.at < ttl) {
+        if (hit.data) return hit.data;
+        throw new Error(`Không tìm thấy thông tin cho MST ${code}`);
+      }
+      cache.delete(code);
+    }
     const r1 = await tryVietQR(code);
-    if (r1) return r1;
+    if (r1) { cache.set(code, { at: now, data: r1 }); return r1; }
     const r2 = await tryTTDN(code);
-    if (r2) return r2;
+    if (r2) { cache.set(code, { at: now, data: r2 }); return r2; }
+    cache.set(code, { at: now, data: null });
     throw new Error(`Không tìm thấy thông tin cho MST ${code}`);
   });
