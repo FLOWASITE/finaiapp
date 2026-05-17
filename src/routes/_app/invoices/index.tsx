@@ -19,6 +19,7 @@ import {
   listPurchaseInvoices, listSuppliers, createManualInvoice,
 } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesList,
