@@ -32,8 +32,9 @@ function InvitePage() {
 
   const inv = data?.invitation;
   const owner = data?.owner;
-  const expired = inv && new Date(inv.expires_at).getTime() < Date.now();
-  const used = !!inv?.accepted_at;
+  const status = data?.status ?? (isLoading ? "ok" : "not_found");
+  const expired = status === "expired";
+  const used = status === "used";
   const emailMismatch = inv && email && inv.email.toLowerCase() !== email.toLowerCase();
 
   const onAccept = async () => {
