@@ -71,9 +71,21 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Nhân sự — Lương",
+    items: [
+      { to: "/payroll", label: "Tiền lương", icon: UserCog },
+    ],
+  },
+  {
     label: "Thuế",
     items: [
       { to: "/tax", label: "Tờ khai GTGT", icon: Receipt },
+    ],
+  },
+  {
+    label: "Hệ thống",
+    items: [
+      { to: "/settings", label: "Cài đặt", icon: Settings },
     ],
   },
 ];
