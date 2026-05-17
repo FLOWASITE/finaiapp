@@ -85,6 +85,7 @@ function AuditPage() {
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
   const [selected, setSelected] = useState<any | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [showTotal, setShowTotal] = useState(false);
 
   // Debounce 500ms để bộ lọc "ổn định" rồi mới gọi API kèm count đắt đỏ.
@@ -202,6 +203,31 @@ function AuditPage() {
     if (dTo) items.push({ label: "Đến", value: dTo });
     return items;
   }, [actionPrefix, dActorEmail, dTargetId, dFrom, dTo]);
+
+  // Điều hướng bàn phím: ↑/↓ đổi selected, Enter mở modal chi tiết.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (modalOpen) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const editable = (e.target as HTMLElement | null)?.isContentEditable;
+      if (editable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (logs.length === 0) return;
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = selected ? (logs as any[]).findIndex((l) => l.id === selected.id) : -1;
+        let next = idx;
+        if (e.key === "ArrowDown") next = idx < 0 ? 0 : Math.min(idx + 1, logs.length - 1);
+        else next = idx < 0 ? 0 : Math.max(idx - 1, 0);
+        setSelected((logs as any[])[next]);
+      } else if (e.key === "Enter" && selected) {
+        e.preventDefault();
+        setModalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [logs, selected, modalOpen]);
 
   return (
     <div className="space-y-4">
@@ -337,7 +363,10 @@ function AuditPage() {
                   if (el) rowRefs.current.set(l.id, el);
                   else rowRefs.current.delete(l.id);
                 }}
-                onClick={() => setSelected(l)}
+                onClick={() => {
+                  setSelected(l);
+                  setModalOpen(true);
+                }}
                 aria-selected={isSelected}
                 className={`cursor-pointer border-t align-top transition-colors ${
                   isSelected
@@ -396,7 +425,7 @@ function AuditPage() {
         )}
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Dialog open={modalOpen && !!selected} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
           {selected && (
             <>
@@ -467,7 +496,7 @@ function AuditPage() {
                   <Copy className="mr-2 h-3.5 w-3.5" />
                   Copy JSON
                 </Button>
-                <Button size="sm" onClick={() => setSelected(null)}>
+                <Button size="sm" onClick={() => setModalOpen(false)}>
                   Đóng
                 </Button>
               </DialogFooter>
