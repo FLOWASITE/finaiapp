@@ -228,6 +228,7 @@ function SalesDashboardPage() {
                   <th className="px-4 py-2 text-right">HĐ</th>
                   <th className="px-4 py-2 text-right">Quá hạn</th>
                   <th className="px-4 py-2 text-right">Tổng nợ</th>
+                  <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -237,10 +238,19 @@ function SalesDashboardPage() {
                     <td className="px-4 py-2 text-right">{c.invoices}</td>
                     <td className="px-4 py-2 text-right font-mono text-rose-600">{c.overdue > 0 ? fmt(c.overdue) : "—"}</td>
                     <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(c.outstanding)}</td>
+                    <td className="px-4 py-2 text-right">
+                      {c.customer_id && (
+                        <Button size="sm" variant="outline" asChild className="h-7">
+                          <Link to="/receipts" search={{ customer: c.customer_id }}>
+                            <Banknote className="mr-1 h-3 w-3" /> Thu
+                          </Link>
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {top_customers.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Chưa có công nợ</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">Chưa có công nợ</td></tr>
                 )}
               </tbody>
             </table>
