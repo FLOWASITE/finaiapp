@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-type NavLeaf = { to: string; label: string; icon: React.ElementType; badge?: number; children?: { to: string; label: string }[] };
+type NavLeaf = { to: string; label: string; icon: React.ElementType };
 type NavSection = { label: string; items: NavLeaf[] };
 
 const PRIMARY: NavLeaf[] = [
@@ -31,31 +31,24 @@ const PRIMARY: NavLeaf[] = [
 
 const SECTIONS: NavSection[] = [
   {
-    label: "Bán hàng & Kho",
+    label: "Bán hàng",
     items: [
-      {
-        to: "/sales", label: "Bán hàng", icon: ShoppingCart,
-        children: [
-          { to: "/sales", label: "Hoá đơn" },
-          { to: "/receipts", label: "Phiếu thu" },
-          { to: "/receivables", label: "Công nợ phải thu" },
-        ],
-      },
+      { to: "/sales", label: "Bán hàng (Tổng quan)", icon: ShoppingCart },
       { to: "/customers", label: "Khách hàng", icon: Users },
-      { to: "/inventory", label: "Kho hàng", icon: Package },
+      { to: "/receivables", label: "Công nợ phải thu", icon: Receipt },
     ],
   },
   {
     label: "Mua hàng",
     items: [
-      {
-        to: "/purchases", label: "Mua hàng", icon: ShoppingCart,
-        children: [
-          { to: "/invoices", label: "Hoá đơn mua" },
-          { to: "/payables", label: "Công nợ phải trả" },
-        ],
-      },
+      { to: "/purchases", label: "Mua hàng (Tổng quan)", icon: ShoppingCart },
       { to: "/suppliers", label: "Nhà cung cấp", icon: Users },
+    ],
+  },
+  {
+    label: "Kho vận",
+    items: [
+      { to: "/inventory", label: "Kho hàng", icon: Package },
     ],
   },
   {
@@ -63,6 +56,11 @@ const SECTIONS: NavSection[] = [
     items: [
       { to: "/cash", label: "Quỹ tiền mặt", icon: Wallet },
       { to: "/bank", label: "Đối soát ngân hàng", icon: Landmark },
+    ],
+  },
+  {
+    label: "Tài sản",
+    items: [
       { to: "/assets", label: "Tài sản cố định", icon: Boxes },
     ],
   },
@@ -76,10 +74,15 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Nhân sự & Thuế",
+    label: "Nhân sự — Lương",
     items: [
       { to: "/payroll", label: "Tiền lương", icon: UserCog },
-      { to: "/tax", label: "Báo cáo thuế", icon: Receipt },
+    ],
+  },
+  {
+    label: "Thuế",
+    items: [
+      { to: "/tax", label: "Báo cáo thuế (GTGT/TNDN/TNCN)", icon: Receipt },
     ],
   },
   {
@@ -144,56 +147,79 @@ export function AppSidebar() {
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-        <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
+      <Sidebar collapsible="icon" className="border-r-0">
+        <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-3">
           <Link to="/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground text-background font-bold text-sm">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)]"
+              style={{ background: "var(--gradient-ai)" }}
+            >
               A
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-tight animate-fade-in">
-                <span className="font-semibold tracking-tight text-foreground text-sm">AccuVN</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Accounting Suite
+                <span className="font-semibold tracking-tight text-sidebar-foreground">AccuVN</span>
+                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+                  AI Accounting · v3
                 </span>
               </div>
             )}
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="gap-0">
-          {/* AI LAUNCHER — minimal input style */}
-          <div className="px-2 pt-3 pb-1">
+        <SidebarContent className="gap-1">
+          {/* AI LAUNCHER */}
+          <div className="px-2 pt-3 pb-2">
             {collapsed ? (
               <button
                 onClick={() => setOpenCmd(true)}
                 aria-label="Ask AccuVN AI"
-                className="flex h-8 w-8 mx-auto items-center justify-center rounded-md border border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] hover-scale"
+                style={{ background: "var(--gradient-ai)" }}
               >
                 <Sparkles className="h-4 w-4" />
               </button>
             ) : (
               <button
                 onClick={() => setOpenCmd(true)}
-                className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-background px-2.5 py-1.5 text-left hover:border-foreground/30 transition-colors"
+                className="group relative w-full overflow-hidden rounded-xl p-[1px] hover-scale animate-fade-in"
+                style={{ background: "var(--gradient-ai)" }}
               >
-                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground flex-1 truncate">
-                  Hỏi AccuVN AI…
-                </span>
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border bg-sidebar-accent px-1 py-0 text-[10px] font-mono text-muted-foreground">
-                  <CommandIcon className="h-2.5 w-2.5" />K
-                </kbd>
+                <div className="rounded-[11px] bg-sidebar/90 backdrop-blur-sm px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-sidebar-primary" />
+                    <span className="text-xs font-medium text-sidebar-foreground/90 flex-1 text-left">
+                      Hỏi AccuVN AI…
+                    </span>
+                    <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
+                      <CommandIcon className="h-2.5 w-2.5" />K
+                    </kbd>
+                  </div>
+                </div>
               </button>
+            )}
+
+            {!collapsed && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {QUICK_AI.map((q) => (
+                  <button
+                    key={q.label}
+                    onClick={() => go(q.to)}
+                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2 py-0.5 text-[10px] text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
           {/* PRIMARY */}
-          <SidebarGroup className="py-1">
+          <SidebarGroup className="py-0">
             <SidebarGroupContent>
               <SidebarMenu>
                 {PRIMARY.map((item) => (
-                  <NavLink key={item.to} item={item} active={isActive(item.to)} pathname={pathname} />
+                  <NavLink key={item.to} item={item} active={isActive(item.to)} />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -201,20 +227,19 @@ export function AppSidebar() {
 
           {/* SECTIONS */}
           {SECTIONS.map((s) => (
-            <SidebarGroup key={s.label} className="py-0">
-              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 px-3 pt-3 pb-1 h-auto">
+            <SidebarGroup key={s.label}>
+              <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
                 {s.label}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {s.items.map((item) => (
-                    <NavLink key={item.to} item={item} active={isActive(item.to)} pathname={pathname} />
+                    <NavLink key={item.to} item={item} active={isActive(item.to)} />
                   ))}
                   {s.label === "Hệ thống" && isSuperadmin && (
                     <NavLink
                       item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
                       active={isActive("/superadmin")}
-                      pathname={pathname}
                     />
                   )}
                 </SidebarMenu>
@@ -223,22 +248,25 @@ export function AppSidebar() {
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarFooter className="border-t border-sidebar-border/60 p-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-sidebar-accent transition-colors">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sidebar-accent text-foreground text-xs font-semibold">
-                  {email.charAt(0).toUpperCase() || "U"}
+              <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors">
+                <div className="relative">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
+                    {email.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse" />
                 </div>
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="truncate text-xs font-medium text-foreground">
+                      <div className="truncate text-xs font-medium text-sidebar-foreground">
                         {email || "Người dùng"}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">Online</div>
+                      <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
                     </div>
-                    <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                   </>
                 )}
               </button>
@@ -257,7 +285,6 @@ export function AppSidebar() {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-
 
       <CommandDialog open={openCmd} onOpenChange={setOpenCmd}>
         <CommandInput placeholder="Tìm trang, hỏi AI, hoặc thực hiện lệnh nhanh…" />
@@ -303,42 +330,19 @@ export function AppSidebar() {
   );
 }
 
-function NavLink({ item, active, pathname }: { item: NavLeaf; active: boolean; pathname: string }) {
+function NavLink({ item, active }: { item: NavLeaf; active: boolean }) {
   const Icon = item.icon;
-  const hasChildren = item.children && item.children.length > 0;
-  const childActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
   return (
-    <>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="group data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:font-medium hover:bg-sidebar-accent">
-          <Link to={item.to}>
-            <Icon className={`h-4 w-4 shrink-0 ${active ? "text-foreground" : "text-muted-foreground"}`} strokeWidth={1.75} />
-            <span className="truncate">{item.label}</span>
-            {item.badge != null && (
-              <span className="ml-auto rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
-                {item.badge}
-              </span>
-            )}
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      {hasChildren && active && (
-        <div className="ml-[22px] border-l border-sidebar-border pl-1 my-0.5">
-          {item.children!.map((c) => {
-            const ca = childActive(c.to);
-            return (
-              <SidebarMenuItem key={c.to}>
-                <SidebarMenuButton asChild isActive={ca} size="sm" className="h-7 data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:font-medium hover:bg-sidebar-accent">
-                  <Link to={c.to}>
-                    {ca && <span className="text-foreground mr-0.5">→</span>}
-                    <span className={`truncate ${ca ? "" : "text-muted-foreground"}`}>{c.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </div>
-      )}
-    </>
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
+        <Link to={item.to}>
+          {active && (
+            <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
+          )}
+          <Icon className={`h-4 w-4 transition-transform group-hover:scale-110 ${active ? "text-sidebar-primary" : ""}`} />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
