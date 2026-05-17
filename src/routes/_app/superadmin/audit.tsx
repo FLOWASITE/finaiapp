@@ -1,12 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { listSuperadminAuditLogs } from "@/lib/superadmin.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RefreshCw, ChevronDown } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/audit")({
@@ -31,27 +38,46 @@ function badgeVariant(action: string): "default" | "destructive" | "secondary" |
   return "secondary";
 }
 
+const PAGE_SIZES = [25, 50, 100, 200];
+
 function AuditPage() {
   const fetchLogs = useServerFn(listSuperadminAuditLogs);
   const [actorEmail, setActorEmail] = useState("");
   const [targetId, setTargetId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [pageSize, setPageSize] = useState(50);
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["superadmin-audit", actorEmail, targetId, from, to],
-    queryFn: () =>
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["superadmin-audit", actorEmail, targetId, from, to, pageSize],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       fetchLogs({
         data: {
+          limit: pageSize,
+          offset: pageParam as number,
           actor_email: actorEmail || undefined,
           target_id: targetId || undefined,
           from: from || undefined,
           to: to ? `${to}T23:59:59` : undefined,
         },
       }),
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((s, p) => s + (p.logs?.length ?? 0), 0);
+      return loaded < (lastPage.total ?? 0) ? loaded : undefined;
+    },
   });
 
-  const logs = data?.logs ?? [];
+  const logs = useMemo(() => data?.pages.flatMap((p) => p.logs) ?? [], [data]);
+  const total = data?.pages[0]?.total ?? 0;
 
   return (
     <div className="space-y-4">
@@ -82,11 +108,28 @@ function AuditPage() {
           <label className="text-xs text-muted-foreground">Đến ngày</label>
           <Input type="date" className="h-8" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-muted-foreground">Số dòng/trang</label>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="h-8 w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZES.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           Làm mới
         </Button>
-        <div className="ml-auto text-xs text-muted-foreground">{logs.length} bản ghi</div>
+        <div className="ml-auto text-xs text-muted-foreground">
+          {logs.length} / {total} bản ghi
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -146,6 +189,24 @@ function AuditPage() {
             ))}
           </tbody>
         </table>
+
+        {hasNextPage && (
+          <div className="flex justify-center border-t border-border p-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? (
+                <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ChevronDown className="mr-2 h-3.5 w-3.5" />
+              )}
+              Tải thêm {Math.min(pageSize, total - logs.length)} dòng
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
