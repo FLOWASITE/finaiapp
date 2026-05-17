@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes,
   MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
   Search, Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
-  Plus, FileSpreadsheet, Bot,
+  Plus, FileSpreadsheet, Bot, CreditCard, UserCog,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -41,6 +41,7 @@ const SECTIONS: NavSection[] = [
     label: "Mua hàng",
     items: [
       { to: "/invoices", label: "Hoá đơn mua vào", icon: FileText },
+      { to: "/payables", label: "Công nợ phải trả", icon: CreditCard },
     ],
   },
   {
@@ -70,9 +71,21 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Nhân sự — Lương",
+    items: [
+      { to: "/payroll", label: "Tiền lương", icon: UserCog },
+    ],
+  },
+  {
     label: "Thuế",
     items: [
       { to: "/tax", label: "Tờ khai GTGT", icon: Receipt },
+    ],
+  },
+  {
+    label: "Hệ thống",
+    items: [
+      { to: "/settings", label: "Cài đặt", icon: Settings },
     ],
   },
 ];
