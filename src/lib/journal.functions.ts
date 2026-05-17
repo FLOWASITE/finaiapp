@@ -199,7 +199,7 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
         await supabase.from("fixed_assets").insert({
           user_id: userId,
           code: `TS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          name: line.description,
+          name: line.description ?? "Tài sản",
           cost: Number(line.amount || 0),
           useful_life_months: 60,
           start_date: data.entry_date,
