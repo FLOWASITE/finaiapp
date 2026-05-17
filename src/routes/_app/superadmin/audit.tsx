@@ -28,6 +28,10 @@ import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/audit")({
   beforeLoad: requireSuperadminGuard,
+  validateSearch: (search: Record<string, unknown>) => ({
+    selected: typeof search.selected === "string" ? search.selected : undefined,
+    modal: search.modal === "1" || search.modal === true ? true : undefined,
+  }),
   component: AuditPage,
 });
 
