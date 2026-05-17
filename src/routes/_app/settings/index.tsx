@@ -18,7 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, Upload, X, UserPlus, Trash2 } from "lucide-react";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 
@@ -62,60 +64,178 @@ function OrganizationTab() {
   const canEdit = data?.myRole === "owner" || data?.myRole === "admin";
   const mutate = useMutation({
     mutationFn: (v: any) => upd({ data: v }),
-    onSuccess: () => { toast.success("Đã lưu"); qc.invalidateQueries({ queryKey: ["active-tenant"] }); qc.invalidateQueries({ queryKey: ["my-tenants"] }); },
+    onSuccess: () => {
+      toast.success("Đã lưu thay đổi");
+      qc.invalidateQueries({ queryKey: ["active-tenant"] });
+      qc.invalidateQueries({ queryKey: ["my-tenants"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!data?.tenant) return <p className="p-4 text-sm text-muted-foreground">Chưa chọn tổ chức nào.</p>;
+  if (!data?.tenant) return (
+    <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
+      Chưa chọn tổ chức nào. Vui lòng chọn ở góc trên màn hình.
+    </CardContent></Card>
+  );
   if (!form) return <p className="p-4">Đang tải…</p>;
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Hồ sơ tổ chức
-          <Badge variant="outline" className="text-xs">Vai trò: {data.myRole}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid md:grid-cols-2 gap-4">
-        <div><Label>Tên hiển thị</Label><Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} /></div>
-        <div><Label>Tên pháp nhân</Label><Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
-        <div><Label>Mã số thuế</Label><TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} /></div>
-        <div><Label>Điện thoại</Label><Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
-        <div className="md:col-span-2"><Label>Địa chỉ</Label><Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
-        <div><Label>Chuẩn kế toán</Label>
-          <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TT133">TT133 (SME)</SelectItem>
-              <SelectItem value="TT200">TT200 (Đầy đủ)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div><Label>Đồng tiền hạch toán</Label><Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value)} /></div>
-        <div><Label>Tháng bắt đầu năm tài chính</Label>
-          <Input type="number" min={1} max={12} disabled={!canEdit} value={form.fiscal_year_start ?? 1} onChange={(e) => set("fiscal_year_start", Number(e.target.value))} />
-        </div>
-        <div className="md:col-span-2 mt-2 border-t pt-3"><div className="text-sm font-semibold mb-2">Người ký Báo cáo tài chính</div></div>
-        <div><Label>Người lập biểu</Label><Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} /></div>
-        <div><Label>Kế toán trưởng</Label><Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} /></div>
-        <div><Label>Đại diện pháp luật</Label><Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} /></div>
+  const dirty = JSON.stringify(form) !== JSON.stringify(data.tenant);
+  const reset = () => setForm(data.tenant);
+  const save = () => mutate.mutate({
+    name: form.name, company_name: form.company_name, tax_id: form.tax_id,
+    address: form.address, phone: form.phone,
+    accounting_standard: form.accounting_standard, base_currency: form.base_currency,
+    fiscal_year_start: form.fiscal_year_start,
+    logo_url: form.logo_url, signature_url: form.signature_url, stamp_url: form.stamp_url,
+    preparer_name: form.preparer_name, chief_accountant_name: form.chief_accountant_name,
+    legal_rep_name: form.legal_rep_name,
+  });
 
-        {canEdit && (
-          <div className="md:col-span-2">
-            <Button onClick={() => mutate.mutate({
-              name: form.name, company_name: form.company_name, tax_id: form.tax_id,
-              address: form.address, phone: form.phone,
-              accounting_standard: form.accounting_standard, base_currency: form.base_currency,
-              fiscal_year_start: form.fiscal_year_start,
-              preparer_name: form.preparer_name, chief_accountant_name: form.chief_accountant_name,
-              legal_rep_name: form.legal_rep_name,
-            })} disabled={mutate.isPending}>Lưu thay đổi</Button>
+  const ROLE_LABEL: Record<string, string> = {
+    owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
+  };
+  const initials = (form.name ?? form.company_name ?? "?").trim().split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
+
+  return (
+    <div className="space-y-5 pb-24">
+      {/* Hero */}
+      <Card className="overflow-hidden">
+        <div className="h-20 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent" />
+        <CardContent className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5">
+          <Avatar className="h-20 w-20 ring-4 ring-background shadow-md">
+            {form.logo_url ? <AvatarImage src={form.logo_url} alt={form.name} className="object-contain bg-white" /> : null}
+            <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">{initials || "?"}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-semibold truncate">{form.name || "(chưa đặt tên)"}</h2>
+              <Badge variant="outline" className="text-xs">{ROLE_LABEL[data.myRole ?? ""] ?? data.myRole}</Badge>
+              {!canEdit && <Badge variant="secondary" className="text-xs">Chỉ đọc</Badge>}
+            </div>
+            <p className="text-sm text-muted-foreground truncate">
+              {form.company_name || "Chưa cấu hình tên pháp nhân"}
+              {form.tax_id ? ` · MST ${form.tax_id}` : ""}
+            </p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Thông tin doanh nghiệp */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-4 w-4 text-primary" />Thông tin doanh nghiệp</CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Tên hiển thị</Label>
+            <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: Công ty ABC" />
+            <p className="text-xs text-muted-foreground">Tên ngắn dùng trong giao diện.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tên pháp nhân</Label>
+            <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
+            <p className="text-xs text-muted-foreground">Tên đầy đủ in trên hóa đơn, BCTC.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mã số thuế</Label>
+            <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+            <p className="text-xs text-muted-foreground">Nhấn kính lúp để tự điền tên & địa chỉ.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Điện thoại</Label>
+            <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 0901234567" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Địa chỉ trụ sở</Label>
+            <Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Thương hiệu */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base"><ImageIcon className="h-4 w-4 text-primary" />Thương hiệu & chữ ký</CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-4">
+          <ImageUploader label="Logo" url={form.logo_url} onChange={(u) => set("logo_url", u)} prefix="logo" />
+          <ImageUploader label="Chữ ký (PNG nền trong)" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" />
+          <ImageUploader label="Con dấu (PNG nền trong)" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" />
+        </CardContent>
+      </Card>
+
+      {/* Cấu hình kế toán */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base"><Calculator className="h-4 w-4 text-primary" />Cấu hình kế toán</CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label>Chuẩn kế toán</Label>
+            <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TT133">TT133 — Doanh nghiệp nhỏ và vừa</SelectItem>
+                <SelectItem value="TT200">TT200 — Đầy đủ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Đồng tiền hạch toán</Label>
+            <Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value.toUpperCase())} maxLength={3} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tháng bắt đầu năm tài chính</Label>
+            <Select disabled={!canEdit} value={String(form.fiscal_year_start ?? 1)} onValueChange={(v) => set("fiscal_year_start", Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>Tháng {m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Người ký BCTC */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base"><FileSignature className="h-4 w-4 text-primary" />Người ký Báo cáo tài chính</CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label>Người lập biểu</Label>
+            <Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Kế toán trưởng</Label>
+            <Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Đại diện pháp luật</Label>
+            <Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sticky save bar */}
+      {canEdit && dirty && (
+        <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-3 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-xs text-muted-foreground">Bạn có thay đổi chưa lưu</span>
+            <Separator orientation="vertical" className="h-5" />
+            <Button size="sm" variant="ghost" onClick={reset} disabled={mutate.isPending}>
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />Hoàn tác
+            </Button>
+            <Button size="sm" onClick={save} disabled={mutate.isPending}>
+              <Save className="mr-1 h-3.5 w-3.5" />{mutate.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
