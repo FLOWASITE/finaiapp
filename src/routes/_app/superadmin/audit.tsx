@@ -13,7 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, ChevronDown } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { RefreshCw, ChevronDown, Copy } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/audit")({
@@ -65,6 +74,7 @@ function AuditPage() {
   const [to, setTo] = useState("");
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
+  const [selected, setSelected] = useState<any | null>(null);
 
   const {
     data,
@@ -223,7 +233,11 @@ function AuditPage() {
               </tr>
             )}
             {logs.map((l: any) => (
-              <tr key={l.id} className="border-t border-border align-top hover:bg-muted/30">
+              <tr
+                key={l.id}
+                onClick={() => setSelected(l)}
+                className="cursor-pointer border-t border-border align-top hover:bg-muted/30"
+              >
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
                   {new Date(l.created_at).toLocaleString("vi-VN")}
                 </td>
@@ -239,15 +253,8 @@ function AuditPage() {
                   <div>{l.table_name ?? "—"}</div>
                   <div className="text-[10px] text-muted-foreground">{l.record_id ?? ""}</div>
                 </td>
-                <td className="px-3 py-2">
-                  {(l.before || l.after) && (
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-muted-foreground">xem JSON</summary>
-                      <pre className="mt-1 max-w-md overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-2 text-[10px]">
-{JSON.stringify({ before: l.before, after: l.after }, null, 2)}
-                      </pre>
-                    </details>
-                  )}
+                <td className="px-3 py-2 text-xs text-muted-foreground">
+                  Bấm để xem chi tiết
                 </td>
               </tr>
             ))}
@@ -280,6 +287,93 @@ function AuditPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  <Badge variant={badgeVariant(selected.action)}>
+                    {ACTION_LABEL[selected.action] ?? selected.action}
+                  </Badge>
+                  <span className="font-mono text-xs text-muted-foreground">{selected.action}</span>
+                </DialogTitle>
+                <DialogDescription>
+                  {new Date(selected.created_at).toLocaleString("vi-VN")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="max-h-[60vh] space-y-3 overflow-auto pr-1">
+                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                  <DetailRow label="Log ID" value={selected.id} mono />
+                  <DetailRow label="Người thao tác (email)" value={selected.actor_email ?? "—"} />
+                  <DetailRow label="Actor user_id" value={selected.user_id ?? "—"} mono />
+                  <DetailRow label="Bảng" value={selected.table_name ?? "—"} mono />
+                  <DetailRow label="Record ID" value={selected.record_id ?? "—"} mono />
+                  <DetailRow label="IP" value={selected.ip ?? "—"} mono />
+                  <div className="sm:col-span-2">
+                    <DetailRow label="User-Agent" value={selected.user_agent ?? "—"} mono />
+                  </div>
+                </div>
+
+                {selected.before && (
+                  <JsonBlock title="Trước (before)" data={selected.before} />
+                )}
+                {selected.after && (
+                  <JsonBlock title="Sau (after)" data={selected.after} />
+                )}
+                {!selected.before && !selected.after && (
+                  <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                    Không có payload before/after.
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(selected, null, 2));
+                      toast.success("Đã copy JSON đầy đủ");
+                    } catch {
+                      toast.error("Không thể copy");
+                    }
+                  }}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5" />
+                  Copy JSON
+                </Button>
+                <Button size="sm" onClick={() => setSelected(null)}>
+                  Đóng
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="rounded border border-border bg-muted/30 px-2 py-1.5">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`break-all text-xs ${mono ? "font-mono" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function JsonBlock({ title, data }: { title: string; data: unknown }) {
+  return (
+    <div>
+      <div className="mb-1 text-xs font-medium text-muted-foreground">{title}</div>
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-2 text-[11px]">
+{JSON.stringify(data, null, 2)}
+      </pre>
     </div>
   );
 }
