@@ -161,6 +161,7 @@ function AuditPage() {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const pageCount = data?.pages.length ?? 0;
 
   useEffect(() => {
