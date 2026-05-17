@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 
 export const Route = createFileRoute("/_app/sales/")({ component: SalesPage });
 
