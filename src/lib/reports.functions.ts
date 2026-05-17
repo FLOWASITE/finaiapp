@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
