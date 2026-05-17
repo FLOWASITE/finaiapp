@@ -17,7 +17,11 @@ export const Route = createFileRoute("/_app/superadmin")({
   component: SuperadminLayout,
 });
 
-const TABS = [{ to: "/superadmin", label: "Tenants", exact: true }];
+const TABS = [
+  { to: "/superadmin", label: "Tổng quan tenants", exact: true },
+  { to: "/superadmin/accounts", label: "Tài khoản", exact: false },
+  { to: "/superadmin/organizations", label: "Tổ chức", exact: false },
+];
 
 function SuperadminLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
