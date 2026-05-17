@@ -5,13 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getBalanceSheetTT99, getIncomeStatementTT99, getCashFlowDirect,
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
+  drilldownReportItem,
 } from "@/lib/reports.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Printer, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Download, Printer, AlertTriangle, FileText, Search } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
 
