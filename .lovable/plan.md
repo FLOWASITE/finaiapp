@@ -1,76 +1,69 @@
-## Bối cảnh
+## Mục tiêu
+Tối ưu responsive cho Phân hệ Bán hàng (`/sales` và `/sales/$id`) để dùng mượt trên mobile (≤640px), tablet (641–1024px), desktop (>1024px). Chỉ chỉnh UI/presentation, không đụng business logic & server functions.
 
-Hiện phân hệ bán hàng đang nằm ở 3 route riêng:
-- `/sales-dashboard` — KPI, biểu đồ, tuổi nợ, top khách, HĐ quá hạn
-- `/sales` — danh sách hoá đơn bán
-- `/receipts` — phiếu thu
+## Vấn đề hiện tại (ở viewport ~707px)
+- Padding trang `p-8` quá rộng trên mobile.
+- Header (`flex justify-between`) không xuống dòng → nút action tràn.
+- Money strip `md:grid-cols-4` → mobile 1 cột, dài lê thê (4 card xếp dọc).
+- "Mini KPI" 30/60/90 ngày cũng 1 cột dọc trên mobile.
+- Charts `h-64` cố định, label/legend chen chúc trên màn nhỏ.
+- Tabs có icon + text dài, dễ tràn ngang ở mobile.
+- **Bảng dữ liệu** (Invoices/Receipts/Overdue/Top customers) chỉ `overflow-x-auto` → cuộn ngang dài, khó đọc.
+- Filter bar receipts (date + select + search + 2 button) dồn 1 hàng → vỡ layout.
+- Trang chi tiết `/sales/$id`: bảng dòng hàng + side panel chưa stack tốt.
 
-Trên Xero, toàn bộ luồng bán hàng nằm trong **một trang "Sales overview"** (menu *Business → Invoices*) gồm 4 khối:
-1. **Money strip** trên cùng — 4 thẻ trạng thái có thể click để lọc: *Draft · Awaiting Approval · Awaiting Payment · Overdue*
-2. **Biểu đồ "Invoices owed to you"** + **"Money coming in"** (dòng tiền dự kiến theo tuần/aging)
-3. **Quick actions** — `+ New` (Invoice / Quote / Credit note / Receipt)
-4. **Tabs phía dưới**: *Invoices · Awaiting payment · Paid · Receipts (Activity)* — cùng table, đổi filter
+## Phạm vi
+1. `src/routes/_app/sales/index.tsx` — Hub + 4 tab
+2. `src/routes/_app/sales/$id.tsx` — Chi tiết hoá đơn (kiểm tra & chỉnh nếu cần)
 
-Mục tiêu: gộp 3 route trên thành **một trang `/sales` duy nhất theo mô hình Xero**, giữ nguyên logic backend hiện có.
-
-## Cấu trúc mới đề xuất
-
-```
-/sales                          ← trang gộp (Sales overview)
- ├─ Money strip (4 thẻ click-to-filter)
- ├─ Charts: Doanh thu vs Đã thu · Aging pie · (collected 30/60/90)
- ├─ Action bar: [+ Tạo HĐ] [+ Phiếu thu] [Xuất CSV]
- └─ Tabs:
-     ├─ Hoá đơn (mặc định)      ← bảng sales_invoices, filter theo money-strip
-     ├─ Phiếu thu               ← bảng customer_receipts
-     ├─ Quá hạn                 ← invoices payment_status = overdue
-     └─ Top khách nợ            ← bảng top_customers (đã có)
-```
-
-Các trang chi tiết `/sales/$id` giữ nguyên.
+Không đổi: server functions, schema, routing, navigation.
 
 ## Thay đổi cụ thể
 
-### 1. Tạo `src/routes/_app/sales/index.tsx` mới (overview hub)
-- Lấy lại nội dung `sales-dashboard/index.tsx` làm khung trên (KPI strip + charts)
-- Đổi 4 KPI card thành **money strip click-to-filter** (Xero style): bấm "Quá hạn" → tabs nhảy sang Hoá đơn + filter `payment_status=overdue`
-- Bên dưới là **Tabs** (shadcn `Tabs` component) với 4 tab:
-  - **Hoá đơn** — import list hiện có từ `sales/index.tsx` (chuyển thành component `<SalesInvoicesTable />`)
-  - **Phiếu thu** — import list từ `receipts/index.tsx` (chuyển thành `<ReceiptsTable />`)
-  - **Quá hạn** — `<SalesInvoicesTable filter="overdue" />`
-  - **Top khách nợ** — bảng top_customers + nút "Thu" như đã có
-- Nút `+ Tạo phiếu thu` mở `<NewReceiptDialog />` (đã có sẵn)
-- Nút `+ Tạo hoá đơn` link sang `/sales/new` (giữ nguyên flow tạo HĐ hiện tại)
+### A. Layout chung
+- `p-8` → `p-4 sm:p-6 lg:p-8`; `space-y-6` → `space-y-4 sm:space-y-6`.
+- Header: `flex-col sm:flex-row sm:items-center sm:justify-between`, nút action `w-full sm:w-auto`, gom trong `flex flex-wrap gap-2`.
 
-### 2. Tách 2 component để tái sử dụng
-- `src/components/sales/sales-invoices-table.tsx` — bóc từ `sales/index.tsx`, nhận props `filter`, `search`, `dateRange`
-- `src/components/sales/receipts-table.tsx` — bóc từ `receipts/index.tsx`, nhận props tương tự
-- Reuse `NewReceiptDialog` (đã extract sẵn trong receipts page — chỉ cần move ra `components/sales/new-receipt-dialog.tsx`)
+### B. Money strip & Mini KPI
+- Money strip: `grid-cols-2 md:grid-cols-4` (mobile 2×2 thay vì 1×4).
+- Mini KPI 30/60/90: `grid-cols-3` ngay từ mobile (số nhỏ, vẫn vừa); giảm padding card.
+- `MoneyCard`: giảm font value `text-xl sm:text-2xl`, padding `p-3 sm:p-4`.
 
-### 3. Xoá route cũ + redirect
-- `src/routes/_app/sales-dashboard/index.tsx` → xoá, hoặc set `beforeLoad: throw redirect({ to: "/sales" })`
-- `src/routes/_app/receipts/index.tsx` → xoá, hoặc redirect sang `/sales?tab=receipts`
-- Giữ search-param `?invoice=…` và `?customer=…` (dashboard đã trỏ tới) — chuyển sang `/sales?tab=receipts&invoice=…`
+### C. Charts
+- Grid `grid-cols-1 lg:grid-cols-3` (giữ), nhưng giảm chiều cao mobile: `h-56 sm:h-64`.
+- Pie chart: `innerRadius`/`outerRadius` responsive (dùng `%` hoặc giảm ở mobile).
+- Ẩn `Legend` trên mobile (hoặc dùng `iconSize` nhỏ).
 
-### 4. Sidebar
-Trong `src/components/app-sidebar.tsx`:
-- Bỏ 2 mục "Dashboard bán hàng" và "Phiếu thu"
-- Đổi mục "Hoá đơn bán" → **"Bán hàng"** với icon `Receipt`, route `/sales`
-- Sub-menu (optional) hiển thị khi expand: Hoá đơn · Phiếu thu · Quá hạn
+### D. Tabs
+- `TabsList` cho phép wrap: `flex-wrap h-auto`; hoặc cuộn ngang `overflow-x-auto`.
+- Mobile: ẩn text, chỉ icon — `<span className="hidden sm:inline">…</span>`.
 
-### 5. URL state cho tabs
-- `/sales?tab=invoices|receipts|overdue|customers&status=…`
-- Dùng `validateSearch` để typed search params; default `tab=invoices`
+### E. Bảng dữ liệu — pattern responsive
+Áp dụng cho cả 4 bảng (Invoices, Receipts, Overdue, Top customers):
+- **Desktop (≥md)**: giữ `<table>` hiện tại.
+- **Mobile (<md)**: render danh sách **card stack** thay cho bảng — mỗi dòng thành 1 card gọn:
+  - Dòng 1: số HĐ + badge trạng thái
+  - Dòng 2: khách hàng
+  - Dòng 3: ngày, hạn TT, tổng/còn lại (key-value 2 cột)
+  - Dòng 4: nút "Thu"/xoá
+- Dùng `<div className="md:hidden">…cards…</div>` + `<div className="hidden md:block">…table…</div>` (chia sẻ cùng data, không fetch lại).
 
-## Kỹ thuật
+### F. Filter bar (Receipts)
+- Đổi `flex flex-wrap` → `grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-wrap items-end gap-3`.
+- Date inputs `w-full sm:w-40`; search ô riêng 1 hàng full width trên mobile.
+- 2 nút (CSV, Tạo phiếu thu) `col-span-2 sm:col-span-4 lg:w-auto` + `flex gap-2 justify-end`.
 
-- Không đụng tới `*.functions.ts` (logic backend, journal 111/112↔131 giữ nguyên)
-- Không migration DB
-- Reuse `useQuery` keys hiện có để cache xuyên tab (chuyển tab không gọi lại API)
-- Sticky money-strip + sticky tab header để UX giống Xero (luôn thấy filter khi cuộn bảng dài)
+### G. Trang `/sales/$id`
+- Header chi tiết: stack dọc trên mobile.
+- Bảng dòng hàng: ẩn cột phụ (VAT code, mô tả dài) trên mobile bằng `hidden sm:table-cell`.
+- Side panel (totals/customer): `grid-cols-1 lg:grid-cols-3` thay vì luôn 3 cột.
 
-## Ngoài phạm vi turn này
+## Out of scope
+- Không thay đổi server functions, query keys, schema.
+- Không đổi design tokens / màu sắc.
+- Không touch các trang ngoài `/sales`.
 
-- Quotes / Credit notes (Xero có, ta chưa làm — sẽ tab disabled "Sắp ra mắt" nếu cần)
-- Statements khách hàng (đã có trong `/receivables`, để link riêng)
-- Realtime collaborator presence
+## QA checklist sau khi build
+- 360px (mobile): header không tràn, money strip 2×2, tabs cuộn/icon-only, mỗi dòng bảng là 1 card.
+- 768px (tablet): money strip 4 cột, tabs hiện đầy đủ, bảng dạng table với scroll ngang nhẹ.
+- 1280px (desktop): layout y như hiện tại, không regression.
