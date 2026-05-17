@@ -302,18 +302,22 @@ function SalesHubPage() {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as SalesTab, { status: undefined })}>
-        <TabsList>
+        <TabsList className="flex w-full overflow-x-auto sm:w-auto sm:inline-flex">
           <TabsTrigger value="invoices">
-            <FileText className="mr-2 h-4 w-4" /> Hoá đơn
+            <FileText className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Hoá đơn</span>
           </TabsTrigger>
           <TabsTrigger value="receipts">
-            <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
+            <Banknote className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Phiếu thu</span>
           </TabsTrigger>
           <TabsTrigger value="overdue">
-            <AlertTriangle className="mr-2 h-4 w-4" /> Quá hạn
+            <AlertTriangle className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Quá hạn</span>
           </TabsTrigger>
           <TabsTrigger value="customers">
-            <Users className="mr-2 h-4 w-4" /> Top khách nợ
+            <Users className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Top khách nợ</span>
           </TabsTrigger>
         </TabsList>
 
