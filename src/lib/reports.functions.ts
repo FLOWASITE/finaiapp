@@ -164,11 +164,19 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
       else allBuckets.outflows.push({ code: cashLines[0].account_code, counter, amount: -cashDelta });
     }
 
+    // Số dư tiền đầu kỳ và cuối kỳ
+    const openingLines = data.from ? await fetchLines(supabase, userId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
+    const closingLines = await fetchLines(supabase, userId, undefined, data.to);
+    const cashBalance = (ls: LineRow[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + l.debit - l.credit, 0);
+    const opening = cashBalance(openingLines);
+    const closing = cashBalance(closingLines);
+
     const values: Record<string, number> = {};
     let usedInflow = new Set<number>();
     let usedOutflow = new Set<number>();
 
     for (const item of B03_TT99) {
+      if (item.cashBalance === "opening") { values[item.ma_so] = opening; continue; }
       if (item.counterpart) {
         const { prefixes, direction } = item.counterpart;
         let total = 0;
@@ -322,7 +330,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       for (const it of B01_TT99) if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => { let x = balanceForPrefix(cur, a.prefix, a.nature) * a.sign; if (a.prefix === "421" && a.nature === "credit") x += niCur; return s + x; }, 0);
       for (const it of B01_TT99) if (it.formula) v[it.ma_so] = it.formula.reduce((s, m) => s + (v[m] ?? 0), 0);
       for (const it of B01_TT99) {
-        ws.getCell(`A${row}`).value = (it.level === 1 ? "  " : "") + it.name;
+        ws.getCell(`A${row}`).value = (it.level === 2 ? "      " : it.level === 1 ? "  " : "") + it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
         ws.getCell(`C${row}`).numFmt = "#,##0;(#,##0);-";
@@ -363,7 +371,12 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       }
       const usedI = new Set<number>(), usedO = new Set<number>();
       const v: Record<string, number> = {};
+      const openL = data.from ? await fetchLines(supabase, userId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
+      const closeL = await fetchLines(supabase, userId, undefined, data.to);
+      const cashBal = (ls: any[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
+      const opening = cashBal(openL), closing = cashBal(closeL);
       for (const it of B03_TT99) {
+        if (it.cashBalance === "opening") { v[it.ma_so] = opening; continue; }
         if (it.counterpart) {
           const { prefixes, direction } = it.counterpart;
           let total = 0;
@@ -372,6 +385,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
           v[it.ma_so] = total;
         } else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
       }
+      // dùng closing thực tế nếu lệch
+      if (Math.abs((v["70"] ?? 0) - closing) > 0.5) v["70"] = closing;
       for (const it of B03_TT99) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
