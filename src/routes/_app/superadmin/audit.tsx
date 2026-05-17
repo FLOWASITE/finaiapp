@@ -521,7 +521,7 @@ function AuditPage() {
                   <Copy className="mr-2 h-3.5 w-3.5" />
                   Copy JSON
                 </Button>
-                <Button size="sm" onClick={() => setModalOpen(false)}>
+                <Button ref={closeBtnRef} size="sm" onClick={() => setModalOpen(false)}>
                   Đóng
                 </Button>
               </DialogFooter>
