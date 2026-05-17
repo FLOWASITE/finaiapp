@@ -2,6 +2,71 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
+// ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
+export const drilldownReportItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { report: "B01" | "B02"; ma_so: string; from?: string; to?: string; asOf?: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const item = (data.report === "B01" ? B01_TT99 : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
+    if (!item || !item.accounts || item.accounts.length === 0) {
+      return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
+    }
+    const prefixes: Array<{ prefix: string; sign: 1 | -1; nature: string }> = item.accounts;
+
+    let q = supabase
+      .from("journal_entries")
+      .select("id, entry_date, description, journal_lines(account_code, debit, credit, line_order)")
+      .eq("user_id", userId)
+      .order("entry_date", { ascending: true });
+    if (data.report === "B01") {
+      if (data.asOf) q = q.lte("entry_date", data.asOf);
+    } else {
+      if (data.from) q = q.gte("entry_date", data.from);
+      if (data.to) q = q.lte("entry_date", data.to);
+    }
+    const { data: entries, error } = await q;
+    if (error) throw error;
+
+    type DrillLine = {
+      entry_id: string; entry_date: string; description: string | null;
+      account_code: string; debit: number; credit: number; contribution: number;
+    };
+    const lines: DrillLine[] = [];
+    let total = 0;
+    for (const e of entries ?? []) {
+      for (const l of (e as any).journal_lines ?? []) {
+        const code = l.account_code as string;
+        const debit = Number(l.debit) || 0;
+        const credit = Number(l.credit) || 0;
+        for (const p of prefixes) {
+          if (!code.startsWith(p.prefix)) continue;
+          // contribution to item value
+          let contrib = 0;
+          if (data.report === "B01") {
+            contrib = (p.nature === "debit" ? debit - credit : credit - debit) * p.sign;
+          } else {
+            // B02: revenue → credit-debit; expense → debit-credit
+            contrib = (p.nature === "revenue" ? credit - debit : debit - credit) * p.sign;
+          }
+          if (Math.abs(contrib) < 0.005) break;
+          lines.push({
+            entry_id: (e as any).id, entry_date: (e as any).entry_date, description: (e as any).description,
+            account_code: code, debit, credit, contribution: contrib,
+          });
+          total += contrib;
+          break;
+        }
+      }
+    }
+    return {
+      item: { ma_so: item.ma_so, name: item.name },
+      prefixes: prefixes.map((p) => p.prefix),
+      lines, total: Math.round(total),
+    };
+  });
+
+
 type LineRow = { account_code: string; debit: number; credit: number; entry_date: string };
 
 async function fetchLines(supabase: any, userId: string, from?: string, to?: string): Promise<LineRow[]> {
@@ -213,7 +278,7 @@ export const getCompanyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, base_currency, fiscal_year_start, accounting_standard, signer_name").eq("id", userId).maybeSingle();
+    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, phone, base_currency, fiscal_year_start, accounting_standard, signer_name, legal_rep_name, chief_accountant_name, preparer_name, signature_url, stamp_url, logo_url").eq("id", userId).maybeSingle();
     return data ?? { fiscal_year_start: 1, base_currency: "VND" };
   });
 

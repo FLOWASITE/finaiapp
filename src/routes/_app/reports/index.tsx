@@ -5,13 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getBalanceSheetTT99, getIncomeStatementTT99, getCashFlowDirect,
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
+  drilldownReportItem,
 } from "@/lib/reports.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Printer, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Download, Printer, AlertTriangle, FileText, Search } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
 
@@ -34,10 +36,13 @@ function ReportsPage() {
   const [to, setTo] = useState(today);
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
+  const [showSignature, setShowSignature] = useState(true);
+  const [drill, setDrill] = useState<null | { report: "B01" | "B02"; ma_so: string; name: string }>(null);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
-  const fiscalStart = Number(profileQ.data?.fiscal_year_start ?? 1);
+  const profile: any = profileQ.data ?? {};
+  const fiscalStart = Number(profile?.fiscal_year_start ?? 1);
 
   // Tính 'Số đầu năm' = ngày trước khi bắt đầu năm tài chính chứa `to`
   const { prevFrom, prevTo, prevAsOf } = useMemo(() => {
@@ -99,8 +104,12 @@ function ReportsPage() {
           <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
           Ẩn chỉ tiêu = 0
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showSignature} onChange={(e) => setShowSignature(e.target.checked)} />
+          Hiển thị chữ ký
+        </label>
         <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />In</Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />In / Xuất PDF</Button>
           <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); }}>Cập nhật</Button>
         </div>
       </div>
@@ -115,10 +124,11 @@ function ReportsPage() {
 
         <TabsContent value="b01">
           <ReportCard title="Báo cáo tình hình tài chính (Mẫu B01-DN)" subtitle={`Tại ngày ${to}${compareEnabled ? ` — So sánh với ${prevAsOf}` : ""}`} onExport={() => handleExport("B01")}>
+            <PrintHeader profile={profile} title="BÁO CÁO TÌNH HÌNH TÀI CHÍNH" subtitle={`Mẫu số B01-DN — Tại ngày ${to}`} />
             {!bs.data ? <Loading /> : (
               <>
                 {!bs.data.balanced && (
-                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive print:hidden">
                     <AlertTriangle className="h-4 w-4" /> Tài sản ≠ Nguồn vốn — kiểm tra số liệu hạch toán
                   </div>
                 )}
@@ -126,43 +136,155 @@ function ReportsPage() {
                   cols={["Chỉ tiêu", "Mã số", "Số cuối kỳ", compareEnabled ? "Số đầu năm" : null]}
                   rows={bs.data.items.filter(it => !hideZero || it.bold || it.current !== 0 || it.previous !== 0).map(it => ({
                     name: it.name, code: it.ma_so, indent: it.level === 2 ? 2 : it.level === 1 ? 1 : 0, bold: it.bold,
+                    drillable: it.level === 2,
                     vals: [it.current, compareEnabled ? it.previous : null],
                   }))}
+                  onDrill={(code, name) => setDrill({ report: "B01", ma_so: code, name })}
                 />
               </>
             )}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
 
         <TabsContent value="b02">
           <ReportCard title="Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DN)" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B02")}>
+            <PrintHeader profile={profile} title="BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH" subtitle={`Mẫu số B02-DN — Kỳ từ ${from} đến ${to}`} />
             {!is.data ? <Loading /> : (
               <ReportTable
                 cols={["Chỉ tiêu", "Mã số", "Kỳ này", compareEnabled ? "Kỳ trước" : null]}
                 rows={is.data.items.filter(it => !hideZero || it.bold || it.current !== 0 || it.previous !== 0).map(it => ({
-                  name: it.name, code: it.ma_so, indent: 0, bold: it.bold,
+                  name: it.name, code: it.ma_so, indent: 0, bold: it.bold, drillable: !it.bold,
                   vals: [it.current, compareEnabled ? it.previous : null],
                 }))}
+                onDrill={(code, name) => setDrill({ report: "B02", ma_so: code, name })}
               />
             )}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
 
         <TabsContent value="b03">
           <ReportCard title="Báo cáo lưu chuyển tiền tệ (Mẫu B03-DN) — phương pháp trực tiếp" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B03")}>
+            <PrintHeader profile={profile} title="BÁO CÁO LƯU CHUYỂN TIỀN TỆ" subtitle={`Mẫu số B03-DN (trực tiếp) — Kỳ từ ${from} đến ${to}`} />
             {!cf.data ? <Loading /> : (
               <CashFlowTable items={cf.data.items} hideZero={hideZero} />
             )}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
 
         <TabsContent value="b09">
           <ReportCard title="Thuyết minh báo cáo tài chính (Mẫu B09-DN)" subtitle={`Kỳ từ ${from} đến ${to}`}>
+            <PrintHeader profile={profile} title="THUYẾT MINH BÁO CÁO TÀI CHÍNH" subtitle={`Mẫu số B09-DN — Kỳ từ ${from} đến ${to}`} />
             {!notes.data ? <Loading /> : <NotesPanel data={notes.data} onRefetch={() => notes.refetch()} upsert={upsertReportNote} />}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
       </Tabs>
+
+      <DrilldownDialog drill={drill} from={from} to={to} asOf={to} onClose={() => setDrill(null)} />
     </div>
+  );
+}
+
+function PrintHeader({ profile, title, subtitle }: { profile: any; title: string; subtitle: string }) {
+  return (
+    <div className="hidden print:mb-4 print:block">
+      <div className="text-center">
+        <div className="text-base font-bold uppercase">{profile?.company_name ?? "DOANH NGHIỆP"}</div>
+        <div className="text-xs">{profile?.address ?? ""}</div>
+        <div className="text-xs">MST: {profile?.tax_id ?? "—"}{profile?.phone ? ` — ĐT: ${profile.phone}` : ""}</div>
+        <div className="mt-3 text-base font-bold uppercase">{title}</div>
+        <div className="text-xs italic">{subtitle}</div>
+        <div className="text-xs">Đơn vị tính: {profile?.base_currency ?? "VND"}</div>
+      </div>
+    </div>
+  );
+}
+
+function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: string }) {
+  const dateStr = `Ngày ${reportDate.slice(8, 10)} tháng ${reportDate.slice(5, 7)} năm ${reportDate.slice(0, 4)}`;
+  const signers = [
+    { role: "Người lập biểu", name: profile?.preparer_name, sig: null as string | null, stamp: null as string | null },
+    { role: "Kế toán trưởng", name: profile?.chief_accountant_name, sig: profile?.signature_url ?? null, stamp: null },
+    { role: "Giám đốc / Đại diện pháp luật", name: profile?.legal_rep_name, sig: profile?.signature_url ?? null, stamp: profile?.stamp_url ?? null },
+  ];
+  return (
+    <div className="mt-8 print:mt-12">
+      <div className="text-right text-sm italic">{dateStr}</div>
+      <div className="mt-2 grid grid-cols-3 gap-4 text-center text-sm">
+        {signers.map((s, i) => (
+          <div key={i}>
+            <div className="font-semibold">{s.role}</div>
+            <div className="text-xs italic text-muted-foreground">(Ký, họ tên{i === 2 ? ", đóng dấu" : ""})</div>
+            <div className="relative mx-auto mt-2 h-24 w-full">
+              {s.stamp && <img src={s.stamp} alt="Dấu" className="absolute left-1/2 top-0 h-24 w-24 -translate-x-1/2 object-contain opacity-80" />}
+              {s.sig && <img src={s.sig} alt="Chữ ký" className="absolute left-1/2 top-2 h-20 w-auto -translate-x-1/2 object-contain" />}
+            </div>
+            <div className="mt-1 font-semibold">{s.name || "....................................."}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
+  const drillFn = useServerFn(drilldownReportItem);
+  const q = useQuery({
+    queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
+    queryFn: () => drillFn({ data: { report: drill!.report, ma_so: drill!.ma_so, from, to, asOf } }),
+    enabled: !!drill,
+  });
+  return (
+    <Dialog open={!!drill} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Chi tiết chỉ tiêu {drill?.ma_so} — {drill?.name}
+          </DialogTitle>
+        </DialogHeader>
+        {!q.data ? <Loading /> : q.data.lines.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Không có bút toán nào cấu thành chỉ tiêu này trong kỳ.
+            {q.data.prefixes?.length ? <div className="mt-1 text-xs">TK theo dõi: {q.data.prefixes.join(", ")}</div> : null}
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto">
+            <div className="mb-2 text-xs text-muted-foreground">
+              {q.data.lines.length} dòng — Tổng cộng đóng góp: <b className="font-mono">{fmt(q.data.total)}</b>
+              {q.data.prefixes?.length ? ` — TK: ${q.data.prefixes.join(", ")}` : ""}
+            </div>
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background">
+                <tr className="border-b text-xs uppercase text-muted-foreground">
+                  <th className="py-2 text-left w-24">Ngày</th>
+                  <th className="text-left">Diễn giải</th>
+                  <th className="w-20 text-center">TK</th>
+                  <th className="w-28 text-right">Nợ</th>
+                  <th className="w-28 text-right">Có</th>
+                  <th className="w-28 text-right">Đóng góp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {q.data.lines.map((l: any, i: number) => (
+                  <tr key={i} className="border-b border-border/40">
+                    <td className="py-1 text-xs">{l.entry_date}</td>
+                    <td className="text-xs">{l.description ?? "—"}</td>
+                    <td className="text-center font-mono text-xs">{l.account_code}</td>
+                    <td className="text-right font-mono text-xs">{fmt(l.debit)}</td>
+                    <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
+                    <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
