@@ -303,19 +303,42 @@ export function AppSidebar() {
   );
 }
 
-function NavLink({ item, active }: { item: NavLeaf; active: boolean }) {
+function NavLink({ item, active, pathname }: { item: NavLeaf; active: boolean; pathname: string }) {
   const Icon = item.icon;
+  const hasChildren = item.children && item.children.length > 0;
+  const childActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
-        <Link to={item.to}>
-          {active && (
-            <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
-          )}
-          <Icon className={`h-4 w-4 transition-transform group-hover:scale-110 ${active ? "text-sidebar-primary" : ""}`} />
-          <span>{item.label}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="group data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:font-medium hover:bg-sidebar-accent">
+          <Link to={item.to}>
+            <Icon className={`h-4 w-4 shrink-0 ${active ? "text-foreground" : "text-muted-foreground"}`} strokeWidth={1.75} />
+            <span className="truncate">{item.label}</span>
+            {item.badge != null && (
+              <span className="ml-auto rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      {hasChildren && active && (
+        <div className="ml-[22px] border-l border-sidebar-border pl-1 my-0.5">
+          {item.children!.map((c) => {
+            const ca = childActive(c.to);
+            return (
+              <SidebarMenuItem key={c.to}>
+                <SidebarMenuButton asChild isActive={ca} size="sm" className="h-7 data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:font-medium hover:bg-sidebar-accent">
+                  <Link to={c.to}>
+                    {ca && <span className="text-foreground mr-0.5">→</span>}
+                    <span className={`truncate ${ca ? "" : "text-muted-foreground"}`}>{c.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
