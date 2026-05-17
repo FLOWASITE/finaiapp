@@ -13,7 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, ChevronDown } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { RefreshCw, ChevronDown, Copy } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/audit")({
