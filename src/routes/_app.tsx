@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
-import { LayoutDashboard, FileText, BookOpen, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
