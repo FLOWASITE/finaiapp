@@ -1,0 +1,1 @@
+ALTER TABLE public.sales_invoice_lines DROP CONSTRAINT IF EXISTS sales_invoice_lines_invoice_fk;
