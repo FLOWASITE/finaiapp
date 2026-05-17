@@ -26,6 +26,7 @@ import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/i
 import { Route as AppSuperadminIndexRouteImport } from './routes/_app/superadmin/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
+import { Route as AppSalesDashboardIndexRouteImport } from './routes/_app/sales-dashboard/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppReceivablesIndexRouteImport } from './routes/_app/receivables/index'
 import { Route as AppReceiptsIndexRouteImport } from './routes/_app/receipts/index'
@@ -133,6 +134,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
 const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
   id: '/sales/',
   path: '/sales/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalesDashboardIndexRoute = AppSalesDashboardIndexRouteImport.update({
+  id: '/sales-dashboard/',
+  path: '/sales-dashboard/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/receipts/': typeof AppReceiptsIndexRoute
   '/receivables/': typeof AppReceivablesIndexRoute
   '/reports/': typeof AppReportsIndexRoute
+  '/sales-dashboard/': typeof AppSalesDashboardIndexRoute
   '/sales/': typeof AppSalesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/superadmin/': typeof AppSuperadminIndexRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/receipts': typeof AppReceiptsIndexRoute
   '/receivables': typeof AppReceivablesIndexRoute
   '/reports': typeof AppReportsIndexRoute
+  '/sales-dashboard': typeof AppSalesDashboardIndexRoute
   '/sales': typeof AppSalesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/superadmin': typeof AppSuperadminIndexRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/_app/receipts/': typeof AppReceiptsIndexRoute
   '/_app/receivables/': typeof AppReceivablesIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/sales-dashboard/': typeof AppSalesDashboardIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
@@ -420,6 +429,7 @@ export interface FileRouteTypes {
     | '/receipts/'
     | '/receivables/'
     | '/reports/'
+    | '/sales-dashboard/'
     | '/sales/'
     | '/settings/'
     | '/superadmin/'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/receipts'
     | '/receivables'
     | '/reports'
+    | '/sales-dashboard'
     | '/sales'
     | '/settings'
     | '/superadmin'
@@ -503,6 +514,7 @@ export interface FileRouteTypes {
     | '/_app/receipts/'
     | '/_app/receivables/'
     | '/_app/reports/'
+    | '/_app/sales-dashboard/'
     | '/_app/sales/'
     | '/_app/settings/'
     | '/_app/superadmin/'
@@ -637,6 +649,13 @@ declare module '@tanstack/react-router' {
       path: '/sales'
       fullPath: '/sales/'
       preLoaderRoute: typeof AppSalesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/': {
+      id: '/_app/sales-dashboard/'
+      path: '/sales-dashboard'
+      fullPath: '/sales-dashboard/'
+      preLoaderRoute: typeof AppSalesDashboardIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reports/': {
@@ -874,6 +893,7 @@ interface AppRouteChildren {
   AppReceiptsIndexRoute: typeof AppReceiptsIndexRoute
   AppReceivablesIndexRoute: typeof AppReceivablesIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppSalesDashboardIndexRoute: typeof AppSalesDashboardIndexRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
@@ -904,6 +924,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReceiptsIndexRoute: AppReceiptsIndexRoute,
   AppReceivablesIndexRoute: AppReceivablesIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
+  AppSalesDashboardIndexRoute: AppSalesDashboardIndexRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
@@ -921,3 +942,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
