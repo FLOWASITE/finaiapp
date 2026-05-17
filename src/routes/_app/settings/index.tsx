@@ -5,6 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getSettings, updateSettings, togglePeriodLock, listFxRates, upsertFxRate,
 } from "@/lib/settings.functions";
+import {
+  getActiveTenant, updateActiveTenant, listTenantMembers, inviteTenantMember,
+  updateMemberRole, removeMember,
+} from "@/lib/tenants.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, Upload, X } from "lucide-react";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
@@ -26,19 +30,192 @@ function SettingsPage() {
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền</p>
       </div>
-      <Tabs defaultValue="company">
+      <Tabs defaultValue="organization">
         <TabsList>
-          <TabsTrigger value="company">Doanh nghiệp</TabsTrigger>
+          <TabsTrigger value="organization">Tổ chức</TabsTrigger>
+          <TabsTrigger value="members">Thành viên</TabsTrigger>
+          <TabsTrigger value="company">Hồ sơ cá nhân</TabsTrigger>
           <TabsTrigger value="periods">Khoá sổ</TabsTrigger>
           <TabsTrigger value="fx">Tỷ giá</TabsTrigger>
           <TabsTrigger value="roles">Phân quyền</TabsTrigger>
         </TabsList>
+        <TabsContent value="organization"><OrganizationTab /></TabsContent>
+        <TabsContent value="members"><MembersTab /></TabsContent>
         <TabsContent value="company"><CompanyTab /></TabsContent>
         <TabsContent value="periods"><PeriodsTab /></TabsContent>
         <TabsContent value="fx"><FxTab /></TabsContent>
         <TabsContent value="roles"><RolesTab /></TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function OrganizationTab() {
+  const get = useServerFn(getActiveTenant);
+  const upd = useServerFn(updateActiveTenant);
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get() });
+  const [form, setForm] = React.useState<any>(null);
+  React.useEffect(() => { if (data?.tenant && !form) setForm(data.tenant); }, [data, form]);
+
+  const canEdit = data?.myRole === "owner" || data?.myRole === "admin";
+  const mutate = useMutation({
+    mutationFn: (v: any) => upd({ data: v }),
+    onSuccess: () => { toast.success("Đã lưu"); qc.invalidateQueries({ queryKey: ["active-tenant"] }); qc.invalidateQueries({ queryKey: ["my-tenants"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (!data?.tenant) return <p className="p-4 text-sm text-muted-foreground">Chưa chọn tổ chức nào.</p>;
+  if (!form) return <p className="p-4">Đang tải…</p>;
+  const set = (k: string, v: any) => setForm({ ...form, [k]: v });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Hồ sơ tổ chức
+          <Badge variant="outline" className="text-xs">Vai trò: {data.myRole}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid md:grid-cols-2 gap-4">
+        <div><Label>Tên hiển thị</Label><Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} /></div>
+        <div><Label>Tên pháp nhân</Label><Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
+        <div><Label>Mã số thuế</Label><Input disabled={!canEdit} value={form.tax_id ?? ""} onChange={(e) => set("tax_id", e.target.value)} /></div>
+        <div><Label>Điện thoại</Label><Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
+        <div className="md:col-span-2"><Label>Địa chỉ</Label><Input disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
+        <div><Label>Chuẩn kế toán</Label>
+          <Select disabled={!canEdit} value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TT133">TT133 (SME)</SelectItem>
+              <SelectItem value="TT200">TT200 (Đầy đủ)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Đồng tiền hạch toán</Label><Input disabled={!canEdit} value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value)} /></div>
+        <div><Label>Tháng bắt đầu năm tài chính</Label>
+          <Input type="number" min={1} max={12} disabled={!canEdit} value={form.fiscal_year_start ?? 1} onChange={(e) => set("fiscal_year_start", Number(e.target.value))} />
+        </div>
+        <div className="md:col-span-2 mt-2 border-t pt-3"><div className="text-sm font-semibold mb-2">Người ký Báo cáo tài chính</div></div>
+        <div><Label>Người lập biểu</Label><Input disabled={!canEdit} value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} /></div>
+        <div><Label>Kế toán trưởng</Label><Input disabled={!canEdit} value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} /></div>
+        <div><Label>Đại diện pháp luật</Label><Input disabled={!canEdit} value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} /></div>
+
+        {canEdit && (
+          <div className="md:col-span-2">
+            <Button onClick={() => mutate.mutate({
+              name: form.name, company_name: form.company_name, tax_id: form.tax_id,
+              address: form.address, phone: form.phone,
+              accounting_standard: form.accounting_standard, base_currency: form.base_currency,
+              fiscal_year_start: form.fiscal_year_start,
+              preparer_name: form.preparer_name, chief_accountant_name: form.chief_accountant_name,
+              legal_rep_name: form.legal_rep_name,
+            })} disabled={mutate.isPending}>Lưu thay đổi</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MembersTab() {
+  const list = useServerFn(listTenantMembers);
+  const invite = useServerFn(inviteTenantMember);
+  const updRole = useServerFn(updateMemberRole);
+  const rm = useServerFn(removeMember);
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["tenant-members"], queryFn: () => list() });
+  const [email, setEmail] = React.useState("");
+  const [role, setRole] = React.useState<"admin" | "accountant" | "viewer">("accountant");
+
+  const canManage = data?.myRole === "owner" || data?.myRole === "admin";
+  const inviteMut = useMutation({
+    mutationFn: () => invite({ data: { email, role } }),
+    onSuccess: (r: any) => {
+      toast.success(r?.invited ? "Đã gửi lời mời" : "Đã thêm thành viên");
+      setEmail("");
+      qc.invalidateQueries({ queryKey: ["tenant-members"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const roleMut = useMutation({
+    mutationFn: (v: { memberId: string; role: any }) => updRole({ data: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-members"] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const rmMut = useMutation({
+    mutationFn: (memberId: string) => rm({ data: { memberId } }),
+    onSuccess: () => { toast.success("Đã gỡ thành viên"); qc.invalidateQueries({ queryKey: ["tenant-members"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const ROLE_LABEL: Record<string, string> = {
+    owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Thành viên tổ chức</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        {canManage && (
+          <div className="flex gap-2 items-end border-b pb-4">
+            <div className="flex-1"><Label>Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@congty.com" />
+            </div>
+            <div><Label>Vai trò</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as any)}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Quản trị</SelectItem>
+                  <SelectItem value="accountant">Kế toán</SelectItem>
+                  <SelectItem value="viewer">Người xem</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button disabled={!email || inviteMut.isPending} onClick={() => inviteMut.mutate()}>
+              <UserPlus className="h-4 w-4 mr-1" />Mời
+            </Button>
+          </div>
+        )}
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Email</TableHead><TableHead>Vai trò</TableHead>
+            <TableHead>Trạng thái</TableHead><TableHead>Tham gia</TableHead>
+            {canManage && <TableHead></TableHead>}
+          </TableRow></TableHeader>
+          <TableBody>
+            {(data?.members ?? []).map((m: any) => (
+              <TableRow key={m.id}>
+                <TableCell className="text-sm">{m.email ?? "(chưa rõ)"}</TableCell>
+                <TableCell>
+                  {canManage && m.role !== "owner" ? (
+                    <Select value={m.role} onValueChange={(v) => roleMut.mutate({ memberId: m.id, role: v })}>
+                      <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Quản trị</SelectItem>
+                        <SelectItem value="accountant">Kế toán</SelectItem>
+                        <SelectItem value="viewer">Người xem</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : <Badge variant="outline">{ROLE_LABEL[m.role] ?? m.role}</Badge>}
+                </TableCell>
+                <TableCell><Badge variant={m.status === "active" ? "default" : "secondary"}>{m.status}</Badge></TableCell>
+                <TableCell className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleDateString("vi-VN")}</TableCell>
+                {canManage && (
+                  <TableCell>
+                    {m.role !== "owner" && (
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        if (confirm("Gỡ thành viên này khỏi tổ chức?")) rmMut.mutate(m.id);
+                      }}><Trash2 className="h-3 w-3" /></Button>
+                    )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
