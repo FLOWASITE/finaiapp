@@ -98,28 +98,30 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       .single();
     const tenant_id = profile?.active_tenant_id ?? null;
 
+    const { id, ...rest } = data;
+    // Đồng bộ opening_balance (cột cũ) = Nợ - Có để báo cáo cũ vẫn chạy
     const payload = {
-      ...data,
-      email: data.email || null,
-      email_cc: data.email_cc || null,
-      phone: data.phone || null,
-      address: data.address || null,
-      tax_id: data.tax_id || null,
-      contact_person: data.contact_person || null,
-      notes: data.notes || null,
+      ...rest,
+      opening_balance: (rest.opening_balance_debit ?? 0) - (rest.opening_balance_credit ?? 0),
     };
 
-    if (data.id) {
-      const { error } = await supabase.from("customers").update(payload).eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { id: data.id };
+    if (id) {
+      const { error } = await supabase.from("customers").update(payload).eq("id", id);
+      if (error) {
+        if (error.code === "23505") throw new Error("Mã khách hàng đã tồn tại");
+        throw new Error(error.message);
+      }
+      return { id };
     }
     const { data: row, error } = await supabase
       .from("customers")
       .insert({ ...payload, user_id: userId, tenant_id })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505") throw new Error("Mã khách hàng đã tồn tại");
+      throw new Error(error.message);
+    }
     return { id: row!.id };
   });
 
