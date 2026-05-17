@@ -1,45 +1,50 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+async function loadVatData(
+  supabase: SupabaseClient,
+  userId: string,
+  from: string,
+  to: string,
+) {
+  const { data: purchases } = await supabase
+    .from("invoices")
+    .select("id, invoice_no, issue_date, supplier_name, supplier_tax_id, subtotal, vat_amount, total")
+    .eq("user_id", userId)
+    .gte("issue_date", from)
+    .lte("issue_date", to);
+
+  const { data: sales } = await supabase
+    .from("sales_invoices")
+    .select("id, einvoice_code, invoice_no, issue_date, customer_name, customer_tax_id, subtotal, vat_amount, total")
+    .eq("user_id", userId)
+    .eq("status", "issued")
+    .gte("issue_date", from)
+    .lte("issue_date", to);
+
+  const inputVat = (purchases ?? []).reduce((s, r) => s + Number(r.vat_amount || 0), 0);
+  const outputVat = (sales ?? []).reduce((s, r) => s + Number(r.vat_amount || 0), 0);
+  const inputBase = (purchases ?? []).reduce((s, r) => s + Number(r.subtotal || 0), 0);
+  const outputBase = (sales ?? []).reduce((s, r) => s + Number(r.subtotal || 0), 0);
+
+  return {
+    summary: {
+      outputBase, outputVat, inputBase, inputVat,
+      payable: Math.max(0, outputVat - inputVat),
+      carryForward: Math.max(0, inputVat - outputVat),
+    },
+    purchases: purchases ?? [],
+    sales: sales ?? [],
+  };
+}
 
 export const getVatReturn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from: string; to: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    // Đầu vào: từ bảng invoices
-    const { data: purchases } = await supabase
-      .from("invoices")
-      .select("id, invoice_no, issue_date, supplier_name, supplier_tax_id, subtotal, vat_amount, total")
-      .eq("user_id", userId)
-      .gte("issue_date", data.from)
-      .lte("issue_date", data.to);
-
-    // Đầu ra: từ bảng sales_invoices đã phát hành
-    const { data: sales } = await supabase
-      .from("sales_invoices")
-      .select("id, einvoice_code, invoice_no, issue_date, customer_name, customer_tax_id, subtotal, vat_amount, total")
-      .eq("user_id", userId)
-      .eq("status", "issued")
-      .gte("issue_date", data.from)
-      .lte("issue_date", data.to);
-
-    const inputVat = (purchases ?? []).reduce((s, r) => s + Number(r.vat_amount || 0), 0);
-    const outputVat = (sales ?? []).reduce((s, r) => s + Number(r.vat_amount || 0), 0);
-    const inputBase = (purchases ?? []).reduce((s, r) => s + Number(r.subtotal || 0), 0);
-    const outputBase = (sales ?? []).reduce((s, r) => s + Number(r.subtotal || 0), 0);
-
-    return {
-      period: { from: data.from, to: data.to },
-      summary: {
-        outputBase, outputVat,
-        inputBase, inputVat,
-        payable: Math.max(0, outputVat - inputVat),
-        carryForward: Math.max(0, inputVat - outputVat),
-      },
-      purchases: purchases ?? [],
-      sales: sales ?? [],
-    };
+    const result = await loadVatData(context.supabase, context.userId, data.from, data.to);
+    return { period: { from: data.from, to: data.to }, ...result };
   });
 
 function esc(s: string | null | undefined): string {
@@ -59,10 +64,8 @@ export const buildVatXml = createServerFn({ method: "POST" })
       .eq("id", userId)
       .single();
 
-    const result = await (getVatReturn as any).__handler({ data, context });
-    const { summary, purchases, sales } = result;
-
-    const period = `${data.from.slice(0,7)}`;
+    const { summary, purchases, sales } = await loadVatData(supabase, userId, data.from, data.to);
+    const period = data.from.slice(0, 7);
     const lines: string[] = [];
     lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
     lines.push(`<HSoThueDTu>`);
@@ -85,12 +88,12 @@ export const buildVatXml = createServerFn({ method: "POST" })
     lines.push(`    </CTieuTKhaiChinh>`);
     lines.push(`  </HSoKhaiThue>`);
     lines.push(`  <BangKeBanRa>`);
-    for (const s of sales as any[]) {
+    for (const s of sales) {
       lines.push(`    <CTietHDon><shdon>${esc(s.einvoice_code || s.invoice_no)}</shdon><nlhdon>${s.issue_date}</nlhdon><tenNMua>${esc(s.customer_name)}</tenNMua><mstNMua>${esc(s.customer_tax_id)}</mstNMua><dtcthue>${Number(s.subtotal).toFixed(0)}</dtcthue><thueGTGT>${Number(s.vat_amount).toFixed(0)}</thueGTGT></CTietHDon>`);
     }
     lines.push(`  </BangKeBanRa>`);
     lines.push(`  <BangKeMuaVao>`);
-    for (const p of purchases as any[]) {
+    for (const p of purchases) {
       lines.push(`    <CTietHDon><shdon>${esc(p.invoice_no)}</shdon><nlhdon>${p.issue_date}</nlhdon><tenNBan>${esc(p.supplier_name)}</tenNBan><mstNBan>${esc(p.supplier_tax_id)}</mstNBan><dtcthue>${Number(p.subtotal).toFixed(0)}</dtcthue><thueGTGT>${Number(p.vat_amount).toFixed(0)}</thueGTGT></CTietHDon>`);
     }
     lines.push(`  </BangKeMuaVao>`);
