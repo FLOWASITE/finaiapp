@@ -461,15 +461,15 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase">
             <tr>
-              <th className="px-4 py-2 text-left">Ngày</th>
-              <th className="px-4 py-2 text-left">Số HĐ</th>
-              <th className="px-4 py-2 text-left">Khách hàng</th>
-              <th className="px-4 py-2 text-left">Hạn TT</th>
-              <th className="px-4 py-2 text-right">Tổng</th>
-              <th className="px-4 py-2 text-right">Đã thu</th>
-              <th className="px-4 py-2 text-right">Còn lại</th>
-              <th className="px-4 py-2 text-left">Trạng thái</th>
-              <th className="px-4 py-2"></th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Ngày</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Số HĐ</th>
+              <th className="px-2 sm:px-4 py-2 text-left">Khách hàng</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Hạn TT</th>
+              <th className="px-2 sm:px-4 py-2 text-right hidden md:table-cell">Tổng</th>
+              <th className="px-2 sm:px-4 py-2 text-right hidden lg:table-cell">Đã thu</th>
+              <th className="px-2 sm:px-4 py-2 text-right">Còn lại</th>
+              <th className="px-2 sm:px-4 py-2 text-left hidden sm:table-cell">Trạng thái</th>
+              <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
