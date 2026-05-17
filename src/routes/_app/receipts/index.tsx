@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   listReceipts,
@@ -43,7 +43,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Download, Wallet, Banknote, CreditCard, FileText } from "lucide-react";
 
-export const Route = createFileRoute("/_app/receipts/")({ component: ReceiptsPage });
+type ReceiptsSearch = { invoice?: string; customer?: string };
+
+export const Route = createFileRoute("/_app/receipts/")({
+  component: ReceiptsPage,
+  validateSearch: (s: Record<string, unknown>): ReceiptsSearch => ({
+    invoice: typeof s.invoice === "string" ? s.invoice : undefined,
+    customer: typeof s.customer === "string" ? s.customer : undefined,
+  }),
+});
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -58,6 +66,8 @@ const METHOD_LABEL: Record<string, string> = {
 
 function ReceiptsPage() {
   const qc = useQueryClient();
+  const navigate = Route.useNavigate();
+  const { invoice: invoiceParam, customer: customerParam } = Route.useSearch();
   const listFn = useServerFn(listReceipts);
   const statsFn = useServerFn(receiptsStats);
   const outFn = useServerFn(listOutstandingInvoices);
@@ -69,6 +79,15 @@ function ReceiptsPage() {
   const [method, setMethod] = useState("all");
   const [search, setSearch] = useState("");
   const [openNew, setOpenNew] = useState(false);
+  const [preselectInvoice, setPreselectInvoice] = useState<string | undefined>(undefined);
+
+  // Auto-open dialog from ?invoice= or ?customer= query
+  useEffect(() => {
+    if (invoiceParam || customerParam) {
+      setPreselectInvoice(invoiceParam);
+      setOpenNew(true);
+    }
+  }, [invoiceParam, customerParam]);
 
   const filter = { from, to, method };
   const { data: rows = [] } = useQuery({
@@ -299,16 +318,34 @@ function ReceiptsPage() {
 
       <NewReceiptDialog
         open={openNew}
-        onOpenChange={setOpenNew}
-        outstanding={outstanding}
+        onOpenChange={(v) => {
+          setOpenNew(v);
+          if (!v) {
+            setPreselectInvoice(undefined);
+            if (invoiceParam || customerParam) {
+              navigate({ search: {} as ReceiptsSearch, replace: true });
+            }
+          }
+        }}
+        outstanding={
+          customerParam
+            ? outstanding.filter((i: any) => i.customer_id === customerParam)
+            : outstanding
+        }
+        preselectInvoiceId={preselectInvoice}
         onSubmit={async (payload) => {
           try {
             await recordFn({ data: payload });
             toast.success("Đã ghi nhận phiếu thu");
             setOpenNew(false);
+            setPreselectInvoice(undefined);
+            if (invoiceParam || customerParam) {
+              navigate({ search: {} as ReceiptsSearch, replace: true });
+            }
             qc.invalidateQueries({ queryKey: ["receipts"] });
             qc.invalidateQueries({ queryKey: ["receipts-stats"] });
             qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
+            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
@@ -333,11 +370,13 @@ function NewReceiptDialog({
   open,
   onOpenChange,
   outstanding,
+  preselectInvoiceId,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   outstanding: any[];
+  preselectInvoiceId?: string;
   onSubmit: (p: any) => Promise<void>;
 }) {
   const [invoiceId, setInvoiceId] = useState("");
@@ -350,6 +389,17 @@ function NewReceiptDialog({
 
   const selected = outstanding.find((i) => i.id === invoiceId);
   const remaining = selected ? Number(selected.total) - Number(selected.paid_amount) : 0;
+
+  // Apply preselect when dialog opens
+  useEffect(() => {
+    if (open && preselectInvoiceId) {
+      const inv = outstanding.find((i) => i.id === preselectInvoiceId);
+      if (inv) {
+        setInvoiceId(preselectInvoiceId);
+        setAmount(String(Number(inv.total) - Number(inv.paid_amount)));
+      }
+    }
+  }, [open, preselectInvoiceId, outstanding]);
 
   const reset = () => {
     setInvoiceId(""); setAmount(""); setReference(""); setNotes("");
