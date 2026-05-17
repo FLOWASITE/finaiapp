@@ -1,61 +1,89 @@
-# Kế hoạch: Bổ sung các phân hệ kế toán còn thiếu
+# Kế hoạch: Hoàn thiện phân hệ Mua hàng
 
-## Hiện trạng AccuVN
-Đã có: Bán hàng, Mua hàng (hoá đơn vào), Kho, Quỹ tiền mặt, Ngân hàng, TSCĐ, Sổ nhật ký, BCTC, Thuế GTGT, Công nợ phải thu, Trợ lý AI.
+## Hiện trạng
+- Upload ảnh/PDF hoá đơn → AI bóc tách trường (supplier, số, ngày, subtotal, VAT, total, lines).
+- Trang chi tiết: review trường + gợi ý định khoản AI + ghi sổ.
+- Bảng `invoices`, `invoice_lines`, `suppliers` đã có. Đã có `supplier_payments` (phải trả).
 
-## Đối chiếu với MISA AMIS / FAST / Bravo
-Các phân hệ phổ biến trong phần mềm kế toán VN còn **thiếu** trong AccuVN:
+## Gap so với MISA / FAST
+1. **Không có Purchase Order / Đơn đặt mua** — quy trình mua không bắt đầu từ PO.
+2. **Không liên kết hoá đơn ↔ nhập kho** — mua hàng hoá không tự sinh phiếu nhập kho, không tự cộng tồn.
+3. **Lines không gắn `product_id`** — không biết hoá đơn mua món gì → không cộng tồn được, không tính giá vốn bình quân.
+4. **Không có danh sách nhà cung cấp** (chỉ tạo ngầm khi OCR). Không có trang `/suppliers`.
+5. **Không có lọc/tìm kiếm/tổng hợp** ở list hoá đơn (theo NCC, kỳ, trạng thái).
+6. **Trạng thái thiếu**: chưa có `unpaid`/`partial`/`paid` (đã có `supplier_payments` nhưng status invoice không cập nhật).
+7. **Không nhập tay** — chỉ upload file. Cần form nhập hoá đơn không có file (mua dịch vụ, hoá đơn nhỏ).
+8. **Không tách loại chi phí**: hoá đơn dịch vụ vs hàng hoá vs TSCĐ → định khoản khác nhau. Hiện AI đoán hết.
+9. **Không có bảng kê thuế GTGT đầu vào** liên kết tự động sang `/tax`.
+10. **Khoá sổ chưa được tôn trọng**: ghi sổ không check `is_period_locked`.
 
-### Nhóm 1 — Bắt buộc (gap rõ nhất)
-1. **Công nợ phải trả** (`/payables`) — đối ứng với phải thu. Theo dõi dư nợ NCC, tuổi nợ, lịch thanh toán, đối chiếu với hoá đơn mua.
-2. **Tiền lương & nhân sự** (`/payroll`) — bảng lương, BHXH/BHYT/BHTN, thuế TNCN, hạch toán 334/338/3383/3384/3389.
-3. **Giá thành sản xuất** (`/costing`) — tập hợp chi phí 621/622/627 → tính giá thành thành phẩm 154→155 (cho DN sản xuất).
-4. **Hợp đồng & dự án** (`/projects`) — theo dõi doanh thu/chi phí theo hợp đồng, dự án, công trình.
+## Phạm vi Phase 6 — Mua hàng
 
-### Nhóm 2 — Quan trọng
-5. **Thuế TNCN / Tờ khai 05-KK-TNCN** (mở rộng `/tax`) — hiện chỉ có GTGT.
-6. **Thuế TNDN tạm tính & quyết toán** (mở rộng `/tax`) — tờ khai 03/TNDN.
-7. **Ngân sách & dự toán** (`/budget`) — lập kế hoạch tháng/quý, so sánh thực tế vs kế hoạch.
-8. **Báo cáo quản trị** (mở rộng `/reports`) — Lãi/lỗ theo SP, khách hàng, kênh; dòng tiền dự kiến (cashflow forecast).
+### A. Đơn đặt mua (Purchase Order)
+- Bảng `purchase_orders`, `purchase_order_lines` (supplier, ngày, trạng thái draft/sent/received/closed, expected_date).
+- Trang `/purchases/orders` — danh sách + form tạo PO chọn supplier + products.
+- Nút "Tạo hoá đơn từ PO" — kéo dòng PO vào `invoices`/`invoice_lines` với `product_id`.
 
-### Nhóm 3 — Hỗ trợ vận hành
-9. **Đơn đặt hàng (Sales Order / Purchase Order)** — quy trình đặt → hoá đơn → giao hàng.
-10. **Phiếu nhập/xuất kho có chứng từ riêng** (mở rộng `/inventory`) — hiện chỉ có movement đơn giản.
-11. **Đa chi nhánh / kho** — `branch_id`, `warehouse_id` trên các bảng chính.
-12. **Đa tiền tệ & tỷ giá** — bảng `exchange_rates`, đánh giá chênh lệch tỷ giá cuối kỳ (515/635).
-13. **Khoá sổ kỳ kế toán** (`period_locks`) — cấm sửa chứng từ đã khoá.
-14. **Nhật ký hoạt động / Audit log** — ai tạo/sửa/xoá chứng từ.
+### B. Liên kết hoá đơn ↔ kho ↔ sản phẩm
+- Thêm cột `product_id` (nullable) và `type` (`goods`/`service`/`asset`) cho `invoice_lines`.
+- Thêm cột `expense_account` cho hoá đơn dịch vụ (mặc định 642/641/627).
+- Khi duyệt ghi sổ hoá đơn có dòng `goods` + `product_id` → tự sinh `stock_movements` (in) với `unit_cost` từ dòng, cập nhật `products.on_hand` + bình quân gia quyền (dùng lại logic `recordMovement`).
+- Hạch toán đúng:
+  - Hàng hoá: Nợ 156/152 / Nợ 1331 / Có 331
+  - Dịch vụ: Nợ 642/641/627 / Nợ 1331 / Có 331
+  - TSCĐ: Nợ 211 / Nợ 1331 / Có 331 + tự tạo `fixed_assets`
 
-### Nhóm 4 — Quản trị hệ thống
-15. **Phân quyền theo vai trò** (admin/kế toán trưởng/kế toán viên/xem) — bảng `user_roles` + RLS theo role.
-16. **Cài đặt doanh nghiệp** (`/settings`) — logo, chữ ký, mẫu hoá đơn, kỳ kế toán, chuẩn TT133/TT200.
-17. **Import/Export Excel** — nhập bảng kê hoá đơn, danh mục KH/NCC/SP từ Excel.
+### C. Quản lý Nhà cung cấp
+- Trang `/suppliers` — danh sách, thêm, sửa, xoá, xem dư nợ + 10 HĐ gần nhất.
+- Form trên trang chi tiết HĐ: dropdown chọn supplier (thay vì chỉ text).
+- Thêm trường `email`, `phone`, `payment_terms_days` cho `suppliers`.
 
-## Đề xuất ưu tiên Phase 5 (build ngay)
-Đề xuất tập trung 4 phân hệ tạo giá trị cao nhất, cân đối thời gian:
+### D. UX trang hoá đơn
+- Trang list: filter theo NCC, khoảng ngày, trạng thái, search số HĐ. Tổng tiền + tổng VAT theo bộ lọc.
+- Cột "Đã trả / Còn nợ" lấy từ `supplier_payments`.
+- Tab `Nhập tay` trên list — form nhập hoá đơn không cần file (chọn loại goods/service/asset, dòng item).
+- Trên detail: thêm chọn `type` cho từng line, dropdown `product` khi `goods`.
+- Trạng thái mới: `draft`/`extracted`/`approved`/`paid`/`partial` — cập nhật tự động khi insert payment.
 
-**A. Công nợ phải trả** (`/payables`)
-- Sinh từ `invoices` (mua) đã ghi sổ + `cash_vouchers` chi
-- View: dư nợ NCC, tuổi nợ (0-30/31-60/61-90/>90), lịch đến hạn
+### E. Bảng kê thuế GTGT đầu vào
+- Hàm `getInputVatList(month)` đọc `invoice_lines` (loại `goods`+`service`) trong kỳ → trả mẫu PL-01-1/GTGT.
+- Trang `/tax` thêm tab "Đầu vào" hiển thị bảng + export.
 
-**B. Tiền lương** (`/payroll`)
-- Bảng `employees`, `payroll_runs`, `payroll_lines`
-- Tính: lương cơ bản, phụ cấp, BHXH (10.5%), BHYT (1.5%), BHTN (1%), TNCN luỹ tiến
-- Sinh bút toán: 642/641 → 334, 338x
+### F. Tôn trọng khoá sổ
+- Trong `approveJournalEntry` + bất kỳ serverFn ghi sổ nào: gọi `is_period_locked(userId, entry_date)` → từ chối nếu khoá.
 
-**C. Phân quyền + Cài đặt DN** (`/settings`)
-- `user_roles` enum (owner/accountant/viewer) + `has_role()` security definer
-- Trang `/settings` chỉnh hồ sơ DN, chuẩn TT, kỳ kế toán
+## Kỹ thuật
 
-**D. Đa tiền tệ + Khoá sổ** (nâng cấp ngầm)
-- `exchange_rates(date, currency, rate)`
-- `period_locks(year, month, locked_at)` + check trong serverFn ghi sổ
+### Migration
+- `purchase_orders(id, user_id, supplier_id, order_date, expected_date, status, total, notes)`
+- `purchase_order_lines(id, po_id, product_id, description, qty, unit_price, amount, vat_rate)`
+- `ALTER invoice_lines ADD product_id uuid, line_type text DEFAULT 'goods'`
+- `ALTER invoices ADD payment_status text DEFAULT 'unpaid', expense_account text, po_id uuid`
+- `ALTER suppliers ADD email text, phone text, payment_terms_days int DEFAULT 30`
+- Trigger: sau khi insert/delete `supplier_payments` → update `invoices.payment_status` theo `paid/total`.
+- Cho phép EXECUTE `is_period_locked` cho `authenticated` (để serverFn gọi được), hoặc query trực tiếp `period_locks`.
 
-## Ngoài phạm vi Phase 5
-Giá thành sản xuất, dự án, ngân sách, đơn hàng, đa chi nhánh, import Excel — để Phase 6+.
+### Server functions mới
+- `src/lib/purchases.functions.ts`: `listPOs`, `upsertPO`, `convertPOToInvoice`, `listSuppliers`, `upsertSupplier`, `getSupplierDetail`, `createManualInvoice`, `getInputVatReport`.
+- Mở rộng `approveJournalEntry` để: sinh `stock_movements` cho dòng `goods` có `product_id`, sinh `fixed_assets` cho dòng `asset`, check `is_period_locked`.
 
-## Câu hỏi cho bạn trước khi build
-1. **Ưu tiên đúng không?** Build 4 phân hệ A+B+C+D, hay bạn muốn đảo thứ tự / thêm / bỏ?
-2. **Quy mô DN mục tiêu**: SME dịch vụ/thương mại (TT133, không cần giá thành SX) hay có sản xuất (cần Giá thành — TT200)?
-3. **Lương**: tính theo công thức VN chuẩn (BHXH 10.5%/BHYT 1.5%/BHTN 1%, TNCN luỹ tiến 7 bậc) hay đơn giản hoá (lương net + thuế phẳng) ở phase này?
-4. **Phân quyền**: chỉ cần 2 vai trò (owner/viewer) hay đầy đủ 4 (owner/kế toán trưởng/kế toán viên/viewer)?
+### Routes mới
+- `/_app/purchases/orders/index.tsx` — list PO
+- `/_app/purchases/orders/$id.tsx` — detail PO + convert
+- `/_app/suppliers/index.tsx` — list + form
+- `/_app/suppliers/$id.tsx` — detail + công nợ
+- `/_app/tax/index.tsx` — thêm tab "Đầu vào"
+- Sidebar nhóm **Mua hàng**: + Đơn đặt mua, + Nhà cung cấp.
+
+## Ngoài phạm vi (Phase sau)
+- Quy trình duyệt PO nhiều cấp.
+- Nhập kho có chứng từ riêng + biên bản giao nhận.
+- Đối chiếu 3 chiều PO ↔ phiếu nhập ↔ hoá đơn.
+- Hoá đơn ngoại tệ (chờ phase đa tiền tệ hoàn chỉnh).
+- Import Excel danh mục NCC / hoá đơn hàng loạt.
+
+## Câu hỏi cho bạn
+1. **Đơn đặt mua (PO)**: build đầy đủ ở phase này, hay chỉ làm B+C+D+E+F trước (PO để phase sau)?
+2. **Tự sinh phiếu nhập kho khi ghi sổ HĐ hàng hoá**: bạn muốn tự động hoàn toàn, hay luôn yêu cầu kế toán xác nhận thủ công ở bước riêng?
+3. **Form nhập tay**: ưu tiên dùng cho mua dịch vụ (tiền điện, internet, thuê văn phòng) hay cả mua hàng có sản phẩm trong kho?
+4. **Bảng kê VAT đầu vào**: chỉ cần view trong app, hay cần export Excel theo mẫu PL-01-1/GTGT để nộp thuế?
