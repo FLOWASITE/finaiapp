@@ -223,25 +223,22 @@ export function AppSidebar() {
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border/60 p-2">
+        <SidebarFooter className="border-t border-sidebar-border p-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors">
-                <div className="relative">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
-                    {email.charAt(0).toUpperCase() || "U"}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse" />
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-sidebar-accent transition-colors">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sidebar-accent text-foreground text-xs font-semibold">
+                  {email.charAt(0).toUpperCase() || "U"}
                 </div>
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="truncate text-xs font-medium text-sidebar-foreground">
+                      <div className="truncate text-xs font-medium text-foreground">
                         {email || "Người dùng"}
                       </div>
-                      <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                      <div className="text-[10px] text-muted-foreground">Online</div>
                     </div>
-                    <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+                    <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </>
                 )}
               </button>
@@ -258,8 +255,6 @@ export function AppSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
-        <SidebarRail />
-      </Sidebar>
 
       <CommandDialog open={openCmd} onOpenChange={setOpenCmd}>
         <CommandInput placeholder="Tìm trang, hỏi AI, hoặc thực hiện lệnh nhanh…" />
