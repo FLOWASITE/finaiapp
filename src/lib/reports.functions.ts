@@ -278,7 +278,7 @@ export const getCompanyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, base_currency, fiscal_year_start, accounting_standard, signer_name").eq("id", userId).maybeSingle();
+    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, phone, base_currency, fiscal_year_start, accounting_standard, signer_name, legal_rep_name, chief_accountant_name, preparer_name, signature_url, stamp_url, logo_url").eq("id", userId).maybeSingle();
     return data ?? { fiscal_year_start: 1, base_currency: "VND" };
   });
 
