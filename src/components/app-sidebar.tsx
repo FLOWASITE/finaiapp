@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-type NavLeaf = { to: string; label: string; icon: React.ElementType };
+type NavLeaf = { to: string; label: string; icon: React.ElementType; badge?: number; children?: { to: string; label: string }[] };
 type NavSection = { label: string; items: NavLeaf[] };
 
 const PRIMARY: NavLeaf[] = [
@@ -31,24 +31,31 @@ const PRIMARY: NavLeaf[] = [
 
 const SECTIONS: NavSection[] = [
   {
-    label: "Bán hàng",
+    label: "Bán hàng & Kho",
     items: [
-      { to: "/sales", label: "Bán hàng (Tổng quan)", icon: ShoppingCart },
+      {
+        to: "/sales", label: "Bán hàng", icon: ShoppingCart,
+        children: [
+          { to: "/sales", label: "Hoá đơn" },
+          { to: "/receipts", label: "Phiếu thu" },
+          { to: "/receivables", label: "Công nợ phải thu" },
+        ],
+      },
       { to: "/customers", label: "Khách hàng", icon: Users },
-      { to: "/receivables", label: "Công nợ phải thu", icon: Receipt },
+      { to: "/inventory", label: "Kho hàng", icon: Package },
     ],
   },
   {
     label: "Mua hàng",
     items: [
-      { to: "/purchases", label: "Mua hàng (Tổng quan)", icon: ShoppingCart },
+      {
+        to: "/purchases", label: "Mua hàng", icon: ShoppingCart,
+        children: [
+          { to: "/invoices", label: "Hoá đơn mua" },
+          { to: "/payables", label: "Công nợ phải trả" },
+        ],
+      },
       { to: "/suppliers", label: "Nhà cung cấp", icon: Users },
-    ],
-  },
-  {
-    label: "Kho vận",
-    items: [
-      { to: "/inventory", label: "Kho hàng", icon: Package },
     ],
   },
   {
@@ -56,11 +63,6 @@ const SECTIONS: NavSection[] = [
     items: [
       { to: "/cash", label: "Quỹ tiền mặt", icon: Wallet },
       { to: "/bank", label: "Đối soát ngân hàng", icon: Landmark },
-    ],
-  },
-  {
-    label: "Tài sản",
-    items: [
       { to: "/assets", label: "Tài sản cố định", icon: Boxes },
     ],
   },
@@ -74,15 +76,10 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Nhân sự — Lương",
+    label: "Nhân sự & Thuế",
     items: [
       { to: "/payroll", label: "Tiền lương", icon: UserCog },
-    ],
-  },
-  {
-    label: "Thuế",
-    items: [
-      { to: "/tax", label: "Báo cáo thuế (GTGT/TNDN/TNCN)", icon: Receipt },
+      { to: "/tax", label: "Báo cáo thuế", icon: Receipt },
     ],
   },
   {
