@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
-import { LayoutDashboard, FileText, BookOpen, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, BookOpen, LogOut, BarChart3, Landmark, Boxes, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +39,18 @@ function AppLayout() {
           </NavItem>
           <NavItem to="/journal" icon={<BookOpen className="h-4 w-4" />}>
             Sổ nhật ký
+          </NavItem>
+          <NavItem to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
+            Báo cáo TC
+          </NavItem>
+          <NavItem to="/bank" icon={<Landmark className="h-4 w-4" />}>
+            Đối soát NH
+          </NavItem>
+          <NavItem to="/assets" icon={<Boxes className="h-4 w-4" />}>
+            Khấu hao TSCĐ
+          </NavItem>
+          <NavItem to="/chat" icon={<MessageSquare className="h-4 w-4" />}>
+            Trợ lý AI
           </NavItem>
         </nav>
         <div className="border-t border-border p-3">

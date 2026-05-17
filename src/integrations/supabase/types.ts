@@ -52,6 +52,98 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_no: string | null
+          bank_name: string | null
+          created_at: string
+          currency: string
+          gl_account_code: string
+          id: string
+          name: string
+          opening_balance: number
+          user_id: string
+        }
+        Insert: {
+          account_no?: string | null
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          gl_account_code?: string
+          id?: string
+          name: string
+          opening_balance?: number
+          user_id: string
+        }
+        Update: {
+          account_no?: string | null
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          gl_account_code?: string
+          id?: string
+          name?: string
+          opening_balance?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bank_transactions: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          counterparty: string | null
+          created_at: string
+          description: string | null
+          id: string
+          match_confidence: number | null
+          match_reason: string | null
+          matched_entry_id: string | null
+          running_balance: number | null
+          status: string
+          txn_date: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          counterparty?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          match_confidence?: number | null
+          match_reason?: string | null
+          matched_entry_id?: string | null
+          running_balance?: number | null
+          status?: string
+          txn_date: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          counterparty?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          match_confidence?: number | null
+          match_reason?: string | null
+          matched_entry_id?: string | null
+          running_balance?: number | null
+          status?: string
+          txn_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           code: string
@@ -70,6 +162,95 @@ export type Database = {
           name?: string
           parent_code?: string | null
           type?: string
+        }
+        Relationships: []
+      }
+      depreciation_entries: {
+        Row: {
+          amount: number
+          asset_id: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          period_month: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "depreciation_entries_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_assets: {
+        Row: {
+          accumulated_account: string
+          asset_account: string
+          code: string
+          cost: number
+          created_at: string
+          expense_account: string
+          id: string
+          method: string
+          name: string
+          notes: string | null
+          salvage_value: number
+          start_date: string
+          status: string
+          useful_life_months: number
+          user_id: string
+        }
+        Insert: {
+          accumulated_account?: string
+          asset_account?: string
+          code: string
+          cost: number
+          created_at?: string
+          expense_account?: string
+          id?: string
+          method?: string
+          name: string
+          notes?: string | null
+          salvage_value?: number
+          start_date: string
+          status?: string
+          useful_life_months: number
+          user_id: string
+        }
+        Update: {
+          accumulated_account?: string
+          asset_account?: string
+          code?: string
+          cost?: number
+          created_at?: string
+          expense_account?: string
+          id?: string
+          method?: string
+          name?: string
+          notes?: string | null
+          salvage_value?: number
+          start_date?: string
+          status?: string
+          useful_life_months?: number
+          user_id?: string
         }
         Relationships: []
       }

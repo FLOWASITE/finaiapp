@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppChatRouteImport } from './routes/_app/chat'
+import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppAssetsRouteImport } from './routes/_app/assets'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 
@@ -31,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
@@ -39,6 +48,21 @@ const AppJournalRoute = AppJournalRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatRoute = AppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBankRoute = AppBankRouteImport.update({
+  id: '/bank',
+  path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
@@ -55,16 +79,24 @@ const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/assets': typeof AppAssetsRoute
+  '/bank': typeof AppBankRoute
+  '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/invoices/': typeof AppInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/assets': typeof AppAssetsRoute
+  '/bank': typeof AppBankRoute
+  '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/reports': typeof AppReportsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/invoices': typeof AppInvoicesIndexRoute
 }
@@ -73,8 +105,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/assets': typeof AppAssetsRoute
+  '/_app/bank': typeof AppBankRoute
+  '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/reports': typeof AppReportsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
 }
@@ -83,19 +119,37 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/assets'
+    | '/bank'
+    | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/reports'
     | '/invoices/$id'
     | '/invoices/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/journal' | '/invoices/$id' | '/invoices'
+  to:
+    | '/'
+    | '/login'
+    | '/assets'
+    | '/bank'
+    | '/chat'
+    | '/dashboard'
+    | '/journal'
+    | '/reports'
+    | '/invoices/$id'
+    | '/invoices'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/assets'
+    | '/_app/bank'
+    | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/journal'
+    | '/_app/reports'
     | '/_app/invoices/$id'
     | '/_app/invoices/'
   fileRoutesById: FileRoutesById
@@ -129,6 +183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/journal': {
       id: '/_app/journal'
       path: '/journal'
@@ -141,6 +202,27 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chat': {
+      id: '/_app/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AppChatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bank': {
+      id: '/_app/bank'
+      path: '/bank'
+      fullPath: '/bank'
+      preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assets': {
+      id: '/_app/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/invoices/': {
@@ -161,15 +243,23 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAssetsRoute: typeof AppAssetsRoute
+  AppBankRoute: typeof AppBankRoute
+  AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppJournalRoute: typeof AppJournalRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAssetsRoute: AppAssetsRoute,
+  AppBankRoute: AppBankRoute,
+  AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppJournalRoute: AppJournalRoute,
+  AppReportsRoute: AppReportsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
 }
