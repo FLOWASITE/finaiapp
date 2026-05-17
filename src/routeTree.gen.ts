@@ -19,6 +19,7 @@ import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppAssetsRouteImport } from './routes/_app/assets'
 import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
+import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
 import { Route as AppReceivablesIndexRouteImport } from './routes/_app/receivables/index'
@@ -27,6 +28,7 @@ import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/ind
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
@@ -80,6 +82,11 @@ const AppTaxIndexRoute = AppTaxIndexRouteImport.update({
   path: '/tax/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuppliersIndexRoute = AppSuppliersIndexRouteImport.update({
+  id: '/suppliers/',
+  path: '/suppliers/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
@@ -120,6 +127,11 @@ const AppCashIndexRoute = AppCashIndexRouteImport.update({
   path: '/cash/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
+  id: '/suppliers/$id',
+  path: '/suppliers/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesIdRoute = AppSalesIdRouteImport.update({
   id: '/sales/$id',
   path: '/sales/$id',
@@ -148,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/suppliers/$id': typeof AppSuppliersIdRoute
   '/cash/': typeof AppCashIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
@@ -156,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/receivables/': typeof AppReceivablesIndexRoute
   '/sales/': typeof AppSalesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
 }
 export interface FileRoutesByTo {
@@ -170,6 +184,7 @@ export interface FileRoutesByTo {
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/suppliers/$id': typeof AppSuppliersIdRoute
   '/cash': typeof AppCashIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
@@ -178,6 +193,7 @@ export interface FileRoutesByTo {
   '/receivables': typeof AppReceivablesIndexRoute
   '/sales': typeof AppSalesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
 }
 export interface FileRoutesById {
@@ -194,6 +210,7 @@ export interface FileRoutesById {
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/suppliers/$id': typeof AppSuppliersIdRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
@@ -202,6 +219,7 @@ export interface FileRoutesById {
   '/_app/receivables/': typeof AppReceivablesIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
 }
 export interface FileRouteTypes {
@@ -218,6 +236,7 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/payroll/$id'
     | '/sales/$id'
+    | '/suppliers/$id'
     | '/cash/'
     | '/inventory/'
     | '/invoices/'
@@ -226,6 +245,7 @@ export interface FileRouteTypes {
     | '/receivables/'
     | '/sales/'
     | '/settings/'
+    | '/suppliers/'
     | '/tax/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -240,6 +260,7 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/payroll/$id'
     | '/sales/$id'
+    | '/suppliers/$id'
     | '/cash'
     | '/inventory'
     | '/invoices'
@@ -248,6 +269,7 @@ export interface FileRouteTypes {
     | '/receivables'
     | '/sales'
     | '/settings'
+    | '/suppliers'
     | '/tax'
   id:
     | '__root__'
@@ -263,6 +285,7 @@ export interface FileRouteTypes {
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
     | '/_app/sales/$id'
+    | '/_app/suppliers/$id'
     | '/_app/cash/'
     | '/_app/inventory/'
     | '/_app/invoices/'
@@ -271,6 +294,7 @@ export interface FileRouteTypes {
     | '/_app/receivables/'
     | '/_app/sales/'
     | '/_app/settings/'
+    | '/_app/suppliers/'
     | '/_app/tax/'
   fileRoutesById: FileRoutesById
 }
@@ -352,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTaxIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/suppliers/': {
+      id: '/_app/suppliers/'
+      path: '/suppliers'
+      fullPath: '/suppliers/'
+      preLoaderRoute: typeof AppSuppliersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/': {
       id: '/_app/settings/'
       path: '/settings'
@@ -408,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/suppliers/$id': {
+      id: '/_app/suppliers/$id'
+      path: '/suppliers/$id'
+      fullPath: '/suppliers/$id'
+      preLoaderRoute: typeof AppSuppliersIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales/$id': {
       id: '/_app/sales/$id'
       path: '/sales/$id'
@@ -442,6 +480,7 @@ interface AppRouteChildren {
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
+  AppSuppliersIdRoute: typeof AppSuppliersIdRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
@@ -450,6 +489,7 @@ interface AppRouteChildren {
   AppReceivablesIndexRoute: typeof AppReceivablesIndexRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+  AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
   AppTaxIndexRoute: typeof AppTaxIndexRoute
 }
 
@@ -463,6 +503,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
   AppSalesIdRoute: AppSalesIdRoute,
+  AppSuppliersIdRoute: AppSuppliersIdRoute,
   AppCashIndexRoute: AppCashIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
@@ -471,6 +512,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReceivablesIndexRoute: AppReceivablesIndexRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppSuppliersIndexRoute: AppSuppliersIndexRoute,
   AppTaxIndexRoute: AppTaxIndexRoute,
 }
 
