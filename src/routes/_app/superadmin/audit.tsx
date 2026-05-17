@@ -82,6 +82,8 @@ function useDebounced<T>(value: T, delay = 500): T {
 
 function AuditPage() {
   const fetchLogs = useServerFn(listSuperadminAuditLogs);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [actorEmail, setActorEmail] = useState("");
   const [targetId, setTargetId] = useState("");
   const [from, setFrom] = useState("");
@@ -89,7 +91,7 @@ function AuditPage() {
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
   const [selected, setSelected] = useState<any | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(!!search.modal);
   const [showTotal, setShowTotal] = useState(false);
 
   // Debounce 500ms để bộ lọc "ổn định" rồi mới gọi API kèm count đắt đỏ.
