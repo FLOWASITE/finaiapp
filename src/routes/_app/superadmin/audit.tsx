@@ -190,13 +190,25 @@ function AuditPage() {
   }, [selected?.id, pageCount]);
 
   // Giữ selected đồng bộ với bản ghi mới nhất sau khi bộ lọc/refetch trả về.
-  // Nếu cùng id còn trong dữ liệu mới → cập nhật payload mới nhất.
-  // Nếu không còn → vẫn giữ snapshot cũ để user không bị mất ngữ cảnh.
+  // Đồng thời khôi phục selected từ URL search (reload / back-forward).
   useEffect(() => {
-    if (!selected?.id) return;
-    const fresh = (logs as any[]).find((l) => l.id === selected.id);
+    const targetId = selected?.id ?? search.selected;
+    if (!targetId) return;
+    const fresh = (logs as any[]).find((l) => l.id === targetId);
     if (fresh && fresh !== selected) setSelected(fresh);
-  }, [logs, selected?.id]);
+  }, [logs, selected, search.selected]);
+
+  // Đồng bộ selected/modal lên URL để giữ trạng thái khi reload / back-forward.
+  useEffect(() => {
+    const nextSelected = selected?.id;
+    const nextModal = modalOpen ? true : undefined;
+    if (search.selected === nextSelected && !!search.modal === !!nextModal) return;
+    navigate({
+      search: (prev: any) => ({ ...prev, selected: nextSelected, modal: nextModal }),
+      replace: true,
+    });
+  }, [selected?.id, modalOpen, navigate, search.selected, search.modal]);
+
 
   // Tóm tắt bộ lọc hiện đang áp dụng (dùng giá trị đã debounce — khớp dữ liệu hiển thị).
   const activeFilters = useMemo(() => {
