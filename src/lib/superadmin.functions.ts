@@ -152,6 +152,13 @@ export const setSuperadminRole = createServerFn({ method: "POST" })
         .eq("user_id", data.user_id)
         .eq("role", "superadmin" as any);
     }
+    await logSuperadminAction({
+      actorId: userId,
+      action: data.enable ? "superadmin.role.grant" : "superadmin.role.revoke",
+      targetTable: "user_roles",
+      targetId: data.user_id,
+      after: { role: "superadmin", enable: data.enable },
+    });
     return { ok: true };
   });
 
