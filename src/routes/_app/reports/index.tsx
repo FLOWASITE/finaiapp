@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useMemo, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,11 +13,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Printer, AlertTriangle, FileText, Search } from "lucide-react";
+import { Download, Printer, AlertTriangle, FileText, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
 
+type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string };
+
 export const Route = createFileRoute("/_app/reports/")({
+  validateSearch: (s: Record<string, unknown>): DrillSearch => ({
+    drillR: (s.drillR === "B01" || s.drillR === "B02" || s.drillR === "B03") ? s.drillR : undefined,
+    drillM: typeof s.drillM === "string" ? s.drillM : undefined,
+    drillN: typeof s.drillN === "string" ? s.drillN : undefined,
+  }),
   component: ReportsPage,
 });
 
@@ -37,7 +44,22 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
-  const [drill, setDrill] = useState<null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }>(null);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const drill = search.drillR && search.drillM
+    ? { report: search.drillR, ma_so: search.drillM, name: search.drillN ?? "" }
+    : null;
+  const setDrill = (d: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }) => {
+    navigate({
+      search: (prev: any) => ({
+        ...prev,
+        drillR: d?.report,
+        drillM: d?.ma_so,
+        drillN: d?.name,
+      }),
+      replace: true,
+    });
+  };
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
@@ -232,6 +254,17 @@ function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: st
 
 function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
   const drillFn = useServerFn(drilldownReportItem);
+  const [newTabDefault, setNewTabDefault] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setNewTabDefault(window.localStorage.getItem("drill-open-newtab") === "1");
+  }, []);
+  const toggleNewTab = (v: boolean) => {
+    setNewTabDefault(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("drill-open-newtab", v ? "1" : "0");
+    }
+  };
   const q = useQuery({
     queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
     queryFn: () => drillFn({ data: { report: drill!.report, ma_so: drill!.ma_so, from, to, asOf } }),
@@ -253,9 +286,20 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
           </div>
         ) : (
           <div className="max-h-[60vh] overflow-auto">
-            <div className="mb-2 text-xs text-muted-foreground">
-              {q.data.lines.length} dòng — Tổng cộng đóng góp: <b className="font-mono">{fmt(q.data.total)}</b>
-              {q.data.prefixes?.length ? ` — TK: ${q.data.prefixes.join(", ")}` : ""}
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <div>
+                {q.data.lines.length} dòng — Tổng cộng đóng góp: <b className="font-mono">{fmt(q.data.total)}</b>
+                {q.data.prefixes?.length ? ` — TK: ${q.data.prefixes.join(", ")}` : ""}
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={newTabDefault}
+                  onChange={(e) => toggleNewTab(e.target.checked)}
+                />
+                Mặc định mở "Sổ cái" ở tab mới
+              </label>
             </div>
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-background">
@@ -283,15 +327,44 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
                     <td className="text-right font-mono text-xs">{fmt(l.credit)}</td>
                     <td className={`text-right font-mono text-xs ${l.contribution < 0 ? "text-destructive" : ""}`}>{fmt(l.contribution)}</td>
                     <td className="text-center">
-                      <a
-                        href={`/journal#entry-${l.entry_id}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        title="Mở sổ cái — bút toán tương ứng"
-                      >
-                        <FileText className="h-3 w-3" />Mở
-                      </a>
+                      <span className="inline-flex items-center gap-0.5">
+                        {newTabDefault ? (
+                          <a
+                            href={`/journal#entry-${l.entry_id}`}
+                            target="_blank"
+                            rel="noopener"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            title="Mở sổ cái (tab mới)"
+                          >
+                            <FileText className="h-3 w-3" />Mở
+                          </a>
+                        ) : (
+                          <Link
+                            to="/journal"
+                            hash={`entry-${l.entry_id}`}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            title="Mở sổ cái trong cùng tab (drill-down vẫn giữ)"
+                          >
+                            <FileText className="h-3 w-3" />Mở
+                          </Link>
+                        )}
+                        <a
+                          href={`/journal#entry-${l.entry_id}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="ml-0.5 text-muted-foreground hover:text-primary"
+                          title={newTabDefault ? "Mở trong cùng tab" : "Mở trong tab mới"}
+                          onClick={(e) => {
+                            if (newTabDefault) {
+                              // Force same-tab override
+                              e.preventDefault();
+                              window.location.href = `/journal#entry-${l.entry_id}`;
+                            }
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </span>
                     </td>
                   </tr>
                 ))}
