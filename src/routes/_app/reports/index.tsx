@@ -44,7 +44,22 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
-  const [drill, setDrill] = useState<null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }>(null);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const drill = search.drillR && search.drillM
+    ? { report: search.drillR, ma_so: search.drillM, name: search.drillN ?? "" }
+    : null;
+  const setDrill = (d: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }) => {
+    navigate({
+      search: (prev: any) => ({
+        ...prev,
+        drillR: d?.report,
+        drillM: d?.ma_so,
+        drillN: d?.name,
+      }),
+      replace: true,
+    });
+  };
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({ queryKey: ["profile-fiscal"], queryFn: () => profileFn() });
