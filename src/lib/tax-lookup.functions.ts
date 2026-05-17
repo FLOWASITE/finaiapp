@@ -14,10 +14,8 @@ export type TaxLookupResult = {
 const InputSchema = z.object({
   taxCode: z
     .string()
-    .trim()
-    .min(10, "MST tối thiểu 10 ký tự")
-    .max(14, "MST tối đa 14 ký tự")
-    .regex(/^[0-9-]+$/, "MST chỉ gồm số và dấu '-'"),
+    .transform((s) => s.replace(/\D/g, "").slice(0, 13))
+    .pipe(z.string().min(10, "MST tối thiểu 10 chữ số").max(13, "MST tối đa 13 chữ số")),
 });
 
 async function fetchWithTimeout(url: string, ms = 10000): Promise<Response> {

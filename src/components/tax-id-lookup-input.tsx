@@ -23,8 +23,10 @@ export function TaxIdLookupInput({ value, onChange, onResolved, placeholder, dis
   const fn = useServerFn(lookupTaxId);
   const [loading, setLoading] = useState(false);
 
-  const cleaned = (value ?? "").replace(/[^0-9-]/g, "");
-  const canLookup = cleaned.replace(/-/g, "").length >= 10 && !disabled && !loading;
+  // Chuẩn hóa: chỉ giữ chữ số. MST VN tối đa 13 số (10 chính + 3 chi nhánh).
+  const normalize = (raw: string) => raw.replace(/\D/g, "").slice(0, 13);
+  const cleaned = normalize(value ?? "");
+  const canLookup = cleaned.length >= 10 && !disabled && !loading;
 
   const handleLookup = async () => {
     if (!canLookup) return;
@@ -48,10 +50,11 @@ export function TaxIdLookupInput({ value, onChange, onResolved, placeholder, dis
   return (
     <div className={`flex gap-2 ${className ?? ""}`}>
       <Input
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        value={cleaned}
+        onChange={(e) => onChange(normalize(e.target.value))}
         placeholder={placeholder ?? "Mã số thuế"}
         disabled={disabled}
+        inputMode="numeric"
       />
       <Button
         type="button"
