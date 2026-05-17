@@ -269,6 +269,13 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
     queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
     queryFn: () => drillFn({ data: { report: drill!.report, ma_so: drill!.ma_so, from, to, asOf } }),
     enabled: !!drill,
+    // Identical (report,ma_so,from,to,asOf) → reuse for 5min; keep in cache 30min.
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    // Show previous payload while a new ma_so is loading to avoid spinner flicker.
+    placeholderData: (prev) => prev,
   });
   return (
     <Dialog open={!!drill} onOpenChange={(o) => !o && onClose()}>

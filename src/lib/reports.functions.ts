@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
@@ -15,14 +16,32 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
       if (!item || !item.counterpart) {
         return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
       }
-      let q = supabase
+      // Hint CDN/browser to reuse same payload for identical (ma_so, from, to) within 60s
+      try { setResponseHeader("Cache-Control", "private, max-age=60"); } catch {}
+
+      // Step 1: find ONLY entry_ids that touch a cash account (111*/112*).
+      // This prunes non-cash journals server-side instead of streaming every entry.
+      let cashQ = supabase
+        .from("journal_lines")
+        .select("entry_id, journal_entries!inner(user_id, entry_date)")
+        .eq("journal_entries.user_id", userId)
+        .or("account_code.like.111%,account_code.like.112%");
+      if (data.from) cashQ = cashQ.gte("journal_entries.entry_date", data.from);
+      if (data.to) cashQ = cashQ.lte("journal_entries.entry_date", data.to);
+      const { data: cashRows, error: cashErr } = await cashQ;
+      if (cashErr) throw cashErr;
+      const entryIds = Array.from(new Set((cashRows ?? []).map((r: any) => r.entry_id)));
+      if (entryIds.length === 0) {
+        return { item: { ma_so: item.ma_so, name: item.name }, prefixes: item.counterpart.prefixes, lines: [], total: 0 };
+      }
+
+      // Step 2: fetch full lines only for those entries
+      const { data: entries, error } = await supabase
         .from("journal_entries")
         .select("id, entry_date, description, journal_lines(account_code, debit, credit)")
         .eq("user_id", userId)
+        .in("id", entryIds)
         .order("entry_date", { ascending: true });
-      if (data.from) q = q.gte("entry_date", data.from);
-      if (data.to) q = q.lte("entry_date", data.to);
-      const { data: entries, error } = await q;
       if (error) throw error;
       type B = { entry_id: string; entry_date: string; description: string | null; cash_code: string; counter: string; amount: number };
       const inflows: B[] = []; const outflows: B[] = [];
@@ -68,6 +87,9 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
             }
           });
         }
+        // Items after the target ma_so cannot affect its collected lines —
+        // stop replay early to save CPU on long mappings.
+        if (target) break;
       }
       return {
         item: { ma_so: item.ma_so, name: item.name },
