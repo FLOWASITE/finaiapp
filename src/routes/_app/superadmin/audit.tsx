@@ -232,7 +232,11 @@ function AuditPage() {
               </tr>
             )}
             {logs.map((l: any) => (
-              <tr key={l.id} className="border-t border-border align-top hover:bg-muted/30">
+              <tr
+                key={l.id}
+                onClick={() => setSelected(l)}
+                className="cursor-pointer border-t border-border align-top hover:bg-muted/30"
+              >
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
                   {new Date(l.created_at).toLocaleString("vi-VN")}
                 </td>
@@ -248,15 +252,8 @@ function AuditPage() {
                   <div>{l.table_name ?? "—"}</div>
                   <div className="text-[10px] text-muted-foreground">{l.record_id ?? ""}</div>
                 </td>
-                <td className="px-3 py-2">
-                  {(l.before || l.after) && (
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-muted-foreground">xem JSON</summary>
-                      <pre className="mt-1 max-w-md overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-2 text-[10px]">
-{JSON.stringify({ before: l.before, after: l.after }, null, 2)}
-                      </pre>
-                    </details>
-                  )}
+                <td className="px-3 py-2 text-xs text-muted-foreground">
+                  Bấm để xem chi tiết
                 </td>
               </tr>
             ))}
