@@ -35,6 +35,8 @@ import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
+import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
+import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
@@ -174,6 +176,17 @@ const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   path: '/suppliers/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuperadminOrganizationsRoute =
+  AppSuperadminOrganizationsRouteImport.update({
+    id: '/organizations',
+    path: '/organizations',
+    getParentRoute: () => AppSuperadminRoute,
+  } as any)
+const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
 const AppSalesIdRoute = AppSalesIdRouteImport.update({
   id: '/sales/$id',
   path: '/sales/$id',
@@ -239,6 +252,8 @@ export interface FileRoutesByFullPath {
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/cash/': typeof AppCashIndexRoute
@@ -273,6 +288,8 @@ export interface FileRoutesByTo {
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/cash': typeof AppCashIndexRoute
@@ -311,6 +328,8 @@ export interface FileRoutesById {
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
@@ -349,6 +368,8 @@ export interface FileRouteTypes {
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
+    | '/superadmin/accounts'
+    | '/superadmin/organizations'
     | '/suppliers/$id'
     | '/admin/'
     | '/cash/'
@@ -383,6 +404,8 @@ export interface FileRouteTypes {
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
+    | '/superadmin/accounts'
+    | '/superadmin/organizations'
     | '/suppliers/$id'
     | '/admin'
     | '/cash'
@@ -420,6 +443,8 @@ export interface FileRouteTypes {
     | '/_app/payroll/$id'
     | '/_app/reports/ledgers'
     | '/_app/sales/$id'
+    | '/_app/superadmin/accounts'
+    | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
     | '/_app/admin/'
     | '/_app/cash/'
@@ -629,6 +654,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuppliersIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/superadmin/organizations': {
+      id: '/_app/superadmin/organizations'
+      path: '/organizations'
+      fullPath: '/superadmin/organizations'
+      preLoaderRoute: typeof AppSuperadminOrganizationsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/accounts': {
+      id: '/_app/superadmin/accounts'
+      path: '/accounts'
+      fullPath: '/superadmin/accounts'
+      preLoaderRoute: typeof AppSuperadminAccountsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
     '/_app/sales/$id': {
       id: '/_app/sales/$id'
       path: '/sales/$id'
@@ -716,11 +755,15 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 )
 
 interface AppSuperadminRouteChildren {
+  AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
+  AppSuperadminOrganizationsRoute: typeof AppSuperadminOrganizationsRoute
   AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
   AppSuperadminTenantIdRoute: typeof AppSuperadminTenantIdRoute
 }
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
+  AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
+  AppSuperadminOrganizationsRoute: AppSuperadminOrganizationsRoute,
   AppSuperadminIndexRoute: AppSuperadminIndexRoute,
   AppSuperadminTenantIdRoute: AppSuperadminTenantIdRoute,
 }

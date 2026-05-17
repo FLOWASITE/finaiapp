@@ -12,13 +12,14 @@ async function assertSuperadmin(supabase: any, userId: string) {
   if (!ok) throw new Error("Cần quyền Super-admin để thực hiện thao tác này.");
 }
 
+const ROLE_ENUM = z.enum(["owner", "accountant", "viewer", "superadmin"]);
+
 export const listAllTenants = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     await assertSuperadmin(supabase, userId);
 
-    // Use admin client to bypass RLS for cross-tenant aggregation
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("id, email, company_name, tax_id, created_at")
@@ -116,5 +117,217 @@ export const setSuperadminRole = createServerFn({ method: "POST" })
         .eq("user_id", data.user_id)
         .eq("role", "superadmin" as any);
     }
+    return { ok: true };
+  });
+
+// ============================================================
+// ACCOUNT MANAGEMENT
+// ============================================================
+
+export const listAllAccounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+
+    const accounts: any[] = [];
+    let page = 1;
+    // Paginate up to 10 pages of 200 = 2000 users
+    while (page <= 10) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) throw new Error(error.message);
+      accounts.push(...(data?.users ?? []));
+      if (!data?.users?.length || data.users.length < 200) break;
+      page++;
+    }
+
+    const ids = accounts.map((u) => u.id);
+    const [{ data: roles }, { data: profiles }] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
+      supabaseAdmin.from("profiles").select("id, company_name").in("id", ids),
+    ]);
+
+    const roleMap = new Map<string, string[]>();
+    for (const r of roles ?? []) {
+      const arr = roleMap.get(r.user_id) ?? [];
+      arr.push(r.role as string);
+      roleMap.set(r.user_id, arr);
+    }
+    const compMap = new Map<string, string | null>();
+    for (const p of profiles ?? []) compMap.set(p.id, p.company_name);
+
+    return {
+      accounts: accounts.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at,
+        email_confirmed_at: u.email_confirmed_at,
+        banned_until: u.banned_until ?? null,
+        company_name: compMap.get(u.id) ?? null,
+        roles: roleMap.get(u.id) ?? [],
+      })),
+    };
+  });
+
+export const setUserRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      user_id: z.string().uuid(),
+      role: ROLE_ENUM,
+      enable: z.boolean(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    if (!data.enable && data.user_id === userId && data.role === "superadmin") {
+      throw new Error("Không thể tự thu hồi quyền Super-admin.");
+    }
+    if (data.enable) {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.user_id, role: data.role as any });
+      if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    } else {
+      await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", data.user_id)
+        .eq("role", data.role as any);
+    }
+    return { ok: true };
+  });
+
+export const resetUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ email: z.string().email() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    const { error } = await supabaseAdmin.auth.admin.generateLink({
+      type: "recovery",
+      email: data.email,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setAccountBanned = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      user_id: z.string().uuid(),
+      banned: z.boolean(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    if (data.user_id === userId) throw new Error("Không thể tự khóa tài khoản.");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      ban_duration: data.banned ? "876000h" : "none",
+    } as any);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ user_id: z.string().uuid(), confirm_email: z.string().email() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    if (data.user_id === userId) throw new Error("Không thể tự xóa tài khoản.");
+    const { data: u, error: ge } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
+    if (ge) throw new Error(ge.message);
+    if (u?.user?.email?.toLowerCase() !== data.confirm_email.toLowerCase()) {
+      throw new Error("Email xác nhận không khớp.");
+    }
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ============================================================
+// ORGANIZATION MANAGEMENT
+// ============================================================
+
+export const listOrganizations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start, created_at")
+      .order("created_at", { ascending: false });
+
+    return { organizations: profiles ?? [] };
+  });
+
+export const updateOrganization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      tenant_id: z.string().uuid(),
+      company_name: z.string().max(255).nullable().optional(),
+      tax_id: z.string().max(50).nullable().optional(),
+      address: z.string().max(500).nullable().optional(),
+      phone: z.string().max(50).nullable().optional(),
+      accounting_standard: z.enum(["TT133", "TT200"]).optional(),
+      base_currency: z.string().min(3).max(10).optional(),
+      fiscal_year_start: z.number().int().min(1).max(12).optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    const { tenant_id, ...patch } = data;
+    const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", tenant_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteOrganization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ tenant_id: z.string().uuid(), confirm_email: z.string().email() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+    if (data.tenant_id === userId) throw new Error("Không thể tự xóa tổ chức của mình.");
+
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", data.tenant_id)
+      .maybeSingle();
+    if (!prof) throw new Error("Không tìm thấy tổ chức.");
+    if ((prof.email ?? "").toLowerCase() !== data.confirm_email.toLowerCase()) {
+      throw new Error("Email xác nhận không khớp.");
+    }
+
+    // Delete user-scoped data (best-effort across known tables)
+    const tables = [
+      "ai_suggestions", "bank_transactions", "bank_accounts", "cash_vouchers",
+      "customers", "exchange_rates", "fixed_assets", "invoices",
+      "journal_entries", "payroll_runs", "period_locks", "products",
+      "report_notes", "report_snapshots", "sales_invoices", "stock_movements",
+      "supplier_payments", "suppliers", "employees", "user_roles",
+    ];
+    for (const t of tables) {
+      await (supabaseAdmin.from(t as any) as any).delete().eq("user_id", data.tenant_id);
+    }
+    await supabaseAdmin.from("profiles").delete().eq("id", data.tenant_id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.tenant_id);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
