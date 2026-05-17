@@ -1,130 +1,56 @@
-# Phân hệ Admin — Kế hoạch xây dựng
+# Bổ sung Super-admin UI & Chấp nhận lời mời
 
-## Mục tiêu
-Hai cấp admin:
-- **Super-admin (platform):** quản trị toàn hệ thống SaaS (mọi user/tenant).
-- **Owner (tenant):** quản trị nội bộ công ty (mời nhân viên, phân quyền, khóa kỳ, audit).
+Hoàn thiện 2 mảnh còn thiếu trong Phân hệ Admin theo plan ban đầu.
 
-Bộ vai trò mở rộng: `owner / accountant / approver / viewer / superadmin`.
+## 1. Trang chấp nhận lời mời `/invite/$token`
 
----
+Route công khai (không nằm trong `_app`), hiển thị thông tin lời mời và cho phép người nhận chấp nhận sau khi đăng nhập/đăng ký.
 
-## 1. Database (migration)
+**Server functions mới** (`src/lib/invitations.functions.ts`):
+- `getInvitationByToken({ token })` — trả về email, role, công ty mời, hạn dùng. Public (không middleware), dùng `supabaseAdmin` chỉ select theo token + chưa accepted + chưa hết hạn.
+- `acceptInvitation({ token })` — yêu cầu auth; verify token hợp lệ, email khớp `auth.jwt().email`, insert `user_roles(user_id, role)`, đánh dấu `accepted_at/accepted_by`.
 
-### 1.1 Mở rộng enum `app_role`
-Thêm: `accountant`, `approver`, `viewer`, `superadmin` (giữ `owner`).
+**UI** (`src/routes/invite.$token.tsx`):
+- Hiển thị: "Bạn được mời làm {role} tại công ty …"
+- Nếu chưa đăng nhập → nút "Đăng nhập để chấp nhận" (redirect kèm `?next=/invite/<token>`).
+- Nếu đã đăng nhập đúng email → nút "Chấp nhận lời mời" → gọi `acceptInvitation` → redirect `/dashboard`.
+- Xử lý các trạng thái: hết hạn, đã chấp nhận, sai email, không tìm thấy.
 
-### 1.2 Bảng `audit_logs`
-- `user_id`, `actor_email`, `action` (insert/update/delete/login/lock/role_change…)
-- `table_name`, `record_id`, `before` jsonb, `after` jsonb
-- `ip`, `user_agent`, `created_at`
-- RLS: owner xem log của tenant mình; superadmin xem tất cả.
+**Login route**: hỗ trợ tham số `next` để quay lại trang invite sau khi đăng nhập.
 
-### 1.3 Bảng `user_invitations`
-- `email`, `role`, `invited_by`, `tenant_owner_id`, `token`, `accepted_at`, `expires_at`.
-- RLS: owner tạo/xem invite của mình; người được mời xem theo token.
+## 2. Super-admin UI
 
-### 1.4 Hàm bảo mật
-- `has_any_role(_user_id, _roles app_role[])`
-- `is_superadmin(_user_id)` — security definer
-- `log_audit(...)` — helper ghi log
+Layout + 2 trang, guard bằng `is_superadmin`.
 
-### 1.5 Trigger audit
-Gắn `AFTER INSERT/UPDATE/DELETE` cho các bảng nhạy cảm: `invoices`, `sales_invoices`, `journal_entries`, `payroll_runs`, `period_locks`, `user_roles`.
+**Layout** (`src/routes/_app/superadmin.tsx`):
+- `beforeLoad`: kiểm tra user có role `superadmin`, nếu không → redirect `/dashboard`.
+- Tab nav: Tenants.
 
-### 1.6 Cập nhật RLS theo role
-Ví dụ `invoices`:
-- `viewer`: chỉ SELECT.
-- `accountant`: SELECT/INSERT/UPDATE (không DELETE khi kỳ đã khóa).
-- `approver`: UPDATE field `status='approved'`.
-- `owner`: full.
-- `superadmin`: full xuyên tenant (chỉ qua server function admin).
+**Trang danh sách** (`src/routes/_app/superadmin/index.tsx`):
+- Bảng tenants từ `listAllTenants` (đã có): Email · Công ty · MST · Roles · #Hoá đơn mua · #Hoá đơn bán · #Bút toán · Ngày tạo.
+- Tìm kiếm theo email/công ty. Mỗi dòng → link sang `/superadmin/tenant/$id`.
 
----
+**Trang chi tiết tenant** (`src/routes/_app/superadmin/tenant.$id.tsx`):
+- Dùng `getTenantDetail` (đã có): hồ sơ, danh sách roles, 50 audit gần nhất, danh sách khóa kỳ.
+- Nút toggle "Cấp/Thu hồi Super-admin" → `setSuperadminRole` (đã có).
 
-## 2. Server functions (`src/lib/admin.functions.ts`)
+**Sidebar** (`src/components/app-sidebar.tsx`):
+- Thêm mục "Super Admin" trong nhóm "Hệ thống", chỉ hiển thị khi user có role `superadmin` (query `user_roles` 1 lần khi mount, cache trong state).
 
-- `listMembers()` — danh sách user_roles + email từ profiles.
-- `inviteMember({ email, role })` — tạo invitation, gửi email (Lovable AI sinh nội dung, gửi qua link).
-- `updateMemberRole({ userId, role })` — chỉ owner.
-- `removeMember({ userId })`.
-- `listAuditLogs({ from, to, action?, table? })`.
-- `listPeriodLocks()` / `lockPeriod({ year, month, note })` / `unlockPeriod({ id })`.
-- `getSystemStats()` — tổng số chứng từ, dung lượng file, số user, hoạt động 30 ngày.
-- `exportTenantBackup()` — JSON dump các bảng của tenant.
+## 3. Tiện ích nhỏ
 
-### Super-admin (`src/lib/superadmin.functions.ts`)
-- `listAllTenants()` — group theo owner, hiển thị usage.
-- `suspendUser({ userId })`, `resumeUser({ userId })`.
-- `viewTenantStats({ ownerId })`.
-- Middleware kiểm tra `is_superadmin(auth.uid())` thủ công.
+- Trong trang `/admin/members`, sau khi tạo invitation hiển thị link `/invite/{token}` để owner copy gửi tay (chưa có email transactional).
+- Bootstrap super-admin: cung cấp SQL helper trong UI (hoặc tài liệu) để promote user đầu tiên thành `superadmin` — sẽ làm bằng nút trong trang chi tiết tenant (super-admin hiện có cấp cho người khác). Lần đầu cần thực hiện thủ công qua migration helper hoặc qua trang admin/members (owner tự cấp role `superadmin` cho chính mình bằng cách thêm option vào dropdown role).
 
----
+## Files sẽ tạo/sửa
 
-## 3. UI Routes
+- thêm: `src/lib/invitations.functions.ts`
+- thêm: `src/routes/invite.$token.tsx`
+- thêm: `src/routes/_app/superadmin.tsx`
+- thêm: `src/routes/_app/superadmin/index.tsx`
+- thêm: `src/routes/_app/superadmin/tenant.$id.tsx`
+- sửa: `src/components/app-sidebar.tsx` (thêm mục Super Admin có điều kiện)
+- sửa: `src/routes/_app/admin/members.tsx` (hiển thị link invite)
+- sửa: `src/routes/login.tsx` (hỗ trợ `?next=`)
 
-```
-src/routes/_app/admin/
-  index.tsx          Dashboard giám sát (stats, biểu đồ hoạt động)
-  members.tsx        User & Role (mời, đổi quyền, xóa)
-  audit.tsx          Audit log (filter theo action/table/user/khoảng ngày)
-  periods.tsx        Khóa/mở kỳ kế toán (calendar 12 tháng × N năm)
-  settings.tsx       Cấu hình hệ thống (TT133/TT200, COA template, mẫu HĐ)
-  backup.tsx         Export/Backup
-
-src/routes/_app/superadmin/
-  index.tsx          Tenant list + usage
-  tenant.$id.tsx     Drill-down 1 tenant
-```
-
-Guards:
-- `_app/admin/*`: yêu cầu `has_role(owner)`.
-- `_app/superadmin/*`: yêu cầu `is_superadmin()`.
-- Người không đủ quyền → redirect `/` + toast.
-
-Sidebar: thêm 2 mục "Quản trị" và "Super Admin" (chỉ hiện khi có role tương ứng).
-
----
-
-## 4. UX chi tiết
-
-**Members page**
-- Bảng: Email · Vai trò (dropdown đổi inline) · Ngày tham gia · Trạng thái · Hành động.
-- Nút "Mời thành viên" mở dialog (email + role). Sinh link `/invite/:token`.
-- Cảnh báo khi xóa owner cuối cùng.
-
-**Audit log**
-- Filter: ngày, hành động, bảng, người dùng.
-- Bảng phẳng + dialog xem diff `before` ↔ `after` (json viewer).
-- Export CSV.
-
-**Periods**
-- Grid 12 ô tháng × cuộn năm. Click ô → toggle khóa, ghi note.
-- Badge "🔒 Đã khóa" / "Mở".
-- Khi khóa → chặn tất cả journal_entry trong tháng đó (RLS function `is_period_locked` đã có).
-
-**Dashboard**
-- Cards: số user, số hóa đơn 30 ngày, dung lượng file storage, lần đăng nhập gần nhất.
-- Biểu đồ activity (Recharts) — log count theo ngày.
-
----
-
-## 5. Bảo mật
-
-- Mọi mutation đi qua `requireSupabaseAuth` → RLS backstop.
-- Superadmin route gọi `supabaseAdmin` (service role) — chỉ trong server functions đã kiểm tra `is_superadmin`.
-- Audit log immutable (không cho UPDATE/DELETE qua RLS, chỉ INSERT từ trigger).
-- Period lock check ở RLS level đảm bảo kế toán không thể bypass khi sửa trực tiếp.
-
----
-
-## 6. Thứ tự thực hiện
-
-1. **Migration** (enum + bảng + RLS + trigger + functions).
-2. **Server functions** admin + superadmin.
-3. **Layout & guard** `_app/admin`, `_app/superadmin`.
-4. **Members → Periods → Audit → Dashboard → Backup → Settings**.
-5. **Super-admin pages** (tenant list + drill).
-6. Thêm sidebar items + test 4 role.
-
-Sau khi bạn duyệt plan, tôi sẽ chạy migration trước (cần bạn approve), rồi build UI/server functions.
+Không cần migration mới — schema `user_invitations`, `user_roles`, RLS đã sẵn sàng.

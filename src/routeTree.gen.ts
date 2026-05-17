@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as AppSuperadminRouteImport } from './routes/_app/superadmin'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
@@ -20,6 +22,7 @@ import { Route as AppAssetsRouteImport } from './routes/_app/assets'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
+import { Route as AppSuperadminIndexRouteImport } from './routes/_app/superadmin/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSalesIndexRouteImport } from './routes/_app/sales/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
@@ -40,6 +43,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -54,6 +58,16 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSuperadminRoute = AppSuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
@@ -94,6 +108,11 @@ const AppSuppliersIndexRoute = AppSuppliersIndexRouteImport.update({
   id: '/suppliers/',
   path: '/suppliers/',
   getParentRoute: () => AppRoute,
+} as any)
+const AppSuperadminIndexRoute = AppSuperadminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSuperadminRoute,
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/settings/',
@@ -195,6 +214,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
+  id: '/tenant/$id',
+  path: '/tenant/$id',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -205,6 +229,8 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/superadmin': typeof AppSuperadminRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
@@ -225,8 +251,10 @@ export interface FileRoutesByFullPath {
   '/reports/': typeof AppReportsIndexRoute
   '/sales/': typeof AppSalesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -236,6 +264,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
@@ -256,8 +285,10 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsIndexRoute
   '/sales': typeof AppSalesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -270,6 +301,8 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/superadmin': typeof AppSuperadminRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/backup': typeof AppAdminBackupRoute
   '/_app/admin/members': typeof AppAdminMembersRoute
@@ -290,8 +323,10 @@ export interface FileRoutesById {
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -304,6 +339,8 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/superadmin'
+    | '/invite/$token'
     | '/admin/audit'
     | '/admin/backup'
     | '/admin/members'
@@ -324,8 +361,10 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/sales/'
     | '/settings/'
+    | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -335,6 +374,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/invite/$token'
     | '/admin/audit'
     | '/admin/backup'
     | '/admin/members'
@@ -355,8 +395,10 @@ export interface FileRouteTypes {
     | '/reports'
     | '/sales'
     | '/settings'
+    | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/superadmin/tenant/$id'
   id:
     | '__root__'
     | '/'
@@ -368,6 +410,8 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/journal'
+    | '/_app/superadmin'
+    | '/invite/$token'
     | '/_app/admin/audit'
     | '/_app/admin/backup'
     | '/_app/admin/members'
@@ -388,14 +432,17 @@ export interface FileRouteTypes {
     | '/_app/reports/'
     | '/_app/sales/'
     | '/_app/settings/'
+    | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -420,6 +467,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/superadmin': {
+      id: '/_app/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof AppSuperadminRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/journal': {
       id: '/_app/journal'
@@ -476,6 +537,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/suppliers/'
       preLoaderRoute: typeof AppSuppliersIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/superadmin/': {
+      id: '/_app/superadmin/'
+      path: '/'
+      fullPath: '/superadmin/'
+      preLoaderRoute: typeof AppSuperadminIndexRouteImport
+      parentRoute: typeof AppSuperadminRoute
     }
     '/_app/settings/': {
       id: '/_app/settings/'
@@ -617,6 +685,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/superadmin/tenant/$id': {
+      id: '/_app/superadmin/tenant/$id'
+      path: '/tenant/$id'
+      fullPath: '/superadmin/tenant/$id'
+      preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
   }
 }
 
@@ -640,6 +715,20 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
   AppAdminRouteChildren,
 )
 
+interface AppSuperadminRouteChildren {
+  AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
+  AppSuperadminTenantIdRoute: typeof AppSuperadminTenantIdRoute
+}
+
+const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
+  AppSuperadminIndexRoute: AppSuperadminIndexRoute,
+  AppSuperadminTenantIdRoute: AppSuperadminTenantIdRoute,
+}
+
+const AppSuperadminRouteWithChildren = AppSuperadminRoute._addFileChildren(
+  AppSuperadminRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAssetsRoute: typeof AppAssetsRoute
@@ -647,6 +736,7 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppJournalRoute: typeof AppJournalRoute
+  AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
@@ -673,6 +763,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppJournalRoute: AppJournalRoute,
+  AppSuperadminRoute: AppSuperadminRouteWithChildren,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,
@@ -698,6 +789,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

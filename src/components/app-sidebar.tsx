@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
   MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
   Search, Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
-  Plus, FileSpreadsheet, Bot, CreditCard, UserCog, Shield,
+  Plus, FileSpreadsheet, Bot, CreditCard, UserCog, Shield, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -103,13 +103,23 @@ const QUICK_AI = [
 export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
   const [email, setEmail] = React.useState<string>("");
+  const [isSuperadmin, setIsSuperadmin] = React.useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setEmail(data.user?.email ?? "");
+      if (data.user?.id) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+        setIsSuperadmin((roles ?? []).some((r) => r.role === "superadmin"));
+      }
+    });
   }, []);
 
   React.useEffect(() => {
@@ -226,6 +236,12 @@ export function AppSidebar() {
                   {s.items.map((item) => (
                     <NavLink key={item.to} item={item} active={isActive(item.to)} />
                   ))}
+                  {s.label === "Hệ thống" && isSuperadmin && (
+                    <NavLink
+                      item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
+                      active={isActive("/superadmin")}
+                    />
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
