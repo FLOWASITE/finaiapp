@@ -1370,6 +1370,7 @@ export type Database = {
           id: string
           invited_by: string
           role: string
+          tenant_id: string | null
           tenant_owner_id: string
           token: string
         }
@@ -1382,6 +1383,7 @@ export type Database = {
           id?: string
           invited_by: string
           role: string
+          tenant_id?: string | null
           tenant_owner_id: string
           token?: string
         }
@@ -1394,6 +1396,7 @@ export type Database = {
           id?: string
           invited_by?: string
           role?: string
+          tenant_id?: string | null
           tenant_owner_id?: string
           token?: string
         }
