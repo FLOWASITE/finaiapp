@@ -3,15 +3,62 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ============ SUPPLIERS ============
-const SupplierSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().min(1).max(255),
-  tax_id: z.string().max(20).optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
-  phone: z.string().max(50).optional().nullable(),
-  address: z.string().max(500).optional().nullable(),
-  payment_terms_days: z.number().int().min(0).max(365).default(30),
-});
+const optStr = (max: number) =>
+  z.string().trim().max(max).optional().nullable().or(z.literal("")).transform((v) => (v ? v : null));
+
+const SupplierSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    code: z
+      .string()
+      .trim()
+      .max(32)
+      .regex(/^[A-Za-z0-9_\-./]*$/, "Mã chỉ chứa chữ/số/_-./")
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .transform((v) => (v ? v : null)),
+    name: z.string().trim().min(1, "Bắt buộc").max(255),
+    party_type: z.enum(["company", "individual"]).default("company"),
+    tax_id: z
+      .string()
+      .trim()
+      .max(20)
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .transform((v) => (v ? v.replace(/\D/g, "") : null))
+      .refine((v) => !v || v.length === 10 || v.length === 13, "MST phải 10 hoặc 13 số"),
+    legal_rep: optStr(255),
+    contact_person: optStr(255),
+    email: z
+      .string()
+      .trim()
+      .max(255)
+      .optional()
+      .nullable()
+      .or(z.literal(""))
+      .transform((v) => (v ? v : null))
+      .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Email không hợp lệ"),
+    phone: optStr(50),
+    fax: optStr(50),
+    website: optStr(255),
+    address: optStr(500),
+    bank_account_no: optStr(50),
+    bank_name: optStr(255),
+    bank_branch: optStr(255),
+    currency: z.string().trim().min(3).max(8).default("VND"),
+    payment_terms_days: z.number().int().min(0).max(365).default(30),
+    payable_account: z.string().trim().min(3).max(20).default("331"),
+    opening_balance_debit: z.number().min(0).default(0),
+    opening_balance_credit: z.number().min(0).default(0),
+    notes: optStr(1000),
+    is_active: z.boolean().default(true),
+  })
+  .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {
+    message: "Dư đầu kỳ chỉ được nhập một bên Nợ hoặc Có",
+    path: ["opening_balance_credit"],
+  });
 
 export const listSuppliers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -19,7 +66,7 @@ export const listSuppliers = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data, error } = await supabase
       .from("suppliers")
-      .select("id, name, tax_id, email, phone, address, payment_terms_days, created_at")
+      .select("*")
       .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -30,18 +77,31 @@ export const upsertSupplier = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SupplierSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const payload = { ...data, user_id: userId };
-    if (data.id) {
-      const { error } = await supabase.from("suppliers").update(payload).eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { id: data.id };
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", userId)
+      .single();
+    const tenant_id = profile?.active_tenant_id ?? null;
+
+    const { id, ...rest } = data;
+    if (id) {
+      const { error } = await supabase.from("suppliers").update(rest).eq("id", id);
+      if (error) {
+        if (error.code === "23505") throw new Error("Mã NCC đã tồn tại");
+        throw new Error(error.message);
+      }
+      return { id };
     }
     const { data: row, error } = await supabase
       .from("suppliers")
-      .insert(payload)
+      .insert({ ...rest, user_id: userId, tenant_id })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505") throw new Error("Mã NCC đã tồn tại");
+      throw new Error(error.message);
+    }
     return { id: row!.id };
   });
 

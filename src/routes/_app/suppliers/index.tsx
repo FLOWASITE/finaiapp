@@ -1,119 +1,142 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import {
-  listSuppliers, upsertSupplier, deleteSupplier,
-} from "@/lib/purchases.functions";
+import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore } from "lucide-react";
+import { listSuppliers, deleteSupplier, upsertSupplier } from "@/lib/purchases.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PartyForm, type PartyInitial } from "@/components/party-form";
 
 export const Route = createFileRoute("/_app/suppliers/")({
   component: SuppliersPage,
 });
 
-type Supplier = {
-  id: string;
-  name: string;
-  tax_id: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  payment_terms_days: number;
-};
-
 function SuppliersPage() {
   const list = useServerFn(listSuppliers);
-  const save = useServerFn(upsertSupplier);
   const del = useServerFn(deleteSupplier);
+  const upsert = useServerFn(upsertSupplier);
+  const qc = useQueryClient();
 
-  const { data, refetch } = useQuery({
-    queryKey: ["suppliers"],
-    queryFn: () => list(),
-  });
+  const { data } = useQuery({ queryKey: ["suppliers"], queryFn: () => list() });
 
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Supplier> | null>(null);
+  const [q, setQ] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [editing, setEditing] = useState<PartyInitial | null>(null);
 
-  const saveMut = useMutation({
-    mutationFn: (s: Partial<Supplier>) =>
-      save({
+  const filtered = useMemo(() => {
+    const lq = q.trim().toLowerCase();
+    return ((data as any[]) ?? []).filter((s) => {
+      if (!showArchived && s.is_active === false) return false;
+      if (!lq) return true;
+      return (
+        (s.code ?? "").toLowerCase().includes(lq) ||
+        s.name.toLowerCase().includes(lq) ||
+        (s.tax_id ?? "").toLowerCase().includes(lq) ||
+        (s.email ?? "").toLowerCase().includes(lq)
+      );
+    });
+  }, [data, q, showArchived]);
+
+  const archive = useMutation({
+    mutationFn: (s: any) =>
+      upsert({
         data: {
           id: s.id,
-          name: s.name ?? "",
-          tax_id: s.tax_id || null,
-          email: s.email || null,
-          phone: s.phone || null,
-          address: s.address || null,
-          payment_terms_days: Number(s.payment_terms_days ?? 30),
-        },
+          name: s.name,
+          tax_id: s.tax_id,
+          payment_terms_days: s.payment_terms_days ?? 30,
+          currency: s.currency ?? "VND",
+          payable_account: s.payable_account ?? "331",
+          is_active: !(s.is_active === false ? false : true),
+        } as any,
       }),
     onSuccess: () => {
-      toast.success("Đã lưu");
-      setOpen(false);
-      refetch();
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Đã cập nhật");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi"),
+    onError: (e: any) => toast.error(e.message),
   });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Nhà cung cấp</h1>
-          <p className="text-sm text-muted-foreground">Quản lý danh mục NCC và công nợ</p>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Truck className="h-6 w-6" /> Nhà cung cấp
+          </h1>
+          <p className="text-sm text-muted-foreground">Mã NCC, MST, ngân hàng, hạn TT, công nợ đầu kỳ</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing({ payment_terms_days: 30 });
-            setOpen(true);
-          }}
-        >
+        <Button onClick={() => setEditing({})}>
           <Plus className="mr-2 h-4 w-4" /> Thêm NCC
         </Button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Tìm theo mã, tên, MST, email…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <Switch checked={showArchived} onCheckedChange={setShowArchived} id="archived-s" />
+          <Label htmlFor="archived-s" className="text-muted-foreground">Hiện đã lưu trữ</Label>
+        </div>
+        <div className="sm:ml-auto text-sm text-muted-foreground">{filtered.length} NCC</div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="border-b border-border bg-secondary/50 text-left text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Tên NCC</th>
-              <th className="px-4 py-3">MST</th>
-              <th className="px-4 py-3">Email / Phone</th>
-              <th className="px-4 py-3 text-right">Hạn TT (ngày)</th>
-              <th className="px-4 py-3 text-right">Thao tác</th>
+              <th className="px-3 py-3">Mã</th>
+              <th className="px-3 py-3">Tên NCC</th>
+              <th className="px-3 py-3 hidden md:table-cell">MST</th>
+              <th className="px-3 py-3 hidden lg:table-cell">Liên hệ</th>
+              <th className="px-3 py-3 text-right hidden md:table-cell">Hạn TT</th>
+              <th className="px-3 py-3 text-right">Dư Có (Phải trả)</th>
+              <th className="px-3 py-3 text-right"></th>
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((s) => (
-              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
-                <td className="px-4 py-3">
+            {filtered.map((s: any) => (
+              <tr
+                key={s.id}
+                className={"border-b border-border last:border-0 hover:bg-secondary/30 " + (s.is_active === false ? "opacity-60" : "")}
+              >
+                <td className="px-3 py-3 font-mono text-xs">{s.code ?? "—"}</td>
+                <td className="px-3 py-3">
                   <Link to="/suppliers/$id" params={{ id: s.id }} className="font-medium text-accent">
                     {s.name}
                   </Link>
+                  <div className="text-xs text-muted-foreground md:hidden font-mono">{s.tax_id ?? ""}</div>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">{s.tax_id ?? "—"}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">
-                  {s.email ?? "—"}<br />{s.phone ?? ""}
+                <td className="px-3 py-3 font-mono text-xs hidden md:table-cell">{s.tax_id ?? "—"}</td>
+                <td className="px-3 py-3 text-xs text-muted-foreground hidden lg:table-cell">
+                  {s.email ?? "—"}{s.phone ? <><br />{s.phone}</> : null}
                 </td>
-                <td className="px-4 py-3 text-right">{s.payment_terms_days}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-3 py-3 text-right hidden md:table-cell">{s.payment_terms_days ?? 30}d</td>
+                <td className="px-3 py-3 text-right font-mono">
+                  {Number(s.opening_balance_credit ?? 0).toLocaleString("vi-VN")}
+                </td>
+                <td className="px-3 py-3 text-right whitespace-nowrap">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(mapSupplierToInitial(s))}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      setEditing(s);
-                      setOpen(true);
-                    }}
+                    onClick={() => archive.mutate(s)}
+                    title={s.is_active === false ? "Khôi phục" : "Lưu trữ"}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    {s.is_active === false ? (
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                    ) : (
+                      <Archive className="h-3.5 w-3.5" />
+                    )}
                   </Button>
                   <Button
                     size="sm"
@@ -122,10 +145,10 @@ function SuppliersPage() {
                       if (!confirm(`Xoá ${s.name}?`)) return;
                       try {
                         await del({ data: { id: s.id } });
+                        qc.invalidateQueries({ queryKey: ["suppliers"] });
                         toast.success("Đã xoá");
-                        refetch();
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Lỗi");
+                      } catch (e: any) {
+                        toast.error(e.message);
                       }
                     }}
                   >
@@ -134,9 +157,9 @@ function SuppliersPage() {
                 </td>
               </tr>
             ))}
-            {(data ?? []).length === 0 && (
+            {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                   Chưa có nhà cung cấp.
                 </td>
               </tr>
@@ -145,75 +168,41 @@ function SuppliersPage() {
         </table>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing?.id ? "Sửa NCC" : "Thêm NCC"}</DialogTitle>
+            <DialogTitle>{editing?.id ? "Sửa nhà cung cấp" : "Nhà cung cấp mới"}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Label>Tên NCC *</Label>
-              <Input
-                value={editing?.name ?? ""}
-                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Mã số thuế</Label>
-              <TaxIdLookupInput
-                value={editing?.tax_id ?? ""}
-                onChange={(v) => setEditing({ ...editing, tax_id: v })}
-                onResolved={(d) => setEditing((p: any) => ({
-                  ...p,
-                  tax_id: d.taxId,
-                  name: p?.name || d.name,
-                  address: p?.address || d.address || "",
-                }))}
-              />
-            </div>
-            <div>
-              <Label>Hạn thanh toán (ngày)</Label>
-              <Input
-                type="number"
-                value={editing?.payment_terms_days ?? 30}
-                onChange={(e) =>
-                  setEditing({ ...editing, payment_terms_days: Number(e.target.value) })
-                }
-              />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                value={editing?.email ?? ""}
-                onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Điện thoại</Label>
-              <Input
-                value={editing?.phone ?? ""}
-                onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2">
-              <Label>Địa chỉ</Label>
-              <Input
-                value={editing?.address ?? ""}
-                onChange={(e) => setEditing({ ...editing, address: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
-            <Button
-              onClick={() => saveMut.mutate(editing ?? {})}
-              disabled={!editing?.name || saveMut.isPending}
-            >
-              Lưu
-            </Button>
-          </DialogFooter>
+          {editing && <PartyForm mode="supplier" initial={editing} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+function mapSupplierToInitial(s: any): PartyInitial {
+  return {
+    id: s.id,
+    code: s.code ?? "",
+    name: s.name,
+    party_type: (s.party_type ?? "company") as "company" | "individual",
+    tax_id: s.tax_id ?? "",
+    legal_rep: s.legal_rep ?? "",
+    contact_person: s.contact_person ?? "",
+    email: s.email ?? "",
+    phone: s.phone ?? "",
+    fax: s.fax ?? "",
+    website: s.website ?? "",
+    address: s.address ?? "",
+    bank_account_no: s.bank_account_no ?? "",
+    bank_name: s.bank_name ?? "",
+    bank_branch: s.bank_branch ?? "",
+    currency: s.currency ?? "VND",
+    payment_terms_days: s.payment_terms_days ?? 30,
+    counter_account: s.payable_account ?? "331",
+    opening_balance_debit: Number(s.opening_balance_debit ?? 0),
+    opening_balance_credit: Number(s.opening_balance_credit ?? 0),
+    notes: s.notes ?? "",
+    is_active: s.is_active !== false,
+  };
 }
