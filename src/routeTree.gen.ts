@@ -36,6 +36,10 @@ import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
+import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
+import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
+import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
+import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -171,6 +175,26 @@ const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
   path: '/invoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminPeriodsRoute = AppAdminPeriodsRouteImport.update({
+  id: '/periods',
+  path: '/periods',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminMembersRoute = AppAdminMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminBackupRoute = AppAdminBackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -181,6 +205,10 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/backup': typeof AppAdminBackupRoute
+  '/admin/members': typeof AppAdminMembersRoute
+  '/admin/periods': typeof AppAdminPeriodsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
@@ -208,6 +236,10 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
+  '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/backup': typeof AppAdminBackupRoute
+  '/admin/members': typeof AppAdminMembersRoute
+  '/admin/periods': typeof AppAdminPeriodsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
@@ -238,6 +270,10 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/admin/audit': typeof AppAdminAuditRoute
+  '/_app/admin/backup': typeof AppAdminBackupRoute
+  '/_app/admin/members': typeof AppAdminMembersRoute
+  '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
@@ -268,6 +304,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/admin/audit'
+    | '/admin/backup'
+    | '/admin/members'
+    | '/admin/periods'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/reports/ledgers'
@@ -295,6 +335,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/journal'
+    | '/admin/audit'
+    | '/admin/backup'
+    | '/admin/members'
+    | '/admin/periods'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/reports/ledgers'
@@ -324,6 +368,10 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/journal'
+    | '/_app/admin/audit'
+    | '/_app/admin/backup'
+    | '/_app/admin/members'
+    | '/_app/admin/periods'
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
     | '/_app/reports/ledgers'
@@ -541,14 +589,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/periods': {
+      id: '/_app/admin/periods'
+      path: '/periods'
+      fullPath: '/admin/periods'
+      preLoaderRoute: typeof AppAdminPeriodsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/members': {
+      id: '/_app/admin/members'
+      path: '/members'
+      fullPath: '/admin/members'
+      preLoaderRoute: typeof AppAdminMembersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/backup': {
+      id: '/_app/admin/backup'
+      path: '/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AppAdminBackupRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/audit': {
+      id: '/_app/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
 interface AppAdminRouteChildren {
+  AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminBackupRoute: typeof AppAdminBackupRoute
+  AppAdminMembersRoute: typeof AppAdminMembersRoute
+  AppAdminPeriodsRoute: typeof AppAdminPeriodsRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminBackupRoute: AppAdminBackupRoute,
+  AppAdminMembersRoute: AppAdminMembersRoute,
+  AppAdminPeriodsRoute: AppAdminPeriodsRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
 }
 
