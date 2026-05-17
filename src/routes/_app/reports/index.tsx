@@ -254,6 +254,17 @@ function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: st
 
 function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { report: "B01" | "B02" | "B03"; ma_so: string; name: string }; from: string; to: string; asOf: string; onClose: () => void }) {
   const drillFn = useServerFn(drilldownReportItem);
+  const [newTabDefault, setNewTabDefault] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setNewTabDefault(window.localStorage.getItem("drill-open-newtab") === "1");
+  }, []);
+  const toggleNewTab = (v: boolean) => {
+    setNewTabDefault(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("drill-open-newtab", v ? "1" : "0");
+    }
+  };
   const q = useQuery({
     queryKey: ["drill", drill?.report, drill?.ma_so, from, to, asOf],
     queryFn: () => drillFn({ data: { report: drill!.report, ma_so: drill!.ma_so, from, to, asOf } }),
