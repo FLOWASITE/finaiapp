@@ -89,14 +89,7 @@ function ReportsPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4 print:hidden">
-        <div>
-          <Label className="text-xs">Từ ngày</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" />
-        </div>
-        <div>
-          <Label className="text-xs">Đến ngày</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" />
-        </div>
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={compareEnabled} onChange={(e) => setCompareEnabled(e.target.checked)} />
           So sánh kỳ trước
