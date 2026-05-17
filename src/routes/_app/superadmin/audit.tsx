@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import { RefreshCw, ChevronDown, Copy } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
