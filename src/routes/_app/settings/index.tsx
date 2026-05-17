@@ -5,6 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getSettings, updateSettings, togglePeriodLock, listFxRates, upsertFxRate,
 } from "@/lib/settings.functions";
+import {
+  getActiveTenant, updateActiveTenant, listTenantMembers, inviteTenantMember,
+  updateMemberRole, removeMember,
+} from "@/lib/tenants.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, Upload, X } from "lucide-react";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
