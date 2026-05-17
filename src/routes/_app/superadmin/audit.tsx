@@ -74,6 +74,7 @@ function AuditPage() {
   const [to, setTo] = useState("");
   const [pageSize, setPageSize] = useState(50);
   const [actionPrefix, setActionPrefix] = useState("superadmin.");
+  const [selected, setSelected] = useState<any | null>(null);
 
   const {
     data,
