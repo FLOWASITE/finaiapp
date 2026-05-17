@@ -5,9 +5,78 @@ import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } f
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { report: "B01" | "B02"; ma_so: string; from?: string; to?: string; asOf?: string }) => i)
+  .inputValidator((i: { report: "B01" | "B02" | "B03"; ma_so: string; from?: string; to?: string; asOf?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // ===== B03 drill: replay cash-flow assignment, collect entries for chosen ma_so =====
+    if (data.report === "B03") {
+      const item = B03_TT99.find((x) => x.ma_so === data.ma_so) as any;
+      if (!item || !item.counterpart) {
+        return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
+      }
+      let q = supabase
+        .from("journal_entries")
+        .select("id, entry_date, description, journal_lines(account_code, debit, credit)")
+        .eq("user_id", userId)
+        .order("entry_date", { ascending: true });
+      if (data.from) q = q.gte("entry_date", data.from);
+      if (data.to) q = q.lte("entry_date", data.to);
+      const { data: entries, error } = await q;
+      if (error) throw error;
+      type B = { entry_id: string; entry_date: string; description: string | null; cash_code: string; counter: string; amount: number };
+      const inflows: B[] = []; const outflows: B[] = [];
+      for (const e of entries ?? []) {
+        const lines = ((e as any).journal_lines ?? []) as Array<{ account_code: string; debit: number; credit: number }>;
+        const cashLines = lines.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112"));
+        const nonCash = lines.filter(l => !(l.account_code.startsWith("111") || l.account_code.startsWith("112")));
+        if (cashLines.length === 0) continue;
+        const cashDelta = cashLines.reduce((s, l) => s + (Number(l.debit) - Number(l.credit)), 0);
+        if (Math.abs(cashDelta) < 0.5) continue;
+        const counter = nonCash[0]?.account_code ?? "";
+        const b: B = { entry_id: (e as any).id, entry_date: (e as any).entry_date, description: (e as any).description, cash_code: cashLines[0].account_code, counter, amount: Math.abs(cashDelta) };
+        (cashDelta > 0 ? inflows : outflows).push(b);
+      }
+      // Replay assignment in B03_TT99 order so "first match wins" matches displayed totals
+      const usedIn = new Set<number>(); const usedOut = new Set<number>();
+      type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; debit: number; credit: number; contribution: number };
+      const collected: DLine[] = [];
+      let total = 0;
+      for (const it of B03_TT99) {
+        if (!it.counterpart) continue;
+        const { prefixes, direction } = it.counterpart;
+        const target = it.ma_so === data.ma_so;
+        if (direction === "inflow" || direction === "net") {
+          inflows.forEach((f, i) => {
+            if (usedIn.has(i) || !prefixes.some(p => f.counter.startsWith(p))) return;
+            usedIn.add(i);
+            if (target) {
+              const contrib = f.amount;
+              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, debit: f.amount, credit: 0, contribution: contrib });
+              total += contrib;
+            }
+          });
+        }
+        if (direction === "outflow" || direction === "net") {
+          outflows.forEach((f, i) => {
+            if (usedOut.has(i) || !prefixes.some(p => f.counter.startsWith(p))) return;
+            usedOut.add(i);
+            if (target) {
+              const contrib = direction === "net" ? -f.amount : f.amount;
+              collected.push({ entry_id: f.entry_id, entry_date: f.entry_date, description: f.description, account_code: f.cash_code, debit: 0, credit: f.amount, contribution: contrib });
+              total += contrib;
+            }
+          });
+        }
+      }
+      return {
+        item: { ma_so: item.ma_so, name: item.name },
+        prefixes: item.counterpart.prefixes,
+        lines: collected.sort((a, b) => a.entry_date.localeCompare(b.entry_date)),
+        total: Math.round(total),
+      };
+    }
+
     const item = (data.report === "B01" ? B01_TT99 : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
     if (!item || !item.accounts || item.accounts.length === 0) {
       return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
