@@ -179,16 +179,29 @@ function AuditPage() {
     return () => obs.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Tự cuộn dòng đang chọn vào giữa khi: mở modal, hoặc khi tải thêm trang mới.
+  // Tự cuộn dòng đang chọn vào giữa khi: mở modal, tải thêm trang mới,
+  // hoặc khôi phục selected từ URL sau khi logs vừa load xong.
+  // Thử lại tối đa vài frame vì rowRef có thể chưa kịp gắn ngay lập tức.
   useEffect(() => {
     if (!selected?.id) return;
-    const el = rowRefs.current.get(selected.id);
-    if (!el) return;
-    const id = requestAnimationFrame(() => {
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [selected?.id, pageCount]);
+    let cancelled = false;
+    let frameId = 0;
+    let tries = 0;
+    const tryScroll = () => {
+      if (cancelled) return;
+      const el = rowRefs.current.get(selected.id);
+      if (el) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if (tries++ < 10) frameId = requestAnimationFrame(tryScroll);
+    };
+    frameId = requestAnimationFrame(tryScroll);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frameId);
+    };
+  }, [selected?.id, pageCount, logs]);
 
   // Giữ selected đồng bộ với bản ghi mới nhất sau khi bộ lọc/refetch trả về.
   // Đồng thời khôi phục selected từ URL search (reload / back-forward).
