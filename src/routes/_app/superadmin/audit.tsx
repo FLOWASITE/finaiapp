@@ -444,7 +444,14 @@ function AuditPage() {
       </div>
 
       <Dialog open={modalOpen && !!selected} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
+        <DialogContent
+          className="max-h-[85vh] max-w-3xl overflow-hidden"
+          onOpenAutoFocus={(e) => {
+            // Đảm bảo focus rơi vào nút "Đóng" để Enter/Escape thao tác ngay.
+            e.preventDefault();
+            closeBtnRef.current?.focus();
+          }}
+        >
           {selected && (
             <>
               <DialogHeader>
