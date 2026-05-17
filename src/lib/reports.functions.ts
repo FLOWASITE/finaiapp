@@ -223,23 +223,16 @@ export const getNotesData = createServerFn({ method: "POST" })
   .inputValidator((i: { from?: string; to?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const [profile, assets, products, payables, receivables, notes, deprec, lines, salesLines] = await Promise.all([
+    const [profile, assets, products, payables, receivables, notes, lines, dep] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("fixed_assets").select("id, code, name, cost, useful_life_months, start_date, status, asset_account, accumulated_account, salvage_value, created_at").eq("user_id", userId),
       supabase.from("products").select("id, code, name, on_hand, unit_cost").eq("user_id", userId),
       supabase.from("invoices").select("supplier_name, total, payment_status, issue_date").eq("user_id", userId),
       supabase.from("sales_invoices").select("customer_name, total, status, issue_date").eq("user_id", userId),
       supabase.from("report_notes").select("section, content").eq("user_id", userId),
-      supabase.from("depreciation_entries").select("amount, period_month, asset_id").eq("asset_id", "00000000-0000-0000-0000-000000000000"), // placeholder, see below
       fetchLines(supabase, userId, data.from, data.to),
-      supabase.from("sales_invoice_lines").select("amount, qty, unit_price, sales_invoices!inner(issue_date, user_id, status)").eq("sales_invoices.user_id", userId),
+      supabase.from("depreciation_entries").select("amount, period_month, fixed_assets!inner(user_id)").eq("fixed_assets.user_id", userId),
     ]);
-
-    // Re-fetch depreciation properly (asset_id filter above is wrong; do explicit)
-    const dep = await supabase
-      .from("depreciation_entries")
-      .select("amount, period_month, fixed_assets!inner(user_id)")
-      .eq("fixed_assets.user_id", userId);
 
     // Tài sản cố định + biến động trong kỳ
     const inPeriod = (d?: string) => d && (!data.from || d >= data.from) && (!data.to || d <= data.to);
