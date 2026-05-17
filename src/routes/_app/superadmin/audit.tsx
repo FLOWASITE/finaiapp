@@ -182,6 +182,27 @@ function AuditPage() {
     return () => cancelAnimationFrame(id);
   }, [selected?.id, pageCount]);
 
+  // Giữ selected đồng bộ với bản ghi mới nhất sau khi bộ lọc/refetch trả về.
+  // Nếu cùng id còn trong dữ liệu mới → cập nhật payload mới nhất.
+  // Nếu không còn → vẫn giữ snapshot cũ để user không bị mất ngữ cảnh.
+  useEffect(() => {
+    if (!selected?.id) return;
+    const fresh = (logs as any[]).find((l) => l.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [logs, selected?.id]);
+
+  // Tóm tắt bộ lọc hiện đang áp dụng (dùng giá trị đã debounce — khớp dữ liệu hiển thị).
+  const activeFilters = useMemo(() => {
+    const items: Array<{ label: string; value: string }> = [];
+    const prefixLabel = ACTION_PREFIXES.find((p) => p.value === actionPrefix)?.label ?? actionPrefix;
+    items.push({ label: "Loại hành động", value: prefixLabel });
+    if (dActorEmail) items.push({ label: "Email", value: dActorEmail });
+    if (dTargetId) items.push({ label: "Target ID", value: dTargetId });
+    if (dFrom) items.push({ label: "Từ", value: dFrom });
+    if (dTo) items.push({ label: "Đến", value: dTo });
+    return items;
+  }, [actionPrefix, dActorEmail, dTargetId, dFrom, dTo]);
+
   return (
     <div className="space-y-4">
       <datalist id={EMAIL_DATALIST_ID}>
@@ -392,6 +413,19 @@ function AuditPage() {
               </DialogHeader>
 
               <div className="max-h-[60vh] space-y-3 overflow-auto pr-1">
+                <div className="rounded border border-dashed border-border bg-muted/30 p-2">
+                  <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Bộ lọc đang áp dụng
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {activeFilters.map((f) => (
+                      <Badge key={f.label} variant="outline" className="font-normal">
+                        <span className="text-muted-foreground">{f.label}:</span>
+                        <span className="ml-1 font-mono">{f.value}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <DetailRow label="Log ID" value={selected.id} mono />
                   <DetailRow label="Người thao tác (email)" value={selected.actor_email ?? "—"} />
