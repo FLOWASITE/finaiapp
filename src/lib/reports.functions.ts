@@ -330,7 +330,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       for (const it of B01_TT99) if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => { let x = balanceForPrefix(cur, a.prefix, a.nature) * a.sign; if (a.prefix === "421" && a.nature === "credit") x += niCur; return s + x; }, 0);
       for (const it of B01_TT99) if (it.formula) v[it.ma_so] = it.formula.reduce((s, m) => s + (v[m] ?? 0), 0);
       for (const it of B01_TT99) {
-        ws.getCell(`A${row}`).value = (it.level === 1 ? "  " : "") + it.name;
+        ws.getCell(`A${row}`).value = (it.level === 2 ? "      " : it.level === 1 ? "  " : "") + it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
         ws.getCell(`C${row}`).numFmt = "#,##0;(#,##0);-";
