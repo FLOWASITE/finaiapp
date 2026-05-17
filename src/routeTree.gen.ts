@@ -16,6 +16,7 @@ import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppAssetsRouteImport } from './routes/_app/assets'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 
@@ -53,6 +54,11 @@ const AppBankRoute = AppBankRouteImport.update({
   path: '/bank',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   id: '/invoices/',
   path: '/invoices/',
@@ -67,6 +73,7 @@ const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/assets': typeof AppAssetsRoute
   '/bank': typeof AppBankRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/assets': typeof AppAssetsRoute
   '/bank': typeof AppBankRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/assets': typeof AppAssetsRoute
   '/_app/bank': typeof AppBankRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/journal': typeof AppJournalRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/assets'
     | '/bank'
     | '/dashboard'
     | '/journal'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/assets'
     | '/bank'
     | '/dashboard'
     | '/journal'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/assets'
     | '/_app/bank'
     | '/_app/dashboard'
     | '/_app/journal'
@@ -187,6 +199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assets': {
+      id: '/_app/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/invoices/': {
       id: '/_app/invoices/'
       path: '/invoices'
@@ -205,6 +224,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAssetsRoute: typeof AppAssetsRoute
   AppBankRoute: typeof AppBankRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppJournalRoute: typeof AppJournalRoute
@@ -214,6 +234,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAssetsRoute: AppAssetsRoute,
   AppBankRoute: AppBankRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppJournalRoute: AppJournalRoute,
