@@ -1,35 +1,71 @@
 ## Mục tiêu
-Khi TCT trả về captcha (SVG), hiển thị rõ nét, sắc cạnh hơn và cho phép user phóng to để nhìn ký tự khó. Áp dụng đồng nhất cho 2 nơi đang nhập captcha.
 
-## Phạm vi thay đổi (chỉ frontend)
-1. Tạo component dùng chung `src/components/tct-captcha.tsx`:
-   - Props: `svg`, `loading`, `onReload`.
-   - Render captcha bằng cách convert chuỗi SVG → `data:image/svg+xml;base64,...` rồi đặt trong `<img>` (thay vì `dangerouslySetInnerHTML`). Lợi ích:
-     - SVG được scale mượt như ảnh, không bị méo khi phóng to.
-     - Tránh chèn raw SVG vào DOM (an toàn hơn, ít rủi ro CSS leak).
-   - Khung hiển thị: nền trắng cố định (để dark mode vẫn đọc được), `image-rendering: crisp-edges`, scale ×1.6 so với kích thước gốc cho rõ nét hơn.
-   - Nút **Tải lại** (icon `RefreshCw`, spin khi `loading`).
-   - Nút **Phóng to** (icon `ZoomIn`) mở `Dialog` shadcn hiển thị captcha ở kích thước lớn (×3), kèm nút Tải lại trong dialog.
-   - Trạng thái rỗng: skeleton/placeholder thay vì khung trắng trống.
+Vòng 1 (tối thiểu hữu dụng) cho trang **Hàng hóa & Dịch vụ** (`/inventory`):
+1. Phân biệt **Hàng hóa** vs **Dịch vụ** (và Combo) trong cùng bảng `products`.
+2. Hoàn thiện tab **Danh mục** (`/inventory/categories`) thành CRUD cây phân cấp, có gán nhóm hàng loạt.
 
-2. Cập nhật `src/routes/_app/einvoices/credentials.tsx`:
-   - Thay block hiện tại (div + `dangerouslySetInnerHTML` + nút Tải lại tách rời) bằng `<TctCaptcha svg={cap?.svg} loading={capLoading} onReload={loadCaptcha} />`.
-   - Giữ nguyên `Input` nhập mã + logic `verifyMut`.
+## 1. Phân biệt Hàng hóa / Dịch vụ / Combo
 
-3. Cập nhật `src/components/sync-tct-dialog.tsx`:
-   - Thay block captcha tương tự bằng `<TctCaptcha .../>`.
-   - Giữ nguyên logic mode `manual/auto`.
+### Schema (migration)
+Thêm cột `item_type` vào `products`:
+- Enum text với CHECK: `'goods' | 'service' | 'combo'`, default `'goods'`.
+- Index `idx_products_item_type`.
+- Dịch vụ: bỏ qua quản lý tồn (UI ẩn các trường tồn, server không tạo `stock_movements`, mặc định TK kho = `null`/`154`).
 
-## Không thay đổi
-- Server function `getTctCaptcha` (vẫn trả `{ key, svg }` từ TCT) — không cần convert PNG ở server vì `sharp`/`canvas` không chạy trên Cloudflare Worker.
-- Luồng auto 2Captcha, verify login, sync.
-- Schema DB, secrets, proxy TCT.
+### Server (`src/lib/inventory.functions.ts`)
+- `ProductSchema`: thêm `item_type: z.enum(['goods','service','combo']).default('goods')`.
+- `recordMovement`: throw lỗi nếu `product.item_type === 'service'` ("Dịch vụ không quản lý tồn").
+- `listProducts` / `getStockReport`: trả thêm `item_type`; `inventoryDashboard` chỉ tính tồn cho `item_type='goods'`.
+- KPI "Số SKU" → tách thành "Hàng hóa" và "Dịch vụ" (2 KPI nhỏ).
 
-## Ghi chú kỹ thuật
-- Convert base64 dùng `btoa(unescape(encodeURIComponent(svg)))` để an toàn với ký tự Unicode.
-- `<img>` đặt `alt="captcha"`, `draggable={false}`, `select-none`.
-- Dialog phóng to dùng `Dialog`/`DialogContent` đã có sẵn (shadcn), không thêm dependency.
+### UI
+- **Form Mặt hàng** (`ProductDialog` trong `src/routes/_app/inventory/index.tsx`):
+  - Trường đầu tiên: `Select` Loại (Hàng hóa / Dịch vụ / Combo).
+  - Nếu là Dịch vụ: ẩn các trường Giá vốn, Tồn tối thiểu/tối đa, TK kho, TK giá vốn; mặc định không cho mở dialog Nhập/Xuất kho.
+- **Bảng danh sách**: thêm cột "Loại" (Badge: 📦 Hàng / 🛎 Dịch vụ / 🧩 Combo); filter "Loại" trong thanh filter.
+- **MovementDialog**: chỉ liệt kê SKU có `item_type='goods'`.
+- **Detail page** (`/inventory/$id`): nếu Dịch vụ → ẩn KPI Tồn / Kardex, hiện thông báo "Dịch vụ không quản lý tồn".
 
-## Kiểm thử
-- Mở `/einvoices/credentials` → bấm "Kiểm tra kết nối" → captcha hiện rõ; bấm phóng to → ảnh lớn hơn vẫn nét; bấm Tải lại → captcha mới.
-- Mở dialog Đồng bộ HĐĐT (mode manual) → captcha render giống nhau.
+## 2. Hoàn thiện tab Danh mục
+
+### Server (`src/lib/inventory.functions.ts`)
+Bổ sung 2 server fn:
+- `listCategoriesTree`: trả về danh mục + đếm số SKU thuộc nhóm (cho lá), tự dựng `children[]` từ `parent_id`.
+- `bulkAssignCategory({ product_ids: string[], category_id: string | null })`: update nhiều SKU một lần.
+
+### UI mới (`src/routes/_app/inventory/categories.tsx`) — thay placeholder
+Layout 2 cột:
+- **Cột trái — Cây danh mục**:
+  - Render đệ quy (indent theo cấp), mỗi node có: tên, badge số SKU, menu `…` (Sửa / Thêm nhóm con / Xoá).
+  - Nút "+ Nhóm mới" ở đầu (parent = null).
+  - Dialog Thêm/Sửa: Tên + Select Nhóm cha (loại trừ chính nó & con cháu để tránh chu trình).
+  - Xoá: confirm; chặn nếu còn SKU hoặc còn nhóm con (báo lỗi rõ ràng).
+- **Cột phải — SKU trong nhóm đang chọn**:
+  - Bảng nhỏ (Mã, Tên, Loại, Tồn) + checkbox chọn nhiều.
+  - Thanh hành động khi có chọn: "Chuyển sang nhóm…" (Select → mutate `bulkAssignCategory`).
+  - Nút "Bỏ phân nhóm" (set category_id = null).
+
+### Cập nhật trang chính
+- `ProductDialog` thay `Select` nhóm hiện tại bằng cây phân cấp (đường dẫn "Cha › Con") để dễ chọn.
+
+## Phạm vi không nằm trong vòng 1
+- Import/Export Excel, mã vạch/in tem, ảnh sản phẩm, bảng giá nhiều mức, kiểm kê, thẻ kho — sẽ làm ở vòng sau.
+
+## Files
+
+**Tạo mới**
+- (không có file mới ngoài migration)
+
+**Sửa**
+- `src/lib/inventory.functions.ts` — thêm `item_type`, `listCategoriesTree`, `bulkAssignCategory`, chặn movement cho service.
+- `src/routes/_app/inventory/index.tsx` — UI chọn loại, filter loại, cột loại, ẩn trường khi service.
+- `src/routes/_app/inventory/categories.tsx` — thay placeholder bằng trang cây danh mục + gán hàng loạt.
+- `src/routes/_app/inventory/$id.tsx` — ẩn Kardex/KPI tồn cho dịch vụ.
+
+**Migration**
+```sql
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS item_type text NOT NULL DEFAULT 'goods'
+  CHECK (item_type IN ('goods','service','combo'));
+CREATE INDEX IF NOT EXISTS idx_products_item_type ON public.products(item_type);
+```
