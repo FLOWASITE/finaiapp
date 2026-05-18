@@ -145,3 +145,104 @@ export const deleteDocument = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ===== Document <-> entity links =====
+const EntityRefSchema = z.object({
+  entity_table: TableEnum,
+  entity_id: z.string().uuid(),
+});
+
+export const listLinkedDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => EntityRefSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: links, error } = await context.supabase
+      .from("document_links")
+      .select("document_id, link_type, created_at, documents!inner(id, original_filename, doc_kind, mime_type, size_bytes, storage_bucket, storage_path, ocr_status, created_at)")
+      .eq("entity_table", data.entity_table)
+      .eq("entity_id", data.entity_id)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { rows: links ?? [] };
+  });
+
+export const listAttachableDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        entity_table: TableEnum,
+        entity_id: z.string().uuid(),
+        search: z.string().max(200).optional(),
+        doc_kind: z.string().max(50).optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: existing } = await context.supabase
+      .from("document_links")
+      .select("document_id")
+      .eq("entity_table", data.entity_table)
+      .eq("entity_id", data.entity_id);
+    const excluded = (existing ?? []).map((l: any) => l.document_id);
+
+    let q = context.supabase
+      .from("documents")
+      .select("id, original_filename, doc_kind, mime_type, size_bytes, ocr_status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
+    if (data.doc_kind) q = q.eq("doc_kind", data.doc_kind);
+    if (excluded.length > 0) q = q.not("id", "in", `(${excluded.join(",")})`);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { rows: rows ?? [] };
+  });
+
+export const linkDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        document_id: z.string().uuid(),
+        entity_table: TableEnum,
+        entity_id: z.string().uuid(),
+        link_type: z.string().max(50).default("attachment"),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("document_links")
+      .insert({
+        document_id: data.document_id,
+        entity_table: data.entity_table,
+        entity_id: data.entity_id,
+        link_type: data.link_type,
+      });
+    if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const unlinkDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        document_id: z.string().uuid(),
+        entity_table: TableEnum,
+        entity_id: z.string().uuid(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("document_links")
+      .delete()
+      .eq("document_id", data.document_id)
+      .eq("entity_table", data.entity_table)
+      .eq("entity_id", data.entity_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
