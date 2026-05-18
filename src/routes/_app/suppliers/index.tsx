@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore, FolderTree } from "lucide-react";
 import { listSuppliers, deleteSupplier, upsertSupplier } from "@/lib/purchases.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
