@@ -1,145 +1,82 @@
-# Áp dụng tenant scoping nhất quán cho toàn bộ API
 
-## Hiện trạng
+# Đánh giá hiệu năng báo cáo kế toán
 
-- 39 file `src/lib/*.functions.ts`, ~107 server function dạng `list*/upsert*/delete*/create*/update*/save*/remove*`.
-- 42 bảng nghiệp vụ có cột `tenant_id`. RLS đã chặn ở DB (qua `current_tenant_id()`), nhưng code app chưa lọc nhất quán: chỉ một số file (`bank`, `einvoices`, `units`, `purchases`, `unit-conversions`) đã thêm `.eq("tenant_id", …)` / `tenant_id: …`; phần lớn còn lại đang dựa hoàn toàn vào RLS.
-- Hệ quả: nếu RLS lệch / hoặc khi chuyển sang `supabaseAdmin` thì dữ liệu có thể leak chéo tenant; insert có thể tạo bản ghi `tenant_id = NULL`.
+## 1. Trả lời nhanh các câu hỏi
 
-## Mục tiêu
+**Q: Report đang đọc từ bảng giao dịch hay bảng tổng hợp?**
+→ 100% đọc trực tiếp từ bảng giao dịch. Chưa có bảng tổng hợp (summary) hay materialized view nào. Ví dụ:
+- `reports.functions.ts` (678 dòng), `ledgers.functions.ts`, `dashboard-overview.functions.ts`, `sales-dashboard.functions.ts`, `purchases-dashboard.functions.ts` đều `select` thẳng từ `journal_lines + journal_entries`, `sales_invoices`, `invoices`, `customer_receipts`, `supplier_payments`, `cash_vouchers`, `bank_vouchers`.
 
-Mọi server function `list*/upsert*/delete*/create*/update*/save*/remove*` (cùng các `get*By*` ngang hàng) tác động vào bảng có cột `tenant_id` PHẢI:
+**Q: Dashboard doanh thu/tháng có tính lại toàn bộ HĐ mỗi lần mở?**
+→ Có. `salesDashboard` / `dashboardOverview` mỗi lần gọi:
+- Lấy **toàn bộ** sales_invoices 180 ngày + **toàn bộ** open invoices (không phân trang, không filter `tenant_id` ở SQL — đang dựa vào RLS).
+- Lặp ở JS để gom theo tháng, aging, top customer.
+- Không cache, không React Query staleTime dài, không materialized view.
 
-1. Lấy `tenantId` từ context.
-2. Lọc `.eq("tenant_id", tenantId)` cho mọi SELECT / UPDATE / DELETE.
-3. Ghi `tenant_id: tenantId` cho mọi INSERT / UPSERT.
-4. Báo lỗi rõ ràng nếu user chưa chọn doanh nghiệp hoạt động.
+**Q: Index theo tenant_id, ngày, account_code, customer_id, kỳ thuế… đã đủ chưa?**
+→ Có một phần, còn thiếu các composite quan trọng:
 
-## Cách triển khai
+Đã có:
+- `invoices(tenant_id)`, `invoices(user_id, created_at)`
+- `sales_invoices(tenant_id)`, `sales_invoices(user_id, issue_date)`
+- `journal_entries(tenant_id)`, `journal_entries(user_id, entry_date)`
+- `cash_vouchers(user_id, voucher_date)`, `bank_vouchers(bank_account_id, voucher_date)`
+- Các index `(tenant_id, branch_id)`, `(tenant_id, project_id)`
 
-### 1. Tạo middleware `withTenant`
+**Thiếu (đây là nguyên nhân chính khi data lớn):**
+- `journal_lines(account_code)` ← sổ cái filter `like '%'` không có index
+- `journal_lines(entry_id)` ← join chính, hiện chỉ có PK
+- `journal_lines(account_code, entry_id)` composite
+- `(tenant_id, entry_date)` trên `journal_entries` — hiện đang dùng `user_id` thay vì `tenant_id`
+- `(tenant_id, issue_date)` trên `sales_invoices` và `invoices` — query report luôn lọc theo tenant+ngày, nhưng index hiện là `(user_id, issue_date)` → planner phải dựa RLS sau khi quét.
+- `(tenant_id, payment_status, status)` cho aging
+- `customer_receipts(tenant_id, pay_date)`, `supplier_payments(tenant_id, pay_date)` — hiện chỉ có `tenant_id` đơn, query luôn kèm `pay_date >= ?`
+- `customer_receipts(invoice_id)` đã có; `supplier_payments(invoice_id)` chưa có
+- `einvoices(tenant_id, issue_date)` đã có theo `direction` — OK
+- Index cho trạng thái: `(tenant_id, status)` cho invoices/sales_invoices (filter `.neq('void')`, `.eq('issued')`)
 
-File mới `src/integrations/supabase/with-tenant.ts`:
+**Q: Đã đo thời gian từng báo cáo chưa? Report nào chậm nhất?**
+→ Chưa có instrumentation. Cần thêm `console.time` / log latency vào từng server fn, hoặc trang admin "Report timings". Theo cấu trúc query, dự đoán chậm nhất khi data lớn:
+1. `getTrialBalance` / `getGeneralLedger` — quét `journal_lines` 2 lần (opening + period) không có index `account_code`.
+2. `salesDashboard` + `purchasesDashboard` — quét open invoices toàn bộ + payments toàn bộ.
+3. `getJournal` với dimension filter — inner join `journal_entries` + 4 dim không có composite.
 
-```ts
-import { createMiddleware } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "./auth-middleware";
+**Q: Materialized view / bảng tổng hợp / cache?**
+→ Hiện **chưa có gì**:
+- Không có MV.
+- Không có bảng `monthly_summary` / `account_balance_snapshot`.
+- React Query mặc định (không thấy `staleTime` lớn) → re-fetch mỗi mount.
+- Không có Redis/KV cache.
 
-export const withTenant = createMiddleware({ type: "function" })
-  .middleware([requireSupabaseAuth])
-  .server(async ({ next, context }) => {
-    const { data, error } = await context.supabase
-      .from("profiles")
-      .select("active_tenant_id")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    const tenantId = data?.active_tenant_id;
-    if (!tenantId) {
-      throw new Error("Chưa chọn doanh nghiệp hoạt động");
-    }
-    return next({ context: { tenantId } });
-  });
+## 2. Lộ trình tối ưu đề xuất (3 giai đoạn)
+
+### Giai đoạn 1 — Index & query hygiene (rẻ, hiệu quả nhất, làm trước)
+Migration bổ sung các composite index thiếu (liệt kê ở mục 1). Riêng `journal_lines` thêm:
 ```
-
-`withTenant` gọi `requireSupabaseAuth` lồng bên trong → các handler chỉ cần dùng `.middleware([withTenant])` là có cả `supabase`, `userId`, `claims`, `tenantId`.
-
-### 2. Quy tắc áp dụng theo bảng
-
-Áp dụng cho 42 bảng có `tenant_id` (xem schema). Một số bảng đặc biệt:
-
-- `journal_lines` không có `tenant_id` → lọc gián tiếp qua `entry_id ∈ journal_entries.tenant_id`.
-- `profiles`, `user_roles`, `tenants`, `tenant_members`, `user_invitations`: KHÔNG đổi (đã có quy tắc riêng); chỉ `user_invitations` cần lọc theo tenant đang xem.
-- Bảng global (`accounts`, `chart_of_accounts` mẫu, `units` chia sẻ, `tax_codes`…): kiểm tra cột — nếu không có `tenant_id` thì giữ nguyên.
-
-### 3. Phạm vi sửa theo file
-
-Cập nhật tất cả file dưới đây, mỗi function `list*/upsert*/delete*/create*/update*/save*/remove*` + các `*Stats`, `get*` ngang hàng đụng vào bảng có tenant_id:
-
-- `assets.functions.ts` (fixed_assets)
-- `bank.functions.ts` (bank_accounts, bank_vouchers, bank_transactions) — bổ sung chỗ còn thiếu
-- `cash.functions.ts` (cash_vouchers)
-- `coa.functions.ts` (accounts nếu có tenant_id)
-- `customers.functions.ts` (customers, customer_groups)
-- `dashboard-overview.functions.ts` (read-only aggregates)
-- `dimensions.functions.ts` (branches, departments, projects, cost_centers)
-- `documents.functions.ts` (documents, document_links, document_status_history)
-- `einvoices.functions.ts` / `einvoices-sync.functions.ts` / `einvoice-xml.functions.ts` — bổ sung chỗ còn thiếu
-- `fiscal-periods.functions.ts` (fiscal_years, fiscal_periods)
-- `inventory.functions.ts` (products, product_categories, stock_movements, stock_vouchers, warehouses)
-- `invoices.functions.ts` (invoices)
-- `journal.functions.ts` (journal_entries; journal_lines join entries)
-- `ledgers.functions.ts` (read journal_entries + lines)
-- `partyGroups.functions.ts` (customer_groups, supplier_groups)
-- `payables.functions.ts` (supplier_payments + invoices)
-- `payroll.functions.ts` (employees, payroll_runs)
-- `purchases.functions.ts` / `purchases-dashboard.functions.ts`
-- `receipts.functions.ts` (customer_receipts, sales_invoices)
-- `receivables.functions.ts`
-- `reports.functions.ts` (report_snapshots, report_notes + nguồn dữ liệu)
-- `sales.functions.ts` / `sales-dashboard.functions.ts`
-- `settings.functions.ts` (exchange_rates, ai_suggestions…)
-- `stock-takes.functions.ts`
-- `tax.functions.ts`, `tax-lookup.functions.ts`
-- `tenants.functions.ts`, `invitations.functions.ts` — giữ logic chọn tenant riêng, chỉ chuẩn hoá phần đọc/ghi liên quan
-- `unit-conversions.functions.ts`, `units.functions.ts`, `warehouses.functions.ts`
-- `admin.functions.ts` — chỉ áp dụng cho thao tác cấp tenant; superadmin/cross-tenant không đổi
-- `superadmin.functions.ts` — KHÔNG đổi (vẫn dùng admin client cross-tenant)
-- `chat.functions.ts`, `codegen.functions.ts` — không đụng DB business → giữ nguyên
-
-Bỏ qua các file/handler không đụng bảng tenant.
-
-### 4. Mẫu sửa cho từng pattern
-
-SELECT:
-```ts
-.middleware([withTenant])
-.handler(async ({ context }) => {
-  const { supabase, tenantId } = context;
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("tenant_id", tenantId)        // ← thêm
-    .order("created_at", { ascending: false });
-  ...
-});
+(account_code, entry_id), (entry_id), (account_code) với INCLUDE(debit, credit)
 ```
+Sửa query report đang dùng `.eq('user_id', userId)` → đổi sang `.eq('tenant_id', tenantId)` để match index mới (đồng bộ với batch tenant-scoping đang làm).
 
-INSERT / UPSERT:
-```ts
-await supabase.from("customers").insert({
-  ...data,
-  user_id: userId,
-  tenant_id: tenantId,                // ← thêm
-});
-```
+### Giai đoạn 2 — Aggregation tables + triggers
+Tạo bảng tổng hợp được cập nhật incrementally bằng trigger:
+- `account_period_balances(tenant_id, account_code, year, period_no, opening, debit, credit)` ← phục vụ Trial Balance, Sổ cái tức thời.
+- `monthly_sales_summary(tenant_id, year_month, revenue, collected, count)` ← phục vụ sales/purchases dashboard.
+- `invoice_outstanding_cache(tenant_id, invoice_id, remaining, days_late_bucket)` ← phục vụ aging.
 
-UPDATE / DELETE:
-```ts
-await supabase
-  .from("customers")
-  .update(payload)
-  .eq("id", data.id)
-  .eq("tenant_id", tenantId);         // ← thêm (defense-in-depth)
-```
+Trigger update khi insert/update/delete `journal_lines`, `customer_receipts`, `supplier_payments`, `sales_invoices`.
 
-JOIN-derived (vd `journal_lines`): vẫn lọc qua `journal_entries.tenant_id = tenantId` bằng inner-join hoặc lọc ở entry trước.
+Khi đó dashboard chỉ `SELECT` vài chục dòng thay vì quét vài chục nghìn hóa đơn.
 
-### 5. Sau khi sửa code
+### Giai đoạn 3 — Cache & UX
+- React Query `staleTime: 60_000` cho dashboard, `invalidate` khi user post chứng từ.
+- Optional: materialized view `mv_trial_balance_yearly` refresh bằng pg_cron mỗi đêm cho năm đã đóng kỳ.
+- Thêm log latency vào mỗi serverFn (`console.time` → `stack_modern--server-function-logs`) để biết chính xác report nào chậm nhất khi production có data thật.
 
-- Chạy build để TypeScript check.
-- `supabase--linter` để bắt RLS warning mới (không kỳ vọng có).
-- Smoke test thủ công qua preview ở 1–2 tenant: list, create, delete vẫn hoạt động.
+## 3. Khuyến nghị thứ tự thực thi
+1. **Tuần này**: chạy migration giai đoạn 1 (chỉ thêm index, không đụng logic) — an toàn, không downtime.
+2. **Tuần sau**: thêm instrumentation latency + trang admin xem timings.
+3. **Khi dataset > ~50k journal_lines / tenant**: triển khai giai đoạn 2 (summary tables + trigger).
+4. **Khi có nhiều tenant đồng thời / >1M dòng**: thêm cache layer + nâng size Lovable Cloud instance (Backend → Advanced settings → Upgrade instance).
 
-## Out of scope (loop sau)
-
-- Realtime channels: chưa filter theo tenant ở client.
-- Bảng không có `tenant_id` (vd `journal_lines.tenant_id` chưa tồn tại) — nếu muốn lọc cứng ở DB, cần migration thêm cột + backfill (đề xuất riêng).
-- `superadmin.functions.ts` cross-tenant.
-- UI hiển thị / xử lý lỗi "Chưa chọn doanh nghiệp hoạt động".
-
-## Rủi ro
-
-Đụng ~30 file, ~80+ handler. Khả năng làm vỡ query rất cao nếu áp dụng máy móc cho bảng không có cột tenant_id. Sẽ kiểm cột thực tế trước khi sửa từng handler.
-
-Sau khi bạn duyệt, mình sẽ làm theo nhóm file (mỗi nhóm 4–6 file, build sạch giữa các bước).
+## Câu hỏi cho bạn
+Bạn muốn mình bắt đầu ngay với **Giai đoạn 1 (thêm composite index)** trong một migration duy nhất không? Hay làm song song cả instrumentation latency để có số liệu trước khi tối ưu sâu hơn?
