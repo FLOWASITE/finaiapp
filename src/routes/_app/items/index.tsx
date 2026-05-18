@@ -304,28 +304,21 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
           <TabsContent value="general" className="space-y-3 pt-4 min-h-[280px]">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Mã *" hint={codeDuplicate ? "Mã đã tồn tại" : undefined} error={codeDuplicate}>
-                <div className="flex gap-1">
-                  <Input
-                    ref={codeRef}
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
-                    placeholder={`${CODE_PREFIX[form.item_type]}0001`}
-                    className={codeDuplicate ? "border-destructive" : ""}
-                  />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setForm({ ...form, code: genCode(form.item_type, existingCodes) })}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Tự sinh mã</TooltipContent>
-                  </Tooltip>
-                </div>
+                <AutoCodeInput
+                  inputRef={codeRef}
+                  value={form.code}
+                  onChange={(v) => setForm((f) => ({ ...f, code: v }))}
+                  entity={
+                    form.item_type === "goods"
+                      ? "product_goods"
+                      : form.item_type === "service"
+                      ? "product_service"
+                      : "product_combo"
+                  }
+                  placeholder={`${CODE_PREFIX[form.item_type]}0001`}
+                  error={codeDuplicate}
+                  autoFillOnMount
+                />
               </Field>
               <Field label="Tên *">
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
