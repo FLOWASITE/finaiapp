@@ -284,6 +284,21 @@ function LoginPage() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-7 space-y-4" noValidate>
+              {formError && (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="flex gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+                >
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="font-medium">{formError.title}</p>
+                    {formError.detail && (
+                      <p className="text-xs text-destructive/85">{formError.detail}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
