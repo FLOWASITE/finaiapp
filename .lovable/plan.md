@@ -1,54 +1,46 @@
-
 ## Mục tiêu
 
-Đọc file XML hoá đơn điện tử chuẩn Tổng cục Thuế (TT78/TT32 — gốc `<HDon>`) và nạp vào hệ thống:
-- Tự nhận diện chiều: nếu MST của tenant trùng `NBan/MST` → tạo **Hoá đơn bán ra** (`sales_invoices`). Nếu trùng `NMua/MST` → tạo **Hoá đơn mua vào** (`invoices`). Không trùng cả hai → báo lỗi cho file đó.
-- Cho phép chọn **nhiều file XML** cùng lúc, hiển thị bảng kết quả từng file.
+Hoàn thiện form "Tạo tổ chức mới" trong `TenantSwitcher` để khi nhập **Mã số thuế** thì hệ thống tự động tra cứu (qua `lookupTaxId` đã có) và điền sẵn các thông tin doanh nghiệp, giảm thao tác thủ công.
 
-## Mapping XML → DB
+## Thay đổi
 
-| XML | Trường |
-|---|---|
-| `KHHDon` + `SHDon` | `invoice_series` + `invoice_no` |
-| `NLap` | `issue_date` |
-| `NBan/{Ten,MST,DChi}` | supplier (khi mua) hoặc bỏ qua (khi bán) |
-| `NMua/{Ten,MST,DChi}` | customer (khi bán) hoặc bỏ qua (khi mua) |
-| `TToan/TgTCThue` | `subtotal` |
-| `TToan/TgTThue` | `vat_amount` |
-| `TToan/TgTTTBSo` | `total` |
-| `DSHHDVu/HHDVu[]` | dòng (`invoice_lines` hoặc `sales_invoice_lines`): `THHDVu`→description, `DVTinh`, `SLuong`→qty, `DGia`→unit_price, `ThTien`→amount/pre_vat_amount, `TSuat` "10%"→`vat_rate=10`, `TThue`→line_vat_amount |
-| `MCCQT` | `einvoice_code` (cho HĐ bán) |
+### 1. `src/components/tenant-switcher.tsx` — `CreateTenantDialog`
 
-Chống trùng: kiểm tra `(tenant_id, invoice_no, supplier_tax_id|customer_tax_id, issue_date)` — nếu đã có → đánh dấu "Đã tồn tại", không tạo mới.
+Bố cục mới của dialog (theo thứ tự nhập tự nhiên):
 
-## Thay đổi code
+- **Mã số thuế** — dùng component `TaxIdLookupInput` (đã có sẵn). Người dùng nhập MST rồi bấm nút tra cứu; khi có kết quả:
+  - `company_name` ← `result.name`
+  - `name` (tên hiển thị) ← `result.shortName ?? result.name` (chỉ tự điền khi field còn trống, không ghi đè nếu user đã sửa)
+  - `address` ← `result.address`
+  - `legal_rep_name` ← `result.director` (nếu có)
+  - Hiện toast "Đã lấy thông tin từ MST".
+- **Tên pháp nhân** (`company_name`) — input text, bắt buộc sau khi tra cứu.
+- **Tên hiển thị** (`name`) — input text, bắt buộc, mặc định bằng tên pháp nhân.
+- **Địa chỉ trụ sở** (`address`) — textarea, tuỳ chọn.
+- **Đại diện pháp luật** (`legal_rep_name`) — input text, tuỳ chọn.
+- **Chuẩn kế toán** — Select `TT133` / `TT200`, mặc định `TT133`.
+- **Đồng tiền hạch toán** — Select đơn giản với `VND` (mặc định) và `USD`.
 
-**1. Dependency**
-- `bun add fast-xml-parser` (Worker-compatible, pure JS).
+Nút **Tạo** chỉ enable khi có `name` và `company_name` (giảm trường hợp tạo tổ chức rỗng). Reset state khi đóng dialog.
 
-**2. Server function — `src/lib/einvoice-xml.functions.ts`**
-- `importEinvoiceXml({ files: Array<{ name, content }> })` — `requireSupabaseAuth` + đọc tenant hiện tại từ `profiles.active_tenant_id`.
-- Với mỗi file:
-  1. Parse XML → object `{ ttChung, nBan, nMua, lines, totals }`.
-  2. So sánh MST với `tenants.tax_id` → quyết định chiều.
-  3. Upsert `suppliers` (theo `tax_id`, scope `user_id`) hoặc `customers`.
-  4. Insert `invoices` (lưu XML gốc lên bucket `invoices` làm `file_path`, status `extracted`) + `invoice_lines`; hoặc `sales_invoices` + `sales_invoice_lines` (status `draft`, gắn `einvoice_code` từ MCCQT).
-  5. Trả về `{ name, status: 'created'|'duplicate'|'error', direction, invoiceId?, error? }`.
+### 2. `src/lib/tenants.functions.ts` — mở rộng `createTenant`
 
-**3. UI — `src/components/import-einvoice-xml-dialog.tsx`**
-- Dialog dùng chung, mở từ 2 nơi:
-  - Nút "Nhập XML hoá đơn" trên `/invoices` (Hoá đơn mua vào).
-  - Nút tương tự trên `/sales` (Hoá đơn bán ra).
-- Cho chọn nhiều file (`<input type="file" multiple accept=".xml">`), đọc text trong trình duyệt, gọi server fn 1 lần.
-- Hiển thị bảng kết quả: tên file • chiều (Mua/Bán) • số HĐ • tổng tiền • trạng thái (✓ Đã tạo / ⚠ Trùng / ✗ Lỗi + lý do). Có link mở HĐ vừa tạo.
-- Sau khi đóng, `router.invalidate()` để 2 trang refresh danh sách.
+Thêm các field tuỳ chọn vào `CreateTenantSchema` và payload insert vào bảng `tenants`:
 
-**4. Cập nhật nhẹ**
-- `src/routes/_app/invoices/index.tsx` & `src/routes/_app/sales/index.tsx`: thêm nút mở dialog (cạnh nút Upload OCR / Tạo HĐ).
-- Không sửa schema DB, không sửa OCR cũ.
+- `address` (string, max 500, optional)
+- `legal_rep_name` (string, max 255, optional)
+- `accounting_standard` đã có; thêm hỗ trợ truyền `base_currency` (đã có).
 
-## Phạm vi không làm
+Logic insert giữ nguyên (admin client, tạo `tenant_members` owner, set `active_tenant_id`).
 
-- Không xác minh chữ ký số CQT (chỉ đọc dữ liệu nghiệp vụ).
-- Không tự sinh bút toán/journal entry — vẫn dùng luồng hiện có sau khi HĐ đã tạo.
-- Không import ZIP/PDF kèm XML ở vòng này.
+## Phạm vi không thay đổi
+
+- Không động vào `lookupTaxId`, không thêm bảng / migration mới.
+- Không sửa luồng auth, không sửa các route khác.
+- Các trường khác trong "Hoàn tất thiết lập" (loại hình DN, GPKD, kỳ kê khai, v.v.) vẫn nhập sau ở trang `/settings` qua `updateActiveTenant` như hiện tại — dialog này chỉ tập trung khởi tạo nhanh.
+
+## Kỹ thuật
+
+- Tận dụng `TaxIdLookupInput` (đã có cache 24h client + server) → không phát sinh code tra cứu mới.
+- `onResolved` callback nhận `TaxLookupResult` để fill form; dùng cờ `userEditedName` để tránh ghi đè khi user đã chỉnh.
+- Validate phía server bằng Zod (đã có pattern); phía client chỉ disable nút submit khi thiếu trường bắt buộc.

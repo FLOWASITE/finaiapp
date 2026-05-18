@@ -64,6 +64,8 @@ const CreateTenantSchema = z.object({
   name: z.string().min(1).max(255),
   company_name: z.string().max(255).optional(),
   tax_id: z.string().max(50).optional(),
+  address: z.string().max(500).optional(),
+  legal_rep_name: z.string().max(255).optional(),
   accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
   base_currency: z.string().max(10).default("VND"),
 });
@@ -81,6 +83,8 @@ export const createTenant = createServerFn({ method: "POST" })
         name: data.name,
         company_name: data.company_name ?? data.name,
         tax_id: data.tax_id ?? null,
+        address: data.address ?? null,
+        legal_rep_name: data.legal_rep_name ?? null,
         accounting_standard: data.accounting_standard,
         base_currency: data.base_currency,
         owner_user_id: userId,
