@@ -98,14 +98,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Thuế",
-    entries: [
-      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
-      { to: "/tax/tncn", label: "Thuế TNCN", icon: UserCog },
-      { to: "/tax/tndn", label: "Thuế TNDN", icon: Calculator },
-    ],
-  },
-  {
     label: "Báo cáo",
     entries: [
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
