@@ -102,7 +102,12 @@ function CredentialsPage() {
     setCapValue("");
     try {
       const r = await getCaptcha({ data: undefined as any });
-      setCap(r);
+      if (!r.ok) {
+        toast.error(r.error || "Không tải được captcha");
+        setCap(null);
+      } else {
+        setCap({ key: r.key, svg: r.svg });
+      }
     } catch (e: any) {
       toast.error(e?.message || "Không tải được captcha");
     } finally {
