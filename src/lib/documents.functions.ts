@@ -43,7 +43,7 @@ export const transitionStatus = createServerFn({ method: "POST" })
       p_table: data.table,
       p_id: data.id,
       p_to_status: data.to_status,
-      p_reason: data.reason ?? null,
+      p_reason: data.reason,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
