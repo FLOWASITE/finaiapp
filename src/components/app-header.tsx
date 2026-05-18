@@ -18,7 +18,6 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppHeader() {
-  const crumbs = useBreadcrumbs();
   const { data: cu, isLoading } = useCurrentUser();
   const email = cu?.email ?? null;
   const profile = cu?.profile ?? null;
@@ -33,29 +32,10 @@ export function AppHeader() {
     .toUpperCase() || "?";
 
   return (
-    <div className="flex flex-1 items-center gap-4">
-      {/* Breadcrumbs */}
-      <nav className="hidden md:flex items-center gap-2 text-xs">
-        <Link to="/dashboard" className="text-muted-foreground/70 hover:text-foreground transition-colors">
-          Trang chủ
-        </Link>
-        {crumbs.map((c) => (
-          <span key={c.href} className="flex items-center gap-2">
-            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
-            {c.last ? (
-              <span className="font-medium text-foreground">{c.label}</span>
-            ) : (
-              <Link to={c.href} className="text-muted-foreground/70 hover:text-foreground transition-colors">
-                {c.label}
-              </Link>
-            )}
-          </span>
-        ))}
-      </nav>
-
-      <div className="ml-auto flex items-center gap-3">
+    <div className="flex flex-1 items-center justify-end gap-3">
         {/* Accounting period switcher */}
         <PeriodSwitcher />
+
 
         {/* Quick links grouped pill */}
         <div className="hidden md:flex items-center gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
