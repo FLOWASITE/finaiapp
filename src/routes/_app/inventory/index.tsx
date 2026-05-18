@@ -59,7 +59,11 @@ function StockPage() {
             </Link>.
           </p>
         </div>
-        <MovementDialog products={products ?? []} />
+        <div className="flex gap-2">
+          <StockVoucherDialog type="in" products={products ?? []} />
+          <StockVoucherDialog type="out" products={products ?? []} />
+        </div>
+
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
