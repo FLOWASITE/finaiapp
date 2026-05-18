@@ -221,12 +221,16 @@ export type Database = {
           journal_entry_id: string | null
           party_id: string | null
           party_name: string | null
+          posted_at: string | null
           project_id: string | null
           reason: string | null
           reference: string | null
+          status: string
           tenant_id: string | null
           transfer_pair_id: string | null
           user_id: string
+          void_reason: string | null
+          voided_at: string | null
           voucher_date: string
           voucher_no: string
           voucher_type: string
@@ -243,12 +247,16 @@ export type Database = {
           journal_entry_id?: string | null
           party_id?: string | null
           party_name?: string | null
+          posted_at?: string | null
           project_id?: string | null
           reason?: string | null
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           transfer_pair_id?: string | null
           user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
           voucher_date?: string
           voucher_no: string
           voucher_type: string
@@ -265,12 +273,16 @@ export type Database = {
           journal_entry_id?: string | null
           party_id?: string | null
           party_name?: string | null
+          posted_at?: string | null
           project_id?: string | null
           reason?: string | null
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           transfer_pair_id?: string | null
           user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
           voucher_date?: string
           voucher_no?: string
           voucher_type?: string
@@ -355,10 +367,14 @@ export type Database = {
           id: string
           journal_entry_id: string | null
           party_name: string | null
+          posted_at: string | null
           project_id: string | null
           reason: string | null
+          status: string
           tenant_id: string | null
           user_id: string
+          void_reason: string | null
+          voided_at: string | null
           voucher_date: string
           voucher_no: string
           voucher_type: string
@@ -373,10 +389,14 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
+          posted_at?: string | null
           project_id?: string | null
           reason?: string | null
+          status?: string
           tenant_id?: string | null
           user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
           voucher_date?: string
           voucher_no: string
           voucher_type: string
@@ -391,10 +411,14 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
+          posted_at?: string | null
           project_id?: string | null
           reason?: string | null
+          status?: string
           tenant_id?: string | null
           user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
           voucher_date?: string
           voucher_no?: string
           voucher_type?: string
@@ -552,10 +576,14 @@ export type Database = {
           method: string
           notes: string | null
           pay_date: string
+          posted_at: string | null
           project_id: string | null
           reference: string | null
+          status: string
           tenant_id: string | null
           user_id: string
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           amount: number
@@ -570,10 +598,14 @@ export type Database = {
           method?: string
           notes?: string | null
           pay_date?: string
+          posted_at?: string | null
           project_id?: string | null
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           amount?: number
@@ -588,10 +620,14 @@ export type Database = {
           method?: string
           notes?: string | null
           pay_date?: string
+          posted_at?: string | null
           project_id?: string | null
           reference?: string | null
+          status?: string
           tenant_id?: string | null
           user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -817,6 +853,140 @@ export type Database = {
           },
         ]
       }
+      document_links: {
+        Row: {
+          created_at: string
+          document_id: string
+          entity_id: string
+          entity_table: string
+          link_type: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          entity_id: string
+          entity_table: string
+          link_type?: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          entity_id?: string
+          entity_table?: string
+          link_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_links_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          entity_id: string
+          entity_table: string
+          from_status: string | null
+          id: string
+          reason: string | null
+          tenant_id: string
+          to_status: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          entity_id: string
+          entity_table: string
+          from_status?: string | null
+          id?: string
+          reason?: string | null
+          tenant_id: string
+          to_status: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          entity_id?: string
+          entity_table?: string
+          from_status?: string | null
+          id?: string
+          reason?: string | null
+          tenant_id?: string
+          to_status?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          checksum_sha256: string | null
+          created_at: string
+          doc_kind: string
+          id: string
+          mime_type: string | null
+          notes: string | null
+          ocr_extracted: Json | null
+          ocr_raw: Json | null
+          ocr_status: string
+          original_filename: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          size_bytes: number | null
+          source: string
+          storage_bucket: string
+          storage_path: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checksum_sha256?: string | null
+          created_at?: string
+          doc_kind: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          ocr_extracted?: Json | null
+          ocr_raw?: Json | null
+          ocr_status?: string
+          original_filename?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_bucket: string
+          storage_path: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checksum_sha256?: string | null
+          created_at?: string
+          doc_kind?: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          ocr_extracted?: Json | null
+          ocr_raw?: Json | null
+          ocr_status?: string
+          original_filename?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_bucket?: string
+          storage_path?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       einvoice_credentials: {
         Row: {
           created_at: string
@@ -980,11 +1150,13 @@ export type Database = {
           matched_sales_invoice_id: string | null
           notes: string | null
           pdf_path: string | null
+          posted_at: string | null
           project_id: string | null
           seller_address: string | null
           seller_name: string | null
           seller_tax_id: string | null
           source: string
+          status: string
           subtotal: number | null
           tct_lookup_code: string | null
           tct_mcct: string | null
@@ -996,6 +1168,8 @@ export type Database = {
           updated_at: string
           user_id: string
           vat_amount: number | null
+          void_reason: string | null
+          voided_at: string | null
           xml_path: string | null
         }
         Insert: {
@@ -1018,11 +1192,13 @@ export type Database = {
           matched_sales_invoice_id?: string | null
           notes?: string | null
           pdf_path?: string | null
+          posted_at?: string | null
           project_id?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_id?: string | null
           source?: string
+          status?: string
           subtotal?: number | null
           tct_lookup_code?: string | null
           tct_mcct?: string | null
@@ -1034,6 +1210,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           vat_amount?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
           xml_path?: string | null
         }
         Update: {
@@ -1056,11 +1234,13 @@ export type Database = {
           matched_sales_invoice_id?: string | null
           notes?: string | null
           pdf_path?: string | null
+          posted_at?: string | null
           project_id?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_id?: string | null
           source?: string
+          status?: string
           subtotal?: number | null
           tct_lookup_code?: string | null
           tct_mcct?: string | null
@@ -1072,6 +1252,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vat_amount?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
           xml_path?: string | null
         }
         Relationships: [
@@ -1376,6 +1558,7 @@ export type Database = {
           issue_date: string | null
           notes: string | null
           payment_status: string
+          posted_at: string | null
           project_id: string | null
           raw_ocr: Json | null
           status: string
@@ -1388,6 +1571,8 @@ export type Database = {
           updated_at: string
           user_id: string
           vat_amount: number | null
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           branch_id?: string | null
@@ -1402,6 +1587,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_status?: string
+          posted_at?: string | null
           project_id?: string | null
           raw_ocr?: Json | null
           status?: string
@@ -1414,6 +1600,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           vat_amount?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           branch_id?: string | null
@@ -1428,6 +1616,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_status?: string
+          posted_at?: string | null
           project_id?: string | null
           raw_ocr?: Json | null
           status?: string
@@ -1440,6 +1629,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vat_amount?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -2337,6 +2528,7 @@ export type Database = {
           paid_amount: number
           payment_status: string
           payment_terms_days: number | null
+          posted_at: string | null
           project_id: string | null
           quote_id: string | null
           sales_order_id: string | null
@@ -2351,6 +2543,8 @@ export type Database = {
           updated_at: string
           user_id: string
           vat_amount: number
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           billing_address?: string | null
@@ -2380,6 +2574,7 @@ export type Database = {
           paid_amount?: number
           payment_status?: string
           payment_terms_days?: number | null
+          posted_at?: string | null
           project_id?: string | null
           quote_id?: string | null
           sales_order_id?: string | null
@@ -2394,6 +2589,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           vat_amount?: number
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           billing_address?: string | null
@@ -2423,6 +2620,7 @@ export type Database = {
           paid_amount?: number
           payment_status?: string
           payment_terms_days?: number | null
+          posted_at?: string | null
           project_id?: string | null
           quote_id?: string | null
           sales_order_id?: string | null
@@ -2437,6 +2635,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vat_amount?: number
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -2773,12 +2973,16 @@ export type Database = {
           journal_entry_id: string | null
           method: string
           pay_date: string
+          posted_at: string | null
           project_id: string | null
           reference: string | null
+          status: string
           supplier_id: string | null
           supplier_name: string | null
           tenant_id: string | null
           user_id: string
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           amount: number
@@ -2790,12 +2994,16 @@ export type Database = {
           journal_entry_id?: string | null
           method?: string
           pay_date?: string
+          posted_at?: string | null
           project_id?: string | null
           reference?: string | null
+          status?: string
           supplier_id?: string | null
           supplier_name?: string | null
           tenant_id?: string | null
           user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           amount?: number
@@ -2807,12 +3015,16 @@ export type Database = {
           journal_entry_id?: string | null
           method?: string
           pay_date?: string
+          posted_at?: string | null
           project_id?: string | null
           reference?: string | null
+          status?: string
           supplier_id?: string | null
           supplier_name?: string | null
           tenant_id?: string | null
           user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -3246,6 +3458,15 @@ export type Database = {
       is_tenant_member: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      transition_document_status: {
+        Args: {
+          p_id: string
+          p_reason?: string
+          p_table: string
+          p_to_status: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
