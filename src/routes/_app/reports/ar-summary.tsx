@@ -67,6 +67,30 @@ function ArSummaryPage() {
 
   const arFn = useServerFn(getArSummary);
   const exportFn = useServerFn(exportArSummaryXlsx);
+  const drillFn = useServerFn(getArDrilldown);
+
+  const [drillRow, setDrillRow] = useState<ArSummaryRow | null>(null);
+  const drillQ = useQuery({
+    enabled: !!drillRow,
+    queryKey: [
+      "ar-drilldown",
+      from,
+      to,
+      dims,
+      drillRow?.customer_id ?? null,
+      drillRow?.customer_name ?? "",
+    ],
+    queryFn: () =>
+      drillFn({
+        data: {
+          from,
+          to,
+          dims,
+          customer_id: drillRow?.customer_id ?? null,
+          customer_name: drillRow?.customer_name ?? null,
+        },
+      }),
+  });
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
