@@ -130,25 +130,81 @@ const AuditFilterSchema = z.object({
   to: z.string().optional(),
   action: z.string().max(50).optional(),
   table_name: z.string().max(100).optional(),
-  limit: z.number().int().min(1).max(500).default(200),
+  user_id: z.string().uuid().optional(),
+  record_id: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+  limit: z.number().int().min(1).max(500).default(50),
+  offset: z.number().int().min(0).default(0),
 });
 export const listAuditLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => AuditFilterSchema.parse(input ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    let q = supabase
+    const applyFilters = (q: any) => {
+      if (data.from) q = q.gte("created_at", data.from);
+      if (data.to) q = q.lte("created_at", data.to);
+      if (data.action) q = q.eq("action", data.action);
+      if (data.table_name) q = q.eq("table_name", data.table_name);
+      if (data.user_id) q = q.eq("user_id", data.user_id);
+      if (data.record_id) q = q.eq("record_id", data.record_id);
+      if (data.search) q = q.ilike("actor_email", `%${data.search}%`);
+      return q;
+    };
+    const rowsQuery = applyFilters(
+      supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(data.offset, data.offset + data.limit - 1)
+    );
+    const countQuery = applyFilters(
+      supabase.from("audit_logs").select("id", { count: "exact", head: true })
+    );
+    const [{ data: rows, error }, { count, error: cErr }] = await Promise.all([rowsQuery, countQuery]);
+    if (error) throw new Error(error.message);
+    if (cErr) throw new Error(cErr.message);
+    return { rows: rows ?? [], total: count ?? 0 };
+  });
+
+const RecordHistorySchema = z.object({
+  table_name: z.string().min(1).max(100),
+  record_id: z.string().uuid(),
+});
+export const getRecordHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => RecordHistorySchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: rows, error } = await supabase
       .from("audit_logs")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-    if (data.from) q = q.gte("created_at", data.from);
-    if (data.to) q = q.lte("created_at", data.to);
-    if (data.action) q = q.eq("action", data.action);
-    if (data.table_name) q = q.eq("table_name", data.table_name);
-    const { data: rows, error } = await q;
+      .eq("table_name", data.table_name)
+      .eq("record_id", data.record_id)
+      .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return { rows: rows ?? [] };
+  });
+
+export const getAuditFacets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("table_name, action")
+      .limit(5000);
+    if (error) throw new Error(error.message);
+    const tableSet = new Set<string>();
+    const actionSet = new Set<string>();
+    (data ?? []).forEach((r: any) => {
+      if (r.table_name) tableSet.add(r.table_name);
+      if (r.action) actionSet.add(r.action);
+    });
+    return {
+      tables: Array.from(tableSet).sort(),
+      actions: Array.from(actionSet).sort(),
+    };
   });
 
 // ===== Period locks (now backed by fiscal_periods) =====
