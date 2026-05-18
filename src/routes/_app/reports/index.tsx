@@ -618,6 +618,78 @@ function TrialBalanceTable({
   );
 }
 
+type UnbalancedData = {
+  entries: Array<{
+    entry_id: string;
+    entry_date: string;
+    description: string | null;
+    totalDebit: number;
+    totalCredit: number;
+    delta: number;
+    lineCount: number;
+    reason: string;
+  }>;
+  totalCount: number;
+  totalDelta: number;
+};
+
+function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
+  if (loading) {
+    return <div className="rounded border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Đang phân tích bút toán lệch cân…</div>;
+  }
+  if (!data || data.entries.length === 0) {
+    return (
+      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+        Không phát hiện bút toán nào có Nợ ≠ Có trong kỳ. Chênh lệch có thể đến từ
+        <span className="font-medium"> số dư đầu kỳ chưa cân</span> hoặc
+        <span className="font-medium"> dữ liệu ngoài khoảng thời gian đang lọc</span>.
+        Hãy mở rộng kỳ hoặc kiểm tra số dư khởi tạo trong <Link to="/coa" className="underline">Hệ thống tài khoản</Link>.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded border border-destructive/30 bg-destructive/5 p-3">
+      <div className="mb-2 flex items-center justify-between text-xs">
+        <span className="font-semibold text-destructive">
+          {data.totalCount} bút toán có Nợ ≠ Có (tổng lệch: {fmt(data.totalDelta)})
+        </span>
+        <span className="text-muted-foreground">Hiển thị tối đa {data.entries.length} dòng — sắp xếp theo mức lệch giảm dần</span>
+      </div>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border text-muted-foreground">
+            <th className="py-1 text-left">Ngày</th>
+            <th className="text-left">Diễn giải</th>
+            <th className="text-center">Số dòng</th>
+            <th className="text-right">Tổng Nợ</th>
+            <th className="text-right">Tổng Có</th>
+            <th className="text-right">Lệch</th>
+            <th className="text-left pl-2">Gợi ý nguyên nhân</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.entries.map((e) => (
+            <tr key={e.entry_id} className="border-b border-border/40">
+              <td className="py-1 font-mono">{e.entry_date}</td>
+              <td className="max-w-[280px] truncate" title={e.description ?? ""}>{e.description ?? "—"}</td>
+              <td className="text-center">{e.lineCount}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(e.totalDebit)}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(e.totalCredit)}</td>
+              <td className="text-right font-mono tabular-nums font-semibold text-destructive">{fmt(e.delta)}</td>
+              <td className="pl-2 text-muted-foreground">{e.reason}</td>
+              <td className="text-right">
+                <Link to="/journal" search={{ q: e.entry_id } as never} className="text-primary underline">Mở</Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
 function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-card p-6">
