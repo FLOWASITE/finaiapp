@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories } from "@/lib/inventory.functions";
+import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories, previewStockVoucherNo } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Boxes, AlertTriangle, Activity, Wrench, ExternalLink } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Boxes, AlertTriangle, Activity, Wrench, ExternalLink, RefreshCw } from "lucide-react";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 
 export const Route = createFileRoute("/_app/inventory/")({ component: StockPage });
+
 
 function StockPage() {
   const list = useServerFn(listProducts);
