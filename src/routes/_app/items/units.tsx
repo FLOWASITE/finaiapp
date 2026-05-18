@@ -41,13 +41,30 @@ function UnitsPage() {
   const list = useServerFn(listUnits);
   const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => list() });
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"all" | "active" | "hidden">("all");
+  const [usage, setUsage] = useState<"all" | "in_use" | "unused">("all");
+  const [sort, setSort] = useState<"code" | "usage" | "name">("code");
 
   const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return ((units as any[]) ?? []).filter(
-      (u) => !s || u.code.toLowerCase().includes(s) || u.name.toLowerCase().includes(s),
-    );
-  }, [units, search]);
+    const s = normalizeUnit(search);
+    const rows = ((units as any[]) ?? []).filter((u) => {
+      if (s && !normalizeUnit(u.code).includes(s) && !normalizeUnit(u.name).includes(s)) return false;
+      if (status === "active" && !u.is_active) return false;
+      if (status === "hidden" && u.is_active) return false;
+      if (usage === "in_use" && (u.usage ?? 0) === 0) return false;
+      if (usage === "unused" && (u.usage ?? 0) > 0) return false;
+      return true;
+    });
+    rows.sort((a, b) => {
+      if (sort === "usage") return (b.usage ?? 0) - (a.usage ?? 0) || a.code.localeCompare(b.code);
+      if (sort === "name") return a.name.localeCompare(b.name, "vi");
+      return a.code.localeCompare(b.code, "vi");
+    });
+    return rows;
+  }, [units, search, status, usage, sort]);
+
+  const total = ((units as any[]) ?? []).length;
+  const hasFilter = !!search || status !== "all" || usage !== "all";
 
   return (
     <div className="p-8 space-y-6">
@@ -63,8 +80,74 @@ function UnitsPage() {
       </div>
 
       <Card>
-        <CardContent className="p-4">
-          <Input placeholder="Tìm mã hoặc tên đơn vị..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <CardContent className="p-4 flex flex-wrap items-end gap-3">
+          <div className="space-y-1 flex-1 min-w-[220px]">
+            <Label className="text-xs">Tìm kiếm</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Mã hoặc tên đơn vị (vd: kg, hop, met)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-8"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label="Xoá tìm kiếm"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Trạng thái</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="active">Hoạt động</SelectItem>
+                <SelectItem value="hidden">Đã ẩn</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Sử dụng</Label>
+            <Select value={usage} onValueChange={(v) => setUsage(v as any)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="in_use">Đang dùng (&gt; 0)</SelectItem>
+                <SelectItem value="unused">Chưa dùng</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Sắp xếp</Label>
+            <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="code">Theo mã (A→Z)</SelectItem>
+                <SelectItem value="name">Theo tên (A→Z)</SelectItem>
+                <SelectItem value="usage">Hay dùng nhất</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hasFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setSearch(""); setStatus("all"); setUsage("all"); }}
+            >
+              Xoá lọc
+            </Button>
+          )}
+          <div className="text-xs text-muted-foreground ml-auto pb-2">
+            {filtered.length} / {total} đơn vị
+          </div>
         </CardContent>
       </Card>
 
