@@ -1725,6 +1725,67 @@ export type Database = {
           },
         ]
       }
+      employee_salary_structures: {
+        Row: {
+          amount: number
+          component_id: string
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          component_id: string
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          component_id?: string
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_salary_structures_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "salary_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_salary_structures_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_salary_structures_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: string | null
@@ -3286,6 +3347,80 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_run_lines: {
+        Row: {
+          amount: number
+          component_code: string | null
+          component_id: string | null
+          component_name: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          insurable_amount: number
+          kind: string | null
+          run_id: string
+          taxable_amount: number
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          component_code?: string | null
+          component_id?: string | null
+          component_name?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          insurable_amount?: number
+          kind?: string | null
+          run_id: string
+          taxable_amount?: number
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          component_code?: string | null
+          component_id?: string | null
+          component_name?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          insurable_amount?: number
+          kind?: string | null
+          run_id?: string
+          taxable_amount?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_run_lines_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "salary_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_lines_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_run_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           branch_id: string | null
@@ -3773,6 +3908,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      salary_components: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          expense_account: string | null
+          id: string
+          is_fixed: boolean
+          is_insurable: boolean
+          is_taxable: boolean
+          kind: string
+          name: string
+          notes: string | null
+          ot_multiplier: number
+          sort_order: number
+          taxable_threshold: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          expense_account?: string | null
+          id?: string
+          is_fixed?: boolean
+          is_insurable?: boolean
+          is_taxable?: boolean
+          kind?: string
+          name: string
+          notes?: string | null
+          ot_multiplier?: number
+          sort_order?: number
+          taxable_threshold?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          expense_account?: string | null
+          id?: string
+          is_fixed?: boolean
+          is_insurable?: boolean
+          is_taxable?: boolean
+          kind?: string
+          name?: string
+          notes?: string | null
+          ot_multiplier?: number
+          sort_order?: number
+          taxable_threshold?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_components_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_invoice_lines: {
         Row: {
@@ -4682,6 +4882,75 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      timesheets: {
+        Row: {
+          actual_days: number
+          created_at: string
+          employee_id: string
+          id: string
+          night_hours: number
+          notes: string | null
+          ot_150_hours: number
+          ot_200_hours: number
+          ot_300_hours: number
+          paid_leave_days: number
+          period_month: string
+          standard_days: number
+          tenant_id: string
+          unpaid_leave_days: number
+          updated_at: string
+        }
+        Insert: {
+          actual_days?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          night_hours?: number
+          notes?: string | null
+          ot_150_hours?: number
+          ot_200_hours?: number
+          ot_300_hours?: number
+          paid_leave_days?: number
+          period_month: string
+          standard_days?: number
+          tenant_id: string
+          unpaid_leave_days?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_days?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          night_hours?: number
+          notes?: string | null
+          ot_150_hours?: number
+          ot_200_hours?: number
+          ot_300_hours?: number
+          paid_leave_days?: number
+          period_month?: string
+          standard_days?: number
+          tenant_id?: string
+          unpaid_leave_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_invitations: {
         Row: {
