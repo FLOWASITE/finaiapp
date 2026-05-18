@@ -36,6 +36,7 @@ import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
+import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
@@ -195,6 +196,11 @@ const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppEinvoicesIndexRoute = AppEinvoicesIndexRouteImport.update({
+  id: '/einvoices/',
+  path: '/einvoices/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
   id: '/customers/',
@@ -360,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
+  '/einvoices/': typeof AppEinvoicesIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
@@ -410,6 +417,7 @@ export interface FileRoutesByTo {
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
+  '/einvoices': typeof AppEinvoicesIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/payables': typeof AppPayablesIndexRoute
@@ -465,6 +473,7 @@ export interface FileRoutesById {
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
+  '/_app/einvoices/': typeof AppEinvoicesIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/cash/'
     | '/coa/'
     | '/customers/'
+    | '/einvoices/'
     | '/inventory/'
     | '/invoices/'
     | '/payables/'
@@ -570,6 +580,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/coa'
     | '/customers'
+    | '/einvoices'
     | '/inventory'
     | '/invoices'
     | '/payables'
@@ -624,6 +635,7 @@ export interface FileRouteTypes {
     | '/_app/cash/'
     | '/_app/coa/'
     | '/_app/customers/'
+    | '/_app/einvoices/'
     | '/_app/inventory/'
     | '/_app/invoices/'
     | '/_app/payables/'
@@ -838,6 +850,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/inventory/'
       preLoaderRoute: typeof AppInventoryIndexRouteImport
       parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/einvoices/': {
+      id: '/_app/einvoices/'
+      path: '/einvoices'
+      fullPath: '/einvoices/'
+      preLoaderRoute: typeof AppEinvoicesIndexRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/customers/': {
       id: '/_app/customers/'
@@ -1109,6 +1128,7 @@ interface AppRouteChildren {
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppCoaIndexRoute: typeof AppCoaIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
+  AppEinvoicesIndexRoute: typeof AppEinvoicesIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
@@ -1145,6 +1165,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCashIndexRoute: AppCashIndexRoute,
   AppCoaIndexRoute: AppCoaIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
+  AppEinvoicesIndexRoute: AppEinvoicesIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppPayablesIndexRoute: AppPayablesIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
