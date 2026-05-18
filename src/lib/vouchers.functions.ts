@@ -235,7 +235,8 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     const profile = (await supabase
       .from("profiles")
       .select("company_name, tax_id, address")
-      .single()).data;
+      .eq("id", userId)
+      .maybeSingle()).data;
 
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
