@@ -47,6 +47,7 @@ import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
 import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
 import { Route as AppTaxGtgtRouteImport } from './routes/_app/tax/gtgt'
+import { Route as AppSuppliersGroupsRouteImport } from './routes/_app/suppliers/groups'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
@@ -267,6 +268,11 @@ const AppTaxGtgtRoute = AppTaxGtgtRouteImport.update({
   path: '/tax/gtgt',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuppliersGroupsRoute = AppSuppliersGroupsRouteImport.update({
+  id: '/suppliers/groups',
+  path: '/suppliers/groups',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   id: '/suppliers/$id',
   path: '/suppliers/$id',
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
@@ -526,6 +533,7 @@ export interface FileRoutesByTo {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
@@ -597,6 +605,7 @@ export interface FileRoutesById {
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
+  '/_app/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/_app/tax/gtgt': typeof AppTaxGtgtRoute
   '/_app/tax/tncn': typeof AppTaxTncnRoute
   '/_app/tax/tndn': typeof AppTaxTndnRoute
@@ -668,6 +677,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/suppliers/groups'
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
@@ -732,6 +742,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/suppliers/groups'
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
@@ -802,6 +813,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/audit'
     | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
+    | '/_app/suppliers/groups'
     | '/_app/tax/gtgt'
     | '/_app/tax/tncn'
     | '/_app/tax/tndn'
@@ -1102,6 +1114,13 @@ declare module '@tanstack/react-router' {
       path: '/tax/gtgt'
       fullPath: '/tax/gtgt'
       preLoaderRoute: typeof AppTaxGtgtRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/suppliers/groups': {
+      id: '/_app/suppliers/groups'
+      path: '/suppliers/groups'
+      fullPath: '/suppliers/groups'
+      preLoaderRoute: typeof AppSuppliersGroupsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/suppliers/$id': {
@@ -1448,6 +1467,7 @@ interface AppRouteChildren {
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesOrdersRoute: typeof AppSalesOrdersRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
+  AppSuppliersGroupsRoute: typeof AppSuppliersGroupsRoute
   AppTaxGtgtRoute: typeof AppTaxGtgtRoute
   AppTaxTncnRoute: typeof AppTaxTncnRoute
   AppTaxTndnRoute: typeof AppTaxTndnRoute
@@ -1489,6 +1509,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesOrdersRoute: AppSalesOrdersRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
+  AppSuppliersGroupsRoute: AppSuppliersGroupsRoute,
   AppTaxGtgtRoute: AppTaxGtgtRoute,
   AppTaxTncnRoute: AppTaxTncnRoute,
   AppTaxTndnRoute: AppTaxTndnRoute,
