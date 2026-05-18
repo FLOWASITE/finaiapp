@@ -322,6 +322,7 @@ function InvoicesList() {
                     <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3 text-center"><Skeleton className="h-6 w-16 mx-auto" /></td>
                   </tr>
                 ))
               : (data?.rows ?? []).map((i) => (
@@ -335,13 +336,25 @@ function InvoicesList() {
                     <td className="px-4 py-3">{i.supplier_name ?? "—"}</td>
                     <td className="px-4 py-3 text-right font-mono">{vnd(i.total)}</td>
                     <td className="px-4 py-3 text-right font-mono">{vnd(i.remaining)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
+                    <td className="px-4 py-3"><DocStatusBadge status={i.status} /></td>
                     <td className="px-4 py-3"><PayBadge status={i.payment_status} /></td>
+                    <td className="px-4 py-3 text-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1"
+                        onClick={() =>
+                          setDocFor({ id: i.id, status: i.status, invoice_no: i.invoice_no })
+                        }
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
             {!isLoading && (data?.rows ?? []).length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   Không có hoá đơn theo bộ lọc.
                 </td>
               </tr>
