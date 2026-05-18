@@ -488,12 +488,25 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
     : undefined;
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
+      <SidebarMenuButton
+        asChild
+        isActive={active}
+        tooltip={item.label}
+        className={cn(
+          "relative group transition-all duration-200 hover:translate-x-px hover:bg-sidebar-accent/40",
+          active && "bg-sidebar-accent/60 shadow-[var(--shadow-sidebar-active)]"
+        )}
+      >
         <Link to={path} search={search as never}>
           {active && (
-            <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
+            <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-sidebar-primary to-sidebar-primary/60 shadow-[0_0_10px_oklch(0.72_0.16_162/0.6)]" />
           )}
-          <Icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", active && "text-sidebar-primary")} />
+          <Icon
+            className={cn(
+              "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
+              active && "text-sidebar-primary drop-shadow-[0_0_6px_oklch(0.72_0.16_162/0.55)]"
+            )}
+          />
           <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
           {item.badge != null && (
             <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
