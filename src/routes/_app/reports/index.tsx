@@ -7,6 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
+import { getTrialBalance } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,11 +91,13 @@ function ReportsPage() {
   const cfFn = useServerFn(getCashFlowDirect);
   const notesFn = useServerFn(getNotesData);
   const exportFn = useServerFn(exportReportXlsx);
+  const tbFn = useServerFn(getTrialBalance);
 
   const bs = useQuery({ queryKey: ["bs99", to, compareEnabled, prevAsOf], queryFn: () => bsFn({ data: { asOf: to, compareAsOf: compareEnabled ? prevAsOf : undefined } }), ...QUERY_PRESETS.REPORT });
   const is = useQuery({ queryKey: ["is99", from, to, compareEnabled, prevFrom, prevTo, dims], queryFn: () => isFn({ data: { from, to, compareFrom: compareEnabled ? prevFrom : undefined, compareTo: compareEnabled ? prevTo : undefined, dims } }), ...QUERY_PRESETS.REPORT });
   const cf = useQuery({ queryKey: ["cf99", from, to], queryFn: () => cfFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
+  const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
@@ -135,7 +138,7 @@ function ReportsPage() {
         </label>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />In / Xuất PDF</Button>
-          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); }}>Cập nhật</Button>
+          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); tb.refetch(); }}>Cập nhật</Button>
         </div>
       </div>
 
@@ -145,6 +148,7 @@ function ReportsPage() {
           <TabsTrigger value="b02">B02 — KQKD</TabsTrigger>
           <TabsTrigger value="b03">B03 — LCTT</TabsTrigger>
           <TabsTrigger value="b09">B09 — Thuyết minh</TabsTrigger>
+          <TabsTrigger value="tb">BCĐPS — Cân đối phát sinh</TabsTrigger>
         </TabsList>
 
         <TabsContent value="b01">
@@ -206,6 +210,26 @@ function ReportsPage() {
           <ReportCard title="Thuyết minh báo cáo tài chính (Mẫu B09-DN)" subtitle={`Kỳ từ ${from} đến ${to}`}>
             <PrintHeader profile={profile} title="THUYẾT MINH BÁO CÁO TÀI CHÍNH" subtitle={`Mẫu số B09-DN — Kỳ từ ${from} đến ${to}`} />
             {!notes.data ? <Loading /> : <NotesPanel data={notes.data} onRefetch={() => notes.refetch()} upsert={upsertReportNote} />}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
+          </ReportCard>
+        </TabsContent>
+
+        <TabsContent value="tb">
+          <ReportCard title="Bảng cân đối số phát sinh" subtitle={`Kỳ từ ${from} đến ${to}`}>
+            <PrintHeader profile={profile} title="BẢNG CÂN ĐỐI SỐ PHÁT SINH" subtitle={`Kỳ từ ${from} đến ${to}`} />
+            <div className="mb-3 print:hidden">
+              <DimensionFilterBar value={dims} onChange={setDims} />
+            </div>
+            {!tb.data ? <Loading /> : (
+              <>
+                {!tb.data.balanced && (
+                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive print:hidden">
+                    <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
+                  </div>
+                )}
+                <TrialBalanceTable data={tb.data} hideZero={hideZero} />
+              </>
+            )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
@@ -387,6 +411,74 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+type TrialBalanceRow = {
+  code: string;
+  name: string;
+  openingDebit: number;
+  openingCredit: number;
+  debit: number;
+  credit: number;
+  closingDebit: number;
+  closingCredit: number;
+};
+type TrialBalanceData = {
+  rows: TrialBalanceRow[];
+  totals: Omit<TrialBalanceRow, "code" | "name">;
+  balanced: boolean;
+};
+
+function TrialBalanceTable({ data, hideZero }: { data: TrialBalanceData; hideZero: boolean }) {
+  const rows = hideZero
+    ? data.rows.filter(
+        (r) =>
+          r.openingDebit !== 0 || r.openingCredit !== 0 ||
+          r.debit !== 0 || r.credit !== 0 ||
+          r.closingDebit !== 0 || r.closingCredit !== 0,
+      )
+    : data.rows;
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="border-b-2 border-border">
+          <th rowSpan={2} className="py-2 text-left">Mã TK</th>
+          <th rowSpan={2} className="text-left">Tên tài khoản</th>
+          <th colSpan={2} className="text-center border-l border-border">Số dư đầu kỳ</th>
+          <th colSpan={2} className="text-center border-l border-border">Phát sinh trong kỳ</th>
+          <th colSpan={2} className="text-center border-l border-border">Số dư cuối kỳ</th>
+        </tr>
+        <tr className="border-b border-border text-muted-foreground">
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.code} className="border-b border-border/40">
+            <td className="py-1 font-mono">{r.code}</td>
+            <td>{r.name}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.openingCredit)}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.debit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
+          </tr>
+        ))}
+        <tr className="bg-muted/50 font-semibold border-t-2 border-border">
+          <td colSpan={2} className="py-2">Tổng cộng</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.openingDebit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.openingCredit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.debit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.credit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.closingDebit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.closingCredit)}</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
