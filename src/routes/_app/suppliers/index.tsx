@@ -71,9 +71,14 @@ function SuppliersPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Mã NCC, MST, ngân hàng, hạn TT, công nợ đầu kỳ</p>
         </div>
-        <Button onClick={() => setEditing({})}>
-          <Plus className="mr-2 h-4 w-4" /> Thêm NCC
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/suppliers/groups"><FolderTree className="mr-2 h-4 w-4" />Nhóm NCC</Link>
+          </Button>
+          <Button onClick={() => setEditing({})}>
+            <Plus className="mr-2 h-4 w-4" /> Thêm NCC
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
