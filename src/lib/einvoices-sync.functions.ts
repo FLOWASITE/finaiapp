@@ -29,7 +29,7 @@ async function encryptPwd(plain: string): Promise<string> {
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
     new TextEncoder().encode(plain),
   );
@@ -40,9 +40,9 @@ async function decryptPwd(token: string): Promise<string> {
   if (!ivB64 || !ctB64) throw new Error("Định dạng mật khẩu không hợp lệ");
   const key = await getKey();
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64decode(ivB64) },
+    { name: "AES-GCM", iv: b64decode(ivB64) as BufferSource },
     key,
-    b64decode(ctB64),
+    b64decode(ctB64) as BufferSource,
   );
   return new TextDecoder().decode(pt);
 }
