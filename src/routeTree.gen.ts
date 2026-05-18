@@ -65,6 +65,7 @@ import { Route as AppInventoryMovementsRouteImport } from './routes/_app/invento
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
+import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
@@ -353,6 +354,11 @@ const AppEinvoicesIdRoute = AppEinvoicesIdRouteImport.update({
   path: '/einvoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
@@ -409,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
+  '/bank/vouchers': typeof AppBankVouchersRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -468,6 +475,7 @@ export interface FileRoutesByTo {
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
+  '/bank/vouchers': typeof AppBankVouchersRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -534,6 +542,7 @@ export interface FileRoutesById {
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
+  '/_app/bank/vouchers': typeof AppBankVouchersRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
@@ -600,6 +609,7 @@ export interface FileRouteTypes {
     | '/admin/periods'
     | '/assets/allocations'
     | '/bank/accounts'
+    | '/bank/vouchers'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -659,6 +669,7 @@ export interface FileRouteTypes {
     | '/admin/periods'
     | '/assets/allocations'
     | '/bank/accounts'
+    | '/bank/vouchers'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -724,6 +735,7 @@ export interface FileRouteTypes {
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
     | '/_app/bank/accounts'
+    | '/_app/bank/vouchers'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
     | '/_app/inventory/$id'
@@ -1170,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEinvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bank/vouchers': {
+      id: '/_app/bank/vouchers'
+      path: '/vouchers'
+      fullPath: '/bank/vouchers'
+      preLoaderRoute: typeof AppBankVouchersRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/bank/accounts': {
       id: '/_app/bank/accounts'
       path: '/accounts'
@@ -1256,11 +1275,13 @@ const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
 
 interface AppBankRouteChildren {
   AppBankAccountsRoute: typeof AppBankAccountsRoute
+  AppBankVouchersRoute: typeof AppBankVouchersRoute
   AppBankIndexRoute: typeof AppBankIndexRoute
 }
 
 const AppBankRouteChildren: AppBankRouteChildren = {
   AppBankAccountsRoute: AppBankAccountsRoute,
+  AppBankVouchersRoute: AppBankVouchersRoute,
   AppBankIndexRoute: AppBankIndexRoute,
 }
 
