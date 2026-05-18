@@ -1,15 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
-import { runMonthlyDepreciation } from "@/lib/assets.functions";
+import { runMonthlyDepreciation, upsertFixedAsset } from "@/lib/assets.functions";
+import { listFaCategories } from "@/lib/fa-categories.functions";
 import { Button } from "@/components/ui/button";
-import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
-import { Plus, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/assets/")({
@@ -18,41 +22,66 @@ export const Route = createFileRoute("/_app/assets/")({
 
 const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
 
+const emptyAsset = {
+  code: "", name: "",
+  category_id: null as string | null,
+  asset_kind: "tangible" as "tangible" | "intangible",
+  cost: 0, salvage_value: 0,
+  useful_life_months: 60,
+  start_date: new Date().toISOString().slice(0, 10),
+  method: "straight_line" as const,
+  asset_account: "211", accumulated_account: "214", expense_account: "6422",
+  supplier_id: null as string | null,
+  branch_id: null, department_id: null, project_id: null, cost_center_id: null, assignee_id: null,
+  serial_no: "", model: "", manufacturer: "", origin_country: "", mfg_year: null as number | null,
+  location: "", quantity: 1, unit: "Cái",
+  acquired_date: "", in_service_date: "",
+  source_type: "manual" as const,
+  source_doc_table: null, source_doc_id: null,
+  funding_source: "", opening_accumulated: 0, opening_months: 0,
+  image_url: null, notes: "",
+  status: "active" as const,
+};
+
 function Assets() {
   const qc = useQueryClient();
   const runFn = useServerFn(runMonthlyDepreciation);
-  const [form, setForm] = useState({
-    code: "", name: "", cost: 0, salvage_value: 0,
-    useful_life_months: 36, start_date: new Date().toISOString().slice(0, 10),
-    asset_account: "211", accumulated_account: "214", expense_account: "6422",
-  });
+  const upsertFn = useServerFn(upsertFixedAsset);
+  const listCatFn = useServerFn(listFaCategories);
+
   const [period, setPeriod] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [running, setRunning] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>(emptyAsset);
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState<string>("all");
 
   const assets = useQuery({
     queryKey: ["fixed_assets"],
     queryFn: async () => {
       const { data } = await supabase
         .from("fixed_assets")
-        .select("*, depreciation_entries(period_month, amount)")
+        .select("*, depreciation_entries(period_month, amount), fa_categories(code,name,asset_kind), suppliers(name)")
         .order("created_at", { ascending: false });
       return data ?? [];
     },
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
-  const create = async () => {
-    if (!form.code || !form.name || form.cost <= 0) return;
-    const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("fixed_assets").insert({ ...form, user_id: u.user!.id });
-    if (error) return toast.error(error.message);
-    setForm({ ...form, code: "", name: "", cost: 0 });
-    qc.invalidateQueries({ queryKey: ["fixed_assets"] });
-    invalidateLedgers(qc);
-  };
+  const cats = useQuery({ queryKey: ["fa_categories"], queryFn: () => listCatFn() });
+
+  const save = useMutation({
+    mutationFn: (input: any) => upsertFn({ data: input }),
+    onSuccess: () => {
+      toast.success(form.id ? "Đã cập nhật TSCĐ" : "Đã thêm TSCĐ");
+      setOpen(false); setForm(emptyAsset);
+      qc.invalidateQueries({ queryKey: ["fixed_assets"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const runDepreciation = async () => {
     setRunning(true);
@@ -65,85 +94,279 @@ function Assets() {
     finally { setRunning(false); }
   };
 
+  const onCategoryChange = (id: string) => {
+    const c = (cats.data ?? []).find((x: any) => x.id === id);
+    setForm({
+      ...form,
+      category_id: id,
+      asset_kind: c?.asset_kind ?? form.asset_kind,
+      useful_life_months: c?.default_useful_life_months ?? form.useful_life_months,
+      method: c?.default_method ?? form.method,
+      asset_account: c?.default_asset_account ?? form.asset_account,
+      accumulated_account: c?.default_accumulated_account ?? form.accumulated_account,
+      expense_account: c?.default_expense_account ?? form.expense_account,
+    });
+  };
+
+  const filtered = useMemo(() => {
+    let list = assets.data ?? [];
+    if (filterCat !== "all") list = list.filter((a: any) => a.category_id === filterCat);
+    if (search) {
+      const s = search.toLowerCase();
+      list = list.filter((a: any) =>
+        a.code?.toLowerCase().includes(s) || a.name?.toLowerCase().includes(s) ||
+        a.serial_no?.toLowerCase().includes(s) || a.location?.toLowerCase().includes(s));
+    }
+    return list;
+  }, [assets.data, search, filterCat]);
+
+  const stats = useMemo(() => {
+    const list = assets.data ?? [];
+    let cost = 0, accumulated = 0;
+    list.forEach((a: any) => {
+      cost += Number(a.cost);
+      const opening = Number(a.opening_accumulated ?? 0);
+      const posted = (a.depreciation_entries ?? []).reduce((s: number, d: any) => s + Number(d.amount), 0);
+      accumulated += opening + posted;
+    });
+    return { count: list.length, cost, accumulated, remaining: cost - accumulated };
+  }, [assets.data]);
+
   return (
-    <div className="p-8">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Khấu hao TSCĐ</h1>
-          <p className="text-sm text-muted-foreground">Phương pháp đường thẳng — tự động sinh bút toán Nợ chi phí / Có hao mòn</p>
-        </div>
-        <div className="flex items-end gap-2">
+    <div className="p-8 space-y-6">
+      {/* Hero */}
+      <div className="rounded-2xl border bg-gradient-to-br from-indigo-600 via-blue-600 to-sky-500 p-6 text-white">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <label className="text-xs text-muted-foreground">Trích đến tháng</label>
-            <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
+            <Badge className="bg-white/20 text-white border-0 hover:bg-white/30">TK 211 · 214</Badge>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight">Tài sản cố định</h1>
+            <p className="mt-1 text-sm opacity-90">Quản lý hồ sơ, khấu hao và biến động TSCĐ theo TT200/TT133</p>
           </div>
-          <Button onClick={runDepreciation} disabled={running}>
-            <Sparkles className="mr-2 h-4 w-4" />{running ? "Đang trích..." : "Chạy khấu hao tháng"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="p-3">Mã</th><th>Tên TSCĐ</th>
-                <th className="text-right">Nguyên giá</th>
-                <th className="text-right">KH/tháng</th>
-                <th className="text-right">Đã trích</th>
-                <th className="text-right">Còn lại</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(assets.data ?? []).map((a: any) => {
-                const monthly = (Number(a.cost) - Number(a.salvage_value)) / Number(a.useful_life_months);
-                const totalDone = (a.depreciation_entries ?? []).reduce((s: number, d: any) => s + Number(d.amount), 0);
-                const remaining = Number(a.cost) - Number(a.salvage_value) - totalDone;
-                return (
-                  <tr key={a.id} className="border-b border-border">
-                    <td className="p-3 font-mono">{a.code}</td>
-                    <td>{a.name}</td>
-                    <td className="text-right font-mono">{fmt(Number(a.cost))}</td>
-                    <td className="text-right font-mono">{fmt(monthly)}</td>
-                    <td className="text-right font-mono">{fmt(totalDone)}</td>
-                    <td className="text-right font-mono">{fmt(remaining)}</td>
-                  </tr>
-                );
-              })}
-              {(assets.data ?? []).length === 0 && (
-                <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">Chưa có TSCĐ. Thêm tài sản bên phải.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-3 font-semibold">Thêm TSCĐ</h3>
-          <div className="space-y-2">
-            <Input placeholder="Mã (TSCĐ-001)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-            <Input placeholder="Tên TSCĐ" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Input type="number" placeholder="Nguyên giá" value={form.cost || ""} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} />
-            <Input type="number" placeholder="Giá trị thanh lý" value={form.salvage_value || ""} onChange={(e) => setForm({ ...form, salvage_value: Number(e.target.value) })} />
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" asChild><Link to="/assets/categories"><FolderTree className="mr-2 h-4 w-4" /> Danh mục</Link></Button>
+            <div className="flex items-end gap-2 rounded-lg bg-white/10 px-3 py-2">
               <div>
-                <label className="text-xs text-muted-foreground">Thời gian (tháng)</label>
-                <Input type="number" value={form.useful_life_months} onChange={(e) => setForm({ ...form, useful_life_months: Number(e.target.value) })} />
+                <div className="text-[10px] uppercase opacity-80">Trích đến tháng</div>
+                <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="h-7 bg-white/90 text-foreground" />
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Ngày bắt đầu</label>
-                <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-              </div>
+              <Button size="sm" variant="secondary" onClick={runDepreciation} disabled={running}>
+                <Sparkles className="mr-2 h-4 w-4" />{running ? "Đang trích..." : "Chạy khấu hao"}
+              </Button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Input placeholder="TK TS" value={form.asset_account} onChange={(e) => setForm({ ...form, asset_account: e.target.value })} />
-              <Input placeholder="TK HM" value={form.accumulated_account} onChange={(e) => setForm({ ...form, accumulated_account: e.target.value })} />
-              <Input placeholder="TK CP" value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} />
-            </div>
-            <AddNew className="w-full" onClick={create} label="Thêm" />
+            <Button variant="secondary" onClick={() => { setForm(emptyAsset); setOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" /> Ghi tăng TSCĐ
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* KPIs */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <Kpi icon={<Briefcase className="h-4 w-4" />} label="Số tài sản" value={String(stats.count)} tone="bg-indigo-100 text-indigo-700" />
+        <Kpi icon={<Coins className="h-4 w-4" />} label="Nguyên giá" value={fmt(stats.cost)} tone="bg-sky-100 text-sky-700" />
+        <Kpi icon={<TrendingDown className="h-4 w-4" />} label="Hao mòn luỹ kế" value={fmt(stats.accumulated)} tone="bg-amber-100 text-amber-700" />
+        <Kpi icon={<Layers className="h-4 w-4" />} label="Giá trị còn lại" value={fmt(stats.remaining)} tone="bg-emerald-100 text-emerald-700" />
+      </div>
+
+      {/* Filters */}
+      <div className="rounded-xl border border-dashed bg-card p-3 flex flex-wrap items-center gap-2">
+        <Input placeholder="Tìm theo mã / tên / serial / vị trí..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <Select value={filterCat} onValueChange={setFilterCat}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Danh mục" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả danh mục</SelectItem>
+            {(cats.data ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="border-b text-left text-xs text-muted-foreground bg-muted/30">
+            <tr>
+              <th className="p-3">Mã</th><th>Tên TSCĐ</th><th>Danh mục</th><th>Vị trí / Bộ phận</th>
+              <th className="text-right">Nguyên giá</th>
+              <th className="text-right">Đã KH</th>
+              <th className="text-right">Còn lại</th>
+              <th className="text-center">Trạng thái</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((a: any) => {
+              const opening = Number(a.opening_accumulated ?? 0);
+              const posted = (a.depreciation_entries ?? []).reduce((s: number, d: any) => s + Number(d.amount), 0);
+              const totalDone = opening + posted;
+              const remaining = Number(a.cost) - Number(a.salvage_value) - totalDone;
+              const pct = Math.min(100, Math.round((totalDone / Math.max(1, Number(a.cost))) * 100));
+              return (
+                <tr key={a.id} className="border-b hover:bg-muted/30">
+                  <td className="p-3 font-mono text-xs">{a.code}</td>
+                  <td>
+                    <div className="font-medium">{a.name}</div>
+                    {a.serial_no && <div className="text-xs text-muted-foreground">S/N: {a.serial_no}</div>}
+                  </td>
+                  <td className="text-xs">{a.fa_categories?.name ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="text-xs">{a.location ?? "—"}</td>
+                  <td className="text-right font-mono">{fmt(Number(a.cost))}</td>
+                  <td className="text-right">
+                    <div className="font-mono text-xs text-emerald-700">{fmt(totalDone)}</div>
+                    <div className="mt-1 h-1.5 w-20 ml-auto rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </td>
+                  <td className="text-right font-mono">{fmt(remaining)}</td>
+                  <td className="text-center">
+                    <Badge variant={a.status === "active" ? "default" : a.status === "disposed" ? "destructive" : "secondary"} className="text-[10px]">
+                      {a.status === "active" ? "Đang dùng" : a.status === "disposed" ? "Đã giảm" : "Tạm dừng"}
+                    </Badge>
+                  </td>
+                  <td className="pr-3 text-right">
+                    <Button size="sm" variant="ghost" onClick={() => { setForm({ ...emptyAsset, ...a }); setOpen(true); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={9} className="p-12 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Briefcase className="h-6 w-6 text-muted-foreground" /></div>
+                <p className="mt-3 text-sm text-muted-foreground">Chưa có TSCĐ. Bấm "Ghi tăng TSCĐ" để bắt đầu.</p>
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Dialog ghi tăng */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{form.id ? "Sửa hồ sơ TSCĐ" : "Ghi tăng Tài sản cố định"}</DialogTitle></DialogHeader>
+          <Tabs defaultValue="general" className="mt-2">
+            <TabsList>
+              <TabsTrigger value="general">Thông tin chung</TabsTrigger>
+              <TabsTrigger value="depreciation">Khấu hao & TK</TabsTrigger>
+              <TabsTrigger value="management">Quản trị</TabsTrigger>
+              <TabsTrigger value="opening">Số dư đầu kỳ</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="general" className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Mã TSCĐ *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+                <Field label="Tên *" className="col-span-2"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+                <Field label="Danh mục" className="col-span-2">
+                  <Select value={form.category_id ?? ""} onValueChange={onCategoryChange}>
+                    <SelectTrigger><SelectValue placeholder="Chọn danh mục" /></SelectTrigger>
+                    <SelectContent>
+                      {(cats.data ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Loại">
+                  <Select value={form.asset_kind} onValueChange={(v) => setForm({ ...form, asset_kind: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="tangible">Hữu hình</SelectItem><SelectItem value="intangible">Vô hình</SelectItem></SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Nguyên giá *"><Input type="number" value={form.cost || ""} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} /></Field>
+                <Field label="Giá trị thanh lý"><Input type="number" value={form.salvage_value || 0} onChange={(e) => setForm({ ...form, salvage_value: Number(e.target.value) })} /></Field>
+                <Field label="Số lượng"><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} /></Field>
+                <Field label="Đơn vị"><Input value={form.unit ?? ""} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
+                <Field label="Ngày mua"><Input type="date" value={form.acquired_date ?? ""} onChange={(e) => setForm({ ...form, acquired_date: e.target.value || null })} /></Field>
+                <Field label="Ngày đưa vào sử dụng"><Input type="date" value={form.in_service_date ?? ""} onChange={(e) => setForm({ ...form, in_service_date: e.target.value || null })} /></Field>
+                <Field label="Nguồn hình thành">
+                  <Select value={form.source_type} onValueChange={(v) => setForm({ ...form, source_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Nhập tay</SelectItem>
+                      <SelectItem value="purchase_invoice">Mua hàng</SelectItem>
+                      <SelectItem value="construction">XDCB hoàn thành</SelectItem>
+                      <SelectItem value="capital_contribution">Góp vốn</SelectItem>
+                      <SelectItem value="donation">Biếu tặng</SelectItem>
+                      <SelectItem value="transfer">Điều chuyển nội bộ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Nguồn vốn"><Input value={form.funding_source ?? ""} placeholder="VD: Vốn chủ sở hữu" onChange={(e) => setForm({ ...form, funding_source: e.target.value })} /></Field>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="depreciation" className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Phương pháp KH" className="col-span-2">
+                  <Select value={form.method} onValueChange={(v) => setForm({ ...form, method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="straight_line">Đường thẳng</SelectItem>
+                      <SelectItem value="declining_balance">Số dư giảm dần</SelectItem>
+                      <SelectItem value="units_of_production">Theo sản lượng</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Thời gian (tháng) *"><Input type="number" value={form.useful_life_months} onChange={(e) => setForm({ ...form, useful_life_months: Number(e.target.value) })} /></Field>
+                <Field label="Ngày bắt đầu KH *"><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></Field>
+                <Field label="TK Tài sản (211)"><Input value={form.asset_account} onChange={(e) => setForm({ ...form, asset_account: e.target.value })} /></Field>
+                <Field label="TK Hao mòn (214)"><Input value={form.accumulated_account} onChange={(e) => setForm({ ...form, accumulated_account: e.target.value })} /></Field>
+                <Field label="TK Chi phí KH"><Input value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} /></Field>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="management" className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Số seri"><Input value={form.serial_no ?? ""} onChange={(e) => setForm({ ...form, serial_no: e.target.value })} /></Field>
+                <Field label="Model"><Input value={form.model ?? ""} onChange={(e) => setForm({ ...form, model: e.target.value })} /></Field>
+                <Field label="Hãng sản xuất"><Input value={form.manufacturer ?? ""} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} /></Field>
+                <Field label="Xuất xứ"><Input value={form.origin_country ?? ""} onChange={(e) => setForm({ ...form, origin_country: e.target.value })} /></Field>
+                <Field label="Năm SX"><Input type="number" value={form.mfg_year ?? ""} onChange={(e) => setForm({ ...form, mfg_year: e.target.value ? Number(e.target.value) : null })} /></Field>
+                <Field label="Vị trí"><Input value={form.location ?? ""} placeholder="VD: Phòng IT — Tầng 3" onChange={(e) => setForm({ ...form, location: e.target.value })} /></Field>
+                <Field label="Ghi chú" className="col-span-3"><Input value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+              </div>
+              <p className="text-xs text-muted-foreground">Phòng ban / Chi nhánh / Dự án sẽ chọn được khi đã có dữ liệu trong các phân hệ tương ứng — hiện gắn theo doanh nghiệp hoạt động.</p>
+            </TabsContent>
+
+            <TabsContent value="opening" className="space-y-3">
+              <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-900 dark:text-amber-100">
+                Dùng khi nhập TSCĐ đã được khấu hao một phần trước khi đưa vào hệ thống.
+                Hệ thống sẽ bỏ qua N tháng đầu khi chạy khấu hao tự động.
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Hao mòn luỹ kế đầu kỳ"><Input type="number" value={form.opening_accumulated || 0} onChange={(e) => setForm({ ...form, opening_accumulated: Number(e.target.value) })} /></Field>
+                <Field label="Số tháng đã KH"><Input type="number" value={form.opening_months || 0} onChange={(e) => setForm({ ...form, opening_months: Number(e.target.value) })} /></Field>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Huỷ</Button>
+            <Button onClick={() => save.mutate(form)} disabled={save.isPending}>{form.id ? "Cập nhật" : "Ghi tăng"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>{icon}</div>
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-lg font-bold font-mono">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      {children}
     </div>
   );
 }

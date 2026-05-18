@@ -1705,6 +1705,77 @@ export type Database = {
         }
         Relationships: []
       }
+      fa_categories: {
+        Row: {
+          asset_kind: string
+          code: string
+          created_at: string
+          default_accumulated_account: string
+          default_asset_account: string
+          default_expense_account: string
+          default_method: string
+          default_useful_life_months: number | null
+          default_useful_life_years_max: number | null
+          default_useful_life_years_min: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          parent_id: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_kind?: string
+          code: string
+          created_at?: string
+          default_accumulated_account?: string
+          default_asset_account?: string
+          default_expense_account?: string
+          default_method?: string
+          default_useful_life_months?: number | null
+          default_useful_life_years_max?: number | null
+          default_useful_life_years_min?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          asset_kind?: string
+          code?: string
+          created_at?: string
+          default_accumulated_account?: string
+          default_asset_account?: string
+          default_expense_account?: string
+          default_method?: string
+          default_useful_life_months?: number | null
+          default_useful_life_years_max?: number | null
+          default_useful_life_years_min?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "fa_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_periods: {
         Row: {
           closed_at: string | null
@@ -1812,61 +1883,136 @@ export type Database = {
       fixed_assets: {
         Row: {
           accumulated_account: string
+          acquired_date: string | null
           asset_account: string
+          asset_kind: string
+          assignee_id: string | null
+          attachments: Json
           branch_id: string | null
+          category_id: string | null
           code: string
           cost: number
+          cost_center_id: string | null
           created_at: string
           department_id: string | null
           expense_account: string
+          funding_source: string | null
           id: string
+          image_url: string | null
+          in_service_date: string | null
+          location: string | null
+          manufacturer: string | null
           method: string
+          mfg_year: number | null
+          model: string | null
           name: string
           notes: string | null
+          opening_accumulated: number
+          opening_months: number
+          origin_country: string | null
+          project_id: string | null
+          quantity: number
           salvage_value: number
+          serial_no: string | null
+          source_doc_id: string | null
+          source_doc_table: string | null
+          source_type: string
           start_date: string
           status: string
+          supplier_id: string | null
           tenant_id: string | null
+          unit: string | null
+          updated_at: string
           useful_life_months: number
           user_id: string
         }
         Insert: {
           accumulated_account?: string
+          acquired_date?: string | null
           asset_account?: string
+          asset_kind?: string
+          assignee_id?: string | null
+          attachments?: Json
           branch_id?: string | null
+          category_id?: string | null
           code: string
           cost: number
+          cost_center_id?: string | null
           created_at?: string
           department_id?: string | null
           expense_account?: string
+          funding_source?: string | null
           id?: string
+          image_url?: string | null
+          in_service_date?: string | null
+          location?: string | null
+          manufacturer?: string | null
           method?: string
+          mfg_year?: number | null
+          model?: string | null
           name: string
           notes?: string | null
+          opening_accumulated?: number
+          opening_months?: number
+          origin_country?: string | null
+          project_id?: string | null
+          quantity?: number
           salvage_value?: number
+          serial_no?: string | null
+          source_doc_id?: string | null
+          source_doc_table?: string | null
+          source_type?: string
           start_date: string
           status?: string
+          supplier_id?: string | null
           tenant_id?: string | null
+          unit?: string | null
+          updated_at?: string
           useful_life_months: number
           user_id: string
         }
         Update: {
           accumulated_account?: string
+          acquired_date?: string | null
           asset_account?: string
+          asset_kind?: string
+          assignee_id?: string | null
+          attachments?: Json
           branch_id?: string | null
+          category_id?: string | null
           code?: string
           cost?: number
+          cost_center_id?: string | null
           created_at?: string
           department_id?: string | null
           expense_account?: string
+          funding_source?: string | null
           id?: string
+          image_url?: string | null
+          in_service_date?: string | null
+          location?: string | null
+          manufacturer?: string | null
           method?: string
+          mfg_year?: number | null
+          model?: string | null
           name?: string
           notes?: string | null
+          opening_accumulated?: number
+          opening_months?: number
+          origin_country?: string | null
+          project_id?: string | null
+          quantity?: number
           salvage_value?: number
+          serial_no?: string | null
+          source_doc_id?: string | null
+          source_doc_table?: string | null
+          source_type?: string
           start_date?: string
           status?: string
+          supplier_id?: string | null
           tenant_id?: string | null
+          unit?: string | null
+          updated_at?: string
           useful_life_months?: number
           user_id?: string
         }
@@ -1879,10 +2025,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fixed_assets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "fa_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fixed_assets_department_id_fkey"
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
