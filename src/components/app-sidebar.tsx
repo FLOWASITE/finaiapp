@@ -238,9 +238,29 @@ export function AppSidebar() {
   const email = cu?.email ?? "";
   const isSuperadmin = cu?.isSuperadmin ?? false;
 
+  const allTos = React.useMemo(() => {
+    const tos: string[] = [];
+    activeSections.forEach((s) =>
+      s.entries.forEach((e) => {
+        if (isGroup(e)) e.items.forEach((i) => tos.push(i.to));
+        else tos.push(e.to);
+      }),
+    );
+    return tos;
+  }, [activeSections]);
+
   const isActive = React.useCallback(
-    (to: string) => pathname === to || pathname.startsWith(to + "/"),
-    [pathname],
+    (to: string) => {
+      const match = pathname === to || pathname.startsWith(to + "/");
+      if (!match) return false;
+      return !allTos.some(
+        (other) =>
+          other !== to &&
+          other.startsWith(to + "/") &&
+          (pathname === other || pathname.startsWith(other + "/")),
+      );
+    },
+    [pathname, allTos],
   );
 
   // Initial open = groups containing active route
