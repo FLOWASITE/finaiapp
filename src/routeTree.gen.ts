@@ -86,7 +86,9 @@ import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
 import { Route as AppAssetsFromFixedAssetRouteImport } from './routes/_app/assets/from-fixed-asset'
+import { Route as AppAssetsDepreciationRouteImport } from './routes/_app/assets/depreciation'
 import { Route as AppAssetsCategoriesRouteImport } from './routes/_app/assets/categories'
+import { Route as AppAssetsBooksRouteImport } from './routes/_app/assets/books'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -482,9 +484,19 @@ const AppAssetsFromFixedAssetRoute = AppAssetsFromFixedAssetRouteImport.update({
   path: '/assets/from-fixed-asset',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssetsDepreciationRoute = AppAssetsDepreciationRouteImport.update({
+  id: '/assets/depreciation',
+  path: '/assets/depreciation',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsCategoriesRoute = AppAssetsCategoriesRouteImport.update({
   id: '/assets/categories',
   path: '/assets/categories',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsBooksRoute = AppAssetsBooksRouteImport.update({
+  id: '/assets/books',
+  path: '/assets/books',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
@@ -541,7 +553,9 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
+  '/assets/depreciation': typeof AppAssetsDepreciationRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
@@ -622,7 +636,9 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
+  '/assets/depreciation': typeof AppAssetsDepreciationRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
@@ -710,7 +726,9 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/_app/assets/books': typeof AppAssetsBooksRoute
   '/_app/assets/categories': typeof AppAssetsCategoriesRoute
+  '/_app/assets/depreciation': typeof AppAssetsDepreciationRoute
   '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
@@ -798,7 +816,9 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/books'
     | '/assets/categories'
+    | '/assets/depreciation'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
     | '/bank/accounts'
@@ -879,7 +899,9 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/books'
     | '/assets/categories'
+    | '/assets/depreciation'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
     | '/bank/accounts'
@@ -966,7 +988,9 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/assets/books'
     | '/_app/assets/categories'
+    | '/_app/assets/depreciation'
     | '/_app/assets/from-fixed-asset'
     | '/_app/assets/from-invoice'
     | '/_app/bank/accounts'
@@ -1583,11 +1607,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsFromFixedAssetRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assets/depreciation': {
+      id: '/_app/assets/depreciation'
+      path: '/assets/depreciation'
+      fullPath: '/assets/depreciation'
+      preLoaderRoute: typeof AppAssetsDepreciationRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/categories': {
       id: '/_app/assets/categories'
       path: '/assets/categories'
       fullPath: '/assets/categories'
       preLoaderRoute: typeof AppAssetsCategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assets/books': {
+      id: '/_app/assets/books'
+      path: '/assets/books'
+      fullPath: '/assets/books'
+      preLoaderRoute: typeof AppAssetsBooksRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/assets/allocations': {
@@ -1763,7 +1801,9 @@ interface AppRouteChildren {
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
   AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
+  AppAssetsBooksRoute: typeof AppAssetsBooksRoute
   AppAssetsCategoriesRoute: typeof AppAssetsCategoriesRoute
+  AppAssetsDepreciationRoute: typeof AppAssetsDepreciationRoute
   AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
@@ -1821,7 +1861,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
   AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
+  AppAssetsBooksRoute: AppAssetsBooksRoute,
   AppAssetsCategoriesRoute: AppAssetsCategoriesRoute,
+  AppAssetsDepreciationRoute: AppAssetsDepreciationRoute,
   AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,

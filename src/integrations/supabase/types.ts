@@ -1105,26 +1105,32 @@ export type Database = {
         Row: {
           amount: number
           asset_id: string
+          book_id: string | null
           created_at: string
           id: string
           journal_entry_id: string | null
           period_month: string
+          units: number | null
         }
         Insert: {
           amount: number
           asset_id: string
+          book_id?: string | null
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           period_month: string
+          units?: number | null
         }
         Update: {
           amount?: number
           asset_id?: string
+          book_id?: string | null
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           period_month?: string
+          units?: number | null
         }
         Relationships: [
           {
@@ -1132,6 +1138,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "depreciation_entries_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "fa_depreciation_books"
             referencedColumns: ["id"]
           },
         ]
@@ -1705,6 +1718,96 @@ export type Database = {
         }
         Relationships: []
       }
+      fa_asset_books: {
+        Row: {
+          accumulated_account: string
+          asset_account: string
+          asset_id: string
+          book_id: string
+          cost_basis: number | null
+          created_at: string
+          declining_factor: number
+          expense_account: string
+          id: string
+          method: string
+          notes: string | null
+          opening_accumulated: number
+          opening_months: number
+          salvage_value: number
+          start_date: string
+          status: string
+          suspend_from: string | null
+          suspend_to: string | null
+          tenant_id: string
+          total_units: number | null
+          updated_at: string
+          useful_life_months: number
+        }
+        Insert: {
+          accumulated_account?: string
+          asset_account?: string
+          asset_id: string
+          book_id: string
+          cost_basis?: number | null
+          created_at?: string
+          declining_factor?: number
+          expense_account?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          opening_accumulated?: number
+          opening_months?: number
+          salvage_value?: number
+          start_date: string
+          status?: string
+          suspend_from?: string | null
+          suspend_to?: string | null
+          tenant_id: string
+          total_units?: number | null
+          updated_at?: string
+          useful_life_months: number
+        }
+        Update: {
+          accumulated_account?: string
+          asset_account?: string
+          asset_id?: string
+          book_id?: string
+          cost_basis?: number | null
+          created_at?: string
+          declining_factor?: number
+          expense_account?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          opening_accumulated?: number
+          opening_months?: number
+          salvage_value?: number
+          start_date?: string
+          status?: string
+          suspend_from?: string | null
+          suspend_to?: string | null
+          tenant_id?: string
+          total_units?: number | null
+          updated_at?: string
+          useful_life_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_asset_books_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fa_asset_books_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "fa_depreciation_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fa_categories: {
         Row: {
           asset_kind: string
@@ -1775,6 +1878,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fa_depreciation_books: {
+        Row: {
+          code: string
+          created_at: string
+          currency: string
+          id: string
+          is_primary: boolean
+          name: string
+          notes: string | null
+          post_to_gl: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_primary?: boolean
+          name: string
+          notes?: string | null
+          post_to_gl?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_primary?: boolean
+          name?: string
+          notes?: string | null
+          post_to_gl?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       fiscal_periods: {
         Row: {
