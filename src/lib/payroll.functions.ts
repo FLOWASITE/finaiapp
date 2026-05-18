@@ -621,8 +621,8 @@ export const postPayrollRun = createServerFn({ method: "POST" })
 
     let totalGross = 0, totalDeduction = 0, totalNet = 0, totalInsEmp = 0, totalInsCo = 0, totalUnion = 0, totalPit = 0;
 
-    for (const l of lines ?? []) {
-      const emp = l.employees;
+    for (const l of (lines ?? []) as any[]) {
+      const emp = empMap.get(l.employee_id);
       const deptName = emp?.departments?.name ?? null;
       const branch = emp?.branch_id ?? null;
       const dept = emp?.department_id ?? null;
