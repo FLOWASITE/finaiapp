@@ -23,9 +23,12 @@ const fmt = (n: number) => Number(n).toLocaleString("vi-VN");
 function PayrollPage() {
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tiền lương</h1>
-        <p className="text-sm text-muted-foreground">Quản lý nhân viên và bảng lương theo chuẩn Việt Nam</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Tiền lương</h1>
+          <p className="text-sm text-muted-foreground">Quản lý nhân viên và bảng lương theo chuẩn Việt Nam</p>
+        </div>
+        <Link to="/payroll/policies" className="text-sm text-primary underline">Chính sách BHXH/TNCN →</Link>
       </div>
       <Tabs defaultValue="runs">
         <TabsList>
