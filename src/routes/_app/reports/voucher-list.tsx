@@ -367,7 +367,7 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${rows.length} dòng) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupByVoucher ? `${groupedRows.length} chứng từ / ${rows.length} dòng` : `${rows.length} dòng`}) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
         >
           {q.isLoading && !q.data ? (
             <Loading />
