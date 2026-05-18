@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories } from "@/lib/inventory.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,24 +160,60 @@ function Kpi({ label, value, sub, icon, tone }: { label: string; value: string; 
 
 function MovementDialog({ products }: { products: any[] }) {
   const rec = useServerFn(recordMovement);
+  const listWh = useServerFn(listWarehouses);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses-active"],
+    queryFn: () => listWh(),
+  });
+  const activeWhs = useMemo(
+    () => ((warehouses as any[]) ?? []).filter((w) => w.is_active),
+    [warehouses],
+  );
+  const defaultWh = useMemo(
+    () => activeWhs.find((w) => w.is_default) ?? activeWhs[0],
+    [activeWhs],
+  );
+
   const [form, setForm] = useState({
     product_id: "",
+    warehouse_id: "",
     movement_type: "in" as "in" | "out",
     qty: 0,
     unit_cost: 0,
     movement_date: new Date().toISOString().slice(0, 10),
     note: "",
   });
+
+  // Auto-pick default warehouse when dialog opens or warehouses load
+  useEffect(() => {
+    if (open && !form.warehouse_id && defaultWh) {
+      setForm((f) => ({ ...f, warehouse_id: defaultWh.id }));
+    }
+  }, [open, defaultWh, form.warehouse_id]);
+
   const m = useMutation({
-    mutationFn: () => rec({ data: form }),
+    mutationFn: () =>
+      rec({
+        data: {
+          product_id: form.product_id,
+          movement_type: form.movement_type,
+          qty: form.qty,
+          unit_cost: form.unit_cost,
+          movement_date: form.movement_date,
+          note: form.note,
+          warehouse_id: form.warehouse_id || null,
+        },
+      }),
     onSuccess: () => {
       toast.success("Đã ghi nhận");
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["stock-report"] });
       qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
+      qc.invalidateQueries({ queryKey: ["warehouses"] });
       setOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -192,15 +229,35 @@ function MovementDialog({ products }: { products: any[] }) {
       <DialogContent>
         <DialogHeader><DialogTitle>Phiếu nhập / xuất kho</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Field label="Loại">
-            <Select value={form.movement_type} onValueChange={(v) => setForm({ ...form, movement_type: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in">Nhập kho</SelectItem>
-                <SelectItem value="out">Xuất kho</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Loại">
+              <Select value={form.movement_type} onValueChange={(v) => setForm({ ...form, movement_type: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in">Nhập kho</SelectItem>
+                  <SelectItem value="out">Xuất kho</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Kho">
+              <Select
+                value={form.warehouse_id}
+                onValueChange={(v) => setForm({ ...form, warehouse_id: v })}
+                disabled={activeWhs.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={activeWhs.length === 0 ? "Chưa có kho — tạo ở Danh mục kho" : "Chọn kho..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeWhs.map((w: any) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.code} · {w.name}{w.is_default ? " ★" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
           <Field label="Mặt hàng">
             <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
               <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
@@ -220,7 +277,12 @@ function MovementDialog({ products }: { products: any[] }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
-          <Button onClick={() => m.mutate()} disabled={!form.product_id || form.qty <= 0 || m.isPending}>Ghi nhận</Button>
+          <Button
+            onClick={() => m.mutate()}
+            disabled={!form.product_id || !form.warehouse_id || form.qty <= 0 || m.isPending}
+          >
+            Ghi nhận
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
