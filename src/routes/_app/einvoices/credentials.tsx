@@ -166,6 +166,15 @@ function CredentialsPage() {
         </div>
       </div>
 
+      <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-900 dark:text-blue-200">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          Lovable Cloud (Cloudflare Workers) <b>không gọi trực tiếp được</b> tới cổng <code>:30000</code> của <code>hoadondientu.gdt.gov.vn</code>.
+          Bạn cần tự host một HTTPS proxy nhỏ (xem <code>docs/tct-proxy/README.md</code>) và thêm secret{" "}
+          <code>TCT_PROXY_URL</code> trỏ tới proxy đó. Khi chưa có proxy, "Kiểm tra kết nối" và đồng bộ sẽ báo <i>fetch failed</i>.
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
