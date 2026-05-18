@@ -40,6 +40,7 @@ const AssetInput = z.object({
   opening_accumulated: z.number().min(0).default(0),
   opening_months: z.number().int().min(0).default(0),
   image_url: z.string().nullable().optional(),
+  barcode: z.string().max(100).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   status: z.enum(["active", "suspended", "disposed"]).default("active"),
 });
