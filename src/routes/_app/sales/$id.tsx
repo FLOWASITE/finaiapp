@@ -65,10 +65,15 @@ function SalesDetail() {
   const fn = useServerFn(getSalesInvoice);
   const issue = useServerFn(issueSalesInvoice);
   const voidFn = useServerFn(voidSalesInvoice);
+  const linkedFn = useServerFn(getLinkedEInvoice);
   const qc = useQueryClient();
   const { data: inv, isLoading } = useQuery({
     queryKey: ["sales-invoice", id],
     queryFn: () => fn({ data: { id } }),
+  });
+  const { data: linked } = useQuery({
+    queryKey: ["sales-einvoice", id],
+    queryFn: () => linkedFn({ data: { kind: "out", invoiceId: id } }),
   });
 
   const issueM = useMutation({
