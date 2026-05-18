@@ -294,6 +294,152 @@ function ArSummaryPage() {
 
         {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
       </div>
+
+      <Sheet open={!!drillRow} onOpenChange={(o) => !o && setDrillRow(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {drillRow?.customer_name ?? ""}
+              {drillRow?.customer_code ? (
+                <span className="ml-2 font-mono text-xs text-muted-foreground">
+                  ({drillRow.customer_code})
+                </span>
+              ) : null}
+            </SheetTitle>
+            <SheetDescription>
+              Chi tiết phát sinh TK 131 · Kỳ {from} → {to}
+            </SheetDescription>
+          </SheetHeader>
+
+          {drillQ.isLoading ? (
+            <div className="mt-6"><Loading /></div>
+          ) : drillQ.data ? (
+            <div className="mt-4 space-y-6">
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="rounded-md border border-border p-3">
+                  <div className="text-xs text-muted-foreground">Số dư đầu kỳ</div>
+                  <div className="mt-1 font-mono font-semibold">
+                    {drillQ.data.opening >= 0
+                      ? `${fmt(drillQ.data.opening)} (Nợ)`
+                      : `${fmt(-drillQ.data.opening)} (Có)`}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <div className="text-xs text-muted-foreground">Phát sinh Nợ</div>
+                  <div className="mt-1 font-mono font-semibold">
+                    {fmt(drillRow?.debit ?? 0)}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <div className="text-xs text-muted-foreground">Phát sinh Có</div>
+                  <div className="mt-1 font-mono font-semibold">
+                    {fmt(drillRow?.credit ?? 0)}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-semibold">Tổng hợp theo ngày</div>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Ngày</th>
+                        <th className="px-3 py-2 text-right">Nợ</th>
+                        <th className="px-3 py-2 text-right">Có</th>
+                        <th className="px-3 py-2 text-right">Lũy kế</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drillQ.data.daily.map((d) => (
+                        <tr key={d.date} className="border-t border-border">
+                          <td className="px-3 py-1.5">{d.date}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{fmt(d.debit)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{fmt(d.credit)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono font-semibold">
+                            {d.running >= 0
+                              ? fmt(d.running)
+                              : `(${fmt(-d.running)})`}
+                          </td>
+                        </tr>
+                      ))}
+                      {drillQ.data.daily.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                            Không có phát sinh trong kỳ
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-semibold">
+                  Chứng từ ({drillQ.data.lines.length})
+                </div>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Ngày</th>
+                        <th className="px-3 py-2 text-left">Loại</th>
+                        <th className="px-3 py-2 text-left">Số CT</th>
+                        <th className="px-3 py-2 text-left">Diễn giải</th>
+                        <th className="px-3 py-2 text-right">Nợ</th>
+                        <th className="px-3 py-2 text-right">Có</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drillQ.data.lines.map((l, i) => (
+                        <tr key={l.entry_id + i} className="border-t border-border align-top">
+                          <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
+                          <td className="px-3 py-1.5">
+                            <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
+                              {l.doc_type === "HD"
+                                ? "HĐ bán"
+                                : l.doc_type === "PT"
+                                  ? "Phiếu thu"
+                                  : "Khác"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5 font-mono text-xs">
+                            {l.doc_type === "HD" && l.doc_id ? (
+                              <Link
+                                to="/sales/$id"
+                                params={{ id: l.doc_id }}
+                                className="text-primary hover:underline"
+                                onClick={() => setDrillRow(null)}
+                              >
+                                {l.doc_no ?? "—"}
+                              </Link>
+                            ) : (
+                              l.doc_no ?? "—"
+                            )}
+                          </td>
+                          <td className="px-3 py-1.5 text-muted-foreground">
+                            {l.description}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
+                        </tr>
+                      ))}
+                      {drillQ.data.lines.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                            Không có chứng từ trong kỳ
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
