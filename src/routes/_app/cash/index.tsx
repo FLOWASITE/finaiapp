@@ -1,17 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Wallet } from "lucide-react";
-import { listCashVouchers, createCashVoucher, getCashBook } from "@/lib/cash.functions";
+import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { listCashVouchers, getCashBook } from "@/lib/cash.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { VoucherFormDialog } from "@/components/voucher-form";
 
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
@@ -20,19 +16,33 @@ function CashPage() {
   const book = useServerFn(getCashBook);
   const [from, setFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
 
   const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}) });
   const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }) });
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Quỹ tiền mặt</h1>
           <p className="text-sm text-muted-foreground">Phiếu thu, phiếu chi & sổ quỹ</p>
         </div>
-        <VoucherDialog />
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setOpenType("receipt")} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <ArrowDownToLine className="mr-2 h-4 w-4" /> Phiếu thu
+          </Button>
+          <Button onClick={() => setOpenType("payment")} variant="destructive">
+            <ArrowUpFromLine className="mr-2 h-4 w-4" /> Phiếu chi
+          </Button>
+        </div>
       </div>
+
+      <VoucherFormDialog
+        type={openType ?? "receipt"}
+        open={openType !== null}
+        onOpenChange={(o) => !o && setOpenType(null)}
+      />
 
       <Tabs defaultValue="vouchers">
         <TabsList>
