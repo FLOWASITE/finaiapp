@@ -194,15 +194,27 @@ function CreateTenantDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: { name: string; company_name?: string; tax_id?: string }) => void;
+  onSubmit: (v: {
+    name: string;
+    company_name?: string;
+    tax_id?: string;
+    address?: string;
+    legal_rep_name?: string;
+  }) => void;
   pending: boolean;
 }) {
-  const [name, setName] = React.useState("");
-  const [companyName, setCompanyName] = React.useState("");
   const [taxId, setTaxId] = React.useState("");
+  const [companyName, setCompanyName] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [legalRep, setLegalRep] = React.useState("");
+  const [userEditedName, setUserEditedName] = React.useState(false);
 
   React.useEffect(() => {
-    if (!open) { setName(""); setCompanyName(""); setTaxId(""); }
+    if (!open) {
+      setTaxId(""); setCompanyName(""); setName("");
+      setAddress(""); setLegalRep(""); setUserEditedName(false);
+    }
   }, [open]);
 
   return (
@@ -213,27 +225,63 @@ function CreateTenantDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Tên hiển thị *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: Công ty ABC" />
+            <Label>Mã số thuế</Label>
+            <TaxIdLookupInput
+              value={taxId}
+              onChange={setTaxId}
+              placeholder="Nhập MST rồi bấm tra cứu để tự điền"
+              onResolved={(r) => {
+                setCompanyName(r.name);
+                if (!userEditedName) setName(r.shortName || r.name);
+                if (r.address) setAddress(r.address);
+                if (r.director) setLegalRep(r.director);
+              }}
+            />
           </div>
           <div>
             <Label>Tên pháp nhân</Label>
-            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                   placeholder="VD: Công ty TNHH ABC Việt Nam" />
+            <Input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="VD: Công ty TNHH ABC Việt Nam"
+            />
           </div>
           <div>
-            <Label>Mã số thuế</Label>
-            <Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="0123456789" />
+            <Label>Tên hiển thị *</Label>
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setUserEditedName(true); }}
+              placeholder="VD: ABC"
+            />
+          </div>
+          <div>
+            <Label>Địa chỉ trụ sở</Label>
+            <Textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP"
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label>Đại diện pháp luật</Label>
+            <Input
+              value={legalRep}
+              onChange={(e) => setLegalRep(e.target.value)}
+              placeholder="Họ và tên người đại diện"
+            />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button
-            disabled={!name.trim() || pending}
+            disabled={!name.trim() || !companyName.trim() || pending}
             onClick={() => onSubmit({
               name: name.trim(),
               company_name: companyName.trim() || undefined,
               tax_id: taxId.trim() || undefined,
+              address: address.trim() || undefined,
+              legal_rep_name: legalRep.trim() || undefined,
             })}
           >
             {pending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
