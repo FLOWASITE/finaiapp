@@ -67,6 +67,8 @@ function ProductDetail() {
               </CardContent></Card>
           </div>
 
+          <UnitConversionsEditor productId={product.id} baseUnit={product.unit} />
+
           <Card>
             <CardHeader><CardTitle className="text-base">Thẻ kho (Kardex)</CardTitle></CardHeader>
             <CardContent className="p-0">
