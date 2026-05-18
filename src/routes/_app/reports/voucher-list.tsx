@@ -57,7 +57,7 @@ function VoucherListPage() {
 
   // Reset to page 1 whenever filters change
   const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources });
-  useMemo(() => { setPage(1); }, [filterKey]);
+  useEffect(() => { setPage(1); }, [filterKey]);
 
   const profileQ = useQuery({
     queryKey: ["profile-fiscal"],
