@@ -103,6 +103,16 @@
   --gradient-add-hover: linear-gradient(135deg, oklch(0.48 0.2 275) 0%, oklch(0.58 0.2 220) 45%, oklch(0.68 0.18 190) 75%, oklch(0.8 0.16 165) 100%);
   --shadow-add: 0 1px 0 0 oklch(1 0 0 / 0.25) inset, 0 -1px 0 0 oklch(0 0 0 / 0.12) inset, 0 4px 14px -4px oklch(0.45 0.2 230 / 0.45), 0 2px 6px -2px oklch(0.4 0.18 270 / 0.35);
   --shadow-add-hover: 0 1px 0 0 oklch(1 0 0 / 0.32) inset, 0 -1px 0 0 oklch(0 0 0 / 0.14) inset, 0 12px 28px -8px oklch(0.5 0.22 230 / 0.6), 0 6px 14px -4px oklch(0.45 0.2 270 / 0.5), 0 0 0 1px oklch(1 0 0 / 0.08);
+  /* Nút "Phiếu thu" — gradient emerald→teal (tiền vào) */
+  --gradient-receipt: linear-gradient(135deg, oklch(0.5 0.16 160) 0%, oklch(0.6 0.17 165) 45%, oklch(0.68 0.16 175) 100%);
+  --gradient-receipt-hover: linear-gradient(135deg, oklch(0.56 0.18 160) 0%, oklch(0.66 0.19 165) 45%, oklch(0.74 0.18 175) 100%);
+  --shadow-receipt: 0 1px 0 0 oklch(1 0 0 / 0.28) inset, 0 -1px 0 0 oklch(0 0 0 / 0.12) inset, 0 4px 14px -4px oklch(0.55 0.18 165 / 0.5), 0 2px 6px -2px oklch(0.5 0.16 175 / 0.4);
+  --shadow-receipt-hover: 0 1px 0 0 oklch(1 0 0 / 0.34) inset, 0 -1px 0 0 oklch(0 0 0 / 0.14) inset, 0 12px 28px -8px oklch(0.6 0.2 165 / 0.65), 0 6px 14px -4px oklch(0.55 0.18 175 / 0.55), 0 0 0 1px oklch(1 0 0 / 0.08);
+  /* Nút "Phiếu chi" — gradient rose→orange (tiền ra) */
+  --gradient-payment: linear-gradient(135deg, oklch(0.55 0.2 25) 0%, oklch(0.62 0.2 35) 50%, oklch(0.7 0.18 55) 100%);
+  --gradient-payment-hover: linear-gradient(135deg, oklch(0.6 0.22 25) 0%, oklch(0.68 0.22 35) 50%, oklch(0.76 0.2 55) 100%);
+  --shadow-payment: 0 1px 0 0 oklch(1 0 0 / 0.28) inset, 0 -1px 0 0 oklch(0 0 0 / 0.12) inset, 0 4px 14px -4px oklch(0.6 0.22 30 / 0.5), 0 2px 6px -2px oklch(0.55 0.2 40 / 0.4);
+  --shadow-payment-hover: 0 1px 0 0 oklch(1 0 0 / 0.34) inset, 0 -1px 0 0 oklch(0 0 0 / 0.14) inset, 0 12px 28px -8px oklch(0.65 0.24 30 / 0.65), 0 6px 14px -4px oklch(0.6 0.22 40 / 0.55), 0 0 0 1px oklch(1 0 0 / 0.08);
 }
 
 @keyframes add-shimmer {
