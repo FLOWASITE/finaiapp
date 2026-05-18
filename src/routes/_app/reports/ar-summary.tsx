@@ -277,6 +277,14 @@ function ArSummaryPage() {
     };
   }, [drillSortedRows, drillPage, drillPageSize]);
 
+  // Virtualizer over the full sorted list (used when "Cuộn ảo" is on).
+  const drillRowVirtualizer = useVirtualizer({
+    count: drillSortedRows.length,
+    getScrollElement: () => drillScrollRef.current,
+    estimateSize: () => 36,
+    overscan: 12,
+  });
+
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
     queryFn: () => arFn({ data: { from, to, dims } }),
