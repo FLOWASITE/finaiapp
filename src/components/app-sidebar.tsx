@@ -2,10 +2,10 @@ import * as React from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
-  Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
+  Package, Wallet, Users, Receipt, ShoppingCart, Sparkles, Warehouse, Coins,
   Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
-  ChevronRight, Contact as ContactIcon, PiggyBank, LineChart,
+  ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -42,14 +42,23 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Bán hàng & Kho",
+    label: "Vận hành",
     entries: [
-      { to: "/inventory", label: "Hàng hoá / Tồn kho", icon: Package },
+      {
+        label: "Tiền & Ngân hàng",
+        icon: PiggyBank,
+        items: [
+          { to: "/cash", label: "Quỹ tiền mặt" },
+          { to: "/bank", label: "Đối soát ngân hàng" },
+        ],
+      },
       {
         label: "Bán hàng",
         icon: ShoppingCart,
         items: [
-          { to: "/sales", label: "Bán hàng (Tổng quan)" },
+          { to: "/sales-dashboard", label: "Tổng quan" },
+          { to: "/sales/orders", label: "Đơn đặt hàng" },
+          { to: "/sales", label: "Phiếu bán hàng" },
           { to: "/invoices", label: "Hoá đơn bán" },
           { to: "/receipts", label: "Phiếu thu" },
           { to: "/receivables", label: "Công nợ phải thu" },
@@ -59,7 +68,7 @@ const SECTIONS: NavSection[] = [
         label: "Mua hàng",
         icon: ShoppingCart,
         items: [
-          { to: "/purchases", label: "Mua hàng (Tổng quan)" },
+          { to: "/purchases", label: "Tổng quan" },
           { to: "/payables", label: "Công nợ phải trả" },
         ],
       },
@@ -71,30 +80,26 @@ const SECTIONS: NavSection[] = [
           { to: "/suppliers", label: "Nhà cung cấp" },
         ],
       },
+      { to: "/inventory", label: "Hàng hoá & Dịch vụ", icon: Package },
+      { to: "/inventory/movements", label: "Kho", icon: Warehouse },
     ],
   },
   {
     label: "Kế toán",
     entries: [
-      {
-        label: "Tài chính",
-        icon: BookOpen,
-        items: [
-          { to: "/journal", label: "Sổ nhật ký" },
-          { to: "/coa", label: "Hệ thống tài khoản" },
-          { to: "/assets", label: "Tài sản cố định" },
-          { to: "/payroll", label: "Tiền lương" },
-          { to: "/tax", label: "Báo cáo thuế" },
-        ],
-      },
-      {
-        label: "Tiền & Ngân hàng",
-        icon: PiggyBank,
-        items: [
-          { to: "/cash", label: "Quỹ tiền mặt" },
-          { to: "/bank", label: "Đối soát ngân hàng" },
-        ],
-      },
+      { to: "/assets", label: "Tài sản cố định", icon: Briefcase },
+      { to: "/assets/allocations", label: "Tài sản phân bổ", icon: Boxes },
+      { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
+      { to: "/payroll", label: "Tiền lương", icon: Wallet },
+      { to: "/coa", label: "Hệ thống tài khoản", icon: Landmark },
+    ],
+  },
+  {
+    label: "Thuế",
+    entries: [
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
+      { to: "/tax/tncn", label: "Thuế TNCN", icon: UserCog },
+      { to: "/tax/tndn", label: "Thuế TNDN", icon: Calculator },
     ],
   },
   {

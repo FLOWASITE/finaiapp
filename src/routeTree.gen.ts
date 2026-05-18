@@ -40,15 +40,20 @@ import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/i
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
+import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
+import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
+import { Route as AppTaxGtgtRouteImport } from './routes/_app/tax/gtgt'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
+import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
+import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
@@ -209,6 +214,21 @@ const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppTaxTndnRoute = AppTaxTndnRouteImport.update({
+  id: '/tax/tndn',
+  path: '/tax/tndn',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTaxTncnRoute = AppTaxTncnRouteImport.update({
+  id: '/tax/tncn',
+  path: '/tax/tncn',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTaxGtgtRoute = AppTaxGtgtRouteImport.update({
+  id: '/tax/gtgt',
+  path: '/tax/gtgt',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   id: '/suppliers/$id',
   path: '/suppliers/$id',
@@ -229,6 +249,11 @@ const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
   getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSalesOrdersRoute = AppSalesOrdersRouteImport.update({
+  id: '/sales/orders',
+  path: '/sales/orders',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSalesIdRoute = AppSalesIdRouteImport.update({
   id: '/sales/$id',
@@ -254,6 +279,11 @@ const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
+  id: '/allocations',
+  path: '/allocations',
+  getParentRoute: () => AppAssetsRoute,
 } as any)
 const AppAdminPeriodsRoute = AppAdminPeriodsRouteImport.update({
   id: '/periods',
@@ -285,7 +315,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/admin': typeof AppAdminRouteWithChildren
-  '/assets': typeof AppAssetsRoute
+  '/assets': typeof AppAssetsRouteWithChildren
   '/bank': typeof AppBankRoute
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
@@ -298,15 +328,20 @@ export interface FileRoutesByFullPath {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
+  '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/sales/orders': typeof AppSalesOrdersRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/tax/gtgt': typeof AppTaxGtgtRoute
+  '/tax/tncn': typeof AppTaxTncnRoute
+  '/tax/tndn': typeof AppTaxTndnRoute
   '/admin/': typeof AppAdminIndexRoute
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
@@ -330,7 +365,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/assets': typeof AppAssetsRoute
+  '/assets': typeof AppAssetsRouteWithChildren
   '/bank': typeof AppBankRoute
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
@@ -341,15 +376,20 @@ export interface FileRoutesByTo {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
+  '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/sales/orders': typeof AppSalesOrdersRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/tax/gtgt': typeof AppTaxGtgtRoute
+  '/tax/tncn': typeof AppTaxTncnRoute
+  '/tax/tndn': typeof AppTaxTndnRoute
   '/admin': typeof AppAdminIndexRoute
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
@@ -376,7 +416,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
-  '/_app/assets': typeof AppAssetsRoute
+  '/_app/assets': typeof AppAssetsRouteWithChildren
   '/_app/bank': typeof AppBankRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -389,15 +429,20 @@ export interface FileRoutesById {
   '/_app/admin/backup': typeof AppAdminBackupRoute
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
+  '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/sales/orders': typeof AppSalesOrdersRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
+  '/_app/tax/gtgt': typeof AppTaxGtgtRoute
+  '/_app/tax/tncn': typeof AppTaxTncnRoute
+  '/_app/tax/tndn': typeof AppTaxTndnRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
@@ -437,15 +482,20 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/members'
     | '/admin/periods'
+    | '/assets/allocations'
     | '/inventory/$id'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
+    | '/sales/orders'
     | '/superadmin/accounts'
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/tax/gtgt'
+    | '/tax/tncn'
+    | '/tax/tndn'
     | '/admin/'
     | '/cash/'
     | '/coa/'
@@ -480,15 +530,20 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/members'
     | '/admin/periods'
+    | '/assets/allocations'
     | '/inventory/$id'
     | '/invoices/$id'
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
+    | '/sales/orders'
     | '/superadmin/accounts'
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/tax/gtgt'
+    | '/tax/tncn'
+    | '/tax/tndn'
     | '/admin'
     | '/cash'
     | '/coa'
@@ -527,15 +582,20 @@ export interface FileRouteTypes {
     | '/_app/admin/backup'
     | '/_app/admin/members'
     | '/_app/admin/periods'
+    | '/_app/assets/allocations'
     | '/_app/inventory/$id'
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
     | '/_app/reports/ledgers'
     | '/_app/sales/$id'
+    | '/_app/sales/orders'
     | '/_app/superadmin/accounts'
     | '/_app/superadmin/audit'
     | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
+    | '/_app/tax/gtgt'
+    | '/_app/tax/tncn'
+    | '/_app/tax/tndn'
     | '/_app/admin/'
     | '/_app/cash/'
     | '/_app/coa/'
@@ -783,6 +843,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminIndexRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/tax/tndn': {
+      id: '/_app/tax/tndn'
+      path: '/tax/tndn'
+      fullPath: '/tax/tndn'
+      preLoaderRoute: typeof AppTaxTndnRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tax/tncn': {
+      id: '/_app/tax/tncn'
+      path: '/tax/tncn'
+      fullPath: '/tax/tncn'
+      preLoaderRoute: typeof AppTaxTncnRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tax/gtgt': {
+      id: '/_app/tax/gtgt'
+      path: '/tax/gtgt'
+      fullPath: '/tax/gtgt'
+      preLoaderRoute: typeof AppTaxGtgtRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/suppliers/$id': {
       id: '/_app/suppliers/$id'
       path: '/suppliers/$id'
@@ -810,6 +891,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/superadmin/accounts'
       preLoaderRoute: typeof AppSuperadminAccountsRouteImport
       parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/sales/orders': {
+      id: '/_app/sales/orders'
+      path: '/sales/orders'
+      fullPath: '/sales/orders'
+      preLoaderRoute: typeof AppSalesOrdersRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/sales/$id': {
       id: '/_app/sales/$id'
@@ -845,6 +933,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/inventory/$id'
       preLoaderRoute: typeof AppInventoryIdRouteImport
       parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/assets/allocations': {
+      id: '/_app/assets/allocations'
+      path: '/allocations'
+      fullPath: '/assets/allocations'
+      preLoaderRoute: typeof AppAssetsAllocationsRouteImport
+      parentRoute: typeof AppAssetsRoute
     }
     '/_app/admin/periods': {
       id: '/_app/admin/periods'
@@ -904,6 +999,18 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
   AppAdminRouteChildren,
 )
 
+interface AppAssetsRouteChildren {
+  AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRoute
+}
+
+const AppAssetsRouteChildren: AppAssetsRouteChildren = {
+  AppAssetsAllocationsRoute: AppAssetsAllocationsRoute,
+}
+
+const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
+  AppAssetsRouteChildren,
+)
+
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
@@ -940,7 +1047,7 @@ const AppSuperadminRouteWithChildren = AppSuperadminRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
-  AppAssetsRoute: typeof AppAssetsRoute
+  AppAssetsRoute: typeof AppAssetsRouteWithChildren
   AppBankRoute: typeof AppBankRoute
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -952,7 +1059,11 @@ interface AppRouteChildren {
   AppPayrollIdRoute: typeof AppPayrollIdRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
+  AppSalesOrdersRoute: typeof AppSalesOrdersRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
+  AppTaxGtgtRoute: typeof AppTaxGtgtRoute
+  AppTaxTncnRoute: typeof AppTaxTncnRoute
+  AppTaxTndnRoute: typeof AppTaxTndnRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppCoaIndexRoute: typeof AppCoaIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
@@ -972,7 +1083,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
-  AppAssetsRoute: AppAssetsRoute,
+  AppAssetsRoute: AppAssetsRouteWithChildren,
   AppBankRoute: AppBankRoute,
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
@@ -984,7 +1095,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayrollIdRoute: AppPayrollIdRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppSalesIdRoute: AppSalesIdRoute,
+  AppSalesOrdersRoute: AppSalesOrdersRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
+  AppTaxGtgtRoute: AppTaxGtgtRoute,
+  AppTaxTncnRoute: AppTaxTncnRoute,
+  AppTaxTndnRoute: AppTaxTndnRoute,
   AppCashIndexRoute: AppCashIndexRoute,
   AppCoaIndexRoute: AppCoaIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
