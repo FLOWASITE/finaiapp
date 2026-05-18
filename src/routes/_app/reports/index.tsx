@@ -777,30 +777,51 @@ function AccountDrilldownDialog({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [filterFrom, setFilterFrom] = useState<string>("");
+  const [filterTo, setFilterTo] = useState<string>("");
+  const [docType, setDocType] = useState<"all" | "invoice" | "manual">("all");
 
-  // Reset khi mở/đóng hoặc đổi tài khoản
+  // Reset khi mở/đóng hoặc đổi tài khoản — mặc định lấy đúng kỳ báo cáo
   useEffect(() => {
     setSearch("");
     setPage(1);
-  }, [account?.code]);
+    setFilterFrom(from);
+    setFilterTo(to);
+    setDocType("all");
+  }, [account?.code, from, to]);
 
   const allLines: any[] = q.data?.lines ?? [];
   const term = search.trim().toLowerCase();
-  const filteredLines = term
-    ? allLines.filter(
-        (l) =>
-          (l.description ?? "").toLowerCase().includes(term) ||
-          (l.entry_date ?? "").toLowerCase().includes(term) ||
-          String(l.debit).includes(term) ||
-          String(l.credit).includes(term),
-      )
-    : allLines;
+  const filteredLines = allLines.filter((l) => {
+    if (filterFrom && l.entry_date < filterFrom) return false;
+    if (filterTo && l.entry_date > filterTo) return false;
+    if (docType !== "all") {
+      const t = l.doc_type ?? (l.invoice_id ? "invoice" : "manual");
+      if (t !== docType) return false;
+    }
+    if (term) {
+      const hay = `${l.description ?? ""} ${l.entry_date ?? ""} ${l.debit} ${l.credit}`.toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+  const filteredDebit = filteredLines.reduce((s, l) => s + (l.debit || 0), 0);
+  const filteredCredit = filteredLines.reduce((s, l) => s + (l.credit || 0), 0);
   const totalPages = Math.max(1, Math.ceil(filteredLines.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const pageLines = filteredLines.slice(start, start + pageSize);
 
-  useEffect(() => { setPage(1); }, [search, pageSize]);
+  useEffect(() => { setPage(1); }, [search, pageSize, filterFrom, filterTo, docType]);
+
+  function resetFilters() {
+    setSearch("");
+    setFilterFrom(from);
+    setFilterTo(to);
+    setDocType("all");
+  }
+  const filtersActive =
+    !!search || filterFrom !== from || filterTo !== to || docType !== "all";
 
   async function handleExport() {
     if (!account) return;
