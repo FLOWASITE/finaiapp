@@ -18,7 +18,7 @@ function PeriodsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const { data } = useQuery({ queryKey: ["period-locks"], queryFn: () => list() });
 
-  const isLocked = (m: number) => (data?.locks ?? []).some((l: any) => l.year === year && l.month === m);
+  const isLocked = (m: number) => (data?.locks ?? []).some((l: any) => l.year === year && l.period_no === m);
   const refresh = () => qc.invalidateQueries({ queryKey: ["period-locks"] });
 
   const toggle = async (m: number) => {

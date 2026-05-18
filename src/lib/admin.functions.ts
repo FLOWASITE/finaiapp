@@ -151,16 +151,17 @@ export const listAuditLogs = createServerFn({ method: "POST" })
     return { rows: rows ?? [] };
   });
 
-// ===== Period locks =====
+// ===== Period locks (now backed by fiscal_periods) =====
 export const listPeriodLocks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data } = await supabase
-      .from("period_locks")
-      .select("*")
+      .from("fiscal_periods")
+      .select("id,year,period_no,status,closed_at,note")
+      .in("status", ["soft_closed", "closed"])
       .order("year", { ascending: false })
-      .order("month", { ascending: false });
+      .order("period_no", { ascending: false });
     return { locks: data ?? [] };
   });
 
@@ -175,12 +176,16 @@ export const lockPeriod = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("period_locks").insert({
-      user_id: userId,
-      year: data.year,
-      month: data.month,
-      note: data.note ?? null,
-    });
+    const { error } = await supabase
+      .from("fiscal_periods")
+      .update({
+        status: "closed",
+        closed_at: new Date().toISOString(),
+        closed_by: userId,
+        note: data.note ?? null,
+      })
+      .eq("year", data.year)
+      .eq("period_no", data.month);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -194,11 +199,10 @@ export const unlockPeriod = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     const { error } = await supabase
-      .from("period_locks")
-      .delete()
-      .eq("user_id", userId)
+      .from("fiscal_periods")
+      .update({ status: "open", closed_at: null, closed_by: null })
       .eq("year", data.year)
-      .eq("month", data.month);
+      .eq("period_no", data.month);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -279,7 +283,8 @@ export const exportTenantBackup = createServerFn({ method: "POST" })
       "payroll_lines",
       "fixed_assets",
       "depreciation_entries",
-      "period_locks",
+      "fiscal_periods",
+      "fiscal_years",
       "user_roles",
     ];
     const dump: Record<string, any[]> = {};

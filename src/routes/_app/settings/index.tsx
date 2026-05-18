@@ -1157,10 +1157,10 @@ function PeriodsTab() {
           <TableBody>
             {locks.map((l: any) => (
               <TableRow key={l.id}>
-                <TableCell>{String(l.month).padStart(2, "0")}/{l.year}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{new Date(l.locked_at).toLocaleString("vi-VN")}</TableCell>
+                <TableCell>{String(l.period_no).padStart(2, "0")}/{l.year}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{l.closed_at ? new Date(l.closed_at).toLocaleString("vi-VN") : "—"}</TableCell>
                 <TableCell>
-                  <Button size="sm" variant="outline" onClick={() => mutate.mutate({ year: l.year, month: l.month, action: "unlock" })}>
+                  <Button size="sm" variant="outline" onClick={() => mutate.mutate({ year: l.year, month: l.period_no, action: "unlock" })}>
                     <Unlock className="h-3 w-3 mr-1" />Mở khoá
                   </Button>
                 </TableCell>

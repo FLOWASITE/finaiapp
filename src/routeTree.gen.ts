@@ -52,6 +52,7 @@ import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
+import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/settings/fiscal-periods'
 import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
@@ -294,6 +295,12 @@ const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppSettingsFiscalPeriodsRoute =
+  AppSettingsFiscalPeriodsRouteImport.update({
+    id: '/settings/fiscal-periods',
+    path: '/settings/fiscal-periods',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSalesOrdersRoute = AppSalesOrdersRouteImport.update({
   id: '/sales/orders',
   path: '/sales/orders',
@@ -464,6 +471,7 @@ export interface FileRoutesByFullPath {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRoute
+  '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
@@ -529,6 +537,7 @@ export interface FileRoutesByTo {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRoute
+  '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
@@ -601,6 +610,7 @@ export interface FileRoutesById {
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/sales/orders': typeof AppSalesOrdersRoute
+  '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
@@ -673,6 +683,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/sales/$id'
     | '/sales/orders'
+    | '/settings/fiscal-periods'
     | '/superadmin/accounts'
     | '/superadmin/audit'
     | '/superadmin/organizations'
@@ -738,6 +749,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/sales/$id'
     | '/sales/orders'
+    | '/settings/fiscal-periods'
     | '/superadmin/accounts'
     | '/superadmin/audit'
     | '/superadmin/organizations'
@@ -809,6 +821,7 @@ export interface FileRouteTypes {
     | '/_app/reports/ledgers'
     | '/_app/sales/$id'
     | '/_app/sales/orders'
+    | '/_app/settings/fiscal-periods'
     | '/_app/superadmin/accounts'
     | '/_app/superadmin/audit'
     | '/_app/superadmin/organizations'
@@ -1151,6 +1164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminAccountsRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/settings/fiscal-periods': {
+      id: '/_app/settings/fiscal-periods'
+      path: '/settings/fiscal-periods'
+      fullPath: '/settings/fiscal-periods'
+      preLoaderRoute: typeof AppSettingsFiscalPeriodsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales/orders': {
       id: '/_app/sales/orders'
       path: '/sales/orders'
@@ -1466,6 +1486,7 @@ interface AppRouteChildren {
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesOrdersRoute: typeof AppSalesOrdersRoute
+  AppSettingsFiscalPeriodsRoute: typeof AppSettingsFiscalPeriodsRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
   AppSuppliersGroupsRoute: typeof AppSuppliersGroupsRoute
   AppTaxGtgtRoute: typeof AppTaxGtgtRoute
@@ -1508,6 +1529,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesOrdersRoute: AppSalesOrdersRoute,
+  AppSettingsFiscalPeriodsRoute: AppSettingsFiscalPeriodsRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
   AppSuppliersGroupsRoute: AppSuppliersGroupsRoute,
   AppTaxGtgtRoute: AppTaxGtgtRoute,

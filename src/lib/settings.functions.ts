@@ -9,7 +9,11 @@ export const getSettings = createServerFn({ method: "GET" })
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).single();
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const { data: locks } = await supabase
-      .from("period_locks").select("*").order("year", { ascending: false }).order("month", { ascending: false });
+      .from("fiscal_periods")
+      .select("id,year,period_no,status,closed_at,note")
+      .in("status", ["soft_closed", "closed"])
+      .order("year", { ascending: false })
+      .order("period_no", { ascending: false });
     return { profile, roles: (roles ?? []).map((r) => r.role), locks: locks ?? [] };
   });
 
@@ -57,16 +61,14 @@ export const togglePeriodLock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => LockSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    if (data.action === "lock") {
-      const { error } = await supabase.from("period_locks")
-        .insert({ user_id: userId, year: data.year, month: data.month });
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabase.from("period_locks").delete()
-        .eq("user_id", userId).eq("year", data.year).eq("month", data.month);
-      if (error) throw new Error(error.message);
-    }
+    const { supabase } = context;
+    const newStatus = data.action === "lock" ? "closed" : "open";
+    const { error } = await supabase
+      .from("fiscal_periods")
+      .update({ status: newStatus, closed_at: newStatus === "closed" ? new Date().toISOString() : null })
+      .eq("year", data.year)
+      .eq("period_no", data.month);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 

@@ -117,9 +117,10 @@ export const getTenantDetail = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false })
         .limit(50),
       supabaseAdmin
-        .from("period_locks")
-        .select("*")
+        .from("fiscal_periods")
+        .select("id,year,period_no,status,closed_at,note,user_id")
         .eq("user_id", data.tenant_id)
+        .in("status", ["soft_closed", "closed"])
         .order("year", { ascending: false }),
     ]);
 
@@ -461,7 +462,7 @@ export const deleteOrganization = createServerFn({ method: "POST" })
     const tables = [
       "ai_suggestions", "bank_transactions", "bank_accounts", "cash_vouchers",
       "customers", "exchange_rates", "fixed_assets", "invoices",
-      "journal_entries", "payroll_runs", "period_locks", "products",
+      "journal_entries", "payroll_runs", "fiscal_periods", "fiscal_years", "products",
       "report_notes", "report_snapshots", "sales_invoices", "stock_movements",
       "supplier_payments", "suppliers", "employees", "user_roles",
     ];
