@@ -612,7 +612,12 @@ function ArSummaryPage() {
                         const start = (page - 1) * drillPageSize;
                         const slice = drillDisplayRows.slice(start, start + drillPageSize);
                         return slice.map((l) => (
-                          <tr key={l.key} className="border-t border-border align-top">
+                          <tr
+                            key={l.key}
+                            className="border-t border-border align-top cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => setDetailEntryId(l.entry_id)}
+                            title="Bấm để xem chi tiết chứng từ"
+                          >
                             <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
                             <td className="px-3 py-1.5">
                               <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
@@ -629,7 +634,7 @@ function ArSummaryPage() {
                                   to="/sales/$id"
                                   params={{ id: l.doc_id }}
                                   className="text-primary hover:underline"
-                                  onClick={() => setDrillRow(null)}
+                                  onClick={(e) => { e.stopPropagation(); setDrillRow(null); }}
                                 >
                                   {l.doc_no ?? "—"}
                                 </Link>
