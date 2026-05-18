@@ -383,8 +383,7 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="-1">KCT (Không chịu thuế)</SelectItem>
-                    <SelectItem value="0">0%</SelectItem>
+                    <SelectItem value="0">0% / KCT</SelectItem>
                     <SelectItem value="5">5%</SelectItem>
                     <SelectItem value="8">8%</SelectItem>
                     <SelectItem value="10">10%</SelectItem>
