@@ -29,6 +29,7 @@ interface Props {
 
 export function VoucherListPage({ type }: Props) {
   const list = useServerFn(listStockVouchers);
+  const getStockVoucherFn = useServerFn(getStockVoucher);
   const whs = useServerFn(listWarehouses);
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
