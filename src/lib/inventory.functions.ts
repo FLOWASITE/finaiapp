@@ -926,7 +926,7 @@ export const cancelStockVoucher = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { productIds } = await deleteVoucherInternal(supabase, data.id);
-    for (const id of productIds) {
+    for (const id of productIds as string[]) {
       await recomputeProductStock(supabase, id);
     }
     return { ok: true };
