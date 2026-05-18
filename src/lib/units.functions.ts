@@ -64,3 +64,64 @@ export const deleteUnit = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const COMMON_UNITS: { code: string; name: string; note?: string }[] = [
+  { code: "Cái", name: "Cái" },
+  { code: "Chiếc", name: "Chiếc" },
+  { code: "Bộ", name: "Bộ" },
+  { code: "Hộp", name: "Hộp" },
+  { code: "Thùng", name: "Thùng" },
+  { code: "Gói", name: "Gói" },
+  { code: "Túi", name: "Túi" },
+  { code: "Chai", name: "Chai" },
+  { code: "Lọ", name: "Lọ" },
+  { code: "Lon", name: "Lon" },
+  { code: "Bao", name: "Bao" },
+  { code: "Kiện", name: "Kiện" },
+  { code: "Cuộn", name: "Cuộn" },
+  { code: "Tờ", name: "Tờ" },
+  { code: "Quyển", name: "Quyển" },
+  { code: "Tập", name: "Tập" },
+  { code: "Đôi", name: "Đôi" },
+  { code: "Cặp", name: "Cặp" },
+  { code: "Tá", name: "Tá", note: "12 cái" },
+  { code: "kg", name: "Ki-lô-gam" },
+  { code: "g", name: "Gam" },
+  { code: "tấn", name: "Tấn" },
+  { code: "tạ", name: "Tạ" },
+  { code: "yến", name: "Yến" },
+  { code: "lít", name: "Lít" },
+  { code: "ml", name: "Mi-li-lít" },
+  { code: "m3", name: "Mét khối" },
+  { code: "m", name: "Mét" },
+  { code: "cm", name: "Xăng-ti-mét" },
+  { code: "mm", name: "Mi-li-mét" },
+  { code: "m2", name: "Mét vuông" },
+  { code: "km", name: "Ki-lô-mét" },
+  { code: "Giờ", name: "Giờ" },
+  { code: "Ngày", name: "Ngày" },
+  { code: "Tháng", name: "Tháng" },
+  { code: "Lần", name: "Lần" },
+  { code: "Suất", name: "Suất" },
+  { code: "Phần", name: "Phần" },
+  { code: "Dịch vụ", name: "Dịch vụ" },
+];
+
+export const seedCommonUnits = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const tenant_id = profile?.active_tenant_id ?? null;
+    const { data: existing } = await supabase
+      .from("product_units").select("code");
+    const have = new Set((existing ?? []).map((r: any) => r.code.toLowerCase()));
+    const toInsert = COMMON_UNITS
+      .filter((u) => !have.has(u.code.toLowerCase()))
+      .map((u) => ({ ...u, user_id: userId, tenant_id, is_active: true }));
+    if (toInsert.length === 0) return { inserted: 0 };
+    const { error } = await supabase.from("product_units").insert(toInsert);
+    if (error) throw new Error(error.message);
+    return { inserted: toInsert.length };
+  });
