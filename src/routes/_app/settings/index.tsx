@@ -7,8 +7,9 @@ import {
 } from "@/lib/settings.functions";
 import {
   getActiveTenant, updateActiveTenant, listTenantMembers, inviteTenantMember,
-  updateMemberRole, removeMember, getSetupProgress,
+  updateMemberRole, removeMember,
 } from "@/lib/tenants.functions";
+import { computeTenantSetupProgress } from "@/lib/tenant-setup-fields";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,10 +113,15 @@ const SECTIONS = [
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
-  const getProgress = useServerFn(getSetupProgress);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get() });
-  const { data: progress } = useQuery({ queryKey: ["setup-progress"], queryFn: () => getProgress() });
+  const { data } = useQuery({
+    queryKey: ["active-tenant"],
+    queryFn: () => get(),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
   React.useEffect(() => {
@@ -133,21 +139,20 @@ function OrganizationTab() {
       toast.success("Đã lưu thay đổi");
       qc.invalidateQueries({ queryKey: ["active-tenant"] });
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
-      qc.invalidateQueries({ queryKey: ["setup-progress"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!data?.tenant) return (
+  if (data && !data.tenant) return (
     <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
       Chưa chọn tổ chức nào. Vui lòng chọn ở góc trên màn hình.
     </CardContent></Card>
   );
-  if (!form) return <p className="p-4">Đang tải…</p>;
+  if (!form) return <OrganizationSkeleton />;
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(data.tenant);
-  const reset = () => setForm(data.tenant);
+  const dirty = JSON.stringify(form) !== JSON.stringify(data?.tenant);
+  const reset = () => setForm(data?.tenant);
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
@@ -160,8 +165,8 @@ function OrganizationTab() {
     owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
   };
   const initials = (form.name ?? form.company_name ?? "?").trim().split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
-  const isComplete = !!progress?.completed;
-  const pct = progress?.percent ?? 0;
+  const isComplete = !!progress.completed;
+  const pct = progress.percent;
 
   return (
     <div className="space-y-6 pb-24">
@@ -198,7 +203,7 @@ function OrganizationTab() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold truncate">{form.company_name || form.name || "(chưa đặt tên)"}</h2>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{ROLE_LABEL[data.myRole ?? ""] ?? data.myRole}</Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}</Badge>
               {!canEdit && <Badge variant="outline" className="text-[10px]">Chỉ đọc</Badge>}
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -467,6 +472,26 @@ function OrganizationTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function OrganizationSkeleton() {
+  return (
+    <div className="space-y-6 pb-24 animate-pulse">
+      <div className="h-14 rounded-lg bg-muted/60" />
+      <div className="h-24 rounded-lg bg-muted/60" />
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        <div className="hidden lg:block space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-9 rounded-md bg-muted/60" />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="h-64 rounded-lg bg-muted/60" />
+          <div className="h-48 rounded-lg bg-muted/60" />
+        </div>
+      </div>
     </div>
   );
 }

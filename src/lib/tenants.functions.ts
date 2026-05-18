@@ -250,14 +250,17 @@ export const getActiveTenant = createServerFn({ method: "GET" })
       .single();
     const tid = profile?.active_tenant_id;
     if (!tid) return { tenant: null, myRole: null };
-    const { data: tenant } = await supabase.from("tenants").select("*").eq("id", tid).single();
-    const { data: m } = await supabase
-      .from("tenant_members")
-      .select("role")
-      .eq("tenant_id", tid)
-      .eq("user_id", userId)
-      .maybeSingle();
-    return { tenant, myRole: m?.role ?? null };
+    // Fetch tenant + membership role in parallel (was sequential).
+    const [tenantRes, memberRes] = await Promise.all([
+      supabase.from("tenants").select("*").eq("id", tid).single(),
+      supabase
+        .from("tenant_members")
+        .select("role")
+        .eq("tenant_id", tid)
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    return { tenant: tenantRes.data, myRole: memberRes.data?.role ?? null };
   });
 
 // ===== Members =====
