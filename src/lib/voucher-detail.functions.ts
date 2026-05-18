@@ -134,12 +134,12 @@ async function resolveVoucherMeta(supabase: any, entryId: string, userId: string
     party_name: null, reference: null,
   };
   if (je.data?.invoice_id) {
-    const { data: inv } = await supabase.from("invoices").select("id, invoice_no, supplier_name, invoice_date, total_amount, status").eq("id", je.data.invoice_id).maybeSingle();
+    const { data: inv } = await supabase.from("invoices").select("id, invoice_no, supplier_name, issue_date, total, status").eq("id", je.data.invoice_id).maybeSingle();
     if (inv) return {
       voucher_no: inv.invoice_no, voucher_type: "Hóa đơn mua",
       source_table: "invoices", source_id: inv.id,
       party_name: inv.supplier_name, reference: null,
-      amount: Number(inv.total_amount ?? 0), date: inv.invoice_date, status: inv.status,
+      amount: Number(inv.total ?? 0), date: inv.issue_date, status: inv.status,
     };
   }
   return {
@@ -228,14 +228,14 @@ async function loadRelated(supabase: any, userId: string, meta: any): Promise<Re
   if (meta.source_table === "supplier_payments" && meta.invoice_id) {
     const { data: inv } = await supabase
       .from("invoices")
-      .select("id, invoice_no, supplier_name, invoice_date, total_amount, status")
+      .select("id, invoice_no, supplier_name, issue_date, total, status")
       .eq("id", meta.invoice_id)
       .maybeSingle();
     if (inv) {
       related.push({
-        kind: "purchase_invoice", id: inv.id, date: inv.invoice_date,
+        kind: "purchase_invoice", id: inv.id, date: inv.issue_date,
         doc_no: inv.invoice_no, party_name: inv.supplier_name,
-        amount: Number(inv.total_amount ?? 0), method: null, status: inv.status, is_self: false,
+        amount: Number(inv.total ?? 0), method: null, status: inv.status, is_self: false,
       });
     }
   }
