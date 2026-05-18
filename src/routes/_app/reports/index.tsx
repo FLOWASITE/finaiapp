@@ -266,8 +266,15 @@ function ReportsPage() {
             {!tb.data ? <Loading /> : (
               <>
                 {!tb.data.balanced && (
-                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive print:hidden">
-                    <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
+                  <div className="mb-3 space-y-2 print:hidden">
+                    <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      Tổng PS Nợ ≠ Tổng PS Có — chênh lệch {fmt(tb.data.totals.debit - tb.data.totals.credit)}
+                    </div>
+                    <UnbalancedEntriesPanel
+                      loading={unbalanced.isLoading}
+                      data={unbalanced.data}
+                    />
                   </div>
                 )}
                 <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
