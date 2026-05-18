@@ -98,11 +98,26 @@ function ReportsPage() {
   const cf = useQuery({ queryKey: ["cf99", from, to], queryFn: () => cfFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
+  const exportTbFn = useServerFn(exportTrialBalanceXlsx);
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
       toast.loading("Đang xuất Excel...", { id: "xlsx" });
       const res = await exportFn({ data: { report, from, to, asOf: to } });
+      const link = document.createElement("a");
+      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
+      link.download = res.filename;
+      link.click();
+      toast.success("Đã xuất file", { id: "xlsx" });
+    } catch (e: any) {
+      toast.error(e.message ?? "Xuất file thất bại", { id: "xlsx" });
+    }
+  }
+
+  async function handleExportTrialBalance() {
+    try {
+      toast.loading("Đang xuất Excel...", { id: "xlsx" });
+      const res = await exportTbFn({ data: { from, to, dims, hideZero } });
       const link = document.createElement("a");
       link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
       link.download = res.filename;
