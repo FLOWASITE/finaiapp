@@ -267,7 +267,7 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
               <AutoCodeInput
                 entity={isCustomer ? "customer" : "supplier"}
                 value={form.watch("code") ?? ""}
-                onChange={(v) => form.setValue("code", v, { shouldDirty: true })}
+                onChange={(v: string) => form.setValue("code", v, { shouldDirty: true })}
                 placeholder={isCustomer ? "KH00001" : "NCC00001"}
                 autoFillOnMount={!initial?.id}
                 error={!!form.formState.errors.code}
