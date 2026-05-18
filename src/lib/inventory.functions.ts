@@ -629,3 +629,374 @@ export const listProductsByCategory = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
+
+// ============================================================
+// Multi-line stock vouchers
+// ============================================================
+
+const VoucherLineSchema = z.object({
+  product_id: z.string().uuid(),
+  qty: z.number().positive(),
+  unit_cost: z.number().min(0).default(0),
+  note: z.string().max(255).optional(),
+});
+
+const VoucherCreateSchema = z.object({
+  voucher_type: z.enum(["in", "out"]),
+  voucher_date: z.string(),
+  voucher_no: z.string().max(50).optional(),
+  warehouse_id: z.string().uuid().nullable().optional(),
+  counter_account: z.string().min(2).max(20),
+  reason: z.string().max(500).optional(),
+  post_journal: z.boolean().optional().default(true),
+  lines: z.array(VoucherLineSchema).min(1).max(200),
+});
+
+const VoucherUpdateSchema = VoucherCreateSchema.extend({
+  id: z.string().uuid(),
+}).omit({ voucher_type: true });
+
+type Ctx = { supabase: any; userId: string };
+
+async function applyVoucherLines(
+  ctx: Ctx,
+  header: {
+    id: string;
+    voucher_no: string;
+    voucher_type: "in" | "out";
+    voucher_date: string;
+    warehouse_id: string | null;
+    counter_account: string;
+    tenant_id: string | null;
+    post_journal: boolean;
+  },
+  lines: z.infer<typeof VoucherLineSchema>[],
+) {
+  const { supabase, userId } = ctx;
+
+  // Preload products
+  const ids = Array.from(new Set(lines.map((l) => l.product_id)));
+  const { data: prods, error: pErr } = await supabase
+    .from("products")
+    .select("id, code, name, on_hand, unit_cost, item_type, stock_account")
+    .in("id", ids);
+  if (pErr) throw new Error(pErr.message);
+  const prodMap = new Map<string, any>((prods ?? []).map((p: any) => [p.id, p]));
+
+  // Validate each line and compute effective unit cost
+  type Prepared = {
+    line: z.infer<typeof VoucherLineSchema>;
+    product: any;
+    effectiveUnit: number;
+    amount: number;
+  };
+  // Simulate per-product running on_hand for validation in same voucher (for "out")
+  const sim = new Map<string, { qty: number; cost: number }>();
+  const prepared: Prepared[] = [];
+  for (const line of lines) {
+    const p = prodMap.get(line.product_id);
+    if (!p) throw new Error(`Không tìm thấy mặt hàng ${line.product_id}`);
+    if (p.item_type === "service") throw new Error(`Dịch vụ "${p.name}" không quản lý tồn kho`);
+    if (!(line.qty > 0)) throw new Error(`Số lượng phải > 0 (${p.code})`);
+    let s = sim.get(p.id);
+    if (!s) s = { qty: Number(p.on_hand), cost: Number(p.unit_cost) };
+    let effective: number;
+    if (header.voucher_type === "in") {
+      if (!(line.unit_cost > 0)) throw new Error(`Đơn giá nhập phải > 0 (${p.code})`);
+      effective = line.unit_cost;
+      const total = s.qty + line.qty;
+      s.cost = total > 0 ? (s.qty * s.cost + line.qty * effective) / total : effective;
+      s.qty = total;
+    } else {
+      if (line.qty > s.qty + 1e-9) {
+        throw new Error(`Tồn không đủ cho ${p.code} (còn ${s.qty})`);
+      }
+      effective = s.cost; // xuất theo giá bình quân hiện tại
+      s.qty -= line.qty;
+    }
+    sim.set(p.id, s);
+    prepared.push({
+      line,
+      product: p,
+      effectiveUnit: effective,
+      amount: +(line.qty * effective).toFixed(2),
+    });
+  }
+
+  // Create journal entry (one entry, two lines per item: Dr/Cr pair)
+  let journalEntryId: string | null = null;
+  if (header.post_journal) {
+    const desc =
+      `${header.voucher_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho"} ${header.voucher_no}` +
+      ` (${prepared.length} dòng)`;
+    const { data: entry, error: eErr } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: userId,
+        tenant_id: header.tenant_id,
+        entry_date: header.voucher_date,
+        description: desc,
+      })
+      .select("id")
+      .single();
+    if (eErr || !entry) throw new Error(eErr?.message || "Không tạo được bút toán");
+    journalEntryId = entry.id;
+
+    const jLines: any[] = [];
+    let order = 0;
+    for (const pr of prepared) {
+      const stockAcc = pr.product.stock_account || "156";
+      const debit = header.voucher_type === "in" ? stockAcc : header.counter_account;
+      const credit = header.voucher_type === "in" ? header.counter_account : stockAcc;
+      jLines.push(
+        { entry_id: entry.id, account_code: debit, debit: pr.amount, credit: 0, line_order: order++ },
+        { entry_id: entry.id, account_code: credit, debit: 0, credit: pr.amount, line_order: order++ },
+      );
+    }
+    const { error: lErr } = await supabase.from("journal_lines").insert(jLines);
+    if (lErr) throw new Error(lErr.message);
+
+    await supabase.from("stock_vouchers").update({ journal_entry_id: journalEntryId }).eq("id", header.id);
+  }
+
+  // Insert stock_movements
+  const movements = prepared.map((pr) => ({
+    user_id: userId,
+    tenant_id: header.tenant_id,
+    product_id: pr.product.id,
+    movement_type: header.voucher_type,
+    qty: pr.line.qty,
+    unit_cost: pr.effectiveUnit,
+    movement_date: header.voucher_date,
+    note: pr.line.note?.trim()
+      ? `${header.voucher_no} — ${pr.line.note.trim()}`
+      : header.voucher_no,
+    ref_type: header.voucher_type === "in" ? "stock_voucher_in" : "stock_voucher_out",
+    ref_id: journalEntryId,
+    warehouse_id: header.warehouse_id,
+    voucher_id: header.id,
+  }));
+  const { error: mErr } = await supabase.from("stock_movements").insert(movements);
+  if (mErr) throw new Error(mErr.message);
+
+  // Recompute on_hand + unit_cost from scratch for every affected product
+  for (const productId of ids) {
+    await recomputeProductStock(supabase, productId);
+  }
+
+  return { journal_entry_id: journalEntryId, line_count: prepared.length };
+}
+
+async function deleteVoucherInternal(supabase: any, voucherId: string) {
+  const { data: v, error } = await supabase
+    .from("stock_vouchers")
+    .select("id, journal_entry_id")
+    .eq("id", voucherId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!v) throw new Error("Không tìm thấy phiếu");
+
+  // Collect affected products before delete
+  const { data: movs } = await supabase
+    .from("stock_movements")
+    .select("product_id")
+    .eq("voucher_id", voucherId);
+  const productIds = Array.from(new Set((movs ?? []).map((m: any) => m.product_id)));
+
+  // Delete movements (cascade by FK but be explicit so we can recompute after)
+  await supabase.from("stock_movements").delete().eq("voucher_id", voucherId);
+
+  if (v.journal_entry_id) {
+    await supabase.from("journal_lines").delete().eq("entry_id", v.journal_entry_id);
+    await supabase.from("journal_entries").delete().eq("id", v.journal_entry_id);
+  }
+
+  await supabase.from("stock_vouchers").delete().eq("id", voucherId);
+  return { productIds };
+}
+
+export const createStockVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => VoucherCreateSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const tenantId = profile?.active_tenant_id ?? null;
+
+    const voucherNo =
+      data.voucher_no?.trim() ||
+      (await nextStockVoucherNo(supabase, tenantId, userId, data.voucher_type, data.voucher_date));
+
+    const { data: hdr, error: hErr } = await supabase
+      .from("stock_vouchers")
+      .insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        voucher_no: voucherNo,
+        voucher_type: data.voucher_type,
+        voucher_date: data.voucher_date,
+        warehouse_id: data.warehouse_id ?? null,
+        counter_account: data.counter_account,
+        reason: data.reason ?? null,
+      })
+      .select("id")
+      .single();
+    if (hErr || !hdr) throw new Error(hErr?.message || "Không tạo được phiếu");
+
+    try {
+      const res = await applyVoucherLines(
+        { supabase, userId },
+        {
+          id: hdr.id,
+          voucher_no: voucherNo,
+          voucher_type: data.voucher_type,
+          voucher_date: data.voucher_date,
+          warehouse_id: data.warehouse_id ?? null,
+          counter_account: data.counter_account,
+          tenant_id: tenantId,
+          post_journal: data.post_journal !== false,
+        },
+        data.lines,
+      );
+      return { ok: true, id: hdr.id, voucher_no: voucherNo, ...res };
+    } catch (e) {
+      // Rollback header on failure
+      await supabase.from("stock_vouchers").delete().eq("id", hdr.id);
+      throw e;
+    }
+  });
+
+export const updateStockVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => VoucherUpdateSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: orig, error: oErr } = await supabase
+      .from("stock_vouchers")
+      .select("id, voucher_no, voucher_type, tenant_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (oErr) throw new Error(oErr.message);
+    if (!orig) throw new Error("Không tìm thấy phiếu");
+
+    const { productIds: removedProducts } = await deleteVoucherInternal(supabase, data.id);
+    // Recompute removed products' stock first
+    for (const id of removedProducts) {
+      await recomputeProductStock(supabase, id);
+    }
+
+    // Recreate header with same id-like fields (new id)
+    const { data: hdr, error: hErr } = await supabase
+      .from("stock_vouchers")
+      .insert({
+        user_id: userId,
+        tenant_id: orig.tenant_id,
+        voucher_no: orig.voucher_no,
+        voucher_type: orig.voucher_type,
+        voucher_date: data.voucher_date,
+        warehouse_id: data.warehouse_id ?? null,
+        counter_account: data.counter_account,
+        reason: data.reason ?? null,
+      })
+      .select("id")
+      .single();
+    if (hErr || !hdr) throw new Error(hErr?.message || "Không tạo lại được phiếu");
+
+    const res = await applyVoucherLines(
+      { supabase, userId },
+      {
+        id: hdr.id,
+        voucher_no: orig.voucher_no,
+        voucher_type: orig.voucher_type,
+        voucher_date: data.voucher_date,
+        warehouse_id: data.warehouse_id ?? null,
+        counter_account: data.counter_account,
+        tenant_id: orig.tenant_id,
+        post_journal: data.post_journal !== false,
+      },
+      data.lines,
+    );
+    return { ok: true, id: hdr.id, voucher_no: orig.voucher_no, ...res };
+  });
+
+export const cancelStockVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { productIds } = await deleteVoucherInternal(supabase, data.id);
+    for (const id of productIds) {
+      await recomputeProductStock(supabase, id);
+    }
+    return { ok: true };
+  });
+
+export const listStockVouchers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { type: "in" | "out"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    let q = supabase
+      .from("stock_vouchers")
+      .select("*, warehouses(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
+      .eq("voucher_type", data.type)
+      .order("voucher_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data.from) q = q.gte("voucher_date", data.from);
+    if (data.to) q = q.lte("voucher_date", data.to);
+    if (data.warehouse_id && data.warehouse_id !== "all") {
+      if (data.warehouse_id === "none") q = q.is("warehouse_id", null);
+      else q = q.eq("warehouse_id", data.warehouse_id);
+    }
+    if (data.status === "posted") q = q.not("journal_entry_id", "is", null);
+    else if (data.status === "unposted") q = q.is("journal_entry_id", null);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return (rows ?? []).map((v: any) => {
+      const lines = v.stock_movements ?? [];
+      const total = lines.reduce((s: number, l: any) => s + Number(l.qty) * Number(l.unit_cost || 0), 0);
+      return {
+        ...v,
+        line_count: lines.length,
+        total_qty: lines.reduce((s: number, l: any) => s + Number(l.qty || 0), 0),
+        total_value: total,
+      };
+    });
+  });
+
+export const getStockVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: voucher, error } = await supabase
+      .from("stock_vouchers")
+      .select("*, warehouses(code, name)")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!voucher) throw new Error("Không tìm thấy phiếu");
+
+    const [{ data: movs }, { data: entry }, { data: jLines }] = await Promise.all([
+      supabase
+        .from("stock_movements")
+        .select("*, products(code, name, unit, stock_account)")
+        .eq("voucher_id", data.id)
+        .order("created_at"),
+      voucher.journal_entry_id
+        ? supabase.from("journal_entries").select("*").eq("id", voucher.journal_entry_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      voucher.journal_entry_id
+        ? supabase.from("journal_lines").select("*").eq("entry_id", voucher.journal_entry_id).order("line_order")
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    return {
+      voucher,
+      lines: movs ?? [],
+      journal_entry: entry ?? null,
+      journal_lines: jLines ?? [],
+    };
+  });
