@@ -368,8 +368,85 @@ function ArSummaryPage() {
           {drillQ.isLoading ? (
             <div className="mt-6"><Loading /></div>
           ) : drillQ.data ? (
-            <div className="mt-4 space-y-6">
+            <div className="mt-4 space-y-4">
+              <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Từ ngày</span>
+                    <Input
+                      type="date"
+                      value={drillFrom}
+                      min={from}
+                      max={to}
+                      onChange={(e) => setDrillFrom(e.target.value)}
+                      className="h-8 w-36 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Đến ngày</span>
+                    <Input
+                      type="date"
+                      value={drillTo}
+                      min={from}
+                      max={to}
+                      onChange={(e) => setDrillTo(e.target.value)}
+                      className="h-8 w-36 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                    <span className="text-xs text-muted-foreground">Tìm số CT / diễn giải</span>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={drillSearch}
+                        onChange={(e) => setDrillSearch(e.target.value)}
+                        placeholder="vd: HD0001, lương…"
+                        className="h-8 pl-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  {(drillFrom || drillTo || drillDocTypes.length || drillSearch) ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDrillFrom(""); setDrillTo("");
+                        setDrillDocTypes([]); setDrillSearch("");
+                      }}
+                      className="text-xs text-muted-foreground underline"
+                    >
+                      Xoá lọc
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+                  {[
+                    { v: "HD", label: "HĐ bán" },
+                    { v: "PT", label: "Phiếu thu" },
+                    { v: "KHAC", label: "Khác" },
+                  ].map((opt) => {
+                    const active = drillDocTypes.includes(opt.v);
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => toggleDrillDocType(opt.v)}
+                        className={
+                          "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                          (active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground")
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-3 text-sm">
+
                 <div className="rounded-md border border-border p-3">
                   <div className="text-xs text-muted-foreground">Số dư đầu kỳ</div>
                   <div className="mt-1 font-mono font-semibold">
