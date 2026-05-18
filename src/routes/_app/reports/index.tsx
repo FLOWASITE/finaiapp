@@ -269,20 +269,37 @@ function ReportsPage() {
                 <span className="text-muted-foreground">Tìm:</span>
                 <input
                   type="search"
-                  value={tbSearch}
-                  onChange={(e) => setTbSearch(e.target.value)}
+                  value={tbSearchDraft}
+                  onChange={(e) => setTbSearchDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); setTbSearch(tbSearchDraft); }
+                    else if (e.key === "Escape") { setTbSearchDraft(""); setTbSearch(""); }
+                  }}
                   placeholder='Mã/tên · "=131" chính xác · "131*" tiền tố'
-                  title='Bỏ dấu, không phân biệt hoa thường. Dùng "=131" để khớp mã chính xác, "131*" hoặc nhập chỉ chữ số để khớp tiền tố.'
+                  title='Bỏ dấu, không phân biệt hoa thường. Dùng "=131" để khớp mã chính xác, "131*" hoặc nhập chỉ chữ số để khớp tiền tố. Bấm Áp dụng (hoặc Enter) để lọc.'
                   className="h-8 w-64 rounded border border-border bg-background px-2 text-sm"
                 />
-                {tbSearch && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="default"
+                  onClick={() => setTbSearch(tbSearchDraft)}
+                  disabled={tbSearchDraft === tbSearch}
+                  className="h-8"
+                >
+                  Áp dụng
+                </Button>
+                {(tbSearch || tbSearchDraft) && (
                   <button
                     type="button"
-                    onClick={() => setTbSearch("")}
+                    onClick={() => { setTbSearchDraft(""); setTbSearch(""); }}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     Xoá
                   </button>
+                )}
+                {tbSearchDraft !== tbSearch && (
+                  <span className="text-[11px] italic text-muted-foreground">chưa áp dụng</span>
                 )}
               </label>
             </div>
