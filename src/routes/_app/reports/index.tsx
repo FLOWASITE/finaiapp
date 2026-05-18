@@ -48,11 +48,7 @@ function ReportsPage() {
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
   const [dims, setDims] = useState<DimensionValue>({});
-  const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
-  const [tbTree, setTbTree] = useState(true);
-  const [tbSearch, setTbSearch] = useState("");
-  const [tbSearchDraft, setTbSearchDraft] = useState("");
-  const [drillAcc, setDrillAcc] = useState<{ code: string; name: string } | null>(null);
+  const [dims, setDims] = useState<DimensionValue>({});
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
