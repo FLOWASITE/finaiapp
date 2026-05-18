@@ -123,7 +123,7 @@ const SECTIONS: NavSection[] = [
 const EINVOICE_SECTIONS: NavSection[] = [
   {
     entries: [
-      { to: "/dashboard", label: "← Quay lại tổng quan", icon: ArrowLeft },
+      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
     ],
   },
   {
@@ -262,9 +262,9 @@ export function AppSidebar() {
               A
             </div>
             {!collapsed && (
-              <div className="flex flex-col leading-tight animate-fade-in">
-                <span className="font-semibold tracking-tight text-sidebar-foreground">FinAI</span>
-                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+              <div className="flex flex-col leading-snug animate-fade-in">
+                <span className="font-bold text-[15px] tracking-tight text-sidebar-foreground">FinAI</span>
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55">
                   AI Accounting · v3
                 </span>
               </div>
@@ -293,7 +293,7 @@ export function AppSidebar() {
                 <div className="rounded-[11px] bg-sidebar/90 backdrop-blur-sm px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-sidebar-primary" />
-                    <span className="text-xs font-medium text-sidebar-foreground/90 flex-1 text-left">
+                    <span className="text-[12.5px] font-medium tracking-tight text-sidebar-foreground/90 flex-1 text-left">
                       Hỏi FinAI AI…
                     </span>
                     <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
@@ -310,7 +310,7 @@ export function AppSidebar() {
                   <button
                     key={q.label}
                     onClick={() => go(q.to)}
-                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2 py-0.5 text-[10px] text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
+                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2.5 py-1 text-[10.5px] font-medium tracking-wide whitespace-nowrap text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
                   >
                     {q.label}
                   </button>
@@ -322,7 +322,7 @@ export function AppSidebar() {
           {activeSections.map((section, idx) => (
             <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
               {section.label && (
-                <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
+                <SidebarGroupLabel className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
                   {section.label}
                 </SidebarGroupLabel>
               )}
@@ -360,7 +360,7 @@ export function AppSidebar() {
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors">
                 <div className="relative">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold">
                     {email.charAt(0).toUpperCase() || "U"}
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse" />
@@ -375,10 +375,10 @@ export function AppSidebar() {
                         </>
                       ) : (
                         <>
-                          <div className="truncate text-xs font-medium text-sidebar-foreground">
+                          <div className="truncate text-[12.5px] font-semibold tracking-tight text-sidebar-foreground">
                             {email || "Người dùng"}
                           </div>
-                          <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                          <div className="text-[10.5px] font-medium tracking-wide text-sidebar-foreground/55">Lovable Cloud · Online</div>
                         </>
                       )}
                     </div>
@@ -463,9 +463,9 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
           )}
           <Icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", active && "text-sidebar-primary")} />
-          <span>{item.label}</span>
+          <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
           {item.badge != null && (
-            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
               {item.badge}
             </span>
           )}
@@ -522,7 +522,7 @@ function GroupItem({
             className={cn("group/btn", hasActiveChild && "text-sidebar-foreground")}
           >
             <Icon className={cn("h-4 w-4", hasActiveChild && "text-sidebar-primary")} />
-            <span className="flex-1 text-left">{group.label}</span>
+            <span className={cn("flex-1 text-left text-[13px] tracking-[-0.005em]", hasActiveChild ? "font-semibold" : "font-medium")}>{group.label}</span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -534,11 +534,14 @@ function GroupItem({
                 <SidebarMenuSubItem key={i.to}>
                   <SidebarMenuSubButton asChild isActive={active}>
                     <Link to={i.to}>
-                      <span className={cn(active && "text-sidebar-primary font-medium")}>
+                      <span className={cn(
+                        "text-[12.5px] tracking-[-0.005em] transition-colors",
+                        active ? "font-semibold text-sidebar-primary" : "text-sidebar-foreground/75 hover:text-sidebar-foreground"
+                      )}>
                         {i.label}
                       </span>
                       {i.badge != null && (
-                        <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+                        <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
                           {i.badge}
                         </span>
                       )}
