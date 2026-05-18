@@ -752,34 +752,158 @@ function CompanyTab() {
 
 function AvatarUploader({ url, userId, onChange }: { url?: string | null; userId: string; onChange: (u: string | null) => void }) {
   const [uploading, setUploading] = React.useState(false);
+  const [preview, setPreview] = React.useState<{ file: File; objectUrl: string } | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  async function handleFile(file: File) {
-    if (!userId) return toast.error("Chưa đăng nhập");
-    if (file.size > 2 * 1024 * 1024) return toast.error("Ảnh tối đa 2MB");
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop() || "png";
-      const path = `${userId}/avatar-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      onChange(data.publicUrl);
-      toast.success("Đã cập nhật ảnh đại diện");
-    } catch (e: any) { toast.error(e.message ?? "Tải ảnh thất bại"); }
-    finally { setUploading(false); }
+
+  const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+  const MAX_BYTES = 2 * 1024 * 1024;
+
+  React.useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview.objectUrl); };
+  }, [preview]);
+
+  function pickFile(file: File) {
+    setError(null);
+    if (!ACCEPTED.includes(file.type)) {
+      const msg = "Định dạng không hỗ trợ. Chỉ chấp nhận PNG, JPG, WEBP.";
+      setError(msg); toast.error(msg); return;
+    }
+    if (file.size > MAX_BYTES) {
+      const msg = `Ảnh quá lớn (${(file.size / 1024 / 1024).toFixed(2)}MB). Tối đa 2MB.`;
+      setError(msg); toast.error(msg); return;
+    }
+    if (preview) URL.revokeObjectURL(preview.objectUrl);
+    setPreview({ file, objectUrl: URL.createObjectURL(file) });
   }
+
+  async function confirmUpload() {
+    if (!preview) return;
+    if (!userId) { const m = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."; setError(m); toast.error(m); return; }
+    setUploading(true);
+    setError(null);
+    try {
+      const ext = preview.file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${userId}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, preview.file, {
+        upsert: true, contentType: preview.file.type, cacheControl: "3600",
+      });
+      if (upErr) {
+        const msg = upErr.message?.toLowerCase().includes("row-level")
+          ? "Không có quyền tải lên. Vui lòng đăng nhập lại."
+          : upErr.message?.toLowerCase().includes("payload") || upErr.message?.toLowerCase().includes("size")
+            ? "Ảnh vượt quá dung lượng cho phép của máy chủ."
+            : `Tải ảnh thất bại: ${upErr.message}`;
+        throw new Error(msg);
+      }
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      onChange(`${data.publicUrl}?v=${Date.now()}`);
+      toast.success("Đã cập nhật ảnh đại diện");
+      URL.revokeObjectURL(preview.objectUrl);
+      setPreview(null);
+    } catch (e: any) {
+      const msg = e?.message ?? "Tải ảnh thất bại. Vui lòng thử lại.";
+      setError(msg);
+      toast.error(msg);
+    } finally { setUploading(false); }
+  }
+
+  function cancelPreview() {
+    if (preview) URL.revokeObjectURL(preview.objectUrl);
+    setPreview(null); setError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   return (
     <div className="flex flex-col gap-1.5 shrink-0">
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }}
+      />
       <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
-        <Upload className="mr-1 h-3 w-3" />{uploading ? "Đang tải..." : url ? "Đổi ảnh" : "Tải ảnh"}
+        <Upload className="mr-1 h-3 w-3" />{url ? "Đổi ảnh" : "Tải ảnh"}
       </Button>
       {url && (
         <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onChange(null)}>
           <X className="mr-1 h-3 w-3" /> Xoá
         </Button>
       )}
+      <p className="text-[10px] text-muted-foreground">PNG/JPG/WEBP · ≤ 2MB</p>
+
+      <PreviewDialog
+        open={!!preview}
+        onOpenChange={(o) => { if (!o) cancelPreview(); }}
+        preview={preview}
+        uploading={uploading}
+        error={error}
+        currentUrl={url ?? null}
+        onConfirm={confirmUpload}
+        onCancel={cancelPreview}
+      />
     </div>
+  );
+}
+
+function PreviewDialog({
+  open, onOpenChange, preview, uploading, error, currentUrl, onConfirm, onCancel,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  preview: { file: File; objectUrl: string } | null;
+  uploading: boolean;
+  error: string | null;
+  currentUrl: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Xem trước ảnh đại diện</DialogTitle>
+          <DialogDescription>
+            Kiểm tra ảnh trước khi tải lên máy chủ. Bạn có thể chọn lại ảnh khác hoặc huỷ.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-4 py-2">
+          <div className="flex flex-col items-center gap-1.5">
+            <Avatar className="h-24 w-24 ring-2 ring-border">
+              {currentUrl ? <AvatarImage src={currentUrl} className="object-cover" /> : null}
+              <AvatarFallback className="bg-muted text-muted-foreground text-xs">Hiện tại</AvatarFallback>
+            </Avatar>
+            <span className="text-[10px] text-muted-foreground">Trước</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <Avatar className="h-24 w-24 ring-2 ring-primary">
+              {preview ? <AvatarImage src={preview.objectUrl} className="object-cover" /> : null}
+              <AvatarFallback>?</AvatarFallback>
+            </Avatar>
+            <span className="text-[10px] text-primary font-medium">Sau khi lưu</span>
+          </div>
+          {preview && (
+            <div className="flex-1 text-xs space-y-1">
+              <p className="font-medium truncate">{preview.file.name}</p>
+              <p className="text-muted-foreground">{(preview.file.size / 1024).toFixed(1)} KB · {preview.file.type.replace("image/", "").toUpperCase()}</p>
+            </div>
+          )}
+        </div>
+        {error && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="ghost" disabled={uploading} onClick={onCancel}>Huỷ</Button>
+          <Button type="button" disabled={uploading || !preview} onClick={onConfirm}>
+            {uploading ? "Đang tải..." : "Lưu ảnh"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
