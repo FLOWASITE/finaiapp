@@ -50,6 +50,7 @@ function ReportsPage() {
   const [dims, setDims] = useState<DimensionValue>({});
   const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
   const [tbTree, setTbTree] = useState(true);
+  const [tbSearch, setTbSearch] = useState("");
   const [drillAcc, setDrillAcc] = useState<{ code: string; name: string } | null>(null);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -263,6 +264,25 @@ function ReportsPage() {
                 <input type="checkbox" checked={tbTree} onChange={(e) => setTbTree(e.target.checked)} />
                 Xem dạng cây
               </label>
+              <label className="flex items-center gap-2">
+                <span className="text-muted-foreground">Tìm:</span>
+                <input
+                  type="search"
+                  value={tbSearch}
+                  onChange={(e) => setTbSearch(e.target.value)}
+                  placeholder="Mã hoặc tên tài khoản…"
+                  className="h-8 w-56 rounded border border-border bg-background px-2 text-sm"
+                />
+                {tbSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTbSearch("")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Xoá
+                  </button>
+                )}
+              </label>
             </div>
             {!tb.data ? <Loading /> : (
               <>
@@ -283,6 +303,7 @@ function ReportsPage() {
                   hideZero={hideZero}
                   level={tbLevel}
                   tree={tbTree}
+                  search={tbSearch}
                   onDrill={(code, name) => setDrillAcc({ code, name })}
                 />
               </>
@@ -538,17 +559,18 @@ function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
 }
 
 function TrialBalanceTable({
-  data, hideZero, level, tree, onDrill,
+  data, hideZero, level, tree, search, onDrill,
 }: {
   data: TrialBalanceData;
   hideZero: boolean;
   level: "all" | "1" | "2" | "3";
   tree: boolean;
+  search?: string;
   onDrill?: (code: string, name: string) => void;
 }) {
   const aggregated = aggregateTrialBalance(data.rows, level);
   const withAncestors = tree ? ensureAncestors(aggregated) : aggregated;
-  const filtered = hideZero
+  const afterHideZero = hideZero
     ? withAncestors.filter(
         (r) =>
           r.openingDebit !== 0 || r.openingCredit !== 0 ||
@@ -556,6 +578,27 @@ function TrialBalanceTable({
           r.closingDebit !== 0 || r.closingCredit !== 0,
       )
     : withAncestors;
+
+  // Lọc theo từ khoá: khớp mã hoặc tên (không phân biệt hoa thường, bỏ dấu cách thừa).
+  // Khi xem dạng cây: giữ lại tổ tiên của các dòng khớp để cây không bị đứt.
+  const q = (search ?? "").trim().toLowerCase();
+  let filtered = afterHideZero;
+  if (q) {
+    const matches = afterHideZero.filter(
+      (r) => r.code.toLowerCase().includes(q) || (r.name ?? "").toLowerCase().includes(q),
+    );
+    if (tree) {
+      const keep = new Set(matches.map((r) => r.code));
+      for (const r of matches) {
+        let p = parentCode(r.code);
+        while (p) { keep.add(p); p = parentCode(p); }
+      }
+      filtered = afterHideZero.filter((r) => keep.has(r.code));
+    } else {
+      filtered = matches;
+    }
+  }
+
 
   // Tổng cộng tính trên các nút "lá" của tập đã chọn để tránh đếm trùng khi xem cây
   const codeSet = new Set(filtered.map((r) => r.code));
