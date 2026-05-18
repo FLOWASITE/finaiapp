@@ -308,6 +308,176 @@ export const getTrialBalance = createServerFn({ method: "POST" })
   }));
 
 
+// ============ 4b. Xuất Excel Bảng cân đối số phát sinh ============
+export const exportTrialBalanceXlsx = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { from: string; to: string; dims?: DimFilter; hideZero?: boolean }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Tái tính trial balance (cùng logic getTrialBalance)
+    const map = new Map<string, { opening: number; debit: number; credit: number }>();
+    if (!hasDims(data.dims) && isMonthAligned(data.from, data.to)) {
+      const fromYm = ym(new Date(data.from));
+      const toYm = ym(new Date(data.to));
+      const { data: rows } = await supabase
+        .from("account_period_balances")
+        .select("account_code, year, period_no, debit, credit");
+      for (const r of rows ?? []) {
+        const code = r.account_code as string;
+        const yy = Number(r.year);
+        const pp = Number(r.period_no);
+        const dr = Number(r.debit) || 0;
+        const cr = Number(r.credit) || 0;
+        const m = map.get(code) ?? { opening: 0, debit: 0, credit: 0 };
+        const before = yy < fromYm.y || (yy === fromYm.y && pp < fromYm.p);
+        const after = yy > toYm.y || (yy === toYm.y && pp > toYm.p);
+        if (before) m.opening += dr - cr;
+        else if (!after) { m.debit += dr; m.credit += cr; }
+        map.set(code, m);
+      }
+    } else {
+      const before = await fetchLines(supabase, userId, { to: prevDay(data.from), dims: data.dims });
+      const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, dims: data.dims });
+      for (const l of before) {
+        const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
+        m.opening += l.debit - l.credit;
+        map.set(l.account_code, m);
+      }
+      for (const l of period) {
+        const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
+        m.debit += l.debit; m.credit += l.credit;
+        map.set(l.account_code, m);
+      }
+    }
+    const { data: coa } = await supabase.from("chart_of_accounts").select("code, name");
+    const nameMap = new Map((coa ?? []).map((r: any) => [r.code, r.name as string]));
+    const rows = Array.from(map.entries())
+      .map(([code, v]) => {
+        const closing = v.opening + v.debit - v.credit;
+        return {
+          code,
+          name: nameMap.get(code) ?? "",
+          openingDebit: v.opening > 0 ? v.opening : 0,
+          openingCredit: v.opening < 0 ? -v.opening : 0,
+          debit: v.debit,
+          credit: v.credit,
+          closingDebit: closing > 0 ? closing : 0,
+          closingCredit: closing < 0 ? -closing : 0,
+        };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    const filtered = data.hideZero
+      ? rows.filter((r) =>
+          r.openingDebit !== 0 || r.openingCredit !== 0 ||
+          r.debit !== 0 || r.credit !== 0 ||
+          r.closingDebit !== 0 || r.closingCredit !== 0
+        )
+      : rows;
+
+    const totals = filtered.reduce(
+      (s, r) => ({
+        openingDebit: s.openingDebit + r.openingDebit,
+        openingCredit: s.openingCredit + r.openingCredit,
+        debit: s.debit + r.debit,
+        credit: s.credit + r.credit,
+        closingDebit: s.closingDebit + r.closingDebit,
+        closingCredit: s.closingCredit + r.closingCredit,
+      }),
+      { openingDebit: 0, openingCredit: 0, debit: 0, credit: 0, closingDebit: 0, closingCredit: 0 }
+    );
+
+    const profile = (await supabase
+      .from("profiles")
+      .select("company_name, tax_id, address")
+      .eq("id", userId)
+      .maybeSingle()).data;
+
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("BCDPS");
+
+    ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
+    ws.getCell("A1").font = { bold: true, size: 13 };
+    ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
+    ws.getCell("A3").value = profile?.address ?? "";
+
+    ws.mergeCells("A5:H5");
+    ws.getCell("A5").value = "BẢNG CÂN ĐỐI SỐ PHÁT SINH";
+    ws.getCell("A5").font = { bold: true, size: 13 };
+    ws.getCell("A5").alignment = { horizontal: "center" };
+
+    ws.mergeCells("A6:H6");
+    ws.getCell("A6").value = `Kỳ từ ${data.from} đến ${data.to}`;
+    ws.getCell("A6").alignment = { horizontal: "center" };
+
+    // Header 2 dòng (gộp ô)
+    ws.mergeCells("A8:A9");
+    ws.mergeCells("B8:B9");
+    ws.mergeCells("C8:D8");
+    ws.mergeCells("E8:F8");
+    ws.mergeCells("G8:H8");
+    ws.getCell("A8").value = "Mã TK";
+    ws.getCell("B8").value = "Tên tài khoản";
+    ws.getCell("C8").value = "Số dư đầu kỳ";
+    ws.getCell("E8").value = "Phát sinh trong kỳ";
+    ws.getCell("G8").value = "Số dư cuối kỳ";
+    ws.getCell("C9").value = "Nợ";
+    ws.getCell("D9").value = "Có";
+    ws.getCell("E9").value = "Nợ";
+    ws.getCell("F9").value = "Có";
+    ws.getCell("G9").value = "Nợ";
+    ws.getCell("H9").value = "Có";
+    ["A8","B8","C8","E8","G8","C9","D9","E9","F9","G9","H9"].forEach(c => {
+      const cell = ws.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+
+    let row = 10;
+    for (const r of filtered) {
+      ws.getCell(`A${row}`).value = r.code;
+      ws.getCell(`B${row}`).value = r.name;
+      ws.getCell(`C${row}`).value = Math.round(r.openingDebit);
+      ws.getCell(`D${row}`).value = Math.round(r.openingCredit);
+      ws.getCell(`E${row}`).value = Math.round(r.debit);
+      ws.getCell(`F${row}`).value = Math.round(r.credit);
+      ws.getCell(`G${row}`).value = Math.round(r.closingDebit);
+      ws.getCell(`H${row}`).value = Math.round(r.closingCredit);
+      ["C","D","E","F","G","H"].forEach(col => {
+        ws.getCell(`${col}${row}`).numFmt = "#,##0;(#,##0);-";
+      });
+      row++;
+    }
+
+    // Tổng cộng
+    ws.mergeCells(`A${row}:B${row}`);
+    ws.getCell(`A${row}`).value = "Tổng cộng";
+    ws.getCell(`C${row}`).value = Math.round(totals.openingDebit);
+    ws.getCell(`D${row}`).value = Math.round(totals.openingCredit);
+    ws.getCell(`E${row}`).value = Math.round(totals.debit);
+    ws.getCell(`F${row}`).value = Math.round(totals.credit);
+    ws.getCell(`G${row}`).value = Math.round(totals.closingDebit);
+    ws.getCell(`H${row}`).value = Math.round(totals.closingCredit);
+    ["A","B","C","D","E","F","G","H"].forEach(col => {
+      const cell = ws.getCell(`${col}${row}`);
+      cell.font = { bold: true };
+      cell.border = { top: { style: "thin" }, bottom: { style: "double" } };
+      if (col !== "A" && col !== "B") cell.numFmt = "#,##0;(#,##0);-";
+    });
+
+    ws.getColumn(1).width = 10;
+    ws.getColumn(2).width = 40;
+    for (let c = 3; c <= 8; c++) ws.getColumn(c).width = 16;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const base64 = Buffer.from(buf).toString("base64");
+    return { filename: `BCDPS_${data.from}_${data.to}.xlsx`, base64 };
+  });
+
+
 function prevDay(d: string): string {
   const x = new Date(d);
   x.setDate(x.getDate() - 1);
