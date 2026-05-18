@@ -98,14 +98,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Thuế",
-    entries: [
-      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
-      { to: "/tax/tncn", label: "Thuế TNCN", icon: UserCog },
-      { to: "/tax/tndn", label: "Thuế TNDN", icon: Calculator },
-    ],
-  },
-  {
     label: "Báo cáo",
     entries: [
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
@@ -142,6 +134,29 @@ const EINVOICE_SECTIONS: NavSection[] = [
       { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
       { to: "/invoices", label: "Hoá đơn bán", icon: Receipt },
       { to: "/tax/gtgt", label: "Thuế GTGT", icon: Calculator },
+    ],
+  },
+];
+
+const TAX_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Thuế",
+    entries: [
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
+      { to: "/tax/tncn", label: "Thuế TNCN", icon: UserCog },
+      { to: "/tax/tndn", label: "Thuế TNDN", icon: Calculator },
+    ],
+  },
+  {
+    label: "Liên kết",
+    entries: [
+      { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
     ],
   },
 ];
@@ -186,7 +201,8 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
-  const activeSections = inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
+  const inTaxModule = pathname.startsWith("/tax");
+  const activeSections = inTaxModule ? TAX_SECTIONS : inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
