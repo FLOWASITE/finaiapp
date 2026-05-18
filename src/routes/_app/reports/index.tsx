@@ -270,8 +270,9 @@ function ReportsPage() {
                   type="search"
                   value={tbSearch}
                   onChange={(e) => setTbSearch(e.target.value)}
-                  placeholder="Mã hoặc tên tài khoản…"
-                  className="h-8 w-56 rounded border border-border bg-background px-2 text-sm"
+                  placeholder='Mã/tên · "=131" chính xác · "131*" tiền tố'
+                  title='Bỏ dấu, không phân biệt hoa thường. Dùng "=131" để khớp mã chính xác, "131*" hoặc nhập chỉ chữ số để khớp tiền tố.'
+                  className="h-8 w-64 rounded border border-border bg-background px-2 text-sm"
                 />
                 {tbSearch && (
                   <button
