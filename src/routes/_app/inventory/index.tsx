@@ -81,9 +81,10 @@ function InventoryPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Kpi label="Tổng giá trị tồn" value={fmt(dashboard?.total_value ?? 0)} icon={<Boxes className="h-4 w-4" />} tone="primary" />
-        <Kpi label="Số SKU" value={String(dashboard?.sku_count ?? 0)} icon={<Package className="h-4 w-4" />} />
+        <Kpi label="Hàng hóa" value={String(dashboard?.goods_count ?? 0)} icon={<Package className="h-4 w-4" />} />
+        <Kpi label="Dịch vụ" value={String(dashboard?.service_count ?? 0)} icon={<Wrench className="h-4 w-4" />} />
         <Kpi
           label="Sắp hết"
           value={String(dashboard?.low_stock_count ?? 0)}
