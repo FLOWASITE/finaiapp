@@ -283,7 +283,8 @@ export const exportTenantBackup = createServerFn({ method: "POST" })
       "payroll_lines",
       "fixed_assets",
       "depreciation_entries",
-      "period_locks",
+      "fiscal_periods",
+      "fiscal_years",
       "user_roles",
     ];
     const dump: Record<string, any[]> = {};
