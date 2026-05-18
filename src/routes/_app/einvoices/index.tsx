@@ -184,7 +184,11 @@ function EInvoicesPage() {
             className="pl-8 w-72"
           />
         </div>
-        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        <DateRangeFilter
+          from={dateRange.from ?? ""}
+          to={dateRange.to ?? ""}
+          onChange={(r) => setDateRange({ from: r.from, to: r.to })}
+        />
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Trạng thái TCT" />
