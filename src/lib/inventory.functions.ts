@@ -639,6 +639,9 @@ const VoucherLineSchema = z.object({
   qty: z.number().positive(),
   unit_cost: z.number().min(0).default(0),
   note: z.string().max(255).optional(),
+  // Optional transaction-time unit. If omitted or equal to the product's base unit,
+  // the factor defaults to 1 and qty/unit_cost are stored as-is.
+  unit: z.string().max(20).optional(),
 });
 
 const VoucherCreateSchema = z.object({
