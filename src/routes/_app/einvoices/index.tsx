@@ -30,15 +30,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportEinvoiceStoreDialog } from "@/components/import-einvoice-store-dialog";
+import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { listEInvoices } from "@/lib/einvoices.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/einvoices/")({
   validateSearch: (s: Record<string, unknown>) => ({
