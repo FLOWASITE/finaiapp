@@ -306,9 +306,18 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
             </Field>
           </div>
 
-          <Field label="Website" error={form.formState.errors.website?.message}>
-            <Input placeholder="https://" {...form.register("website")} />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Website" error={form.formState.errors.website?.message}>
+              <Input placeholder="https://" {...form.register("website")} />
+            </Field>
+            <Field label={isCustomer ? "Nhóm khách hàng" : "Nhóm nhà cung cấp"}>
+              <GroupSelect
+                kind={isCustomer ? "customer" : "supplier"}
+                value={form.watch("group_id") ?? ""}
+                onChange={(v) => form.setValue("group_id", v, { shouldDirty: true })}
+              />
+            </Field>
+          </div>
         </TabsContent>
 
         {/* CONTACT */}
