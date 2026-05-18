@@ -73,8 +73,8 @@ function TenantDetailPage() {
           <ul className="space-y-1 text-sm">
             {data.locks.map((l: any) => (
               <li key={l.id} className="flex justify-between border-b border-border/40 py-1">
-                <span>{l.month}/{l.year}</span>
-                <span className="text-xs text-muted-foreground">{new Date(l.locked_at).toLocaleDateString("vi-VN")}</span>
+                <span>{l.period_no}/{l.year}</span>
+                <span className="text-xs text-muted-foreground">{l.closed_at ? new Date(l.closed_at).toLocaleDateString("vi-VN") : "—"}</span>
               </li>
             ))}
           </ul>
