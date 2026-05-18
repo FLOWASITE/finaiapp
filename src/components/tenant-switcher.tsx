@@ -233,7 +233,7 @@ function CreateTenantDialog({
               value={taxId}
               onChange={setTaxId}
               placeholder="Nhập MST rồi bấm tra cứu để tự điền"
-              onResolved={(r) => {
+              onResolved={(r: TaxLookupResult) => {
                 setCompanyName(r.name);
                 if (!userEditedName) setName(r.shortName || r.name);
                 if (r.address) setAddress(r.address);
