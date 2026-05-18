@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
@@ -38,10 +39,13 @@ export function VoucherListPage({ type }: Props) {
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs() });
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs(),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const { data: rows, isLoading } = useQuery({
     queryKey: ["vouchers-list", type, from, to, warehouseId, status],
     queryFn: () => list({ data: { type, from, to, warehouse_id: warehouseId, status } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const filtered = useMemo(() => {
@@ -215,12 +219,17 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
   const productsFn = useServerFn(listProducts);
   const qc = useQueryClient();
 
-  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn() });
-  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn() });
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn(),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn(),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const { data, isLoading } = useQuery({
     queryKey: ["voucher", id],
     queryFn: () => get({ data: { id: id! } }),
     enabled: !!id,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const v = data?.voucher as any;

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -140,6 +141,7 @@ function PurchasesHubPage() {
   const { data: dash } = useQuery({
     queryKey: ["purchases-dashboard"],
     queryFn: () => dashFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const setTab = (t: PurchaseTab, extra: Partial<PurchaseSearch> = {}) =>
@@ -501,10 +503,12 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
   const { data } = useQuery({
     queryKey: ["purchase-invoices-hub"],
     queryFn: () => list({ data: {} }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => suppFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const [q, setQ] = useState("");
@@ -818,14 +822,17 @@ function PaymentsTab({
   const { data: rows = [] } = useQuery({
     queryKey: ["supplier-payments", filter],
     queryFn: () => listFn({ data: filter }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: stats } = useQuery({
     queryKey: ["payables-stats", from, to],
     queryFn: () => statsFn({ data: { from, to } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-purchase-invoices"],
     queryFn: () => outFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const filtered = useMemo(() => {
@@ -1115,6 +1122,7 @@ function NewPaymentInline({
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-purchase-invoices"],
     queryFn: () => outFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const filteredOut = preselectSupplierId

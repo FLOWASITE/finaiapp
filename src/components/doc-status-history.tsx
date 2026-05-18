@@ -1,5 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { getStatusHistory } from "@/lib/documents.functions";
 import type { DocTable } from "@/lib/documents.functions";
 import { DocStatusBadge } from "@/components/doc-status-badge";
@@ -17,6 +18,7 @@ export function DocStatusHistory({
   const { data, isLoading } = useQuery({
     queryKey: ["doc-status-history", table, id],
     queryFn: () => fetcher({ data: { entity_table: table, entity_id: id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   if (isLoading) return <Skeleton className="h-24 w-full" />;

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
 import { Plus, Search, Pencil, Archive, ArchiveRestore, Users, FolderTree } from "lucide-react";
@@ -16,7 +17,9 @@ export const Route = createFileRoute("/_app/customers/")({ component: CustomersP
 
 function CustomersPage() {
   const list = useServerFn(listCustomers);
-  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}) });
+  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<PartyInitial | null>(null);

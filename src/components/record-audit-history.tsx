@@ -1,5 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { getRecordHistory } from "@/lib/admin.functions";
 import { diffJsonb, formatDiffValue } from "@/lib/audit-diff";
@@ -12,6 +13,7 @@ export function RecordAuditHistory({ tableName, recordId }: { tableName: string;
   const { data, isLoading } = useQuery({
     queryKey: ["audit-history", tableName, recordId],
     queryFn: () => fn({ data: { table_name: tableName, record_id: recordId } }),
+    ...QUERY_PRESETS.REPORT,
   });
   const [open, setOpen] = useState<Record<string, boolean>>({});
 

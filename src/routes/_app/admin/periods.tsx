@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import { listPeriodLocks, lockPeriod, unlockPeriod } from "@/lib/admin.functions";
@@ -16,7 +17,9 @@ function PeriodsPage() {
   const unlock = useServerFn(unlockPeriod);
   const qc = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
-  const { data } = useQuery({ queryKey: ["period-locks"], queryFn: () => list() });
+  const { data } = useQuery({ queryKey: ["period-locks"], queryFn: () => list(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
 
   const isLocked = (m: number) => (data?.locks ?? []).some((l: any) => l.year === year && l.period_no === m);
   const refresh = () => qc.invalidateQueries({ queryKey: ["period-locks"] });

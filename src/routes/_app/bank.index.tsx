@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBankAccounts, listBankVouchers } from "@/lib/bank.functions";
 import { Building2, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wallet } from "lucide-react";
@@ -11,10 +12,13 @@ const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
 function BankIndex() {
   const fetchAccounts = useServerFn(listBankAccounts);
   const fetchVouchers = useServerFn(listBankVouchers);
-  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}) });
+  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}),
+ ...QUERY_PRESETS.REPORT,
+});
   const { data: vouchers = [] } = useQuery({
     queryKey: ["bank-vouchers-all"],
     queryFn: () => fetchVouchers({ data: {} }),
+    ...QUERY_PRESETS.REPORT,
   });
 
   const totalBalance = accounts.reduce((s: number, a: any) => s + (a.current_balance ?? 0), 0);

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
 import { runMonthlyDepreciation } from "@/lib/assets.functions";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ function Assets() {
         .order("created_at", { ascending: false });
       return data ?? [];
     },
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const create = async () => {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listConversions, upsertConversion, deleteConversion } from "@/lib/unit-conversions.functions";
 import { listUnits } from "@/lib/units.functions";
@@ -36,6 +37,7 @@ export function UnitConversionsEditor({
   const { data: rows } = useQuery({
     queryKey: ["unit-conversions", productId],
     queryFn: () => listFn({ data: { product_id: productId } }),
+    ...QUERY_PRESETS.REFERENCE,
   });
 
   return (
@@ -104,7 +106,9 @@ function ConversionDialog({
   const unitsFn = useServerFn(listUnits);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn(), enabled: open });
+  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn(), enabled: open,
+ ...QUERY_PRESETS.REFERENCE,
+});
   const [form, setForm] = useState(() => ({
     unit: row?.unit ?? "",
     factor: row ? String(row.factor) : "",

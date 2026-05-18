@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { getSupplierDetail } from "@/lib/purchases.functions";
 
@@ -17,6 +18,7 @@ function SupplierDetail() {
   const { data } = useQuery({
     queryKey: ["supplier", id],
     queryFn: () => fn({ data: { id } }),
+    ...QUERY_PRESETS.REFERENCE,
   });
 
   if (!data) return <div className="p-8">Đang tải...</div>;

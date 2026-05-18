@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Upload, Plus, Search, Trash2, Paperclip } from "lucide-react";
@@ -75,7 +76,7 @@ function InvoicesList() {
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["purchase-invoices", filter],
     queryFn: () => listFn({ data: filter }),
-    staleTime: 30_000,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   // ---- Manual entry ----
@@ -88,14 +89,14 @@ function InvoicesList() {
     queryKey: ["suppliers"],
     queryFn: () => suppliersFn(),
     enabled: manualOpen,
-    staleTime: 5 * 60_000,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => productsFn(),
     enabled: manualOpen,
-    staleTime: 5 * 60_000,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   // ---- Upload OCR ----

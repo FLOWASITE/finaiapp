@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listCategoriesTree, upsertCategory, deleteCategory } from "@/lib/inventory.functions";
@@ -37,7 +38,9 @@ function buildTree(cats: Cat[]): Node[] {
 
 function CategoriesPage() {
   const list = useServerFn(listCategoriesTree);
-  const { data: cats } = useQuery({ queryKey: ["cat-tree"], queryFn: () => list() });
+  const { data: cats } = useQuery({ queryKey: ["cat-tree"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const [search, setSearch] = useState("");
 
   const tree = useMemo(() => buildTree(((cats as any[]) ?? []) as Cat[]), [cats]);

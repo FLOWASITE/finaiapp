@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listDepartments, upsertDepartment, deleteDepartment, listBranches } from "@/lib/dimensions.functions";
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,12 @@ const NONE = "__none__";
 function DepartmentsPage() {
   const list = useServerFn(listDepartments);
   const branchesFn = useServerFn(listBranches);
-  const { data } = useQuery({ queryKey: ["departments"], queryFn: () => list() });
-  const { data: branches } = useQuery({ queryKey: ["branches"], queryFn: () => branchesFn() });
+  const { data } = useQuery({ queryKey: ["departments"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: branches } = useQuery({ queryKey: ["branches"], queryFn: () => branchesFn(),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const rows = (data as any[]) ?? [];
   const parentMap = new Map(rows.map((r) => [r.id, r.name]));
   return (

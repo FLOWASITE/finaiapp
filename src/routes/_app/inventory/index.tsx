@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories, previewStockVoucherNo, createStockVoucher } from "@/lib/inventory.functions";
@@ -27,10 +28,18 @@ function StockPage() {
   const dash = useServerFn(inventoryDashboard);
   const cats = useServerFn(listCategories);
 
-  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list() });
-  const { data: stock } = useQuery({ queryKey: ["stock-report"], queryFn: () => report() });
-  const { data: dashboard } = useQuery({ queryKey: ["inv-dashboard"], queryFn: () => dash() });
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats() });
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: stock } = useQuery({ queryKey: ["stock-report"], queryFn: () => report(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: dashboard } = useQuery({ queryKey: ["inv-dashboard"], queryFn: () => dash(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats(),
+ ...QUERY_PRESETS.REFERENCE,
+});
 
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
@@ -191,6 +200,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses-active"],
     queryFn: () => listWh(),
+    ...QUERY_PRESETS.REFERENCE,
   });
   const activeWhs = useMemo(
     () => ((warehouses as any[]) ?? []).filter((w) => w.is_active),
@@ -217,6 +227,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     queryKey: ["unit-conversions-bulk", productIdsAll.join(",")],
     queryFn: () => convFn({ data: { product_ids: productIdsAll } }),
     enabled: productIdsAll.length > 0,
+    ...QUERY_PRESETS.REFERENCE,
   });
   const getConversions = (pid: string): any[] => ((convMap as any)?.[pid] ?? []);
   const getFactor = (pid: string, unit: string): number => {

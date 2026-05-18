@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { getSystemStats } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Users, FileText, BookOpen, ShoppingCart, FileSearch } from "lucide-react";
@@ -12,7 +13,9 @@ export const Route = createFileRoute("/_app/admin/")({
 
 function AdminDashboard() {
   const fn = useServerFn(getSystemStats);
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn(),
+ ...QUERY_PRESETS.REPORT,
+});
 
   if (isLoading || !data) return <div className="text-sm text-muted-foreground">Đang tải…</div>;
 

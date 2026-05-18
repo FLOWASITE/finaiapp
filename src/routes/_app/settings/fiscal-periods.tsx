@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ function FiscalPeriodsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["fiscal-periods"],
     queryFn: () => list(),
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["fiscal-periods"] });

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Trash2 } from "lucide-react";
@@ -57,10 +58,13 @@ function VouchersPage() {
   const [filterAccount, setFilterAccount] = useState<string>("all");
   const [mode, setMode] = useState<Mode>(null);
 
-  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}) });
+  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const { data: vouchers = [] } = useQuery({
     queryKey: ["bank-vouchers", filterAccount],
     queryFn: () => fetchVouchers({ data: filterAccount === "all" ? {} : { bankAccountId: filterAccount } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const del = useMutation({
@@ -191,6 +195,7 @@ function VoucherDialog({
   const { data: parties = [] } = useQuery<any[]>({
     queryKey: [isReceipt ? "customers" : "suppliers"],
     queryFn: () => (isReceipt ? fetchCust({}) : fetchSupp({})) as any,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   useEffect(() => {

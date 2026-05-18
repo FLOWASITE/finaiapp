@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -42,6 +43,7 @@ function AccountsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["superadmin-accounts"],
     queryFn: () => list(),
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
 
   const [q, setQ] = useState("");

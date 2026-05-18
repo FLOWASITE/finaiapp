@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
 
 export type CurrentUserProfile = {
@@ -56,9 +57,6 @@ export function useCurrentUser() {
         isSuperadmin: roles.includes("superadmin"),
       };
     },
-    staleTime: FIVE_MIN,
-    gcTime: 10 * 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
 }

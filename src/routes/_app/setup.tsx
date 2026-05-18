@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getActiveTenant, updateActiveTenant, completeTenantSetup, getSetupProgress,
@@ -46,8 +47,12 @@ function SetupPage() {
   const complete = useServerFn(completeTenantSetup);
   const progressFn = useServerFn(getSetupProgress);
 
-  const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get() });
-  const { data: progress } = useQuery({ queryKey: ["setup-progress"], queryFn: () => progressFn() });
+  const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
+  const { data: progress } = useQuery({ queryKey: ["setup-progress"], queryFn: () => progressFn(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [step, setStep] = React.useState(0);
   const [form, setForm] = React.useState<Form>({});
   const [billingSame, setBillingSame] = React.useState(true);

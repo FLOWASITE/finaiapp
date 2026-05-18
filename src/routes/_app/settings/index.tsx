@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import {
   getSettings, updateSettings, togglePeriodLock, listFxRates, upsertFxRate,
 } from "@/lib/settings.functions";
@@ -133,9 +134,7 @@ function OrganizationTab() {
   const { data } = useQuery({
     queryKey: ["active-tenant"],
     queryFn: () => get(),
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
   const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
@@ -593,7 +592,9 @@ function MembersTab() {
   const updRole = useServerFn(updateMemberRole);
   const rm = useServerFn(removeMember);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["tenant-members"], queryFn: () => list() });
+  const { data } = useQuery({ queryKey: ["tenant-members"], queryFn: () => list(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [email, setEmail] = React.useState("");
   const [role, setRole] = React.useState<"admin" | "accountant" | "viewer">("accountant");
 
@@ -692,7 +693,9 @@ function CompanyTab() {
   const get = useServerFn(getSettings);
   const upd = useServerFn(updateSettings);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get() });
+  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [form, setForm] = React.useState<any>(null);
   const [email, setEmail] = React.useState<string>("");
   const [userId, setUserId] = React.useState<string>("");
@@ -1142,7 +1145,9 @@ function PeriodsTab() {
   const get = useServerFn(getSettings);
   const toggle = useServerFn(togglePeriodLock);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get() });
+  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [year, setYear] = React.useState(new Date().getFullYear());
   const [month, setMonth] = React.useState(new Date().getMonth() + 1);
 
@@ -1190,7 +1195,9 @@ function FxTab() {
   const list = useServerFn(listFxRates);
   const upsert = useServerFn(upsertFxRate);
   const qc = useQueryClient();
-  const { data = [] } = useQuery({ queryKey: ["fx"], queryFn: () => list() });
+  const { data = [] } = useQuery({ queryKey: ["fx"], queryFn: () => list(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [form, setForm] = React.useState({
     rate_date: new Date().toISOString().slice(0, 10), currency: "USD", rate: 25000, source: "Vietcombank",
   });
@@ -1234,7 +1241,9 @@ function FxTab() {
 
 function RolesTab() {
   const get = useServerFn(getSettings);
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get() });
+  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const roles = data?.roles ?? [];
   const labels: Record<string, string> = {
     owner: "Chủ doanh nghiệp", chief_accountant: "Kế toán trưởng",

@@ -1,5 +1,6 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, Send, CheckCircle2, XCircle, Plus, Trash2, Wallet } from "lucide-react";
@@ -70,10 +71,12 @@ function SalesDetail() {
   const { data: inv, isLoading } = useQuery({
     queryKey: ["sales-invoice", id],
     queryFn: () => fn({ data: { id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: linked } = useQuery({
     queryKey: ["sales-einvoice", id],
     queryFn: () => linkedFn({ data: { kind: "out", invoiceId: id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const issueM = useMutation({

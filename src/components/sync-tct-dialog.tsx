@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ export function SyncTctDialog({
     queryKey: ["tct-creds"],
     queryFn: () => getCreds({ data: undefined as any }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const hasCreds = !!credsQ.data?.credentials;
 

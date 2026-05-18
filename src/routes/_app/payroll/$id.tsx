@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { getPayrollRun, postPayrollRun } from "@/lib/payroll.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,7 +18,9 @@ function RunDetail() {
   const get = useServerFn(getPayrollRun);
   const post = useServerFn(postPayrollRun);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["payroll", id], queryFn: () => get({ data: { id } }) });
+  const { data } = useQuery({ queryKey: ["payroll", id], queryFn: () => get({ data: { id } }),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const mutate = useMutation({
     mutationFn: () => post({ data: { id } }),
     onSuccess: () => { toast.success("Đã ghi sổ kỳ lương"); qc.invalidateQueries({ queryKey: ["payroll", id] }); },

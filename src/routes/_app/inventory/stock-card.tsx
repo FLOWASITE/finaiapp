@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { listProducts } from "@/lib/inventory.functions";
@@ -11,7 +12,9 @@ export const Route = createFileRoute("/_app/inventory/stock-card")({ component: 
 
 function StockCardPage() {
   const list = useServerFn(listProducts);
-  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list() });
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list(),
+ ...QUERY_PRESETS.REPORT,
+});
   const [search, setSearch] = useState("");
   const items = (products ?? []).filter((p: any) => (p.item_type ?? "goods") !== "service" && (!search || [p.code, p.name].some((v) => v?.toLowerCase().includes(search.toLowerCase()))));
 
