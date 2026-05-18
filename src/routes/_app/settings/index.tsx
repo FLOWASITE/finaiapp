@@ -298,7 +298,7 @@ function OrganizationTab() {
                   <Textarea disabled={!canEdit} value={form.billing_address ?? ""} onChange={(e) => set("billing_address", e.target.value)} placeholder="Để trống nếu trùng địa chỉ trụ sở" rows={2} />
                 </Field>
                 <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
-                  <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={setDiffShipping} />
+                  <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={(v) => { setDiffShipping(v); setDirty(true); }} />
                   <div className="text-sm">
                     <p className="font-medium">Có địa chỉ giao hàng riêng</p>
                     <p className="text-xs text-muted-foreground">Bật nếu kho/giao nhận khác trụ sở.</p>
