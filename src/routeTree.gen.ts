@@ -62,6 +62,7 @@ import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsTrialBalanceRouteImport } from './routes/_app/reports/trial-balance'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
+import { Route as AppReportsArSummaryRouteImport } from './routes/_app/reports/ar-summary'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
@@ -352,6 +353,11 @@ const AppReportsLedgersRoute = AppReportsLedgersRouteImport.update({
   path: '/reports/ledgers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsArSummaryRoute = AppReportsArSummaryRouteImport.update({
+  id: '/reports/ar-summary',
+  path: '/reports/ar-summary',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   id: '/payroll/$id',
   path: '/payroll/$id',
@@ -504,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -576,6 +583,7 @@ export interface FileRoutesByTo {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -655,6 +663,7 @@ export interface FileRoutesById {
   '/_app/items/categories': typeof AppItemsCategoriesRoute
   '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
@@ -734,6 +743,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/ar-summary'
     | '/reports/ledgers'
     | '/reports/trial-balance'
     | '/sales/$id'
@@ -806,6 +816,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/ar-summary'
     | '/reports/ledgers'
     | '/reports/trial-balance'
     | '/sales/$id'
@@ -884,6 +895,7 @@ export interface FileRouteTypes {
     | '/_app/items/categories'
     | '/_app/items/units'
     | '/_app/payroll/$id'
+    | '/_app/reports/ar-summary'
     | '/_app/reports/ledgers'
     | '/_app/reports/trial-balance'
     | '/_app/sales/$id'
@@ -1306,6 +1318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsLedgersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/ar-summary': {
+      id: '/_app/reports/ar-summary'
+      path: '/reports/ar-summary'
+      fullPath: '/reports/ar-summary'
+      preLoaderRoute: typeof AppReportsArSummaryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/$id': {
       id: '/_app/payroll/$id'
       path: '/payroll/$id'
@@ -1597,6 +1616,7 @@ interface AppRouteChildren {
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppReportsArSummaryRoute: typeof AppReportsArSummaryRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppReportsTrialBalanceRoute: typeof AppReportsTrialBalanceRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
@@ -1646,6 +1666,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppReportsArSummaryRoute: AppReportsArSummaryRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppReportsTrialBalanceRoute: AppReportsTrialBalanceRoute,
   AppSalesIdRoute: AppSalesIdRoute,
