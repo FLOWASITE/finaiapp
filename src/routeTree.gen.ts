@@ -84,6 +84,7 @@ import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
+import { Route as AppAssetsReportsRouteImport } from './routes/_app/assets/reports'
 import { Route as AppAssetsReclassifyRouteImport } from './routes/_app/assets/reclassify'
 import { Route as AppAssetsInventoryRouteImport } from './routes/_app/assets/inventory'
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
@@ -101,6 +102,7 @@ import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
+import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -479,6 +481,11 @@ const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppAssetsReportsRoute = AppAssetsReportsRouteImport.update({
+  id: '/assets/reports',
+  path: '/assets/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsReclassifyRoute = AppAssetsReclassifyRouteImport.update({
   id: '/assets/reclassify',
   path: '/assets/reclassify',
@@ -564,6 +571,11 @@ const AppAssetsAllocationsIdRoute = AppAssetsAllocationsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppAssetsAllocationsRoute,
 } as any)
+const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
+  id: '/assets/$id/card',
+  path: '/assets/$id/card',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -592,6 +604,7 @@ export interface FileRoutesByFullPath {
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -654,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -680,6 +694,7 @@ export interface FileRoutesByTo {
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -742,6 +757,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -775,6 +791,7 @@ export interface FileRoutesById {
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/_app/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/_app/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/_app/assets/reports': typeof AppAssetsReportsRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
@@ -837,6 +854,7 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -870,6 +888,7 @@ export interface FileRouteTypes {
     | '/assets/from-invoice'
     | '/assets/inventory'
     | '/assets/reclassify'
+    | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -932,6 +951,7 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
@@ -958,6 +978,7 @@ export interface FileRouteTypes {
     | '/assets/from-invoice'
     | '/assets/inventory'
     | '/assets/reclassify'
+    | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -1020,6 +1041,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
@@ -1052,6 +1074,7 @@ export interface FileRouteTypes {
     | '/_app/assets/from-invoice'
     | '/_app/assets/inventory'
     | '/_app/assets/reclassify'
+    | '/_app/assets/reports'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
@@ -1114,6 +1137,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/assets/$id/card'
     | '/_app/assets/allocations/$id'
     | '/_app/assets/inventory/$id'
     | '/_app/superadmin/tenant/$id'
@@ -1653,6 +1677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankAccountsRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/assets/reports': {
+      id: '/_app/assets/reports'
+      path: '/assets/reports'
+      fullPath: '/assets/reports'
+      preLoaderRoute: typeof AppAssetsReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/reclassify': {
       id: '/_app/assets/reclassify'
       path: '/assets/reclassify'
@@ -1771,6 +1802,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/assets/allocations/$id'
       preLoaderRoute: typeof AppAssetsAllocationsIdRouteImport
       parentRoute: typeof AppAssetsAllocationsRoute
+    }
+    '/_app/assets/$id/card': {
+      id: '/_app/assets/$id/card'
+      path: '/assets/$id/card'
+      fullPath: '/assets/$id/card'
+      preLoaderRoute: typeof AppAssetsIdCardRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
@@ -1916,6 +1954,7 @@ interface AppRouteChildren {
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
   AppAssetsInventoryRoute: typeof AppAssetsInventoryRouteWithChildren
   AppAssetsReclassifyRoute: typeof AppAssetsReclassifyRoute
+  AppAssetsReportsRoute: typeof AppAssetsReportsRoute
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
@@ -1958,6 +1997,7 @@ interface AppRouteChildren {
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
   AppTaxIndexRoute: typeof AppTaxIndexRoute
+  AppAssetsIdCardRoute: typeof AppAssetsIdCardRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1980,6 +2020,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
   AppAssetsInventoryRoute: AppAssetsInventoryRouteWithChildren,
   AppAssetsReclassifyRoute: AppAssetsReclassifyRoute,
+  AppAssetsReportsRoute: AppAssetsReportsRoute,
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
@@ -2022,6 +2063,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
   AppTaxIndexRoute: AppTaxIndexRoute,
+  AppAssetsIdCardRoute: AppAssetsIdCardRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
