@@ -52,11 +52,9 @@ const COMMON_PAYMENT_ACCOUNTS = [
 function pad(n: number, len = 5) {
   return String(n).padStart(len, "0");
 }
-function genVoucherNo(type: VoucherType, date: Date) {
+function fallbackVoucherNo(type: VoucherType, date: Date) {
   const prefix = type === "receipt" ? "PT" : "PC";
-  const ym = format(date, "yyyyMM");
-  const seq = Math.floor(Math.random() * 99999) + 1;
-  return `${prefix}${ym}/${pad(seq)}`;
+  return `${prefix}${format(date, "yyyyMM")}/${pad(1)}`;
 }
 const fmtThousand = (n: number) =>
   n ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(n) : "";
