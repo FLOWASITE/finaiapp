@@ -24,6 +24,8 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { VoucherDetailDialog } from "@/components/voucher-detail-dialog";
+
 import {
   DimensionFilterBar,
   type DimensionValue,
