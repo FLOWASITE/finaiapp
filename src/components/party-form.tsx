@@ -99,6 +99,7 @@ const blankCustomer: PartyFormValues = {
   opening_balance_debit: 0,
   opening_balance_credit: 0,
   notes: "",
+  group_id: "",
   is_active: true,
 };
 
