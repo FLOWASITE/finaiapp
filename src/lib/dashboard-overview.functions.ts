@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withLatency } from "@/lib/with-latency";
 import { z } from "zod";
 
 const PeriodSchema = z.object({
@@ -50,7 +51,7 @@ function periodRange(period: "month" | "quarter" | "ytd") {
 export const dashboardOverview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => PeriodSchema.parse(i ?? {}))
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("dashboardOverview", async ({ data, context }) => {
     const { supabase } = context;
     const today = new Date();
     const todayStr = dayStr(today);
@@ -337,4 +338,5 @@ export const dashboardOverview = createServerFn({ method: "POST" })
       recent_journal: recent,
       today: todayStr,
     };
-  });
+  }));
+

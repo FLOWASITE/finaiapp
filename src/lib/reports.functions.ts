@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withLatency } from "@/lib/with-latency";
 import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
@@ -222,7 +223,7 @@ function periodAmountForPrefix(lines: LineRow[], prefix: string, nature: "revenu
 export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { asOf?: string; compareAsOf?: string }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getBalanceSheetTT99", async ({ data, context }) => {
     const { supabase, userId } = context;
     const cur = await fetchLines(supabase, userId, undefined, data.asOf);
     const prev = data.compareAsOf ? await fetchLines(supabase, userId, undefined, data.compareAsOf) : [];
@@ -279,13 +280,13 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
       items, asOf: data.asOf ?? null, compareAsOf: data.compareAsOf ?? null,
       balanced: Math.abs((valuesCur["280"] ?? 0) - (valuesCur["440"] ?? 0)) < 1,
     };
-  });
+  }));
 
 // ============ B02 — Kết quả hoạt động kinh doanh ============
 export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getIncomeStatementTT99", async ({ data, context }) => {
     const { supabase, userId } = context;
     const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
     const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
@@ -316,13 +317,13 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
       period: { from: data.from ?? null, to: data.to ?? null },
       comparePeriod: data.compareFrom ? { from: data.compareFrom, to: data.compareTo } : null,
     };
-  });
+  }));
 
 // ============ B03 — Lưu chuyển tiền tệ (phương pháp trực tiếp) ============
 export const getCashFlowDirect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getCashFlowDirect", async ({ data, context }) => {
     const { supabase, userId } = context;
     let q = supabase
       .from("journal_entries")
@@ -390,7 +391,7 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
       })),
       period: { from: data.from ?? null, to: data.to ?? null },
     };
-  });
+  }));
 
 // ============ Profile (cho tính kỳ so sánh theo năm tài chính) ============
 export const getCompanyProfile = createServerFn({ method: "POST" })
