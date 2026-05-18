@@ -322,7 +322,7 @@ export function AppSidebar() {
           {activeSections.map((section, idx) => (
             <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
               {section.label && (
-                <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
+                <SidebarGroupLabel className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
                   {section.label}
                 </SidebarGroupLabel>
               )}
