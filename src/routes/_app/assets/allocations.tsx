@@ -267,9 +267,12 @@ function AllocatedAssetsPage() {
         </table>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        💡 Bước tiếp theo: nút "Phân bổ kỳ" sẽ tự sinh bút toán Nợ 6xx / Có 242 cho các kỳ chưa hạch toán.
-      </p>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>💡 "Phân bổ kỳ" tự sinh bút toán Nợ 6xx / Có 242 cho các kỳ chưa hạch toán.</span>
+        <Link to="/reports/allocation-schedule" className="hover:underline text-primary">
+          Xem bảng phân bổ →
+        </Link>
+      </div>
     </div>
   );
 }
