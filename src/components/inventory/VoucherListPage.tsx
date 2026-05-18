@@ -462,6 +462,14 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4 mr-1" /> Sửa phiếu
               </Button>
+              <Button size="sm" onClick={() => printVoucher({
+                voucher: v,
+                lines,
+                journal_lines: data?.journal_lines as any,
+                type,
+              })}>
+                <Printer className="h-4 w-4 mr-1" /> In / PDF
+              </Button>
             </DialogFooter>
           </div>
         )}
