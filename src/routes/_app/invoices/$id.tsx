@@ -1,14 +1,15 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Save } from "lucide-react";
+import { Sparkles, Save, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useServerFn } from "@tanstack/react-start";
 import { suggestJournalEntry, approveJournalEntry } from "@/lib/journal.functions";
+import { getLinkedEInvoice } from "@/lib/einvoices.functions";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
   component: InvoiceDetail,
