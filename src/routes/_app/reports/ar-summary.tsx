@@ -135,6 +135,7 @@ function ArSummaryPage() {
       setDrillDocTypes([]);
       setDrillSearch("");
       setDrillPage(1);
+      setExpandedEntries(new Set());
     }
   }, [drillRow]);
 
@@ -142,6 +143,11 @@ function ArSummaryPage() {
   useEffect(() => {
     setDrillPage(1);
   }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize, drillGroupByDoc]);
+
+  // Collapse all when group mode turns off
+  useEffect(() => {
+    if (!drillGroupByDoc) setExpandedEntries(new Set());
+  }, [drillGroupByDoc]);
 
 
 
