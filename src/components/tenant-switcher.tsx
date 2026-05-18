@@ -28,7 +28,15 @@ export function TenantSwitcher() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({ queryKey: ["my-tenants"], queryFn: () => list() });
+  const { data, isPending, isFetching } = useQuery({
+    queryKey: ["my-tenants"],
+    queryFn: () => list(),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    placeholderData: (prev) => prev,
+  });
   const [openCreate, setOpenCreate] = React.useState(false);
 
   const switchMut = useMutation({
@@ -59,11 +67,20 @@ export function TenantSwitcher() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
-            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            ) : (
+              <Building2 className="h-3.5 w-3.5 shrink-0" />
+            )}
             <span className="truncate text-xs">
-              {isLoading ? "Đang tải…" : (active?.company_name || active?.name) ?? "Chưa chọn tổ chức"}
+              {(active?.company_name || active?.name) ??
+                (isPending ? "Đang tải…" : "Chọn tổ chức")}
             </span>
-            <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
+            {isFetching && !isPending ? (
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-50" />
+            ) : (
+              <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
@@ -95,7 +112,7 @@ export function TenantSwitcher() {
               {t.is_active && <Check className="h-4 w-4 text-primary shrink-0 mt-1" />}
             </DropdownMenuItem>
           ))}
-          {(data?.tenants ?? []).length === 0 && !isLoading && (
+          {(data?.tenants ?? []).length === 0 && !isPending && (
             <div className="px-2 py-3 text-xs text-muted-foreground">
               Chưa có tổ chức nào.
             </div>

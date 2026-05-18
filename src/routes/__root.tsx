@@ -100,9 +100,13 @@ function AuthSync() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      router.invalidate();
-      queryClient.invalidateQueries();
+    } = supabase.auth.onAuthStateChange((event) => {
+      // Chỉ invalidate khi thực sự đăng nhập/đăng xuất, tránh refetch
+      // toàn bộ query mỗi lần Supabase tự refresh token.
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        router.invalidate();
+        queryClient.invalidateQueries();
+      }
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
