@@ -360,7 +360,7 @@ export function AppSidebar() {
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors">
                 <div className="relative">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold">
                     {email.charAt(0).toUpperCase() || "U"}
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse" />
