@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BarChart3, Bell, ChevronRight, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
+import { PeriodSwitcher } from "@/components/period-switcher";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,9 @@ export function AppHeader() {
       </nav>
 
       <div className="ml-auto flex items-center gap-3">
+        {/* Accounting period switcher */}
+        <PeriodSwitcher />
+
         {/* Quick links grouped pill */}
         <div className="hidden md:flex items-center gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
           <Link
