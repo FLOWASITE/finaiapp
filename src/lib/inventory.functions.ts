@@ -144,13 +144,13 @@ export const getStockReport = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data, error } = await supabase
       .from("products")
-      .select("id, code, name, unit, on_hand, unit_cost, min_stock, is_active, category_id, product_categories(name)")
+      .select("id, code, name, unit, item_type, on_hand, unit_cost, min_stock, is_active, category_id, product_categories(name)")
       .order("code");
     if (error) throw new Error(error.message);
     return (data ?? []).map((p: any) => ({
       ...p,
-      value: Number(p.on_hand) * Number(p.unit_cost),
-      low_stock: Number(p.min_stock) > 0 && Number(p.on_hand) <= Number(p.min_stock),
+      value: p.item_type === "service" ? 0 : Number(p.on_hand) * Number(p.unit_cost),
+      low_stock: p.item_type !== "service" && Number(p.min_stock) > 0 && Number(p.on_hand) <= Number(p.min_stock),
     }));
   });
 
