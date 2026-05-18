@@ -264,6 +264,25 @@ function ReportsPage() {
                 <input type="checkbox" checked={tbTree} onChange={(e) => setTbTree(e.target.checked)} />
                 Xem dạng cây
               </label>
+              <label className="flex items-center gap-2">
+                <span className="text-muted-foreground">Tìm:</span>
+                <input
+                  type="search"
+                  value={tbSearch}
+                  onChange={(e) => setTbSearch(e.target.value)}
+                  placeholder="Mã hoặc tên tài khoản…"
+                  className="h-8 w-56 rounded border border-border bg-background px-2 text-sm"
+                />
+                {tbSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTbSearch("")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Xoá
+                  </button>
+                )}
+              </label>
             </div>
             {!tb.data ? <Loading /> : (
               <>
@@ -284,6 +303,7 @@ function ReportsPage() {
                   hideZero={hideZero}
                   level={tbLevel}
                   tree={tbTree}
+                  search={tbSearch}
                   onDrill={(code, name) => setDrillAcc({ code, name })}
                 />
               </>
