@@ -230,7 +230,7 @@ function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="tb">
-          <ReportCard title="Bảng cân đối số phát sinh" subtitle={`Kỳ từ ${from} đến ${to}`}>
+          <ReportCard title="Bảng cân đối số phát sinh" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={handleExportTrialBalance}>
             <PrintHeader profile={profile} title="BẢNG CÂN ĐỐI SỐ PHÁT SINH" subtitle={`Kỳ từ ${from} đến ${to}`} />
             <div className="mb-3 print:hidden">
               <DimensionFilterBar value={dims} onChange={setDims} />
