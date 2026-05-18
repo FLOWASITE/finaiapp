@@ -224,6 +224,8 @@ export const getAccountLedger = createServerFn({ method: "POST" })
         debit: l.debit,
         credit: l.credit,
         running,
+        invoice_id: l.invoice_id,
+        doc_type: (l.invoice_id ? "invoice" : "manual") as "invoice" | "manual",
       };
     });
     return {
