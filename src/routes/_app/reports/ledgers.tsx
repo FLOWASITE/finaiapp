@@ -28,16 +28,17 @@ function LedgersPage() {
   const [from, setFrom] = useState(`${year}-01-01`);
   const [to, setTo] = useState(today);
   const [account, setAccount] = useState("111");
+  const [dims, setDims] = useState<DimensionValue>({});
 
   const jFn = useServerFn(getJournal);
   const glFn = useServerFn(getGeneralLedger);
   const alFn = useServerFn(getAccountLedger);
   const tbFn = useServerFn(getTrialBalance);
 
-  const j = useQuery({ queryKey: ["journal", from, to], queryFn: () => jFn({ data: { from, to } }) });
-  const gl = useQuery({ queryKey: ["gl", from, to], queryFn: () => glFn({ data: { from, to } }) });
-  const al = useQuery({ queryKey: ["al", account, from, to], queryFn: () => alFn({ data: { account, from, to } }) });
-  const tb = useQuery({ queryKey: ["tb", from, to], queryFn: () => tbFn({ data: { from, to } }) });
+  const j = useQuery({ queryKey: ["journal", from, to, dims], queryFn: () => jFn({ data: { from, to, dims } }) });
+  const gl = useQuery({ queryKey: ["gl", from, to, dims], queryFn: () => glFn({ data: { from, to, dims } }) });
+  const al = useQuery({ queryKey: ["al", account, from, to, dims], queryFn: () => alFn({ data: { account, from, to, dims } }) });
+  const tb = useQuery({ queryKey: ["tb", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }) });
 
   return (
     <div className="p-8 print:p-0">
