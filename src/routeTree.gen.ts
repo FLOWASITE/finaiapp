@@ -16,6 +16,7 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AppSuperadminRouteImport } from './routes/_app/superadmin'
 import { Route as AppSetupRouteImport } from './routes/_app/setup'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
+import { Route as AppItemsRouteImport } from './routes/_app/items'
 import { Route as AppInventoryRouteImport } from './routes/_app/inventory'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
@@ -34,6 +35,7 @@ import { Route as AppReceiptsIndexRouteImport } from './routes/_app/receipts/ind
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app/purchases/index'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
+import { Route as AppItemsIndexRouteImport } from './routes/_app/items/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
 import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/index'
@@ -52,9 +54,13 @@ import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
+import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
+import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
+import { Route as AppInventoryWarehousesRouteImport } from './routes/_app/inventory/warehouses'
+import { Route as AppInventoryStockTakesRouteImport } from './routes/_app/inventory/stock-takes'
+import { Route as AppInventoryStockCardRouteImport } from './routes/_app/inventory/stock-card'
 import { Route as AppInventoryMovementsRouteImport } from './routes/_app/inventory/movements'
-import { Route as AppInventoryCategoriesRouteImport } from './routes/_app/inventory/categories'
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
@@ -97,6 +103,11 @@ const AppSetupRoute = AppSetupRouteImport.update({
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppItemsRoute = AppItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInventoryRoute = AppInventoryRouteImport.update({
@@ -189,6 +200,11 @@ const AppPayablesIndexRoute = AppPayablesIndexRouteImport.update({
   path: '/payables/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppItemsIndexRoute = AppItemsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppItemsRoute,
+} as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
   id: '/invoices/',
   path: '/invoices/',
@@ -280,19 +296,39 @@ const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   path: '/payroll/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppItemsUnitsRoute = AppItemsUnitsRouteImport.update({
+  id: '/units',
+  path: '/units',
+  getParentRoute: () => AppItemsRoute,
+} as any)
+const AppItemsCategoriesRoute = AppItemsCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AppItemsRoute,
+} as any)
 const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
   id: '/invoices/$id',
   path: '/invoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInventoryWarehousesRoute = AppInventoryWarehousesRouteImport.update({
+  id: '/warehouses',
+  path: '/warehouses',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppInventoryStockTakesRoute = AppInventoryStockTakesRouteImport.update({
+  id: '/stock-takes',
+  path: '/stock-takes',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppInventoryStockCardRoute = AppInventoryStockCardRouteImport.update({
+  id: '/stock-card',
+  path: '/stock-card',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
 const AppInventoryMovementsRoute = AppInventoryMovementsRouteImport.update({
   id: '/movements',
   path: '/movements',
-  getParentRoute: () => AppInventoryRoute,
-} as any)
-const AppInventoryCategoriesRoute = AppInventoryCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
   getParentRoute: () => AppInventoryRoute,
 } as any)
 const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
@@ -350,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRouteWithChildren
+  '/items': typeof AppItemsRouteWithChildren
   '/journal': typeof AppJournalRoute
   '/setup': typeof AppSetupRoute
   '/superadmin': typeof AppSuperadminRouteWithChildren
@@ -362,9 +399,13 @@ export interface FileRoutesByFullPath {
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
-  '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
+  '/inventory/stock-card': typeof AppInventoryStockCardRoute
+  '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/items/categories': typeof AppItemsCategoriesRoute
+  '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -383,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/einvoices/': typeof AppEinvoicesIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
+  '/items/': typeof AppItemsIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
@@ -415,9 +457,13 @@ export interface FileRoutesByTo {
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
-  '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
+  '/inventory/stock-card': typeof AppInventoryStockCardRoute
+  '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/items/categories': typeof AppItemsCategoriesRoute
+  '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -436,6 +482,7 @@ export interface FileRoutesByTo {
   '/einvoices': typeof AppEinvoicesIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
+  '/items': typeof AppItemsIndexRoute
   '/payables': typeof AppPayablesIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
@@ -461,6 +508,7 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
+  '/_app/items': typeof AppItemsRouteWithChildren
   '/_app/journal': typeof AppJournalRoute
   '/_app/setup': typeof AppSetupRoute
   '/_app/superadmin': typeof AppSuperadminRouteWithChildren
@@ -473,9 +521,13 @@ export interface FileRoutesById {
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
-  '/_app/inventory/categories': typeof AppInventoryCategoriesRoute
   '/_app/inventory/movements': typeof AppInventoryMovementsRoute
+  '/_app/inventory/stock-card': typeof AppInventoryStockCardRoute
+  '/_app/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/_app/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
+  '/_app/items/categories': typeof AppItemsCategoriesRoute
+  '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
@@ -494,6 +546,7 @@ export interface FileRoutesById {
   '/_app/einvoices/': typeof AppEinvoicesIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
+  '/_app/items/': typeof AppItemsIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
@@ -519,6 +572,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/dashboard'
     | '/inventory'
+    | '/items'
     | '/journal'
     | '/setup'
     | '/superadmin'
@@ -531,9 +585,13 @@ export interface FileRouteTypes {
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
-    | '/inventory/categories'
     | '/inventory/movements'
+    | '/inventory/stock-card'
+    | '/inventory/stock-takes'
+    | '/inventory/warehouses'
     | '/invoices/$id'
+    | '/items/categories'
+    | '/items/units'
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
@@ -552,6 +610,7 @@ export interface FileRouteTypes {
     | '/einvoices/'
     | '/inventory/'
     | '/invoices/'
+    | '/items/'
     | '/payables/'
     | '/payroll/'
     | '/purchases/'
@@ -584,9 +643,13 @@ export interface FileRouteTypes {
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
-    | '/inventory/categories'
     | '/inventory/movements'
+    | '/inventory/stock-card'
+    | '/inventory/stock-takes'
+    | '/inventory/warehouses'
     | '/invoices/$id'
+    | '/items/categories'
+    | '/items/units'
     | '/payroll/$id'
     | '/reports/ledgers'
     | '/sales/$id'
@@ -605,6 +668,7 @@ export interface FileRouteTypes {
     | '/einvoices'
     | '/inventory'
     | '/invoices'
+    | '/items'
     | '/payables'
     | '/payroll'
     | '/purchases'
@@ -629,6 +693,7 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/inventory'
+    | '/_app/items'
     | '/_app/journal'
     | '/_app/setup'
     | '/_app/superadmin'
@@ -641,9 +706,13 @@ export interface FileRouteTypes {
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
     | '/_app/inventory/$id'
-    | '/_app/inventory/categories'
     | '/_app/inventory/movements'
+    | '/_app/inventory/stock-card'
+    | '/_app/inventory/stock-takes'
+    | '/_app/inventory/warehouses'
     | '/_app/invoices/$id'
+    | '/_app/items/categories'
+    | '/_app/items/units'
     | '/_app/payroll/$id'
     | '/_app/reports/ledgers'
     | '/_app/sales/$id'
@@ -662,6 +731,7 @@ export interface FileRouteTypes {
     | '/_app/einvoices/'
     | '/_app/inventory/'
     | '/_app/invoices/'
+    | '/_app/items/'
     | '/_app/payables/'
     | '/_app/payroll/'
     | '/_app/purchases/'
@@ -733,6 +803,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof AppJournalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/items': {
+      id: '/_app/items'
+      path: '/items'
+      fullPath: '/items'
+      preLoaderRoute: typeof AppItemsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inventory': {
@@ -861,6 +938,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayablesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/items/': {
+      id: '/_app/items/'
+      path: '/'
+      fullPath: '/items/'
+      preLoaderRoute: typeof AppItemsIndexRouteImport
+      parentRoute: typeof AppItemsRoute
+    }
     '/_app/invoices/': {
       id: '/_app/invoices/'
       path: '/invoices'
@@ -987,6 +1071,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/items/units': {
+      id: '/_app/items/units'
+      path: '/units'
+      fullPath: '/items/units'
+      preLoaderRoute: typeof AppItemsUnitsRouteImport
+      parentRoute: typeof AppItemsRoute
+    }
+    '/_app/items/categories': {
+      id: '/_app/items/categories'
+      path: '/categories'
+      fullPath: '/items/categories'
+      preLoaderRoute: typeof AppItemsCategoriesRouteImport
+      parentRoute: typeof AppItemsRoute
+    }
     '/_app/invoices/$id': {
       id: '/_app/invoices/$id'
       path: '/invoices/$id'
@@ -994,18 +1092,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inventory/warehouses': {
+      id: '/_app/inventory/warehouses'
+      path: '/warehouses'
+      fullPath: '/inventory/warehouses'
+      preLoaderRoute: typeof AppInventoryWarehousesRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/inventory/stock-takes': {
+      id: '/_app/inventory/stock-takes'
+      path: '/stock-takes'
+      fullPath: '/inventory/stock-takes'
+      preLoaderRoute: typeof AppInventoryStockTakesRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/inventory/stock-card': {
+      id: '/_app/inventory/stock-card'
+      path: '/stock-card'
+      fullPath: '/inventory/stock-card'
+      preLoaderRoute: typeof AppInventoryStockCardRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
     '/_app/inventory/movements': {
       id: '/_app/inventory/movements'
       path: '/movements'
       fullPath: '/inventory/movements'
       preLoaderRoute: typeof AppInventoryMovementsRouteImport
-      parentRoute: typeof AppInventoryRoute
-    }
-    '/_app/inventory/categories': {
-      id: '/_app/inventory/categories'
-      path: '/categories'
-      fullPath: '/inventory/categories'
-      preLoaderRoute: typeof AppInventoryCategoriesRouteImport
       parentRoute: typeof AppInventoryRoute
     }
     '/_app/inventory/$id': {
@@ -1108,20 +1220,40 @@ const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
 
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
-  AppInventoryCategoriesRoute: typeof AppInventoryCategoriesRoute
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
+  AppInventoryStockCardRoute: typeof AppInventoryStockCardRoute
+  AppInventoryStockTakesRoute: typeof AppInventoryStockTakesRoute
+  AppInventoryWarehousesRoute: typeof AppInventoryWarehousesRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
 }
 
 const AppInventoryRouteChildren: AppInventoryRouteChildren = {
   AppInventoryIdRoute: AppInventoryIdRoute,
-  AppInventoryCategoriesRoute: AppInventoryCategoriesRoute,
   AppInventoryMovementsRoute: AppInventoryMovementsRoute,
+  AppInventoryStockCardRoute: AppInventoryStockCardRoute,
+  AppInventoryStockTakesRoute: AppInventoryStockTakesRoute,
+  AppInventoryWarehousesRoute: AppInventoryWarehousesRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
 }
 
 const AppInventoryRouteWithChildren = AppInventoryRoute._addFileChildren(
   AppInventoryRouteChildren,
+)
+
+interface AppItemsRouteChildren {
+  AppItemsCategoriesRoute: typeof AppItemsCategoriesRoute
+  AppItemsUnitsRoute: typeof AppItemsUnitsRoute
+  AppItemsIndexRoute: typeof AppItemsIndexRoute
+}
+
+const AppItemsRouteChildren: AppItemsRouteChildren = {
+  AppItemsCategoriesRoute: AppItemsCategoriesRoute,
+  AppItemsUnitsRoute: AppItemsUnitsRoute,
+  AppItemsIndexRoute: AppItemsIndexRoute,
+}
+
+const AppItemsRouteWithChildren = AppItemsRoute._addFileChildren(
+  AppItemsRouteChildren,
 )
 
 interface AppSuperadminRouteChildren {
@@ -1151,6 +1283,7 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
+  AppItemsRoute: typeof AppItemsRouteWithChildren
   AppJournalRoute: typeof AppJournalRoute
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
@@ -1190,6 +1323,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,
+  AppItemsRoute: AppItemsRouteWithChildren,
   AppJournalRoute: AppJournalRoute,
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,

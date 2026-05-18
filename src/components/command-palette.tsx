@@ -50,7 +50,10 @@ const ITEMS: Item[] = [
   { label: "Phải thu", to: "/receivables", group: "Công nợ", icon: CircleDollarSign, keywords: ["ar", "phai thu"] },
   { label: "Phải trả", to: "/payables", group: "Công nợ", icon: Wallet, keywords: ["ap", "phai tra"] },
 
-  { label: "Kho", to: "/inventory", group: "Kế toán", icon: Boxes, keywords: ["kho", "inventory"] },
+  { label: "Hàng hoá & Dịch vụ", to: "/items", group: "Kế toán", icon: Package, keywords: ["items", "products", "hhdv", "hang hoa", "dich vu"] },
+  { label: "Kho — Tồn kho", to: "/inventory", group: "Kế toán", icon: Boxes, keywords: ["kho", "inventory", "ton kho"] },
+  { label: "Kho — Phiếu nhập / xuất", to: "/inventory/movements", group: "Kế toán", icon: Boxes, keywords: ["nhap xuat", "movement"] },
+  { label: "Kho — Thẻ kho", to: "/inventory/stock-card", group: "Kế toán", icon: Boxes, keywords: ["the kho", "stock card"] },
   { label: "Ngân hàng", to: "/bank", group: "Kế toán", icon: Banknote, keywords: ["bank", "ngan hang"] },
   { label: "Tiền mặt", to: "/cash", group: "Kế toán", icon: Wallet, keywords: ["cash", "tien mat"] },
   { label: "Tài sản", to: "/assets", group: "Kế toán", icon: Package, keywords: ["tsco", "assets", "tai san"] },

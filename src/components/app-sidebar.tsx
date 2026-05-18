@@ -83,8 +83,8 @@ const SECTIONS: NavSection[] = [
           { to: "/suppliers", label: "Nhà cung cấp" },
         ],
       },
-      { to: "/inventory", label: "Hàng hoá & Dịch vụ", icon: Package },
-      { to: "/inventory/movements", label: "Kho", icon: Warehouse },
+      { to: "/items", label: "Hàng hoá & Dịch vụ", icon: Package },
+      { to: "/inventory", label: "Kho", icon: Warehouse },
     ],
   },
   {
