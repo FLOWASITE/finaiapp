@@ -17,7 +17,10 @@ import {
   ArrowRight,
   Clock,
   TrendingUp,
+  Paperclip,
 } from "lucide-react";
+import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
+import { DocStatusBadge } from "@/components/doc-status-badge";
 import {
   Bar,
   CartesianGrid,
@@ -699,6 +702,7 @@ function ReceiptsTab({
   const [search, setSearch] = useState("");
   const [openNew, setOpenNew] = useState(false);
   const [preInv, setPreInv] = useState<string | undefined>(undefined);
+  const [docFor, setDocFor] = useState<any | null>(null);
 
   useEffect(() => {
     if (preselectInvoice || preselectCustomer) {
@@ -876,6 +880,7 @@ function ReceiptsTab({
               <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Tham chiếu</th>
               <th className="px-2 sm:px-4 py-2 text-right">Số tiền</th>
               <th className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">Đối soát</th>
+              <th className="px-2 sm:px-4 py-2 text-center hidden md:table-cell">Tài liệu</th>
               <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
@@ -915,6 +920,17 @@ function ReceiptsTab({
                   <td className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">
                     <PaymentBadge status={status} />
                   </td>
+                  <td className="px-2 sm:px-4 py-2 text-center hidden md:table-cell">
+                    <button
+                      type="button"
+                      onClick={() => setDocFor(r)}
+                      className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-xs hover:bg-muted/40"
+                      title="Mở tài liệu / OCR / đổi trạng thái"
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      <DocStatusBadge status={r.status} />
+                    </button>
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -947,7 +963,7 @@ function ReceiptsTab({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                   Không có phiếu thu trong kỳ
                 </td>
               </tr>
@@ -987,6 +1003,23 @@ function ReceiptsTab({
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
         }}
+      />
+
+      <ReceiptDocsSheet
+        open={!!docFor}
+        onOpenChange={(o) => !o && setDocFor(null)}
+        receiptId={docFor?.id ?? null}
+        status={docFor?.status}
+        hasJournalEntry={!!docFor?.journal_entry_id}
+        title={`Phiếu thu — ${docFor?.customer_name ?? ""}`}
+        description={
+          docFor
+            ? `${docFor.pay_date} · ${fmt(docFor.amount)} · ${
+                METHOD_LABEL[docFor.method] ?? docFor.method
+              }`
+            : undefined
+        }
+        invalidateKeys={["receipts", "receipts-stats"]}
       />
     </div>
   );
