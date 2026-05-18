@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Bell, ChevronRight, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
+import { BarChart3, ChevronRight, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
+import { NotificationsMenu } from "@/components/notifications-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -132,14 +133,7 @@ export function AppHeader() {
         </div>
 
         {/* Notifications */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-white/5"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
-        </Button>
+        <NotificationsMenu />
 
         {/* User menu */}
         {isLoading && !cu ? (
