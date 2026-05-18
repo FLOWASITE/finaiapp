@@ -184,6 +184,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const create = useServerFn(createStockVoucher);
   const listWh = useServerFn(listWarehouses);
   const previewNo = useServerFn(previewStockVoucherNo);
+  const convFn = useServerFn(listConversionsBulk);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -210,8 +211,24 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     [goodsOnly],
   );
 
-  type Line = { product_id: string; qty: number; unit_cost: number; note: string };
-  const emptyLine = (): Line => ({ product_id: "", qty: 0, unit_cost: 0, note: "" });
+  // Preload all unit conversions for the goods list so we can switch units instantly.
+  const productIdsAll = useMemo(() => goodsOnly.map((p: any) => p.id), [goodsOnly]);
+  const { data: convMap } = useQuery({
+    queryKey: ["unit-conversions-bulk", productIdsAll.join(",")],
+    queryFn: () => convFn({ data: { product_ids: productIdsAll } }),
+    enabled: productIdsAll.length > 0,
+  });
+  const getConversions = (pid: string): any[] => ((convMap as any)?.[pid] ?? []);
+  const getFactor = (pid: string, unit: string): number => {
+    const p = productMap.get(pid);
+    if (!p) return 1;
+    if (!unit || unit.toLowerCase() === String(p.unit ?? "").toLowerCase()) return 1;
+    const c = getConversions(pid).find((x) => x.unit.toLowerCase() === unit.toLowerCase());
+    return c ? Number(c.factor) : 1;
+  };
+
+  type Line = { product_id: string; qty: number; unit_cost: number; note: string; unit: string };
+  const emptyLine = (): Line => ({ product_id: "", qty: 0, unit_cost: 0, note: "", unit: "" });
 
   const [form, setForm] = useState({
     voucher_no: "",
@@ -240,18 +257,32 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     setForm((f) => ({ ...f, lines: f.lines.length > 1 ? f.lines.filter((_, idx) => idx !== i) : f.lines }));
   const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }));
 
+  // When product changes: pick default unit (preferring purchase/sale default) and prefill unit_cost.
   const productIdsKey = form.lines.map((l) => l.product_id).join("|");
   useEffect(() => {
-    if (type !== "out") return;
     setForm((f) => ({
       ...f,
       lines: f.lines.map((l) => {
         if (!l.product_id) return l;
         const p = productMap.get(l.product_id);
-        return p ? { ...l, unit_cost: Number(p.unit_cost ?? 0) } : l;
+        if (!p) return l;
+        let unit = l.unit;
+        if (!unit) {
+          const conv = getConversions(l.product_id);
+          const def = type === "in"
+            ? conv.find((c) => c.is_default_purchase)
+            : conv.find((c) => c.is_default_sale);
+          unit = def?.unit ?? p.unit;
+        }
+        const factor = getFactor(l.product_id, unit);
+        const next: Line = { ...l, unit };
+        if (type === "out") {
+          next.unit_cost = +(Number(p.unit_cost ?? 0) * factor).toFixed(4);
+        }
+        return next;
       }),
     }));
-  }, [type, productMap, productIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [type, productMap, productIdsKey, convMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(() => {
     let qty = 0, value = 0;
