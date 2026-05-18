@@ -97,10 +97,13 @@ export const recordMovement = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("on_hand, unit_cost, tenant_id")
+      .select("on_hand, unit_cost, tenant_id, item_type")
       .eq("id", data.product_id)
       .single();
     if (pErr || !product) throw new Error("Không tìm thấy mặt hàng");
+    if ((product as any).item_type === "service") {
+      throw new Error("Dịch vụ không quản lý tồn kho");
+    }
 
     let newOnHand = Number(product.on_hand);
     let newCost = Number(product.unit_cost);
