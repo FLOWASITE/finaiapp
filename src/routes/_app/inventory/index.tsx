@@ -25,8 +25,16 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Plus, Package, ArrowDownToLine, ArrowUpFromLine,
-  Boxes, AlertTriangle, TrendingUp, Activity,
+  Boxes, AlertTriangle, Activity, Wrench, Layers,
 } from "lucide-react";
+
+type ItemType = "goods" | "service" | "combo";
+const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
+const ITEM_TYPE_BADGE: Record<ItemType, string> = {
+  goods: "bg-blue-50 text-blue-700 border-blue-200",
+  service: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  combo: "bg-violet-50 text-violet-700 border-violet-200",
+};
 
 export const Route = createFileRoute("/_app/inventory/")({ component: InventoryPage });
 
