@@ -278,7 +278,13 @@ function ReportsPage() {
                     />
                   </div>
                 )}
-                <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
+                <TrialBalanceTable
+                  data={tb.data}
+                  hideZero={hideZero}
+                  level={tbLevel}
+                  tree={tbTree}
+                  onDrill={(code, name) => setDrillAcc({ code, name })}
+                />
               </>
             )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
