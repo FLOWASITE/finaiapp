@@ -71,6 +71,8 @@ function VoucherListPage() {
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [groupByVoucher, setGroupByVoucher] = useState(false);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
@@ -127,6 +129,63 @@ function VoucherListPage() {
     () => rows.reduce((s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }), { debit: 0, credit: 0 }),
     [rows],
   );
+
+  // Group rows by voucher (entry_id) — aggregate debit/credit, collapse accounts
+  type GroupedRow = {
+    key: string;
+    entry_id: string;
+    entry_date: string;
+    voucher_no: string;
+    voucher_type: string;
+    description: string | null;
+    accounts: string[];
+    debit: number;
+    credit: number;
+    party_name: string | null;
+    reference: string | null;
+    branch_name: string | null;
+    department_name: string | null;
+    project_name: string | null;
+    cost_center_name: string | null;
+    line_count: number;
+  };
+  const groupedRows = useMemo<GroupedRow[]>(() => {
+    if (!groupByVoucher) return [];
+    const map = new Map<string, GroupedRow>();
+    for (const r of rows) {
+      const key = r.entry_id;
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          entry_id: r.entry_id,
+          entry_date: r.entry_date,
+          voucher_no: r.voucher_no,
+          voucher_type: r.voucher_type,
+          description: r.description,
+          accounts: [r.account_code],
+          debit: r.debit,
+          credit: r.credit,
+          party_name: r.party_name,
+          reference: r.reference,
+          branch_name: r.branch_name,
+          department_name: r.department_name,
+          project_name: r.project_name,
+          cost_center_name: r.cost_center_name,
+          line_count: 1,
+        });
+      } else {
+        if (!g.accounts.includes(r.account_code)) g.accounts.push(r.account_code);
+        g.debit += r.debit;
+        g.credit += r.credit;
+        g.line_count += 1;
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => a.entry_date.localeCompare(b.entry_date) || a.voucher_no.localeCompare(b.voucher_no),
+    );
+  }, [rows, groupByVoucher]);
+
 
   async function handleExport() {
     try {
@@ -205,11 +264,20 @@ function VoucherListPage() {
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <input
               type="checkbox"
+              checked={groupByVoucher}
+              onChange={(e) => setGroupByVoucher(e.target.checked)}
+            />
+            Gộp theo số CT
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
               checked={showSignature}
               onChange={(e) => setShowSignature(e.target.checked)}
             />
             Hiện chữ ký
           </label>
+
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -299,7 +367,7 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${rows.length} dòng) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupByVoucher ? `${groupedRows.length} chứng từ / ${rows.length} dòng` : `${rows.length} dòng`}) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
         >
           {q.isLoading && !q.data ? (
             <Loading />
@@ -325,31 +393,66 @@ function VoucherListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.line_id} className="border-t border-border/60 align-top">
-                        <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
-                        <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
-                        <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
-                        <td className="px-2 py-1.5">{r.description ?? "—"}</td>
-                        <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
-                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
-                        <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
-                      </tr>
-                    ))}
-                    {rows.length === 0 && (
-                      <tr>
-                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
-                          Không có chứng từ phù hợp bộ lọc
-                        </td>
-                      </tr>
+                    {groupByVoucher ? (
+                      <>
+                        {groupedRows.map((g) => (
+                          <tr key={g.key} className="border-t border-border/60 align-top">
+                            <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
+                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
+                            <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
+                            <td className="px-2 py-1.5">{g.description ?? "—"}</td>
+                            <td className="px-2 py-1.5 text-center font-mono text-muted-foreground" title={g.accounts.join(", ")}>
+                              {g.accounts.length <= 2 ? g.accounts.join(", ") : `${g.accounts.slice(0, 2).join(", ")} +${g.accounts.length - 2}`}
+                              <div className="text-[10px] opacity-70">({g.line_count} dòng)</div>
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.debit)}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.credit)}</td>
+                            <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.project_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.cost_center_name ?? ""}</td>
+                          </tr>
+                        ))}
+                        {groupedRows.length === 0 && (
+                          <tr>
+                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                              Không có chứng từ phù hợp bộ lọc
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {rows.map((r) => (
+                          <tr key={r.line_id} className="border-t border-border/60 align-top">
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
+                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
+                            <td className="px-2 py-1.5">{r.description ?? "—"}</td>
+                            <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
+                            <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
+                          </tr>
+                        ))}
+                        {rows.length === 0 && (
+                          <tr>
+                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                              Không có chứng từ phù hợp bộ lọc
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
+
                   {rows.length > 0 && (
                     <tfoot className="bg-muted/40 font-semibold">
                       <tr className="border-t-2 border-border">
