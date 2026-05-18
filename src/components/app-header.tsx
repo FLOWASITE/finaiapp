@@ -48,7 +48,7 @@ function useBreadcrumbs() {
 
 export function AppHeader() {
   const crumbs = useBreadcrumbs();
-  const { data: cu } = useCurrentUser();
+  const { data: cu, isLoading } = useCurrentUser();
   const email = cu?.email ?? null;
   const profile = cu?.profile ?? null;
 
