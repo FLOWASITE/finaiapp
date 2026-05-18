@@ -462,7 +462,7 @@ export const deleteOrganization = createServerFn({ method: "POST" })
     const tables = [
       "ai_suggestions", "bank_transactions", "bank_accounts", "cash_vouchers",
       "customers", "exchange_rates", "fixed_assets", "invoices",
-      "journal_entries", "payroll_runs", "period_locks", "products",
+      "journal_entries", "payroll_runs", "fiscal_periods", "fiscal_years", "products",
       "report_notes", "report_snapshots", "sales_invoices", "stock_movements",
       "supplier_payments", "suppliers", "employees", "user_roles",
     ];
