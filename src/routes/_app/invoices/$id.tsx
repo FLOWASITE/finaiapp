@@ -29,6 +29,12 @@ function InvoiceDetail() {
   const router = useRouter();
   const suggest = useServerFn(suggestJournalEntry);
   const approve = useServerFn(approveJournalEntry);
+  const linkedFn = useServerFn(getLinkedEInvoice);
+
+  const { data: linked } = useQuery({
+    queryKey: ["invoice-einvoice", id],
+    queryFn: () => linkedFn({ data: { kind: "in", invoiceId: id } }),
+  });
 
   const { data: invoice, refetch } = useQuery({
     queryKey: ["invoice", id],
