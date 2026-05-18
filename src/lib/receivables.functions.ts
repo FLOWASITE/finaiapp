@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withLatency } from "@/lib/with-latency";
 
 type AgingBucket = "0-30" | "31-60" | "61-90" | "90+";
 
@@ -20,7 +21,7 @@ function bucket(days: number): AgingBucket {
 export const getReceivables = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { kind: "AR" | "AP"; dims?: DimFilter }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getReceivables", async ({ data, context }) => {
     const { supabase, userId } = context;
     const account = data.kind === "AR" ? "131" : "331";
     const d = data.dims;
@@ -66,4 +67,5 @@ export const getReceivables = createServerFn({ method: "POST" })
     return Array.from(byParty.values())
       .filter((r) => Math.abs(r.balance) > 0.5)
       .sort((a, b) => b.balance - a.balance);
-  });
+  }));
+

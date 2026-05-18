@@ -178,7 +178,7 @@ export const payablesStats = createServerFn({ method: "POST" })
   .inputValidator((i: { from?: string; to?: string }) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(i ?? {}),
   )
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("payablesStats", async ({ data, context }) => {
     const { supabase } = context;
     let q = supabase.from("supplier_payments").select("amount, method");
     if (data.from) q = q.gte("pay_date", data.from);
@@ -206,7 +206,8 @@ export const payablesStats = createServerFn({ method: "POST" })
     }
 
     return { total, cash, bank, outstanding, count: (rows ?? []).length };
-  });
+  }));
+
 
 export const listOutstandingPurchaseInvoices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
