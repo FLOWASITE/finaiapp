@@ -482,7 +482,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {drillQ.data.daily.map((d) => (
+                      {drillFiltered.daily.map((d) => (
                         <tr key={d.date} className="border-t border-border">
                           <td className="px-3 py-1.5">{d.date}</td>
                           <td className="px-3 py-1.5 text-right font-mono">{fmt(d.debit)}</td>
@@ -494,7 +494,7 @@ function ArSummaryPage() {
                           </td>
                         </tr>
                       ))}
-                      {drillQ.data.daily.length === 0 && (
+                      {drillFiltered.daily.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
                             Không có phát sinh trong kỳ
@@ -508,7 +508,7 @@ function ArSummaryPage() {
 
               <div>
                 <div className="mb-2 text-sm font-semibold">
-                  Chứng từ ({drillQ.data.lines.length})
+                  Chứng từ ({drillFiltered.lines.length}{drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""})
                 </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
@@ -523,7 +523,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {drillQ.data.lines.map((l, i) => (
+                      {drillFiltered.lines.map((l, i) => (
                         <tr key={l.entry_id + i} className="border-t border-border align-top">
                           <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
                           <td className="px-3 py-1.5">
@@ -556,7 +556,7 @@ function ArSummaryPage() {
                           <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
                         </tr>
                       ))}
-                      {drillQ.data.lines.length === 0 && (
+                      {drillFiltered.lines.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                             Không có chứng từ trong kỳ
