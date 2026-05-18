@@ -5,7 +5,8 @@ export const Route = createFileRoute("/_app/inventory")({ component: InventoryLa
 
 const TABS = [
   { to: "/inventory", label: "Tồn kho", exact: true },
-  { to: "/inventory/movements", label: "Phiếu nhập / xuất" },
+  { to: "/inventory/vouchers-in", label: "Phiếu nhập" },
+  { to: "/inventory/vouchers-out", label: "Phiếu xuất" },
   { to: "/inventory/stock-card", label: "Thẻ kho" },
   { to: "/inventory/stock-takes", label: "Kiểm kê" },
   { to: "/inventory/warehouses", label: "Danh mục kho" },
