@@ -119,7 +119,10 @@ function AllocatedAssetsPage() {
             Sổ chi tiết TK 242 — theo dõi và phân bổ dần vào CPSXKD theo từng kỳ
           </p>
         </div>
-        <UpsertDialog />
+        <div className="flex gap-2">
+          <RunAllocationDialog />
+          <UpsertDialog />
+        </div>
       </div>
 
       {/* KPI strip */}
