@@ -130,36 +130,47 @@ function ArSummaryPage() {
       prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
     );
 
-  const drillFiltered = useMemo(() => {
+  // Precompute normalized search fields once per drill dataset
+  // (avoids re-normalizing every line on every keystroke / filter tick).
+  const drillNormIndex = useMemo(() => {
     const all = drillQ.data?.lines ?? [];
+    return all.map((l) => ({
+      line: l,
+      nDocNo: norm(l.doc_no ?? ""),
+      nDesc: norm(l.description ?? ""),
+    }));
+  }, [drillQ.data]);
+
+  const drillFiltered = useMemo(() => {
     const s = norm(drillSearch);
-    const lines = all.filter((l) => {
-      if (drillFrom && l.entry_date < drillFrom) return false;
-      if (drillTo && l.entry_date > drillTo) return false;
-      if (drillDocTypes.length && !drillDocTypes.includes(l.doc_type)) return false;
-      if (s && !norm(l.doc_no ?? "").includes(s) && !norm(l.description ?? "").includes(s))
-        return false;
-      return true;
-    });
-    // Recompute daily aggregates + running balance starting from opening
-    const opening = drillQ.data?.opening ?? 0;
+    const hasDocTypes = drillDocTypes.length > 0;
+    const docTypeSet = hasDocTypes ? new Set(drillDocTypes) : null;
+    const lines = [] as NonNullable<typeof drillQ.data>["lines"];
+    let debit = 0;
+    let credit = 0;
     const byDate = new Map<string, { date: string; debit: number; credit: number; running: number }>();
-    for (const l of lines) {
+    for (const item of drillNormIndex) {
+      const l = item.line;
+      if (drillFrom && l.entry_date < drillFrom) continue;
+      if (drillTo && l.entry_date > drillTo) continue;
+      if (docTypeSet && !docTypeSet.has(l.doc_type)) continue;
+      if (s && !item.nDocNo.includes(s) && !item.nDesc.includes(s)) continue;
+      lines.push(l);
+      debit += l.debit;
+      credit += l.credit;
       const d = byDate.get(l.entry_date) ?? { date: l.entry_date, debit: 0, credit: 0, running: 0 };
       d.debit += l.debit;
       d.credit += l.credit;
       byDate.set(l.entry_date, d);
     }
     const daily = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
-    let run = opening;
+    let run = drillQ.data?.opening ?? 0;
     for (const d of daily) {
       run += d.debit - d.credit;
       d.running = run;
     }
-    const debit = lines.reduce((s, l) => s + l.debit, 0);
-    const credit = lines.reduce((s, l) => s + l.credit, 0);
     return { lines, daily, debit, credit };
-  }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
+  }, [drillNormIndex, drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
 
   type DrillDisplayRow = {
     key: string;
@@ -216,6 +227,22 @@ function ArSummaryPage() {
     );
   }, [drillFiltered.lines, drillGroupByDoc]);
 
+  // Memoize pagination slice so unrelated re-renders don't reslice the dataset.
+  const drillPaged = useMemo(() => {
+    const total = drillDisplayRows.length;
+    const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
+    const page = Math.min(drillPage, totalPages);
+    const start = (page - 1) * drillPageSize;
+    const end = start + drillPageSize;
+    return {
+      total,
+      totalPages,
+      page,
+      start,
+      end,
+      slice: drillDisplayRows.slice(start, end),
+    };
+  }, [drillDisplayRows, drillPage, drillPageSize]);
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
@@ -748,13 +775,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        const total = drillDisplayRows.length;
-                        const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
-                        const page = Math.min(drillPage, totalPages);
-                        const start = (page - 1) * drillPageSize;
-                        const slice = drillDisplayRows.slice(start, start + drillPageSize);
-                        return slice.map((l) => (
+                      {drillPaged.slice.map((l) => (
                           <tr
                             key={l.key}
                             className="border-t border-border align-top cursor-pointer hover:bg-muted/50 transition-colors"
@@ -794,8 +815,7 @@ function ArSummaryPage() {
                             <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
                             <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
                           </tr>
-                        ));
-                      })()}
+                        ))}
                       {drillDisplayRows.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
@@ -807,57 +827,49 @@ function ArSummaryPage() {
                   </table>
 
                 </div>
-                {drillDisplayRows.length > 0 && (() => {
-                  const total = drillDisplayRows.length;
-
-                  const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
-                  const page = Math.min(drillPage, totalPages);
-                  const start = (page - 1) * drillPageSize;
-                  const end = Math.min(start + drillPageSize, total);
-                  return (
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <span>Hiển thị {start + 1}–{end} / {total}</span>
-                        <span>·</span>
-                        <span>Số dòng/trang:</span>
-                        <select
-                          value={drillPageSize}
-                          onChange={(e) => setDrillPageSize(Number(e.target.value))}
-                          className="h-7 rounded-md border border-border bg-background px-2 text-xs"
-                        >
-                          {[25, 50, 100, 200].map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page <= 1}
-                          onClick={() => setDrillPage(1)}
-                        >«</Button>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page <= 1}
-                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
-                        >‹</Button>
-                        <span className="px-2 tabular-nums">
-                          Trang {page} / {totalPages}
-                        </span>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page >= totalPages}
-                          onClick={() => setDrillPage((p) => Math.min(totalPages, p + 1))}
-                        >›</Button>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page >= totalPages}
-                          onClick={() => setDrillPage(totalPages)}
-                        >»</Button>
-                      </div>
+                {drillPaged.total > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span>Hiển thị {drillPaged.start + 1}–{Math.min(drillPaged.end, drillPaged.total)} / {drillPaged.total}</span>
+                      <span>·</span>
+                      <span>Số dòng/trang:</span>
+                      <select
+                        value={drillPageSize}
+                        onChange={(e) => setDrillPageSize(Number(e.target.value))}
+                        className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+                      >
+                        {[25, 50, 100, 200].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                })()}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page <= 1}
+                        onClick={() => setDrillPage(1)}
+                      >«</Button>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page <= 1}
+                        onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
+                      >‹</Button>
+                      <span className="px-2 tabular-nums">
+                        Trang {drillPaged.page} / {drillPaged.totalPages}
+                      </span>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page >= drillPaged.totalPages}
+                        onClick={() => setDrillPage((p) => Math.min(drillPaged.totalPages, p + 1))}
+                      >›</Button>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page >= drillPaged.totalPages}
+                        onClick={() => setDrillPage(drillPaged.totalPages)}
+                      >»</Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
