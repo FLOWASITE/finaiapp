@@ -1714,6 +1714,7 @@ export type Database = {
           tenant_id: string | null
           unit_cost: number
           user_id: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1728,6 +1729,7 @@ export type Database = {
           tenant_id?: string | null
           unit_cost?: number
           user_id: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1742,6 +1744,7 @@ export type Database = {
           tenant_id?: string | null
           unit_cost?: number
           user_id?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1749,6 +1752,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -1818,6 +1828,7 @@ export type Database = {
           updated_at: string
           user_id: string
           warehouse: string | null
+          warehouse_id: string | null
         }
         Insert: {
           code: string
@@ -1832,6 +1843,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           warehouse?: string | null
+          warehouse_id?: string | null
         }
         Update: {
           code?: string
@@ -1846,8 +1858,17 @@ export type Database = {
           updated_at?: string
           user_id?: string
           warehouse?: string | null
+          warehouse_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_takes_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_payments: {
         Row: {
@@ -2210,6 +2231,54 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          manager: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          manager?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          manager?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
