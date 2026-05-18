@@ -1,26 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 export const listFiscalYears = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: years, error } = await supabase
       .from("fiscal_years")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("year", { ascending: false });
     if (error) throw new Error(error.message);
     const { data: periods } = await supabase
       .from("fiscal_periods")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("year", { ascending: false })
       .order("period_no", { ascending: true });
     return { years: years ?? [], periods: periods ?? [] };
   });
 
 export const generateFiscalYear = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z.object({ year: z.number().int().min(1900).max(2200) }).parse(i),
   )
@@ -32,7 +34,7 @@ export const generateFiscalYear = createServerFn({ method: "POST" })
   });
 
 export const setPeriodStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z.object({
       id: z.string().uuid(),
@@ -41,7 +43,7 @@ export const setPeriodStatus = createServerFn({ method: "POST" })
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const patch: {
       status: "open" | "soft_closed" | "closed";
       closed_at: string | null;
@@ -53,28 +55,34 @@ export const setPeriodStatus = createServerFn({ method: "POST" })
       closed_by: data.status === "open" ? null : userId,
     };
     if (data.note !== undefined) patch.note = data.note;
-    const { error } = await supabase.from("fiscal_periods").update(patch).eq("id", data.id);
+    const { error } = await supabase
+      .from("fiscal_periods")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const closeFiscalYear = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z.object({ fiscal_year_id: z.string().uuid() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const now = new Date().toISOString();
     const { error: e1 } = await supabase
       .from("fiscal_periods")
       .update({ status: "closed", closed_at: now, closed_by: userId })
-      .eq("fiscal_year_id", data.fiscal_year_id);
+      .eq("fiscal_year_id", data.fiscal_year_id)
+      .eq("tenant_id", tenantId);
     if (e1) throw new Error(e1.message);
     const { error: e2 } = await supabase
       .from("fiscal_years")
       .update({ status: "closed", closed_at: now, closed_by: userId })
-      .eq("id", data.fiscal_year_id);
+      .eq("id", data.fiscal_year_id)
+      .eq("tenant_id", tenantId);
     if (e2) throw new Error(e2.message);
     return { ok: true };
   });
