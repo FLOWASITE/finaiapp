@@ -655,8 +655,9 @@ function ArSummaryPage() {
                   </table>
 
                 </div>
-                {drillFiltered.lines.length > 0 && (() => {
-                  const total = drillFiltered.lines.length;
+                {drillDisplayRows.length > 0 && (() => {
+                  const total = drillDisplayRows.length;
+
                   const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
                   const page = Math.min(drillPage, totalPages);
                   const start = (page - 1) * drillPageSize;
