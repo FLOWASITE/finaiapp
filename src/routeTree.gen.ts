@@ -67,6 +67,7 @@ import { Route as AppInventoryMovementsRouteImport } from './routes/_app/invento
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
+import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
@@ -367,6 +368,11 @@ const AppEinvoicesIdRoute = AppEinvoicesIdRouteImport.update({
   path: '/einvoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCustomersGroupsRoute = AppCustomersGroupsRouteImport.update({
+  id: '/customers/groups',
+  path: '/customers/groups',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
   id: '/vouchers',
   path: '/vouchers',
@@ -435,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -498,6 +505,7 @@ export interface FileRoutesByTo {
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -568,6 +576,7 @@ export interface FileRoutesById {
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
+  '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
+    | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -701,6 +711,7 @@ export interface FileRouteTypes {
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
+    | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -770,6 +781,7 @@ export interface FileRouteTypes {
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
+    | '/_app/customers/groups'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
     | '/_app/inventory/$id'
@@ -1232,6 +1244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEinvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/customers/groups': {
+      id: '/_app/customers/groups'
+      path: '/customers/groups'
+      fullPath: '/customers/groups'
+      preLoaderRoute: typeof AppCustomersGroupsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bank/vouchers': {
       id: '/_app/bank/vouchers'
       path: '/vouchers'
@@ -1420,6 +1439,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
+  AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
@@ -1460,6 +1480,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
+  AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
