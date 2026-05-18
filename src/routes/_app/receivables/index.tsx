@@ -4,13 +4,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getReceivables } from "@/lib/receivables.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
 export const Route = createFileRoute("/_app/receivables/")({ component: ReceivablesPage });
 
 function ReceivablesPage() {
   const fn = useServerFn(getReceivables);
   const [kind, setKind] = useState<"AR" | "AP">("AR");
-  const { data } = useQuery({ queryKey: ["receivables", kind], queryFn: () => fn({ data: { kind } }) });
+  const [dims, setDims] = useState<DimensionValue>({});
+  const { data } = useQuery({ queryKey: ["receivables", kind, dims], queryFn: () => fn({ data: { kind, dims } }) });
 
   const totals = (data ?? []).reduce(
     (s, r) => ({
@@ -28,6 +30,10 @@ function ReceivablesPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Công nợ</h1>
         <p className="text-sm text-muted-foreground">Phải thu (TK 131) & phải trả (TK 331), tuổi nợ</p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4">
+        <DimensionFilterBar value={dims} onChange={setDims} />
       </div>
 
       <Tabs value={kind} onValueChange={(v) => setKind(v as "AR" | "AP")}>
