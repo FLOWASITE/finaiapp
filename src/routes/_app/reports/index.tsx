@@ -48,6 +48,8 @@ function ReportsPage() {
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
   const [dims, setDims] = useState<DimensionValue>({});
+  const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
+  const [tbTree, setTbTree] = useState(true);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
@@ -235,6 +237,25 @@ function ReportsPage() {
             <div className="mb-3 print:hidden">
               <DimensionFilterBar value={dims} onChange={setDims} />
             </div>
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
+              <label className="flex items-center gap-2">
+                <span className="text-muted-foreground">Cấp tài khoản:</span>
+                <select
+                  className="h-8 rounded border border-border bg-background px-2 text-sm"
+                  value={tbLevel}
+                  onChange={(e) => setTbLevel(e.target.value as "all" | "1" | "2" | "3")}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="1">Cấp 1 (3 ký tự)</option>
+                  <option value="2">Cấp 2 (4 ký tự)</option>
+                  <option value="3">Cấp 3 (5 ký tự)</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={tbTree} onChange={(e) => setTbTree(e.target.checked)} />
+                Xem dạng cây
+              </label>
+            </div>
             {!tb.data ? <Loading /> : (
               <>
                 {!tb.data.balanced && (
@@ -242,7 +263,7 @@ function ReportsPage() {
                     <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
                   </div>
                 )}
-                <TrialBalanceTable data={tb.data} hideZero={hideZero} />
+                <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
               </>
             )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
@@ -445,15 +466,96 @@ type TrialBalanceData = {
   balanced: boolean;
 };
 
-function TrialBalanceTable({ data, hideZero }: { data: TrialBalanceData; hideZero: boolean }) {
-  const rows = hideZero
-    ? data.rows.filter(
+// Cấp tài khoản theo độ dài mã (VAS/TT200): 3=cấp1, 4=cấp2, ≥5=cấp3
+const accountLevel = (code: string): 1 | 2 | 3 => (code.length <= 3 ? 1 : code.length === 4 ? 2 : 3);
+const parentCode = (code: string): string | null => {
+  if (code.length <= 3) return null;
+  return code.slice(0, code.length - 1);
+};
+
+function aggregateTrialBalance(
+  rows: TrialBalanceRow[],
+  level: "all" | "1" | "2" | "3",
+): TrialBalanceRow[] {
+  if (level === "all") return rows;
+  const maxLen = level === "1" ? 3 : level === "2" ? 4 : 5;
+  const nameByCode = new Map(rows.map((r) => [r.code, r.name]));
+  const agg = new Map<string, TrialBalanceRow>();
+  for (const r of rows) {
+    const key = r.code.length > maxLen ? r.code.slice(0, maxLen) : r.code;
+    const cur = agg.get(key) ?? {
+      code: key,
+      name: nameByCode.get(key) ?? r.name,
+      openingDebit: 0, openingCredit: 0, debit: 0, credit: 0, closingDebit: 0, closingCredit: 0,
+    };
+    cur.openingDebit += r.openingDebit;
+    cur.openingCredit += r.openingCredit;
+    cur.debit += r.debit;
+    cur.credit += r.credit;
+    cur.closingDebit += r.closingDebit;
+    cur.closingCredit += r.closingCredit;
+    agg.set(key, cur);
+  }
+  return Array.from(agg.values()).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+// Đảm bảo tổ tiên xuất hiện trong cây (kể cả khi chưa có dòng riêng trong rows)
+function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
+  const byCode = new Map(rows.map((r) => [r.code, r]));
+  const empty = (code: string, name: string): TrialBalanceRow => ({
+    code, name, openingDebit: 0, openingCredit: 0, debit: 0, credit: 0, closingDebit: 0, closingCredit: 0,
+  });
+  for (const r of rows) {
+    let p = parentCode(r.code);
+    while (p) {
+      if (!byCode.has(p)) byCode.set(p, empty(p, ""));
+      p = parentCode(p);
+    }
+  }
+  return Array.from(byCode.values()).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function TrialBalanceTable({
+  data, hideZero, level, tree,
+}: {
+  data: TrialBalanceData;
+  hideZero: boolean;
+  level: "all" | "1" | "2" | "3";
+  tree: boolean;
+}) {
+  const aggregated = aggregateTrialBalance(data.rows, level);
+  const withAncestors = tree ? ensureAncestors(aggregated) : aggregated;
+  const filtered = hideZero
+    ? withAncestors.filter(
         (r) =>
           r.openingDebit !== 0 || r.openingCredit !== 0 ||
           r.debit !== 0 || r.credit !== 0 ||
           r.closingDebit !== 0 || r.closingCredit !== 0,
       )
-    : data.rows;
+    : withAncestors;
+
+  // Tổng cộng tính trên các nút "lá" của tập đã chọn để tránh đếm trùng khi xem cây
+  const codeSet = new Set(filtered.map((r) => r.code));
+  const isLeaf = (code: string) => {
+    if (!tree) return true;
+    // lá nếu không có hậu duệ nào trong tập hiển thị
+    for (const c of codeSet) {
+      if (c !== code && c.startsWith(code) && c.length > code.length) return false;
+    }
+    return true;
+  };
+  const totals = filtered.reduce(
+    (s, r) => isLeaf(r.code) ? {
+      openingDebit: s.openingDebit + r.openingDebit,
+      openingCredit: s.openingCredit + r.openingCredit,
+      debit: s.debit + r.debit,
+      credit: s.credit + r.credit,
+      closingDebit: s.closingDebit + r.closingDebit,
+      closingCredit: s.closingCredit + r.closingCredit,
+    } : s,
+    { openingDebit: 0, openingCredit: 0, debit: 0, credit: 0, closingDebit: 0, closingCredit: 0 },
+  );
+
   return (
     <table className="w-full text-xs">
       <thead>
@@ -471,26 +573,31 @@ function TrialBalanceTable({ data, hideZero }: { data: TrialBalanceData; hideZer
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.code} className="border-b border-border/40">
-            <td className="py-1 font-mono">{r.code}</td>
-            <td>{r.name}</td>
-            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
-            <td className="text-right font-mono tabular-nums">{fmt(r.openingCredit)}</td>
-            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.debit)}</td>
-            <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
-            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
-            <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
-          </tr>
-        ))}
+        {filtered.map((r) => {
+          const lvl = accountLevel(r.code);
+          const indent = tree ? (lvl - 1) * 16 : 0;
+          const bold = tree && lvl < 3;
+          return (
+            <tr key={r.code} className="border-b border-border/40">
+              <td className={`py-1 font-mono ${bold ? "font-semibold" : ""}`} style={{ paddingLeft: indent }}>{r.code}</td>
+              <td className={bold ? "font-semibold" : ""}>{r.name}</td>
+              <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(r.openingCredit)}</td>
+              <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.debit)}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
+              <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
+            </tr>
+          );
+        })}
         <tr className="bg-muted/50 font-semibold border-t-2 border-border">
           <td colSpan={2} className="py-2">Tổng cộng</td>
-          <td className="text-right font-mono border-l border-border">{fmt(data.totals.openingDebit)}</td>
-          <td className="text-right font-mono">{fmt(data.totals.openingCredit)}</td>
-          <td className="text-right font-mono border-l border-border">{fmt(data.totals.debit)}</td>
-          <td className="text-right font-mono">{fmt(data.totals.credit)}</td>
-          <td className="text-right font-mono border-l border-border">{fmt(data.totals.closingDebit)}</td>
-          <td className="text-right font-mono">{fmt(data.totals.closingCredit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(totals.openingDebit)}</td>
+          <td className="text-right font-mono">{fmt(totals.openingCredit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(totals.debit)}</td>
+          <td className="text-right font-mono">{fmt(totals.credit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(totals.closingDebit)}</td>
+          <td className="text-right font-mono">{fmt(totals.closingCredit)}</td>
         </tr>
       </tbody>
     </table>
