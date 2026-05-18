@@ -1041,3 +1041,220 @@ export const getStockVoucher = createServerFn({ method: "POST" })
       journal_lines: jLines ?? [],
     };
   });
+
+// ============ Báo cáo Nhập – Xuất – Tồn ============
+export type StockIOSRow = {
+  product_id: string;
+  code: string;
+  name: string;
+  unit: string;
+  category_name: string | null;
+  warehouse_id: string | null;
+  warehouse_name: string | null;
+  opening_qty: number;
+  opening_value: number;
+  in_qty: number;
+  in_value: number;
+  out_qty: number;
+  out_value: number;
+  closing_qty: number;
+  closing_value: number;
+};
+
+async function buildStockIOSummary(
+  supabase: any,
+  data: { from: string; to: string; warehouse_id?: string | null; by_warehouse?: boolean },
+): Promise<StockIOSRow[]> {
+  let q = supabase
+    .from("stock_movements")
+    .select(
+      "product_id, warehouse_id, movement_type, movement_date, qty, unit_cost, products(code, name, unit, item_type, product_categories(name)), warehouses(name)",
+    )
+    .lte("movement_date", data.to);
+  if (data.warehouse_id && data.warehouse_id !== "all") {
+    if (data.warehouse_id === "none") q = q.is("warehouse_id", null);
+    else q = q.eq("warehouse_id", data.warehouse_id);
+  }
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+
+  const keyOf = (m: any) =>
+    data.by_warehouse ? `${m.product_id}|${m.warehouse_id ?? ""}` : m.product_id;
+
+  const agg = new Map<string, StockIOSRow>();
+  for (const m of (rows ?? []) as any[]) {
+    if (m.products?.item_type === "service") continue;
+    const k = keyOf(m);
+    const cur =
+      agg.get(k) ?? {
+        product_id: m.product_id,
+        code: m.products?.code ?? "",
+        name: m.products?.name ?? "",
+        unit: m.products?.unit ?? "",
+        category_name: m.products?.product_categories?.name ?? null,
+        warehouse_id: data.by_warehouse ? m.warehouse_id ?? null : null,
+        warehouse_name: data.by_warehouse ? m.warehouses?.name ?? null : null,
+        opening_qty: 0,
+        opening_value: 0,
+        in_qty: 0,
+        in_value: 0,
+        out_qty: 0,
+        out_value: 0,
+        closing_qty: 0,
+        closing_value: 0,
+      };
+    const qty = Number(m.qty) || 0;
+    const cost = Number(m.unit_cost) || 0;
+    const value = qty * cost;
+    const isIn = m.movement_type === "in";
+    if (m.movement_date < data.from) {
+      cur.opening_qty += isIn ? qty : -qty;
+      cur.opening_value += isIn ? value : -value;
+    } else {
+      if (isIn) {
+        cur.in_qty += qty;
+        cur.in_value += value;
+      } else {
+        cur.out_qty += qty;
+        cur.out_value += value;
+      }
+    }
+    cur.closing_qty += isIn ? qty : -qty;
+    cur.closing_value += isIn ? value : -value;
+    agg.set(k, cur);
+  }
+
+  return Array.from(agg.values())
+    .filter(
+      (r) =>
+        Math.abs(r.opening_qty) +
+          Math.abs(r.in_qty) +
+          Math.abs(r.out_qty) +
+          Math.abs(r.closing_qty) >
+        0.0001,
+    )
+    .sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export const getStockIOSummary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: { from: string; to: string; warehouse_id?: string | null; by_warehouse?: boolean }) => i,
+  )
+  .handler(async ({ data, context }) => {
+    return buildStockIOSummary(context.supabase, data);
+  });
+
+export const exportStockIOSummaryXlsx = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: { from: string; to: string; warehouse_id?: string | null; by_warehouse?: boolean }) => i,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const rows = await buildStockIOSummary(supabase, data);
+
+    const totals = rows.reduce(
+      (s, r) => ({
+        opening_value: s.opening_value + r.opening_value,
+        in_value: s.in_value + r.in_value,
+        out_value: s.out_value + r.out_value,
+        closing_value: s.closing_value + r.closing_value,
+      }),
+      { opening_value: 0, in_value: 0, out_value: 0, closing_value: 0 },
+    );
+
+    const profile = (
+      await supabase
+        .from("profiles")
+        .select("company_name, tax_id, address")
+        .eq("id", userId)
+        .maybeSingle()
+    ).data;
+
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("NXT");
+
+    ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
+    ws.getCell("A1").font = { bold: true, size: 13 };
+    ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
+    ws.getCell("A3").value = profile?.address ?? "";
+
+    const lastCol = data.by_warehouse ? "L" : "K";
+    ws.mergeCells(`A5:${lastCol}5`);
+    ws.getCell("A5").value = "BÁO CÁO NHẬP – XUẤT – TỒN";
+    ws.getCell("A5").font = { bold: true, size: 13 };
+    ws.getCell("A5").alignment = { horizontal: "center" };
+
+    ws.mergeCells(`A6:${lastCol}6`);
+    ws.getCell("A6").value = `Kỳ từ ${data.from} đến ${data.to}`;
+    ws.getCell("A6").alignment = { horizontal: "center" };
+
+    const headers = data.by_warehouse
+      ? ["Mã hàng", "Tên hàng", "ĐVT", "Kho", "Tồn đầu (SL)", "Tồn đầu (GT)", "Nhập (SL)", "Nhập (GT)", "Xuất (SL)", "Xuất (GT)", "Tồn cuối (SL)", "Tồn cuối (GT)"]
+      : ["Mã hàng", "Tên hàng", "ĐVT", "Tồn đầu (SL)", "Tồn đầu (GT)", "Nhập (SL)", "Nhập (GT)", "Xuất (SL)", "Xuất (GT)", "Tồn cuối (SL)", "Tồn cuối (GT)"];
+    headers.forEach((h, i) => {
+      const cell = ws.getRow(8).getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    let r = 9;
+    for (const row of rows) {
+      const vals = data.by_warehouse
+        ? [row.code, row.name, row.unit, row.warehouse_name ?? "—",
+           row.opening_qty, Math.round(row.opening_value),
+           row.in_qty, Math.round(row.in_value),
+           row.out_qty, Math.round(row.out_value),
+           row.closing_qty, Math.round(row.closing_value)]
+        : [row.code, row.name, row.unit,
+           row.opening_qty, Math.round(row.opening_value),
+           row.in_qty, Math.round(row.in_value),
+           row.out_qty, Math.round(row.out_value),
+           row.closing_qty, Math.round(row.closing_value)];
+      vals.forEach((v, i) => {
+        const cell = ws.getRow(r).getCell(i + 1);
+        cell.value = v as any;
+        if (typeof v === "number") cell.numFmt = "#,##0.##;(#,##0.##);-";
+      });
+      r++;
+    }
+
+    const totalStartCol = data.by_warehouse ? "A" : "A";
+    const mergeEnd = data.by_warehouse ? "D" : "C";
+    ws.mergeCells(`${totalStartCol}${r}:${mergeEnd}${r}`);
+    ws.getCell(`${totalStartCol}${r}`).value = "Tổng cộng";
+    ws.getCell(`${totalStartCol}${r}`).font = { bold: true };
+    const valCols = data.by_warehouse
+      ? { open: "F", in: "H", out: "J", close: "L" }
+      : { open: "E", in: "G", out: "I", close: "K" };
+    ws.getCell(`${valCols.open}${r}`).value = Math.round(totals.opening_value);
+    ws.getCell(`${valCols.in}${r}`).value = Math.round(totals.in_value);
+    ws.getCell(`${valCols.out}${r}`).value = Math.round(totals.out_value);
+    ws.getCell(`${valCols.close}${r}`).value = Math.round(totals.closing_value);
+    for (const col of [valCols.open, valCols.in, valCols.out, valCols.close]) {
+      const cell = ws.getCell(`${col}${r}`);
+      cell.font = { bold: true };
+      cell.numFmt = "#,##0;(#,##0);-";
+    }
+
+    ws.getColumn(1).width = 14;
+    ws.getColumn(2).width = 32;
+    ws.getColumn(3).width = 8;
+    for (let c = 4; c <= (data.by_warehouse ? 12 : 11); c++) ws.getColumn(c).width = 14;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const base64 = Buffer.from(buf).toString("base64");
+    return {
+      filename: `BaoCao_NXT_${data.from}_${data.to}.xlsx`,
+      base64,
+    };
+  });
