@@ -206,7 +206,7 @@ export function AppSidebar() {
   // Initial open = groups containing active route
   const initialOpen = React.useMemo(() => {
     const map: Record<string, boolean> = {};
-    SECTIONS.forEach((s) =>
+    activeSections.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e)) map[e.label] = e.items.some((i) => isActive(i.to));
       }),
@@ -218,7 +218,7 @@ export function AppSidebar() {
 
   // Auto-open the group of the active route on navigation
   React.useEffect(() => {
-    SECTIONS.forEach((s) =>
+    activeSections.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e) && e.items.some((i) => isActive(i.to)) && !openMap[e.label]) {
           setOpen(e.label, true);
@@ -326,7 +326,7 @@ export function AppSidebar() {
             )}
           </div>
 
-          {SECTIONS.map((section, idx) => (
+          {activeSections.map((section, idx) => (
             <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
               {section.label && (
                 <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
