@@ -7,7 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
-import { getTrialBalance } from "@/lib/ledgers.functions";
+import { getTrialBalance, exportTrialBalanceXlsx } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
