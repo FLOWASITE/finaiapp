@@ -403,8 +403,9 @@ function WarehouseDialog({
                 onChange={(v) => setForm({ ...form, code: v })}
                 autoFillOnMount={!editing}
                 placeholder="KHO01"
-                error={codeError}
+                error={!!codeError}
               />
+              {codeError && <p className="text-xs text-rose-600">{codeError}</p>}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Tên kho *</Label>
