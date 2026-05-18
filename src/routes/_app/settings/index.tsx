@@ -280,8 +280,24 @@ function OrganizationTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Mã số thuế" required className="md:col-span-2">
-                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
-                    <Hint>Nhấn kính lúp để tự điền tên & địa chỉ từ Tổng cục Thuế.</Hint>
+                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={applyLookup} />
+                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEdit || refetchMut.isPending || !(form.tax_id ?? "").replace(/\D/g, "").length || (form.tax_id ?? "").replace(/\D/g, "").length < 10}
+                        onClick={() => refetchMut.mutate((form.tax_id ?? "").replace(/\D/g, ""))}
+                      >
+                        {refetchMut.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+                        Cập nhật từ MST
+                      </Button>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                        <Checkbox checked={overwriteAll} onCheckedChange={(v) => setOverwriteAll(!!v)} disabled={!canEdit} />
+                        Ghi đè dữ liệu hiện có
+                      </label>
+                    </div>
+                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, GPKD, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
