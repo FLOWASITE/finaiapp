@@ -99,6 +99,7 @@ import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -553,6 +554,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppAssetsInventoryIdRoute = AppAssetsInventoryIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAssetsInventoryRoute,
+} as any)
 const AppAssetsAllocationsIdRoute = AppAssetsAllocationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -584,7 +590,7 @@ export interface FileRoutesByFullPath {
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
-  '/assets/inventory': typeof AppAssetsInventoryRoute
+  '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
@@ -649,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
+  '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
@@ -671,7 +678,7 @@ export interface FileRoutesByTo {
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
-  '/assets/inventory': typeof AppAssetsInventoryRoute
+  '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
@@ -736,6 +743,7 @@ export interface FileRoutesByTo {
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
+  '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
@@ -765,7 +773,7 @@ export interface FileRoutesById {
   '/_app/assets/events': typeof AppAssetsEventsRoute
   '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
-  '/_app/assets/inventory': typeof AppAssetsInventoryRoute
+  '/_app/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/_app/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
@@ -830,6 +838,7 @@ export interface FileRoutesById {
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
+  '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
@@ -924,6 +933,7 @@ export interface FileRouteTypes {
     | '/suppliers/'
     | '/tax/'
     | '/assets/allocations/$id'
+    | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1011,6 +1021,7 @@ export interface FileRouteTypes {
     | '/suppliers'
     | '/tax'
     | '/assets/allocations/$id'
+    | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
   id:
     | '__root__'
@@ -1104,6 +1115,7 @@ export interface FileRouteTypes {
     | '/_app/suppliers/'
     | '/_app/tax/'
     | '/_app/assets/allocations/$id'
+    | '/_app/assets/inventory/$id'
     | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
@@ -1746,6 +1758,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/assets/inventory/$id': {
+      id: '/_app/assets/inventory/$id'
+      path: '/$id'
+      fullPath: '/assets/inventory/$id'
+      preLoaderRoute: typeof AppAssetsInventoryIdRouteImport
+      parentRoute: typeof AppAssetsInventoryRoute
+    }
     '/_app/assets/allocations/$id': {
       id: '/_app/assets/allocations/$id'
       path: '/$id'
@@ -1866,6 +1885,17 @@ const AppAssetsAllocationsRouteChildren: AppAssetsAllocationsRouteChildren = {
 const AppAssetsAllocationsRouteWithChildren =
   AppAssetsAllocationsRoute._addFileChildren(AppAssetsAllocationsRouteChildren)
 
+interface AppAssetsInventoryRouteChildren {
+  AppAssetsInventoryIdRoute: typeof AppAssetsInventoryIdRoute
+}
+
+const AppAssetsInventoryRouteChildren: AppAssetsInventoryRouteChildren = {
+  AppAssetsInventoryIdRoute: AppAssetsInventoryIdRoute,
+}
+
+const AppAssetsInventoryRouteWithChildren =
+  AppAssetsInventoryRoute._addFileChildren(AppAssetsInventoryRouteChildren)
+
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRouteWithChildren
@@ -1884,7 +1914,7 @@ interface AppRouteChildren {
   AppAssetsEventsRoute: typeof AppAssetsEventsRoute
   AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
-  AppAssetsInventoryRoute: typeof AppAssetsInventoryRoute
+  AppAssetsInventoryRoute: typeof AppAssetsInventoryRouteWithChildren
   AppAssetsReclassifyRoute: typeof AppAssetsReclassifyRoute
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
@@ -1948,7 +1978,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsEventsRoute: AppAssetsEventsRoute,
   AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
-  AppAssetsInventoryRoute: AppAssetsInventoryRoute,
+  AppAssetsInventoryRoute: AppAssetsInventoryRouteWithChildren,
   AppAssetsReclassifyRoute: AppAssetsReclassifyRoute,
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
