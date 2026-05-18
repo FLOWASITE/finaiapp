@@ -250,9 +250,14 @@ function ArSummaryPage() {
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={(r.customer_id ?? r.customer_name) + i} className="border-t border-border">
+                    <tr
+                      key={(r.customer_id ?? r.customer_name) + i}
+                      className="border-t border-border cursor-pointer hover:bg-muted/40 print:cursor-auto print:hover:bg-transparent"
+                      onClick={() => setDrillRow(r)}
+                      title="Xem chi tiết hóa đơn / phiếu thu"
+                    >
                       <td className="px-3 py-2 font-mono text-xs">{r.customer_code ?? ""}</td>
-                      <td className="px-3 py-2">{r.customer_name}</td>
+                      <td className="px-3 py-2 underline-offset-2 group-hover:underline">{r.customer_name}</td>
                       <td className="px-3 py-2 text-right font-mono">{fmt(r.opening_debit)}</td>
                       <td className="px-3 py-2 text-right font-mono">{fmt(r.opening_credit)}</td>
                       <td className="px-3 py-2 text-right font-mono">{fmt(r.debit)}</td>
