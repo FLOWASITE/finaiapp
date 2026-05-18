@@ -154,6 +154,7 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
         opening_balance_debit: Number(v.opening_balance_debit) || 0,
         opening_balance_credit: Number(v.opening_balance_credit) || 0,
         notes: v.notes || null,
+        group_id: v.group_id || null,
         is_active: v.is_active,
       };
       if (isCustomer) {
