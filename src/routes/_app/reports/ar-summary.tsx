@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -113,6 +114,8 @@ function ArSummaryPage() {
     setDrillSort((prev) =>
       prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
     );
+  const [drillVirtual, setDrillVirtual] = useState(true);
+  const drillScrollRef = useRef<HTMLDivElement | null>(null);
 
 
 
@@ -273,6 +276,14 @@ function ArSummaryPage() {
       slice: drillSortedRows.slice(start, end),
     };
   }, [drillSortedRows, drillPage, drillPageSize]);
+
+  // Virtualizer over the full sorted list (used when "Cuộn ảo" is on).
+  const drillRowVirtualizer = useVirtualizer({
+    count: drillSortedRows.length,
+    getScrollElement: () => drillScrollRef.current,
+    estimateSize: () => 36,
+    overscan: 12,
+  });
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
@@ -699,6 +710,14 @@ function ArSummaryPage() {
                     />
                     Gộp theo chứng từ
                   </label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={drillVirtual}
+                      onChange={(e) => setDrillVirtual(e.target.checked)}
+                    />
+                    Cuộn ảo
+                  </label>
                 </div>
               </div>
 
@@ -792,138 +811,176 @@ function ArSummaryPage() {
                     <Download className="h-3.5 w-3.5 mr-1" /> Xuất Excel
                   </Button>
                 </div>
-                <div className="overflow-x-auto rounded-md border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40 text-xs uppercase">
-                      <tr>
-                        {([
-                          { key: "entry_date" as const, label: "Ngày", align: "left" as const },
-                          { key: null, label: "Loại", align: "left" as const },
-                          { key: "doc_no" as const, label: "Số CT", align: "left" as const },
-                          { key: null, label: drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải", align: "left" as const },
-                          { key: "debit" as const, label: "Nợ", align: "right" as const },
-                          { key: "credit" as const, label: "Có", align: "right" as const },
-                        ]).map((col, i) => {
-                          const isActive = col.key && drillSort.key === col.key;
-                          const arrow = isActive ? (drillSort.dir === "asc" ? "▲" : "▼") : "";
-                          const alignCls = col.align === "right" ? "text-right" : "text-left";
-                          if (!col.key) {
-                            return <th key={i} className={`px-3 py-2 ${alignCls}`}>{col.label}</th>;
-                          }
-                          return (
-                            <th
-                              key={i}
-                              className={`px-3 py-2 ${alignCls} cursor-pointer select-none hover:text-foreground`}
-                              onClick={() => { toggleDrillSort(col.key!); setDrillPage(1); }}
-                              title="Bấm để sắp xếp"
-                            >
-                              <span className="inline-flex items-center gap-1">
-                                {col.label}
-                                <span className={`text-[10px] ${isActive ? "opacity-100" : "opacity-30"}`}>
-                                  {arrow || "↕"}
-                                </span>
+                {(() => {
+                  const gridCols = "110px 100px 150px minmax(0,1fr) 130px 130px";
+                  const headers: Array<{ key: DrillSortKey | null; label: string; align: "left" | "right" }> = [
+                    { key: "entry_date", label: "Ngày", align: "left" },
+                    { key: null, label: "Loại", align: "left" },
+                    { key: "doc_no", label: "Số CT", align: "left" },
+                    { key: null, label: drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải", align: "left" },
+                    { key: "debit", label: "Nợ", align: "right" },
+                    { key: "credit", label: "Có", align: "right" },
+                  ];
+                  const renderRow = (l: DrillDisplayRow) => (
+                    <>
+                      <div className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</div>
+                      <div className="px-3 py-1.5">
+                        <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
+                          {l.doc_type === "HD" ? "HĐ bán" : l.doc_type === "PT" ? "Phiếu thu" : "Khác"}
+                        </span>
+                      </div>
+                      <div className="px-3 py-1.5 font-mono text-xs">
+                        {l.doc_type === "HD" && l.doc_id ? (
+                          <Link
+                            to="/sales/$id"
+                            params={{ id: l.doc_id }}
+                            className="text-primary hover:underline"
+                            onClick={(e) => { e.stopPropagation(); setDrillRow(null); }}
+                          >
+                            {l.doc_no ?? "—"}
+                          </Link>
+                        ) : (
+                          l.doc_no ?? "—"
+                        )}
+                        {drillGroupByDoc && l.line_count > 1 && (
+                          <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
+                        )}
+                      </div>
+                      <div className="px-3 py-1.5 text-muted-foreground truncate" title={l.description}>
+                        {l.description}
+                      </div>
+                      <div className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</div>
+                      <div className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</div>
+                    </>
+                  );
+                  const header = (
+                    <div
+                      className="grid bg-muted/40 text-xs uppercase border-b border-border sticky top-0 z-10"
+                      style={{ gridTemplateColumns: gridCols }}
+                    >
+                      {headers.map((col, i) => {
+                        const isActive = col.key && drillSort.key === col.key;
+                        const arrow = isActive ? (drillSort.dir === "asc" ? "▲" : "▼") : "";
+                        const alignCls = col.align === "right" ? "text-right justify-end" : "text-left";
+                        if (!col.key) {
+                          return <div key={i} className={`px-3 py-2 ${alignCls}`}>{col.label}</div>;
+                        }
+                        return (
+                          <div
+                            key={i}
+                            className={`px-3 py-2 ${alignCls} cursor-pointer select-none hover:text-foreground`}
+                            onClick={() => { toggleDrillSort(col.key!); setDrillPage(1); }}
+                            title="Bấm để sắp xếp"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {col.label}
+                              <span className={`text-[10px] ${isActive ? "opacity-100" : "opacity-30"}`}>
+                                {arrow || "↕"}
                               </span>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {drillPaged.slice.map((l) => (
-                          <tr
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+
+                  if (drillVirtual) {
+                    const items = drillRowVirtualizer.getVirtualItems();
+                    const totalSize = drillRowVirtualizer.getTotalSize();
+                    return (
+                      <>
+                        <div className="rounded-md border border-border overflow-hidden">
+                          {header}
+                          <div
+                            ref={drillScrollRef}
+                            className="overflow-auto"
+                            style={{ height: 520, contain: "strict" }}
+                          >
+                            {drillSortedRows.length === 0 ? (
+                              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                Không có chứng từ trong kỳ
+                              </div>
+                            ) : (
+                              <div style={{ height: totalSize, position: "relative", width: "100%" }}>
+                                {items.map((v) => {
+                                  const l = drillSortedRows[v.index];
+                                  return (
+                                    <div
+                                      key={l.key}
+                                      ref={drillRowVirtualizer.measureElement}
+                                      data-index={v.index}
+                                      className="grid border-b border-border text-sm cursor-pointer hover:bg-muted/50 transition-colors absolute left-0 right-0"
+                                      style={{
+                                        gridTemplateColumns: gridCols,
+                                        transform: `translateY(${v.start}px)`,
+                                      }}
+                                      onClick={() => setDetailEntryId(l.entry_id)}
+                                      title="Bấm để xem chi tiết chứng từ"
+                                    >
+                                      {renderRow(l)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground">
+                            {drillSortedRows.length.toLocaleString("vi-VN")} dòng · cuộn để xem thêm
+                          </div>
+                        </div>
+                      </>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="overflow-x-auto rounded-md border border-border">
+                        {header}
+                        {drillPaged.slice.map((l) => (
+                          <div
                             key={l.key}
-                            className="border-t border-border align-top cursor-pointer hover:bg-muted/50 transition-colors"
+                            className="grid border-t border-border text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                            style={{ gridTemplateColumns: gridCols }}
                             onClick={() => setDetailEntryId(l.entry_id)}
                             title="Bấm để xem chi tiết chứng từ"
                           >
-                            <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
-                            <td className="px-3 py-1.5">
-                              <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
-                                {l.doc_type === "HD"
-                                  ? "HĐ bán"
-                                  : l.doc_type === "PT"
-                                    ? "Phiếu thu"
-                                    : "Khác"}
-                              </span>
-                            </td>
-                            <td className="px-3 py-1.5 font-mono text-xs">
-                              {l.doc_type === "HD" && l.doc_id ? (
-                                <Link
-                                  to="/sales/$id"
-                                  params={{ id: l.doc_id }}
-                                  className="text-primary hover:underline"
-                                  onClick={(e) => { e.stopPropagation(); setDrillRow(null); }}
-                                >
-                                  {l.doc_no ?? "—"}
-                                </Link>
-                              ) : (
-                                l.doc_no ?? "—"
-                              )}
-                              {drillGroupByDoc && l.line_count > 1 && (
-                                <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
-                              )}
-                            </td>
-                            <td className="px-3 py-1.5 text-muted-foreground">
-                              {l.description}
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
-                            <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
-                          </tr>
+                            {renderRow(l)}
+                          </div>
                         ))}
-                      {drillDisplayRows.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                        {drillDisplayRows.length === 0 && (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                             Không có chứng từ trong kỳ
-                          </td>
-                        </tr>
+                          </div>
+                        )}
+                      </div>
+                      {drillPaged.total > 0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span>Hiển thị {drillPaged.start + 1}–{Math.min(drillPaged.end, drillPaged.total)} / {drillPaged.total}</span>
+                            <span>·</span>
+                            <span>Số dòng/trang:</span>
+                            <select
+                              value={drillPageSize}
+                              onChange={(e) => setDrillPageSize(Number(e.target.value))}
+                              className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+                            >
+                              {[25, 50, 100, 200].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="sm" disabled={drillPaged.page <= 1} onClick={() => setDrillPage(1)}>«</Button>
+                            <Button variant="outline" size="sm" disabled={drillPaged.page <= 1} onClick={() => setDrillPage((p) => Math.max(1, p - 1))}>‹</Button>
+                            <span className="px-2 tabular-nums">Trang {drillPaged.page} / {drillPaged.totalPages}</span>
+                            <Button variant="outline" size="sm" disabled={drillPaged.page >= drillPaged.totalPages} onClick={() => setDrillPage((p) => Math.min(drillPaged.totalPages, p + 1))}>›</Button>
+                            <Button variant="outline" size="sm" disabled={drillPaged.page >= drillPaged.totalPages} onClick={() => setDrillPage(drillPaged.totalPages)}>»</Button>
+                          </div>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
-
-                </div>
-                {drillPaged.total > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span>Hiển thị {drillPaged.start + 1}–{Math.min(drillPaged.end, drillPaged.total)} / {drillPaged.total}</span>
-                      <span>·</span>
-                      <span>Số dòng/trang:</span>
-                      <select
-                        value={drillPageSize}
-                        onChange={(e) => setDrillPageSize(Number(e.target.value))}
-                        className="h-7 rounded-md border border-border bg-background px-2 text-xs"
-                      >
-                        {[25, 50, 100, 200].map((n) => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline" size="sm"
-                        disabled={drillPaged.page <= 1}
-                        onClick={() => setDrillPage(1)}
-                      >«</Button>
-                      <Button
-                        variant="outline" size="sm"
-                        disabled={drillPaged.page <= 1}
-                        onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
-                      >‹</Button>
-                      <span className="px-2 tabular-nums">
-                        Trang {drillPaged.page} / {drillPaged.totalPages}
-                      </span>
-                      <Button
-                        variant="outline" size="sm"
-                        disabled={drillPaged.page >= drillPaged.totalPages}
-                        onClick={() => setDrillPage((p) => Math.min(drillPaged.totalPages, p + 1))}
-                      >›</Button>
-                      <Button
-                        variant="outline" size="sm"
-                        disabled={drillPaged.page >= drillPaged.totalPages}
-                        onClick={() => setDrillPage(drillPaged.totalPages)}
-                      >»</Button>
-                    </div>
-                  </div>
-                )}
+                    </>
+                  );
+                })()}
               </div>
 
             </div>
