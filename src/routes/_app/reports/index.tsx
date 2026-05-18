@@ -767,7 +767,7 @@ function AccountDrilldownDialog({
                   </tr>
                 </thead>
                 <tbody>
-                  {q.data.lines.map((l, i) => (
+                  {q.data.lines.map((l: any, i: number) => (
                     <tr key={`${l.entry_id}-${i}`} className="border-b border-border/40">
                       <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
                       <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
