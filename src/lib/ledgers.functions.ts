@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withLatency } from "@/lib/with-latency";
 
 export type DimFilter = {
   branch_id?: string | null;
@@ -133,7 +134,7 @@ function ym(d: Date) {
 export const getGeneralLedger = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from: string; to: string; accountPrefix?: string; dims?: DimFilter }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getGeneralLedger", async ({ data, context }) => {
     const { supabase, userId } = context;
     const byAcc = new Map<string, { opening: number; debit: number; credit: number }>();
 
@@ -197,7 +198,8 @@ export const getGeneralLedger = createServerFn({ method: "POST" })
       }))
       .sort((a, b) => a.code.localeCompare(b.code));
     return { accounts };
-  });
+  }));
+
 
 // ============ 3. Sổ chi tiết 1 TK ============
 export const getAccountLedger = createServerFn({ method: "POST" })
@@ -236,7 +238,7 @@ export const getAccountLedger = createServerFn({ method: "POST" })
 export const getTrialBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from: string; to: string; dims?: DimFilter }) => i)
-  .handler(async ({ data, context }) => {
+  .handler(withLatency("getTrialBalance", async ({ data, context }) => {
     const { supabase, userId } = context;
     const map = new Map<string, { opening: number; debit: number; credit: number }>();
 
@@ -303,7 +305,8 @@ export const getTrialBalance = createServerFn({ method: "POST" })
       { openingDebit: 0, openingCredit: 0, debit: 0, credit: 0, closingDebit: 0, closingCredit: 0 }
     );
     return { rows, totals, balanced: Math.abs(totals.debit - totals.credit) < 1 };
-  });
+  }));
+
 
 function prevDay(d: string): string {
   const x = new Date(d);
