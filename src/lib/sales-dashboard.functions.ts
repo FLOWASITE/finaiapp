@@ -149,4 +149,5 @@ export const salesDashboard = createServerFn({ method: "GET" })
       status_mix: statusMix,
       today: todayStr,
     };
-  });
+  }));
+
