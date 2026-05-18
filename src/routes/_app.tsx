@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
+import { CommandPalette } from "@/components/command-palette";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,7 @@ function AppLayout() {
           <main className="overflow-auto">
             <Outlet />
           </main>
+          <CommandPalette />
         </SidebarInset>
       </div>
     </SidebarProvider>
