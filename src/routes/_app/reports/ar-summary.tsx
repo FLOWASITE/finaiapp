@@ -130,36 +130,47 @@ function ArSummaryPage() {
       prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
     );
 
-  const drillFiltered = useMemo(() => {
+  // Precompute normalized search fields once per drill dataset
+  // (avoids re-normalizing every line on every keystroke / filter tick).
+  const drillNormIndex = useMemo(() => {
     const all = drillQ.data?.lines ?? [];
+    return all.map((l) => ({
+      line: l,
+      nDocNo: norm(l.doc_no ?? ""),
+      nDesc: norm(l.description ?? ""),
+    }));
+  }, [drillQ.data]);
+
+  const drillFiltered = useMemo(() => {
     const s = norm(drillSearch);
-    const lines = all.filter((l) => {
-      if (drillFrom && l.entry_date < drillFrom) return false;
-      if (drillTo && l.entry_date > drillTo) return false;
-      if (drillDocTypes.length && !drillDocTypes.includes(l.doc_type)) return false;
-      if (s && !norm(l.doc_no ?? "").includes(s) && !norm(l.description ?? "").includes(s))
-        return false;
-      return true;
-    });
-    // Recompute daily aggregates + running balance starting from opening
-    const opening = drillQ.data?.opening ?? 0;
+    const hasDocTypes = drillDocTypes.length > 0;
+    const docTypeSet = hasDocTypes ? new Set(drillDocTypes) : null;
+    const lines = [] as NonNullable<typeof drillQ.data>["lines"];
+    let debit = 0;
+    let credit = 0;
     const byDate = new Map<string, { date: string; debit: number; credit: number; running: number }>();
-    for (const l of lines) {
+    for (const item of drillNormIndex) {
+      const l = item.line;
+      if (drillFrom && l.entry_date < drillFrom) continue;
+      if (drillTo && l.entry_date > drillTo) continue;
+      if (docTypeSet && !docTypeSet.has(l.doc_type)) continue;
+      if (s && !item.nDocNo.includes(s) && !item.nDesc.includes(s)) continue;
+      lines.push(l);
+      debit += l.debit;
+      credit += l.credit;
       const d = byDate.get(l.entry_date) ?? { date: l.entry_date, debit: 0, credit: 0, running: 0 };
       d.debit += l.debit;
       d.credit += l.credit;
       byDate.set(l.entry_date, d);
     }
     const daily = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
-    let run = opening;
+    let run = drillQ.data?.opening ?? 0;
     for (const d of daily) {
       run += d.debit - d.credit;
       d.running = run;
     }
-    const debit = lines.reduce((s, l) => s + l.debit, 0);
-    const credit = lines.reduce((s, l) => s + l.credit, 0);
     return { lines, daily, debit, credit };
-  }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
+  }, [drillNormIndex, drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
 
   type DrillDisplayRow = {
     key: string;
