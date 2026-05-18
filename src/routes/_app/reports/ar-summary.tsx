@@ -719,10 +719,21 @@ function ArSummaryPage() {
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-semibold">
-                  Chứng từ ({drillGroupByDoc
-                    ? `${drillDisplayRows.length} chứng từ / ${drillFiltered.lines.length} dòng`
-                    : `${drillFiltered.lines.length}${drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""}`})
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold">
+                    Chứng từ ({drillGroupByDoc
+                      ? `${drillDisplayRows.length} chứng từ / ${drillFiltered.lines.length} dòng`
+                      : `${drillFiltered.lines.length}${drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""}`})
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => handleExportDrill("docs")}
+                    disabled={drillDisplayRows.length === 0}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" /> Xuất Excel
+                  </Button>
                 </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
