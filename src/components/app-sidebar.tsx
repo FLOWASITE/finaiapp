@@ -218,7 +218,14 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
   const inTaxModule = pathname.startsWith("/tax");
-  const activeSections = inTaxModule ? TAX_SECTIONS : inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
+  const inReportsModule = pathname.startsWith("/reports");
+  const activeSections = inTaxModule
+    ? TAX_SECTIONS
+    : inReportsModule
+    ? REPORTS_SECTIONS
+    : inEinvoiceModule
+    ? EINVOICE_SECTIONS
+    : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
