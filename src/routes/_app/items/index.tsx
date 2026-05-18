@@ -308,7 +308,7 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
                 <AutoCodeInput
                   inputRef={codeRef}
                   value={form.code}
-                  onChange={(v) => setForm((f) => ({ ...f, code: v }))}
+                  onChange={(v: string) => setForm((f) => ({ ...f, code: v }))}
                   entity={
                     form.item_type === "goods"
                       ? "product_goods"
