@@ -3222,8 +3222,56 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_advances: {
+        Row: {
+          amount: number
+          created_at: string
+          employee_id: string
+          id: string
+          period_month: string
+          reason: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          period_month: string
+          reason?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          period_month?: string
+          reason?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_advances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_lines: {
         Row: {
+          advance: number
           allowance: number
           base_salary: number
           bhtn_co: number
@@ -3242,6 +3290,7 @@ export type Database = {
           taxable: number
         }
         Insert: {
+          advance?: number
           allowance?: number
           base_salary?: number
           bhtn_co?: number
@@ -3260,6 +3309,7 @@ export type Database = {
           taxable?: number
         }
         Update: {
+          advance?: number
           allowance?: number
           base_salary?: number
           bhtn_co?: number
@@ -3428,6 +3478,9 @@ export type Database = {
           department_id: string | null
           id: string
           journal_entry_id: string | null
+          paid_at: string | null
+          paid_reference: string | null
+          payment_status: string
           period_month: string
           status: string
           tenant_id: string | null
@@ -3444,6 +3497,9 @@ export type Database = {
           department_id?: string | null
           id?: string
           journal_entry_id?: string | null
+          paid_at?: string | null
+          paid_reference?: string | null
+          payment_status?: string
           period_month: string
           status?: string
           tenant_id?: string | null
@@ -3460,6 +3516,9 @@ export type Database = {
           department_id?: string | null
           id?: string
           journal_entry_id?: string | null
+          paid_at?: string | null
+          paid_reference?: string | null
+          payment_status?: string
           period_month?: string
           status?: string
           tenant_id?: string | null
