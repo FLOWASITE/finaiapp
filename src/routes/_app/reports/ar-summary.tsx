@@ -827,57 +827,49 @@ function ArSummaryPage() {
                   </table>
 
                 </div>
-                {drillDisplayRows.length > 0 && (() => {
-                  const total = drillDisplayRows.length;
-
-                  const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
-                  const page = Math.min(drillPage, totalPages);
-                  const start = (page - 1) * drillPageSize;
-                  const end = Math.min(start + drillPageSize, total);
-                  return (
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <span>Hiển thị {start + 1}–{end} / {total}</span>
-                        <span>·</span>
-                        <span>Số dòng/trang:</span>
-                        <select
-                          value={drillPageSize}
-                          onChange={(e) => setDrillPageSize(Number(e.target.value))}
-                          className="h-7 rounded-md border border-border bg-background px-2 text-xs"
-                        >
-                          {[25, 50, 100, 200].map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page <= 1}
-                          onClick={() => setDrillPage(1)}
-                        >«</Button>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page <= 1}
-                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
-                        >‹</Button>
-                        <span className="px-2 tabular-nums">
-                          Trang {page} / {totalPages}
-                        </span>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page >= totalPages}
-                          onClick={() => setDrillPage((p) => Math.min(totalPages, p + 1))}
-                        >›</Button>
-                        <Button
-                          variant="outline" size="sm"
-                          disabled={page >= totalPages}
-                          onClick={() => setDrillPage(totalPages)}
-                        >»</Button>
-                      </div>
+                {drillPaged.total > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span>Hiển thị {drillPaged.start + 1}–{Math.min(drillPaged.end, drillPaged.total)} / {drillPaged.total}</span>
+                      <span>·</span>
+                      <span>Số dòng/trang:</span>
+                      <select
+                        value={drillPageSize}
+                        onChange={(e) => setDrillPageSize(Number(e.target.value))}
+                        className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+                      >
+                        {[25, 50, 100, 200].map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                })()}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page <= 1}
+                        onClick={() => setDrillPage(1)}
+                      >«</Button>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page <= 1}
+                        onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
+                      >‹</Button>
+                      <span className="px-2 tabular-nums">
+                        Trang {drillPaged.page} / {drillPaged.totalPages}
+                      </span>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page >= drillPaged.totalPages}
+                        onClick={() => setDrillPage((p) => Math.min(drillPaged.totalPages, p + 1))}
+                      >›</Button>
+                      <Button
+                        variant="outline" size="sm"
+                        disabled={drillPaged.page >= drillPaged.totalPages}
+                        onClick={() => setDrillPage(drillPaged.totalPages)}
+                      >»</Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
