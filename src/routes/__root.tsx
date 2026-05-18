@@ -65,11 +65,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AccuVN — Kế toán AI cho doanh nghiệp Việt" },
+      { title: "FinAI — Kế toán AI cho doanh nghiệp Việt" },
       {
         name: "description",
         content:
-          "AccuVN tự động bóc tách hóa đơn và gợi ý định khoản theo Thông tư 133, giúp kế toán SME tiết kiệm 80% thời gian nhập liệu.",
+          "FinAI tự động bóc tách hóa đơn và gợi ý định khoản theo Thông tư 133, giúp kế toán SME tiết kiệm 80% thời gian nhập liệu.",
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

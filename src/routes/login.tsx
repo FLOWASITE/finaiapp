@@ -179,7 +179,7 @@ function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-foreground/15 backdrop-blur-sm font-bold ring-1 ring-primary-foreground/20">
               A
             </div>
-            <span className="font-semibold tracking-tight text-lg">AccuVN</span>
+            <span className="font-semibold tracking-tight text-lg">FinAI</span>
           </div>
 
           <div className="relative z-10 space-y-6 max-w-md">
@@ -207,7 +207,7 @@ function LoginPage() {
           </div>
 
           <p className="relative z-10 text-xs text-primary-foreground/60">
-            © {new Date().getFullYear()} AccuVN. Mọi quyền được bảo lưu.
+            © {new Date().getFullYear()} FinAI. Mọi quyền được bảo lưu.
           </p>
         </aside>
 
@@ -218,7 +218,7 @@ function LoginPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
                 A
               </div>
-              <span className="font-semibold tracking-tight">AccuVN</span>
+              <span className="font-semibold tracking-tight">FinAI</span>
             </Link>
 
             {/* Mode switcher */}
@@ -416,7 +416,7 @@ function LoginPage() {
                     <Link to="/" className="underline hover:text-foreground">
                       Chính sách bảo mật
                     </Link>{" "}
-                    của AccuVN.
+                    của FinAI.
                   </span>
                 </p>
               )}

@@ -70,7 +70,7 @@ export const askAccounting = createServerFn({ method: "POST" })
     const messages: any[] = [
       {
         role: "system",
-        content: `Bạn là trợ lý kế toán cho user của AccuVN. Trả lời ngắn gọn bằng tiếng Việt, có số liệu cụ thể.
+        content: `Bạn là trợ lý kế toán cho user của FinAI. Trả lời ngắn gọn bằng tiếng Việt, có số liệu cụ thể.
 Dùng tool runQuery để lấy dữ liệu thực tế trước khi trả lời. Đừng đoán.
 Tiền tệ VNĐ, format với dấu phẩy nghìn.
 

@@ -234,7 +234,7 @@ export function AppSidebar() {
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-tight animate-fade-in">
-                <span className="font-semibold tracking-tight text-sidebar-foreground">AccuVN</span>
+                <span className="font-semibold tracking-tight text-sidebar-foreground">FinAI</span>
                 <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
                   AI Accounting · v3
                 </span>
@@ -249,7 +249,7 @@ export function AppSidebar() {
             {collapsed ? (
               <button
                 onClick={() => setOpenCmd(true)}
-                aria-label="Ask AccuVN AI"
+                aria-label="Ask FinAI AI"
                 className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] hover-scale"
                 style={{ background: "var(--gradient-ai)" }}
               >
@@ -265,7 +265,7 @@ export function AppSidebar() {
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-sidebar-primary" />
                     <span className="text-xs font-medium text-sidebar-foreground/90 flex-1 text-left">
-                      Hỏi AccuVN AI…
+                      Hỏi FinAI AI…
                     </span>
                     <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
                       <CommandIcon className="h-2.5 w-2.5" />K

@@ -20,7 +20,7 @@ function Landing() {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
               A
             </div>
-            <span className="font-semibold tracking-tight">AccuVN</span>
+            <span className="font-semibold tracking-tight">FinAI</span>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="ghost">
@@ -46,7 +46,7 @@ function Landing() {
             <span className="text-accent">định khoản tự động</span> theo Thông tư 133
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            AccuVN giúp kế toán SME tiết kiệm 80% thời gian nhập liệu. Upload hóa đơn — AI bóc
+            FinAI giúp kế toán SME tiết kiệm 80% thời gian nhập liệu. Upload hóa đơn — AI bóc
             tách, gợi ý 3 phương án định khoản chuẩn VAS, bạn chỉ cần duyệt.
           </p>
           <div className="mt-8 flex justify-center gap-3">
@@ -115,7 +115,7 @@ function Landing() {
 
       <footer className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-8 text-center text-sm text-muted-foreground">
-          © 2026 AccuVN — MVP demo
+          © 2026 FinAI — MVP demo
         </div>
       </footer>
     </div>
