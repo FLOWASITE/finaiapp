@@ -413,8 +413,9 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 w-[40%]">Mặt hàng</th>
+                    <th className="px-3 py-2 w-[36%]">Mặt hàng</th>
                     <th className="px-3 py-2 text-right">Số lượng</th>
+                    <th className="px-3 py-2">ĐVT</th>
                     <th className="px-3 py-2 text-right">{type === "in" ? "Đơn giá" : "Giá BQ"}</th>
                     <th className="px-3 py-2 text-right">Thành tiền</th>
                     <th className="px-3 py-2"></th>
@@ -422,11 +423,17 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                 </thead>
                 <tbody>
                   {form.lines.map((l, i) => {
+                    const p: any = productMap.get(l.product_id);
+                    const baseUnit = p?.unit ?? "";
+                    const lineUnit = l.unit || baseUnit;
+                    const factor = getFactor(l.product_id, lineUnit);
+                    const qtyBase = Number(l.qty || 0) * factor;
                     const amount = Number(l.qty || 0) * Number(l.unit_cost || 0);
+                    const conv = l.product_id ? getConversions(l.product_id) : [];
                     return (
                       <tr key={i} className="border-t align-top">
                         <td className="px-3 py-2">
-                          <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v })}>
+                          <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v, unit: "" })}>
                             <SelectTrigger className="h-9"><SelectValue placeholder="Chọn mặt hàng..." /></SelectTrigger>
                             <SelectContent>
                               {goodsOnly.map((pp: any) => (
@@ -442,6 +449,40 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                         <td className="px-3 py-2">
                           <Input type="number" min={0} value={l.qty || ""} className="text-right h-9"
                             onChange={(e) => updateLine(i, { qty: Number(e.target.value) })} />
+                          {factor !== 1 && l.qty > 0 && (
+                            <div className="text-[10px] text-muted-foreground text-right mt-0.5">
+                              = {fmt(qtyBase)} {baseUnit}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Select
+                            value={lineUnit}
+                            onValueChange={(v) => {
+                              const newFactor = getFactor(l.product_id, v);
+                              const patch: Partial<Line> = { unit: v };
+                              if (p) {
+                                if (type === "out") {
+                                  patch.unit_cost = +(Number(p.unit_cost ?? 0) * newFactor).toFixed(4);
+                                } else if (l.unit_cost > 0 && factor > 0) {
+                                  // Scale current price to the new unit (preserve total amount)
+                                  patch.unit_cost = +((l.unit_cost / factor) * newFactor).toFixed(4);
+                                }
+                              }
+                              updateLine(i, patch);
+                            }}
+                            disabled={!l.product_id}
+                          >
+                            <SelectTrigger className="h-9 min-w-[90px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {baseUnit && <SelectItem value={baseUnit}>{baseUnit} (gốc)</SelectItem>}
+                              {conv.map((c: any) => (
+                                <SelectItem key={c.id} value={c.unit}>
+                                  {c.unit} (×{fmt(Number(c.factor))})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </td>
                         <td className="px-3 py-2">
                           <Input type="number" min={0} value={l.unit_cost || ""} className="text-right h-9"
@@ -459,7 +500,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                 </tbody>
                 <tfoot>
                   <tr className="border-t bg-muted/30 font-medium">
-                    <td className="px-3 py-2 text-right" colSpan={3}>Tổng cộng</td>
+                    <td className="px-3 py-2 text-right" colSpan={4}>Tổng cộng</td>
                     <td className="px-3 py-2 text-right font-mono">{fmt(totals.value)}</td>
                     <td></td>
                   </tr>
