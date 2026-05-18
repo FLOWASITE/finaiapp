@@ -66,6 +66,7 @@ import { Route as AppReportsStockIosRouteImport } from './routes/_app/reports/st
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppReportsArSummaryRouteImport } from './routes/_app/reports/ar-summary'
 import { Route as AppReportsApSummaryRouteImport } from './routes/_app/reports/ap-summary'
+import { Route as AppReportsAllocationScheduleRouteImport } from './routes/_app/reports/allocation-schedule'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
@@ -377,6 +378,12 @@ const AppReportsApSummaryRoute = AppReportsApSummaryRouteImport.update({
   path: '/reports/ap-summary',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsAllocationScheduleRoute =
+  AppReportsAllocationScheduleRouteImport.update({
+    id: '/reports/allocation-schedule',
+    path: '/reports/allocation-schedule',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   id: '/payroll/$id',
   path: '/payroll/$id',
@@ -534,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
@@ -611,6 +619,7 @@ export interface FileRoutesByTo {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
@@ -695,6 +704,7 @@ export interface FileRoutesById {
   '/_app/items/categories': typeof AppItemsCategoriesRoute
   '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/_app/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/_app/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
@@ -779,6 +789,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/allocation-schedule'
     | '/reports/ap-summary'
     | '/reports/ar-summary'
     | '/reports/ledgers'
@@ -856,6 +867,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/allocation-schedule'
     | '/reports/ap-summary'
     | '/reports/ar-summary'
     | '/reports/ledgers'
@@ -939,6 +951,7 @@ export interface FileRouteTypes {
     | '/_app/items/categories'
     | '/_app/items/units'
     | '/_app/payroll/$id'
+    | '/_app/reports/allocation-schedule'
     | '/_app/reports/ap-summary'
     | '/_app/reports/ar-summary'
     | '/_app/reports/ledgers'
@@ -1394,6 +1407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsApSummaryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/allocation-schedule': {
+      id: '/_app/reports/allocation-schedule'
+      path: '/reports/allocation-schedule'
+      fullPath: '/reports/allocation-schedule'
+      preLoaderRoute: typeof AppReportsAllocationScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/$id': {
       id: '/_app/payroll/$id'
       path: '/payroll/$id'
@@ -1703,6 +1723,7 @@ interface AppRouteChildren {
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppReportsAllocationScheduleRoute: typeof AppReportsAllocationScheduleRoute
   AppReportsApSummaryRoute: typeof AppReportsApSummaryRoute
   AppReportsArSummaryRoute: typeof AppReportsArSummaryRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
@@ -1756,6 +1777,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppReportsAllocationScheduleRoute: AppReportsAllocationScheduleRoute,
   AppReportsApSummaryRoute: AppReportsApSummaryRoute,
   AppReportsArSummaryRoute: AppReportsArSummaryRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,

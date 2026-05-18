@@ -470,3 +470,185 @@ export const disposeAllocatedAsset = createServerFn({ method: "POST" })
 
     return { ok: true, written_off: remaining };
   });
+
+// ---------- Reports ----------
+export const allocationSchedule = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { fromMonth?: string; toMonth?: string; status?: string }) =>
+    z
+      .object({
+        fromMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+        toMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+        status: z.string().optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    let q = supabase
+      .from("allocated_assets")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("code", { ascending: true });
+    if (data.status && data.status !== "all") q = q.eq("status", data.status);
+    const { data: assets, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const ids = (assets ?? []).map((a) => a.id);
+    const postedByAsset = new Map<string, Map<string, number>>();
+    if (ids.length > 0) {
+      const { data: entries } = await supabase
+        .from("allocation_entries")
+        .select("asset_id,period_month,amount")
+        .in("asset_id", ids);
+      for (const e of entries ?? []) {
+        const m = postedByAsset.get(e.asset_id) ?? new Map();
+        m.set(String(e.period_month).slice(0, 7), Number(e.amount));
+        postedByAsset.set(e.asset_id, m);
+      }
+    }
+
+    const from = data.fromMonth ?? null;
+    const to = data.toMonth ?? null;
+
+    const rows = (assets ?? []).map((a) => {
+      const step = monthsPerUnit(a.period_unit);
+      const startDate = new Date(a.start_date);
+      const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const perPeriod = Number(a.cost) / Number(a.periods_total);
+      const posted = postedByAsset.get(a.id) ?? new Map();
+      const periods: Array<{
+        period: string;
+        planned: number;
+        posted: number;
+      }> = [];
+      let plannedAcc = 0;
+      for (let i = 0; i < Number(a.periods_total); i++) {
+        const period = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+        const isLast = i === Number(a.periods_total) - 1;
+        const planned = isLast
+          ? Math.round((Number(a.cost) - plannedAcc) * 100) / 100
+          : Math.round(perPeriod * 100) / 100;
+        plannedAcc += planned;
+        if ((!from || period >= from) && (!to || period <= to)) {
+          periods.push({
+            period,
+            planned,
+            posted: posted.get(period) ?? 0,
+          });
+        }
+        cursor.setMonth(cursor.getMonth() + step);
+      }
+      const sumPlanned = periods.reduce((s, p) => s + p.planned, 0);
+      const sumPosted = periods.reduce((s, p) => s + p.posted, 0);
+      return {
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        category: a.category,
+        prepaid_account: a.prepaid_account,
+        expense_account: a.expense_account,
+        cost: Number(a.cost),
+        allocated: Number(a.allocated),
+        periods_total: Number(a.periods_total),
+        periods_done: Number(a.periods_done),
+        status: a.status,
+        periods,
+        sum_planned: sumPlanned,
+        sum_posted: sumPosted,
+        diff: Math.round((sumPosted - sumPlanned) * 100) / 100,
+      };
+    });
+
+    return {
+      rows: rows.filter((r) => r.periods.length > 0),
+      total_planned: rows.reduce((s, r) => s + r.sum_planned, 0),
+      total_posted: rows.reduce((s, r) => s + r.sum_posted, 0),
+    };
+  });
+
+export const reconcile242 = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { fromMonth: string; toMonth: string; account?: string }) =>
+    z
+      .object({
+        fromMonth: z.string().regex(/^\d{4}-\d{2}$/),
+        toMonth: z.string().regex(/^\d{4}-\d{2}$/),
+        account: z.string().min(1).max(20).default("242"),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const fromDate = `${data.fromMonth}-01`;
+    const [tY, tM] = data.toMonth.split("-").map(Number);
+    const toDate = new Date(tY, tM, 0).toISOString().slice(0, 10);
+
+    // Allocation entries side: sum amount per period_month for assets whose prepaid_account = data.account
+    const { data: assets } = await supabase
+      .from("allocated_assets")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("prepaid_account", data.account);
+    const ids = (assets ?? []).map((a) => a.id);
+
+    const subBy = new Map<string, number>();
+    if (ids.length > 0) {
+      const { data: entries } = await supabase
+        .from("allocation_entries")
+        .select("period_month,amount")
+        .in("asset_id", ids)
+        .gte("period_month", fromDate)
+        .lte("period_month", toDate);
+      for (const e of entries ?? []) {
+        const k = String(e.period_month).slice(0, 7);
+        subBy.set(k, (subBy.get(k) ?? 0) + Number(e.amount));
+      }
+    }
+
+    // Journal lines side: credit on `account` in journal_entries within range
+    const { data: lines } = await supabase
+      .from("journal_lines")
+      .select("credit, debit, journal_entries!inner(tenant_id, entry_date)")
+      .eq("account_code", data.account)
+      .eq("journal_entries.tenant_id", tenantId)
+      .gte("journal_entries.entry_date", fromDate)
+      .lte("journal_entries.entry_date", toDate);
+
+    const jeCreditBy = new Map<string, number>();
+    const jeDebitBy = new Map<string, number>();
+    for (const l of lines ?? []) {
+      const je: any = (l as any).journal_entries;
+      const k = String(je.entry_date).slice(0, 7);
+      jeCreditBy.set(k, (jeCreditBy.get(k) ?? 0) + Number(l.credit));
+      jeDebitBy.set(k, (jeDebitBy.get(k) ?? 0) + Number(l.debit));
+    }
+
+    const months: string[] = [];
+    const cur = new Date(Number(data.fromMonth.split("-")[0]), Number(data.fromMonth.split("-")[1]) - 1, 1);
+    const end = new Date(tY, tM - 1, 1);
+    while (cur <= end) {
+      months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+    const rows = months.map((m) => {
+      const sub = subBy.get(m) ?? 0;
+      const credit = jeCreditBy.get(m) ?? 0;
+      const debit = jeDebitBy.get(m) ?? 0;
+      return {
+        month: m,
+        sub_ledger: sub,
+        je_credit: credit,
+        je_debit: debit,
+        diff: Math.round((credit - sub) * 100) / 100,
+      };
+    });
+    return {
+      account: data.account,
+      rows,
+      total_sub: rows.reduce((s, r) => s + r.sub_ledger, 0),
+      total_credit: rows.reduce((s, r) => s + r.je_credit, 0),
+      total_debit: rows.reduce((s, r) => s + r.je_debit, 0),
+    };
+  });
