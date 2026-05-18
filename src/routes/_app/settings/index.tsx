@@ -43,11 +43,11 @@ function SettingsPage() {
         <div className="-mx-1 overflow-x-auto">
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="organization">Tổ chức</TabsTrigger>
-            <TabsTrigger value="members">Thành viên</TabsTrigger>
             <TabsTrigger value="company">Hồ sơ cá nhân</TabsTrigger>
+            <TabsTrigger value="members">Thành viên</TabsTrigger>
+            <TabsTrigger value="roles">Phân quyền</TabsTrigger>
             <TabsTrigger value="periods">Khoá sổ</TabsTrigger>
             <TabsTrigger value="fx">Tỷ giá</TabsTrigger>
-            <TabsTrigger value="roles">Phân quyền</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="organization"><OrganizationTab /></TabsContent>
