@@ -125,6 +125,17 @@ function SalesDetail() {
                 Mã CQT: <span className="font-mono">{inv.einvoice_code}</span>
               </p>
             )}
+            {linked?.einvoice && (
+              <Link
+                to="/einvoices/$id"
+                params={{ id: linked.einvoice.id }}
+                className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"
+              >
+                <FileText className="h-3 w-3" />
+                Đã gắn HĐĐT: {linked.einvoice.invoice_series ?? ""}
+                {linked.einvoice.invoice_no ?? ""}
+              </Link>
+            )}
           </div>
           <div className="text-right text-sm space-y-1">
             <div>Ngày HĐ: <strong>{inv.issue_date}</strong></div>
