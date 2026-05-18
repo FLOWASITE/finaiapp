@@ -272,7 +272,7 @@ function OrganizationTab() {
                     <Input disabled={!canEdit} value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="VD: Sở KH&ĐT TP. Hà Nội" />
                   </Field>
                   <Field label="Ngành nghề kinh doanh chính" className="md:col-span-2">
-                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => setForm({ ...form, industry_code: c, industry_name: n })} />
+                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => { setForm({ ...form, industry_code: c, industry_name: n }); setDirty(true); }} />
                   </Field>
                   <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.tax_authority ?? ""} onChange={(e) => set("tax_authority", e.target.value)} placeholder="VD: Chi cục Thuế Quận 1" />
