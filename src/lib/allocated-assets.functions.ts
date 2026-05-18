@@ -799,3 +799,173 @@ export const createAllocatedAssetsFromInvoice = createServerFn({ method: "POST" 
     if (error) throw new Error(error.message);
     return { created: created ?? [] };
   });
+
+// ============================================================
+// Step 5: Chuyển đổi TSCĐ → CCDC/CPTT (fa_conversion)
+// ============================================================
+
+export const listFixedAssetsForConversion = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { q?: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    let q = supabase
+      .from("fixed_assets")
+      .select(
+        "id, code, name, cost, salvage_value, useful_life_months, start_date, status, asset_account, accumulated_account, branch_id, department_id",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .order("code", { ascending: true })
+      .limit(500);
+    if (data.q?.trim()) {
+      const term = `%${data.q.trim()}%`;
+      q = q.or(`code.ilike.${term},name.ilike.${term}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const ids = (rows ?? []).map((r) => r.id);
+    let depBy = new Map<string, number>();
+    if (ids.length) {
+      const { data: deps } = await supabase
+        .from("depreciation_entries")
+        .select("asset_id, amount")
+        .in("asset_id", ids);
+      for (const d of deps ?? []) {
+        depBy.set(d.asset_id as string, (depBy.get(d.asset_id as string) ?? 0) + Number(d.amount));
+      }
+    }
+    return (rows ?? []).map((r) => {
+      const accumulated = Math.round((depBy.get(r.id) ?? 0) * 100) / 100;
+      const remaining = Math.round((Number(r.cost) - accumulated) * 100) / 100;
+      return { ...r, accumulated, remaining };
+    });
+  });
+
+export const convertFixedAssetToAllocated = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        fixed_asset_id: z.string().uuid(),
+        convert_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        code: z.string().trim().min(1).max(64),
+        name: z.string().trim().min(1).max(255),
+        category: Category.default("ccdc"),
+        periods_total: z.number().int().min(1).max(600),
+        period_unit: PeriodUnit.default("month"),
+        start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        prepaid_account: z.string().min(1).max(20).default("242"),
+        expense_account: z.string().min(1).max(20).default("6423"),
+        reason: z.string().max(500).optional().nullable(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { data: fa, error } = await supabase
+      .from("fixed_assets")
+      .select("*")
+      .eq("id", data.fixed_asset_id)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (error || !fa) throw new Error("Không tìm thấy TSCĐ");
+    if (fa.status !== "active") throw new Error("TSCĐ không ở trạng thái hoạt động");
+
+    const { data: deps } = await supabase
+      .from("depreciation_entries")
+      .select("amount")
+      .eq("asset_id", fa.id);
+    const accumulated =
+      Math.round(((deps ?? []).reduce((s, d) => s + Number(d.amount), 0)) * 100) / 100;
+    const cost = Number(fa.cost);
+    const remaining = Math.round((cost - accumulated) * 100) / 100;
+    if (remaining <= 0) throw new Error("Giá trị còn lại = 0, không cần chuyển đổi");
+
+    // 1) JE write-off TSCĐ: Nợ 214 (accumulated), Nợ 242 (remaining), Có 211 (cost)
+    const { data: je, error: jErr } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        entry_date: data.convert_date,
+        description: `Chuyển TSCĐ ${fa.name} (${fa.code}) sang CCDC/CPTT${data.reason ? `: ${data.reason}` : ""}`,
+      })
+      .select("id")
+      .single();
+    if (jErr || !je) throw new Error(jErr?.message ?? "Không tạo được bút toán");
+
+    const lines: Array<{
+      entry_id: string;
+      account_code: string;
+      debit: number;
+      credit: number;
+      line_order: number;
+    }> = [];
+    let order = 0;
+    if (accumulated > 0) {
+      lines.push({
+        entry_id: je.id,
+        account_code: fa.accumulated_account,
+        debit: accumulated,
+        credit: 0,
+        line_order: order++,
+      });
+    }
+    lines.push({
+      entry_id: je.id,
+      account_code: data.prepaid_account,
+      debit: remaining,
+      credit: 0,
+      line_order: order++,
+    });
+    lines.push({
+      entry_id: je.id,
+      account_code: fa.asset_account,
+      debit: 0,
+      credit: cost,
+      line_order: order++,
+    });
+    const { error: lErr } = await supabase.from("journal_lines").insert(lines);
+    if (lErr) throw new Error(lErr.message);
+
+    // 2) Create allocated_asset with cost = remaining
+    const { data: created, error: cErr } = await supabase
+      .from("allocated_assets")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        code: data.code,
+        name: data.name,
+        category: data.category,
+        source_type: "fa_conversion",
+        source_doc_table: "fixed_assets",
+        source_doc_id: fa.id,
+        quantity: 1,
+        cost: remaining,
+        allocated: 0,
+        periods_total: data.periods_total,
+        periods_done: 0,
+        period_unit: data.period_unit,
+        start_date: data.start_date,
+        method: "straight_line",
+        prepaid_account: data.prepaid_account,
+        expense_account: data.expense_account,
+        status: "active",
+        branch_id: fa.branch_id ?? null,
+        department_id: fa.department_id ?? null,
+        notes: `Chuyển từ TSCĐ ${fa.code}. NG ${cost}, KH luỹ kế ${accumulated}, GTCL ${remaining}`,
+      })
+      .select("id, code, name")
+      .single();
+    if (cErr) throw new Error(cErr.message);
+
+    // 3) Mark fixed asset disposed
+    await supabase
+      .from("fixed_assets")
+      .update({ status: "disposed" })
+      .eq("id", fa.id);
+
+    return { ok: true, created, journal_entry_id: je.id, accumulated, remaining };
+  });

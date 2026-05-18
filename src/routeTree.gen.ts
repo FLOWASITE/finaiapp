@@ -85,6 +85,7 @@ import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
+import { Route as AppAssetsFromFixedAssetRouteImport } from './routes/_app/assets/from-fixed-asset'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -475,6 +476,11 @@ const AppAssetsFromInvoiceRoute = AppAssetsFromInvoiceRouteImport.update({
   path: '/from-invoice',
   getParentRoute: () => AppAssetsRoute,
 } as any)
+const AppAssetsFromFixedAssetRoute = AppAssetsFromFixedAssetRouteImport.update({
+  id: '/from-fixed-asset',
+  path: '/from-fixed-asset',
+  getParentRoute: () => AppAssetsRoute,
+} as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   id: '/allocations',
   path: '/allocations',
@@ -530,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
@@ -609,6 +616,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
@@ -695,6 +703,7 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
@@ -781,6 +790,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
     | '/bank/accounts'
     | '/bank/book'
@@ -860,6 +870,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
     | '/bank/accounts'
     | '/bank/book'
@@ -945,6 +956,7 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/assets/from-fixed-asset'
     | '/_app/assets/from-invoice'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
@@ -1552,6 +1564,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsFromInvoiceRouteImport
       parentRoute: typeof AppAssetsRoute
     }
+    '/_app/assets/from-fixed-asset': {
+      id: '/_app/assets/from-fixed-asset'
+      path: '/from-fixed-asset'
+      fullPath: '/assets/from-fixed-asset'
+      preLoaderRoute: typeof AppAssetsFromFixedAssetRouteImport
+      parentRoute: typeof AppAssetsRoute
+    }
     '/_app/assets/allocations': {
       id: '/_app/assets/allocations'
       path: '/allocations'
@@ -1637,11 +1656,13 @@ const AppAssetsAllocationsRouteWithChildren =
 
 interface AppAssetsRouteChildren {
   AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
+  AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
 }
 
 const AppAssetsRouteChildren: AppAssetsRouteChildren = {
   AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
+  AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
 }
 

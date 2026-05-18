@@ -119,9 +119,12 @@ function AllocatedAssetsPage() {
             Sổ chi tiết TK 242 — theo dõi và phân bổ dần vào CPSXKD theo từng kỳ
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button asChild variant="outline">
             <Link to="/assets/from-invoice">Từ hoá đơn</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/assets/from-fixed-asset">Từ TSCĐ</Link>
           </Button>
           <RunAllocationDialog />
           <UpsertDialog />
