@@ -252,12 +252,12 @@ export const getStockReport = createServerFn({ method: "GET" })
 
 export const listMovements = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from?: string; to?: string; product_id?: string; type?: string }) => i)
+  .inputValidator((i: { from?: string; to?: string; product_id?: string; type?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     let q = supabase
       .from("stock_movements")
-      .select("*, products(code, name, unit)")
+      .select("*, products(code, name, unit), warehouses(code, name)")
       .order("movement_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
@@ -265,9 +265,40 @@ export const listMovements = createServerFn({ method: "POST" })
     if (data.to) q = q.lte("movement_date", data.to);
     if (data.product_id) q = q.eq("product_id", data.product_id);
     if (data.type && data.type !== "all") q = q.eq("movement_type", data.type);
+    if (data.warehouse_id && data.warehouse_id !== "all") {
+      if (data.warehouse_id === "none") q = q.is("warehouse_id", null);
+      else q = q.eq("warehouse_id", data.warehouse_id);
+    }
+    if (data.status === "posted") q = q.not("ref_id", "is", null);
+    else if (data.status === "unposted") q = q.is("ref_id", null);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows;
+  });
+
+export const getMovement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: mv, error } = await supabase
+      .from("stock_movements")
+      .select("*, products(code, name, unit, stock_account), warehouses(code, name)")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!mv) throw new Error("Không tìm thấy phiếu");
+    let entry: any = null;
+    let lines: any[] = [];
+    if (mv.ref_id) {
+      const [{ data: e }, { data: ls }] = await Promise.all([
+        supabase.from("journal_entries").select("*").eq("id", mv.ref_id).maybeSingle(),
+        supabase.from("journal_lines").select("*").eq("entry_id", mv.ref_id).order("line_order"),
+      ]);
+      entry = e;
+      lines = ls ?? [];
+    }
+    return { movement: mv, journal_entry: entry, journal_lines: lines };
   });
 
 export const inventoryDashboard = createServerFn({ method: "GET" })
