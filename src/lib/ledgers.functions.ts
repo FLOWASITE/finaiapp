@@ -238,19 +238,41 @@ export const getTrialBalance = createServerFn({ method: "POST" })
   .inputValidator((i: { from: string; to: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), dims: data.dims });
-    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, dims: data.dims });
     const map = new Map<string, { opening: number; debit: number; credit: number }>();
-    for (const l of before) {
-      const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
-      m.opening += l.debit - l.credit;
-      map.set(l.account_code, m);
-    }
-    for (const l of period) {
-      const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
-      m.debit += l.debit;
-      m.credit += l.credit;
-      map.set(l.account_code, m);
+
+    if (!hasDims(data.dims) && isMonthAligned(data.from, data.to)) {
+      const fromYm = ym(new Date(data.from));
+      const toYm = ym(new Date(data.to));
+      const { data: rows } = await supabase
+        .from("account_period_balances")
+        .select("account_code, year, period_no, debit, credit");
+      for (const r of rows ?? []) {
+        const code = r.account_code as string;
+        const yy = Number(r.year);
+        const pp = Number(r.period_no);
+        const dr = Number(r.debit) || 0;
+        const cr = Number(r.credit) || 0;
+        const m = map.get(code) ?? { opening: 0, debit: 0, credit: 0 };
+        const before = yy < fromYm.y || (yy === fromYm.y && pp < fromYm.p);
+        const after = yy > toYm.y || (yy === toYm.y && pp > toYm.p);
+        if (before) m.opening += dr - cr;
+        else if (!after) { m.debit += dr; m.credit += cr; }
+        map.set(code, m);
+      }
+    } else {
+      const before = await fetchLines(supabase, userId, { to: prevDay(data.from), dims: data.dims });
+      const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, dims: data.dims });
+      for (const l of before) {
+        const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
+        m.opening += l.debit - l.credit;
+        map.set(l.account_code, m);
+      }
+      for (const l of period) {
+        const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
+        m.debit += l.debit;
+        m.credit += l.credit;
+        map.set(l.account_code, m);
+      }
     }
     const { data: coa } = await supabase.from("chart_of_accounts").select("code, name");
     const nameMap = new Map((coa ?? []).map((r: any) => [r.code, r.name as string]));
