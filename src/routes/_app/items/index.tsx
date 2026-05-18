@@ -174,16 +174,6 @@ const emptyForm = () => ({
   notes: "",
 });
 
-function genCode(type: ItemType, existing: string[]): string {
-  const prefix = CODE_PREFIX[type];
-  const nums = existing
-    .filter((c) => c?.startsWith(prefix))
-    .map((c) => parseInt(c.slice(prefix.length), 10))
-    .filter((n) => !isNaN(n));
-  const next = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `${prefix}${String(next).padStart(4, "0")}`;
-}
-
 function ProductDialog({ categories, existingCodes }: { categories: any[]; existingCodes: string[] }) {
   const upsert = useServerFn(upsertProduct);
   const qc = useQueryClient();
