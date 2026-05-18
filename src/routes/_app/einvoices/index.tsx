@@ -164,7 +164,13 @@ function EInvoicesPage() {
             Quản lý HĐĐT đầu ra & đầu vào, kết nối Tổng cục Thuế.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild title="Khai báo tài khoản TCT">
+            <Link to="/einvoices/credentials">
+              <KeyRound className="mr-2 h-4 w-4" />
+              Tài khoản TCT
+            </Link>
+          </Button>
           <Button
             variant="outline"
             onClick={() => autoMatchMut.mutate()}
