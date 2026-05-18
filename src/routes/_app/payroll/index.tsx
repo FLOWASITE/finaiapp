@@ -159,7 +159,9 @@ function EmployeesTab() {
           <TableBody>
             {data.map((e: any) => (
               <TableRow key={e.id}>
-                <TableCell className="font-mono">{e.code}</TableCell>
+                <TableCell className="font-mono">
+                  <Link to="/payroll/employees/$id" params={{ id: e.id }} className="text-primary hover:underline">{e.code}</Link>
+                </TableCell>
                 <TableCell>{e.full_name}</TableCell>
                 <TableCell>{e.position}</TableCell>
                 <TableCell className="text-right">{fmt(e.base_salary)}</TableCell>
