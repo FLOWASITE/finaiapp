@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Plus, Pencil, Trash2, Landmark, AlertCircle } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -76,9 +77,7 @@ function AccountsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{accounts.length} tài khoản</p>
-        <Button variant="add" onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Thêm tài khoản
-        </Button>
+        <AddNew label="Thêm tài khoản" onClick={() => { setEditing(null); setOpen(true); }} />
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">

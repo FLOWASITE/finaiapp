@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { listMembers, inviteMember, updateMemberRole, removeMember, revokeInvitation } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -48,7 +49,7 @@ function MembersPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Thành viên</h2>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button variant="add" size="sm"><UserPlus className="mr-1.5 h-4 w-4" />Mời thành viên</Button></DialogTrigger>
+          <DialogTrigger asChild><AddNew size="sm" icon={UserPlus} label="Mời thành viên" /></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Mời thành viên mới</DialogTitle></DialogHeader>
             <div className="space-y-3">

@@ -7,6 +7,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
 import { runMonthlyDepreciation } from "@/lib/assets.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -139,7 +140,7 @@ function Assets() {
               <Input placeholder="TK HM" value={form.accumulated_account} onChange={(e) => setForm({ ...form, accumulated_account: e.target.value })} />
               <Input placeholder="TK CP" value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} />
             </div>
-            <Button variant="add" className="w-full" onClick={create}><Plus className="mr-1 h-4 w-4" /> Thêm</Button>
+            <AddNew className="w-full" onClick={create} label="Thêm" />
           </div>
         </div>
       </div>

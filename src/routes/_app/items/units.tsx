@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { listUnits, upsertUnit, deleteUnit, seedCommonUnits } from "@/lib/units.functions";
 import { COMMON_UNITS, findCommonUnit, suggestCommonUnits } from "@/lib/common-units";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -243,7 +244,7 @@ function UnitDialog({ unit }: { unit?: any }) {
         {unit ? (
           <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
         ) : (
-          <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm đơn vị</Button>
+          <AddNew label="Thêm đơn vị" />
         )}
       </DialogTrigger>
       <DialogContent>

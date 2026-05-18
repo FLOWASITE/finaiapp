@@ -10,6 +10,7 @@ import {
   setDefaultWarehouse,
 } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -114,14 +115,13 @@ function WarehousesPage() {
             được gắn với một kho cụ thể.
           </p>
         </div>
-        <Button variant="add"
+        <AddNew
+          label="Thêm kho"
           onClick={() => {
             setEditing(null);
             setDialogOpen(true);
           }}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Thêm kho
-        </Button>
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -187,15 +187,14 @@ function WarehousesPage() {
                   <div className="flex flex-col items-center gap-2">
                     <WarehouseIcon className="h-8 w-8 opacity-40" />
                     <div>Chưa có kho nào. Hãy thêm kho đầu tiên.</div>
-                    <Button variant="add"
+                    <AddNew
                       size="sm"
+                      label="Thêm kho"
                       onClick={() => {
                         setEditing(null);
                         setDialogOpen(true);
                       }}
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> Thêm kho
-                    </Button>
+                    />
                   </div>
                 </td>
               </tr>

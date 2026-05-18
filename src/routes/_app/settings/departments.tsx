@@ -6,6 +6,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listDepartments, upsertDepartment, deleteDepartment, listBranches } from "@/lib/dimensions.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -99,7 +100,7 @@ function DeptDialog({ row, rows, branches }: { row?: any; rows: any[]; branches:
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm phòng ban</Button>}
+        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <AddNew label="Thêm phòng ban" />}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>{row ? "Sửa phòng ban" : "Thêm phòng ban"}</DialogTitle></DialogHeader>

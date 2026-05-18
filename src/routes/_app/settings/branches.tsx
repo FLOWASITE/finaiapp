@@ -6,6 +6,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBranches, upsertBranch, deleteBranch } from "@/lib/dimensions.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -90,7 +91,7 @@ function BranchDialog({ row }: { row?: any }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm chi nhánh</Button>}
+        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <AddNew label="Thêm chi nhánh" />}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>{row ? "Sửa chi nhánh" : "Thêm chi nhánh"}</DialogTitle></DialogHeader>
