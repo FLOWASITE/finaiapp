@@ -908,7 +908,7 @@ export const updateStockVoucher = createServerFn({ method: "POST" })
       {
         id: hdr.id,
         voucher_no: orig.voucher_no,
-        voucher_type: orig.voucher_type,
+        voucher_type: orig.voucher_type as "in" | "out",
         voucher_date: data.voucher_date,
         warehouse_id: data.warehouse_id ?? null,
         counter_account: data.counter_account,
