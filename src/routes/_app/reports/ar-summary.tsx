@@ -584,7 +584,9 @@ function ArSummaryPage() {
 
               <div>
                 <div className="mb-2 text-sm font-semibold">
-                  Chứng từ ({drillFiltered.lines.length}{drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""})
+                  Chứng từ ({drillGroupByDoc
+                    ? `${drillDisplayRows.length} chứng từ / ${drillFiltered.lines.length} dòng`
+                    : `${drillFiltered.lines.length}${drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""}`})
                 </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
@@ -593,20 +595,20 @@ function ArSummaryPage() {
                         <th className="px-3 py-2 text-left">Ngày</th>
                         <th className="px-3 py-2 text-left">Loại</th>
                         <th className="px-3 py-2 text-left">Số CT</th>
-                        <th className="px-3 py-2 text-left">Diễn giải</th>
+                        <th className="px-3 py-2 text-left">{drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải"}</th>
                         <th className="px-3 py-2 text-right">Nợ</th>
                         <th className="px-3 py-2 text-right">Có</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const total = drillFiltered.lines.length;
+                        const total = drillDisplayRows.length;
                         const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
                         const page = Math.min(drillPage, totalPages);
                         const start = (page - 1) * drillPageSize;
-                        const slice = drillFiltered.lines.slice(start, start + drillPageSize);
-                        return slice.map((l, i) => (
-                          <tr key={l.entry_id + (start + i)} className="border-t border-border align-top">
+                        const slice = drillDisplayRows.slice(start, start + drillPageSize);
+                        return slice.map((l) => (
+                          <tr key={l.key} className="border-t border-border align-top">
                             <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
                             <td className="px-3 py-1.5">
                               <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
@@ -630,6 +632,9 @@ function ArSummaryPage() {
                               ) : (
                                 l.doc_no ?? "—"
                               )}
+                              {drillGroupByDoc && l.line_count > 1 && (
+                                <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
+                              )}
                             </td>
                             <td className="px-3 py-1.5 text-muted-foreground">
                               {l.description}
@@ -639,7 +644,7 @@ function ArSummaryPage() {
                           </tr>
                         ));
                       })()}
-                      {drillFiltered.lines.length === 0 && (
+                      {drillDisplayRows.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                             Không có chứng từ trong kỳ
@@ -648,6 +653,7 @@ function ArSummaryPage() {
                       )}
                     </tbody>
                   </table>
+
                 </div>
                 {drillFiltered.lines.length > 0 && (() => {
                   const total = drillFiltered.lines.length;
