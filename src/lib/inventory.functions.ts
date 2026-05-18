@@ -88,6 +88,7 @@ const MovementSchema = z.object({
   unit_cost: z.number().min(0),
   movement_date: z.string(),
   note: z.string().max(255).optional(),
+  warehouse_id: z.string().uuid().nullable().optional(),
 });
 
 export const recordMovement = createServerFn({ method: "POST" })
@@ -128,6 +129,7 @@ export const recordMovement = createServerFn({ method: "POST" })
       movement_date: data.movement_date,
       note: data.note,
       ref_type: "manual",
+      warehouse_id: data.warehouse_id ?? null,
     });
 
     await supabase
