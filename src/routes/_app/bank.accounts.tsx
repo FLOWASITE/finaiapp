@@ -1,19 +1,56 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { z } from "zod";
+import { Plus, Pencil, Trash2, Landmark, AlertCircle } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NumberInput } from "@/components/ui/number-input";
 
 export const Route = createFileRoute("/_app/bank/accounts")({ component: AccountsPage });
 
 const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
+
+// Common Vietnamese banks for quick selection
+const VN_BANKS = [
+  "Vietcombank", "VietinBank", "BIDV", "Agribank", "Techcombank", "MB Bank",
+  "ACB", "VPBank", "Sacombank", "TPBank", "HDBank", "SHB", "VIB", "OCB",
+  "SeABank", "MSB", "Eximbank", "LienVietPostBank", "PVcomBank", "ABBank",
+  "Nam A Bank", "Bac A Bank", "KienlongBank", "Saigonbank", "BaoVietBank",
+  "PG Bank", "VietCapitalBank", "DongA Bank", "NCB", "VietABank",
+  "Public Bank Vietnam", "Shinhan Bank", "Standard Chartered", "HSBC",
+  "Citibank", "UOB", "ANZ", "Woori Bank",
+];
+
+const GL_OPTIONS = [
+  { code: "1121", label: "1121 — Tiền gửi NH (VND)" },
+  { code: "1122", label: "1122 — Tiền gửi NH (ngoại tệ)" },
+  { code: "1123", label: "1123 — Tiền gửi NH (vàng bạc, đá quý)" },
+];
+
+const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP", "SGD", "CNY", "KRW", "AUD"];
+
+const FormSchema = z.object({
+  name: z.string().trim().min(1, "Tên tài khoản bắt buộc").max(120, "Tối đa 120 ký tự"),
+  bank_name: z.string().trim().max(120).optional().nullable(),
+  account_no: z
+    .string()
+    .trim()
+    .max(40, "Tối đa 40 ký tự")
+    .regex(/^[0-9 \-.]*$/, "Chỉ chứa số, dấu cách, gạch hoặc dấu chấm")
+    .optional()
+    .nullable(),
+  currency: z.string().min(3).max(8),
+  gl_account_code: z.string().min(3).max(20),
+  opening_balance: z.number().min(0, "Không được âm"),
+});
+type FormValues = z.infer<typeof FormSchema>;
 
 function AccountsPage() {
   const qc = useQueryClient();
@@ -58,7 +95,7 @@ function AccountsPage() {
           </thead>
           <tbody>
             {accounts.map((a: any) => (
-              <tr key={a.id} className="border-t border-border">
+              <tr key={a.id} className="border-t border-border hover:bg-muted/30">
                 <td className="px-4 py-2 font-medium">{a.name}</td>
                 <td className="px-4 py-2">{a.bank_name || "—"}</td>
                 <td className="px-4 py-2 font-mono text-xs">{a.account_no || "—"}</td>
@@ -67,14 +104,19 @@ function AccountsPage() {
                 <td className="px-4 py-2 text-right font-mono">{fmt(Number(a.opening_balance ?? 0))}</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(a.current_balance ?? 0)}</td>
                 <td className="px-4 py-2 text-right text-xs text-muted-foreground">{a.txn_count ?? 0}</td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-4 py-2 text-right space-x-1">
                   <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setOpen(true); }}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost"
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={(a.txn_count ?? 0) > 0}
+                    title={(a.txn_count ?? 0) > 0 ? "Đã có giao dịch — không thể xoá" : "Xoá"}
                     onClick={() => {
                       if (confirm(`Xoá tài khoản "${a.name}"?`)) del.mutate(a.id);
-                    }}>
+                    }}
+                  >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </td>
@@ -96,70 +138,31 @@ function AccountsPage() {
   );
 }
 
-function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: any }) {
-  const qc = useQueryClient();
-  const upsert = useServerFn(upsertBankAccount);
-  const [name, setName] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [accountNo, setAccountNo] = useState("");
-  const [currency, setCurrency] = useState("VND");
-  const [gl, setGl] = useState("1121");
-  const [opening, setOpening] = useState("0");
-
-  // Reset when opening
-  useState(() => {
-    if (open) {
-      setName(editing?.name ?? "");
-      setBankName(editing?.bank_name ?? "");
-      setAccountNo(editing?.account_no ?? "");
-      setCurrency(editing?.currency ?? "VND");
-      setGl(editing?.gl_account_code ?? "1121");
-      setOpening(String(editing?.opening_balance ?? 0));
-    }
-  });
-  // Use effect via state initializer trick won't fire on prop change; use proper effect:
-  // (Lightweight: keyed remount instead)
-  if ((globalThis as any).__lastEditingId !== editing?.id || (globalThis as any).__lastOpen !== open) {
-    (globalThis as any).__lastEditingId = editing?.id;
-    (globalThis as any).__lastOpen = open;
-  }
-
-  const m = useMutation({
-    mutationFn: () =>
-      upsert({
-        data: {
-          id: editing?.id,
-          name: name.trim(),
-          bank_name: bankName.trim() || null,
-          account_no: accountNo.trim() || null,
-          currency,
-          gl_account_code: gl,
-          opening_balance: Number(opening.replace(/[^\d.-]/g, "")) || 0,
-        },
-      }),
-    onSuccess: () => {
-      toast.success(editing ? "Đã cập nhật" : "Đã tạo tài khoản");
-      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
-      onOpenChange(false);
-    },
-    onError: (e: any) => toast.error(e?.message || "Lỗi"),
-  });
-
+function AccountDialog({
+  open,
+  onOpenChange,
+  editing,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: any;
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>{editing ? "Sửa tài khoản ngân hàng" : "Thêm tài khoản ngân hàng"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Landmark className="h-5 w-5 text-primary" />
+            {editing ? "Sửa tài khoản ngân hàng" : "Thêm tài khoản ngân hàng"}
+          </DialogTitle>
+          <DialogDescription>
+            Tài khoản dùng để ghi nhận thu/chi qua ngân hàng và đối soát sao kê.
+          </DialogDescription>
         </DialogHeader>
         <AccountForm
-          key={editing?.id || "new"}
+          key={editing?.id ?? "new"}
           initial={editing}
-          onSubmit={(v) => {
-            setName(v.name); setBankName(v.bank_name); setAccountNo(v.account_no);
-            setCurrency(v.currency); setGl(v.gl); setOpening(v.opening);
-            setTimeout(() => m.mutate(), 0);
-          }}
-          submitting={m.isPending}
+          onDone={() => onOpenChange(false)}
           onCancel={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -168,79 +171,204 @@ function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenC
 }
 
 function AccountForm({
-  initial, onSubmit, submitting, onCancel,
+  initial,
+  onDone,
+  onCancel,
 }: {
   initial: any;
-  onSubmit: (v: { name: string; bank_name: string; account_no: string; currency: string; gl: string; opening: string }) => void;
-  submitting: boolean;
+  onDone: () => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [bankName, setBankName] = useState(initial?.bank_name ?? "");
-  const [accountNo, setAccountNo] = useState(initial?.account_no ?? "");
-  const [currency, setCurrency] = useState(initial?.currency ?? "VND");
-  const [gl, setGl] = useState(initial?.gl_account_code ?? "1121");
-  const [opening, setOpening] = useState(String(initial?.opening_balance ?? 0));
+  const qc = useQueryClient();
+  const upsert = useServerFn(upsertBankAccount);
+  const isEdit = !!initial?.id;
+
+  const [form, setForm] = useState<FormValues>({
+    name: initial?.name ?? "",
+    bank_name: initial?.bank_name ?? "",
+    account_no: initial?.account_no ?? "",
+    currency: initial?.currency ?? "VND",
+    gl_account_code: initial?.gl_account_code ?? "1121",
+    opening_balance: Number(initial?.opening_balance ?? 0),
+  });
+  const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
+
+  // Auto-suggest GL by currency: VND → 1121, ngoại tệ → 1122
+  useEffect(() => {
+    setForm((f) => {
+      if (f.currency === "VND" && f.gl_account_code === "1122") return { ...f, gl_account_code: "1121" };
+      if (f.currency !== "VND" && f.gl_account_code === "1121") return { ...f, gl_account_code: "1122" };
+      return f;
+    });
+  }, [form.currency]);
+
+  // Auto-fill account name from bank + last 4 digits if name is empty
+  const autoSuggestedName = useMemo(() => {
+    const bank = (form.bank_name ?? "").trim();
+    const acc = (form.account_no ?? "").replace(/\D/g, "");
+    if (!bank) return "";
+    const tail = acc.length >= 4 ? ` - ${acc.slice(-4)}` : "";
+    return `${bank}${tail}`;
+  }, [form.bank_name, form.account_no]);
+
+  const update = <K extends keyof FormValues>(k: K, v: FormValues[K]) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: undefined }));
+  };
+
+  const m = useMutation({
+    mutationFn: (values: FormValues) =>
+      upsert({
+        data: {
+          id: initial?.id,
+          name: values.name,
+          bank_name: values.bank_name || null,
+          account_no: values.account_no || null,
+          currency: values.currency,
+          gl_account_code: values.gl_account_code,
+          opening_balance: values.opening_balance,
+        } as any,
+      }),
+    onSuccess: () => {
+      toast.success(isEdit ? "Đã cập nhật tài khoản" : "Đã thêm tài khoản");
+      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      onDone();
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi"),
+  });
+
+  const submit = () => {
+    const result = FormSchema.safeParse(form);
+    if (!result.success) {
+      const fieldErrors: Partial<Record<keyof FormValues, string>> = {};
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as keyof FormValues;
+        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      setErrors(fieldErrors);
+      toast.error("Vui lòng kiểm tra lại các trường");
+      return;
+    }
+    m.mutate(result.data);
+  };
 
   return (
-    <div className="space-y-3">
-      <div>
-        <Label className="text-xs">Tên tài khoản *</Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: VCB - Tài khoản chính" />
-      </div>
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs">Ngân hàng</Label>
-          <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Vietcombank" />
-        </div>
-        <div>
-          <Label className="text-xs">Số tài khoản</Label>
-          <Input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} placeholder="0123456789" className="font-mono" />
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Tiền tệ</Label>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="VND">VND</SelectItem>
-              <SelectItem value="USD">USD</SelectItem>
-              <SelectItem value="EUR">EUR</SelectItem>
-              <SelectItem value="JPY">JPY</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">TK kế toán</Label>
-          <Select value={gl} onValueChange={setGl}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1121">1121 — TGNH VND</SelectItem>
-              <SelectItem value="1122">1122 — TGNH ngoại tệ</SelectItem>
-              <SelectItem value="1123">1123 — TGNH vàng bạc</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Số dư đầu kỳ</Label>
+        <Field label="Ngân hàng" hint="Chọn hoặc gõ tự do">
           <Input
-            value={opening}
-            onChange={(e) => setOpening(e.target.value)}
-            className="text-right font-mono"
-            inputMode="numeric"
+            list="vn-banks"
+            value={form.bank_name ?? ""}
+            onChange={(e) => update("bank_name", e.target.value)}
+            placeholder="Vietcombank, BIDV, MB Bank..."
+            maxLength={120}
           />
-        </div>
+          <datalist id="vn-banks">
+            {VN_BANKS.map((b) => <option key={b} value={b} />)}
+          </datalist>
+        </Field>
+        <Field label="Số tài khoản" error={errors.account_no}>
+          <Input
+            value={form.account_no ?? ""}
+            onChange={(e) => update("account_no", e.target.value.replace(/[^\d \-.]/g, ""))}
+            placeholder="0123 4567 8910"
+            className="font-mono"
+            inputMode="numeric"
+            maxLength={40}
+          />
+        </Field>
       </div>
+
+      <Field
+        label="Tên hiển thị *"
+        error={errors.name}
+        hint={!form.name && autoSuggestedName ? "Bấm để dùng gợi ý" : undefined}
+      >
+        <div className="flex gap-2">
+          <Input
+            value={form.name}
+            onChange={(e) => update("name", e.target.value)}
+            placeholder="VD: VCB - Tài khoản chính"
+            maxLength={120}
+            autoFocus={!isEdit}
+          />
+          {!form.name && autoSuggestedName && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => update("name", autoSuggestedName)}
+            >
+              Dùng "{autoSuggestedName}"
+            </Button>
+          )}
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Tiền tệ *">
+          <Select value={form.currency} onValueChange={(v) => update("currency", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="TK kế toán *">
+          <Select value={form.gl_account_code} onValueChange={(v) => update("gl_account_code", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {GL_OPTIONS.map((g) => <SelectItem key={g.code} value={g.code}>{g.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Số dư đầu kỳ" error={errors.opening_balance} hint={isEdit ? "Sửa cẩn thận — ảnh hưởng số dư hiện tại" : undefined}>
+          <NumberInput
+            value={form.opening_balance}
+            onChange={(v) => update("opening_balance", Number(v) || 0)}
+            min={0}
+          />
+        </Field>
+      </div>
+
+      {isEdit && (initial?.txn_count ?? 0) > 0 && (
+        <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs p-2.5 border border-amber-200 dark:border-amber-900">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>Tài khoản đã có {initial.txn_count} giao dịch. Việc thay đổi tiền tệ hoặc TK kế toán có thể ảnh hưởng báo cáo.</span>
+        </div>
+      )}
+
       <DialogFooter>
-        <Button variant="outline" onClick={onCancel}>Huỷ</Button>
-        <Button
-          disabled={!name.trim() || submitting}
-          onClick={() => onSubmit({ name, bank_name: bankName, account_no: accountNo, currency, gl, opening })}
-        >
-          {submitting ? "Đang lưu…" : "Lưu"}
+        <Button variant="outline" onClick={onCancel} disabled={m.isPending}>Huỷ</Button>
+        <Button onClick={submit} disabled={m.isPending}>
+          {m.isPending ? "Đang lưu…" : isEdit ? "Cập nhật" : "Thêm tài khoản"}
         </Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  error,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      {children}
+      {error ? (
+        <p className="text-[11px] text-destructive">{error}</p>
+      ) : hint ? (
+        <p className="text-[11px] text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }
