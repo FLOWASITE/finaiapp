@@ -205,8 +205,10 @@ export const verifyTctLogin = createServerFn({ method: "POST" })
 export const getTctCaptcha = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
+    const base = getTctBase();
+    const hasProxy = !!process.env.TCT_PROXY_URL;
     try {
-      const res = await fetch(`${TCT_BASE}/captcha`, {
+      const res = await fetch(`${base}/captcha`, {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(15000),
       });
@@ -231,9 +233,10 @@ export const getTctCaptcha = createServerFn({ method: "POST" })
         ok: false as const,
         key: "",
         svg: "",
-        error:
-          `Không kết nối được tới hệ thống HĐĐT của Tổng cục Thuế (${TCT_BASE}). ` +
-          `Máy chủ Lovable Cloud có thể bị chặn outbound tới cổng :30000. Chi tiết: ${msg}`,
+        error: hasProxy
+          ? `Không kết nối được tới proxy TCT (${base}). Kiểm tra TCT_PROXY_URL có online & HTTPS hợp lệ. Chi tiết: ${msg}`
+          : `Lovable Cloud (Cloudflare Workers) không gọi trực tiếp được tới cổng :30000 của TCT (${TCT_BASE_LABEL}). ` +
+            `Hãy tự host một HTTPS proxy (xem docs/tct-proxy/README.md) và thiết lập secret TCT_PROXY_URL. Chi tiết: ${msg}`,
       };
     }
   });
