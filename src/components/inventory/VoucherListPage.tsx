@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listMovements, getMovement } from "@/lib/inventory.functions";
+import { listMovements, getMovement, cancelMovement, updateMovement } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Warehouse } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Trash2, Warehouse } from "lucide-react";
+import { toast } from "sonner";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -206,6 +208,12 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose: () => void; type: "in" | "out" }) {
   const get = useServerFn(getMovement);
+  const cancelFn = useServerFn(cancelMovement);
+  const updateFn = useServerFn(updateMovement);
+  const qc = useQueryClient();
+  const whsFn = useServerFn(listWarehouses);
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn() });
+
   const { data, isLoading } = useQuery({
     queryKey: ["movement", id],
     queryFn: () => get({ data: { id: id! } }),
@@ -215,6 +223,66 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
   const mv = data?.movement as any;
   const voucherNo = (mv?.note ?? "").split(" — ")[0] || "—";
   const noteRest = (mv?.note ?? "").split(" — ").slice(1).join(" — ");
+
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    qty: 0,
+    unit_cost: 0,
+    movement_date: "",
+    note: "",
+    warehouse_id: "none",
+  });
+
+  useEffect(() => {
+    if (mv) {
+      setForm({
+        qty: Number(mv.qty),
+        unit_cost: Number(mv.unit_cost),
+        movement_date: mv.movement_date,
+        note: noteRest,
+        warehouse_id: mv.warehouse_id ?? "none",
+      });
+      setEditing(false);
+    }
+  }, [mv?.id]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["movements-list"] });
+    qc.invalidateQueries({ queryKey: ["movement", id] });
+    qc.invalidateQueries({ queryKey: ["stock-report"] });
+    qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+  };
+
+  const cancelMut = useMutation({
+    mutationFn: () => cancelFn({ data: { id: mv.id } }),
+    onSuccess: () => {
+      toast.success("Đã huỷ phiếu và đảo bút toán");
+      invalidate();
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không huỷ được phiếu"),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: () =>
+      updateFn({
+        data: {
+          id: mv.id,
+          qty: Number(form.qty),
+          unit_cost: Number(form.unit_cost),
+          movement_date: form.movement_date,
+          note: form.note || undefined,
+          warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Đã cập nhật phiếu và bút toán");
+      invalidate();
+      setEditing(false);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không cập nhật được phiếu"),
+  });
 
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
@@ -226,6 +294,49 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
         </DialogHeader>
         {isLoading || !mv ? (
           <div className="py-8 text-center text-muted-foreground">Đang tải…</div>
+        ) : editing ? (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Số phiếu" value={voucherNo} mono />
+              <Field label="Mặt hàng" value={`${mv.products?.code} — ${mv.products?.name}`} />
+              <div className="space-y-1">
+                <Label className="text-xs">Ngày</Label>
+                <Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Kho</Label>
+                <Select value={form.warehouse_id} onValueChange={(v) => setForm({ ...form, warehouse_id: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">(Không gán kho)</SelectItem>
+                    {(warehouses ?? []).map((w: any) => (
+                      <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Số lượng</Label>
+                <Input type="number" step="any" value={form.qty} onChange={(e) => setForm({ ...form, qty: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">
+                  Đơn giá {type === "out" && <span className="text-muted-foreground">(xuất theo giá BQ — bỏ qua)</span>}
+                </Label>
+                <Input type="number" step="any" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} disabled={type === "out"} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Diễn giải</Label>
+              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditing(false)}>Huỷ</Button>
+              <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
+                {updateMut.isPending ? "Đang lưu…" : "Lưu thay đổi"}
+              </Button>
+            </DialogFooter>
+          </div>
         ) : (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -265,6 +376,34 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
                 </div>
               </div>
             )}
+
+            <DialogFooter className="gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-1" /> Huỷ phiếu
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Huỷ phiếu {voucherNo}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Phiếu sẽ bị xoá, bút toán liên quan sẽ bị đảo và tồn kho sẽ được tính lại.
+                      Thao tác này không thể hoàn tác.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Đóng</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelMut.mutate()}>
+                      Xác nhận huỷ
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                <Pencil className="h-4 w-4 mr-1" /> Sửa phiếu
+              </Button>
+            </DialogFooter>
           </div>
         )}
       </DialogContent>
