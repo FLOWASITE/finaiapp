@@ -98,13 +98,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Báo cáo",
-    entries: [
-      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
-      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
-    ],
-  },
-  {
     label: "Hệ thống",
     entries: [
       { to: "/admin", label: "Quản trị", icon: Shield },
@@ -161,6 +154,29 @@ const TAX_SECTIONS: NavSection[] = [
   },
 ];
 
+const REPORTS_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Báo cáo",
+    entries: [
+      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
+    ],
+  },
+  {
+    label: "Liên kết",
+    entries: [
+      { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
+      { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+    ],
+  },
+];
+
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
   { label: "Lập BCTC quý gần nhất", to: "/reports" },
@@ -202,7 +218,14 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
   const inTaxModule = pathname.startsWith("/tax");
-  const activeSections = inTaxModule ? TAX_SECTIONS : inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
+  const inReportsModule = pathname.startsWith("/reports");
+  const activeSections = inTaxModule
+    ? TAX_SECTIONS
+    : inReportsModule
+    ? REPORTS_SECTIONS
+    : inEinvoiceModule
+    ? EINVOICE_SECTIONS
+    : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
