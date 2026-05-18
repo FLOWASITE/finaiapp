@@ -14,6 +14,10 @@ import {
   AlertCircle,
   PlayCircle,
   ExternalLink,
+  FileText,
+  ArrowRightLeft,
+  BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,176 +112,214 @@ function AllocatedAssetsPage() {
 
   const list = useMemo(() => rows ?? [], [rows]);
 
+  const totalCost = Number(summary?.total_cost ?? 0);
+  const totalAllocated = Number(summary?.total_allocated ?? 0);
+  const allocPct = totalCost > 0 ? Math.min(100, Math.round((totalAllocated / totalCost) * 100)) : 0;
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            Tài sản phân bổ (CCDC / Chi phí trả trước)
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Sổ chi tiết TK 242 — theo dõi và phân bổ dần vào CPSXKD theo từng kỳ
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button asChild variant="outline">
-            <Link to="/assets/from-invoice">Từ hoá đơn</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/assets/from-fixed-asset">Từ TSCĐ</Link>
-          </Button>
-          <RunAllocationDialog />
-          <UpsertDialog />
+    <div className="space-y-6">
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-indigo-50 via-background to-sky-50 dark:from-indigo-950/40 dark:via-background dark:to-sky-950/40">
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
+             style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "16px 16px" }} />
+        <div className="relative p-5 sm:p-6 lg:p-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/40 rounded-full px-3 py-1 w-fit">
+              <Sparkles className="h-3 w-3" /> TK 242 — Sổ chi tiết chi phí trả trước
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Tài sản phân bổ
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Quản lý CCDC & chi phí trả trước, tự sinh bút toán phân bổ định kỳ Nợ 6xx / Có 242
+              và đối chiếu trực tiếp với Sổ Cái.
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button asChild variant="outline" size="sm" className="bg-background/60 backdrop-blur">
+              <Link to="/assets/from-invoice"><FileText className="h-4 w-4 mr-1.5" />Từ hoá đơn</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="bg-background/60 backdrop-blur">
+              <Link to="/assets/from-fixed-asset"><ArrowRightLeft className="h-4 w-4 mr-1.5" />Từ TSCĐ</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="bg-background/60 backdrop-blur">
+              <Link to="/reports/allocation-schedule"><BarChart3 className="h-4 w-4 mr-1.5" />Bảng phân bổ</Link>
+            </Button>
+            <RunAllocationDialog />
+            <UpsertDialog />
+          </div>
         </div>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <KpiCard
-          icon={<Layers className="h-4 w-4" />}
-          label="Tổng nguyên giá"
-          value={fmt(summary?.total_cost ?? 0)}
-          sub={`${summary?.count ?? 0} tài sản`}
-        />
-        <KpiCard
-          icon={<TrendingDown className="h-4 w-4" />}
-          label="Đã phân bổ"
-          value={fmt(summary?.total_allocated ?? 0)}
-          tone="text-emerald-600"
-        />
-        <KpiCard
-          icon={<Wallet className="h-4 w-4" />}
-          label="Giá trị còn lại"
-          value={fmt(summary?.remaining ?? 0)}
-          tone="text-primary"
-        />
-        <KpiCard
-          icon={<AlertCircle className="h-4 w-4" />}
-          label="Sắp hết kỳ"
-          value={String(summary?.ending_soon ?? 0)}
-          sub="≤ 3 kỳ còn lại"
-          tone="text-amber-600"
-        />
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1 sm:min-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Tìm theo mã hoặc tên…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+      <div className="px-4 sm:px-6 lg:px-8 space-y-6 pb-8">
+        {/* KPI strip */}
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            icon={<Layers className="h-4 w-4" />}
+            iconBg="bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
+            label="Tổng nguyên giá"
+            value={fmt(totalCost)}
+            sub={`${summary?.count ?? 0} tài sản đang theo dõi`}
+          />
+          <KpiCard
+            icon={<TrendingDown className="h-4 w-4" />}
+            iconBg="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+            label="Đã phân bổ"
+            value={fmt(totalAllocated)}
+            sub={`${allocPct}% nguyên giá`}
+            progress={allocPct}
+            progressTone="bg-emerald-500"
+          />
+          <KpiCard
+            icon={<Wallet className="h-4 w-4" />}
+            iconBg="bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
+            label="Giá trị còn lại"
+            value={fmt(summary?.remaining ?? 0)}
+            sub="Số dư cuối kỳ TK 242"
+          />
+          <KpiCard
+            icon={<AlertCircle className="h-4 w-4" />}
+            iconBg="bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+            label="Sắp hết kỳ"
+            value={String(summary?.ending_soon ?? 0)}
+            sub="≤ 3 kỳ còn lại — cần rà soát"
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="sm:w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả loại</SelectItem>
-            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-              <SelectItem key={k} value={k}>
-                {v}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="sm:w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            {Object.entries(STATUS_LABEL).map(([k, v]) => (
-              <SelectItem key={k} value={k}>
-                {v}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase">
-            <tr>
-              <th className="px-3 py-2 text-left">Mã</th>
-              <th className="px-3 py-2 text-left">Tên</th>
-              <th className="px-3 py-2 text-left hidden md:table-cell">Loại</th>
-              <th className="px-3 py-2 text-left hidden lg:table-cell">Bắt đầu</th>
-              <th className="px-3 py-2 text-right hidden md:table-cell">Nguyên giá</th>
-              <th className="px-3 py-2 text-right hidden lg:table-cell">Đã PB</th>
-              <th className="px-3 py-2 text-right">GTCL</th>
-              <th className="px-3 py-2 text-center hidden md:table-cell">Kỳ</th>
-              <th className="px-3 py-2 text-left">Trạng thái</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
-                  Đang tải…
-                </td>
-              </tr>
-            )}
-            {!isLoading && list.length === 0 && (
-              <tr>
-                <td colSpan={10} className="px-3 py-12 text-center text-muted-foreground">
-                  Chưa có CCDC / Chi phí trả trước. Bấm "Ghi tăng" để bắt đầu.
-                </td>
-              </tr>
-            )}
-            {list.map((r: any) => (
-              <tr key={r.id} className="border-t hover:bg-muted/30">
-                <td className="px-3 py-2 font-mono text-xs">{r.code}</td>
-                <td className="px-3 py-2">{r.name}</td>
-                <td className="px-3 py-2 hidden md:table-cell">
-                  {CATEGORY_LABEL[r.category] ?? r.category}
-                </td>
-                <td className="px-3 py-2 hidden lg:table-cell">{r.start_date}</td>
-                <td className="px-3 py-2 text-right font-mono hidden md:table-cell">
-                  {fmt(r.cost)}
-                </td>
-                <td className="px-3 py-2 text-right font-mono hidden lg:table-cell">
-                  {fmt(r.allocated)}
-                </td>
-                <td className="px-3 py-2 text-right font-mono font-semibold">
-                  {fmt(r.remaining)}
-                </td>
-                <td className="px-3 py-2 text-center hidden md:table-cell">
-                  {r.periods_done}/{r.periods_total}
-                </td>
-                <td className="px-3 py-2">
-                  <Badge className={STATUS_TONE[r.status] ?? ""}>
-                    {STATUS_LABEL[r.status] ?? r.status}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2">
-                  <div className="flex justify-end gap-1">
-                    <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Chi tiết">
-                      <Link to="/assets/allocations/$id" params={{ id: r.id }}>
-                        <ExternalLink className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <UpsertDialog asset={r} />
-                    <DeleteButton id={r.id} hasEntries={Number(r.periods_done) > 0} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        {/* Filters */}
+        <Card className="border-dashed">
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 sm:min-w-[260px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Tìm theo mã hoặc tên…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="sm:w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả loại</SelectItem>
+                {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="sm:w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                {Object.entries(STATUS_LABEL).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>💡 "Phân bổ kỳ" tự sinh bút toán Nợ 6xx / Có 242 cho các kỳ chưa hạch toán.</span>
-        <Link to="/reports/allocation-schedule" className="hover:underline text-primary">
-          Xem bảng phân bổ →
-        </Link>
+        {/* Table */}
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2.5 text-left">Mã</th>
+                  <th className="px-3 py-2.5 text-left">Tên tài sản</th>
+                  <th className="px-3 py-2.5 text-left hidden md:table-cell">Loại</th>
+                  <th className="px-3 py-2.5 text-left hidden lg:table-cell">Bắt đầu</th>
+                  <th className="px-3 py-2.5 text-right hidden md:table-cell">Nguyên giá</th>
+                  <th className="px-3 py-2.5 text-right hidden lg:table-cell">Đã PB</th>
+                  <th className="px-3 py-2.5 text-right">GTCL</th>
+                  <th className="px-3 py-2.5 text-left hidden md:table-cell w-[140px]">Tiến độ kỳ</th>
+                  <th className="px-3 py-2.5 text-left">Trạng thái</th>
+                  <th className="px-3 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && (
+                  <tr>
+                    <td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">
+                      <div className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-primary animate-pulse" /> Đang tải…</div>
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && list.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-3 py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <Layers className="h-6 w-6" />
+                        </div>
+                        <div className="font-medium">Chưa có CCDC / Chi phí trả trước</div>
+                        <div className="text-xs">Bấm <b>Ghi tăng</b> hoặc tạo từ <b>Hoá đơn</b> / <b>TSCĐ</b> để bắt đầu.</div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {list.map((r: any) => {
+                  const pct = Number(r.periods_total) > 0
+                    ? Math.min(100, Math.round((Number(r.periods_done) / Number(r.periods_total)) * 100))
+                    : 0;
+                  return (
+                    <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2.5 font-mono text-xs">
+                        <Link to="/assets/allocations/$id" params={{ id: r.id }} className="text-primary hover:underline">
+                          {r.code}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 font-medium">{r.name}</td>
+                      <td className="px-3 py-2.5 hidden md:table-cell text-muted-foreground">
+                        {CATEGORY_LABEL[r.category] ?? r.category}
+                      </td>
+                      <td className="px-3 py-2.5 hidden lg:table-cell text-muted-foreground">{r.start_date}</td>
+                      <td className="px-3 py-2.5 text-right font-mono hidden md:table-cell">{fmt(r.cost)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono hidden lg:table-cell text-emerald-600">{fmt(r.allocated)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono font-semibold">{fmt(r.remaining)}</td>
+                      <td className="px-3 py-2.5 hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">
+                            {r.periods_done}/{r.periods_total}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge variant="secondary" className={STATUS_TONE[r.status] ?? ""}>
+                          {STATUS_LABEL[r.status] ?? r.status}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex justify-end gap-1">
+                          <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Chi tiết">
+                            <Link to="/assets/allocations/$id" params={{ id: r.id }}>
+                              <ExternalLink className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <UpsertDialog asset={r} />
+                          <DeleteButton id={r.id} hasEntries={Number(r.periods_done) > 0} />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3 text-indigo-500" />
+            "Phân bổ kỳ" tự sinh bút toán Nợ 6xx / Có 242 cho các kỳ chưa hạch toán.
+          </span>
+          <Link to="/reports/allocation-schedule" className="hover:underline text-primary font-medium">
+            Xem bảng phân bổ & đối chiếu →
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -285,28 +327,39 @@ function AllocatedAssetsPage() {
 
 function KpiCard({
   icon,
+  iconBg,
   label,
   value,
   sub,
-  tone,
+  progress,
+  progressTone,
 }: {
   icon: React.ReactNode;
+  iconBg?: string;
   label: string;
   value: string;
   sub?: string;
-  tone?: string;
+  progress?: number;
+  progressTone?: string;
 }) {
   return (
-    <Card>
+    <Card className="relative overflow-hidden hover:shadow-md transition-shadow">
       <CardContent className="p-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{label}</span>
-          {icon}
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0">
+            <div className="text-xs text-muted-foreground font-medium">{label}</div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tracking-tight truncate">{value}</div>
+          </div>
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${iconBg ?? "bg-muted text-foreground"}`}>
+            {icon}
+          </div>
         </div>
-        <div className={`mt-2 text-xl sm:text-2xl font-bold font-mono ${tone ?? ""}`}>
-          {value}
-        </div>
-        {sub && <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>}
+        {progress !== undefined && (
+          <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${progressTone ?? "bg-primary"}`} style={{ width: `${progress}%` }} />
+          </div>
+        )}
+        {sub && <div className="mt-2 text-[11px] text-muted-foreground">{sub}</div>}
       </CardContent>
     </Card>
   );
