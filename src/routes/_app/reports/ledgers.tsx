@@ -55,6 +55,7 @@ function LedgersPage() {
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4 print:hidden">
         <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
+        <DimensionFilterBar value={dims} onChange={setDims} />
         <Button size="sm" onClick={() => { j.refetch(); gl.refetch(); al.refetch(); tb.refetch(); }}>Cập nhật</Button>
       </div>
 
