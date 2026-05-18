@@ -130,6 +130,63 @@ function VoucherListPage() {
     [rows],
   );
 
+  // Group rows by voucher (entry_id) — aggregate debit/credit, collapse accounts
+  type GroupedRow = {
+    key: string;
+    entry_id: string;
+    entry_date: string;
+    voucher_no: string;
+    voucher_type: string;
+    description: string | null;
+    accounts: string[];
+    debit: number;
+    credit: number;
+    party_name: string | null;
+    reference: string | null;
+    branch_name: string | null;
+    department_name: string | null;
+    project_name: string | null;
+    cost_center_name: string | null;
+    line_count: number;
+  };
+  const groupedRows = useMemo<GroupedRow[]>(() => {
+    if (!groupByVoucher) return [];
+    const map = new Map<string, GroupedRow>();
+    for (const r of rows) {
+      const key = r.entry_id;
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          entry_id: r.entry_id,
+          entry_date: r.entry_date,
+          voucher_no: r.voucher_no,
+          voucher_type: r.voucher_type,
+          description: r.description,
+          accounts: [r.account_code],
+          debit: r.debit,
+          credit: r.credit,
+          party_name: r.party_name,
+          reference: r.reference,
+          branch_name: r.branch_name,
+          department_name: r.department_name,
+          project_name: r.project_name,
+          cost_center_name: r.cost_center_name,
+          line_count: 1,
+        });
+      } else {
+        if (!g.accounts.includes(r.account_code)) g.accounts.push(r.account_code);
+        g.debit += r.debit;
+        g.credit += r.credit;
+        g.line_count += 1;
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => a.entry_date.localeCompare(b.entry_date) || a.voucher_no.localeCompare(b.voucher_no),
+    );
+  }, [rows, groupByVoucher]);
+
+
   async function handleExport() {
     try {
       toast.loading("Đang xuất Excel...", { id: "xlsx-vl" });
