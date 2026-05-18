@@ -25,8 +25,16 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Plus, Package, ArrowDownToLine, ArrowUpFromLine,
-  Boxes, AlertTriangle, TrendingUp, Activity,
+  Boxes, AlertTriangle, Activity, Wrench, Layers,
 } from "lucide-react";
+
+type ItemType = "goods" | "service" | "combo";
+const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
+const ITEM_TYPE_BADGE: Record<ItemType, string> = {
+  goods: "bg-blue-50 text-blue-700 border-blue-200",
+  service: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  combo: "bg-violet-50 text-violet-700 border-violet-200",
+};
 
 export const Route = createFileRoute("/_app/inventory/")({ component: InventoryPage });
 
@@ -45,6 +53,7 @@ function InventoryPage() {
 
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
   const [lowOnly, setLowOnly] = useState(false);
 
   const filtered = useMemo(() => {
@@ -52,10 +61,11 @@ function InventoryPage() {
     return (stock ?? []).filter((p: any) => {
       if (s && ![p.code, p.name].some((v) => v?.toLowerCase().includes(s))) return false;
       if (categoryId !== "all" && p.category_id !== categoryId) return false;
+      if (typeFilter !== "all" && p.item_type !== typeFilter) return false;
       if (lowOnly && !p.low_stock) return false;
       return true;
     });
-  }, [stock, search, categoryId, lowOnly]);
+  }, [stock, search, categoryId, typeFilter, lowOnly]);
 
   return (
     <div className="p-8 space-y-6">
@@ -71,9 +81,10 @@ function InventoryPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Kpi label="Tổng giá trị tồn" value={fmt(dashboard?.total_value ?? 0)} icon={<Boxes className="h-4 w-4" />} tone="primary" />
-        <Kpi label="Số SKU" value={String(dashboard?.sku_count ?? 0)} icon={<Package className="h-4 w-4" />} />
+        <Kpi label="Hàng hóa" value={String(dashboard?.goods_count ?? 0)} icon={<Package className="h-4 w-4" />} />
+        <Kpi label="Dịch vụ" value={String(dashboard?.service_count ?? 0)} icon={<Wrench className="h-4 w-4" />} />
         <Kpi
           label="Sắp hết"
           value={String(dashboard?.low_stock_count ?? 0)}
@@ -94,6 +105,18 @@ function InventoryPage() {
           <div className="space-y-1 flex-1 min-w-[220px]">
             <Label className="text-xs">Tìm kiếm</Label>
             <Input placeholder="Mã hoặc tên..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Loại</Label>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="goods">Hàng hóa</SelectItem>
+                <SelectItem value="service">Dịch vụ</SelectItem>
+                <SelectItem value="combo">Combo</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Danh mục</Label>
@@ -121,6 +144,7 @@ function InventoryPage() {
             <tr>
               <th className="px-4 py-2 text-left">Mã</th>
               <th className="px-4 py-2 text-left">Tên</th>
+              <th className="px-4 py-2 text-left">Loại</th>
               <th className="px-4 py-2 text-left">Danh mục</th>
               <th className="px-4 py-2 text-left">ĐVT</th>
               <th className="px-4 py-2 text-right">Tồn</th>
@@ -131,30 +155,41 @@ function InventoryPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p: any) => (
-              <tr key={p.id} className="border-t border-border hover:bg-muted/30">
-                <td className="px-4 py-2 font-mono">
-                  <Link to="/inventory/$id" params={{ id: p.id }} className="text-primary hover:underline">{p.code}</Link>
-                </td>
-                <td className="px-4 py-2">{p.name}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground">{p.product_categories?.name ?? "—"}</td>
-                <td className="px-4 py-2">{p.unit}</td>
-                <td className="px-4 py-2 text-right font-mono">
-                  <span className={p.low_stock ? "text-rose-600 font-semibold" : ""}>{fmt(p.on_hand)}</span>
-                  {p.low_stock && <Badge variant="outline" className="ml-2 bg-rose-50 text-rose-700 border-rose-200 text-[10px]">Sắp hết</Badge>}
-                </td>
-                <td className="px-4 py-2 text-right font-mono text-muted-foreground">{fmt(p.min_stock)}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmt(p.unit_cost)}</td>
-                <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(p.value)}</td>
-                <td className="px-4 py-2 text-right">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/inventory/$id" params={{ id: p.id }}>Thẻ kho</Link>
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((p: any) => {
+              const t = (p.item_type ?? "goods") as ItemType;
+              const isService = t === "service";
+              return (
+                <tr key={p.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="px-4 py-2 font-mono">
+                    <Link to="/inventory/$id" params={{ id: p.id }} className="text-primary hover:underline">{p.code}</Link>
+                  </td>
+                  <td className="px-4 py-2">{p.name}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>{ITEM_TYPE_LABEL[t]}</Badge>
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{p.product_categories?.name ?? "—"}</td>
+                  <td className="px-4 py-2">{p.unit}</td>
+                  <td className="px-4 py-2 text-right font-mono">
+                    {isService ? <span className="text-muted-foreground">—</span> : (
+                      <>
+                        <span className={p.low_stock ? "text-rose-600 font-semibold" : ""}>{fmt(p.on_hand)}</span>
+                        {p.low_stock && <Badge variant="outline" className="ml-2 bg-rose-50 text-rose-700 border-rose-200 text-[10px]">Sắp hết</Badge>}
+                      </>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono text-muted-foreground">{isService ? "—" : fmt(p.min_stock)}</td>
+                  <td className="px-4 py-2 text-right font-mono">{isService ? "—" : fmt(p.unit_cost)}</td>
+                  <td className="px-4 py-2 text-right font-mono font-semibold">{isService ? "—" : fmt(p.value)}</td>
+                  <td className="px-4 py-2 text-right">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to="/inventory/$id" params={{ id: p.id }}>{isService ? "Chi tiết" : "Thẻ kho"}</Link>
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Không có mặt hàng</td></tr>
+              <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Không có mặt hàng</td></tr>
             )}
           </tbody>
         </table>
@@ -184,12 +219,13 @@ function ProductDialog({ categories }: { categories: any[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const empty = {
-    code: "", name: "", unit: "cái", barcode: "",
+    code: "", name: "", item_type: "goods" as ItemType, unit: "cái", barcode: "",
     unit_cost: 0, unit_price: 0, min_stock: 0, max_stock: 0,
     stock_account: "156", revenue_account: "511", cogs_account: "632",
     vat_rate: 10, category_id: null as string | null, is_active: true, notes: "",
   };
   const [form, setForm] = useState(empty);
+  const isService = form.item_type === "service";
   const m = useMutation({
     mutationFn: () => upsert({ data: form as any }),
     onSuccess: () => {
@@ -207,12 +243,37 @@ function ProductDialog({ categories }: { categories: any[] }) {
         <Button variant="outline"><Plus className="mr-2 h-4 w-4" />Mặt hàng</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Thêm mặt hàng</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Thêm mặt hàng</DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Mã *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+          <Field label="Loại *">
+            <Select
+              value={form.item_type}
+              onValueChange={(v) => {
+                const t = v as ItemType;
+                setForm({
+                  ...form,
+                  item_type: t,
+                  // Khi đổi sang dịch vụ → reset các trường tồn & TK kho/giá vốn
+                  ...(t === "service"
+                    ? { unit_cost: 0, min_stock: 0, max_stock: 0, stock_account: "", cogs_account: "" }
+                    : {}),
+                });
+              }}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="goods">📦 Hàng hóa</SelectItem>
+                <SelectItem value="service">🛎 Dịch vụ</SelectItem>
+                <SelectItem value="combo">🧩 Combo</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="Mã vạch"><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></Field>
+          <Field label="Mã *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+          <Field label="ĐVT"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder={isService ? "lần / giờ" : "cái"} /></Field>
           <Field label="Tên *" full><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="ĐVT"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
           <Field label="Danh mục">
             <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
@@ -221,15 +282,25 @@ function ProductDialog({ categories }: { categories: any[] }) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Giá vốn"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
-          <Field label="Giá bán"><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></Field>
-          <Field label="Tồn tối thiểu"><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></Field>
-          <Field label="Tồn tối đa"><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: Number(e.target.value) })} /></Field>
           <Field label="VAT %"><Input type="number" value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: Number(e.target.value) })} /></Field>
-          <Field label="TK kho"><Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} /></Field>
+          <Field label="Giá bán"><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></Field>
+          {!isService && (
+            <>
+              <Field label="Giá vốn"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
+              <Field label="Tồn tối thiểu"><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></Field>
+              <Field label="Tồn tối đa"><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: Number(e.target.value) })} /></Field>
+              <Field label="TK kho"><Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} /></Field>
+              <Field label="TK giá vốn"><Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} /></Field>
+            </>
+          )}
           <Field label="TK doanh thu"><Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} /></Field>
-          <Field label="TK giá vốn"><Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} /></Field>
         </div>
+        {isService && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            <Layers className="inline h-3 w-3 mr-1" />
+            Dịch vụ không quản lý tồn kho, không nhập/xuất kho.
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
           <Button onClick={() => m.mutate()} disabled={!form.code || !form.name || m.isPending}>Lưu</Button>
@@ -287,7 +358,7 @@ function MovementDialog({ products }: { products: any[] }) {
             <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
               <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
               <SelectContent>
-                {products.map((p: any) => (
+                {products.filter((p: any) => (p.item_type ?? "goods") !== "service").map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>{p.code} · {p.name} (tồn {fmt(p.on_hand)})</SelectItem>
                 ))}
               </SelectContent>

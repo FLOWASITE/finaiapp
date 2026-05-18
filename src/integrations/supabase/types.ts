@@ -1258,6 +1258,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          item_type: string
           max_stock: number
           min_stock: number
           name: string
@@ -1280,6 +1281,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          item_type?: string
           max_stock?: number
           min_stock?: number
           name: string
@@ -1302,6 +1304,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          item_type?: string
           max_stock?: number
           min_stock?: number
           name?: string
