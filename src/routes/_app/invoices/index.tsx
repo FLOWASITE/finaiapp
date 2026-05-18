@@ -197,6 +197,7 @@ function InvoicesList() {
           </p>
         </div>
         <div className="flex gap-2">
+          <ImportEinvoiceXmlDialog triggerLabel="Nhập XML hoá đơn" />
           <Button variant="outline" onClick={() => setManualOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Nhập tay
           </Button>
