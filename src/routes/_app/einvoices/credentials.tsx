@@ -18,10 +18,6 @@ import {
 import { TctCaptcha } from "@/components/tct-captcha";
 
 void RefreshCw;
-  Loader2,
-  ArrowLeft,
-  AlertTriangle,
-} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
