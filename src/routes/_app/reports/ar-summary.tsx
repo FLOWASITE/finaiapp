@@ -395,7 +395,7 @@ function ArSummaryPage() {
           ? ["Ngày", "Loại", "Số CT", "Diễn giải (đại diện)", "Số dòng", "Nợ", "Có"]
           : ["Ngày", "Loại", "Số CT", "Diễn giải", "Nợ", "Có"];
         ws.addRow(cols).font = { bold: true };
-        for (const l of drillDisplayRows) {
+        for (const l of drillSortedRows) {
           if (drillGroupByDoc) {
             ws.addRow([
               l.entry_date,
