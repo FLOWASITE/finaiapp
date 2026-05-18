@@ -17,7 +17,10 @@ import {
   ArrowRight,
   Clock,
   TrendingUp,
+  Paperclip,
 } from "lucide-react";
+import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
+import { DocStatusBadge } from "@/components/doc-status-badge";
 import {
   Bar,
   CartesianGrid,
