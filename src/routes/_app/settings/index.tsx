@@ -123,6 +123,7 @@ function OrganizationTab() {
   });
   const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
+  const [dirty, setDirty] = React.useState(false);
   const [diffShipping, setDiffShipping] = React.useState(false);
   React.useEffect(() => {
     if (data?.tenant && !form) {
@@ -137,6 +138,7 @@ function OrganizationTab() {
     mutationFn: (v: any) => upd({ data: v }),
     onSuccess: () => {
       toast.success("Đã lưu thay đổi");
+      setDirty(false);
       qc.invalidateQueries({ queryKey: ["active-tenant"] });
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
     },
@@ -149,10 +151,12 @@ function OrganizationTab() {
     </CardContent></Card>
   );
   if (!form) return <OrganizationSkeleton />;
-  const set = (k: string, v: any) => setForm({ ...form, [k]: v });
+  const set = (k: string, v: any) => {
+    setForm({ ...form, [k]: v });
+    if (!dirty) setDirty(true);
+  };
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(data?.tenant);
-  const reset = () => setForm(data?.tenant);
+  const reset = () => { setForm(data?.tenant); setDirty(false); };
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
@@ -234,7 +238,7 @@ function OrganizationTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Mã số thuế" required className="md:col-span-2">
-                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => { setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" }); setDirty(true); }} />
                     <Hint>Nhấn kính lúp để tự điền tên & địa chỉ từ Tổng cục Thuế.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
@@ -268,7 +272,7 @@ function OrganizationTab() {
                     <Input disabled={!canEdit} value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="VD: Sở KH&ĐT TP. Hà Nội" />
                   </Field>
                   <Field label="Ngành nghề kinh doanh chính" className="md:col-span-2">
-                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => setForm({ ...form, industry_code: c, industry_name: n })} />
+                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => { setForm({ ...form, industry_code: c, industry_name: n }); setDirty(true); }} />
                   </Field>
                   <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.tax_authority ?? ""} onChange={(e) => set("tax_authority", e.target.value)} placeholder="VD: Chi cục Thuế Quận 1" />
@@ -294,7 +298,7 @@ function OrganizationTab() {
                   <Textarea disabled={!canEdit} value={form.billing_address ?? ""} onChange={(e) => set("billing_address", e.target.value)} placeholder="Để trống nếu trùng địa chỉ trụ sở" rows={2} />
                 </Field>
                 <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
-                  <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={setDiffShipping} />
+                  <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={(v) => { setDiffShipping(v); setDirty(true); }} />
                   <div className="text-sm">
                     <p className="font-medium">Có địa chỉ giao hàng riêng</p>
                     <p className="text-xs text-muted-foreground">Bật nếu kho/giao nhận khác trụ sở.</p>
