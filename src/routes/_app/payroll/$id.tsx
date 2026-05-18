@@ -26,6 +26,9 @@ function RunDetail() {
   const post = useServerFn(postPayrollRun);
   const approve = useServerFn(approvePayrollRun);
   const del = useServerFn(deletePayrollRun);
+  const applyAdv = useServerFn(applyAdvancesToRun);
+  const markPaid = useServerFn(markRunPaid);
+  const csvFn = useServerFn(exportBankCSV);
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["payroll", id], queryFn: () => get({ data: { id } }),
@@ -44,6 +47,28 @@ function RunDetail() {
   const mDel = useMutation({
     mutationFn: () => del({ data: { id } }),
     onSuccess: () => { toast.success("Đã xoá"); window.location.href = "/payroll"; },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mAdv = useMutation({
+    mutationFn: () => applyAdv({ data: { run_id: id } }),
+    onSuccess: (r: any) => { toast.success(`Đã áp dụng ${r.applied} tạm ứng`); qc.invalidateQueries({ queryKey: ["payroll", id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mPaid = useMutation({
+    mutationFn: (ref: string) => markPaid({ data: { id, reference: ref } }),
+    onSuccess: () => { toast.success("Đã ghi nhận thanh toán"); qc.invalidateQueries({ queryKey: ["payroll", id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mCsv = useMutation({
+    mutationFn: () => csvFn({ data: { id } }),
+    onSuccess: (r: any) => {
+      const blob = new Blob([r.content], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = r.filename; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Đã xuất ${r.count} dòng — Tổng ${Number(r.total).toLocaleString("vi-VN")} VND`);
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
