@@ -144,80 +144,85 @@ async function buildVoucherList(
   supabase: any, userId: string,
   data: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; accountPrefix?: string },
 ) {
-    let lq = supabase
-      .from("journal_lines")
-      .select("id, account_code, debit, credit, line_order, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(id, entry_date, description, user_id)")
-      .eq("journal_entries.user_id", userId)
-      .gte("journal_entries.entry_date", data.from)
-      .lte("journal_entries.entry_date", data.to)
-      .order("entry_date", { foreignTable: "journal_entries", ascending: true });
-      .from("journal_lines")
-      .select("id, account_code, debit, credit, line_order, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(id, entry_date, description, user_id)")
-      .eq("journal_entries.user_id", userId)
-      .gte("journal_entries.entry_date", data.from)
-      .lte("journal_entries.entry_date", data.to)
-      .order("entry_date", { foreignTable: "journal_entries", ascending: true });
-    if (data.accountPrefix) lq = lq.like("account_code", `${data.accountPrefix}%`);
-    if (hasDims(data.dims)) {
-      const d = data.dims!;
-      if (d.branch_id) lq = lq.eq("branch_id", d.branch_id);
-      if (d.department_id) lq = lq.eq("department_id", d.department_id);
-      if (d.project_id) lq = lq.eq("project_id", d.project_id);
-      if (d.cost_center_id) lq = lq.eq("cost_center_id", d.cost_center_id);
-    }
-    const { data: lines, error } = await lq;
-    if (error) throw error;
+  let lq = supabase
+    .from("journal_lines")
+    .select("id, account_code, debit, credit, line_order, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(id, entry_date, description, user_id)")
+    .eq("journal_entries.user_id", userId)
+    .gte("journal_entries.entry_date", data.from)
+    .lte("journal_entries.entry_date", data.to)
+    .order("entry_date", { foreignTable: "journal_entries", ascending: true });
+  if (data.accountPrefix) lq = lq.like("account_code", `${data.accountPrefix}%`);
+  if (hasDims(data.dims)) {
+    const d = data.dims!;
+    if (d.branch_id) lq = lq.eq("branch_id", d.branch_id);
+    if (d.department_id) lq = lq.eq("department_id", d.department_id);
+    if (d.project_id) lq = lq.eq("project_id", d.project_id);
+    if (d.cost_center_id) lq = lq.eq("cost_center_id", d.cost_center_id);
+  }
+  const { data: lines, error } = await lq;
+  if (error) throw error;
 
-    const entryIds = Array.from(new Set((lines ?? []).map((l: any) => l.entry_id)));
-    const [meta, dims] = await Promise.all([
-      loadVoucherMeta(supabase, userId, entryIds),
-      loadDimNames(supabase),
-    ]);
+  const entryIds = Array.from(new Set((lines ?? []).map((l: any) => l.entry_id))) as string[];
+  const [meta, dims] = await Promise.all([
+    loadVoucherMeta(supabase, userId, entryIds),
+    loadDimNames(supabase),
+  ]);
 
-    const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
-      const e = l.journal_entries;
-      const m = meta.get(l.entry_id);
-      return {
-        entry_id: l.entry_id,
-        line_id: l.id,
-        line_index: Number(l.line_order) || 0,
-        entry_date: e.entry_date,
-        voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
-        voucher_type: m?.voucher_type ?? "Phiếu kế toán",
-        source_table: m?.source_table ?? "journal_entries",
-        description: e.description,
-        account_code: l.account_code,
-        debit: Number(l.debit) || 0,
-        credit: Number(l.credit) || 0,
-        party_name: m?.party_name ?? null,
-        reference: m?.reference ?? null,
-        branch_id: l.branch_id,
-        branch_name: (l.branch_id ? (dims.branch.get(l.branch_id) as string) : null) ?? null,
-        department_id: l.department_id,
-        department_name: (l.department_id ? (dims.dept.get(l.department_id) as string) : null) ?? null,
-        project_id: l.project_id,
-        project_name: (l.project_id ? (dims.project.get(l.project_id) as string) : null) ?? null,
-        cost_center_id: l.cost_center_id,
-        cost_center_name: (l.cost_center_id ? (dims.cc.get(l.cost_center_id) as string) : null) ?? null,
-      };
-    });
+  const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
+    const e = l.journal_entries;
+    const m = meta.get(l.entry_id);
+    return {
+      entry_id: l.entry_id,
+      line_id: l.id,
+      line_index: Number(l.line_order) || 0,
+      entry_date: e.entry_date,
+      voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
+      voucher_type: m?.voucher_type ?? "Phiếu kế toán",
+      source_table: m?.source_table ?? "journal_entries",
+      description: e.description,
+      account_code: l.account_code,
+      debit: Number(l.debit) || 0,
+      credit: Number(l.credit) || 0,
+      party_name: m?.party_name ?? null,
+      reference: m?.reference ?? null,
+      branch_id: l.branch_id,
+      branch_name: (l.branch_id ? (dims.branch.get(l.branch_id) as string) : null) ?? null,
+      department_id: l.department_id,
+      department_name: (l.department_id ? (dims.dept.get(l.department_id) as string) : null) ?? null,
+      project_id: l.project_id,
+      project_name: (l.project_id ? (dims.project.get(l.project_id) as string) : null) ?? null,
+      cost_center_id: l.cost_center_id,
+      cost_center_name: (l.cost_center_id ? (dims.cc.get(l.cost_center_id) as string) : null) ?? null,
+    };
+  });
 
-    const filtered = data.sourceTables && data.sourceTables.length > 0
-      ? rows.filter((r) => data.sourceTables!.includes(r.source_table))
-      : rows;
+  const filtered = data.sourceTables && data.sourceTables.length > 0
+    ? rows.filter((r) => data.sourceTables!.includes(r.source_table))
+    : rows;
 
-    // Sort by date asc, then voucher_no, then line index
-    filtered.sort((a, b) =>
-      a.entry_date.localeCompare(b.entry_date) ||
-      a.voucher_no.localeCompare(b.voucher_no) ||
-      a.line_index - b.line_index
-    );
+  filtered.sort((a, b) =>
+    a.entry_date.localeCompare(b.entry_date) ||
+    a.voucher_no.localeCompare(b.voucher_no) ||
+    a.line_index - b.line_index
+  );
 
-    const totals = filtered.reduce(
-      (s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }),
-      { debit: 0, credit: 0 },
-    );
-    return { rows: filtered, totals };
+  const totals = filtered.reduce(
+    (s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }),
+    { debit: 0, credit: 0 },
+  );
+  return { rows: filtered, totals };
+}
+
+export const getVoucherList = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: {
+    from: string; to: string;
+    dims?: DimFilter;
+    sourceTables?: string[];
+    accountPrefix?: string;
+  }) => i)
+  .handler(async ({ data, context }) => {
+    return buildVoucherList(context.supabase, context.userId, data);
   });
 
 export const exportVoucherListXlsx = createServerFn({ method: "POST" })
