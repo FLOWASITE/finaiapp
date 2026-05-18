@@ -10,6 +10,7 @@ import {
   setDefaultWarehouse,
 } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
