@@ -9,7 +9,11 @@ export const getSettings = createServerFn({ method: "GET" })
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).single();
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const { data: locks } = await supabase
-      .from("period_locks").select("*").order("year", { ascending: false }).order("month", { ascending: false });
+      .from("fiscal_periods")
+      .select("id,year,period_no,status,closed_at,note")
+      .in("status", ["soft_closed", "closed"])
+      .order("year", { ascending: false })
+      .order("period_no", { ascending: false });
     return { profile, roles: (roles ?? []).map((r) => r.role), locks: locks ?? [] };
   });
 
