@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { listCashVouchers, getCashBook } from "@/lib/cash.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
