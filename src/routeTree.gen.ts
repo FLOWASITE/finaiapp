@@ -65,6 +65,7 @@ import { Route as AppReportsTrialBalanceRouteImport } from './routes/_app/report
 import { Route as AppReportsStockIosRouteImport } from './routes/_app/reports/stock-ios'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
 import { Route as AppReportsArSummaryRouteImport } from './routes/_app/reports/ar-summary'
+import { Route as AppReportsApSummaryRouteImport } from './routes/_app/reports/ap-summary'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
@@ -370,6 +371,11 @@ const AppReportsArSummaryRoute = AppReportsArSummaryRouteImport.update({
   path: '/reports/ar-summary',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsApSummaryRoute = AppReportsApSummaryRouteImport.update({
+  id: '/reports/ap-summary',
+  path: '/reports/ap-summary',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   id: '/payroll/$id',
   path: '/payroll/$id',
@@ -522,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/stock-ios': typeof AppReportsStockIosRoute
@@ -597,6 +604,7 @@ export interface FileRoutesByTo {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/stock-ios': typeof AppReportsStockIosRoute
@@ -679,6 +687,7 @@ export interface FileRoutesById {
   '/_app/items/categories': typeof AppItemsCategoriesRoute
   '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/_app/reports/ar-summary': typeof AppReportsArSummaryRoute
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/reports/stock-ios': typeof AppReportsStockIosRoute
@@ -761,6 +770,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/ap-summary'
     | '/reports/ar-summary'
     | '/reports/ledgers'
     | '/reports/stock-ios'
@@ -836,6 +846,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/reports/ap-summary'
     | '/reports/ar-summary'
     | '/reports/ledgers'
     | '/reports/stock-ios'
@@ -917,6 +928,7 @@ export interface FileRouteTypes {
     | '/_app/items/categories'
     | '/_app/items/units'
     | '/_app/payroll/$id'
+    | '/_app/reports/ap-summary'
     | '/_app/reports/ar-summary'
     | '/_app/reports/ledgers'
     | '/_app/reports/stock-ios'
@@ -1363,6 +1375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsArSummaryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/ap-summary': {
+      id: '/_app/reports/ap-summary'
+      path: '/reports/ap-summary'
+      fullPath: '/reports/ap-summary'
+      preLoaderRoute: typeof AppReportsApSummaryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/$id': {
       id: '/_app/payroll/$id'
       path: '/payroll/$id'
@@ -1654,6 +1673,7 @@ interface AppRouteChildren {
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppReportsApSummaryRoute: typeof AppReportsApSummaryRoute
   AppReportsArSummaryRoute: typeof AppReportsArSummaryRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppReportsStockIosRoute: typeof AppReportsStockIosRoute
@@ -1706,6 +1726,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppReportsApSummaryRoute: AppReportsApSummaryRoute,
   AppReportsArSummaryRoute: AppReportsArSummaryRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppReportsStockIosRoute: AppReportsStockIosRoute,
