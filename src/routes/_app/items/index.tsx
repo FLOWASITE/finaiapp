@@ -37,8 +37,10 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 function ItemsListPage() {
   const list = useServerFn(listProducts);
   const cats = useServerFn(listCategories);
+  const unitsFn = useServerFn(listUnits);
   const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats() });
+  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn() });
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
