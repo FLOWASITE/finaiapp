@@ -302,11 +302,13 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
       if (!l.product_id) continue;
       const p = productMap.get(l.product_id);
       if (!p) continue;
+      const factor = getFactor(l.product_id, l.unit || p.unit);
+      const qtyBase = Number(l.qty || 0) * factor;
       if (type === "in" && !(l.unit_cost > 0)) errs.push(`Đơn giá nhập cho ${p.code} phải > 0`);
-      if (type === "out" && Number(l.qty) > Number(p.on_hand ?? 0)) errs.push(`Vượt tồn ${p.code} (còn ${fmt(p.on_hand)})`);
+      if (type === "out" && qtyBase > Number(p.on_hand ?? 0)) errs.push(`Vượt tồn ${p.code} (còn ${fmt(p.on_hand)} ${p.unit})`);
     }
     return errs;
-  }, [form, productMap, type]);
+  }, [form, productMap, type, convMap]); // eslint-disable-line react-hooks/exhaustive-deps
   const canSave = errors.length === 0;
 
   const m = useMutation({
@@ -326,6 +328,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
               qty: Number(l.qty),
               unit_cost: Number(l.unit_cost || 0),
               note: l.note || undefined,
+              unit: l.unit || undefined,
             })),
         } as any,
       }),
