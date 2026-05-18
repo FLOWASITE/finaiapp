@@ -93,6 +93,59 @@ function ArSummaryPage() {
       }),
   });
 
+  // Drill-down local filters
+  const [drillFrom, setDrillFrom] = useState("");
+  const [drillTo, setDrillTo] = useState("");
+  const [drillDocTypes, setDrillDocTypes] = useState<string[]>([]);
+  const [drillSearch, setDrillSearch] = useState("");
+
+  // Reset local filters when opening a new drill-down
+  useEffect(() => {
+    if (drillRow) {
+      setDrillFrom("");
+      setDrillTo("");
+      setDrillDocTypes([]);
+      setDrillSearch("");
+    }
+  }, [drillRow]);
+
+  const toggleDrillDocType = (v: string) =>
+    setDrillDocTypes((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
+    );
+
+  const drillFiltered = useMemo(() => {
+    const all = drillQ.data?.lines ?? [];
+    const s = norm(drillSearch);
+    const lines = all.filter((l) => {
+      if (drillFrom && l.entry_date < drillFrom) return false;
+      if (drillTo && l.entry_date > drillTo) return false;
+      if (drillDocTypes.length && !drillDocTypes.includes(l.doc_type)) return false;
+      if (s && !norm(l.doc_no ?? "").includes(s) && !norm(l.description ?? "").includes(s))
+        return false;
+      return true;
+    });
+    // Recompute daily aggregates + running balance starting from opening
+    const opening = drillQ.data?.opening ?? 0;
+    const byDate = new Map<string, { date: string; debit: number; credit: number; running: number }>();
+    for (const l of lines) {
+      const d = byDate.get(l.entry_date) ?? { date: l.entry_date, debit: 0, credit: 0, running: 0 };
+      d.debit += l.debit;
+      d.credit += l.credit;
+      byDate.set(l.entry_date, d);
+    }
+    const daily = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+    let run = opening;
+    for (const d of daily) {
+      run += d.debit - d.credit;
+      d.running = run;
+    }
+    const debit = lines.reduce((s, l) => s + l.debit, 0);
+    const credit = lines.reduce((s, l) => s + l.credit, 0);
+    return { lines, daily, debit, credit };
+  }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
+
+
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
     queryFn: () => arFn({ data: { from, to, dims } }),
