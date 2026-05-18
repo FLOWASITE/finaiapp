@@ -78,9 +78,7 @@ function SuppliersPage() {
           <Button variant="outline" asChild>
             <Link to="/suppliers/groups"><FolderTree className="mr-2 h-4 w-4" />Nhóm NCC</Link>
           </Button>
-          <Button variant="add" onClick={() => setEditing({})}>
-            <Plus className="mr-2 h-4 w-4" /> Thêm NCC
-          </Button>
+          <AddNew label="Thêm NCC" onClick={() => setEditing({})} />
         </div>
       </div>
 
