@@ -1,79 +1,97 @@
 ## Mục tiêu
-Nâng cấp dialog **Thêm hàng hoá / dịch vụ** ở `/items` thành form chuẩn phần mềm kế toán (Misa/Fast/Bravo): bố cục rõ ràng theo nhóm thông tin, ưu tiên trường quan trọng, ẩn/hiện hợp lý theo loại, và tăng chất lượng nhập liệu.
+Bổ sung **chức năng sinh mã/số chứng từ tự động** thống nhất cho 7 đối tượng còn thiếu, đồng bộ với pattern đã có ở Phiếu thu/Phiếu chi (`nextVoucherNo`).
 
-## Vấn đề hiện tại
-- Tất cả 13 trường nằm chung 1 grid 2 cột — khó scan, mã/tên bị lẫn với tài khoản kế toán.
-- Dialog `max-w-2xl` quá hẹp cho lượng trường này.
-- Không có gợi ý / validate (mã trùng, mã tự sinh, định dạng số tiền VND).
-- Loại "Combo" có icon nhưng chưa có UI khai báo thành phần — sẽ tạm để placeholder rõ ràng.
-- Trường Mã vạch nằm cạnh Loại (vị trí kém quan trọng đứng đầu).
-- Số tiền (Giá bán, Giá vốn) chưa format ngàn — dễ nhập sai.
+## Hiện trạng
 
-## Thiết kế mới — Dialog rộng + Tabs
+| Đối tượng | Bảng | Cột | Trạng thái |
+|---|---|---|---|
+| Phiếu thu | `cash_vouchers` | `voucher_no` | ✅ Đã có `nextVoucherNo` (`PT{yyyymm}/00001`) — chỉ cần wire vào UI |
+| Phiếu chi | `cash_vouchers` | `voucher_no` | ✅ Đã có (`PC{yyyymm}/00001`) — chỉ cần wire vào UI |
+| Bán hàng | `sales_invoices` | `invoice_no` | ❌ Nhập tay |
+| Mua hàng | `invoices` | `invoice_no` | ❌ Nhập tay |
+| Khách hàng | `customers` | `code` | ❌ Nhập tay |
+| Nhà cung cấp | `suppliers` | `code` | ❌ Nhập tay |
+| Hàng hoá/Dịch vụ | `products` | `code` | ⚠️ Có nút ⟳ client-side ở `/items` (chỉ thấy data đã load) — sẽ chuyển lên server để đếm chính xác |
 
-Mở rộng dialog lên `max-w-3xl`, chia 3 tab:
+## Quy ước mã (theo chuẩn Misa/Fast)
 
+| Đối tượng | Pattern | Ví dụ |
+|---|---|---|
+| Phiếu thu | `PT{yyyymm}/{5d}` | `PT202605/00001` *(đã có)* |
+| Phiếu chi | `PC{yyyymm}/{5d}` | `PC202605/00001` *(đã có)* |
+| Bán hàng | `HD{yyyymm}/{5d}` | `HD202605/00001` |
+| Mua hàng | `HDM{yyyymm}/{5d}` | `HDM202605/00001` |
+| Khách hàng | `KH{5d}` | `KH00001` (không theo tháng — danh mục) |
+| Nhà cung cấp | `NCC{5d}` | `NCC00001` |
+| Hàng hoá | `HH{4d}` | `HH0001` *(giữ format đã có)* |
+| Dịch vụ | `DV{4d}` | `DV0001` |
+| Combo | `CB{4d}` | `CB0001` |
+
+## Thiết kế
+
+### 1. Server: helper tập trung `src/lib/codegen.functions.ts`
+
+Một server function duy nhất `nextEntityCode({ entity, date? })`:
+
+```ts
+entity: "sale_invoice" | "purchase_invoice" | "customer" 
+      | "supplier" | "product_goods" | "product_service" | "product_combo"
 ```
-┌─ Thêm hàng hoá / dịch vụ ────────────────────────[ X ]─┐
-│  [Loại: ● Hàng hoá  ○ Dịch vụ  ○ Combo]              │
-│  ─────────────────────────────────────────────────    │
-│  [ Thông tin chung ] [ Giá & Thuế ] [ Kho & Kế toán ] │
-│                                                        │
-│  (nội dung tab)                                        │
-│                                                        │
-│  ─────────────────────────────────────────────────    │
-│              [ Huỷ ]  [ Lưu & thêm mới ]  [ Lưu ]    │
-└────────────────────────────────────────────────────────┘
-```
 
-**Loại** chuyển thành **segmented control** (RadioGroup dạng pill) đặt ở đầu — đây là quyết định ảnh hưởng toàn bộ form.
+- Lookup `{ table, column, prefix, dateScoped, padLen }` theo entity.
+- `dateScoped=true` → pattern `${prefix}${yyyymm}/%`, parse `/(\d+)$`.
+- `dateScoped=false` → pattern `${prefix}%`, parse `(\d+)$`.
+- Quét tất cả mã matching cho **tenant hiện tại** (qua `requireSupabaseAuth` + `active_tenant_id`), lấy `max + 1`.
+- Trả về `{ code: string }`.
+- Race-safe: phía UI vẫn validate trùng + DB có UNIQUE constraint sẽ throw 23505 → user bấm lại nút sinh.
 
-### Tab 1 — Thông tin chung
-- Mã * (có nút ⟳ tự sinh: `HH0001`, `DV0001`, `CB0001`)
-- Tên *
-- Mã vạch (chỉ Hàng hoá/Combo)
-- ĐVT * (Combobox gợi ý: cái, hộp, kg, lít, giờ, lần…)
-- Nhóm (Select + nút + tạo nhanh)
-- Ghi chú (Textarea, 2 dòng)
+Phiếu thu/chi giữ nguyên `nextVoucherNo` (đã hoạt động) để tránh đụng code đã chạy.
 
-### Tab 2 — Giá & Thuế
-- Giá bán (Input số có format ngàn: `1.500.000`)
-- Giá vốn (chỉ Hàng hoá/Combo)
-- VAT % (Select: KCT / 0 / 5 / 8 / 10)
-- Trạng thái: Switch "Đang kinh doanh"
+### 2. UI: component dùng chung `<AutoCodeInput>`
 
-### Tab 3 — Kho & Kế toán
-*(ẩn hoàn toàn nếu là Dịch vụ — thay bằng infobox "Dịch vụ không quản lý tồn kho")*
+`src/components/ui/auto-code-input.tsx`:
+- Wrapper `Input` + nút icon `RefreshCw` bên phải (tooltip "Tự sinh mã").
+- Props: `value`, `onChange`, `entity`, `date?`, `placeholder`, `error?`.
+- Khi bấm nút → gọi `nextEntityCode` → setValue, toast nhẹ.
+- Khi dialog mới mở mà field rỗng → tự động fill 1 lần (tuỳ chọn `autoFillOnMount`).
 
-Section **Định mức tồn kho** (Hàng hoá/Combo):
-- Tồn tối thiểu / Tồn tối đa (2 cột)
+### 3. Wire vào từng dialog
 
-Section **Tài khoản kế toán** (luôn hiện, có placeholder mặc định theo TT133/TT200):
-- TK doanh thu (511)
-- TK giá vốn (632) — ẩn nếu Dịch vụ
-- TK kho (156) — ẩn nếu Dịch vụ
-- TK thuế GTGT đầu ra (3331)
+| Trang | Dialog | Thay thế field `code/invoice_no/voucher_no` |
+|---|---|---|
+| `/items` (`items/index.tsx`) | ProductDialog | Đã có nút ⟳ — đổi sang gọi `nextEntityCode` cho chính xác |
+| `/customers/index.tsx` | Customer form | Thêm `<AutoCodeInput entity="customer">` |
+| `/suppliers/index.tsx` | Supplier form | Thêm `<AutoCodeInput entity="supplier">` |
+| `/sales/index.tsx` | Sales invoice form (tab "Hoá đơn") | `<AutoCodeInput entity="sale_invoice" date={issue_date}>` |
+| `/purchases/index.tsx` | Purchase invoice form | `<AutoCodeInput entity="purchase_invoice" date={issue_date}>` |
+| `/cash` (PT/PC) | Voucher dialog | Wire vào `nextVoucherNo` qua cùng component (có flag dùng API khác) — hoặc giữ logic riêng nếu UI đã có |
 
-Mỗi field tài khoản có tooltip giải thích.
-
-### Tab 4 (chỉ Combo) — Thành phần
-Placeholder: "Khai báo thành phần combo sẽ có ở bản cập nhật sau" + disable nút Lưu nếu Combo (để minh bạch). *Hoặc* giữ Combo hoạt động như Hàng hoá hiện tại — sẽ chọn phương án giữ hoạt động để không chặn user.
-
-## Cải tiến UX khác
-- **NumberInput** helper format `vi-VN` (1.500.000) cho giá bán/vốn/định mức.
-- **Validate inline** mã trùng (check trong `products` đã load), tên rỗng.
-- **Nút "Lưu & thêm mới"** giữ dialog mở, reset form, focus về ô Mã — workflow nhập hàng loạt.
-- **Phím tắt**: `Ctrl+S` lưu, `Esc` huỷ.
-- **Trạng thái loading** nút Lưu (`m.isPending` → spinner + "Đang lưu…").
+### 4. Hành vi
+- **Auto-fill khi mở dialog tạo mới** (field rỗng → gọi API 1 lần).
+- **Không auto-fill khi sửa** (đã có mã).
+- **Cho phép user sửa tay** sau khi sinh.
+- **Validate trùng client-side** (đã có ở `items` — mở rộng cho khách/NCC bằng cách load danh sách hiện có).
 
 ## Phạm vi file
-Chỉ chỉnh **UI/presentation**, không đổi backend:
-- `src/routes/_app/items/index.tsx` — tách `ProductDialog` thành component riêng, viết lại JSX theo tabs.
-- *(mới)* `src/components/ui/number-input.tsx` — wrapper Input format vi-VN.
 
-Không đổi: `inventory.functions.ts`, schema DB, sidebar, route tree.
+**Tạo mới:**
+- `src/lib/codegen.functions.ts` — `nextEntityCode` + middleware register trong `start.ts` (nếu cần)
+- `src/components/ui/auto-code-input.tsx` — UI component dùng chung
+
+**Sửa:**
+- `src/routes/_app/items/index.tsx` — đổi `genCode` client → gọi `nextEntityCode`
+- `src/routes/_app/customers/index.tsx` — thêm AutoCodeInput
+- `src/routes/_app/suppliers/index.tsx` — thêm AutoCodeInput
+- `src/routes/_app/sales/index.tsx` — thêm AutoCodeInput vào form hoá đơn
+- `src/routes/_app/purchases/index.tsx` — thêm AutoCodeInput vào form hoá đơn
+- `src/routes/_app/cash/*.tsx` — wire `nextVoucherNo` (nếu chưa)
+
+**Không đổi:**
+- Schema DB (không cần migration — các cột mã đã tồn tại)
+- `cash.functions.ts` (giữ `nextVoucherNo`)
+- Backend logic của sales/purchases/customers/suppliers (chỉ FE thay đổi)
 
 ## Out of scope
-- Upload ảnh sản phẩm (cần storage bucket — đề xuất tách task riêng).
-- Khai báo thành phần Combo chi tiết (cần bảng `product_components`).
-- Đa đơn vị tính + tỉ lệ quy đổi (cần bảng `product_units`).
+- Trang Cài đặt cho phép tenant tuỳ biến prefix (đề xuất task riêng — sẽ cần bảng `code_sequences`).
+- Reset số thứ tự theo năm (hiện tại theo tháng cho voucher, theo all-time cho danh mục).
+- Lock số chứng từ kế toán đã ghi sổ.
