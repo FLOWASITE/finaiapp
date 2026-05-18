@@ -99,6 +99,7 @@ const SECTIONS: NavSection[] = [
       { to: "/assets/reclassify", label: "Chuyển TSCĐ ↔ CCDC", icon: ArrowLeftRight },
       { to: "/assets/inventory", label: "Kiểm kê tài sản", icon: ScanBarcode },
       { to: "/assets/allocations", label: "Tài sản phân bổ", icon: Boxes },
+      { to: "/assets/reports", label: "Báo cáo TSCĐ", icon: FileBarChart },
       { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
       { to: "/payroll", label: "Tiền lương", icon: Wallet },
       { to: "/coa", label: "Hệ thống tài khoản", icon: Landmark },
