@@ -13,7 +13,7 @@ function ReceivablesPage() {
   const fn = useServerFn(getReceivables);
   const [kind, setKind] = useState<"AR" | "AP">("AR");
   const [dims, setDims] = useState<DimensionValue>({});
-  const { data } = useQuery({ queryKey: ["receivables", kind, dims], queryFn: () => fn({ data: { kind, dims } }) });
+  const { data } = useQuery({ queryKey: ["receivables", kind, dims], queryFn: () => fn({ data: { kind, dims } }), ...QUERY_PRESETS.REPORT });
 
   const totals = (data ?? []).reduce(
     (s, r) => ({
