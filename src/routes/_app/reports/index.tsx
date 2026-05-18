@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/reports/")({
   component: ReportsPage,
 });
 
-const fmt = (n: number) => {
+export const fmt = (n: number) => {
   if (!n) return "-";
   const abs = Math.abs(Math.round(n)).toLocaleString("vi-VN");
   return n < 0 ? `(${abs})` : abs;
@@ -338,7 +338,7 @@ function ReportsPage() {
   );
 }
 
-function PrintHeader({ profile, title, subtitle }: { profile: any; title: string; subtitle: string }) {
+export function PrintHeader({ profile, title, subtitle }: { profile: any; title: string; subtitle: string }) {
   return (
     <div className="hidden print:mb-4 print:block">
       <div className="text-center">
@@ -353,7 +353,7 @@ function PrintHeader({ profile, title, subtitle }: { profile: any; title: string
   );
 }
 
-function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: string }) {
+export function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: string }) {
   const dateStr = `Ngày ${reportDate.slice(8, 10)} tháng ${reportDate.slice(5, 7)} năm ${reportDate.slice(0, 4)}`;
   const signers = [
     { role: "Người lập biểu", name: profile?.preparer_name, sig: null as string | null, stamp: null as string | null },
@@ -577,7 +577,7 @@ function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
   return Array.from(byCode.values()).sort((a, b) => a.code.localeCompare(b.code));
 }
 
-function TrialBalanceTable({
+export function TrialBalanceTable({
   data, hideZero, level, tree, search, onDrill,
 }: {
   data: TrialBalanceData;
@@ -740,7 +740,7 @@ type UnbalancedData = {
   totalDelta: number;
 };
 
-function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
+export function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
   if (loading) {
     return <div className="rounded border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Đang phân tích bút toán lệch cân…</div>;
   }
@@ -797,7 +797,7 @@ function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: Un
 }
 
 
-function AccountDrilldownDialog({
+export function AccountDrilldownDialog({
   account, from, to, dims, onClose,
 }: {
   account: { code: string; name: string } | null;
@@ -1047,7 +1047,7 @@ function AccountDrilldownDialog({
 }
 
 
-function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
+export function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-card p-6">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -1339,4 +1339,4 @@ function NoteEditor({ sectionKey, label, placeholder, initial, upsert, onSaved }
   );
 }
 
-function Loading() { return <div className="py-8 text-center text-sm text-muted-foreground">Đang tính...</div>; }
+export function Loading() { return <div className="py-8 text-center text-sm text-muted-foreground">Đang tính...</div>; }
