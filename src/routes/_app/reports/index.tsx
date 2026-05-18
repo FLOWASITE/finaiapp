@@ -633,6 +633,7 @@ function TrialBalanceTable({
           <td className="text-right font-mono">{fmt(totals.credit)}</td>
           <td className="text-right font-mono border-l border-border">{fmt(totals.closingDebit)}</td>
           <td className="text-right font-mono">{fmt(totals.closingCredit)}</td>
+          {onDrill && <td className="print:hidden"></td>}
         </tr>
       </tbody>
     </table>
