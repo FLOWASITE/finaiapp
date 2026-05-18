@@ -101,6 +101,13 @@ function ReportsPage() {
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
   const exportTbFn = useServerFn(exportTrialBalanceXlsx);
+  const unbalancedFn = useServerFn(getUnbalancedEntries);
+  const unbalanced = useQuery({
+    queryKey: ["unbalanced", from, to],
+    queryFn: () => unbalancedFn({ data: { from, to, limit: 50 } }),
+    enabled: !!tb.data && !tb.data.balanced,
+    ...QUERY_PRESETS.REPORT,
+  });
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
