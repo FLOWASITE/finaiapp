@@ -135,14 +135,6 @@ const EINVOICE_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Đồng bộ & Nhập liệu",
-    entries: [
-      { to: "/einvoices?action=sync", label: "Đồng bộ TCT", icon: RefreshCw },
-      { to: "/einvoices?action=import", label: "Nhập XML/ZIP", icon: Upload },
-      { to: "/einvoices?action=credentials", label: "Tài khoản TCT", icon: KeyRound },
-    ],
-  },
-  {
     label: "Liên kết",
     entries: [
       { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
