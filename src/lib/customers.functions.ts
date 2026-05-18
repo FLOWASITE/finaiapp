@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const optStr = (max: number) =>
   z.string().trim().max(max).optional().nullable().or(z.literal("")).transform((v) => (v ? v : null));
@@ -60,12 +60,13 @@ const CustomerSchema = z
   });
 
 export const listCustomers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data, error } = await supabase
       .from("customers")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("name", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
@@ -73,32 +74,25 @@ export const listCustomers = createServerFn({ method: "GET" })
   });
 
 export const getCustomer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: row, error } = await supabase
       .from("customers")
       .select("*")
       .eq("id", data.id)
+      .eq("tenant_id", tenantId)
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
 
 export const upsertCustomer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => CustomerSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Lấy tenant hiện hành để gắn vào row mới
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("active_tenant_id")
-      .eq("id", userId)
-      .single();
-    const tenant_id = profile?.active_tenant_id ?? null;
-
+    const { supabase, userId, tenantId } = context;
     const { id, ...rest } = data;
     // Đồng bộ opening_balance (cột cũ) = Nợ - Có để báo cáo cũ vẫn chạy
     const payload = {
@@ -107,7 +101,11 @@ export const upsertCustomer = createServerFn({ method: "POST" })
     };
 
     if (id) {
-      const { error } = await supabase.from("customers").update(payload).eq("id", id);
+      const { error } = await supabase
+        .from("customers")
+        .update(payload)
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
       if (error) {
         if (error.code === "23505") throw new Error("Mã khách hàng đã tồn tại");
         throw new Error(error.message);
@@ -116,7 +114,7 @@ export const upsertCustomer = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await supabase
       .from("customers")
-      .insert({ ...payload, user_id: userId, tenant_id })
+      .insert({ ...payload, user_id: userId, tenant_id: tenantId })
       .select("id")
       .single();
     if (error) {
@@ -127,14 +125,15 @@ export const upsertCustomer = createServerFn({ method: "POST" })
   });
 
 export const archiveCustomer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string; archived: boolean }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { error } = await supabase
       .from("customers")
       .update({ is_active: !data.archived })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
