@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const KindSchema = z.enum(["customer", "supplier"]);
 type Kind = z.infer<typeof KindSchema>;
@@ -19,20 +19,22 @@ const UpsertSchema = z.object({
 });
 
 export const listPartyGroups = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { kind: Kind }) => z.object({ kind: KindSchema }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: groups, error } = await supabase
       .from(table(data.kind) as any)
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
 
-    // Count members per group
+    // Count members per group (scoped by tenant)
     const { data: parties } = await supabase
       .from(partyTable(data.kind) as any)
-      .select("group_id");
+      .select("group_id")
+      .eq("tenant_id", tenantId);
     const counts: Record<string, number> = {};
     for (const p of (parties ?? []) as any[]) {
       if (p.group_id) counts[p.group_id] = (counts[p.group_id] ?? 0) + 1;
@@ -41,18 +43,19 @@ export const listPartyGroups = createServerFn({ method: "GET" })
   });
 
 export const upsertPartyGroup = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => UpsertSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: profile } = await supabase
-      .from("profiles").select("active_tenant_id").eq("id", userId).single();
-    const tenant_id = profile?.active_tenant_id ?? null;
+    const { supabase, userId, tenantId } = context;
     const { id, kind, ...rest } = data;
 
     if (id) {
       if (rest.parent_id === id) throw new Error("Nhóm cha không thể là chính nó");
-      const { error } = await supabase.from(table(kind) as any).update(rest).eq("id", id);
+      const { error } = await supabase
+        .from(table(kind) as any)
+        .update(rest)
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
       if (error) {
         if (error.code === "23505") throw new Error("Mã nhóm đã tồn tại");
         throw new Error(error.message);
@@ -61,7 +64,7 @@ export const upsertPartyGroup = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await supabase
       .from(table(kind) as any)
-      .insert({ ...rest, user_id: userId, tenant_id })
+      .insert({ ...rest, user_id: userId, tenant_id: tenantId })
       .select("id").single();
     if (error) {
       if (error.code === "23505") throw new Error("Mã nhóm đã tồn tại");
@@ -71,24 +74,29 @@ export const upsertPartyGroup = createServerFn({ method: "POST" })
   });
 
 export const deletePartyGroup = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string; kind: Kind }) =>
     z.object({ id: z.string().uuid(), kind: KindSchema }).parse(i))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from(table(data.kind) as any).delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from(table(data.kind) as any)
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", context.tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const assignPartyGroup = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string; kind: Kind; group_id: string | null }) =>
     z.object({ id: z.string().uuid(), kind: KindSchema, group_id: z.string().uuid().nullable() }).parse(i))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from(partyTable(data.kind) as any)
       .update({ group_id: data.group_id })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("tenant_id", context.tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
