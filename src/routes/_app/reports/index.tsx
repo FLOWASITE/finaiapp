@@ -7,7 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
-import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries, getAccountLedger } from "@/lib/ledgers.functions";
+import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries, getAccountLedger, exportAccountLedgerXlsx } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -766,6 +766,7 @@ function AccountDrilldownDialog({
   onClose: () => void;
 }) {
   const alFn = useServerFn(getAccountLedger);
+  const exportAlFn = useServerFn(exportAccountLedgerXlsx);
   const q = useQuery({
     queryKey: ["acc-ledger-drill", account?.code, from, to, dims],
     queryFn: () => alFn({ data: { account: account!.code, from, to, dims } }),
@@ -773,12 +774,35 @@ function AccountDrilldownDialog({
     ...QUERY_PRESETS.REPORT,
   });
   const open = !!account;
+
+  async function handleExport() {
+    if (!account) return;
+    try {
+      toast.loading("Đang xuất Excel...", { id: "xlsx" });
+      const res = await exportAlFn({ data: { account: account.code, from, to, dims } });
+      const link = document.createElement("a");
+      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
+      link.download = res.filename;
+      link.click();
+      toast.success("Đã xuất file", { id: "xlsx" });
+    } catch (e: any) {
+      toast.error(e.message ?? "Xuất file thất bại", { id: "xlsx" });
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>
-            Phát sinh chi tiết — TK {account?.code} {account?.name ? `· ${account.name}` : ""}
+          <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+            <span>
+              Phát sinh chi tiết — TK {account?.code} {account?.name ? `· ${account.name}` : ""}
+            </span>
+            {account && q.data && q.data.lines.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="mr-1 h-4 w-4" />Xuất Excel
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         {!account ? null : q.isLoading || !q.data ? (
