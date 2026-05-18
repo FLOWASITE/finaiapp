@@ -1102,9 +1102,7 @@ function NewReceiptInline({
 
   return (
     <>
-      <Button variant="receipt" onClick={() => setOpen(true)}>
-        <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
-      </Button>
+      <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
       <NewReceiptDialog
         open={open}
         onOpenChange={setOpen}
