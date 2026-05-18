@@ -120,6 +120,9 @@ function AllocatedAssetsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/assets/from-invoice">Từ hoá đơn</Link>
+          </Button>
           <RunAllocationDialog />
           <UpsertDialog />
         </div>

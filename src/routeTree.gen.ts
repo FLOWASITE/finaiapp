@@ -84,6 +84,7 @@ import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
+import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -469,6 +470,11 @@ const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppAssetsFromInvoiceRoute = AppAssetsFromInvoiceRouteImport.update({
+  id: '/from-invoice',
+  path: '/from-invoice',
+  getParentRoute: () => AppAssetsRoute,
+} as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   id: '/allocations',
   path: '/allocations',
@@ -524,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -602,6 +609,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -687,6 +695,7 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
@@ -772,6 +781,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/from-invoice'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -850,6 +860,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/from-invoice'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -934,6 +945,7 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/assets/from-invoice'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
@@ -1533,6 +1545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankAccountsRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/assets/from-invoice': {
+      id: '/_app/assets/from-invoice'
+      path: '/from-invoice'
+      fullPath: '/assets/from-invoice'
+      preLoaderRoute: typeof AppAssetsFromInvoiceRouteImport
+      parentRoute: typeof AppAssetsRoute
+    }
     '/_app/assets/allocations': {
       id: '/_app/assets/allocations'
       path: '/allocations'
@@ -1618,10 +1637,12 @@ const AppAssetsAllocationsRouteWithChildren =
 
 interface AppAssetsRouteChildren {
   AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
+  AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
 }
 
 const AppAssetsRouteChildren: AppAssetsRouteChildren = {
   AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
+  AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
 }
 
 const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
