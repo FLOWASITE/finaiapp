@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_period_balances: {
+        Row: {
+          account_code: string
+          credit: number
+          debit: number
+          period_no: number
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          account_code: string
+          credit?: number
+          debit?: number
+          period_no: number
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          account_code?: string
+          credit?: number
+          debit?: number
+          period_no?: number
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       ai_suggestions: {
         Row: {
           chosen_index: number | null
@@ -1924,6 +1954,42 @@ export type Database = {
           },
         ]
       }
+      monthly_summary: {
+        Row: {
+          collected: number
+          paid: number
+          purchase_count: number
+          purchase_expense: number
+          sales_count: number
+          sales_revenue: number
+          tenant_id: string
+          updated_at: string
+          year_month: string
+        }
+        Insert: {
+          collected?: number
+          paid?: number
+          purchase_count?: number
+          purchase_expense?: number
+          sales_count?: number
+          sales_revenue?: number
+          tenant_id: string
+          updated_at?: string
+          year_month: string
+        }
+        Update: {
+          collected?: number
+          paid?: number
+          purchase_count?: number
+          purchase_expense?: number
+          sales_count?: number
+          sales_revenue?: number
+          tenant_id?: string
+          updated_at?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -3535,6 +3601,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_balance_delta: {
+        Args: {
+          p_account: string
+          p_credit: number
+          p_date: string
+          p_debit: number
+          p_tenant: string
+        }
+        Returns: undefined
+      }
+      apply_monthly_summary: {
+        Args: {
+          p_collected: number
+          p_date: string
+          p_paid: number
+          p_purchase_count: number
+          p_purchase_expense: number
+          p_sales_count: number
+          p_sales_revenue: number
+          p_tenant: string
+        }
+        Returns: undefined
+      }
       current_tenant_id: { Args: never; Returns: string }
       generate_fiscal_year: { Args: { p_year: number }; Returns: string }
       has_any_role: {
@@ -3564,6 +3653,14 @@ export type Database = {
       is_tenant_member: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      rebuild_account_period_balances: {
+        Args: { p_tenant?: string }
+        Returns: undefined
+      }
+      rebuild_monthly_summary: {
+        Args: { p_tenant?: string }
+        Returns: undefined
       }
       transition_document_status: {
         Args: {
