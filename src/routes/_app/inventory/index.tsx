@@ -53,6 +53,7 @@ function InventoryPage() {
 
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
   const [lowOnly, setLowOnly] = useState(false);
 
   const filtered = useMemo(() => {
@@ -60,10 +61,11 @@ function InventoryPage() {
     return (stock ?? []).filter((p: any) => {
       if (s && ![p.code, p.name].some((v) => v?.toLowerCase().includes(s))) return false;
       if (categoryId !== "all" && p.category_id !== categoryId) return false;
+      if (typeFilter !== "all" && p.item_type !== typeFilter) return false;
       if (lowOnly && !p.low_stock) return false;
       return true;
     });
-  }, [stock, search, categoryId, lowOnly]);
+  }, [stock, search, categoryId, typeFilter, lowOnly]);
 
   return (
     <div className="p-8 space-y-6">
