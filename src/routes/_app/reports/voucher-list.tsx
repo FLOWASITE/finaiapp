@@ -210,9 +210,17 @@ function VoucherListPage() {
             />
             Hiện chữ ký
           </label>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="ml-auto text-xs text-primary underline"
+          >
+            {showAdvanced ? "Ẩn bộ lọc nâng cao" : "Bộ lọc nâng cao"}
+            {voucherTypes.length > 0 && !showAdvanced && ` (${voucherTypes.length} loại CT)`}
+          </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+          <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
           {SOURCE_OPTIONS.map((opt) => {
             const active = sources.includes(opt.value);
             return (
@@ -241,7 +249,47 @@ function VoucherListPage() {
             </button>
           )}
         </div>
+        {showAdvanced && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+            <span className="text-xs text-muted-foreground mr-1">Loại CT (voucher_type):</span>
+            {VOUCHER_TYPE_OPTIONS.map((opt) => {
+              const active = voucherTypes.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleVoucherType(opt.value)}
+                  className={
+                    "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                    (active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setVoucherTypes(VOUCHER_TYPE_OPTIONS.map((o) => o.value))}
+              className="text-xs text-muted-foreground underline ml-1"
+            >
+              Chọn tất cả
+            </button>
+            {voucherTypes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setVoucherTypes([])}
+                className="text-xs text-muted-foreground underline"
+              >
+                Bỏ chọn
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
 
       <div className="mt-4 print:mt-0">
         <PrintHeader
