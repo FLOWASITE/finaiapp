@@ -107,22 +107,25 @@ async function nextStockVoucherNo(
   movementDate: string,
 ) {
   const prefix = `${type === "in" ? "PN" : "PX"}${yyyymm(movementDate)}/`;
-  let q = supabase
-    .from("stock_movements")
-    .select("note")
-    .eq("movement_type", type)
-    .ilike("note", `${prefix}%`);
-  q = tenantId ? q.eq("tenant_id", tenantId) : q.eq("user_id", userId);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
+  // Look in both stock_vouchers (new) and stock_movements.note (legacy single-line)
+  let qv = supabase.from("stock_vouchers").select("voucher_no")
+    .eq("voucher_type", type).ilike("voucher_no", `${prefix}%`);
+  qv = tenantId ? qv.eq("tenant_id", tenantId) : qv.eq("user_id", userId);
+  let qm = supabase.from("stock_movements").select("note")
+    .eq("movement_type", type).ilike("note", `${prefix}%`);
+  qm = tenantId ? qm.eq("tenant_id", tenantId) : qm.eq("user_id", userId);
+  const [{ data: vs, error: vErr }, { data: ms, error: mErr }] = await Promise.all([qv, qm]);
+  if (vErr) throw new Error(vErr.message);
+  if (mErr) throw new Error(mErr.message);
   const re = new RegExp(`^${prefix.replace("/", "\\/")}(\\d+)`);
   let max = 0;
-  for (const r of (data as any[]) ?? []) {
+  for (const r of (vs as any[]) ?? []) {
+    const m = re.exec(r?.voucher_no ?? "");
+    if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
+  }
+  for (const r of (ms as any[]) ?? []) {
     const m = re.exec(r?.note ?? "");
-    if (m) {
-      const n = parseInt(m[1], 10);
-      if (n > max) max = n;
-    }
+    if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
   }
   return `${prefix}${String(max + 1).padStart(5, "0")}`;
 }
