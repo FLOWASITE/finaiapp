@@ -532,6 +532,18 @@ function InvoicesList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReceiptDocsSheet
+        open={!!docFor}
+        onOpenChange={(o) => !o && setDocFor(null)}
+        receiptId={docFor?.id ?? null}
+        status={docFor?.status}
+        hasJournalEntry={docFor?.status === "posted"}
+        table="invoices"
+        title={`Tài liệu hoá đơn ${docFor?.invoice_no ?? ""}`.trim()}
+        description="Xem OCR, đổi trạng thái và quản lý đính kèm của hoá đơn."
+        invalidateKeys={["purchase-invoices"]}
+      />
     </div>
   );
 }
