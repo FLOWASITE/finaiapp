@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { cn } from "@/lib/utils";
 
 /* ---------- Client schema (same rules as server) ---------- */
