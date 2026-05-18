@@ -460,3 +460,32 @@ function Field({
 // helper for TS narrowing of typed names — unused export kept for future
 export type _PartyField = FieldPath<PartyFormValues>;
 export type _PartyFormReturn = UseFormReturn<PartyFormValues>;
+
+function GroupSelect({
+  kind,
+  value,
+  onChange,
+}: {
+  kind: "customer" | "supplier";
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const listFn = useServerFn(listPartyGroups);
+  const { data: groups } = useQuery({
+    queryKey: ["party-groups", kind],
+    queryFn: () => listFn({ data: { kind } }),
+  });
+  return (
+    <Select value={value || "none"} onValueChange={(v: string) => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger><SelectValue placeholder="(Không thuộc nhóm)" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">(Không thuộc nhóm)</SelectItem>
+        {((groups ?? []) as any[]).map((g) => (
+          <SelectItem key={g.id} value={g.id}>
+            {g.code ? `${g.code} — ${g.name}` : g.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
