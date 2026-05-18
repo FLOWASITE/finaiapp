@@ -261,7 +261,67 @@ export const deleteCategory = createServerFn({ method: "POST" })
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    // Guard: chặn xoá nếu còn nhóm con hoặc còn SKU
+    const [{ count: childCount }, { count: skuCount }] = await Promise.all([
+      supabase.from("product_categories").select("id", { count: "exact", head: true }).eq("parent_id", data.id),
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("category_id", data.id),
+    ]);
+    if ((childCount ?? 0) > 0) throw new Error("Nhóm còn nhóm con — hãy xoá/di chuyển nhóm con trước");
+    if ((skuCount ?? 0) > 0) throw new Error(`Nhóm còn ${skuCount} mặt hàng — hãy chuyển nhóm trước`);
     const { error } = await supabase.from("product_categories").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const listCategoriesTree = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [{ data: cats, error: cErr }, { data: prods, error: pErr }] = await Promise.all([
+      supabase.from("product_categories").select("id, name, parent_id").order("name"),
+      supabase.from("products").select("category_id"),
+    ]);
+    if (cErr) throw new Error(cErr.message);
+    if (pErr) throw new Error(pErr.message);
+    const directCount = new Map<string, number>();
+    for (const p of prods ?? []) {
+      if (!p.category_id) continue;
+      directCount.set(p.category_id, (directCount.get(p.category_id) ?? 0) + 1);
+    }
+    return (cats ?? []).map((c: any) => ({ ...c, sku_count: directCount.get(c.id) ?? 0 }));
+  });
+
+const BulkAssignSchema = z.object({
+  product_ids: z.array(z.string().uuid()).min(1).max(500),
+  category_id: z.string().uuid().nullable(),
+});
+
+export const bulkAssignCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkAssignSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("products")
+      .update({ category_id: data.category_id })
+      .in("id", data.product_ids);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: data.product_ids.length };
+  });
+
+export const listProductsByCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { category_id: string | null }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    let q = supabase
+      .from("products")
+      .select("id, code, name, unit, item_type, on_hand, is_active")
+      .order("code");
+    if (data.category_id === null) q = q.is("category_id", null);
+    else q = q.eq("category_id", data.category_id);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
