@@ -34,10 +34,10 @@ function CashPage() {
           <p className="text-sm text-muted-foreground">Phiếu thu, phiếu chi & sổ quỹ</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setOpenType("receipt")} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button variant="receipt" onClick={() => setOpenType("receipt")}>
             <ArrowDownToLine className="mr-2 h-4 w-4" /> Phiếu thu
           </Button>
-          <Button onClick={() => setOpenType("payment")} variant="destructive">
+          <Button variant="payment" onClick={() => setOpenType("payment")}>
             <ArrowUpFromLine className="mr-2 h-4 w-4" /> Phiếu chi
           </Button>
         </div>
