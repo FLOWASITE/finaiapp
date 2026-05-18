@@ -375,10 +375,10 @@ export function AppSidebar() {
                         </>
                       ) : (
                         <>
-                          <div className="truncate text-xs font-medium text-sidebar-foreground">
+                          <div className="truncate text-[12.5px] font-semibold tracking-tight text-sidebar-foreground">
                             {email || "Người dùng"}
                           </div>
-                          <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                          <div className="text-[10.5px] font-medium tracking-wide text-sidebar-foreground/55">Lovable Cloud · Online</div>
                         </>
                       )}
                     </div>
