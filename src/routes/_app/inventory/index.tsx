@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories, previewStockVoucherNo, createStockVoucher } from "@/lib/inventory.functions";
+import { listConversionsBulk } from "@/lib/unit-conversions.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,6 +184,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const create = useServerFn(createStockVoucher);
   const listWh = useServerFn(listWarehouses);
   const previewNo = useServerFn(previewStockVoucherNo);
+  const convFn = useServerFn(listConversionsBulk);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -209,8 +211,24 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     [goodsOnly],
   );
 
-  type Line = { product_id: string; qty: number; unit_cost: number; note: string };
-  const emptyLine = (): Line => ({ product_id: "", qty: 0, unit_cost: 0, note: "" });
+  // Preload all unit conversions for the goods list so we can switch units instantly.
+  const productIdsAll = useMemo(() => goodsOnly.map((p: any) => p.id), [goodsOnly]);
+  const { data: convMap } = useQuery({
+    queryKey: ["unit-conversions-bulk", productIdsAll.join(",")],
+    queryFn: () => convFn({ data: { product_ids: productIdsAll } }),
+    enabled: productIdsAll.length > 0,
+  });
+  const getConversions = (pid: string): any[] => ((convMap as any)?.[pid] ?? []);
+  const getFactor = (pid: string, unit: string): number => {
+    const p = productMap.get(pid);
+    if (!p) return 1;
+    if (!unit || unit.toLowerCase() === String(p.unit ?? "").toLowerCase()) return 1;
+    const c = getConversions(pid).find((x) => x.unit.toLowerCase() === unit.toLowerCase());
+    return c ? Number(c.factor) : 1;
+  };
+
+  type Line = { product_id: string; qty: number; unit_cost: number; note: string; unit: string };
+  const emptyLine = (): Line => ({ product_id: "", qty: 0, unit_cost: 0, note: "", unit: "" });
 
   const [form, setForm] = useState({
     voucher_no: "",
@@ -239,18 +257,32 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     setForm((f) => ({ ...f, lines: f.lines.length > 1 ? f.lines.filter((_, idx) => idx !== i) : f.lines }));
   const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }));
 
+  // When product changes: pick default unit (preferring purchase/sale default) and prefill unit_cost.
   const productIdsKey = form.lines.map((l) => l.product_id).join("|");
   useEffect(() => {
-    if (type !== "out") return;
     setForm((f) => ({
       ...f,
       lines: f.lines.map((l) => {
         if (!l.product_id) return l;
         const p = productMap.get(l.product_id);
-        return p ? { ...l, unit_cost: Number(p.unit_cost ?? 0) } : l;
+        if (!p) return l;
+        let unit = l.unit;
+        if (!unit) {
+          const conv = getConversions(l.product_id);
+          const def = type === "in"
+            ? conv.find((c) => c.is_default_purchase)
+            : conv.find((c) => c.is_default_sale);
+          unit = def?.unit ?? p.unit;
+        }
+        const factor = getFactor(l.product_id, unit);
+        const next: Line = { ...l, unit };
+        if (type === "out") {
+          next.unit_cost = +(Number(p.unit_cost ?? 0) * factor).toFixed(4);
+        }
+        return next;
       }),
     }));
-  }, [type, productMap, productIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [type, productMap, productIdsKey, convMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(() => {
     let qty = 0, value = 0;
@@ -270,11 +302,13 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
       if (!l.product_id) continue;
       const p = productMap.get(l.product_id);
       if (!p) continue;
+      const factor = getFactor(l.product_id, l.unit || p.unit);
+      const qtyBase = Number(l.qty || 0) * factor;
       if (type === "in" && !(l.unit_cost > 0)) errs.push(`Đơn giá nhập cho ${p.code} phải > 0`);
-      if (type === "out" && Number(l.qty) > Number(p.on_hand ?? 0)) errs.push(`Vượt tồn ${p.code} (còn ${fmt(p.on_hand)})`);
+      if (type === "out" && qtyBase > Number(p.on_hand ?? 0)) errs.push(`Vượt tồn ${p.code} (còn ${fmt(p.on_hand)} ${p.unit})`);
     }
     return errs;
-  }, [form, productMap, type]);
+  }, [form, productMap, type, convMap]); // eslint-disable-line react-hooks/exhaustive-deps
   const canSave = errors.length === 0;
 
   const m = useMutation({
@@ -294,6 +328,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
               qty: Number(l.qty),
               unit_cost: Number(l.unit_cost || 0),
               note: l.note || undefined,
+              unit: l.unit || undefined,
             })),
         } as any,
       }),
@@ -378,8 +413,9 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 w-[40%]">Mặt hàng</th>
+                    <th className="px-3 py-2 w-[36%]">Mặt hàng</th>
                     <th className="px-3 py-2 text-right">Số lượng</th>
+                    <th className="px-3 py-2">ĐVT</th>
                     <th className="px-3 py-2 text-right">{type === "in" ? "Đơn giá" : "Giá BQ"}</th>
                     <th className="px-3 py-2 text-right">Thành tiền</th>
                     <th className="px-3 py-2"></th>
@@ -387,11 +423,17 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                 </thead>
                 <tbody>
                   {form.lines.map((l, i) => {
+                    const p: any = productMap.get(l.product_id);
+                    const baseUnit = p?.unit ?? "";
+                    const lineUnit = l.unit || baseUnit;
+                    const factor = getFactor(l.product_id, lineUnit);
+                    const qtyBase = Number(l.qty || 0) * factor;
                     const amount = Number(l.qty || 0) * Number(l.unit_cost || 0);
+                    const conv = l.product_id ? getConversions(l.product_id) : [];
                     return (
                       <tr key={i} className="border-t align-top">
                         <td className="px-3 py-2">
-                          <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v })}>
+                          <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v, unit: "" })}>
                             <SelectTrigger className="h-9"><SelectValue placeholder="Chọn mặt hàng..." /></SelectTrigger>
                             <SelectContent>
                               {goodsOnly.map((pp: any) => (
@@ -407,6 +449,40 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                         <td className="px-3 py-2">
                           <Input type="number" min={0} value={l.qty || ""} className="text-right h-9"
                             onChange={(e) => updateLine(i, { qty: Number(e.target.value) })} />
+                          {factor !== 1 && l.qty > 0 && (
+                            <div className="text-[10px] text-muted-foreground text-right mt-0.5">
+                              = {fmt(qtyBase)} {baseUnit}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Select
+                            value={lineUnit}
+                            onValueChange={(v) => {
+                              const newFactor = getFactor(l.product_id, v);
+                              const patch: Partial<Line> = { unit: v };
+                              if (p) {
+                                if (type === "out") {
+                                  patch.unit_cost = +(Number(p.unit_cost ?? 0) * newFactor).toFixed(4);
+                                } else if (l.unit_cost > 0 && factor > 0) {
+                                  // Scale current price to the new unit (preserve total amount)
+                                  patch.unit_cost = +((l.unit_cost / factor) * newFactor).toFixed(4);
+                                }
+                              }
+                              updateLine(i, patch);
+                            }}
+                            disabled={!l.product_id}
+                          >
+                            <SelectTrigger className="h-9 min-w-[90px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {baseUnit && <SelectItem value={baseUnit}>{baseUnit} (gốc)</SelectItem>}
+                              {conv.map((c: any) => (
+                                <SelectItem key={c.id} value={c.unit}>
+                                  {c.unit} (×{fmt(Number(c.factor))})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </td>
                         <td className="px-3 py-2">
                           <Input type="number" min={0} value={l.unit_cost || ""} className="text-right h-9"
@@ -424,7 +500,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
                 </tbody>
                 <tfoot>
                   <tr className="border-t bg-muted/30 font-medium">
-                    <td className="px-3 py-2 text-right" colSpan={3}>Tổng cộng</td>
+                    <td className="px-3 py-2 text-right" colSpan={4}>Tổng cộng</td>
                     <td className="px-3 py-2 text-right font-mono">{fmt(totals.value)}</td>
                     <td></td>
                   </tr>

@@ -5,6 +5,7 @@ import { getProduct } from "@/lib/inventory.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UnitConversionsEditor } from "@/components/inventory/unit-conversions-editor";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_app/inventory/$id")({ component: ProductDetail });
@@ -65,6 +66,8 @@ function ProductDetail() {
                 <p className="text-xs text-muted-foreground">VAT {product.vat_rate}%</p>
               </CardContent></Card>
           </div>
+
+          <UnitConversionsEditor productId={product.id} baseUnit={product.unit} />
 
           <Card>
             <CardHeader><CardTitle className="text-base">Thẻ kho (Kardex)</CardTitle></CardHeader>
