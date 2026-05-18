@@ -124,58 +124,58 @@ export function AppHeader() {
             <Skeleton className="hidden sm:block h-3.5 w-20" />
           </div>
         ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-3">
-              <Avatar className="h-7 w-7">
-                {profile?.avatar_url ? (
-                  <AvatarImage src={profile.avatar_url} alt={displayName} />
-                ) : null}
-                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-xs font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">
-                {displayName}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-3">
+                <Avatar className="h-7 w-7">
                   {profile?.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={displayName} />
                   ) : null}
-                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-sm font-semibold">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-xs font-semibold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-medium truncate">{displayName}</span>
-                  {profile?.job_title ? (
-                    <span className="text-[11px] text-muted-foreground truncate">{profile.job_title}</span>
-                  ) : null}
-                  <span className="text-xs text-muted-foreground truncate">{email}</span>
+                <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">
+                  {displayName}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    {profile?.avatar_url ? (
+                      <AvatarImage src={profile.avatar_url} alt={displayName} />
+                    ) : null}
+                    <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-sm font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium truncate">{displayName}</span>
+                    {profile?.job_title ? (
+                      <span className="text-[11px] text-muted-foreground truncate">{profile.job_title}</span>
+                    ) : null}
+                    <span className="text-xs text-muted-foreground truncate">{email}</span>
+                  </div>
                 </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ cá nhân</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Cài đặt</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/login"))}
-              className="text-destructive focus:text-destructive"
-            >
-              <LogOut className="mr-2 h-4 w-4" />Đăng xuất
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ cá nhân</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Cài đặt</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/login"))}
+                className="text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />Đăng xuất
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>
