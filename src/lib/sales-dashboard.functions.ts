@@ -9,9 +9,6 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n);
   return x;
 }
-function monthKey(d: string) {
-  return d.slice(0, 7);
-}
 
 export const salesDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -22,64 +19,44 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const d30 = dayStr(addDays(today, -30));
     const d60 = dayStr(addDays(today, -60));
     const d90 = dayStr(addDays(today, -90));
-    const monthFrom = dayStr(addDays(today, -180)); // ~6 months back
+    const monthStart = dayStr(new Date(today.getFullYear(), today.getMonth(), 1));
 
-    // 1) Invoices in last 180 days for revenue trend + status mix
-    const { data: invoices = [] } = await supabase
-      .from("sales_invoices")
-      .select("id, issue_date, due_date, total, paid_amount, status, payment_status, customer_id, customer_name")
-      .gte("issue_date", monthFrom)
-      .neq("status", "void");
-
-    const issued = (invoices ?? []).filter((r: any) => r.status === "issued");
-
-    // Revenue by month (last 6)
-    const monthly = new Map<string, { month: string; revenue: number; collected: number; count: number }>();
+    // Build last 6 month keys
+    const monthKeys: string[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      monthly.set(k, { month: k, revenue: 0, collected: 0, count: 0 });
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
-    for (const inv of issued) {
-      const k = monthKey(inv.issue_date);
-      const m = monthly.get(k);
-      if (m) {
-        m.revenue += Number(inv.total || 0);
-        m.collected += Number(inv.paid_amount || 0);
-        m.count += 1;
-      }
-    }
+    const firstMonth = monthKeys[0];
 
-    // 2) Receipts last 90 days
+    // 1) Trend from monthly_summary (aggregation table, scoped via RLS)
+    const { data: summaryRows = [] } = await supabase
+      .from("monthly_summary")
+      .select("year_month, sales_revenue, sales_count, collected")
+      .gte("year_month", firstMonth);
+    const summaryMap = new Map<string, { revenue: number; collected: number; count: number }>();
+    for (const r of summaryRows ?? []) {
+      summaryMap.set(r.year_month as string, {
+        revenue: Number(r.sales_revenue || 0),
+        collected: Number(r.collected || 0),
+        count: Number(r.sales_count || 0),
+      });
+    }
+    const trend = monthKeys.map((m) => {
+      const v = summaryMap.get(m) ?? { revenue: 0, collected: 0, count: 0 };
+      return { month: m, revenue: v.revenue, collected: v.collected, count: v.count };
+    });
+
+    // 2) Receipts last 90 days for KPI windows (small dataset)
     const { data: receipts = [] } = await supabase
       .from("customer_receipts")
-      .select("amount, method, pay_date, customer_id, customer_name")
+      .select("amount, method, pay_date")
       .gte("pay_date", d90);
-
     const collected30 = (receipts ?? []).filter((r: any) => r.pay_date >= d30).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     const collected60 = (receipts ?? []).filter((r: any) => r.pay_date >= d60).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     const collected90 = (receipts ?? []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
-    // Collected by month (merge into monthly)
-    for (const r of receipts ?? []) {
-      const k = monthKey(r.pay_date);
-      const m = monthly.get(k);
-      if (m) m.collected += Number(r.amount || 0); // additive to inv.paid_amount fallback ok
-    }
-    // Re-derive collected per month from receipts only (clean)
-    const collectedByMonth = new Map<string, number>();
-    for (const r of receipts ?? []) {
-      const k = monthKey(r.pay_date);
-      collectedByMonth.set(k, (collectedByMonth.get(k) ?? 0) + Number(r.amount || 0));
-    }
-    const trend = Array.from(monthly.values()).map((m) => ({
-      month: m.month,
-      revenue: m.revenue,
-      collected: collectedByMonth.get(m.month) ?? 0,
-      count: m.count,
-    }));
-
-    // 3) Aging on ALL outstanding (not just 180d window)
+    // 3) Aging on outstanding (must scan open invoices for per-row remaining/due)
     const { data: openInvoices = [] } = await supabase
       .from("sales_invoices")
       .select("id, invoice_no, customer_id, customer_name, issue_date, due_date, total, paid_amount, payment_status")
@@ -131,10 +108,11 @@ export const salesDashboard = createServerFn({ method: "GET" })
       .sort((a, b) => b.outstanding - a.outstanding)
       .slice(0, 8);
 
-    // 4) Current month stats
-    const monthStart = dayStr(new Date(today.getFullYear(), today.getMonth(), 1));
-    const monthIssued = issued.filter((r: any) => r.issue_date >= monthStart);
-    const revenueMonth = monthIssued.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+    // 4) Current month KPI from monthly_summary
+    const curYm = monthKeys[monthKeys.length - 1];
+    const cur = summaryMap.get(curYm) ?? { revenue: 0, collected: 0, count: 0 };
+    const revenueMonth = cur.revenue;
+    const invoicesMonth = cur.count;
     const collectedMonth = (receipts ?? []).filter((r: any) => r.pay_date >= monthStart).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
     const outstandingTotal = (openInvoices ?? []).reduce(
@@ -143,9 +121,9 @@ export const salesDashboard = createServerFn({ method: "GET" })
     );
     const overdueTotal = overdueList.reduce((s, r) => s + r.remaining, 0);
 
-    // Payment status mix (180d window)
+    // Payment status mix on current open invoices (cheap, already loaded)
     const statusMix = { paid: 0, partial: 0, unpaid: 0, overdue: 0 };
-    for (const inv of issued) {
+    for (const inv of openInvoices ?? []) {
       const k = (inv.payment_status ?? "unpaid") as keyof typeof statusMix;
       if (k in statusMix) statusMix[k] += 1;
     }
@@ -153,7 +131,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     return {
       kpi: {
         revenue_month: revenueMonth,
-        invoices_month: monthIssued.length,
+        invoices_month: invoicesMonth,
         collected_month: collectedMonth,
         collected_30: collected30,
         collected_60: collected60,

@@ -9,9 +9,6 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n);
   return x;
 }
-function monthKey(d: string) {
-  return d.slice(0, 7);
-}
 
 export const purchasesDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -22,103 +19,69 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const d30 = dayStr(addDays(today, -30));
     const d60 = dayStr(addDays(today, -60));
     const d90 = dayStr(addDays(today, -90));
-    const monthFrom = dayStr(addDays(today, -180));
+    const monthStart = dayStr(new Date(today.getFullYear(), today.getMonth(), 1));
 
-    // 1) Invoices 180d for trend
-    const { data: invoices = [] } = await supabase
-      .from("invoices")
-      .select(
-        "id, issue_date, total, status, supplier_id, supplier_name, invoice_no",
-      )
-      .gte("issue_date", monthFrom);
-
-    // Build month buckets
-    const monthly = new Map<
-      string,
-      { month: string; expense: number; paid: number; count: number }
-    >();
+    const monthKeys: string[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      monthly.set(k, { month: k, expense: 0, paid: 0, count: 0 });
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
-    for (const inv of invoices ?? []) {
-      if (!inv.issue_date) continue;
-      const k = monthKey(inv.issue_date);
-      const m = monthly.get(k);
-      if (m) {
-        m.expense += Number(inv.total || 0);
-        m.count += 1;
-      }
-    }
+    const firstMonth = monthKeys[0];
 
-    // 2) Payments 90d (KPI windows) + by month merge
+    // 1) Trend from monthly_summary
+    const { data: summaryRows = [] } = await supabase
+      .from("monthly_summary")
+      .select("year_month, purchase_expense, purchase_count, paid")
+      .gte("year_month", firstMonth);
+    const summaryMap = new Map<string, { expense: number; paid: number; count: number }>();
+    for (const r of summaryRows ?? []) {
+      summaryMap.set(r.year_month as string, {
+        expense: Number(r.purchase_expense || 0),
+        paid: Number(r.paid || 0),
+        count: Number(r.purchase_count || 0),
+      });
+    }
+    const trend = monthKeys.map((m) => {
+      const v = summaryMap.get(m) ?? { expense: 0, paid: 0, count: 0 };
+      return { month: m, expense: v.expense, paid: v.paid, count: v.count };
+    });
+
+    // 2) Payments 90d for KPI windows
     const { data: payments = [] } = await supabase
       .from("supplier_payments")
       .select("amount, method, pay_date, supplier_id, supplier_name")
       .gte("pay_date", d90);
+    const paid30 = (payments ?? []).filter((p: any) => p.pay_date >= d30).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const paid60 = (payments ?? []).filter((p: any) => p.pay_date >= d60).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const paid90 = (payments ?? []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
 
-    const paid30 = (payments ?? [])
-      .filter((p: any) => p.pay_date >= d30)
-      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-    const paid60 = (payments ?? [])
-      .filter((p: any) => p.pay_date >= d60)
-      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-    const paid90 = (payments ?? []).reduce(
-      (s: number, p: any) => s + Number(p.amount || 0),
-      0,
-    );
-
-    // Re-derive paid per month from payments (last 180d window of months)
-    const { data: paymentsLong = [] } = await supabase
-      .from("supplier_payments")
-      .select("amount, pay_date")
-      .gte("pay_date", monthFrom);
-    for (const p of paymentsLong ?? []) {
-      const k = monthKey(p.pay_date as string);
-      const m = monthly.get(k);
-      if (m) m.paid += Number(p.amount || 0);
-    }
-    const trend = Array.from(monthly.values());
-
-    // 3) Aging on all outstanding
+    // 3) Aging on outstanding invoices
     const { data: allInvs = [] } = await supabase
       .from("invoices")
-      .select("id, invoice_no, supplier_id, supplier_name, issue_date, total");
+      .select("id, invoice_no, supplier_id, supplier_name, issue_date, total")
+      .neq("status", "void");
     const { data: allPays = [] } = await supabase
       .from("supplier_payments")
       .select("invoice_id, amount");
     const paidMap = new Map<string, number>();
     for (const p of allPays ?? []) {
       if (p.invoice_id)
-        paidMap.set(
-          p.invoice_id,
-          (paidMap.get(p.invoice_id) ?? 0) + Number(p.amount || 0),
-        );
+        paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
     }
 
     const aging = { current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
     const overdueList: any[] = [];
     const bySupplier = new Map<
       string,
-      {
-        supplier_id: string | null;
-        supplier_name: string;
-        outstanding: number;
-        overdue: number;
-        invoices: number;
-      }
+      { supplier_id: string | null; supplier_name: string; outstanding: number; overdue: number; invoices: number }
     >();
 
     for (const inv of allInvs ?? []) {
       const remaining = Number(inv.total || 0) - (paidMap.get(inv.id) ?? 0);
       if (remaining <= 0.5) continue;
       const issued = inv.issue_date ?? todayStr;
-      // No due_date column → assume 30-day terms
       const due = dayStr(addDays(new Date(issued), 30));
-      const daysLate = Math.floor(
-        (today.getTime() - new Date(due).getTime()) / 86400000,
-      );
+      const daysLate = Math.floor((today.getTime() - new Date(due).getTime()) / 86400000);
       if (daysLate <= 0) aging.current += remaining;
       else if (daysLate <= 30) aging["1-30"] += remaining;
       else if (daysLate <= 60) aging["31-60"] += remaining;
@@ -155,21 +118,13 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
       .sort((a, b) => b.outstanding - a.outstanding)
       .slice(0, 8);
 
-    // 4) Current month stats
-    const monthStart = dayStr(new Date(today.getFullYear(), today.getMonth(), 1));
-    const monthExpense = (invoices ?? [])
-      .filter((r: any) => r.issue_date >= monthStart)
-      .reduce((s: number, r: any) => s + Number(r.total || 0), 0);
-    const monthInvoiceCount = (invoices ?? []).filter(
-      (r: any) => r.issue_date >= monthStart,
-    ).length;
-    const paidMonth = (payments ?? [])
-      .filter((p: any) => p.pay_date >= monthStart)
-      .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    // 4) Current month from monthly_summary
+    const curYm = monthKeys[monthKeys.length - 1];
+    const cur = summaryMap.get(curYm) ?? { expense: 0, paid: 0, count: 0 };
+    const paidMonth = (payments ?? []).filter((p: any) => p.pay_date >= monthStart).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
 
     const outstandingTotal = (allInvs ?? []).reduce(
-      (s: number, r: any) =>
-        s + Math.max(0, Number(r.total || 0) - (paidMap.get(r.id) ?? 0)),
+      (s: number, r: any) => s + Math.max(0, Number(r.total || 0) - (paidMap.get(r.id) ?? 0)),
       0,
     );
     const overdueTotal = overdueList.reduce((s, r) => s + r.remaining, 0);
@@ -179,8 +134,8 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
 
     return {
       kpi: {
-        expense_month: monthExpense,
-        invoices_month: monthInvoiceCount,
+        expense_month: cur.expense,
+        invoices_month: cur.count,
         paid_month: paidMonth,
         paid_30: paid30,
         paid_60: paid60,
