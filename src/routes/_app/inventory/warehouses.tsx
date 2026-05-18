@@ -115,14 +115,13 @@ function WarehousesPage() {
             được gắn với một kho cụ thể.
           </p>
         </div>
-        <Button variant="add"
+        <AddNew
+          label="Thêm kho"
           onClick={() => {
             setEditing(null);
             setDialogOpen(true);
           }}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Thêm kho
-        </Button>
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
