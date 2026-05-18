@@ -100,6 +100,8 @@ function ArSummaryPage() {
   const [drillSearch, setDrillSearch] = useState("");
   const [drillPage, setDrillPage] = useState(1);
   const [drillPageSize, setDrillPageSize] = useState(50);
+  const [drillGroupByDoc, setDrillGroupByDoc] = useState(false);
+
 
   // Reset local filters when opening a new drill-down
   useEffect(() => {
