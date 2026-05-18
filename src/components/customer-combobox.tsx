@@ -3,6 +3,7 @@ import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listCustomers, upsertCustomer } from "@/lib/customers.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
