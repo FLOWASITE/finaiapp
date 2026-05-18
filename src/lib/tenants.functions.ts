@@ -60,6 +60,10 @@ export const switchTenant = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const optionalISODate = z.preprocess(
+  (v) => (v === "" || v === null || v === undefined ? null : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+);
 const CreateTenantSchema = z.object({
   name: z.string().min(1).max(255),
   company_name: z.string().max(255).optional(),
@@ -68,6 +72,17 @@ const CreateTenantSchema = z.object({
   legal_rep_name: z.string().max(255).optional(),
   accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
   base_currency: z.string().max(10).default("VND"),
+  // Bonus auto-fill từ MST lookup
+  trade_name: z.string().max(255).optional(),
+  phone: z.string().max(50).optional(),
+  email: z.string().email().max(255).optional().or(z.literal("").transform(() => undefined)),
+  tax_authority: z.string().max(255).optional(),
+  business_reg_no: z.string().max(100).optional(),
+  business_reg_date: optionalISODate.optional(),
+  established_date: optionalISODate.optional(),
+  legal_form: z.enum(["llc","jsc","partnership","sole_prop","household","branch","other"]).optional(),
+  industry_code: z.string().max(20).optional(),
+  industry_name: z.string().max(255).optional(),
 });
 
 export const createTenant = createServerFn({ method: "POST" })
@@ -87,6 +102,16 @@ export const createTenant = createServerFn({ method: "POST" })
         legal_rep_name: data.legal_rep_name ?? null,
         accounting_standard: data.accounting_standard,
         base_currency: data.base_currency,
+        trade_name: data.trade_name ?? null,
+        phone: data.phone ?? null,
+        email: data.email ?? null,
+        tax_authority: data.tax_authority ?? null,
+        business_reg_no: data.business_reg_no ?? null,
+        business_reg_date: data.business_reg_date ?? null,
+        established_date: data.established_date ?? null,
+        legal_form: data.legal_form ?? null,
+        industry_code: data.industry_code ?? null,
+        industry_name: data.industry_name ?? null,
         owner_user_id: userId,
       })
       .select("id")
