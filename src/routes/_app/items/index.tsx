@@ -491,3 +491,60 @@ function Field({
     </TooltipProvider>
   );
 }
+
+function UnitPicker({
+  value,
+  onChange,
+  units,
+  isService,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  units: any[];
+  isService: boolean;
+}) {
+  const active = (units ?? []).filter((u: any) => u.is_active);
+  const merged = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; usage?: number }>();
+    for (const u of active) map.set(u.code.toLowerCase(), { code: u.code, name: u.name, usage: u.usage ?? 0 });
+    for (const s of UNIT_SUGGESTIONS) if (!map.has(s.toLowerCase())) map.set(s.toLowerCase(), { code: s, name: s });
+    if (value && !map.has(value.toLowerCase())) map.set(value.toLowerCase(), { code: value, name: value });
+    return Array.from(map.values()).sort((a, b) => (b.usage ?? 0) - (a.usage ?? 0) || a.code.localeCompare(b.code));
+  }, [active, value]);
+  const [custom, setCustom] = useState(false);
+  const inCatalog = useMemo(
+    () => merged.some((m) => m.code.toLowerCase() === value.toLowerCase()),
+    [merged, value]
+  );
+
+  if (custom) {
+    return (
+      <div className="flex gap-1">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={isService ? "lần / giờ" : "cái"}
+          autoFocus
+        />
+        <Button type="button" variant="ghost" size="sm" onClick={() => setCustom(false)}>Chọn</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-1">
+      <Select value={inCatalog ? value : ""} onValueChange={onChange}>
+        <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn đơn vị..." /></SelectTrigger>
+        <SelectContent>
+          {merged.map((u) => (
+            <SelectItem key={u.code} value={u.code}>
+              <span className="font-mono">{u.code}</span>
+              {u.name !== u.code && <span className="text-muted-foreground"> · {u.name}</span>}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button type="button" variant="outline" size="sm" onClick={() => setCustom(true)} title="Nhập thủ công">+</Button>
+    </div>
+  );
+}
