@@ -1,24 +1,23 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, KeyRound } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   getTctCredentials,
-  saveTctCredentials,
-  deleteTctCredentials,
   getTctCaptcha,
   syncTctInvoices,
 } from "@/lib/einvoices-sync.functions";
@@ -34,8 +33,6 @@ export function SyncTctDialog({
 }) {
   const qc = useQueryClient();
   const getCreds = useServerFn(getTctCredentials);
-  const saveCreds = useServerFn(saveTctCredentials);
-  const delCreds = useServerFn(deleteTctCredentials);
   const getCaptcha = useServerFn(getTctCaptcha);
   const syncFn = useServerFn(syncTctInvoices);
 
@@ -45,35 +42,6 @@ export function SyncTctDialog({
     enabled: open,
   });
   const hasCreds = !!credsQ.data?.credentials;
-
-  const [tab, setTab] = React.useState<"sync" | "account">("sync");
-  React.useEffect(() => {
-    if (open) setTab(hasCreds ? "sync" : "account");
-  }, [open, hasCreds]);
-
-  // Account form
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-
-  const saveMut = useMutation({
-    mutationFn: (vars: { username: string; password: string }) =>
-      saveCreds({ data: vars }),
-    onSuccess: () => {
-      toast.success("Đã lưu tài khoản TCT");
-      setPassword("");
-      qc.invalidateQueries({ queryKey: ["tct-creds"] });
-      setTab("sync");
-    },
-    onError: (e: any) => toast.error(e?.message || "Lỗi lưu tài khoản"),
-  });
-
-  const delMut = useMutation({
-    mutationFn: () => delCreds({ data: undefined as any }),
-    onSuccess: () => {
-      toast.success("Đã xoá tài khoản TCT");
-      qc.invalidateQueries({ queryKey: ["tct-creds"] });
-    },
-  });
 
   // Sync form
   const today = new Date().toISOString().slice(0, 10);
@@ -108,10 +76,10 @@ export function SyncTctDialog({
   }, [getCaptcha]);
 
   React.useEffect(() => {
-    if (open && tab === "sync" && mode === "manual" && hasCreds && !cap) {
+    if (open && mode === "manual" && hasCreds && !cap) {
       loadCaptcha();
     }
-  }, [open, tab, mode, hasCreds, cap, loadCaptcha]);
+  }, [open, mode, hasCreds, cap, loadCaptcha]);
 
   const syncMut = useMutation({
     mutationFn: () =>
@@ -135,7 +103,6 @@ export function SyncTctDialog({
     },
     onError: (e: any) => {
       toast.error(e?.message || "Đồng bộ thất bại");
-      // refresh captcha so user can retry
       if (mode === "manual") loadCaptcha();
     },
   });
@@ -145,74 +112,33 @@ export function SyncTctDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Đồng bộ HĐĐT từ Cổng Tổng cục Thuế</DialogTitle>
+          <DialogDescription>
+            Tải HĐĐT đầu vào / đầu ra trực tiếp từ cổng TCT bằng tài khoản đã
+            khai báo.
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="sync" disabled={!hasCreds}>
-              Đồng bộ
-            </TabsTrigger>
-            <TabsTrigger value="account">Tài khoản TCT</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="account" className="space-y-3 pt-3">
-            <p className="text-xs text-muted-foreground">
-              Tài khoản đăng nhập tại <code>hoadondientu.gdt.gov.vn</code>.
-              Mật khẩu được mã hoá AES-GCM trước khi lưu.
+        {!credsQ.isLoading && !hasCreds ? (
+          <div className="space-y-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+            <div className="flex items-center gap-2 font-medium text-amber-700">
+              <KeyRound className="h-4 w-4" />
+              Chưa khai báo tài khoản TCT
+            </div>
+            <p className="text-muted-foreground">
+              Bạn cần khai báo tên đăng nhập + mật khẩu cổng{" "}
+              <code>hoadondientu.gdt.gov.vn</code> trước khi đồng bộ.
             </p>
-            <div>
-              <Label>Tên đăng nhập (MST)</Label>
-              <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={credsQ.data?.credentials?.tct_username || "0123456789"}
-              />
-            </div>
-            <div>
-              <Label>Mật khẩu</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={hasCreds ? "(để trống nếu giữ nguyên)" : ""}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={() =>
-                  saveMut.mutate({
-                    username:
-                      username || credsQ.data?.credentials?.tct_username || "",
-                    password,
-                  })
-                }
-                disabled={
-                  saveMut.isPending ||
-                  !password ||
-                  (!username && !credsQ.data?.credentials?.tct_username)
-                }
+            <Button asChild>
+              <Link
+                to="/einvoices/credentials"
+                onClick={() => onOpenChange(false)}
               >
-                {saveMut.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Lưu
-              </Button>
-              {hasCreds && (
-                <Button
-                  variant="outline"
-                  onClick={() => delMut.mutate()}
-                  disabled={delMut.isPending}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Xoá tài khoản
-                </Button>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="sync" className="space-y-3 pt-3">
+                Đi tới khai báo
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3 pt-1">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Loại HĐ</Label>
@@ -297,7 +223,7 @@ export function SyncTctDialog({
 
             {mode === "auto" && (
               <p className="text-xs text-muted-foreground">
-                Hệ thống sẽ tự gửi captcha tới 2Captcha (mất 10-30s). Cần
+                Hệ thống sẽ tự gửi captcha tới 2Captcha (mất 10–30s). Cần
                 <code className="mx-1">TWOCAPTCHA_API_KEY</code>còn dư credit.
               </p>
             )}
@@ -316,8 +242,8 @@ export function SyncTctDialog({
               )}
               Đồng bộ
             </Button>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
