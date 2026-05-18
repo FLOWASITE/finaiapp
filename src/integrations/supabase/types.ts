@@ -454,6 +454,239 @@ export type Database = {
           },
         ]
       }
+      einvoice_lines: {
+        Row: {
+          amount: number | null
+          created_at: string
+          description: string
+          einvoice_id: string
+          id: string
+          line_no: number | null
+          qty: number | null
+          unit: string | null
+          unit_price: number | null
+          vat_amount: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          description: string
+          einvoice_id: string
+          id?: string
+          line_no?: number | null
+          qty?: number | null
+          unit?: string | null
+          unit_price?: number | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          description?: string
+          einvoice_id?: string
+          id?: string
+          line_no?: number | null
+          qty?: number | null
+          unit?: string | null
+          unit_price?: number | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einvoice_lines_einvoice_id_fkey"
+            columns: ["einvoice_id"]
+            isOneToOne: false
+            referencedRelation: "einvoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      einvoice_sync_logs: {
+        Row: {
+          created_count: number | null
+          date_from: string | null
+          date_to: string | null
+          direction: string | null
+          duplicate_count: number | null
+          error_message: string | null
+          fetched_count: number | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_count?: number | null
+          date_from?: string | null
+          date_to?: string | null
+          direction?: string | null
+          duplicate_count?: number | null
+          error_message?: string | null
+          fetched_count?: number | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_count?: number | null
+          date_from?: string | null
+          date_to?: string | null
+          direction?: string | null
+          duplicate_count?: number | null
+          error_message?: string | null
+          fetched_count?: number | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einvoice_sync_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      einvoices: {
+        Row: {
+          buyer_address: string | null
+          buyer_name: string | null
+          buyer_tax_id: string | null
+          created_at: string
+          currency: string | null
+          direction: string
+          exchange_rate: number | null
+          id: string
+          invoice_no: string | null
+          invoice_series: string | null
+          invoice_template: string | null
+          issue_date: string | null
+          matched_purchase_invoice_id: string | null
+          matched_sales_invoice_id: string | null
+          notes: string | null
+          pdf_path: string | null
+          seller_address: string | null
+          seller_name: string | null
+          seller_tax_id: string | null
+          source: string
+          subtotal: number | null
+          tct_lookup_code: string | null
+          tct_mcct: string | null
+          tct_raw: Json | null
+          tct_signed_at: string | null
+          tct_status: string | null
+          tenant_id: string
+          total: number | null
+          updated_at: string
+          user_id: string
+          vat_amount: number | null
+          xml_path: string | null
+        }
+        Insert: {
+          buyer_address?: string | null
+          buyer_name?: string | null
+          buyer_tax_id?: string | null
+          created_at?: string
+          currency?: string | null
+          direction: string
+          exchange_rate?: number | null
+          id?: string
+          invoice_no?: string | null
+          invoice_series?: string | null
+          invoice_template?: string | null
+          issue_date?: string | null
+          matched_purchase_invoice_id?: string | null
+          matched_sales_invoice_id?: string | null
+          notes?: string | null
+          pdf_path?: string | null
+          seller_address?: string | null
+          seller_name?: string | null
+          seller_tax_id?: string | null
+          source?: string
+          subtotal?: number | null
+          tct_lookup_code?: string | null
+          tct_mcct?: string | null
+          tct_raw?: Json | null
+          tct_signed_at?: string | null
+          tct_status?: string | null
+          tenant_id: string
+          total?: number | null
+          updated_at?: string
+          user_id: string
+          vat_amount?: number | null
+          xml_path?: string | null
+        }
+        Update: {
+          buyer_address?: string | null
+          buyer_name?: string | null
+          buyer_tax_id?: string | null
+          created_at?: string
+          currency?: string | null
+          direction?: string
+          exchange_rate?: number | null
+          id?: string
+          invoice_no?: string | null
+          invoice_series?: string | null
+          invoice_template?: string | null
+          issue_date?: string | null
+          matched_purchase_invoice_id?: string | null
+          matched_sales_invoice_id?: string | null
+          notes?: string | null
+          pdf_path?: string | null
+          seller_address?: string | null
+          seller_name?: string | null
+          seller_tax_id?: string | null
+          source?: string
+          subtotal?: number | null
+          tct_lookup_code?: string | null
+          tct_mcct?: string | null
+          tct_raw?: Json | null
+          tct_signed_at?: string | null
+          tct_status?: string | null
+          tenant_id?: string
+          total?: number | null
+          updated_at?: string
+          user_id?: string
+          vat_amount?: number | null
+          xml_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einvoices_matched_purchase_invoice_id_fkey"
+            columns: ["matched_purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoices_matched_sales_invoice_id_fkey"
+            columns: ["matched_sales_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           bank_account: string | null

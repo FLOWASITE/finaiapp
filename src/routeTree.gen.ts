@@ -36,6 +36,7 @@ import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
+import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
@@ -55,6 +56,7 @@ import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppInventoryMovementsRouteImport } from './routes/_app/inventory/movements'
 import { Route as AppInventoryCategoriesRouteImport } from './routes/_app/inventory/categories'
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
+import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -196,6 +198,11 @@ const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppInventoryRoute,
 } as any)
+const AppEinvoicesIndexRoute = AppEinvoicesIndexRouteImport.update({
+  id: '/einvoices/',
+  path: '/einvoices/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
   id: '/customers/',
   path: '/customers/',
@@ -292,6 +299,11 @@ const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppInventoryRoute,
 } as any)
+const AppEinvoicesIdRoute = AppEinvoicesIdRouteImport.update({
+  id: '/einvoices/$id',
+  path: '/einvoices/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   id: '/allocations',
   path: '/allocations',
@@ -341,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
@@ -360,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
+  '/einvoices/': typeof AppEinvoicesIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
@@ -391,6 +405,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
@@ -410,6 +425,7 @@ export interface FileRoutesByTo {
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
+  '/einvoices': typeof AppEinvoicesIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/payables': typeof AppPayablesIndexRoute
@@ -446,6 +462,7 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
   '/_app/inventory/categories': typeof AppInventoryCategoriesRoute
   '/_app/inventory/movements': typeof AppInventoryMovementsRoute
@@ -465,6 +482,7 @@ export interface FileRoutesById {
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
+  '/_app/einvoices/': typeof AppEinvoicesIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
@@ -501,6 +519,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/einvoices/$id'
     | '/inventory/$id'
     | '/inventory/categories'
     | '/inventory/movements'
@@ -520,6 +539,7 @@ export interface FileRouteTypes {
     | '/cash/'
     | '/coa/'
     | '/customers/'
+    | '/einvoices/'
     | '/inventory/'
     | '/invoices/'
     | '/payables/'
@@ -551,6 +571,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/einvoices/$id'
     | '/inventory/$id'
     | '/inventory/categories'
     | '/inventory/movements'
@@ -570,6 +591,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/coa'
     | '/customers'
+    | '/einvoices'
     | '/inventory'
     | '/invoices'
     | '/payables'
@@ -605,6 +627,7 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/einvoices/$id'
     | '/_app/inventory/$id'
     | '/_app/inventory/categories'
     | '/_app/inventory/movements'
@@ -624,6 +647,7 @@ export interface FileRouteTypes {
     | '/_app/cash/'
     | '/_app/coa/'
     | '/_app/customers/'
+    | '/_app/einvoices/'
     | '/_app/inventory/'
     | '/_app/invoices/'
     | '/_app/payables/'
@@ -839,6 +863,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryIndexRouteImport
       parentRoute: typeof AppInventoryRoute
     }
+    '/_app/einvoices/': {
+      id: '/_app/einvoices/'
+      path: '/einvoices'
+      fullPath: '/einvoices/'
+      preLoaderRoute: typeof AppEinvoicesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/customers/': {
       id: '/_app/customers/'
       path: '/customers'
@@ -972,6 +1003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryIdRouteImport
       parentRoute: typeof AppInventoryRoute
     }
+    '/_app/einvoices/$id': {
+      id: '/_app/einvoices/$id'
+      path: '/einvoices/$id'
+      fullPath: '/einvoices/$id'
+      preLoaderRoute: typeof AppEinvoicesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/allocations': {
       id: '/_app/assets/allocations'
       path: '/allocations'
@@ -1097,6 +1135,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
+  AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
@@ -1109,6 +1148,7 @@ interface AppRouteChildren {
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppCoaIndexRoute: typeof AppCoaIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
+  AppEinvoicesIndexRoute: typeof AppEinvoicesIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
@@ -1133,6 +1173,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
+  AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
   AppReportsLedgersRoute: AppReportsLedgersRoute,
@@ -1145,6 +1186,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCashIndexRoute: AppCashIndexRoute,
   AppCoaIndexRoute: AppCoaIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
+  AppEinvoicesIndexRoute: AppEinvoicesIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppPayablesIndexRoute: AppPayablesIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
