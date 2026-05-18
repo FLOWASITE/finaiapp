@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -68,12 +75,37 @@ const KIND_LABELS: Record<string, string> = {
 function DocumentsPage() {
   const list = useServerFn(listDocuments);
   const [search, setSearch] = useState("");
+  const [docKind, setDocKind] = useState<string>("all");
+  const [ocrStatus, setOcrStatus] = useState<string>("all");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const filters = {
+    search: search || undefined,
+    doc_kind: docKind === "all" ? undefined : docKind,
+    ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+  };
+
   const { data, isLoading } = useQuery({
-    queryKey: ["documents", search],
-    queryFn: () => list({ data: { search: search || undefined, limit: 100, offset: 0 } }),
+    queryKey: ["documents", filters],
+    queryFn: () => list({ data: { ...filters, limit: 100, offset: 0 } }),
   });
+
+  const activeCount =
+    (docKind !== "all" ? 1 : 0) +
+    (ocrStatus !== "all" ? 1 : 0) +
+    (fromDate ? 1 : 0) +
+    (toDate ? 1 : 0);
+
+  const resetFilters = () => {
+    setDocKind("all");
+    setOcrStatus("all");
+    setFromDate("");
+    setToDate("");
+  };
 
   return (
     <div className="p-6 space-y-4">
@@ -87,14 +119,60 @@ function DocumentsPage() {
       </div>
 
       <Card className="p-4">
-        <div className="flex gap-2 mb-4">
+        <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-6">
           <Input
             placeholder="Tìm theo tên file..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
+            className="md:col-span-2"
+          />
+          <Select value={docKind} onValueChange={setDocKind}>
+            <SelectTrigger>
+              <SelectValue placeholder="Loại tài liệu" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả loại</SelectItem>
+              {Object.entries(KIND_LABELS).map(([k, label]) => (
+                <SelectItem key={k} value={k}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={ocrStatus} onValueChange={setOcrStatus}>
+            <SelectTrigger>
+              <SelectValue placeholder="Trạng thái OCR" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Mọi OCR</SelectItem>
+              {Object.entries(OCR_LABELS).map(([k, label]) => (
+                <SelectItem key={k} value={k}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            aria-label="Từ ngày"
+          />
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            aria-label="Đến ngày"
           />
         </div>
+        {activeCount > 0 && (
+          <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Đang lọc {activeCount} điều kiện</span>
+            <Button size="sm" variant="ghost" className="h-6 px-2" onClick={resetFilters}>
+              Xoá bộ lọc
+            </Button>
+          </div>
+        )}
 
         {isLoading ? (
           <Skeleton className="h-64 w-full" />
