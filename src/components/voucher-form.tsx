@@ -123,6 +123,7 @@ export function VoucherFormDialog({
     setAmountStr("");
     setAttachments("");
     setDims({});
+    setCreatedId(null);
   }, [open, type]);
 
   useEffect(() => {
