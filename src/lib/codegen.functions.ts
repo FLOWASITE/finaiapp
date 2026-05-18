@@ -9,10 +9,11 @@ export type CodeEntity =
   | "supplier"
   | "product_goods"
   | "product_service"
-  | "product_combo";
+  | "product_combo"
+  | "warehouse";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses";
   column: "invoice_no" | "code";
   prefix: string;
   dateScoped: boolean;
@@ -38,12 +39,13 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
     table: "products", column: "code", prefix: "CB", dateScoped: false, padLen: 4,
     extraFilter: { column: "item_type", value: "combo" },
   },
+  warehouse: { table: "warehouses", column: "code", prefix: "KHO", dateScoped: false, padLen: 2 },
 };
 
 const InputSchema = z.object({
   entity: z.enum([
     "sale_invoice", "purchase_invoice", "customer", "supplier",
-    "product_goods", "product_service", "product_combo",
+    "product_goods", "product_service", "product_combo", "warehouse",
   ]),
   date: z.string().optional(), // ISO date string, used for dateScoped entities
 });
