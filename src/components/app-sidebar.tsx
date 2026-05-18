@@ -310,7 +310,7 @@ export function AppSidebar() {
                   <button
                     key={q.label}
                     onClick={() => go(q.to)}
-                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2 py-0.5 text-[10px] text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
+                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2.5 py-1 text-[10.5px] font-medium tracking-wide whitespace-nowrap text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
                   >
                     {q.label}
                   </button>
