@@ -72,6 +72,7 @@ const SECTIONS: NavSection[] = [
           { to: "/payables", label: "Công nợ phải trả" },
         ],
       },
+      { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
       {
         label: "Đối tác",
         icon: ContactIcon,
