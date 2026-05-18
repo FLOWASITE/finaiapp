@@ -120,6 +120,38 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+const EINVOICE_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "← Quay lại tổng quan", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Hoá đơn điện tử",
+    entries: [
+      { to: "/einvoices", label: "Tất cả hoá đơn", icon: FileText },
+      { to: "/einvoices?tab=in", label: "Hoá đơn đầu vào", icon: Inbox },
+      { to: "/einvoices?tab=out", label: "Hoá đơn đầu ra", icon: Send },
+    ],
+  },
+  {
+    label: "Đồng bộ & Nhập liệu",
+    entries: [
+      { to: "/einvoices?action=sync", label: "Đồng bộ TCT", icon: RefreshCw },
+      { to: "/einvoices?action=import", label: "Nhập XML/ZIP", icon: Upload },
+      { to: "/einvoices?action=credentials", label: "Tài khoản TCT", icon: KeyRound },
+    ],
+  },
+  {
+    label: "Liên kết",
+    entries: [
+      { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
+      { to: "/invoices", label: "Hoá đơn bán", icon: Receipt },
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Calculator },
+    ],
+  },
+];
+
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
   { label: "Lập BCTC quý gần nhất", to: "/reports" },
