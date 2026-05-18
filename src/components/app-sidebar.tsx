@@ -293,7 +293,7 @@ export function AppSidebar() {
                 <div className="rounded-[11px] bg-sidebar/90 backdrop-blur-sm px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-sidebar-primary" />
-                    <span className="text-xs font-medium text-sidebar-foreground/90 flex-1 text-left">
+                    <span className="text-[12.5px] font-medium tracking-tight text-sidebar-foreground/90 flex-1 text-left">
                       Hỏi FinAI AI…
                     </span>
                     <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
