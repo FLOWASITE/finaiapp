@@ -161,6 +161,7 @@ function DocumentsPage() {
 function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   const getDoc = useServerFn(getDocument);
   const delDoc = useServerFn(deleteDocument);
+  const unlink = useServerFn(unlinkDocument);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -175,6 +176,16 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
       toast.success("Đã xoá tài liệu");
       qc.invalidateQueries({ queryKey: ["documents"] });
       onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const unlinkMut = useMutation({
+    mutationFn: (l: { entity_table: string; entity_id: string }) =>
+      unlink({ data: { document_id: id!, entity_table: l.entity_table as any, entity_id: l.entity_id } }),
+    onSuccess: () => {
+      toast.success("Đã gỡ liên kết");
+      qc.invalidateQueries({ queryKey: ["document", id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
