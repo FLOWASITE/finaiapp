@@ -414,6 +414,74 @@ function DrilldownDialog({ drill, from, to, asOf, onClose }: { drill: null | { r
   );
 }
 
+type TrialBalanceRow = {
+  code: string;
+  name: string;
+  openingDebit: number;
+  openingCredit: number;
+  debit: number;
+  credit: number;
+  closingDebit: number;
+  closingCredit: number;
+};
+type TrialBalanceData = {
+  rows: TrialBalanceRow[];
+  totals: Omit<TrialBalanceRow, "code" | "name">;
+  balanced: boolean;
+};
+
+function TrialBalanceTable({ data, hideZero }: { data: TrialBalanceData; hideZero: boolean }) {
+  const rows = hideZero
+    ? data.rows.filter(
+        (r) =>
+          r.openingDebit !== 0 || r.openingCredit !== 0 ||
+          r.debit !== 0 || r.credit !== 0 ||
+          r.closingDebit !== 0 || r.closingCredit !== 0,
+      )
+    : data.rows;
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="border-b-2 border-border">
+          <th rowSpan={2} className="py-2 text-left">Mã TK</th>
+          <th rowSpan={2} className="text-left">Tên tài khoản</th>
+          <th colSpan={2} className="text-center border-l border-border">Số dư đầu kỳ</th>
+          <th colSpan={2} className="text-center border-l border-border">Phát sinh trong kỳ</th>
+          <th colSpan={2} className="text-center border-l border-border">Số dư cuối kỳ</th>
+        </tr>
+        <tr className="border-b border-border text-muted-foreground">
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+          <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.code} className="border-b border-border/40">
+            <td className="py-1 font-mono">{r.code}</td>
+            <td>{r.name}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.openingCredit)}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.debit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
+            <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
+            <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
+          </tr>
+        ))}
+        <tr className="bg-muted/50 font-semibold border-t-2 border-border">
+          <td colSpan={2} className="py-2">Tổng cộng</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.openingDebit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.openingCredit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.debit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.credit)}</td>
+          <td className="text-right font-mono border-l border-border">{fmt(data.totals.closingDebit)}</td>
+          <td className="text-right font-mono">{fmt(data.totals.closingCredit)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-card p-6">
