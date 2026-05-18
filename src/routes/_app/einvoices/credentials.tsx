@@ -361,24 +361,12 @@ function CredentialsPage() {
               <Badge variant="outline" className="text-xs">
                 Tài khoản: {creds?.tct_username ?? "—"}
               </Badge>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={loadCaptcha}
-                disabled={capLoading}
-              >
-                <RefreshCw
-                  className={`mr-1 h-3 w-3 ${capLoading ? "animate-spin" : ""}`}
-                />
-                Tải lại
-              </Button>
             </div>
             <div className="flex items-center gap-3">
-              <div
-                className="h-12 w-40 overflow-hidden rounded border border-border bg-white"
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: cap?.svg ?? "" }}
+              <TctCaptcha
+                svg={cap?.svg}
+                loading={capLoading}
+                onReload={loadCaptcha}
               />
               <Input
                 value={capValue}
