@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { COMMON_UNITS as COMMON_UNITS_LIST, findCommonUnit } from "./common-units";
 
 const UnitSchema = z.object({
   id: z.string().uuid().optional(),
@@ -9,6 +10,10 @@ const UnitSchema = z.object({
   note: z.string().max(255).nullable().optional(),
   is_active: z.boolean().default(true),
 });
+
+function normalizeCode(s: string): string {
+  return s.trim().replace(/\s+/g, " ");
+}
 
 export const listUnits = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -37,12 +42,24 @@ export const upsertUnit = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-    const payload: any = { ...data, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
+    const code = normalizeCode(data.code);
+    // Auto-fill canonical name from common units catalog when name missing or matches code.
+    let name = data.name?.trim() || "";
+    const match = findCommonUnit(code);
+    if (match && (!name || name.toLowerCase() === code.toLowerCase())) {
+      name = match.name;
+    }
+    if (!name) name = code;
+    const payload: any = { ...data, code, name, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
     if (data.id) {
       const { error } = await supabase.from("product_units").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
+    // Check duplicate (case-insensitive) for this tenant
+    const { data: dup } = await supabase
+      .from("product_units").select("id").ilike("code", code).maybeSingle();
+    if (dup) throw new Error(`Đơn vị "${code}" đã tồn tại`);
     const { data: row, error } = await supabase.from("product_units").insert(payload).select("id").single();
     if (error) throw new Error(error.message);
     return { id: row!.id };
@@ -65,47 +82,7 @@ export const deleteUnit = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const COMMON_UNITS: { code: string; name: string; note?: string }[] = [
-  { code: "Cái", name: "Cái" },
-  { code: "Chiếc", name: "Chiếc" },
-  { code: "Bộ", name: "Bộ" },
-  { code: "Hộp", name: "Hộp" },
-  { code: "Thùng", name: "Thùng" },
-  { code: "Gói", name: "Gói" },
-  { code: "Túi", name: "Túi" },
-  { code: "Chai", name: "Chai" },
-  { code: "Lọ", name: "Lọ" },
-  { code: "Lon", name: "Lon" },
-  { code: "Bao", name: "Bao" },
-  { code: "Kiện", name: "Kiện" },
-  { code: "Cuộn", name: "Cuộn" },
-  { code: "Tờ", name: "Tờ" },
-  { code: "Quyển", name: "Quyển" },
-  { code: "Tập", name: "Tập" },
-  { code: "Đôi", name: "Đôi" },
-  { code: "Cặp", name: "Cặp" },
-  { code: "Tá", name: "Tá", note: "12 cái" },
-  { code: "kg", name: "Ki-lô-gam" },
-  { code: "g", name: "Gam" },
-  { code: "tấn", name: "Tấn" },
-  { code: "tạ", name: "Tạ" },
-  { code: "yến", name: "Yến" },
-  { code: "lít", name: "Lít" },
-  { code: "ml", name: "Mi-li-lít" },
-  { code: "m3", name: "Mét khối" },
-  { code: "m", name: "Mét" },
-  { code: "cm", name: "Xăng-ti-mét" },
-  { code: "mm", name: "Mi-li-mét" },
-  { code: "m2", name: "Mét vuông" },
-  { code: "km", name: "Ki-lô-mét" },
-  { code: "Giờ", name: "Giờ" },
-  { code: "Ngày", name: "Ngày" },
-  { code: "Tháng", name: "Tháng" },
-  { code: "Lần", name: "Lần" },
-  { code: "Suất", name: "Suất" },
-  { code: "Phần", name: "Phần" },
-  { code: "Dịch vụ", name: "Dịch vụ" },
-];
+export const COMMON_UNITS = COMMON_UNITS_LIST;
 
 export const seedCommonUnits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

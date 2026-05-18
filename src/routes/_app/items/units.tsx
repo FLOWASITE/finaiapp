@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listUnits, upsertUnit, deleteUnit, seedCommonUnits } from "@/lib/units.functions";
+import { COMMON_UNITS, findCommonUnit, suggestCommonUnits } from "@/lib/common-units";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,6 +114,27 @@ function UnitDialog({ unit }: { unit?: any }) {
     note: unit?.note ?? "",
     is_active: unit?.is_active ?? true,
   }));
+  const [nameTouched, setNameTouched] = useState(!!unit);
+
+  const suggestions = useMemo(() => suggestCommonUnits(form.code, 8), [form.code]);
+
+  const onCodeChange = (val: string) => {
+    setForm((f) => {
+      const next = { ...f, code: val };
+      // Auto-fill name from catalog if user hasn't manually edited the name
+      if (!nameTouched) {
+        const match = findCommonUnit(val);
+        if (match) next.name = match.name;
+        else if (!f.name) next.name = val;
+      }
+      return next;
+    });
+  };
+
+  const applySuggestion = (s: { code: string; name: string; note?: string }) => {
+    setForm((f) => ({ ...f, code: s.code, name: s.name, note: s.note ?? f.note }));
+    setNameTouched(false);
+  };
 
   const m = useMutation({
     mutationFn: () => up({ data: { id: unit?.id, ...form } as any }),
@@ -120,10 +142,12 @@ function UnitDialog({ unit }: { unit?: any }) {
       toast.success(unit ? "Đã cập nhật" : "Đã thêm đơn vị");
       qc.invalidateQueries({ queryKey: ["units"] });
       setOpen(false);
-      if (!unit) setForm({ code: "", name: "", note: "", is_active: true });
+      if (!unit) { setForm({ code: "", name: "", note: "", is_active: true }); setNameTouched(false); }
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const datalistId = `common-units-${unit?.id ?? "new"}`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -137,16 +161,49 @@ function UnitDialog({ unit }: { unit?: any }) {
       <DialogContent>
         <DialogHeader><DialogTitle>{unit ? "Sửa đơn vị tính" : "Thêm đơn vị tính"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          <datalist id={datalistId}>
+            {COMMON_UNITS.map((u) => (
+              <option key={u.code} value={u.code}>{u.name}</option>
+            ))}
+          </datalist>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Mã *</Label>
-              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="cái, hộp, kg..." />
+              <Input
+                list={datalistId}
+                value={form.code}
+                onChange={(e) => onCodeChange(e.target.value)}
+                placeholder="Chọn hoặc nhập: Cái, Hộp, kg..."
+                autoComplete="off"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Tên *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Cái, Hộp, Ki-lô-gam..." />
+              <Input
+                value={form.name}
+                onChange={(e) => { setNameTouched(true); setForm({ ...form, name: e.target.value }); }}
+                placeholder="Cái, Hộp, Ki-lô-gam..."
+              />
             </div>
           </div>
+          {!unit && form.code && !findCommonUnit(form.code) && suggestions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Gợi ý đơn vị thông dụng:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.code}
+                    type="button"
+                    onClick={() => applySuggestion(s)}
+                    className="text-xs px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted transition"
+                  >
+                    <span className="font-mono">{s.code}</span>
+                    <span className="text-muted-foreground"> · {s.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs">Ghi chú</Label>
             <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
