@@ -3598,7 +3598,105 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_account_period_summary: {
+        Row: {
+          account_code: string | null
+          period_credit: number | null
+          period_debit: number | null
+          period_no: number | null
+          refreshed_at: string | null
+          tenant_id: string | null
+          year: number | null
+          ytd_credit: number | null
+          ytd_debit: number | null
+        }
+        Relationships: []
+      }
+      mv_ap_aging: {
+        Row: {
+          bucket_1_30: number | null
+          bucket_31_60: number | null
+          bucket_61_90: number | null
+          bucket_current: number | null
+          bucket_over_90: number | null
+          open_invoices: number | null
+          refreshed_at: string | null
+          supplier_id: string | null
+          tenant_id: string | null
+          total_outstanding: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mv_ar_aging: {
+        Row: {
+          bucket_1_30: number | null
+          bucket_31_60: number | null
+          bucket_61_90: number | null
+          bucket_current: number | null
+          bucket_over_90: number | null
+          customer_id: string | null
+          open_invoices: number | null
+          refreshed_at: string | null
+          tenant_id: string | null
+          total_outstanding: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoices_customer_fk"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mv_monthly_purchases_by_supplier: {
+        Row: {
+          expense: number | null
+          invoice_count: number | null
+          refreshed_at: string | null
+          supplier_id: string | null
+          tenant_id: string | null
+          year_month: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mv_monthly_sales_by_customer: {
+        Row: {
+          collected: number | null
+          customer_id: string | null
+          invoice_count: number | null
+          refreshed_at: string | null
+          revenue: number | null
+          tenant_id: string | null
+          year_month: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoices_customer_fk"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       apply_balance_delta: {
@@ -3626,6 +3724,103 @@ export type Database = {
       }
       current_tenant_id: { Args: never; Returns: string }
       generate_fiscal_year: { Args: { p_year: number }; Returns: string }
+      get_account_period_summary: {
+        Args: { p_year?: number }
+        Returns: {
+          account_code: string | null
+          period_credit: number | null
+          period_debit: number | null
+          period_no: number | null
+          refreshed_at: string | null
+          tenant_id: string | null
+          year: number | null
+          ytd_credit: number | null
+          ytd_debit: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_account_period_summary"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_ap_aging: {
+        Args: never
+        Returns: {
+          bucket_1_30: number | null
+          bucket_31_60: number | null
+          bucket_61_90: number | null
+          bucket_current: number | null
+          bucket_over_90: number | null
+          open_invoices: number | null
+          refreshed_at: string | null
+          supplier_id: string | null
+          tenant_id: string | null
+          total_outstanding: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_ap_aging"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_ar_aging: {
+        Args: never
+        Returns: {
+          bucket_1_30: number | null
+          bucket_31_60: number | null
+          bucket_61_90: number | null
+          bucket_current: number | null
+          bucket_over_90: number | null
+          customer_id: string | null
+          open_invoices: number | null
+          refreshed_at: string | null
+          tenant_id: string | null
+          total_outstanding: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_ar_aging"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_monthly_purchases_by_supplier: {
+        Args: { p_year_month_from?: string; p_year_month_to?: string }
+        Returns: {
+          expense: number | null
+          invoice_count: number | null
+          refreshed_at: string | null
+          supplier_id: string | null
+          tenant_id: string | null
+          year_month: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_monthly_purchases_by_supplier"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_monthly_sales_by_customer: {
+        Args: { p_year_month_from?: string; p_year_month_to?: string }
+        Returns: {
+          collected: number | null
+          customer_id: string | null
+          invoice_count: number | null
+          refreshed_at: string | null
+          revenue: number | null
+          tenant_id: string | null
+          year_month: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mv_monthly_sales_by_customer"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -3662,6 +3857,7 @@ export type Database = {
         Args: { p_tenant?: string }
         Returns: undefined
       }
+      refresh_report_mvs: { Args: { p_tenant?: string }; Returns: undefined }
       transition_document_status: {
         Args: {
           p_id: string
