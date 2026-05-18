@@ -1,53 +1,39 @@
+# Quản lý tỷ lệ quy đổi đơn vị tính
+
 ## Mục tiêu
-Hoàn thiện `/inventory/warehouses` để quản lý nhiều kho (kho tổng, kho chi nhánh…) và cho phép gán kho khi nhập/xuất kho và khi kiểm kê.
+Cho phép một mặt hàng có nhiều đơn vị tính khác nhau (VD: 1 Thùng = 24 Chai, 1 kg = 1000 g). Khi lập phiếu nhập/xuất, người dùng chọn đơn vị giao dịch và hệ thống tự quy đổi ra **đơn vị gốc** (đơn vị khai báo trên mặt hàng) để cập nhật tồn kho và ghi sổ.
 
-## 1. Database (migration)
+## Mô hình dữ liệu
+Tạo bảng `product_unit_conversions`:
+- `product_id` — mặt hàng
+- `unit` — đơn vị thay thế (VD: "Thùng")
+- `factor` — 1 `unit` = `factor` × đơn vị gốc của mặt hàng (VD: 24)
+- `is_default_purchase`, `is_default_sale` — đánh dấu đơn vị mặc định khi mua/bán (tuỳ chọn)
+- `note`
+- RLS theo tenant như các bảng khác; unique `(product_id, unit)`.
 
-**Tạo bảng `warehouses`:**
-- `id`, `user_id`, `tenant_id`, `created_at`, `updated_at`
-- `code text NOT NULL` (mã kho, ví dụ `KHO01`)
-- `name text NOT NULL` (tên kho)
-- `address text`, `manager text`, `phone text`, `notes text`
-- `is_default boolean DEFAULT false` (kho mặc định khi tạo phiếu)
-- `is_active boolean DEFAULT true`
-- UNIQUE `(tenant_id, code)` và `(user_id, code)`
-- RLS theo chuẩn tenant + own (giống `products`, `bank_accounts`)
-- Trigger `updated_at`
+Đơn vị gốc (factor = 1) luôn là `products.unit` — không cần lưu, mặc định có sẵn trong dropdown.
 
-**Gắn kho vào nghiệp vụ tồn:**
-- `stock_movements`: thêm `warehouse_id uuid REFERENCES warehouses(id) ON DELETE SET NULL` + index `(warehouse_id, movement_date)`
-- `stock_takes`: thêm `warehouse_id uuid REFERENCES warehouses(id) ON DELETE SET NULL` (giữ cột `warehouse` text cũ cho dữ liệu legacy, hiển thị fallback)
-- Cho phép chuyển kho: thêm `transfer_id uuid` trên `stock_movements` để gom 2 dòng in/out của cùng phiếu chuyển kho (cùng `ref_type='transfer'`)
+## Backend (`src/lib/unit-conversions.functions.ts` — mới)
+- `listConversions({ product_id })` — danh sách quy đổi của 1 mặt hàng.
+- `upsertConversion` — thêm/sửa; validate factor > 0, đơn vị tồn tại trong `product_units`, không trùng đơn vị gốc.
+- `deleteConversion`.
+- `getConversionsBulk({ product_ids })` — trả map dùng cho form phiếu.
 
-**Seed:** với mỗi tenant đang có dữ liệu tồn, tự sinh 1 kho mặc định `KHO01 – Kho chính` và gán `warehouse_id` cho movements/takes hiện có.
+Cập nhật `inventory.functions.ts` (`createStockVoucher` + `updateStockVoucher`):
+- Mỗi dòng nhận thêm `unit` (đơn vị giao dịch) và `qty_in_unit` (số lượng theo đơn vị đó); server tra factor và tính `qty_base = qty_in_unit × factor`, `unit_cost_base = unit_cost_in_unit / factor`. Lưu cả 2 (thêm cột `txn_unit`, `txn_qty`, `txn_unit_cost`, `conversion_factor` vào `stock_voucher_lines`) để hiển thị/in lại đúng nguyên trạng.
 
-## 2. Server functions — `src/lib/warehouses.functions.ts`
-- `listWarehouses()` — trả về danh sách + số sản phẩm/giá trị tồn theo kho (group từ `stock_movements`)
-- `upsertWarehouse({ id?, code, name, address?, manager?, phone?, notes?, is_default?, is_active? })` — auto-code qua `nextEntityCode` nếu trống
-- `deleteWarehouse({ id })` — chặn xoá nếu còn movements; cho phép "ngưng hoạt động" thay thế
-- `setDefaultWarehouse({ id })` — bỏ cờ default ở các kho khác
+## UI
+1. **Trang chi tiết mặt hàng** (`/inventory/$id`) — thêm tab/section "Đơn vị quy đổi" với bảng CRUD inline (đơn vị, hệ số, ghi chú, đánh dấu mặc định nhập/xuất). Hiển thị ví dụ "1 Thùng = 24 Chai" để dễ kiểm tra.
+2. **Form phiếu nhập/xuất** (`StockVoucherDialog` + dialog sửa trong `VoucherListPage`):
+   - Thêm cột "ĐVT" trên mỗi dòng (Select các đơn vị: gốc + các quy đổi của mặt hàng đó).
+   - Khi đổi đơn vị: gợi ý đơn giá theo factor; hiển thị nhỏ bên dưới "= X <đv gốc>" và "Thành tiền" tính theo qty × unit_cost (giá trị tổng không đổi giữa các đơn vị).
+   - Validate tồn kho cho phiếu xuất dùng `qty_base`.
+3. **In phiếu** — hiển thị đơn vị giao dịch + ghi chú quy đổi.
 
-Bổ sung entity `warehouse` vào `src/lib/codegen.functions.ts` (prefix `KHO`, padLen 2).
+## File thay đổi
+- Migration mới: bảng `product_unit_conversions` + cột bổ sung trên `stock_voucher_lines`.
+- Mới: `src/lib/unit-conversions.functions.ts`, `src/components/inventory/unit-conversions-editor.tsx`.
+- Sửa: `src/lib/inventory.functions.ts`, `src/routes/_app/inventory/index.tsx`, `src/routes/_app/inventory/$id.tsx`, `src/components/inventory/VoucherListPage.tsx`, `src/lib/printVoucher.ts`.
 
-## 3. UI — `src/routes/_app/inventory/warehouses.tsx`
-Layout chuẩn DataTable (giống `customers`/`suppliers`):
-- Header: tiêu đề + nút **"Thêm kho"** + ô tìm kiếm
-- Bảng: Mã | Tên kho | Địa chỉ | Quản lý | SL mã hàng | Tồn (giá trị) | Mặc định (badge) | Trạng thái | Hành động (Sửa/Xoá/Đặt mặc định)
-- `WarehouseDialog`: form gồm `AutoCodeInput` (entity=`warehouse`), Tên, Địa chỉ, Người quản lý, SĐT, Ghi chú, Switch "Kho mặc định", Switch "Đang hoạt động". Có nút **Lưu** và **Lưu & thêm mới**, shortcut Ctrl+S.
-- Validate trùng mã client-side; toast lỗi DB 23505.
-- Empty state hướng dẫn tạo kho đầu tiên.
-
-## 4. Wire vào các trang tồn kho
-- **`/inventory` (nhập/xuất nhanh)**: thêm Select "Kho" (mặc định = kho `is_default`), lưu `warehouse_id` vào `stock_movements`. Thêm filter "Kho" trên bảng tồn để xem tồn theo từng kho.
-- **`/inventory/movements`**: bảng phiếu nhập/xuất hiển thị cột Kho; filter theo kho + theo loại + theo khoảng ngày.
-- **`/inventory/stock-takes`**: form tạo phiếu kiểm kê đổi field `warehouse` text → `Select` chọn `warehouse_id` (bắt buộc).
-- **`/inventory/stock-card` & `/inventory/$id`**: thêm filter kho; hiển thị tồn cuối kỳ theo từng kho.
-
-## 5. Ngoài phạm vi (không làm lần này)
-- Phiếu chuyển kho riêng (transfer document UI) — chỉ chuẩn bị schema, UI để lần sau.
-- Tồn kho theo lot/serial, theo vị trí trong kho.
-- Phân quyền truy cập theo kho.
-
-## Ghi chú kỹ thuật
-- `on_hand` trên `products` vẫn là tổng tất cả kho; tồn theo kho tính động từ `SUM(stock_movements)` theo `warehouse_id`.
-- Giữ backward-compat: movements/takes cũ không có `warehouse_id` sẽ được seed gán về kho mặc định trong migration.
+Bạn duyệt để mình triển khai theo plan này nhé?
