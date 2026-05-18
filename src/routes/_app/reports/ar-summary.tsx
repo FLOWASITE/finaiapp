@@ -671,7 +671,18 @@ function ArSummaryPage() {
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-semibold">Tổng hợp theo ngày</div>
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-sm font-semibold">Tổng hợp theo ngày</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => handleExportDrill("daily")}
+                    disabled={drillFiltered.daily.length === 0}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" /> Xuất Excel
+                  </Button>
+                </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase">
