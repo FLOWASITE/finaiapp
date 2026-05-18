@@ -33,7 +33,7 @@ export function CustomerCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const list = useServerFn(listCustomers);
-  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}) });
+  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}), ...QUERY_PRESETS.REFERENCE });
   const active = useMemo(() => (customers ?? []).find((c) => c.id === value) ?? null, [customers, value]);
 
   return (
