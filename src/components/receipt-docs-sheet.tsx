@@ -128,7 +128,7 @@ export function ReceiptDocsSheet({
             {/* Status history */}
             <div>
               <div className="text-sm font-medium mb-2">Lịch sử trạng thái</div>
-              <DocStatusHistory table="customer_receipts" id={receiptId} />
+              <DocStatusHistory table={table} id={receiptId} />
             </div>
           </div>
         )}
