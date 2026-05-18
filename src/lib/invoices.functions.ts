@@ -26,10 +26,10 @@ const InvoiceSchema = z.object({
 });
 
 export const extractInvoice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((input: { invoiceId: string }) => input)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Thiếu LOVABLE_API_KEY");
 
@@ -38,9 +38,9 @@ export const extractInvoice = createServerFn({ method: "POST" })
       .from("invoices")
       .select("id, file_path, user_id")
       .eq("id", data.invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
     if (invErr || !invoice) throw new Error("Không tìm thấy hóa đơn");
-    if (invoice.user_id !== userId) throw new Error("Không có quyền");
 
     const { data: signed, error: sErr } = await supabase.storage
       .from("invoices")
