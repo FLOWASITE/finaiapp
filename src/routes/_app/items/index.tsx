@@ -177,7 +177,7 @@ const emptyForm = () => ({
   notes: "",
 });
 
-function ProductDialog({ categories, existingCodes }: { categories: any[]; existingCodes: string[] }) {
+function ProductDialog({ categories, existingCodes, units }: { categories: any[]; existingCodes: string[]; units: any[] }) {
   const upsert = useServerFn(upsertProduct);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
