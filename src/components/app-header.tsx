@@ -159,7 +159,6 @@ export function AppHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
     </div>
   );
 }
