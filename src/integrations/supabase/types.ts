@@ -1604,68 +1604,261 @@ export type Database = {
           },
         ]
       }
+      employee_contracts: {
+        Row: {
+          attachment_url: string | null
+          base_salary: number
+          contract_no: string
+          contract_type: string
+          created_at: string
+          employee_id: string
+          end_date: string | null
+          fixed_allowance: number
+          id: string
+          insurance_salary: number
+          notes: string | null
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          base_salary?: number
+          contract_no: string
+          contract_type?: string
+          created_at?: string
+          employee_id: string
+          end_date?: string | null
+          fixed_allowance?: number
+          id?: string
+          insurance_salary?: number
+          notes?: string | null
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          base_salary?: number
+          contract_no?: string
+          contract_type?: string
+          created_at?: string
+          employee_id?: string
+          end_date?: string | null
+          fixed_allowance?: number
+          id?: string
+          insurance_salary?: number
+          notes?: string | null
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_contracts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_dependents: {
+        Row: {
+          citizen_id: string | null
+          created_at: string
+          deduction_end: string | null
+          deduction_start: string
+          dob: string | null
+          employee_id: string
+          full_name: string
+          id: string
+          notes: string | null
+          registration_status: string
+          relationship: string
+          tax_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          citizen_id?: string | null
+          created_at?: string
+          deduction_end?: string | null
+          deduction_start: string
+          dob?: string | null
+          employee_id: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          registration_status?: string
+          relationship: string
+          tax_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          citizen_id?: string | null
+          created_at?: string
+          deduction_end?: string | null
+          deduction_start?: string
+          dob?: string | null
+          employee_id?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          registration_status?: string
+          relationship?: string
+          tax_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_dependents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
+          address: string | null
           bank_account: string | null
+          bank_branch: string | null
+          bank_name: string | null
           base_salary: number
           branch_id: string | null
           citizen_id: string | null
+          citizen_id_date: string | null
+          citizen_id_place: string | null
           code: string
+          contract_no: string | null
+          contract_type: string | null
           created_at: string
           department: string | null
           department_id: string | null
           dependents: number
+          dob: string | null
+          email: string | null
           end_date: string | null
+          ethnicity: string | null
           full_name: string
+          gender: string | null
+          health_insurance_no: string | null
+          hire_date: string | null
           id: string
           insurance_salary: number
+          is_resident: boolean
+          nationality: string | null
+          payment_method: string | null
+          phone: string | null
           position: string | null
+          probation_end: string | null
+          project_id: string | null
+          region: number | null
+          social_insurance_no: string | null
           start_date: string | null
           status: string
           tax_id: string | null
+          tax_id_date: string | null
           tenant_id: string | null
+          termination_date: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           bank_account?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           base_salary?: number
           branch_id?: string | null
           citizen_id?: string | null
+          citizen_id_date?: string | null
+          citizen_id_place?: string | null
           code: string
+          contract_no?: string | null
+          contract_type?: string | null
           created_at?: string
           department?: string | null
           department_id?: string | null
           dependents?: number
+          dob?: string | null
+          email?: string | null
           end_date?: string | null
+          ethnicity?: string | null
           full_name: string
+          gender?: string | null
+          health_insurance_no?: string | null
+          hire_date?: string | null
           id?: string
           insurance_salary?: number
+          is_resident?: boolean
+          nationality?: string | null
+          payment_method?: string | null
+          phone?: string | null
           position?: string | null
+          probation_end?: string | null
+          project_id?: string | null
+          region?: number | null
+          social_insurance_no?: string | null
           start_date?: string | null
           status?: string
           tax_id?: string | null
+          tax_id_date?: string | null
           tenant_id?: string | null
+          termination_date?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           bank_account?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           base_salary?: number
           branch_id?: string | null
           citizen_id?: string | null
+          citizen_id_date?: string | null
+          citizen_id_place?: string | null
           code?: string
+          contract_no?: string | null
+          contract_type?: string | null
           created_at?: string
           department?: string | null
           department_id?: string | null
           dependents?: number
+          dob?: string | null
+          email?: string | null
           end_date?: string | null
+          ethnicity?: string | null
           full_name?: string
+          gender?: string | null
+          health_insurance_no?: string | null
+          hire_date?: string | null
           id?: string
           insurance_salary?: number
+          is_resident?: boolean
+          nationality?: string | null
+          payment_method?: string | null
+          phone?: string | null
           position?: string | null
+          probation_end?: string | null
+          project_id?: string | null
+          region?: number | null
+          social_insurance_no?: string | null
           start_date?: string | null
           status?: string
           tax_id?: string | null
+          tax_id_date?: string | null
           tenant_id?: string | null
+          termination_date?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -1681,6 +1874,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -3025,6 +3225,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payroll_policies: {
+        Row: {
+          bh_cap_salary: number
+          bhtn_co_rate: number
+          bhtn_emp_rate: number
+          bhxh_co_rate: number
+          bhxh_emp_rate: number
+          bhyt_co_rate: number
+          bhyt_emp_rate: number
+          created_at: string
+          dependent_deduction: number
+          id: string
+          notes: string | null
+          personal_deduction: number
+          tenant_id: string
+          unemployment_cap_region1: number
+          union_co_rate: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          bh_cap_salary?: number
+          bhtn_co_rate?: number
+          bhtn_emp_rate?: number
+          bhxh_co_rate?: number
+          bhxh_emp_rate?: number
+          bhyt_co_rate?: number
+          bhyt_emp_rate?: number
+          created_at?: string
+          dependent_deduction?: number
+          id?: string
+          notes?: string | null
+          personal_deduction?: number
+          tenant_id: string
+          unemployment_cap_region1?: number
+          union_co_rate?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          bh_cap_salary?: number
+          bhtn_co_rate?: number
+          bhtn_emp_rate?: number
+          bhxh_co_rate?: number
+          bhxh_emp_rate?: number
+          bhyt_co_rate?: number
+          bhyt_emp_rate?: number
+          created_at?: string
+          dependent_deduction?: number
+          id?: string
+          notes?: string | null
+          personal_deduction?: number
+          tenant_id?: string
+          unemployment_cap_region1?: number
+          union_co_rate?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
       }
       payroll_runs: {
         Row: {

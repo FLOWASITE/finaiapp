@@ -23,9 +23,12 @@ const fmt = (n: number) => Number(n).toLocaleString("vi-VN");
 function PayrollPage() {
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tiền lương</h1>
-        <p className="text-sm text-muted-foreground">Quản lý nhân viên và bảng lương theo chuẩn Việt Nam</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Tiền lương</h1>
+          <p className="text-sm text-muted-foreground">Quản lý nhân viên và bảng lương theo chuẩn Việt Nam</p>
+        </div>
+        <Link to="/payroll/policies" className="text-sm text-primary underline">Chính sách BHXH/TNCN →</Link>
       </div>
       <Tabs defaultValue="runs">
         <TabsList>
@@ -156,7 +159,9 @@ function EmployeesTab() {
           <TableBody>
             {data.map((e: any) => (
               <TableRow key={e.id}>
-                <TableCell className="font-mono">{e.code}</TableCell>
+                <TableCell className="font-mono">
+                  <Link to="/payroll/employees/$id" params={{ id: e.id }} className="text-primary hover:underline">{e.code}</Link>
+                </TableCell>
                 <TableCell>{e.full_name}</TableCell>
                 <TableCell>{e.position}</TableCell>
                 <TableCell className="text-right">{fmt(e.base_salary)}</TableCell>
