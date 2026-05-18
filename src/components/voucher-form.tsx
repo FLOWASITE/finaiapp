@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-import { createCashVoucher } from "@/lib/cash.functions";
+import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listChartOfAccounts } from "@/lib/coa.functions";
@@ -52,11 +52,9 @@ const COMMON_PAYMENT_ACCOUNTS = [
 function pad(n: number, len = 5) {
   return String(n).padStart(len, "0");
 }
-function genVoucherNo(type: VoucherType, date: Date) {
+function fallbackVoucherNo(type: VoucherType, date: Date) {
   const prefix = type === "receipt" ? "PT" : "PC";
-  const ym = format(date, "yyyyMM");
-  const seq = Math.floor(Math.random() * 99999) + 1;
-  return `${prefix}${ym}/${pad(seq)}`;
+  return `${prefix}${format(date, "yyyyMM")}/${pad(1)}`;
 }
 const fmtThousand = (n: number) =>
   n ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(n) : "";
@@ -91,7 +89,8 @@ export function VoucherFormDialog({
 
   const today = useMemo(() => new Date(), []);
   const [date, setDate] = useState<Date>(today);
-  const [voucherNo, setVoucherNo] = useState(() => genVoucherNo(type, today));
+  const [voucherNo, setVoucherNo] = useState(() => fallbackVoucherNo(type, today));
+  const [voucherNoTouched, setVoucherNoTouched] = useState(false);
   const [cashAccount, setCashAccount] = useState("1111");
   const [counterAccount, setCounterAccount] = useState(type === "receipt" ? "131" : "331");
   const [partyId, setPartyId] = useState<string | null>(null);
@@ -102,12 +101,14 @@ export function VoucherFormDialog({
   const [amountStr, setAmountStr] = useState("");
   const [attachments, setAttachments] = useState("");
 
-  // reset on open / type change
+  const fetchNextNo = useServerFn(nextVoucherNo);
+
   useEffect(() => {
     if (!open) return;
     const d = new Date();
     setDate(d);
-    setVoucherNo(genVoucherNo(type, d));
+    setVoucherNo(fallbackVoucherNo(type, d));
+    setVoucherNoTouched(false);
     setCashAccount("1111");
     setCounterAccount(type === "receipt" ? "131" : "331");
     setPartyId(null);
@@ -118,6 +119,20 @@ export function VoucherFormDialog({
     setAmountStr("");
     setAttachments("");
   }, [open, type]);
+
+  useEffect(() => {
+    if (!open || voucherNoTouched) return;
+    let cancelled = false;
+    const ym = format(date, "yyyyMM");
+    fetchNextNo({ data: { voucher_type: type, year_month: ym } })
+      .then((r) => {
+        if (!cancelled && !voucherNoTouched) setVoucherNo(r.voucher_no);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, type, date, voucherNoTouched, fetchNextNo]);
 
   const amount = parseAmount(amountStr);
   const amountWords = useMemo(() => (amount > 0 ? numberToVietnameseWords(amount) : ""), [amount]);
@@ -192,7 +207,14 @@ export function VoucherFormDialog({
           {/* Header: Số / Ngày / TK tiền */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Field label="Số phiếu" required>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} className="font-mono" />
+              <Input
+                value={voucherNo}
+                onChange={(e) => {
+                  setVoucherNo(e.target.value);
+                  setVoucherNoTouched(true);
+                }}
+                className="font-mono"
+              />
             </Field>
             <Field label="Ngày lập">
               <Popover>
