@@ -100,6 +100,7 @@ import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
@@ -561,6 +562,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppPayrollEmployeesIdRoute = AppPayrollEmployeesIdRouteImport.update({
+  id: '/payroll/employees/$id',
+  path: '/payroll/employees/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsInventoryIdRoute = AppAssetsInventoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -670,6 +676,7 @@ export interface FileRoutesByFullPath {
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
@@ -760,6 +767,7 @@ export interface FileRoutesByTo {
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
@@ -857,6 +865,7 @@ export interface FileRoutesById {
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
@@ -954,6 +963,7 @@ export interface FileRouteTypes {
     | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
+    | '/payroll/employees/$id'
     | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1044,6 +1054,7 @@ export interface FileRouteTypes {
     | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
+    | '/payroll/employees/$id'
     | '/superadmin/tenant/$id'
   id:
     | '__root__'
@@ -1140,6 +1151,7 @@ export interface FileRouteTypes {
     | '/_app/assets/$id/card'
     | '/_app/assets/allocations/$id'
     | '/_app/assets/inventory/$id'
+    | '/_app/payroll/employees/$id'
     | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
@@ -1789,6 +1801,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/payroll/employees/$id': {
+      id: '/_app/payroll/employees/$id'
+      path: '/payroll/employees/$id'
+      fullPath: '/payroll/employees/$id'
+      preLoaderRoute: typeof AppPayrollEmployeesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/inventory/$id': {
       id: '/_app/assets/inventory/$id'
       path: '/$id'
@@ -1998,6 +2017,7 @@ interface AppRouteChildren {
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
   AppTaxIndexRoute: typeof AppTaxIndexRoute
   AppAssetsIdCardRoute: typeof AppAssetsIdCardRoute
+  AppPayrollEmployeesIdRoute: typeof AppPayrollEmployeesIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2064,6 +2084,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
   AppTaxIndexRoute: AppTaxIndexRoute,
   AppAssetsIdCardRoute: AppAssetsIdCardRoute,
+  AppPayrollEmployeesIdRoute: AppPayrollEmployeesIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
