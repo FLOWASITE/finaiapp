@@ -165,6 +165,7 @@ const REPORTS_SECTIONS: NavSection[] = [
     label: "Báo cáo",
     entries: [
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+      { to: "/reports/trial-balance", label: "Bảng cân đối phát sinh", icon: Calculator },
       { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
     ],
   },
