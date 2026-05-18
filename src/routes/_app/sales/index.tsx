@@ -702,6 +702,7 @@ function ReceiptsTab({
   const [search, setSearch] = useState("");
   const [openNew, setOpenNew] = useState(false);
   const [preInv, setPreInv] = useState<string | undefined>(undefined);
+  const [docFor, setDocFor] = useState<any | null>(null);
 
   useEffect(() => {
     if (preselectInvoice || preselectCustomer) {
