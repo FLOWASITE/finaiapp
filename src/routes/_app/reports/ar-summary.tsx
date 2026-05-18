@@ -104,6 +104,15 @@ function ArSummaryPage() {
   const [drillPageSize, setDrillPageSize] = useState(50);
   const [drillGroupByDoc, setDrillGroupByDoc] = useState(false);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  type DrillSortKey = "entry_date" | "doc_no" | "debit" | "credit";
+  const [drillSort, setDrillSort] = useState<{ key: DrillSortKey; dir: "asc" | "desc" }>({
+    key: "entry_date",
+    dir: "asc",
+  });
+  const toggleDrillSort = (key: DrillSortKey) =>
+    setDrillSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
+    );
 
 
 
@@ -227,9 +236,30 @@ function ArSummaryPage() {
     );
   }, [drillFiltered.lines, drillGroupByDoc]);
 
+  // Apply user-selected sort on top of the display rows.
+  const drillSortedRows = useMemo<DrillDisplayRow[]>(() => {
+    const arr = drillDisplayRows.slice();
+    const { key, dir } = drillSort;
+    const mult = dir === "asc" ? 1 : -1;
+    arr.sort((a, b) => {
+      if (key === "entry_date") {
+        const c = a.entry_date.localeCompare(b.entry_date);
+        return (c !== 0 ? c : (a.doc_no ?? "").localeCompare(b.doc_no ?? "")) * mult;
+      }
+      if (key === "doc_no") {
+        const c = (a.doc_no ?? "").localeCompare(b.doc_no ?? "", undefined, { numeric: true });
+        return (c !== 0 ? c : a.entry_date.localeCompare(b.entry_date)) * mult;
+      }
+      const av = key === "debit" ? a.debit : a.credit;
+      const bv = key === "debit" ? b.debit : b.credit;
+      return (av - bv) * mult;
+    });
+    return arr;
+  }, [drillDisplayRows, drillSort]);
+
   // Memoize pagination slice so unrelated re-renders don't reslice the dataset.
   const drillPaged = useMemo(() => {
-    const total = drillDisplayRows.length;
+    const total = drillSortedRows.length;
     const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
     const page = Math.min(drillPage, totalPages);
     const start = (page - 1) * drillPageSize;
@@ -240,9 +270,9 @@ function ArSummaryPage() {
       page,
       start,
       end,
-      slice: drillDisplayRows.slice(start, end),
+      slice: drillSortedRows.slice(start, end),
     };
-  }, [drillDisplayRows, drillPage, drillPageSize]);
+  }, [drillSortedRows, drillPage, drillPageSize]);
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
@@ -365,7 +395,7 @@ function ArSummaryPage() {
           ? ["Ngày", "Loại", "Số CT", "Diễn giải (đại diện)", "Số dòng", "Nợ", "Có"]
           : ["Ngày", "Loại", "Số CT", "Diễn giải", "Nợ", "Có"];
         ws.addRow(cols).font = { bold: true };
-        for (const l of drillDisplayRows) {
+        for (const l of drillSortedRows) {
           if (drillGroupByDoc) {
             ws.addRow([
               l.entry_date,
@@ -766,12 +796,36 @@ function ArSummaryPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase">
                       <tr>
-                        <th className="px-3 py-2 text-left">Ngày</th>
-                        <th className="px-3 py-2 text-left">Loại</th>
-                        <th className="px-3 py-2 text-left">Số CT</th>
-                        <th className="px-3 py-2 text-left">{drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải"}</th>
-                        <th className="px-3 py-2 text-right">Nợ</th>
-                        <th className="px-3 py-2 text-right">Có</th>
+                        {([
+                          { key: "entry_date" as const, label: "Ngày", align: "left" as const },
+                          { key: null, label: "Loại", align: "left" as const },
+                          { key: "doc_no" as const, label: "Số CT", align: "left" as const },
+                          { key: null, label: drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải", align: "left" as const },
+                          { key: "debit" as const, label: "Nợ", align: "right" as const },
+                          { key: "credit" as const, label: "Có", align: "right" as const },
+                        ]).map((col, i) => {
+                          const isActive = col.key && drillSort.key === col.key;
+                          const arrow = isActive ? (drillSort.dir === "asc" ? "▲" : "▼") : "";
+                          const alignCls = col.align === "right" ? "text-right" : "text-left";
+                          if (!col.key) {
+                            return <th key={i} className={`px-3 py-2 ${alignCls}`}>{col.label}</th>;
+                          }
+                          return (
+                            <th
+                              key={i}
+                              className={`px-3 py-2 ${alignCls} cursor-pointer select-none hover:text-foreground`}
+                              onClick={() => { toggleDrillSort(col.key!); setDrillPage(1); }}
+                              title="Bấm để sắp xếp"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                {col.label}
+                                <span className={`text-[10px] ${isActive ? "opacity-100" : "opacity-30"}`}>
+                                  {arrow || "↕"}
+                                </span>
+                              </span>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
