@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { DimensionPickers, type DimensionValue } from "@/components/dimension-pickers";
+import { DocumentLinksManager } from "@/components/document-links-manager";
 
 import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
@@ -102,6 +103,7 @@ export function VoucherFormDialog({
   const [amountStr, setAmountStr] = useState("");
   const [attachments, setAttachments] = useState("");
   const [dims, setDims] = useState<DimensionValue>({});
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const fetchNextNo = useServerFn(nextVoucherNo);
 
@@ -121,6 +123,7 @@ export function VoucherFormDialog({
     setAmountStr("");
     setAttachments("");
     setDims({});
+    setCreatedId(null);
   }, [open, type]);
 
   useEffect(() => {
@@ -172,13 +175,14 @@ export function VoucherFormDialog({
           cost_center_id: dims.cost_center_id ?? null,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       toast.success(`Đã tạo ${type === "receipt" ? "phiếu thu" : "phiếu chi"} & bút toán`);
       qc.invalidateQueries({ queryKey: ["vouchers"] });
       qc.invalidateQueries({ queryKey: ["cashbook"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
-      onOpenChange(false);
+      if (res?.id) setCreatedId(res.id);
+      else onOpenChange(false);
     },
     onError: (e: any) => toast.error(e?.message ?? "Lỗi khi lưu"),
   });
@@ -357,15 +361,28 @@ export function VoucherFormDialog({
               </div>
             </div>
           </div>
+
+          {createdId && (
+            <>
+              <Separator />
+              <DocumentLinksManager entityTable="cash_vouchers" entityId={createdId} />
+            </>
+          )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/30">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Hủy
-          </Button>
-          <Button onClick={() => m.mutate()} disabled={!canSubmit || m.isPending}>
-            {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
-          </Button>
+          {createdId ? (
+            <Button onClick={() => onOpenChange(false)}>Hoàn tất</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Hủy
+              </Button>
+              <Button onClick={() => m.mutate()} disabled={!canSubmit || m.isPending}>
+                {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

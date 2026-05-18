@@ -7,6 +7,7 @@ import {
   listDocuments,
   getDocument,
   deleteDocument,
+  unlinkDocument,
 } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -160,6 +161,7 @@ function DocumentsPage() {
 function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   const getDoc = useServerFn(getDocument);
   const delDoc = useServerFn(deleteDocument);
+  const unlink = useServerFn(unlinkDocument);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -174,6 +176,16 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
       toast.success("Đã xoá tài liệu");
       qc.invalidateQueries({ queryKey: ["documents"] });
       onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const unlinkMut = useMutation({
+    mutationFn: (l: { entity_table: string; entity_id: string }) =>
+      unlink({ data: { document_id: id!, entity_table: l.entity_table as any, entity_id: l.entity_id } }),
+    onSuccess: () => {
+      toast.success("Đã gỡ liên kết");
+      qc.invalidateQueries({ queryKey: ["document", id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -292,10 +304,20 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                             {l.entity_table}
                           </Badge>
                           <span className="text-muted-foreground">{l.link_type}</span>
+                          <code className="ml-2 text-xs text-muted-foreground">
+                            {l.entity_id.slice(0, 8)}…
+                          </code>
                         </div>
-                        <code className="text-xs text-muted-foreground">
-                          {l.entity_id.slice(0, 8)}…
-                        </code>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={unlinkMut.isPending}
+                          onClick={() =>
+                            unlinkMut.mutate({ entity_table: l.entity_table, entity_id: l.entity_id })
+                          }
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Gỡ
+                        </Button>
                       </li>
                     ))}
                   </ul>
