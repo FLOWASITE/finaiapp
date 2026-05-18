@@ -42,6 +42,23 @@ const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "journal_entries", label: "Phiếu kế toán khác" },
 ];
 
+const VOUCHER_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "PT", label: "PT — Phiếu thu" },
+  { value: "PC", label: "PC — Phiếu chi" },
+  { value: "BC", label: "BC — Báo có" },
+  { value: "BN", label: "BN — Báo nợ" },
+  { value: "Phiếu thu KH", label: "Phiếu thu KH" },
+  { value: "Phiếu chi NCC", label: "Phiếu chi NCC" },
+  { value: "Hóa đơn bán", label: "Hóa đơn bán" },
+  { value: "Hóa đơn mua", label: "Hóa đơn mua" },
+  { value: "Phiếu nhập kho", label: "Phiếu nhập kho" },
+  { value: "Phiếu xuất kho", label: "Phiếu xuất kho" },
+  { value: "Bảng lương", label: "Bảng lương" },
+  { value: "Khấu hao", label: "Khấu hao" },
+  { value: "Phiếu kế toán", label: "Phiếu kế toán" },
+];
+
+
 function VoucherListPage() {
   const today = new Date().toISOString().slice(0, 10);
   const year = new Date().getFullYear();
