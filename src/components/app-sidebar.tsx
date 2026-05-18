@@ -2,16 +2,19 @@ import * as React from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
-  MessageSquare, Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
-  Search, Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
-  Plus, FileSpreadsheet, Bot, CreditCard, UserCog, Shield, ShieldAlert, TrendingUp,
+  Package, Wallet, Users, Receipt, ShoppingCart, Sparkles,
+  Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
+  Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
+  ChevronRight, Contact as ContactIcon, PiggyBank, LineChart,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarGroup,
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem,
-  SidebarMenuButton, SidebarRail, useSidebar,
+  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
+  SidebarRail, useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem,
   CommandList, CommandSeparator, CommandShortcut,
@@ -20,74 +23,88 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
-type NavLeaf = { to: string; label: string; icon: React.ElementType };
-type NavSection = { label: string; items: NavLeaf[] };
+type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number };
+type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
+type NavEntry = NavLeaf | NavGroup;
+type NavSection = { label?: string; entries: NavEntry[] };
 
-const PRIMARY: NavLeaf[] = [
-  { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { to: "/chat", label: "Trợ lý AI", icon: Sparkles },
-];
+const isGroup = (e: NavEntry): e is NavGroup => "items" in e;
 
 const SECTIONS: NavSection[] = [
   {
-    label: "Bán hàng",
-    items: [
-      { to: "/sales", label: "Bán hàng (Tổng quan)", icon: ShoppingCart },
-      { to: "/customers", label: "Khách hàng", icon: Users },
-      { to: "/receivables", label: "Công nợ phải thu", icon: Receipt },
+    entries: [
+      { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
+      { to: "/chat", label: "Trợ lý AI", icon: Sparkles },
     ],
   },
   {
-    label: "Mua hàng",
-    items: [
-      { to: "/purchases", label: "Mua hàng (Tổng quan)", icon: ShoppingCart },
-      { to: "/suppliers", label: "Nhà cung cấp", icon: Users },
+    label: "Bán hàng & Kho",
+    entries: [
+      { to: "/inventory", label: "Hàng hoá / Tồn kho", icon: Package },
+      {
+        label: "Bán hàng",
+        icon: ShoppingCart,
+        items: [
+          { to: "/sales", label: "Bán hàng (Tổng quan)" },
+          { to: "/invoices", label: "Hoá đơn bán" },
+          { to: "/receipts", label: "Phiếu thu" },
+          { to: "/receivables", label: "Công nợ phải thu" },
+        ],
+      },
+      {
+        label: "Mua hàng",
+        icon: ShoppingCart,
+        items: [
+          { to: "/purchases", label: "Mua hàng (Tổng quan)" },
+          { to: "/payables", label: "Công nợ phải trả" },
+        ],
+      },
+      {
+        label: "Đối tác",
+        icon: ContactIcon,
+        items: [
+          { to: "/customers", label: "Khách hàng" },
+          { to: "/suppliers", label: "Nhà cung cấp" },
+        ],
+      },
     ],
   },
   {
-    label: "Kho vận",
-    items: [
-      { to: "/inventory", label: "Kho hàng", icon: Package },
+    label: "Kế toán",
+    entries: [
+      {
+        label: "Tài chính",
+        icon: BookOpen,
+        items: [
+          { to: "/journal", label: "Sổ nhật ký" },
+          { to: "/coa", label: "Hệ thống tài khoản" },
+          { to: "/assets", label: "Tài sản cố định" },
+          { to: "/payroll", label: "Tiền lương" },
+          { to: "/tax", label: "Báo cáo thuế" },
+        ],
+      },
+      {
+        label: "Tiền & Ngân hàng",
+        icon: PiggyBank,
+        items: [
+          { to: "/cash", label: "Quỹ tiền mặt" },
+          { to: "/bank", label: "Đối soát ngân hàng" },
+        ],
+      },
     ],
   },
   {
-    label: "Tiền & Ngân hàng",
-    items: [
-      { to: "/cash", label: "Quỹ tiền mặt", icon: Wallet },
-      { to: "/bank", label: "Đối soát ngân hàng", icon: Landmark },
-    ],
-  },
-  {
-    label: "Tài sản",
-    items: [
-      { to: "/assets", label: "Tài sản cố định", icon: Boxes },
-    ],
-  },
-  {
-    label: "Kế toán tổng hợp",
-    items: [
-      { to: "/journal", label: "Sổ nhật ký", icon: BookOpen },
-      { to: "/coa", label: "Hệ thống tài khoản", icon: BookOpenCheck },
+    label: "Báo cáo",
+    entries: [
       { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
       { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
     ],
   },
   {
-    label: "Nhân sự — Lương",
-    items: [
-      { to: "/payroll", label: "Tiền lương", icon: UserCog },
-    ],
-  },
-  {
-    label: "Thuế",
-    items: [
-      { to: "/tax", label: "Báo cáo thuế (GTGT/TNDN/TNCN)", icon: Receipt },
-    ],
-  },
-  {
     label: "Hệ thống",
-    items: [
+    entries: [
       { to: "/admin", label: "Quản trị", icon: Shield },
       { to: "/settings", label: "Cài đặt", icon: Settings },
     ],
@@ -100,6 +117,28 @@ const QUICK_AI = [
   { label: "Top 5 công nợ quá hạn", to: "/receivables" },
 ];
 
+const OPEN_STATE_KEY = "sidebar:groups:v1";
+
+function useGroupOpenState(initialActive: Record<string, boolean>) {
+  const [openMap, setOpenMap] = React.useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return initialActive;
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPEN_STATE_KEY) || "{}");
+      return { ...initialActive, ...saved };
+    } catch {
+      return initialActive;
+    }
+  });
+  const setOpen = React.useCallback((label: string, open: boolean) => {
+    setOpenMap((prev) => {
+      const next = { ...prev, [label]: open };
+      try { localStorage.setItem(OPEN_STATE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  return [openMap, setOpen] as const;
+}
+
 export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
   const [email, setEmail] = React.useState<string>("");
@@ -108,6 +147,36 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+
+  const isActive = React.useCallback(
+    (to: string) => pathname === to || pathname.startsWith(to + "/"),
+    [pathname],
+  );
+
+  // Initial open = groups containing active route
+  const initialOpen = React.useMemo(() => {
+    const map: Record<string, boolean> = {};
+    SECTIONS.forEach((s) =>
+      s.entries.forEach((e) => {
+        if (isGroup(e)) map[e.label] = e.items.some((i) => isActive(i.to));
+      }),
+    );
+    return map;
+  }, [isActive]);
+
+  const [openMap, setOpen] = useGroupOpenState(initialOpen);
+
+  // Auto-open the group of the active route on navigation
+  React.useEffect(() => {
+    SECTIONS.forEach((s) =>
+      s.entries.forEach((e) => {
+        if (isGroup(e) && e.items.some((i) => isActive(i.to)) && !openMap[e.label]) {
+          setOpen(e.label, true);
+        }
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   React.useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -143,7 +212,13 @@ export function AppSidebar() {
     navigate({ to: "/" });
   };
 
-  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
+  const allLeaves = React.useMemo<NavLeaf[]>(
+    () =>
+      SECTIONS.flatMap((s) =>
+        s.entries.flatMap((e) => (isGroup(e) ? e.items : [e])),
+      ),
+    [],
+  );
 
   return (
     <>
@@ -214,30 +289,32 @@ export function AppSidebar() {
             )}
           </div>
 
-          {/* PRIMARY */}
-          <SidebarGroup className="py-0">
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {PRIMARY.map((item) => (
-                  <NavLink key={item.to} item={item} active={isActive(item.to)} />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* SECTIONS */}
-          {SECTIONS.map((s) => (
-            <SidebarGroup key={s.label}>
-              <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
-                {s.label}
-              </SidebarGroupLabel>
+          {SECTIONS.map((section, idx) => (
+            <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
+              {section.label && (
+                <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
+                  {section.label}
+                </SidebarGroupLabel>
+              )}
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {s.items.map((item) => (
-                    <NavLink key={item.to} item={item} active={isActive(item.to)} />
-                  ))}
-                  {s.label === "Hệ thống" && isSuperadmin && (
-                    <NavLink
+                  {section.entries.map((entry) =>
+                    isGroup(entry) ? (
+                      <GroupItem
+                        key={entry.label}
+                        group={entry}
+                        open={!!openMap[entry.label]}
+                        onOpenChange={(v) => setOpen(entry.label, v)}
+                        isActive={isActive}
+                        collapsed={collapsed}
+                        onNavigate={(to) => navigate({ to })}
+                      />
+                    ) : (
+                      <LeafItem key={entry.to} item={entry} active={isActive(entry.to)} />
+                    ),
+                  )}
+                  {section.label === "Hệ thống" && isSuperadmin && (
+                    <LeafItem
                       item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
                       active={isActive("/superadmin")}
                     />
@@ -317,12 +394,15 @@ export function AppSidebar() {
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Điều hướng">
-            {[...PRIMARY, ...SECTIONS.flatMap((s) => s.items)].map((item) => (
-              <CommandItem key={item.to} onSelect={() => go(item.to)}>
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
-              </CommandItem>
-            ))}
+            {allLeaves.map((item) => {
+              const Icon = item.icon ?? FileText;
+              return (
+                <CommandItem key={item.to} onSelect={() => go(item.to)}>
+                  <Icon className="mr-2 h-4 w-4" />
+                  {item.label}
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         </CommandList>
       </CommandDialog>
@@ -330,8 +410,8 @@ export function AppSidebar() {
   );
 }
 
-function NavLink({ item, active }: { item: NavLeaf; active: boolean }) {
-  const Icon = item.icon;
+function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
+  const Icon = item.icon ?? FileText;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
@@ -339,10 +419,94 @@ function NavLink({ item, active }: { item: NavLeaf; active: boolean }) {
           {active && (
             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
           )}
-          <Icon className={`h-4 w-4 transition-transform group-hover:scale-110 ${active ? "text-sidebar-primary" : ""}`} />
+          <Icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", active && "text-sidebar-primary")} />
           <span>{item.label}</span>
+          {item.badge != null && (
+            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+              {item.badge}
+            </span>
+          )}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
+  );
+}
+
+function GroupItem({
+  group, open, onOpenChange, isActive, collapsed, onNavigate,
+}: {
+  group: NavGroup;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  isActive: (to: string) => boolean;
+  collapsed: boolean;
+  onNavigate: (to: string) => void;
+}) {
+  const Icon = group.icon;
+  const hasActiveChild = group.items.some((i) => isActive(i.to));
+
+  // Collapsed: show as a dropdown so users can still pick sub items
+  if (collapsed) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton tooltip={group.label} isActive={hasActiveChild}>
+              <Icon className={cn("h-4 w-4", hasActiveChild && "text-sidebar-primary")} />
+              <span>{group.label}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="min-w-48">
+            <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {group.items.map((i) => (
+              <DropdownMenuItem key={i.to} onClick={() => onNavigate(i.to)}>
+                {i.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            tooltip={group.label}
+            className={cn("group/btn", hasActiveChild && "text-sidebar-foreground")}
+          >
+            <Icon className={cn("h-4 w-4", hasActiveChild && "text-sidebar-primary")} />
+            <span className="flex-1 text-left">{group.label}</span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          <SidebarMenuSub>
+            {group.items.map((i) => {
+              const active = isActive(i.to);
+              return (
+                <SidebarMenuSubItem key={i.to}>
+                  <SidebarMenuSubButton asChild isActive={active}>
+                    <Link to={i.to}>
+                      <span className={cn(active && "text-sidebar-primary font-medium")}>
+                        {i.label}
+                      </span>
+                      {i.badge != null && (
+                        <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+                          {i.badge}
+                        </span>
+                      )}
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
