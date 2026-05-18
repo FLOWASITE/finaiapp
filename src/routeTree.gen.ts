@@ -42,6 +42,7 @@ import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/i
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppBankIndexRouteImport } from './routes/_app/bank.index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
 import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
@@ -235,6 +236,11 @@ const AppCashIndexRoute = AppCashIndexRouteImport.update({
   path: '/cash/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBankIndexRoute = AppBankIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -382,7 +388,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/assets': typeof AppAssetsRouteWithChildren
-  '/bank': typeof AppBankRoute
+  '/bank': typeof AppBankRouteWithChildren
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRouteWithChildren
@@ -418,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
   '/admin/': typeof AppAdminIndexRoute
+  '/bank/': typeof AppBankIndexRoute
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
@@ -443,7 +450,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/assets': typeof AppAssetsRouteWithChildren
-  '/bank': typeof AppBankRoute
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
@@ -476,6 +482,7 @@ export interface FileRoutesByTo {
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
   '/admin': typeof AppAdminIndexRoute
+  '/bank': typeof AppBankIndexRoute
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
@@ -504,7 +511,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/assets': typeof AppAssetsRouteWithChildren
-  '/_app/bank': typeof AppBankRoute
+  '/_app/bank': typeof AppBankRouteWithChildren
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
@@ -540,6 +547,7 @@ export interface FileRoutesById {
   '/_app/tax/tncn': typeof AppTaxTncnRoute
   '/_app/tax/tndn': typeof AppTaxTndnRoute
   '/_app/admin/': typeof AppAdminIndexRoute
+  '/_app/bank/': typeof AppBankIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
@@ -604,6 +612,7 @@ export interface FileRouteTypes {
     | '/tax/tncn'
     | '/tax/tndn'
     | '/admin/'
+    | '/bank/'
     | '/cash/'
     | '/coa/'
     | '/customers/'
@@ -629,7 +638,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/assets'
-    | '/bank'
     | '/chat'
     | '/dashboard'
     | '/journal'
@@ -662,6 +670,7 @@ export interface FileRouteTypes {
     | '/tax/tncn'
     | '/tax/tndn'
     | '/admin'
+    | '/bank'
     | '/cash'
     | '/coa'
     | '/customers'
@@ -725,6 +734,7 @@ export interface FileRouteTypes {
     | '/_app/tax/tncn'
     | '/_app/tax/tndn'
     | '/_app/admin/'
+    | '/_app/bank/'
     | '/_app/cash/'
     | '/_app/coa/'
     | '/_app/customers/'
@@ -987,6 +997,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bank/': {
+      id: '/_app/bank/'
+      path: '/'
+      fullPath: '/bank/'
+      preLoaderRoute: typeof AppBankIndexRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/admin/': {
       id: '/_app/admin/'
       path: '/'
@@ -1218,6 +1235,17 @@ const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
   AppAssetsRouteChildren,
 )
 
+interface AppBankRouteChildren {
+  AppBankIndexRoute: typeof AppBankIndexRoute
+}
+
+const AppBankRouteChildren: AppBankRouteChildren = {
+  AppBankIndexRoute: AppBankIndexRoute,
+}
+
+const AppBankRouteWithChildren =
+  AppBankRoute._addFileChildren(AppBankRouteChildren)
+
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
@@ -1279,7 +1307,7 @@ const AppSuperadminRouteWithChildren = AppSuperadminRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAssetsRoute: typeof AppAssetsRouteWithChildren
-  AppBankRoute: typeof AppBankRoute
+  AppBankRoute: typeof AppBankRouteWithChildren
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
@@ -1319,7 +1347,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppAssetsRoute: AppAssetsRouteWithChildren,
-  AppBankRoute: AppBankRoute,
+  AppBankRoute: AppBankRouteWithChildren,
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,
