@@ -6,6 +6,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listProjects, upsertProject, deleteProject, listProjectRefs } from "@/lib/dimensions.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,7 +110,7 @@ function ProjectDialog({ row, refs }: { row?: any; refs?: { customers: any[]; em
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm dự án</Button>}
+        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <AddNew label="Thêm dự án" />}
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader><DialogTitle>{row ? "Sửa dự án" : "Thêm dự án"}</DialogTitle></DialogHeader>

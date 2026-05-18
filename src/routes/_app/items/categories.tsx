@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listCategoriesTree, upsertCategory, deleteCategory } from "@/lib/inventory.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -156,7 +157,7 @@ function CategoryDialog({ cat, allCats, parentId, addChild }: { cat?: Cat; allCa
         ) : addChild ? (
           <Button variant="ghost" size="icon" title="Thêm nhóm con"><Plus className="h-4 w-4" /></Button>
         ) : (
-          <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm nhóm</Button>
+          <AddNew label="Thêm nhóm" />
         )}
       </DialogTrigger>
       <DialogContent>

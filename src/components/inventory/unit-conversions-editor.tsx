@@ -6,6 +6,7 @@ import { listConversions, upsertConversion, deleteConversion } from "@/lib/unit-
 import { listUnits } from "@/lib/units.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -149,7 +150,7 @@ function ConversionDialog({
         {row ? (
           <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
         ) : (
-          <Button variant="add" size="sm"><Plus className="mr-1 h-4 w-4" />Thêm quy đổi</Button>
+          <AddNew size="sm" label="Thêm quy đổi" />
         )}
       </DialogTrigger>
       <DialogContent>

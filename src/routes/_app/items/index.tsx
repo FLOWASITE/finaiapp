@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { listProducts, upsertProduct, listCategories } from "@/lib/inventory.functions";
 import { listUnits } from "@/lib/units.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -262,7 +263,7 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm mặt hàng</Button>
+        <AddNew label="Thêm mặt hàng" />
       </DialogTrigger>
       <DialogContent className="max-w-3xl p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
