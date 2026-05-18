@@ -50,8 +50,8 @@ const SECTIONS: NavSection[] = [
         label: "Tiền & Ngân hàng",
         icon: PiggyBank,
         items: [
-          { to: "/cash", label: "Quỹ tiền mặt" },
-          { to: "/bank", label: "Đối soát ngân hàng" },
+          { to: "/cash", label: "Tiền mặt" },
+          { to: "/bank", label: "Ngân hàng" },
         ],
       },
       {
