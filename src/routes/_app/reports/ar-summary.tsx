@@ -841,7 +841,10 @@ function ArSummaryPage() {
                   </Button>
                 </div>
                 {(() => {
-                  const gridCols = "110px 100px 150px minmax(0,1fr) 130px 130px";
+                  const gridCols = drillGroupByDoc
+                    ? "32px 110px 100px 150px minmax(0,1fr) 130px 130px"
+                    : "110px 100px 150px minmax(0,1fr) 130px 130px";
+                  const colSpan = drillGroupByDoc ? 7 : 6;
                   const headers: Array<{ key: DrillSortKey | null; label: string; align: "left" | "right" }> = [
                     { key: "entry_date", label: "Ngày", align: "left" },
                     { key: null, label: "Loại", align: "left" },
@@ -850,43 +853,110 @@ function ArSummaryPage() {
                     { key: "debit", label: "Nợ", align: "right" },
                     { key: "credit", label: "Có", align: "right" },
                   ];
-                  const renderRow = (l: DrillDisplayRow) => (
-                    <>
-                      <div className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</div>
-                      <div className="px-3 py-1.5">
-                        <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
-                          {l.doc_type === "HD" ? "HĐ bán" : l.doc_type === "PT" ? "Phiếu thu" : "Khác"}
-                        </span>
-                      </div>
-                      <div className="px-3 py-1.5 font-mono text-xs">
-                        {l.doc_type === "HD" && l.doc_id ? (
-                          <Link
-                            to="/sales/$id"
-                            params={{ id: l.doc_id }}
-                            className="text-primary hover:underline"
-                            onClick={(e) => { e.stopPropagation(); setDrillRow(null); }}
+                  const renderRow = (l: DrillDisplayRow) => {
+                    const canExpand = drillGroupByDoc && l.line_count > 1;
+                    const isExpanded = expandedEntries.has(l.entry_id);
+                    return (
+                      <>
+                        {drillGroupByDoc && (
+                          <div className="px-1 py-1.5 flex items-start justify-center">
+                            {canExpand ? (
+                              <button
+                                type="button"
+                                aria-label={isExpanded ? "Thu gọn" : "Mở rộng"}
+                                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                onClick={(e) => { e.stopPropagation(); toggleExpand(l.entry_id); }}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                        <div className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</div>
+                        <div className="px-3 py-1.5">
+                          <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
+                            {l.doc_type === "HD" ? "HĐ bán" : l.doc_type === "PT" ? "Phiếu thu" : "Khác"}
+                          </span>
+                        </div>
+                        <div className="px-3 py-1.5 font-mono text-xs">
+                          {l.doc_type === "HD" && l.doc_id ? (
+                            <Link
+                              to="/sales/$id"
+                              params={{ id: l.doc_id }}
+                              className="text-primary hover:underline"
+                              onClick={(e) => { e.stopPropagation(); setDrillRow(null); }}
+                            >
+                              {l.doc_no ?? "—"}
+                            </Link>
+                          ) : (
+                            l.doc_no ?? "—"
+                          )}
+                          {drillGroupByDoc && l.line_count > 1 && (
+                            <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
+                          )}
+                        </div>
+                        <div className="px-3 py-1.5 text-muted-foreground truncate" title={l.description}>
+                          {l.description}
+                        </div>
+                        <div className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</div>
+                        <div className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</div>
+                      </>
+                    );
+                  };
+                  const renderChildren = (l: DrillDisplayRow) => {
+                    const children = linesByEntry.get(l.entry_id) ?? [];
+                    return (
+                      <div className="border-t border-border bg-muted/20 px-3 py-2">
+                        <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          Bút toán con ({children.length})
+                        </div>
+                        <div className="overflow-hidden rounded border border-border bg-background">
+                          <div
+                            className="grid bg-muted/30 text-[11px] uppercase text-muted-foreground"
+                            style={{ gridTemplateColumns: "40px minmax(0,1fr) 160px 130px 130px" }}
                           >
-                            {l.doc_no ?? "—"}
-                          </Link>
-                        ) : (
-                          l.doc_no ?? "—"
-                        )}
-                        {drillGroupByDoc && l.line_count > 1 && (
-                          <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
-                        )}
+                            <div className="px-2 py-1 text-right">#</div>
+                            <div className="px-2 py-1 text-left">Diễn giải</div>
+                            <div className="px-2 py-1 text-left">Tham chiếu</div>
+                            <div className="px-2 py-1 text-right">Nợ</div>
+                            <div className="px-2 py-1 text-right">Có</div>
+                          </div>
+                          {children.map((c, i) => (
+                            <div
+                              key={i}
+                              className="grid border-t border-border text-xs"
+                              style={{ gridTemplateColumns: "40px minmax(0,1fr) 160px 130px 130px" }}
+                            >
+                              <div className="px-2 py-1 text-right text-muted-foreground">{i + 1}</div>
+                              <div className="px-2 py-1 text-left">{c.description}</div>
+                              <div className="px-2 py-1 text-left font-mono text-muted-foreground">{c.reference ?? "—"}</div>
+                              <div className="px-2 py-1 text-right font-mono">{fmt(c.debit)}</div>
+                              <div className="px-2 py-1 text-right font-mono">{fmt(c.credit)}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-1 flex justify-end">
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary hover:underline"
+                            onClick={(e) => { e.stopPropagation(); setDetailEntryId(l.entry_id); }}
+                          >
+                            Mở chi tiết chứng từ →
+                          </button>
+                        </div>
                       </div>
-                      <div className="px-3 py-1.5 text-muted-foreground truncate" title={l.description}>
-                        {l.description}
-                      </div>
-                      <div className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</div>
-                      <div className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</div>
-                    </>
-                  );
+                    );
+                  };
                   const header = (
                     <div
                       className="grid bg-muted/40 text-xs uppercase border-b border-border sticky top-0 z-10"
                       style={{ gridTemplateColumns: gridCols }}
                     >
+                      {drillGroupByDoc && <div className="px-1 py-2" />}
                       {headers.map((col, i) => {
                         const isActive = col.key && drillSort.key === col.key;
                         const arrow = isActive ? (drillSort.dir === "asc" ? "▲" : "▼") : "";
@@ -912,6 +982,7 @@ function ArSummaryPage() {
                       })}
                     </div>
                   );
+                  void colSpan;
 
                   if (drillVirtual) {
                     const items = drillRowVirtualizer.getVirtualItems();
@@ -933,20 +1004,24 @@ function ArSummaryPage() {
                               <div style={{ height: totalSize, position: "relative", width: "100%" }}>
                                 {items.map((v) => {
                                   const l = drillSortedRows[v.index];
+                                  const isExpanded = drillGroupByDoc && expandedEntries.has(l.entry_id);
                                   return (
                                     <div
                                       key={l.key}
                                       ref={drillRowVirtualizer.measureElement}
                                       data-index={v.index}
-                                      className="grid border-b border-border text-sm cursor-pointer hover:bg-muted/50 transition-colors absolute left-0 right-0"
-                                      style={{
-                                        gridTemplateColumns: gridCols,
-                                        transform: `translateY(${v.start}px)`,
-                                      }}
-                                      onClick={() => setDetailEntryId(l.entry_id)}
-                                      title="Bấm để xem chi tiết chứng từ"
+                                      className="absolute left-0 right-0 border-b border-border"
+                                      style={{ transform: `translateY(${v.start}px)` }}
                                     >
-                                      {renderRow(l)}
+                                      <div
+                                        className="grid text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                                        style={{ gridTemplateColumns: gridCols }}
+                                        onClick={() => setDetailEntryId(l.entry_id)}
+                                        title="Bấm để xem chi tiết chứng từ"
+                                      >
+                                        {renderRow(l)}
+                                      </div>
+                                      {isExpanded && renderChildren(l)}
                                     </div>
                                   );
                                 })}
@@ -955,6 +1030,7 @@ function ArSummaryPage() {
                           </div>
                           <div className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground">
                             {drillSortedRows.length.toLocaleString("vi-VN")} dòng · cuộn để xem thêm
+                            {drillGroupByDoc && expandedEntries.size > 0 && ` · ${expandedEntries.size} đang mở`}
                           </div>
                         </div>
                       </>
@@ -965,17 +1041,22 @@ function ArSummaryPage() {
                     <>
                       <div className="overflow-x-auto rounded-md border border-border">
                         {header}
-                        {drillPaged.slice.map((l) => (
-                          <div
-                            key={l.key}
-                            className="grid border-t border-border text-sm cursor-pointer hover:bg-muted/50 transition-colors"
-                            style={{ gridTemplateColumns: gridCols }}
-                            onClick={() => setDetailEntryId(l.entry_id)}
-                            title="Bấm để xem chi tiết chứng từ"
-                          >
-                            {renderRow(l)}
-                          </div>
-                        ))}
+                        {drillPaged.slice.map((l) => {
+                          const isExpanded = drillGroupByDoc && expandedEntries.has(l.entry_id);
+                          return (
+                            <div key={l.key} className="border-t border-border">
+                              <div
+                                className="grid text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                                style={{ gridTemplateColumns: gridCols }}
+                                onClick={() => setDetailEntryId(l.entry_id)}
+                                title="Bấm để xem chi tiết chứng từ"
+                              >
+                                {renderRow(l)}
+                              </div>
+                              {isExpanded && renderChildren(l)}
+                            </div>
+                          );
+                        })}
                         {drillDisplayRows.length === 0 && (
                           <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                             Không có chứng từ trong kỳ
