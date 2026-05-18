@@ -261,7 +261,7 @@ function CreateTenantDialog({
             <Label>Địa chỉ trụ sở</Label>
             <Textarea
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAddress(e.target.value)}
               placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP"
               rows={2}
             />
