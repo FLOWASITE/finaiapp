@@ -1,65 +1,47 @@
 
-# Hoàn thiện Phân hệ Tiền lương — Chuẩn phần mềm kế toán VN
+# Rà soát các task Phân hệ Lương
 
-## Hiện trạng
-- Đã có: `employees`, `payroll_runs`, `payroll_lines` cơ bản; tính PIT lũy tiến; BHXH/BHYT/BHTN; ghi sổ JE đơn giản (toàn bộ vào TK 6421).
-- Còn thiếu (so với MISA/FAST/Bravo): hồ sơ NV chi tiết, hợp đồng LĐ, người phụ thuộc đăng ký giảm trừ, chấm công, thang lương/chính sách, nhiều khoản thu nhập/khấu trừ tùy biến, tạm ứng lương, quyết toán PIT cuối năm, báo cáo BHXH/PIT, phiếu lương in/email, multi-tenant + phân quyền, kỳ kế toán khóa, lock kỳ lương, phân bổ chi phí lương theo phòng ban/dự án.
+## Đã hoàn thành (A → E phần thuế/BHXH)
 
-## Phân chia phase
+| Phase | Nội dung | Trạng thái |
+|---|---|---|
+| A | Hồ sơ NV mở rộng + `employee_contracts` + `employee_dependents` + `payroll_policies` + RLS | ✅ |
+| B | `salary_components`, `employee_salary_structures`, `timesheets`, `payroll_run_lines` + UI | ✅ |
+| C | Engine tính lương (công chuẩn, OT 150/200/300, ngưỡng miễn thuế, BH cap, PIT 7 bậc, NCT 20%, mùa vụ 10%) + ghi sổ Nợ 622/627/641/642 / Có 334/3383/4/6/3382/3335 | ✅ |
+| D | Payslip PDF (print), CSV ngân hàng UTF-8 BOM, tạm ứng giữa kỳ, đánh dấu đã trả | ✅ |
+| E.1 | 05/KK-TNCN quý, 05/QTT-TNCN năm, C70a-HD (D02-LT) tháng + CSV | ✅ |
 
-### Phase A — Nền tảng dữ liệu & Hồ sơ nhân viên
-- Mở rộng `employees`: tenant_id, branch_id, department_id, project_id, email, phone, address, dob, gender, ethnicity, nationality, citizen_id_date/place, tax_id_date, social_insurance_no, health_insurance_no, contract_type, contract_no, hire_date, probation_end, termination_date, payment_method (cash/bank), bank_name, branch_name, payroll_account, region (vùng I-IV — lương tối thiểu).
-- Bảng `employee_contracts` (hợp đồng LĐ): số HĐ, loại (thử việc/xác định/không xác định), ngày bắt đầu/kết thúc, lương cơ bản, lương đóng BH, phụ cấp cố định, file đính kèm.
-- Bảng `employee_dependents` (người phụ thuộc): họ tên, quan hệ, MST, ngày bắt đầu/kết thúc giảm trừ, trạng thái đăng ký.
-- Bảng `payroll_policies`: chính sách BHXH theo năm (8/1.5/1/17.5/3/0.5/1...), mức trần BH (20× LTT vùng), giảm trừ bản thân/người phụ thuộc.
-- RLS theo tenant, phân quyền owner/admin/accountant/hr.
-- UI: trang `/payroll/employees` chi tiết + tab Hợp đồng, Người phụ thuộc.
+## Còn dang dở
 
-### Phase B — Cấu trúc lương & Chấm công
-- Bảng `salary_components`: catalog khoản TN/giảm trừ (lương CB, phụ cấp ăn ca, xăng xe, điện thoại, thưởng, OT, hỗ trợ...), gắn flags: `is_taxable`, `taxable_cap`, `is_insurance_base`, `account_code`.
-- Bảng `employee_salary_structures`: mỗi NV có nhiều dòng cấu phần áp dụng theo kỳ.
-- Bảng `timesheets` (chấm công) hoặc nhập tay tổng công/OT/nghỉ phép/nghỉ không lương theo kỳ.
-- Bảng `payroll_run_lines` mở rộng (JSONB `components`, OT amount, deductions JSON).
-- UI: trang chấm công + import Excel mẫu.
+### Phase E.2 — Báo cáo nội bộ & tờ khai còn thiếu
+1. **Bảng thanh toán tiền lương C02-HD/BB** (mẫu TT200) — bảng in chuẩn để ký nhận, có cột ký tên.
+2. **Bảng phân bổ tiền lương & BHXH** theo TK chi phí × phòng ban × dự án (đối chiếu với JE đã ghi sổ).
+3. **D02-TS** — báo cáo tăng/giảm lao động & điều chỉnh đóng BHXH (khác C70a ở chỗ chỉ liệt kê biến động trong kỳ, không phải toàn bộ LĐ).
+4. **Chứng từ khấu trừ thuế TNCN cá nhân** (mẫu 03/TNCN) — in cho từng NV khi nghỉ việc hoặc cuối năm.
+5. **Import Excel chấm công** (đã ghi trong plan B nhưng chưa làm) — upload .xlsx, mapping cột → bulk upsert `timesheets`.
 
-### Phase C — Tính lương nâng cao & Ghi sổ chi tiết
-- Engine tính lương:
-  - Lương theo công thực tế / công chuẩn.
-  - Cộng các khoản TN từ salary structure + timesheet OT (×1.5/×2/×3).
-  - Loại trừ TN không chịu thuế (ăn ca ≤ 730k, đồng phục ≤ 5tr/năm…).
-  - BHXH theo lương đóng BH có chặn trần.
-  - PIT lũy tiến 7 bậc; hỗ trợ NV không cư trú (20% flat); NV thử việc/lao động dưới 3 tháng ≥ 2tr/lần → 10% khấu trừ.
-  - Tạm ứng lương trừ vào kỳ.
-- Ghi sổ JE chi tiết theo phòng ban/dự án:
-  - Nợ 622/627/641/642/154 theo `account_code` của component và `department_id` (chiều phân tích).
-  - Có 334 (lương phải trả), 3383/3384/3386/3382/3335.
-  - Bút toán BH công ty: Nợ 622/627/641/642 / Có 3383/3384/3386/3382.
-  - Bút toán khấu trừ NV: Nợ 334 / Có 3383/3384/3386/3335.
-- Trạng thái kỳ lương: draft → calculated → approved → posted → paid.
+### Phase F — Tích hợp & tự động hóa (chưa bắt đầu)
+6. **Khóa kỳ lương theo `fiscal_periods`** — không cho tạo/sửa/xóa run nếu kỳ kế toán đã closed.
+7. **Audit trail** cho kỳ lương đã posted — log mọi thao tác approve/post/void/edit vào `audit_logs`.
+8. **Đảo bút toán (void)** kỳ đã ghi sổ — sinh JE ngược, đổi status `posted → voided`.
+9. **Liên kết NV ↔ tài sản** — hiển thị tài sản NV đang giữ trong hồ sơ (FA `assignee_employee_id`).
+10. **Cron nhắc kỳ lương** (`pg_cron`, optional) — gửi nhắc tạo bảng lương ngày 25-28 hàng tháng.
 
-### Phase D — Chi trả & Chứng từ
-- Thanh toán lương: tạo phiếu chi tiền mặt hoặc UNC chuyển khoản, xuất file ngân hàng (Vietcombank/BIDV/MB CSV mẫu).
-- Phiếu lương cá nhân (payslip) in PDF + gửi email từng NV (Lovable AI gateway optional).
-- Chốt tạm ứng lương kỳ trước.
-- Tạm ứng lương giữa kỳ → ghi 334.
+### Đề xuất bổ sung (ngoài plan gốc)
+11. **Dashboard lương** — KPI quỹ lương 12 tháng, top BP theo chi phí, so sánh tháng/quý, headcount biến động.
 
-### Phase E — Báo cáo & Tờ khai
-- Bảng thanh toán lương C02-HD/BB (mẫu TT200).
-- Bảng phân bổ tiền lương & BHXH theo TK chi phí / phòng ban.
-- Báo cáo tăng/giảm lao động BHXH (D02-LT, D02-TS).
-- Tờ khai khấu trừ PIT tháng/quý (05/KK-TNCN).
-- Quyết toán PIT năm (05/QTT-TNCN) + chứng từ khấu trừ thuế.
-- Export Excel/CSV (UTF-8 BOM), in mẫu chuẩn.
+## Đề xuất ưu tiên
 
-### Phase F — Tích hợp & tự động hóa
-- Khóa kỳ lương theo `fiscal_periods` (chặn sửa nếu kỳ closed).
-- Cron `pg_cron` nhắc kỳ lương cuối tháng (option).
-- Audit trail (`audit_logs`) cho mọi thay đổi kỳ lương posted.
-- Đảo bút toán (void) kỳ lương đã ghi sổ.
-- Liên kết NV ↔ tài sản giao (FA `assignee`).
+**Đợt 1 (tuần này)** — hoàn thành Phase E.2: items **1, 2, 5** (báo cáo C02-HD, bảng phân bổ, import chấm công). Đây là 3 thứ kế toán dùng hàng tháng, gap rõ nhất so với MISA/FAST.
 
-## Đề xuất
-Bắt đầu **Phase A** ngay. Mỗi phase ~1 migration + functions + UI; chạy tuần tự, bạn duyệt từng phase trước khi sang phase kế tiếp.
+**Đợt 2** — Phase F core: items **6, 7, 8** (khóa kỳ + audit + void). Đây là chuẩn kiểm soát nội bộ, cần trước khi đưa hệ thống vào dùng thật.
 
-## Bạn xác nhận?
-Trả lời **"Phase A"** để bắt đầu, hoặc cho biết phần nào cần bỏ/ưu tiên khác.
+**Đợt 3** — items **3, 4, 9, 10, 11** (D02-TS, chứng từ TNCN cá nhân, FA link, cron, dashboard).
+
+## Câu hỏi
+
+Bạn muốn:
+- **A** — Triển khai luôn Đợt 1 (C02-HD + bảng phân bổ + import chấm công)?
+- **B** — Nhảy thẳng Phase F (khóa kỳ + audit + void)?
+- **C** — Làm Dashboard lương trước cho dễ nhìn tổng quan?
+- **D** — Chọn cụ thể từng item theo số ở trên.
