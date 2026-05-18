@@ -67,10 +67,10 @@ function FromInvoicePage() {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
   const listFn = useServerFn(listInvoicesForAllocation);
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["alloc-from-invoice", "list", q],
-    queryFn: () => listFn({ data: { q } }),
-    ...QUERY_PRESETS.list,
+    queryFn: () => listFn({ data: { q } }) as any,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   return (
