@@ -44,9 +44,14 @@ function CustomersPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Mã KH, MST, ngân hàng, hạn TT, công nợ đầu kỳ</p>
         </div>
-        <Button onClick={() => setEditing({})}>
-          <Plus className="mr-2 h-4 w-4" />Khách hàng mới
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/customers/groups"><FolderTree className="mr-2 h-4 w-4" />Nhóm KH</Link>
+          </Button>
+          <Button onClick={() => setEditing({})}>
+            <Plus className="mr-2 h-4 w-4" />Khách hàng mới
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
