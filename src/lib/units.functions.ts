@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { COMMON_UNITS as COMMON_UNITS_LIST, findCommonUnit } from "./common-units";
 
 const UnitSchema = z.object({
   id: z.string().uuid().optional(),
@@ -9,6 +10,10 @@ const UnitSchema = z.object({
   note: z.string().max(255).nullable().optional(),
   is_active: z.boolean().default(true),
 });
+
+function normalizeCode(s: string): string {
+  return s.trim().replace(/\s+/g, " ");
+}
 
 export const listUnits = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
