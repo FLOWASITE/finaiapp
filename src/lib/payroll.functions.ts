@@ -438,7 +438,7 @@ export const createPayrollRun = createServerFn({ method: "POST" })
       ];
       for (const [code, hours, mult] of otSpecs) {
         if (hours <= 0) continue;
-        const c = (comps ?? []).find((x: any) => x.code === code) ?? {
+        const c: any = (comps ?? []).find((x: any) => x.code === code) ?? {
           code, name: `Tăng ca ${Math.round(mult * 100)}%`, kind: "overtime",
           is_taxable: true, taxable_threshold: 0, is_insurable: false,
           expense_account: "6421",
