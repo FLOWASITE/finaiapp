@@ -284,11 +284,11 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
 // ============ B02 — Kết quả hoạt động kinh doanh ============
 export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string }) => i)
+  .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const cur = await fetchLines(supabase, userId, data.from, data.to);
-    const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo) : [];
+    const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
+    const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
 
     const computeItem = (item: ISItem, lines: LineRow[], values: Record<string, number>): number => {
       if (item.accounts) {
