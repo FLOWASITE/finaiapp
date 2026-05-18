@@ -563,11 +563,14 @@ function GroupItem({
         <CollapsibleTrigger asChild>
           <SidebarMenuButton
             tooltip={group.label}
-            className={cn("group/btn", hasActiveChild && "text-sidebar-foreground")}
+            className={cn(
+              "group/btn transition-all duration-200 hover:translate-x-px hover:bg-sidebar-accent/40",
+              hasActiveChild && "text-sidebar-foreground"
+            )}
           >
-            <Icon className={cn("h-4 w-4", hasActiveChild && "text-sidebar-primary")} />
+            <Icon className={cn("h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110", hasActiveChild && "text-sidebar-primary")} />
             <span className={cn("flex-1 text-left text-[13px] tracking-[-0.005em]", hasActiveChild ? "font-semibold" : "font-medium")}>{group.label}</span>
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-all duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[state=open]/collapsible:text-sidebar-primary" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
