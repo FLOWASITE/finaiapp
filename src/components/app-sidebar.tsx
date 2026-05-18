@@ -201,7 +201,8 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
-  const activeSections = inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
+  const inTaxModule = pathname.startsWith("/tax");
+  const activeSections = inTaxModule ? TAX_SECTIONS : inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
