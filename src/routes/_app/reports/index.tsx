@@ -883,6 +883,36 @@ function AccountDrilldownDialog({
                     />
                   </div>
                   <label className="flex items-center gap-1 text-muted-foreground">
+                    Từ ngày
+                    <input
+                      type="date"
+                      value={filterFrom}
+                      onChange={(e) => setFilterFrom(e.target.value)}
+                      className="h-8 rounded border border-border bg-background px-1 text-xs"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Đến ngày
+                    <input
+                      type="date"
+                      value={filterTo}
+                      onChange={(e) => setFilterTo(e.target.value)}
+                      className="h-8 rounded border border-border bg-background px-1 text-xs"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Loại CT:
+                    <select
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value as "all" | "invoice" | "manual")}
+                      className="h-8 rounded border border-border bg-background px-1 text-xs"
+                    >
+                      <option value="all">Tất cả</option>
+                      <option value="invoice">Hoá đơn</option>
+                      <option value="manual">Bút toán thủ công</option>
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-1 text-muted-foreground">
                     Số dòng/trang:
                     <select
                       value={pageSize}
@@ -892,16 +922,31 @@ function AccountDrilldownDialog({
                       {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </label>
-                  <span className="text-muted-foreground">
+                  {filtersActive && (
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="h-8 rounded border border-border bg-background px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Đặt lại
+                    </button>
+                  )}
+                  <span className="ml-auto text-muted-foreground">
                     {filteredLines.length === 0
                       ? "Không có kết quả"
                       : `${start + 1}–${Math.min(start + pageSize, filteredLines.length)} / ${filteredLines.length}`}
-                    {term && allLines.length !== filteredLines.length && ` (lọc từ ${allLines.length})`}
+                    {allLines.length !== filteredLines.length && ` (lọc từ ${allLines.length})`}
                   </span>
                 </div>
+                {filtersActive && filteredLines.length > 0 && (
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    Tổng theo bộ lọc — PS Nợ: <b className="text-foreground font-mono">{fmt(filteredDebit)}</b>{" "}
+                    · PS Có: <b className="text-foreground font-mono">{fmt(filteredCredit)}</b>
+                  </div>
+                )}
                 {filteredLines.length === 0 ? (
                   <div className="rounded border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-                    Không tìm thấy dòng nào khớp "{search}".
+                    Không tìm thấy dòng nào khớp bộ lọc.
                   </div>
                 ) : (
                   <>
@@ -909,6 +954,7 @@ function AccountDrilldownDialog({
                       <thead className="sticky top-0 bg-background">
                         <tr className="border-b border-border text-muted-foreground">
                           <th className="py-1 text-left">Ngày</th>
+                          <th className="text-left">Loại</th>
                           <th className="text-left">Chứng từ / Diễn giải</th>
                           <th className="text-right">PS Nợ</th>
                           <th className="text-right">PS Có</th>
@@ -917,18 +963,26 @@ function AccountDrilldownDialog({
                         </tr>
                       </thead>
                       <tbody>
-                        {pageLines.map((l: any, i: number) => (
-                          <tr key={`${l.entry_id}-${start + i}`} className="border-b border-border/40">
-                            <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
-                            <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
-                            <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
-                            <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
-                            <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
-                            <td className="pl-2 text-right">
-                              <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
-                            </td>
-                          </tr>
-                        ))}
+                        {pageLines.map((l: any, i: number) => {
+                          const t = l.doc_type ?? (l.invoice_id ? "invoice" : "manual");
+                          return (
+                            <tr key={`${l.entry_id}-${start + i}`} className="border-b border-border/40">
+                              <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
+                              <td>
+                                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] ${t === "invoice" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                                  {t === "invoice" ? "Hoá đơn" : "Thủ công"}
+                                </span>
+                              </td>
+                              <td className="max-w-[380px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
+                              <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
+                              <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
+                              <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
+                              <td className="pl-2 text-right">
+                                <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                     {totalPages > 1 && (
