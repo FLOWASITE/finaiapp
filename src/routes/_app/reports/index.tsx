@@ -713,6 +713,83 @@ function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: Un
 }
 
 
+function AccountDrilldownDialog({
+  account, from, to, dims, onClose,
+}: {
+  account: { code: string; name: string } | null;
+  from: string;
+  to: string;
+  dims: DimensionValue;
+  onClose: () => void;
+}) {
+  const alFn = useServerFn(getAccountLedger);
+  const q = useQuery({
+    queryKey: ["acc-ledger-drill", account?.code, from, to, dims],
+    queryFn: () => alFn({ data: { account: account!.code, from, to, dims } }),
+    enabled: !!account,
+    ...QUERY_PRESETS.REPORT,
+  });
+  const open = !!account;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>
+            Phát sinh chi tiết — TK {account?.code} {account?.name ? `· ${account.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {!account ? null : q.isLoading || !q.data ? (
+          <Loading />
+        ) : (
+          <div className="max-h-[70vh] overflow-auto">
+            <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+              <span>Kỳ: <b className="text-foreground">{from} → {to}</b></span>
+              <span>Số dư đầu: <b className="text-foreground font-mono">{fmt(q.data.opening)}</b></span>
+              <span>Tổng PS Nợ: <b className="text-foreground font-mono">{fmt(q.data.totalDebit)}</b></span>
+              <span>Tổng PS Có: <b className="text-foreground font-mono">{fmt(q.data.totalCredit)}</b></span>
+              <span>Số dư cuối: <b className="text-foreground font-mono">{fmt(q.data.closing)}</b></span>
+              <span>Số dòng: <b className="text-foreground">{q.data.lines.length}</b></span>
+            </div>
+            {q.data.lines.length === 0 ? (
+              <div className="rounded border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                Không có chứng từ nào phát sinh trên TK {account.code} trong kỳ.
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="py-1 text-left">Ngày</th>
+                    <th className="text-left">Chứng từ / Diễn giải</th>
+                    <th className="text-right">PS Nợ</th>
+                    <th className="text-right">PS Có</th>
+                    <th className="text-right">Lũy kế</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {q.data.lines.map((l, i) => (
+                    <tr key={`${l.entry_id}-${i}`} className="border-b border-border/40">
+                      <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
+                      <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
+                      <td className="pl-2 text-right">
+                        <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-card p-6">
