@@ -121,15 +121,19 @@ const QUICK_AI = [
 const OPEN_STATE_KEY = "sidebar:groups:v1";
 
 function useGroupOpenState(initialActive: Record<string, boolean>) {
-  const [openMap, setOpenMap] = React.useState<Record<string, boolean>>(() => {
-    if (typeof window === "undefined") return initialActive;
+  // Start with the same value on server and client to avoid hydration mismatch.
+  const [openMap, setOpenMap] = React.useState<Record<string, boolean>>(initialActive);
+
+  // Hydrate from localStorage after mount.
+  React.useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(OPEN_STATE_KEY) || "{}");
-      return { ...initialActive, ...saved };
-    } catch {
-      return initialActive;
-    }
-  });
+      if (saved && typeof saved === "object") {
+        setOpenMap((prev) => ({ ...prev, ...saved }));
+      }
+    } catch {}
+  }, []);
+
   const setOpen = React.useCallback((label: string, open: boolean) => {
     setOpenMap((prev) => {
       const next = { ...prev, [label]: open };
