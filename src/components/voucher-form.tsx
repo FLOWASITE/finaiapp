@@ -89,7 +89,8 @@ export function VoucherFormDialog({
 
   const today = useMemo(() => new Date(), []);
   const [date, setDate] = useState<Date>(today);
-  const [voucherNo, setVoucherNo] = useState(() => genVoucherNo(type, today));
+  const [voucherNo, setVoucherNo] = useState(() => fallbackVoucherNo(type, today));
+  const [voucherNoTouched, setVoucherNoTouched] = useState(false);
   const [cashAccount, setCashAccount] = useState("1111");
   const [counterAccount, setCounterAccount] = useState(type === "receipt" ? "131" : "331");
   const [partyId, setPartyId] = useState<string | null>(null);
@@ -100,12 +101,14 @@ export function VoucherFormDialog({
   const [amountStr, setAmountStr] = useState("");
   const [attachments, setAttachments] = useState("");
 
-  // reset on open / type change
+  const fetchNextNo = useServerFn(nextVoucherNo);
+
   useEffect(() => {
     if (!open) return;
     const d = new Date();
     setDate(d);
-    setVoucherNo(genVoucherNo(type, d));
+    setVoucherNo(fallbackVoucherNo(type, d));
+    setVoucherNoTouched(false);
     setCashAccount("1111");
     setCounterAccount(type === "receipt" ? "131" : "331");
     setPartyId(null);
@@ -116,6 +119,20 @@ export function VoucherFormDialog({
     setAmountStr("");
     setAttachments("");
   }, [open, type]);
+
+  useEffect(() => {
+    if (!open || voucherNoTouched) return;
+    let cancelled = false;
+    const ym = format(date, "yyyyMM");
+    fetchNextNo({ data: { voucher_type: type, year_month: ym } })
+      .then((r) => {
+        if (!cancelled && !voucherNoTouched) setVoucherNo(r.voucher_no);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, type, date, voucherNoTouched, fetchNextNo]);
 
   const amount = parseAmount(amountStr);
   const amountWords = useMemo(() => (amount > 0 ? numberToVietnameseWords(amount) : ""), [amount]);
