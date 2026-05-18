@@ -100,6 +100,12 @@ export function AppHeader() {
         </Button>
 
         {/* User menu */}
+        {isLoading && !cu ? (
+          <div className="flex items-center gap-2 px-1.5 pr-3 h-9">
+            <Skeleton className="h-7 w-7 rounded-full" />
+            <Skeleton className="hidden sm:block h-3.5 w-20" />
+          </div>
+        ) : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-3">
