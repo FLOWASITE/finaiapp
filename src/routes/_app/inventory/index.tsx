@@ -107,6 +107,18 @@ function InventoryPage() {
             <Input placeholder="Mã hoặc tên..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="space-y-1">
+            <Label className="text-xs">Loại</Label>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="goods">Hàng hóa</SelectItem>
+                <SelectItem value="service">Dịch vụ</SelectItem>
+                <SelectItem value="combo">Combo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs">Danh mục</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
