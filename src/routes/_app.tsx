@@ -19,10 +19,10 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-secondary/30">
+      <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-background via-background to-secondary/30">
         <AppSidebar />
-        <SidebarInset className="flex-1 overflow-hidden">
-          <header className="sticky top-0 z-20 px-3 pt-3">
+        <SidebarInset className="flex flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 px-3 pt-3 pb-2">
             <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/5 bg-background/70 px-3 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
               <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
               <Separator orientation="vertical" className="h-6 bg-white/10" />
@@ -31,7 +31,7 @@ function AppLayout() {
               <AppHeader />
             </div>
           </header>
-          <main className="overflow-auto">
+          <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
           <CommandPalette />
