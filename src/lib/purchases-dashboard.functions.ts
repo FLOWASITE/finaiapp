@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withLatency } from "@/lib/with-latency";
 
 function dayStr(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -12,7 +13,7 @@ function addDays(d: Date, n: number) {
 
 export const purchasesDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(withLatency("purchasesDashboard", async ({ context }) => {
     const { supabase } = context;
     const today = new Date();
     const todayStr = dayStr(today);
@@ -151,4 +152,5 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
       top_suppliers: topSuppliers,
       today: todayStr,
     };
-  });
+  }));
+
