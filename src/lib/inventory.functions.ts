@@ -882,7 +882,7 @@ export const updateStockVoucher = createServerFn({ method: "POST" })
 
     const { productIds: removedProducts } = await deleteVoucherInternal(supabase, data.id);
     // Recompute removed products' stock first
-    for (const id of removedProducts) {
+    for (const id of removedProducts as string[]) {
       await recomputeProductStock(supabase, id);
     }
 
