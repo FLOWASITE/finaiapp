@@ -141,12 +141,15 @@ function useGroupOpenState(initialActive: Record<string, boolean>) {
 
 export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
-  const [email, setEmail] = React.useState<string>("");
-  const [isSuperadmin, setIsSuperadmin] = React.useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+
+  // Dùng cache chung cho user/profile/roles tránh fetch lặp.
+  const { data: cu } = useCurrentUser();
+  const email = cu?.email ?? "";
+  const isSuperadmin = cu?.isSuperadmin ?? false;
 
   const isActive = React.useCallback(
     (to: string) => pathname === to || pathname.startsWith(to + "/"),
@@ -177,19 +180,6 @@ export function AppSidebar() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
-  React.useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      setEmail(data.user?.email ?? "");
-      if (data.user?.id) {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id);
-        setIsSuperadmin((roles ?? []).some((r) => r.role === "superadmin"));
-      }
-    });
-  }, []);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
