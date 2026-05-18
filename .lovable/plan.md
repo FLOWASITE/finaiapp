@@ -1,17 +1,18 @@
-## Bỏ khu vực AI Launcher trên Sidebar
+## Mục tiêu
+Bỏ hoàn toàn breadcrumbs khỏi header. Người dùng định vị bằng sidebar (mục đang chọn được highlight) và tiêu đề H1 ở đầu mỗi trang.
 
-Xoá toàn bộ vùng nằm trong khung đỏ ở ảnh chụp:
-- Ô "Hỏi FinAI AI… ⌘K"
-- 3 nút gợi ý nhanh: "Tóm tắt doanh thu tháng này", "Lập BCTC quý gần nhất", "Top 5 công nợ quá hạn"
+## Thay đổi
 
-### Thay đổi kỹ thuật
-File: `src/components/app-sidebar.tsx`
-- Xoá block `<div className="px-2 pt-3 pb-2">…</div>` (vùng AI launcher + quick AI chips) trong `SidebarContent`.
-- Xoá hằng `QUICK_AI` không còn dùng.
-- Xoá state `openCmd` / `setOpenCmd`, handler phím tắt Cmd/Ctrl+K, và `<CommandDialog>` đi kèm nếu không còn tham chiếu nào khác (kiểm tra lại trước khi xoá để tránh phá tính năng search).
-- Dọn các import không còn dùng (`Sparkles`, `Command as CommandIcon`, các Command* nếu CommandDialog bị xoá).
+**`src/components/app-header.tsx`**
+- Xoá khối breadcrumbs (thẻ `<nav>` "Trang chủ / …") và hàm `useBreadcrumbs`, hằng `SEGMENT_LABELS`, import `useMatches`, `ChevronRight`.
+- Đẩy cụm phải (Kỳ kế toán, Quick links HĐĐT/Thuế/Báo cáo, Search, Notifications, User) chiếm toàn bộ chiều ngang header (bỏ `ml-auto`, dùng `justify-end` cho container, hoặc đơn giản giữ nguyên cụm phải và để wrapper `flex flex-1 justify-end`).
 
-### Không thay đổi
-- Header, branding, theme toggle.
-- Các section menu (Vận hành, Kế toán, Hệ thống, v.v.).
-- Sidebar riêng cho Thuế / Báo cáo / HĐĐT đã làm trước đó.
+**`src/routes/_app.tsx`** *(tuỳ chọn nhỏ)*
+- Không cần đổi gì; header vẫn cố định như hiện tại.
+
+## Không thay đổi
+- Không sửa các trang con — tiêu đề H1 đã có sẵn trên từng route (vd "Tổng quan", "Hoá đơn điện tử"…).
+- Sidebar giữ nguyên highlight mục đang chọn để người dùng biết mình đang ở đâu.
+
+## Kết quả
+Header gọn hơn, chỉ còn: tenant switcher · kỳ kế toán · quick links · tìm kiếm · thông báo · user. Vị trí trang được nhận biết qua sidebar + tiêu đề trang.
