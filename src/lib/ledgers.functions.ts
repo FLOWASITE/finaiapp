@@ -33,7 +33,7 @@ async function fetchLines(
   let q = supabase
     .from("journal_lines")
     .select(
-      "account_code, debit, credit, line_order, entry_id, journal_entries!inner(id, entry_date, description, user_id)"
+      "account_code, debit, credit, line_order, entry_id, journal_entries!inner(id, entry_date, description, user_id, invoice_id)"
     )
     .eq("journal_entries.user_id", userId);
   if (opts.from) q = q.gte("journal_entries.entry_date", opts.from);
@@ -57,6 +57,7 @@ async function fetchLines(
       entry_id: e.id,
       description: e.description,
       line_order: Number(l.line_order) || 0,
+      invoice_id: e.invoice_id ?? null,
     });
   }
   return rows;
