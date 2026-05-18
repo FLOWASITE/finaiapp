@@ -90,16 +90,25 @@ function RunDetail() {
           <Link to="/payroll" className="text-sm text-muted-foreground">← Quay lại</Link>
           <h1 className="text-2xl font-semibold mt-1">Kỳ lương {String(r.period_month).slice(0, 7)}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={r.status === "posted" ? "default" : "secondary"}>{r.status}</Badge>
+          {r.payment_status === "paid" && <Badge className="bg-emerald-600 hover:bg-emerald-600">Đã trả</Badge>}
           {r.status === "draft" && (
             <>
-              <Button variant="outline" onClick={() => mApp.mutate()} disabled={mApp.isPending}>Duyệt</Button>
-              <Button variant="destructive" onClick={() => { if (confirm("Xoá kỳ lương?")) mDel.mutate(); }}>Xoá</Button>
+              <Button variant="outline" size="sm" onClick={() => mAdv.mutate()} disabled={mAdv.isPending}>Áp tạm ứng</Button>
+              <Button variant="outline" size="sm" onClick={() => mApp.mutate()} disabled={mApp.isPending}>Duyệt</Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (confirm("Xoá kỳ lương?")) mDel.mutate(); }}>Xoá</Button>
             </>
           )}
+          <Link to="/payroll/payslips/$id" params={{ id }}>
+            <Button variant="outline" size="sm">Phiếu lương / PDF</Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => mCsv.mutate()} disabled={mCsv.isPending}>CSV ngân hàng</Button>
           {r.status !== "posted" && (
-            <Button onClick={() => mPost.mutate()} disabled={mPost.isPending}>Ghi sổ</Button>
+            <Button size="sm" onClick={() => mPost.mutate()} disabled={mPost.isPending}>Ghi sổ</Button>
+          )}
+          {r.status === "posted" && r.payment_status !== "paid" && (
+            <Button size="sm" onClick={() => { const ref = prompt("Mã chứng từ thanh toán (tuỳ chọn):") ?? ""; mPaid.mutate(ref); }}>Đánh dấu đã trả</Button>
           )}
         </div>
       </div>
