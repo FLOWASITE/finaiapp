@@ -100,6 +100,8 @@ function ArSummaryPage() {
   const [drillSearch, setDrillSearch] = useState("");
   const [drillPage, setDrillPage] = useState(1);
   const [drillPageSize, setDrillPageSize] = useState(50);
+  const [drillGroupByDoc, setDrillGroupByDoc] = useState(false);
+
 
   // Reset local filters when opening a new drill-down
   useEffect(() => {
@@ -115,7 +117,8 @@ function ArSummaryPage() {
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setDrillPage(1);
-  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize]);
+  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize, drillGroupByDoc]);
+
 
 
   const toggleDrillDocType = (v: string) =>
@@ -153,6 +156,61 @@ function ArSummaryPage() {
     const credit = lines.reduce((s, l) => s + l.credit, 0);
     return { lines, daily, debit, credit };
   }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
+
+  type DrillDisplayRow = {
+    key: string;
+    entry_id: string;
+    entry_date: string;
+    doc_type: "HD" | "PT" | "KHAC";
+    doc_no: string | null;
+    doc_id: string | null;
+    description: string;
+    debit: number;
+    credit: number;
+    line_count: number;
+  };
+  const drillDisplayRows = useMemo<DrillDisplayRow[]>(() => {
+    if (!drillGroupByDoc) {
+      return drillFiltered.lines.map((l, i) => ({
+        key: l.entry_id + ":" + i,
+        entry_id: l.entry_id,
+        entry_date: l.entry_date,
+        doc_type: l.doc_type,
+        doc_no: l.doc_no,
+        doc_id: l.doc_id,
+        description: l.description,
+        debit: l.debit,
+        credit: l.credit,
+        line_count: 1,
+      }));
+    }
+    const map = new Map<string, DrillDisplayRow>();
+    for (const l of drillFiltered.lines) {
+      const key = l.entry_id;
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          entry_id: l.entry_id,
+          entry_date: l.entry_date,
+          doc_type: l.doc_type,
+          doc_no: l.doc_no,
+          doc_id: l.doc_id,
+          description: l.description,
+          debit: l.debit,
+          credit: l.credit,
+          line_count: 1,
+        });
+      } else {
+        g.debit += l.debit;
+        g.credit += l.credit;
+        g.line_count += 1;
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => a.entry_date.localeCompare(b.entry_date) || (a.doc_no ?? "").localeCompare(b.doc_no ?? ""),
+    );
+  }, [drillFiltered.lines, drillGroupByDoc]);
 
 
   const ar = useQuery({
@@ -451,8 +509,17 @@ function ArSummaryPage() {
                       </button>
                     );
                   })}
+                  <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={drillGroupByDoc}
+                      onChange={(e) => setDrillGroupByDoc(e.target.checked)}
+                    />
+                    Gộp theo chứng từ
+                  </label>
                 </div>
               </div>
+
 
               <div className="grid grid-cols-3 gap-3 text-sm">
 
@@ -517,7 +584,9 @@ function ArSummaryPage() {
 
               <div>
                 <div className="mb-2 text-sm font-semibold">
-                  Chứng từ ({drillFiltered.lines.length}{drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""})
+                  Chứng từ ({drillGroupByDoc
+                    ? `${drillDisplayRows.length} chứng từ / ${drillFiltered.lines.length} dòng`
+                    : `${drillFiltered.lines.length}${drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""}`})
                 </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
@@ -526,20 +595,20 @@ function ArSummaryPage() {
                         <th className="px-3 py-2 text-left">Ngày</th>
                         <th className="px-3 py-2 text-left">Loại</th>
                         <th className="px-3 py-2 text-left">Số CT</th>
-                        <th className="px-3 py-2 text-left">Diễn giải</th>
+                        <th className="px-3 py-2 text-left">{drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải"}</th>
                         <th className="px-3 py-2 text-right">Nợ</th>
                         <th className="px-3 py-2 text-right">Có</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const total = drillFiltered.lines.length;
+                        const total = drillDisplayRows.length;
                         const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
                         const page = Math.min(drillPage, totalPages);
                         const start = (page - 1) * drillPageSize;
-                        const slice = drillFiltered.lines.slice(start, start + drillPageSize);
-                        return slice.map((l, i) => (
-                          <tr key={l.entry_id + (start + i)} className="border-t border-border align-top">
+                        const slice = drillDisplayRows.slice(start, start + drillPageSize);
+                        return slice.map((l) => (
+                          <tr key={l.key} className="border-t border-border align-top">
                             <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
                             <td className="px-3 py-1.5">
                               <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
@@ -563,6 +632,9 @@ function ArSummaryPage() {
                               ) : (
                                 l.doc_no ?? "—"
                               )}
+                              {drillGroupByDoc && l.line_count > 1 && (
+                                <div className="text-[10px] text-muted-foreground">({l.line_count} dòng)</div>
+                              )}
                             </td>
                             <td className="px-3 py-1.5 text-muted-foreground">
                               {l.description}
@@ -572,7 +644,7 @@ function ArSummaryPage() {
                           </tr>
                         ));
                       })()}
-                      {drillFiltered.lines.length === 0 && (
+                      {drillDisplayRows.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                             Không có chứng từ trong kỳ
@@ -581,9 +653,11 @@ function ArSummaryPage() {
                       )}
                     </tbody>
                   </table>
+
                 </div>
-                {drillFiltered.lines.length > 0 && (() => {
-                  const total = drillFiltered.lines.length;
+                {drillDisplayRows.length > 0 && (() => {
+                  const total = drillDisplayRows.length;
+
                   const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
                   const page = Math.min(drillPage, totalPages);
                   const start = (page - 1) * drillPageSize;
