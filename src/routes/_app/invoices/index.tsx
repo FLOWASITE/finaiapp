@@ -558,17 +558,6 @@ function Card({ label, value, tone }: { label: string; value: string; tone?: "ro
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    pending: { label: "Chờ OCR", cls: "bg-muted text-muted-foreground" },
-    extracted: { label: "Bóc tách", cls: "bg-accent/15 text-accent-foreground" },
-    reviewed: { label: "Đã review", cls: "bg-accent/15 text-accent-foreground" },
-    approved: { label: "Ghi sổ", cls: "bg-accent text-accent-foreground" },
-    failed: { label: "Lỗi", cls: "bg-destructive/15 text-destructive" },
-  };
-  const m = map[status] ?? { label: status, cls: "bg-muted" };
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.cls}`}>{m.label}</span>;
-}
 
 function PayBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
