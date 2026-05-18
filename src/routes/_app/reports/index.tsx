@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download, Printer, AlertTriangle, FileText, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
 type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string };
 
