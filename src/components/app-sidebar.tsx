@@ -153,7 +153,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
-  const { data: cu } = useCurrentUser();
+  const { data: cu, isLoading: cuLoading } = useCurrentUser();
   const email = cu?.email ?? "";
   const isSuperadmin = cu?.isSuperadmin ?? false;
 
