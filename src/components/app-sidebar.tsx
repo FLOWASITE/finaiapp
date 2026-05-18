@@ -534,11 +534,14 @@ function GroupItem({
                 <SidebarMenuSubItem key={i.to}>
                   <SidebarMenuSubButton asChild isActive={active}>
                     <Link to={i.to}>
-                      <span className={cn(active && "text-sidebar-primary font-medium")}>
+                      <span className={cn(
+                        "text-[12.5px] tracking-[-0.005em] transition-colors",
+                        active ? "font-semibold text-sidebar-primary" : "text-sidebar-foreground/75 hover:text-sidebar-foreground"
+                      )}>
                         {i.label}
                       </span>
                       {i.badge != null && (
-                        <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+                        <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
                           {i.badge}
                         </span>
                       )}
