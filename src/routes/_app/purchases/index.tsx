@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -850,10 +851,8 @@ function PaymentsTab({
     onSuccess: () => {
       toast.success("Đã xoá phiếu chi (đảo bút toán)");
       qc.invalidateQueries({ queryKey: ["supplier-payments"] });
-      qc.invalidateQueries({ queryKey: ["payables-stats"] });
-      qc.invalidateQueries({ queryKey: ["outstanding-purchase-invoices"] });
-      qc.invalidateQueries({ queryKey: ["purchases-dashboard"] });
       qc.invalidateQueries({ queryKey: ["purchase-invoices-hub"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Không xoá được"),
   });
@@ -1091,10 +1090,8 @@ function PaymentsTab({
             setPreInv(undefined);
             clearPreselect();
             qc.invalidateQueries({ queryKey: ["supplier-payments"] });
-            qc.invalidateQueries({ queryKey: ["payables-stats"] });
-            qc.invalidateQueries({ queryKey: ["outstanding-purchase-invoices"] });
-            qc.invalidateQueries({ queryKey: ["purchases-dashboard"] });
             qc.invalidateQueries({ queryKey: ["purchase-invoices-hub"] });
+            invalidateLedgers(qc);
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
@@ -1145,10 +1142,8 @@ function NewPaymentInline({
             toast.success("Đã ghi nhận phiếu chi");
             setOpen(false);
             qc.invalidateQueries({ queryKey: ["supplier-payments"] });
-            qc.invalidateQueries({ queryKey: ["payables-stats"] });
-            qc.invalidateQueries({ queryKey: ["outstanding-purchase-invoices"] });
-            qc.invalidateQueries({ queryKey: ["purchases-dashboard"] });
             qc.invalidateQueries({ queryKey: ["purchase-invoices-hub"] });
+            invalidateLedgers(qc);
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
