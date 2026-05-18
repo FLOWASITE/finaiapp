@@ -702,6 +702,14 @@ function ArSummaryPage() {
                     />
                     Gộp theo chứng từ
                   </label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={drillVirtual}
+                      onChange={(e) => setDrillVirtual(e.target.checked)}
+                    />
+                    Cuộn ảo
+                  </label>
                 </div>
               </div>
 
