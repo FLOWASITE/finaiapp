@@ -240,6 +240,9 @@ export const createBankVoucher = createServerFn({ method: "POST" })
         party_name: data.party_name || null,
         reason: data.reason || null,
         reference: data.reference || null,
+        branch_id: data.branch_id || null,
+        project_id: data.project_id || null,
+        cost_center_id: data.cost_center_id || null,
         journal_entry_id: entry.id,
         bank_transaction_id: txn?.id ?? null,
       })
