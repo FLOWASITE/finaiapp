@@ -5,6 +5,8 @@ import { useState } from "react";
 import { ArrowLeft, Send, CheckCircle2, XCircle, Plus, Trash2, Wallet } from "lucide-react";
 import { getSalesInvoice, issueSalesInvoice, voidSalesInvoice } from "@/lib/sales.functions";
 import { recordReceipt, deleteReceipt } from "@/lib/receipts.functions";
+import { getLinkedEInvoice } from "@/lib/einvoices.functions";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
