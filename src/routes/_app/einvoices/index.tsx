@@ -30,15 +30,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportEinvoiceStoreDialog } from "@/components/import-einvoice-store-dialog";
+import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { listEInvoices } from "@/lib/einvoices.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/einvoices/")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -366,39 +360,11 @@ function EInvoicesPage() {
         </div>
       )}
 
-      <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Đồng bộ từ Cổng Tổng cục Thuế</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p>
-              Tính năng đồng bộ trực tiếp từ <code>hoadondientu.gdt.gov.vn</code>{" "}
-              đang được chuẩn bị. Để bật, hệ thống cần:
-            </p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>
-                Tài khoản đăng nhập cổng TCT của tổ chức (MST + mật khẩu).
-              </li>
-              <li>
-                Mỗi phiên đồng bộ phải nhập captcha (TCT không có API tự động).
-              </li>
-              <li>
-                Khoá mã hoá <code>EINVOICE_ENC_KEY</code> để lưu mật khẩu an toàn.
-              </li>
-            </ul>
-            <p className="text-xs text-muted-foreground">
-              Trong khi chờ, bạn có thể tải file XML từ cổng TCT về máy và dùng nút{" "}
-              <b>Nhập XML vào kho HĐĐT</b>.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSyncOpen(false)}>
-              Đóng
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SyncTctDialog
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        defaultDirection={tab}
+      />
     </div>
   );
 }
