@@ -33,14 +33,33 @@ import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
+const TAB_KEY = "settings.activeTab";
+const TAB_VALUES = ["organization", "company", "members", "roles", "periods", "fx"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
 function SettingsPage() {
+  const [tab, setTab] = React.useState<TabValue>("organization");
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(TAB_KEY) as TabValue | null;
+      if (saved && TAB_VALUES.includes(saved)) setTab(saved);
+    } catch {}
+  }, []);
+
+  const handleTabChange = (v: string) => {
+    const next = (TAB_VALUES as readonly string[]).includes(v) ? (v as TabValue) : "organization";
+    setTab(next);
+    try { localStorage.setItem(TAB_KEY, next); } catch {}
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <div>
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền</p>
       </div>
-      <Tabs defaultValue="organization">
+      <Tabs value={tab} onValueChange={handleTabChange}>
         <div className="-mx-1 overflow-x-auto">
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="organization">Tổ chức</TabsTrigger>
