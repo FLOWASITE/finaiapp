@@ -262,7 +262,7 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
       }}
     >
       <DialogTrigger asChild>
-        <Button><Plus className="mr-2 h-4 w-4" />Thêm mặt hàng</Button>
+        <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm mặt hàng</Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 border-b">

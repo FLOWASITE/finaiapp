@@ -114,7 +114,7 @@ function WarehousesPage() {
             được gắn với một kho cụ thể.
           </p>
         </div>
-        <Button
+        <Button variant="add"
           onClick={() => {
             setEditing(null);
             setDialogOpen(true);
@@ -187,7 +187,7 @@ function WarehousesPage() {
                   <div className="flex flex-col items-center gap-2">
                     <WarehouseIcon className="h-8 w-8 opacity-40" />
                     <div>Chưa có kho nào. Hãy thêm kho đầu tiên.</div>
-                    <Button
+                    <Button variant="add"
                       size="sm"
                       onClick={() => {
                         setEditing(null);
