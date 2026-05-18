@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listMovements, getMovement, cancelMovement, updateMovement } from "@/lib/inventory.functions";
+import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Trash2, Warehouse } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Trash2, Warehouse, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function VoucherListPage({ type }: Props) {
-  const list = useServerFn(listMovements);
+  const list = useServerFn(listStockVouchers);
   const whs = useServerFn(listWarehouses);
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
@@ -38,7 +38,7 @@ export function VoucherListPage({ type }: Props) {
 
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs() });
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["movements-list", type, from, to, warehouseId, status],
+    queryKey: ["vouchers-list", type, from, to, warehouseId, status],
     queryFn: () => list({ data: { type, from, to, warehouse_id: warehouseId, status } }),
   });
 
@@ -46,8 +46,7 @@ export function VoucherListPage({ type }: Props) {
     const s = search.trim().toLowerCase();
     if (!s) return rows ?? [];
     return (rows ?? []).filter((r: any) =>
-      [r.note, r.products?.code, r.products?.name, r.warehouses?.name]
-        .some((v) => v?.toLowerCase().includes(s))
+      [r.voucher_no, r.reason, r.warehouses?.name].some((v) => v?.toLowerCase().includes(s))
     );
   }, [rows, search]);
 
@@ -55,8 +54,8 @@ export function VoucherListPage({ type }: Props) {
     const arr = filtered as any[];
     return {
       count: arr.length,
-      qty: arr.reduce((s, r) => s + Number(r.qty || 0), 0),
-      value: arr.reduce((s, r) => s + Number(r.qty || 0) * Number(r.unit_cost || 0), 0),
+      lines: arr.reduce((s, r) => s + Number(r.line_count || 0), 0),
+      value: arr.reduce((s, r) => s + Number(r.total_value || 0), 0),
     };
   }, [filtered]);
 
@@ -72,7 +71,7 @@ export function VoucherListPage({ type }: Props) {
             <Icon className={`h-6 w-6 ${accent}`} /> {title}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Lọc theo ngày, kho, trạng thái ghi sổ. Tạo phiếu mới tại{" "}
+            Mỗi phiếu nhiều dòng. Tạo phiếu mới tại{" "}
             <Link to="/inventory" className="text-primary hover:underline">Tồn kho</Link>.
           </p>
         </div>
@@ -113,15 +112,15 @@ export function VoucherListPage({ type }: Props) {
             </Select>
           </div>
           <div className="space-y-1 md:col-span-2">
-            <Label className="text-xs">Tìm số phiếu / mã / tên hàng</Label>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PN202605/00001, SP001..." />
+            <Label className="text-xs">Tìm số phiếu / lý do</Label>
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PN202605/00001..." />
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-3 md:grid-cols-3">
         <Kpi label="Số phiếu" value={String(totals.count)} />
-        <Kpi label="Tổng số lượng" value={fmt(totals.qty)} />
+        <Kpi label="Tổng số dòng" value={fmt(totals.lines)} />
         <Kpi label="Tổng giá trị" value={fmt(totals.value)} />
       </div>
 
@@ -134,56 +133,45 @@ export function VoucherListPage({ type }: Props) {
                 <tr>
                   <th className="p-3">Ngày</th>
                   <th className="p-3">Số phiếu</th>
-                  <th className="p-3">Mặt hàng</th>
                   <th className="p-3">Kho</th>
-                  <th className="p-3 text-right">SL</th>
-                  <th className="p-3 text-right">Đơn giá</th>
-                  <th className="p-3 text-right">Thành tiền</th>
+                  <th className="p-3">Lý do</th>
+                  <th className="p-3 text-right">Số dòng</th>
+                  <th className="p-3 text-right">Tổng giá trị</th>
                   <th className="p-3">Trạng thái</th>
                   <th className="p-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {isLoading && (
-                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>
-                )}
+                {isLoading && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>}
                 {!isLoading && filtered.length === 0 && (
-                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
+                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
                 )}
-                {filtered.map((r: any) => {
-                  const voucherNo = (r.note ?? "").split(" — ")[0] || "—";
-                  const value = Number(r.qty || 0) * Number(r.unit_cost || 0);
-                  return (
-                    <tr key={r.id} className="border-t hover:bg-muted/30">
-                      <td className="p-3 whitespace-nowrap">{r.movement_date}</td>
-                      <td className="p-3 font-mono text-xs">{voucherNo}</td>
-                      <td className="p-3">
-                        <div className="font-medium">{r.products?.name ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{r.products?.code}</div>
-                      </td>
-                      <td className="p-3">
-                        {r.warehouses ? (
-                          <span className="inline-flex items-center gap-1 text-xs">
-                            <Warehouse className="h-3 w-3" /> {r.warehouses.name}
-                          </span>
-                        ) : <span className="text-xs text-muted-foreground">—</span>}
-                      </td>
-                      <td className="p-3 text-right">{fmt(r.qty)} {r.products?.unit}</td>
-                      <td className="p-3 text-right">{fmt(r.unit_cost)}</td>
-                      <td className="p-3 text-right font-medium">{fmt(value)}</td>
-                      <td className="p-3">
-                        {r.ref_id
-                          ? <Badge variant="secondary">Đã ghi sổ</Badge>
-                          : <Badge variant="outline">Chưa ghi sổ</Badge>}
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => setOpenId(r.id)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filtered.map((r: any) => (
+                  <tr key={r.id} className="border-t hover:bg-muted/30">
+                    <td className="p-3 whitespace-nowrap">{r.voucher_date}</td>
+                    <td className="p-3 font-mono text-xs">{r.voucher_no}</td>
+                    <td className="p-3">
+                      {r.warehouses ? (
+                        <span className="inline-flex items-center gap-1 text-xs">
+                          <Warehouse className="h-3 w-3" /> {r.warehouses.name}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                    <td className="p-3 text-xs">{r.reason || "—"}</td>
+                    <td className="p-3 text-right">{r.line_count}</td>
+                    <td className="p-3 text-right font-medium">{fmt(r.total_value)}</td>
+                    <td className="p-3">
+                      {r.journal_entry_id
+                        ? <Badge variant="secondary">Đã ghi sổ</Badge>
+                        : <Badge variant="outline">Chưa ghi sổ</Badge>}
+                    </td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => setOpenId(r.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -207,101 +195,105 @@ function Kpi({ label, value }: { label: string; value: string }) {
 }
 
 function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose: () => void; type: "in" | "out" }) {
-  const get = useServerFn(getMovement);
-  const cancelFn = useServerFn(cancelMovement);
-  const updateFn = useServerFn(updateMovement);
-  const qc = useQueryClient();
+  const get = useServerFn(getStockVoucher);
+  const cancelFn = useServerFn(cancelStockVoucher);
+  const updateFn = useServerFn(updateStockVoucher);
   const whsFn = useServerFn(listWarehouses);
-  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn() });
+  const productsFn = useServerFn(listProducts);
+  const qc = useQueryClient();
 
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn() });
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn() });
   const { data, isLoading } = useQuery({
-    queryKey: ["movement", id],
+    queryKey: ["voucher", id],
     queryFn: () => get({ data: { id: id! } }),
     enabled: !!id,
   });
 
-  const mv = data?.movement as any;
-  const voucherNo = (mv?.note ?? "").split(" — ")[0] || "—";
-  const noteRest = (mv?.note ?? "").split(" — ").slice(1).join(" — ");
-
+  const v = data?.voucher as any;
+  const lines = (data?.lines ?? []) as any[];
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
-    qty: 0,
-    unit_cost: 0,
-    movement_date: "",
-    note: "",
+    voucher_date: "",
     warehouse_id: "none",
+    counter_account: "",
+    reason: "",
+    lines: [] as { product_id: string; qty: number; unit_cost: number; note: string }[],
   });
 
   useEffect(() => {
-    if (mv) {
+    if (v) {
       setForm({
-        qty: Number(mv.qty),
-        unit_cost: Number(mv.unit_cost),
-        movement_date: mv.movement_date,
-        note: noteRest,
-        warehouse_id: mv.warehouse_id ?? "none",
+        voucher_date: v.voucher_date,
+        warehouse_id: v.warehouse_id ?? "none",
+        counter_account: v.counter_account,
+        reason: v.reason ?? "",
+        lines: lines.map((l) => ({
+          product_id: l.product_id,
+          qty: Number(l.qty),
+          unit_cost: Number(l.unit_cost),
+          note: String(l.note ?? "").split(" — ").slice(1).join(" — "),
+        })),
       });
       setEditing(false);
     }
-  }, [mv?.id]);
+  }, [v?.id, lines.length]);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["movements-list"] });
-    qc.invalidateQueries({ queryKey: ["movement", id] });
+    qc.invalidateQueries({ queryKey: ["vouchers-list"] });
+    qc.invalidateQueries({ queryKey: ["voucher", id] });
     qc.invalidateQueries({ queryKey: ["stock-report"] });
     qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
     qc.invalidateQueries({ queryKey: ["products"] });
   };
 
   const cancelMut = useMutation({
-    mutationFn: () => cancelFn({ data: { id: mv.id } }),
-    onSuccess: () => {
-      toast.success("Đã huỷ phiếu và đảo bút toán");
-      invalidate();
-      onClose();
-    },
+    mutationFn: () => cancelFn({ data: { id: v.id } }),
+    onSuccess: () => { toast.success("Đã huỷ phiếu và đảo bút toán"); invalidate(); onClose(); },
     onError: (e: any) => toast.error(e?.message ?? "Không huỷ được phiếu"),
   });
 
   const updateMut = useMutation({
-    mutationFn: () =>
-      updateFn({
-        data: {
-          id: mv.id,
-          qty: Number(form.qty),
-          unit_cost: Number(form.unit_cost),
-          movement_date: form.movement_date,
-          note: form.note || undefined,
-          warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Đã cập nhật phiếu và bút toán");
-      invalidate();
-      setEditing(false);
-    },
+    mutationFn: () => updateFn({
+      data: {
+        id: v.id,
+        voucher_date: form.voucher_date,
+        warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
+        counter_account: form.counter_account,
+        reason: form.reason || undefined,
+        lines: form.lines.filter((l) => l.product_id && l.qty > 0).map((l) => ({
+          product_id: l.product_id,
+          qty: Number(l.qty),
+          unit_cost: Number(l.unit_cost || 0),
+          note: l.note || undefined,
+        })),
+      } as any,
+    }),
+    onSuccess: () => { toast.success("Đã cập nhật phiếu và bút toán"); invalidate(); setEditing(false); },
     onError: (e: any) => toast.error(e?.message ?? "Không cập nhật được phiếu"),
   });
 
+  const productsList = ((products as any[]) ?? []).filter((p) => (p.item_type ?? "goods") !== "service");
+  const updateLine = (i: number, patch: any) =>
+    setForm((f) => ({ ...f, lines: f.lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) }));
+  const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, { product_id: "", qty: 0, unit_cost: 0, note: "" }] }));
+  const removeLine = (i: number) => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
+
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            Chi tiết {type === "in" ? "phiếu nhập" : "phiếu xuất"} kho
-          </DialogTitle>
+          <DialogTitle>Chi tiết {type === "in" ? "phiếu nhập" : "phiếu xuất"} kho</DialogTitle>
         </DialogHeader>
-        {isLoading || !mv ? (
+        {isLoading || !v ? (
           <div className="py-8 text-center text-muted-foreground">Đang tải…</div>
         ) : editing ? (
           <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Số phiếu" value={voucherNo} mono />
-              <Field label="Mặt hàng" value={`${mv.products?.code} — ${mv.products?.name}`} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Field label="Số phiếu" value={v.voucher_no} mono />
               <div className="space-y-1">
                 <Label className="text-xs">Ngày</Label>
-                <Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} />
+                <Input type="date" value={form.voucher_date} onChange={(e) => setForm({ ...form, voucher_date: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Kho</Label>
@@ -316,20 +308,52 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Số lượng</Label>
-                <Input type="number" step="any" value={form.qty} onChange={(e) => setForm({ ...form, qty: Number(e.target.value) })} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">
-                  Đơn giá {type === "out" && <span className="text-muted-foreground">(xuất theo giá BQ — bỏ qua)</span>}
-                </Label>
-                <Input type="number" step="any" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} disabled={type === "out"} />
+                <Label className="text-xs">TK đối ứng</Label>
+                <Input value={form.counter_account} onChange={(e) => setForm({ ...form, counter_account: e.target.value })} className="font-mono" />
               </div>
             </div>
+
+            <div className="rounded-md border">
+              <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs uppercase">
+                <span>Các dòng ({form.lines.length})</span>
+                <Button size="sm" variant="ghost" onClick={addLine}><Plus className="h-3 w-3 mr-1" />Thêm dòng</Button>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr><th className="px-2 py-1 text-left">Mặt hàng</th><th className="px-2 py-1 text-right">SL</th><th className="px-2 py-1 text-right">Đơn giá</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {form.lines.map((l, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-2 py-1">
+                        <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Chọn..." /></SelectTrigger>
+                          <SelectContent>
+                            {productsList.map((p: any) => (
+                              <SelectItem key={p.id} value={p.id}>{p.code} · {p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-2 py-1"><Input type="number" value={l.qty || ""} className="h-8 text-right"
+                        onChange={(e) => updateLine(i, { qty: Number(e.target.value) })} /></td>
+                      <td className="px-2 py-1"><Input type="number" value={l.unit_cost || ""} className="h-8 text-right"
+                        disabled={type === "out"}
+                        onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) })} /></td>
+                      <td className="px-2 py-1 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => removeLine(i)} disabled={form.lines.length === 1}>×</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             <div className="space-y-1">
-              <Label className="text-xs">Diễn giải</Label>
-              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+              <Label className="text-xs">Lý do</Label>
+              <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
             </div>
+
             <DialogFooter>
               <Button variant="ghost" onClick={() => setEditing(false)}>Huỷ</Button>
               <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
@@ -339,17 +363,48 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
           </div>
         ) : (
           <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Số phiếu" value={voucherNo} mono />
-              <Field label="Ngày" value={mv.movement_date} />
-              <Field label="Mặt hàng" value={`${mv.products?.code ?? ""} — ${mv.products?.name ?? ""}`} />
-              <Field label="Kho" value={mv.warehouses ? `${mv.warehouses.code} — ${mv.warehouses.name}` : "—"} />
-              <Field label="Số lượng" value={`${fmt(mv.qty)} ${mv.products?.unit ?? ""}`} />
-              <Field label="Đơn giá" value={fmt(mv.unit_cost)} />
-              <Field label="Thành tiền" value={fmt(Number(mv.qty) * Number(mv.unit_cost))} />
-              <Field label="Trạng thái" value={mv.ref_id ? "Đã ghi sổ" : "Chưa ghi sổ"} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Field label="Số phiếu" value={v.voucher_no} mono />
+              <Field label="Ngày" value={v.voucher_date} />
+              <Field label="Kho" value={v.warehouses ? `${v.warehouses.code} — ${v.warehouses.name}` : "—"} />
+              <Field label="TK đối ứng" value={v.counter_account} mono />
             </div>
-            {noteRest && <Field label="Diễn giải" value={noteRest} />}
+            {v.reason && <Field label="Lý do" value={v.reason} />}
+
+            <div className="rounded-md border">
+              <div className="bg-muted/40 px-3 py-2 text-xs uppercase font-medium">Chi tiết các dòng ({lines.length})</div>
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Mặt hàng</th>
+                    <th className="px-3 py-2 text-right">SL</th>
+                    <th className="px-3 py-2 text-right">Đơn giá</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((l) => (
+                    <tr key={l.id} className="border-t">
+                      <td className="px-3 py-2">
+                        <div className="font-medium">{l.products?.name}</div>
+                        <div className="text-xs text-muted-foreground">{l.products?.code}</div>
+                      </td>
+                      <td className="px-3 py-2 text-right">{fmt(l.qty)} {l.products?.unit}</td>
+                      <td className="px-3 py-2 text-right">{fmt(l.unit_cost)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{fmt(Number(l.qty) * Number(l.unit_cost))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t bg-muted/30 font-medium">
+                    <td className="px-3 py-2 text-right" colSpan={3}>Tổng</td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {fmt(lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_cost), 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
             {data?.journal_entry && (
               <div>
@@ -357,11 +412,7 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
                 <div className="rounded-md border">
                   <table className="w-full text-xs">
                     <thead className="bg-muted/40 text-left">
-                      <tr>
-                        <th className="p-2">TK</th>
-                        <th className="p-2 text-right">Nợ</th>
-                        <th className="p-2 text-right">Có</th>
-                      </tr>
+                      <tr><th className="p-2">TK</th><th className="p-2 text-right">Nợ</th><th className="p-2 text-right">Có</th></tr>
                     </thead>
                     <tbody>
                       {data.journal_lines.map((l: any) => (
@@ -380,23 +431,18 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
             <DialogFooter className="gap-2">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="h-4 w-4 mr-1" /> Huỷ phiếu
-                  </Button>
+                  <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-1" /> Huỷ phiếu</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Huỷ phiếu {voucherNo}?</AlertDialogTitle>
+                    <AlertDialogTitle>Huỷ phiếu {v.voucher_no}?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Phiếu sẽ bị xoá, bút toán liên quan sẽ bị đảo và tồn kho sẽ được tính lại.
-                      Thao tác này không thể hoàn tác.
+                      Phiếu (gồm {lines.length} dòng) sẽ bị xoá, bút toán sẽ bị đảo và tồn kho sẽ được tính lại.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Đóng</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => cancelMut.mutate()}>
-                      Xác nhận huỷ
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={() => cancelMut.mutate()}>Xác nhận huỷ</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
