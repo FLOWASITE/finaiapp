@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { listUnits, upsertUnit, deleteUnit } from "@/lib/units.functions";
+import { listUnits, upsertUnit, deleteUnit, seedCommonUnits } from "@/lib/units.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,25 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Ruler } from "lucide-react";
+import { Plus, Pencil, Trash2, Ruler, Sparkles } from "lucide-react";
+
+function SeedButton() {
+  const seed = useServerFn(seedCommonUnits);
+  const qc = useQueryClient();
+  const m = useMutation({
+    mutationFn: () => seed(),
+    onSuccess: (r: any) => {
+      toast.success(r?.inserted > 0 ? `Đã thêm ${r.inserted} đơn vị thông dụng` : "Tất cả đơn vị thông dụng đã có sẵn");
+      qc.invalidateQueries({ queryKey: ["units"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  return (
+    <Button variant="outline" onClick={() => m.mutate()} disabled={m.isPending}>
+      <Sparkles className="mr-2 h-4 w-4" /> Thêm ĐV thông dụng
+    </Button>
+  );
+}
 
 export const Route = createFileRoute("/_app/items/units")({ component: UnitsPage });
 
@@ -35,7 +53,10 @@ function UnitsPage() {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Ruler className="h-6 w-6" /> Đơn vị tính</h1>
           <p className="text-sm text-muted-foreground">Quản lý danh mục đơn vị tính dùng cho hàng hoá &amp; dịch vụ.</p>
         </div>
-        <UnitDialog />
+        <div className="flex gap-2">
+          <SeedButton />
+          <UnitDialog />
+        </div>
       </div>
 
       <Card>
