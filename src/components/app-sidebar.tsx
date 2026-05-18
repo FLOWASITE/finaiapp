@@ -522,7 +522,7 @@ function GroupItem({
             className={cn("group/btn", hasActiveChild && "text-sidebar-foreground")}
           >
             <Icon className={cn("h-4 w-4", hasActiveChild && "text-sidebar-primary")} />
-            <span className="flex-1 text-left">{group.label}</span>
+            <span className={cn("flex-1 text-left text-[13px] tracking-[-0.005em]", hasActiveChild ? "font-semibold" : "font-medium")}>{group.label}</span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
