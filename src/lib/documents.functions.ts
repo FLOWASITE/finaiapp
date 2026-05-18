@@ -57,6 +57,8 @@ export const listDocuments = createServerFn({ method: "GET" })
         search: z.string().max(200).optional(),
         doc_kind: z.string().max(50).optional(),
         ocr_status: z.string().max(50).optional(),
+        from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         limit: z.number().int().min(1).max(200).default(50),
         offset: z.number().int().min(0).default(0),
       })
@@ -71,6 +73,8 @@ export const listDocuments = createServerFn({ method: "GET" })
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
     if (data.doc_kind) q = q.eq("doc_kind", data.doc_kind);
     if (data.ocr_status) q = q.eq("ocr_status", data.ocr_status);
+    if (data.from_date) q = q.gte("created_at", `${data.from_date}T00:00:00Z`);
+    if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
     const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
     return { rows: rows ?? [], total: count ?? 0 };
