@@ -62,19 +62,19 @@ export function AppHeader() {
     .toUpperCase() || "?";
 
   return (
-    <div className="flex flex-1 items-center gap-3">
+    <div className="flex flex-1 items-center gap-4">
       {/* Breadcrumbs */}
-      <nav className="hidden md:flex items-center gap-1 text-sm">
-        <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+      <nav className="hidden md:flex items-center gap-2 text-xs">
+        <Link to="/dashboard" className="text-muted-foreground/70 hover:text-foreground transition-colors">
           Trang chủ
         </Link>
         {crumbs.map((c) => (
-          <span key={c.href} className="flex items-center gap-1">
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+          <span key={c.href} className="flex items-center gap-2">
+            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
             {c.last ? (
               <span className="font-medium text-foreground">{c.label}</span>
             ) : (
-              <Link to={c.href} className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to={c.href} className="text-muted-foreground/70 hover:text-foreground transition-colors">
                 {c.label}
               </Link>
             )}
@@ -82,60 +82,89 @@ export function AppHeader() {
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2">
-        {/* Quick links */}
-        <Link
-          to="/einvoices"
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          activeProps={{ className: "border-primary/60 bg-primary/10 text-primary" }}
-        >
-          <FileText className="h-3.5 w-3.5" />
-          HĐĐT
-        </Link>
-        <Link
-          to="/tax/gtgt"
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          activeProps={{ className: "border-primary/60 bg-primary/10 text-primary" }}
-        >
-          <Receipt className="h-3.5 w-3.5" />
-          Thuế
-        </Link>
-        <Link
-          to="/reports"
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          activeProps={{ className: "border-primary/60 bg-primary/10 text-primary" }}
-        >
-          <BarChart3 className="h-3.5 w-3.5" />
-          Báo cáo
-        </Link>
+      <div className="ml-auto flex items-center gap-3">
+        {/* Quick links grouped pill */}
+        <div className="hidden md:flex items-center gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
+          <Link
+            to="/einvoices"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+            activeProps={{ className: "text-primary bg-primary/10" }}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            HĐĐT
+          </Link>
+          <Link
+            to="/tax/gtgt"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+            activeProps={{ className: "text-primary bg-primary/10" }}
+          >
+            <Receipt className="h-3.5 w-3.5" />
+            Thuế
+          </Link>
+          <Link
+            to="/reports"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+            activeProps={{ className: "text-primary bg-primary/10" }}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Báo cáo
+          </Link>
+        </div>
 
         {/* Search / Command */}
-        <button
-          type="button"
-          className="group hidden sm:flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:border-border transition-colors min-w-[200px]"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 text-left">Tìm kiếm…</span>
-          <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
-        </button>
+        <div className="relative group hidden sm:block">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-cyan-500/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <button
+            type="button"
+            className="relative flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs text-muted-foreground hover:bg-white/[0.08] transition-all min-w-[220px]"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">Tìm kiếm…</span>
+            <div className="flex items-center gap-0.5 opacity-60">
+              <kbd className="rounded-sm bg-white/10 px-1 font-mono text-[10px]">⌘</kbd>
+              <kbd className="rounded-sm bg-white/10 px-1 font-mono text-[10px]">K</kbd>
+            </div>
+          </button>
+        </div>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-white/5"
+        >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
+          <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
         </Button>
 
         {/* User menu */}
         {isLoading && !cu ? (
-          <div className="flex items-center gap-2 px-1.5 pr-3 h-9">
-            <Skeleton className="h-7 w-7 rounded-full" />
+          <div className="flex items-center gap-2 pl-3 border-l border-white/10 h-9">
+            <Skeleton className="h-8 w-8 rounded-full" />
             <Skeleton className="hidden sm:block h-3.5 w-20" />
           </div>
         ) : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-3">
-                <Avatar className="h-7 w-7">
+              <Button
+                variant="ghost"
+                className="h-9 gap-3 rounded-full pl-3 pr-1 border-l border-white/10 hover:bg-transparent"
+              >
+                <div className="hidden sm:flex flex-col items-end leading-tight">
+                  <span className="text-[13px] font-medium text-foreground max-w-[140px] truncate">
+                    {displayName}
+                  </span>
+                  {profile?.job_title ? (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+                      {profile.job_title}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+                      User
+                    </span>
+                  )}
+                </div>
+                <Avatar className="h-8 w-8 ring-2 ring-primary/25 hover:ring-primary/50 transition-all">
                   {profile?.avatar_url ? (
                     <AvatarImage src={profile.avatar_url} alt={displayName} />
                   ) : null}
@@ -143,9 +172,6 @@ export function AppHeader() {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">
-                  {displayName}
-                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
