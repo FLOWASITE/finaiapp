@@ -207,7 +207,14 @@ export function VoucherFormDialog({
           {/* Header: Số / Ngày / TK tiền */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Field label="Số phiếu" required>
-              <Input value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} className="font-mono" />
+              <Input
+                value={voucherNo}
+                onChange={(e) => {
+                  setVoucherNo(e.target.value);
+                  setVoucherNoTouched(true);
+                }}
+                className="font-mono"
+              />
             </Field>
             <Field label="Ngày lập">
               <Popover>
