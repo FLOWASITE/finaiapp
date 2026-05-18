@@ -63,6 +63,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<{ title: string; detail?: string } | null>(null);
 
   const dest = next && next.startsWith("/") ? next : "/dashboard";
   const strength = useMemo(() => scorePassword(password), [password]);
