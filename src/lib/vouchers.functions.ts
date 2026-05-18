@@ -274,6 +274,7 @@ export const getVoucherList = createServerFn({ method: "POST" })
     from: string; to: string;
     dims?: DimFilter;
     sourceTables?: string[];
+    voucherTypes?: string[];
     accountPrefix?: string;
     page?: number;
     pageSize?: number;
@@ -284,7 +285,7 @@ export const getVoucherList = createServerFn({ method: "POST" })
 
 export const exportVoucherListXlsx = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; accountPrefix?: string }) => i)
+  .inputValidator((i: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; voucherTypes?: string[]; accountPrefix?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const res = await buildVoucherList(supabase, userId, { ...data, page: 1, pageSize: 100000 });
