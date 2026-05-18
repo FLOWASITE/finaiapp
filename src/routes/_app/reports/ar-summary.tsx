@@ -796,12 +796,36 @@ function ArSummaryPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase">
                       <tr>
-                        <th className="px-3 py-2 text-left">Ngày</th>
-                        <th className="px-3 py-2 text-left">Loại</th>
-                        <th className="px-3 py-2 text-left">Số CT</th>
-                        <th className="px-3 py-2 text-left">{drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải"}</th>
-                        <th className="px-3 py-2 text-right">Nợ</th>
-                        <th className="px-3 py-2 text-right">Có</th>
+                        {([
+                          { key: "entry_date" as const, label: "Ngày", align: "left" as const },
+                          { key: null, label: "Loại", align: "left" as const },
+                          { key: "doc_no" as const, label: "Số CT", align: "left" as const },
+                          { key: null, label: drillGroupByDoc ? "Diễn giải (đại diện)" : "Diễn giải", align: "left" as const },
+                          { key: "debit" as const, label: "Nợ", align: "right" as const },
+                          { key: "credit" as const, label: "Có", align: "right" as const },
+                        ]).map((col, i) => {
+                          const isActive = col.key && drillSort.key === col.key;
+                          const arrow = isActive ? (drillSort.dir === "asc" ? "▲" : "▼") : "";
+                          const alignCls = col.align === "right" ? "text-right" : "text-left";
+                          if (!col.key) {
+                            return <th key={i} className={`px-3 py-2 ${alignCls}`}>{col.label}</th>;
+                          }
+                          return (
+                            <th
+                              key={i}
+                              className={`px-3 py-2 ${alignCls} cursor-pointer select-none hover:text-foreground`}
+                              onClick={() => { toggleDrillSort(col.key!); setDrillPage(1); }}
+                              title="Bấm để sắp xếp"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                {col.label}
+                                <span className={`text-[10px] ${isActive ? "opacity-100" : "opacity-30"}`}>
+                                  {arrow || "↕"}
+                                </span>
+                              </span>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
