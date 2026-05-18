@@ -775,13 +775,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        const total = drillDisplayRows.length;
-                        const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
-                        const page = Math.min(drillPage, totalPages);
-                        const start = (page - 1) * drillPageSize;
-                        const slice = drillDisplayRows.slice(start, start + drillPageSize);
-                        return slice.map((l) => (
+                      {drillPaged.slice.map((l) => (
                           <tr
                             key={l.key}
                             className="border-t border-border align-top cursor-pointer hover:bg-muted/50 transition-colors"
