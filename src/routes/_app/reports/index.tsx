@@ -679,7 +679,7 @@ function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: Un
               <td className="text-right font-mono tabular-nums font-semibold text-destructive">{fmt(e.delta)}</td>
               <td className="pl-2 text-muted-foreground">{e.reason}</td>
               <td className="text-right">
-                <Link to="/journal" search={{ q: e.entry_id } as never} className="text-primary underline">Mở</Link>
+                <Link to="/journal" hash={`entry-${e.entry_id}`} className="text-primary underline">Mở</Link>
               </td>
             </tr>
           ))}
