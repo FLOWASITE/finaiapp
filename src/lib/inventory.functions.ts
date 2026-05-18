@@ -234,6 +234,180 @@ export const recordMovement = createServerFn({ method: "POST" })
     return { ok: true, on_hand: newOnHand, unit_cost: newCost, voucher_no: voucherNo, journal_entry_id: journalEntryId };
   });
 
+async function recomputeProductStock(supabase: any, productId: string) {
+  const { data: movs, error } = await supabase
+    .from("stock_movements")
+    .select("movement_type, qty, unit_cost, movement_date, created_at")
+    .eq("product_id", productId)
+    .order("movement_date", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+
+  let qty = 0;
+  let cost = 0;
+  for (const m of (movs ?? []) as any[]) {
+    const q = Number(m.qty);
+    const u = Number(m.unit_cost || 0);
+    if (m.movement_type === "in") {
+      const total = qty + q;
+      cost = total > 0 ? (qty * cost + q * u) / total : u;
+      qty = total;
+    } else {
+      if (q > qty + 1e-9) {
+        throw new Error(`Không thể cập nhật: tồn kho sẽ âm tại ${m.movement_date}`);
+      }
+      qty -= q;
+    }
+  }
+  const { error: uErr } = await supabase
+    .from("products")
+    .update({ on_hand: qty, unit_cost: cost })
+    .eq("id", productId);
+  if (uErr) throw new Error(uErr.message);
+  return { on_hand: qty, unit_cost: cost };
+}
+
+async function deleteMovementInternal(supabase: any, id: string) {
+  const { data: mv, error } = await supabase
+    .from("stock_movements")
+    .select("id, product_id, ref_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!mv) throw new Error("Không tìm thấy phiếu");
+
+  if (mv.ref_id) {
+    await supabase.from("journal_lines").delete().eq("entry_id", mv.ref_id);
+    await supabase.from("journal_entries").delete().eq("id", mv.ref_id);
+  }
+  const { error: dErr } = await supabase.from("stock_movements").delete().eq("id", id);
+  if (dErr) throw new Error(dErr.message);
+  return mv as { id: string; product_id: string; ref_id: string | null };
+}
+
+export const cancelMovement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const mv = await deleteMovementInternal(supabase, data.id);
+    const res = await recomputeProductStock(supabase, mv.product_id);
+    return { ok: true, ...res };
+  });
+
+const UpdateMovementSchema = z.object({
+  id: z.string().uuid(),
+  qty: z.number().positive(),
+  unit_cost: z.number().min(0),
+  movement_date: z.string(),
+  note: z.string().max(255).optional(),
+  warehouse_id: z.string().uuid().nullable().optional(),
+  counter_account: z.string().min(2).max(20).optional(),
+  post_journal: z.boolean().optional().default(true),
+});
+
+export const updateMovement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateMovementSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Load original to keep voucher_no, product_id, movement_type
+    const { data: orig, error: oErr } = await supabase
+      .from("stock_movements")
+      .select("id, product_id, movement_type, note, ref_id, tenant_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (oErr) throw new Error(oErr.message);
+    if (!orig) throw new Error("Không tìm thấy phiếu");
+
+    const voucherNo = String(orig.note ?? "").split(" — ")[0] || undefined;
+
+    // Load product
+    const { data: product, error: pErr } = await supabase
+      .from("products")
+      .select("tenant_id, item_type, code, name, stock_account")
+      .eq("id", orig.product_id)
+      .single();
+    if (pErr || !product) throw new Error("Không tìm thấy mặt hàng");
+
+    // 1) Remove old movement + journal
+    await deleteMovementInternal(supabase, data.id);
+
+    // 2) Recompute product stock so we have correct AVCO before applying new movement
+    let snapshot = await recomputeProductStock(supabase, orig.product_id);
+
+    // 3) Validate & apply new movement (mirrors recordMovement)
+    if (orig.movement_type === "in" && !(data.unit_cost > 0)) {
+      throw new Error("Đơn giá nhập phải lớn hơn 0");
+    }
+
+    let newOnHand = snapshot.on_hand;
+    let newCost = snapshot.unit_cost;
+    let effectiveUnit = data.unit_cost;
+    if (orig.movement_type === "in") {
+      const total = newOnHand + data.qty;
+      newCost = total > 0 ? (newOnHand * newCost + data.qty * data.unit_cost) / total : data.unit_cost;
+      newOnHand = total;
+    } else {
+      if (data.qty > newOnHand) throw new Error(`Tồn không đủ. Hiện có ${newOnHand}`);
+      newOnHand -= data.qty;
+      effectiveUnit = newCost;
+    }
+
+    // 4) Recreate journal entry
+    let journalEntryId: string | null = null;
+    if (data.post_journal !== false) {
+      const stockAcc = (product as any).stock_account || "156";
+      const counter = data.counter_account || (orig.movement_type === "in" ? "1111" : "632");
+      const amount = +(data.qty * effectiveUnit).toFixed(2);
+      const debit = orig.movement_type === "in" ? stockAcc : counter;
+      const credit = orig.movement_type === "in" ? counter : stockAcc;
+      const desc =
+        `${orig.movement_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho"} ${voucherNo ?? ""}` +
+        ` — ${(product as any).code} ${(product as any).name} (cập nhật)`;
+      const { data: entry, error: eErr } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: userId,
+          tenant_id: (product as any).tenant_id ?? null,
+          entry_date: data.movement_date,
+          description: desc,
+        })
+        .select("id")
+        .single();
+      if (eErr || !entry) throw new Error(eErr?.message || "Không tạo được bút toán");
+      journalEntryId = entry.id;
+      const { error: lErr } = await supabase.from("journal_lines").insert([
+        { entry_id: entry.id, account_code: debit, debit: amount, credit: 0, line_order: 0 },
+        { entry_id: entry.id, account_code: credit, debit: 0, credit: amount, line_order: 1 },
+      ]);
+      if (lErr) throw new Error(lErr.message);
+    }
+
+    const noteWithVoucher = data.note?.trim()
+      ? `${voucherNo ?? ""} — ${data.note.trim()}`
+      : (voucherNo ?? "");
+
+    const { error: iErr } = await supabase.from("stock_movements").insert({
+      user_id: userId,
+      tenant_id: (product as any).tenant_id ?? null,
+      product_id: orig.product_id,
+      movement_type: orig.movement_type,
+      qty: data.qty,
+      unit_cost: effectiveUnit,
+      movement_date: data.movement_date,
+      note: noteWithVoucher,
+      ref_type: orig.movement_type === "in" ? "stock_voucher_in" : "stock_voucher_out",
+      ref_id: journalEntryId,
+      warehouse_id: data.warehouse_id ?? null,
+    });
+    if (iErr) throw new Error(iErr.message);
+
+    // 5) Final recompute (handles any intervening AVCO drift for later out movements)
+    const final = await recomputeProductStock(supabase, orig.product_id);
+    return { ok: true, voucher_no: voucherNo, journal_entry_id: journalEntryId, ...final };
+  });
+
 export const getStockReport = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
