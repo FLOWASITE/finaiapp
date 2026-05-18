@@ -93,7 +93,7 @@ export function VoucherListPage({ type }: Props) {
               <SelectContent>
                 <SelectItem value="all">Tất cả kho</SelectItem>
                 <SelectItem value="none">(Chưa gán kho)</SelectItem>
-                {(warehouses?.warehouses ?? warehouses ?? []).map((w: any) => (
+                {(warehouses ?? []).map((w: any) => (
                   <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
                 ))}
               </SelectContent>
