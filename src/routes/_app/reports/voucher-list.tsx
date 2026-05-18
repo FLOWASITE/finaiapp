@@ -89,12 +89,13 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix, page, pageSize],
+    queryKey: ["voucher-list", from, to, dims, sources, voucherTypes, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
+          voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
           page,
           pageSize,
@@ -134,6 +135,7 @@ function VoucherListPage() {
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
+          voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
         },
       });
@@ -150,6 +152,11 @@ function VoucherListPage() {
   function toggleSource(v: string) {
     setSources((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   }
+
+  function toggleVoucherType(v: string) {
+    setVoucherTypes((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+
 
   return (
     <div className="p-8 print:p-0">
