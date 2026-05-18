@@ -1397,6 +1397,48 @@ export type Database = {
           },
         ]
       }
+      product_unit_conversions: {
+        Row: {
+          created_at: string
+          factor: number
+          id: string
+          is_default_purchase: boolean
+          is_default_sale: boolean
+          note: string | null
+          product_id: string
+          tenant_id: string | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          factor: number
+          id?: string
+          is_default_purchase?: boolean
+          is_default_sale?: boolean
+          note?: string | null
+          product_id: string
+          tenant_id?: string | null
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          factor?: number
+          id?: string
+          is_default_purchase?: boolean
+          is_default_sale?: boolean
+          note?: string | null
+          product_id?: string
+          tenant_id?: string | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_units: {
         Row: {
           code: string
@@ -1853,6 +1895,7 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          conversion_factor: number
           created_at: string
           id: string
           movement_date: string
@@ -1863,12 +1906,16 @@ export type Database = {
           ref_id: string | null
           ref_type: string | null
           tenant_id: string | null
+          txn_qty: number | null
+          txn_unit: string | null
+          txn_unit_cost: number | null
           unit_cost: number
           user_id: string
           voucher_id: string | null
           warehouse_id: string | null
         }
         Insert: {
+          conversion_factor?: number
           created_at?: string
           id?: string
           movement_date?: string
@@ -1879,12 +1926,16 @@ export type Database = {
           ref_id?: string | null
           ref_type?: string | null
           tenant_id?: string | null
+          txn_qty?: number | null
+          txn_unit?: string | null
+          txn_unit_cost?: number | null
           unit_cost?: number
           user_id: string
           voucher_id?: string | null
           warehouse_id?: string | null
         }
         Update: {
+          conversion_factor?: number
           created_at?: string
           id?: string
           movement_date?: string
@@ -1895,6 +1946,9 @@ export type Database = {
           ref_id?: string | null
           ref_type?: string | null
           tenant_id?: string | null
+          txn_qty?: number | null
+          txn_unit?: string | null
+          txn_unit_cost?: number | null
           unit_cost?: number
           user_id?: string
           voucher_id?: string | null
