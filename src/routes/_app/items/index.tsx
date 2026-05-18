@@ -15,8 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NumberInput } from "@/components/ui/number-input";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { toast } from "sonner";
-import { Plus, Layers, Warehouse, RefreshCw, Loader2, Info, Package, Wrench, Boxes } from "lucide-react";
+import { Plus, Layers, Warehouse, Loader2, Info, Package, Wrench, Boxes } from "lucide-react";
 
 type ItemType = "goods" | "service" | "combo";
 const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
