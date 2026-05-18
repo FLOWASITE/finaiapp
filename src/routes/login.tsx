@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   BarChart3,
   Wallet,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<{ title: string; detail?: string } | null>(null);
 
   const dest = next && next.startsWith("/") ? next : "/dashboard";
   const strength = useMemo(() => scorePassword(password), [password]);
@@ -76,8 +78,45 @@ function LoginPage() {
     return Object.keys(next).length === 0;
   }
 
+  function mapAuthError(err: unknown): { title: string; detail?: string } {
+    const raw = err instanceof Error ? err.message : String(err ?? "");
+    const status = (err as { status?: number } | null)?.status;
+    const code = (err as { code?: string } | null)?.code;
+    const m = raw.toLowerCase();
+
+    if (status === 0 || /failed to fetch|network|networkerror/i.test(raw)) {
+      return { title: "Không kết nối được máy chủ", detail: "Kiểm tra kết nối mạng rồi thử lại." };
+    }
+    if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
+      return { title: "Email hoặc mật khẩu không đúng", detail: "Vui lòng kiểm tra lại thông tin đăng nhập." };
+    }
+    if (m.includes("email not confirmed")) {
+      return { title: "Email chưa được xác nhận", detail: "Mở email và nhấn liên kết xác nhận trước khi đăng nhập." };
+    }
+    if (m.includes("already registered") || m.includes("already exists") || code === "user_already_exists") {
+      return { title: "Email đã được đăng ký", detail: "Hãy chuyển sang chế độ Đăng nhập." };
+    }
+    if (m.includes("weak password") || m.includes("password should")) {
+      return { title: "Mật khẩu quá yếu", detail: raw };
+    }
+    if (status === 429 || m.includes("rate limit") || m.includes("too many")) {
+      return { title: "Quá nhiều yêu cầu", detail: "Vui lòng đợi một lát rồi thử lại." };
+    }
+    if (status === 422 || m.includes("invalid email")) {
+      return { title: "Thông tin không hợp lệ", detail: raw };
+    }
+    if (m.includes("user not found")) {
+      return { title: "Không tìm thấy tài khoản", detail: "Email này chưa được đăng ký." };
+    }
+    if (m.includes("signup") && m.includes("disabled")) {
+      return { title: "Đăng ký đang bị tắt", detail: "Liên hệ quản trị viên để được hỗ trợ." };
+    }
+    return { title: "Đăng nhập thất bại", detail: raw || "Có lỗi không xác định xảy ra." };
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!validate()) return;
     setLoading(true);
     try {
@@ -99,13 +138,9 @@ function LoginPage() {
       }
       navigate({ to: dest });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Có lỗi xảy ra";
-      const friendly = /invalid login/i.test(msg)
-        ? "Email hoặc mật khẩu không đúng."
-        : /already registered|already exists/i.test(msg)
-          ? "Email này đã được đăng ký. Hãy đăng nhập."
-          : msg;
-      toast.error(friendly);
+      const mapped = mapAuthError(err);
+      setFormError(mapped);
+      toast.error(mapped.title, { description: mapped.detail });
     } finally {
       setLoading(false);
     }
@@ -249,6 +284,21 @@ function LoginPage() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-7 space-y-4" noValidate>
+              {formError && (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="flex gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+                >
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="font-medium">{formError.title}</p>
+                    {formError.detail && (
+                      <p className="text-xs text-destructive/85">{formError.detail}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
