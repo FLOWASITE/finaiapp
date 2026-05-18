@@ -123,6 +123,7 @@ function OrganizationTab() {
   });
   const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
+  const [dirty, setDirty] = React.useState(false);
   const [diffShipping, setDiffShipping] = React.useState(false);
   React.useEffect(() => {
     if (data?.tenant && !form) {
@@ -137,6 +138,7 @@ function OrganizationTab() {
     mutationFn: (v: any) => upd({ data: v }),
     onSuccess: () => {
       toast.success("Đã lưu thay đổi");
+      setDirty(false);
       qc.invalidateQueries({ queryKey: ["active-tenant"] });
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
     },
@@ -149,10 +151,12 @@ function OrganizationTab() {
     </CardContent></Card>
   );
   if (!form) return <OrganizationSkeleton />;
-  const set = (k: string, v: any) => setForm({ ...form, [k]: v });
+  const set = (k: string, v: any) => {
+    setForm({ ...form, [k]: v });
+    if (!dirty) setDirty(true);
+  };
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(data?.tenant);
-  const reset = () => setForm(data?.tenant);
+  const reset = () => { setForm(data?.tenant); setDirty(false); };
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
