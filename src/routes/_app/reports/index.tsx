@@ -537,12 +537,13 @@ function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
 }
 
 function TrialBalanceTable({
-  data, hideZero, level, tree,
+  data, hideZero, level, tree, onDrill,
 }: {
   data: TrialBalanceData;
   hideZero: boolean;
   level: "all" | "1" | "2" | "3";
   tree: boolean;
+  onDrill?: (code: string, name: string) => void;
 }) {
   const aggregated = aggregateTrialBalance(data.rows, level);
   const withAncestors = tree ? ensureAncestors(aggregated) : aggregated;
