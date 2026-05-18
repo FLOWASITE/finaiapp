@@ -9,21 +9,23 @@ export const listMyTenants = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const { data: memberships, error } = await supabase
-      .from("tenant_members")
-      .select("id, role, status, tenant_id, tenants(id, name, company_name, tax_id)")
-      .eq("user_id", userId)
-      .eq("status", "active");
-    if (error) throw new Error(error.message);
+    // Chạy song song memberships + profile để giảm latency.
+    const [membershipsRes, profileRes] = await Promise.all([
+      supabase
+        .from("tenant_members")
+        .select("role, tenant_id, tenants(name, company_name, tax_id)")
+        .eq("user_id", userId)
+        .eq("status", "active"),
+      supabase
+        .from("profiles")
+        .select("active_tenant_id")
+        .eq("id", userId)
+        .maybeSingle(),
+    ]);
+    if (membershipsRes.error) throw new Error(membershipsRes.error.message);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("active_tenant_id")
-      .eq("id", userId)
-      .single();
-
-    const activeId = profile?.active_tenant_id ?? null;
-    const tenants = (memberships ?? []).map((m: any) => ({
+    const activeId = profileRes.data?.active_tenant_id ?? null;
+    const tenants = (membershipsRes.data ?? []).map((m: any) => ({
       id: m.tenant_id,
       role: m.role,
       name: m.tenants?.name ?? "(không tên)",

@@ -71,16 +71,26 @@ function InvoicesList() {
   const { data, refetch } = useQuery({
     queryKey: ["purchase-invoices", filter],
     queryFn: () => listFn({ data: filter }),
+    staleTime: 30_000,
   });
 
+  // ---- Manual entry ----
+  const [manualOpen, setManualOpen] = useState(false);
+
+  // Chỉ tải suppliers/products khi mở form nhập tay để giảm request
+  // chạy song song lúc vào trang.
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => suppliersFn(),
+    enabled: manualOpen,
+    staleTime: 5 * 60_000,
   });
 
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => productsFn(),
+    enabled: manualOpen,
+    staleTime: 5 * 60_000,
   });
 
   // ---- Upload OCR ----
@@ -114,8 +124,7 @@ function InvoicesList() {
     }
   };
 
-  // ---- Manual entry ----
-  const [manualOpen, setManualOpen] = useState(false);
+  // ---- Manual entry state ----
   const [manual, setManual] = useState({
     supplier_id: "",
     invoice_no: "",

@@ -1,5 +1,4 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Bell, ChevronRight, LogOut, Search, Settings, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const LABELS: Record<string, string> = {
   dashboard: "Bảng điều khiển",
@@ -45,40 +45,11 @@ function useBreadcrumbs() {
   }));
 }
 
-type Profile = {
-  display_name: string | null;
-  avatar_url: string | null;
-  job_title: string | null;
-  email: string | null;
-};
-
 export function AppHeader() {
   const crumbs = useBreadcrumbs();
-  const [email, setEmail] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (cancelled) return;
-      setEmail(user?.email ?? null);
-      if (!user) return;
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("display_name, avatar_url, job_title, email")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (!cancelled) setProfile(p as Profile | null);
-    };
-    load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
+  const { data: cu } = useCurrentUser();
+  const email = cu?.email ?? null;
+  const profile = cu?.profile ?? null;
 
   const displayName =
     profile?.display_name?.trim() || email?.split("@")[0] || "Tài khoản";
