@@ -68,7 +68,7 @@ function ItemsListPage() {
             </Link>.
           </p>
         </div>
-        <ProductDialog categories={categories ?? []} existingCodes={(products ?? []).map((p: any) => p.code)} />
+        <ProductDialog categories={categories ?? []} existingCodes={(products ?? []).map((p: any) => p.code)} units={(units as any[]) ?? []} />
       </div>
 
       <Card>
