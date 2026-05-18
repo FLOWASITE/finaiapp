@@ -22,7 +22,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2 } from "lucide-react";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2, RefreshCw, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { lookupTaxId, type TaxLookupResult } from "@/lib/tax-lookup.functions";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,6 +115,7 @@ const SECTIONS = [
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
+  const lookupFn = useServerFn(lookupTaxId);
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["active-tenant"],
@@ -124,6 +127,7 @@ function OrganizationTab() {
   const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
+  const [overwriteAll, setOverwriteAll] = React.useState(false);
   React.useEffect(() => {
     if (data?.tenant && !form) {
       setForm(data.tenant);
@@ -141,6 +145,48 @@ function OrganizationTab() {
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  const applyLookup = React.useCallback((r: TaxLookupResult) => {
+    setForm((prev: any) => {
+      if (!prev) return prev;
+      const mapping: Record<string, any> = {
+        tax_id: r.taxId,
+        company_name: r.name,
+        trade_name: r.tradeName,
+        address: r.address,
+        legal_rep_name: r.director,
+        legal_form: r.legalForm,
+        business_reg_no: r.registrationNo,
+        business_reg_date: r.registrationDate,
+        established_date: r.establishedDate,
+        industry_code: r.industryCode,
+        industry_name: r.industryName,
+        tax_authority: r.taxAuthority,
+        phone: r.phone,
+        email: r.email,
+      };
+      const next = { ...prev };
+      let n = 0;
+      for (const [k, v] of Object.entries(mapping)) {
+        if (v === null || v === undefined || v === "") continue;
+        const cur = prev[k];
+        const isEmpty = cur === null || cur === undefined || cur === "";
+        if (!overwriteAll && !isEmpty) continue;
+        if (cur === v) continue;
+        next[k] = v;
+        n++;
+      }
+      if (n > 0) toast.success(`Đã điền ${n} trường từ MST — bấm Lưu để xác nhận`);
+      else toast.info("Không có trường nào cần cập nhật");
+      return next;
+    });
+  }, [overwriteAll]);
+
+  const refetchMut = useMutation({
+    mutationFn: (taxCode: string) => lookupFn({ data: { taxCode } }),
+    onSuccess: (r) => applyLookup(r),
+    onError: (e: any) => toast.error(e.message || "Tra cứu MST thất bại"),
   });
 
   if (data && !data.tenant) return (
@@ -234,8 +280,24 @@ function OrganizationTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Mã số thuế" required className="md:col-span-2">
-                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
-                    <Hint>Nhấn kính lúp để tự điền tên & địa chỉ từ Tổng cục Thuế.</Hint>
+                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={applyLookup} />
+                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEdit || refetchMut.isPending || !(form.tax_id ?? "").replace(/\D/g, "").length || (form.tax_id ?? "").replace(/\D/g, "").length < 10}
+                        onClick={() => refetchMut.mutate((form.tax_id ?? "").replace(/\D/g, ""))}
+                      >
+                        {refetchMut.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+                        Cập nhật từ MST
+                      </Button>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                        <Checkbox checked={overwriteAll} onCheckedChange={(v) => setOverwriteAll(!!v)} disabled={!canEdit} />
+                        Ghi đè dữ liệu hiện có
+                      </label>
+                    </div>
+                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, GPKD, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
