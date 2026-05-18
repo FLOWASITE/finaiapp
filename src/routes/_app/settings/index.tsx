@@ -238,7 +238,7 @@ function OrganizationTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Mã số thuế" required className="md:col-span-2">
-                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} />
+                    <TaxIdLookupInput disabled={!canEdit} value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => { setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" }); setDirty(true); }} />
                     <Hint>Nhấn kính lúp để tự điền tên & địa chỉ từ Tổng cục Thuế.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
