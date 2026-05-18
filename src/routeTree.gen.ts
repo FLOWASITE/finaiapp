@@ -60,6 +60,7 @@ import { Route as AppSettingsCostCentersRouteImport } from './routes/_app/settin
 import { Route as AppSettingsBranchesRouteImport } from './routes/_app/settings/branches'
 import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
+import { Route as AppReportsVoucherListRouteImport } from './routes/_app/reports/voucher-list'
 import { Route as AppReportsTrialBalanceRouteImport } from './routes/_app/reports/trial-balance'
 import { Route as AppReportsStockIosRouteImport } from './routes/_app/reports/stock-ios'
 import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/ledgers'
@@ -344,6 +345,11 @@ const AppSalesIdRoute = AppSalesIdRouteImport.update({
   path: '/sales/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsVoucherListRoute = AppReportsVoucherListRouteImport.update({
+  id: '/reports/voucher-list',
+  path: '/reports/voucher-list',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReportsTrialBalanceRoute = AppReportsTrialBalanceRouteImport.update({
   id: '/reports/trial-balance',
   path: '/reports/trial-balance',
@@ -520,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/stock-ios': typeof AppReportsStockIosRoute
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
+  '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
@@ -594,6 +601,7 @@ export interface FileRoutesByTo {
   '/reports/ledgers': typeof AppReportsLedgersRoute
   '/reports/stock-ios': typeof AppReportsStockIosRoute
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
+  '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
@@ -675,6 +683,7 @@ export interface FileRoutesById {
   '/_app/reports/ledgers': typeof AppReportsLedgersRoute
   '/_app/reports/stock-ios': typeof AppReportsStockIosRoute
   '/_app/reports/trial-balance': typeof AppReportsTrialBalanceRoute
+  '/_app/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/sales/orders': typeof AppSalesOrdersRoute
   '/_app/settings/branches': typeof AppSettingsBranchesRoute
@@ -756,6 +765,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/reports/stock-ios'
     | '/reports/trial-balance'
+    | '/reports/voucher-list'
     | '/sales/$id'
     | '/sales/orders'
     | '/settings/branches'
@@ -830,6 +840,7 @@ export interface FileRouteTypes {
     | '/reports/ledgers'
     | '/reports/stock-ios'
     | '/reports/trial-balance'
+    | '/reports/voucher-list'
     | '/sales/$id'
     | '/sales/orders'
     | '/settings/branches'
@@ -910,6 +921,7 @@ export interface FileRouteTypes {
     | '/_app/reports/ledgers'
     | '/_app/reports/stock-ios'
     | '/_app/reports/trial-balance'
+    | '/_app/reports/voucher-list'
     | '/_app/sales/$id'
     | '/_app/sales/orders'
     | '/_app/settings/branches'
@@ -1316,6 +1328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/voucher-list': {
+      id: '/_app/reports/voucher-list'
+      path: '/reports/voucher-list'
+      fullPath: '/reports/voucher-list'
+      preLoaderRoute: typeof AppReportsVoucherListRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reports/trial-balance': {
       id: '/_app/reports/trial-balance'
       path: '/reports/trial-balance'
@@ -1639,6 +1658,7 @@ interface AppRouteChildren {
   AppReportsLedgersRoute: typeof AppReportsLedgersRoute
   AppReportsStockIosRoute: typeof AppReportsStockIosRoute
   AppReportsTrialBalanceRoute: typeof AppReportsTrialBalanceRoute
+  AppReportsVoucherListRoute: typeof AppReportsVoucherListRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesOrdersRoute: typeof AppSalesOrdersRoute
   AppSettingsBranchesRoute: typeof AppSettingsBranchesRoute
@@ -1690,6 +1710,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsLedgersRoute: AppReportsLedgersRoute,
   AppReportsStockIosRoute: AppReportsStockIosRoute,
   AppReportsTrialBalanceRoute: AppReportsTrialBalanceRoute,
+  AppReportsVoucherListRoute: AppReportsVoucherListRoute,
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesOrdersRoute: AppSalesOrdersRoute,
   AppSettingsBranchesRoute: AppSettingsBranchesRoute,
