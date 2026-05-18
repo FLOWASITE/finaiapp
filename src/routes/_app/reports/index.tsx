@@ -138,7 +138,7 @@ function ReportsPage() {
         </label>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />In / Xuất PDF</Button>
-          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); }}>Cập nhật</Button>
+          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); tb.refetch(); }}>Cập nhật</Button>
         </div>
       </div>
 
