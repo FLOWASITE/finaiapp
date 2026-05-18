@@ -142,15 +142,24 @@ export const deleteTctCredentials = createServerFn({ method: "POST" })
 export const getTctCaptcha = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const res = await fetch(`${TCT_BASE}/captcha`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`Captcha HTTP ${res.status}`);
-    const json: any = await res.json();
-    return {
-      key: String(json?.key ?? ""),
-      svg: String(json?.content ?? ""),
-    };
+    try {
+      const res = await fetch(`${TCT_BASE}/captcha`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error(`Captcha HTTP ${res.status}`);
+      const json: any = await res.json();
+      return {
+        key: String(json?.key ?? ""),
+        svg: String(json?.content ?? ""),
+      };
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      throw new Error(
+        `Không kết nối được tới hệ thống HĐĐT của Tổng cục Thuế (${TCT_BASE}). ` +
+          `Máy chủ Lovable Cloud có thể bị chặn outbound tới cổng :30000. Chi tiết: ${msg}`,
+      );
+    }
   });
 
 // Auto solve via 2Captcha (best-effort: submit SVG as base64 image)
