@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore, FolderTree } from "lucide-react";
 import { listSuppliers, deleteSupplier, upsertSupplier } from "@/lib/purchases.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
