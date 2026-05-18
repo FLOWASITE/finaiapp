@@ -361,15 +361,28 @@ export function VoucherFormDialog({
               </div>
             </div>
           </div>
+
+          {createdId && (
+            <>
+              <Separator />
+              <DocumentLinksManager entityTable="cash_vouchers" entityId={createdId} />
+            </>
+          )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/30">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Hủy
-          </Button>
-          <Button onClick={() => m.mutate()} disabled={!canSubmit || m.isPending}>
-            {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
-          </Button>
+          {createdId ? (
+            <Button onClick={() => onOpenChange(false)}>Hoàn tất</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Hủy
+              </Button>
+              <Button onClick={() => m.mutate()} disabled={!canSubmit || m.isPending}>
+                {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
