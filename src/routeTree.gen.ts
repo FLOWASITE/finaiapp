@@ -53,6 +53,7 @@ import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/led
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppInventoryMovementsRouteImport } from './routes/_app/inventory/movements'
+import { Route as AppInventoryCategoriesRouteImport } from './routes/_app/inventory/categories'
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
@@ -281,6 +282,11 @@ const AppInventoryMovementsRoute = AppInventoryMovementsRouteImport.update({
   path: '/movements',
   getParentRoute: () => AppInventoryRoute,
 } as any)
+const AppInventoryCategoriesRoute = AppInventoryCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
 const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -336,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
+  '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
@@ -385,6 +392,7 @@ export interface FileRoutesByTo {
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
+  '/inventory/categories': typeof AppInventoryCategoriesRoute
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/payroll/$id': typeof AppPayrollIdRoute
@@ -439,6 +447,7 @@ export interface FileRoutesById {
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
+  '/_app/inventory/categories': typeof AppInventoryCategoriesRoute
   '/_app/inventory/movements': typeof AppInventoryMovementsRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/admin/periods'
     | '/assets/allocations'
     | '/inventory/$id'
+    | '/inventory/categories'
     | '/inventory/movements'
     | '/invoices/$id'
     | '/payroll/$id'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/periods'
     | '/assets/allocations'
     | '/inventory/$id'
+    | '/inventory/categories'
     | '/inventory/movements'
     | '/invoices/$id'
     | '/payroll/$id'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
     | '/_app/inventory/$id'
+    | '/_app/inventory/categories'
     | '/_app/inventory/movements'
     | '/_app/invoices/$id'
     | '/_app/payroll/$id'
@@ -946,6 +958,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryMovementsRouteImport
       parentRoute: typeof AppInventoryRoute
     }
+    '/_app/inventory/categories': {
+      id: '/_app/inventory/categories'
+      path: '/categories'
+      fullPath: '/inventory/categories'
+      preLoaderRoute: typeof AppInventoryCategoriesRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
     '/_app/inventory/$id': {
       id: '/_app/inventory/$id'
       path: '/$id'
@@ -1032,12 +1051,14 @@ const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
 
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
+  AppInventoryCategoriesRoute: typeof AppInventoryCategoriesRoute
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
 }
 
 const AppInventoryRouteChildren: AppInventoryRouteChildren = {
   AppInventoryIdRoute: AppInventoryIdRoute,
+  AppInventoryCategoriesRoute: AppInventoryCategoriesRoute,
   AppInventoryMovementsRoute: AppInventoryMovementsRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
 }

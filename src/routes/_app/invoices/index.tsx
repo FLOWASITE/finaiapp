@@ -21,6 +21,7 @@ import {
 import { listProducts } from "@/lib/inventory.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
 
 export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesList,
@@ -197,6 +198,7 @@ function InvoicesList() {
           </p>
         </div>
         <div className="flex gap-2">
+          <ImportEinvoiceXmlDialog triggerLabel="Nhập XML hoá đơn" />
           <Button variant="outline" onClick={() => setManualOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Nhập tay
           </Button>

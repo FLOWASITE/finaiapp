@@ -1,68 +1,54 @@
 
 ## Mục tiêu
-Sắp xếp lại sidebar theo bố cục mới, tạo các route placeholder còn thiếu, bổ sung link Thuế & Báo cáo trong header.
 
-## 1. Sidebar (`src/components/app-sidebar.tsx`)
+Đọc file XML hoá đơn điện tử chuẩn Tổng cục Thuế (TT78/TT32 — gốc `<HDon>`) và nạp vào hệ thống:
+- Tự nhận diện chiều: nếu MST của tenant trùng `NBan/MST` → tạo **Hoá đơn bán ra** (`sales_invoices`). Nếu trùng `NMua/MST` → tạo **Hoá đơn mua vào** (`invoices`). Không trùng cả hai → báo lỗi cho file đó.
+- Cho phép chọn **nhiều file XML** cùng lúc, hiển thị bảng kết quả từng file.
 
-Cập nhật mảng `SECTIONS`:
+## Mapping XML → DB
 
-**Tổng quan** (không tiêu đề) — giữ nguyên
-- Tổng quan → `/dashboard`
-- Trợ lý AI → `/chat`
+| XML | Trường |
+|---|---|
+| `KHHDon` + `SHDon` | `invoice_series` + `invoice_no` |
+| `NLap` | `issue_date` |
+| `NBan/{Ten,MST,DChi}` | supplier (khi mua) hoặc bỏ qua (khi bán) |
+| `NMua/{Ten,MST,DChi}` | customer (khi bán) hoặc bỏ qua (khi mua) |
+| `TToan/TgTCThue` | `subtotal` |
+| `TToan/TgTThue` | `vat_amount` |
+| `TToan/TgTTTBSo` | `total` |
+| `DSHHDVu/HHDVu[]` | dòng (`invoice_lines` hoặc `sales_invoice_lines`): `THHDVu`→description, `DVTinh`, `SLuong`→qty, `DGia`→unit_price, `ThTien`→amount/pre_vat_amount, `TSuat` "10%"→`vat_rate=10`, `TThue`→line_vat_amount |
+| `MCCQT` | `einvoice_code` (cho HĐ bán) |
 
-**Vận hành** (đổi từ "Bán hàng & Kho")
-- Tiền & Ngân hàng (group)
-  - Quỹ tiền mặt → `/cash`
-  - Đối soát ngân hàng → `/bank`
-- Bán hàng (group)
-  - Tổng quan → `/sales-dashboard`
-  - Đơn đặt hàng → `/sales/orders` *(placeholder mới)*
-  - Phiếu bán hàng → `/sales`
-  - Hoá đơn bán → `/invoices`
-  - Phiếu thu → `/receipts`
-  - Công nợ phải thu → `/receivables`
-- Mua hàng (group)
-  - Tổng quan → `/purchases`
-  - Công nợ phải trả → `/payables`
-- Đối tác (group)
-  - Khách hàng → `/customers`
-  - Nhà cung cấp → `/suppliers`
-- Hàng hoá & Dịch vụ → `/inventory`
-- Kho → `/inventory/movements`
+Chống trùng: kiểm tra `(tenant_id, invoice_no, supplier_tax_id|customer_tax_id, issue_date)` — nếu đã có → đánh dấu "Đã tồn tại", không tạo mới.
 
-**Kế toán**
-- Tài sản cố định → `/assets`
-- Tài sản phân bổ → `/assets/allocations` *(placeholder mới)*
-- Phiếu kế toán → `/journal`
-- Tiền lương → `/payroll`
-- Hệ thống tài khoản → `/coa`
+## Thay đổi code
 
-**Thuế** (mới)
-- Thuế GTGT → `/tax/gtgt`
-- Thuế TNCN → `/tax/tncn`
-- Thuế TNDN → `/tax/tndn`
+**1. Dependency**
+- `bun add fast-xml-parser` (Worker-compatible, pure JS).
 
-**Báo cáo** — giữ nguyên (`/reports`, `/reports/ledgers`)
+**2. Server function — `src/lib/einvoice-xml.functions.ts`**
+- `importEinvoiceXml({ files: Array<{ name, content }> })` — `requireSupabaseAuth` + đọc tenant hiện tại từ `profiles.active_tenant_id`.
+- Với mỗi file:
+  1. Parse XML → object `{ ttChung, nBan, nMua, lines, totals }`.
+  2. So sánh MST với `tenants.tax_id` → quyết định chiều.
+  3. Upsert `suppliers` (theo `tax_id`, scope `user_id`) hoặc `customers`.
+  4. Insert `invoices` (lưu XML gốc lên bucket `invoices` làm `file_path`, status `extracted`) + `invoice_lines`; hoặc `sales_invoices` + `sales_invoice_lines` (status `draft`, gắn `einvoice_code` từ MCCQT).
+  5. Trả về `{ name, status: 'created'|'duplicate'|'error', direction, invoiceId?, error? }`.
 
-**Hệ thống** — giữ nguyên (`/admin`, `/settings`, + `/superadmin` nếu superadmin)
+**3. UI — `src/components/import-einvoice-xml-dialog.tsx`**
+- Dialog dùng chung, mở từ 2 nơi:
+  - Nút "Nhập XML hoá đơn" trên `/invoices` (Hoá đơn mua vào).
+  - Nút tương tự trên `/sales` (Hoá đơn bán ra).
+- Cho chọn nhiều file (`<input type="file" multiple accept=".xml">`), đọc text trong trình duyệt, gọi server fn 1 lần.
+- Hiển thị bảng kết quả: tên file • chiều (Mua/Bán) • số HĐ • tổng tiền • trạng thái (✓ Đã tạo / ⚠ Trùng / ✗ Lỗi + lý do). Có link mở HĐ vừa tạo.
+- Sau khi đóng, `router.invalidate()` để 2 trang refresh danh sách.
 
-## 2. Route placeholder mới
+**4. Cập nhật nhẹ**
+- `src/routes/_app/invoices/index.tsx` & `src/routes/_app/sales/index.tsx`: thêm nút mở dialog (cạnh nút Upload OCR / Tạo HĐ).
+- Không sửa schema DB, không sửa OCR cũ.
 
-Tạo 5 file route tối thiểu (header + mô tả "Tính năng đang phát triển"):
+## Phạm vi không làm
 
-- `src/routes/_app/sales/orders.tsx` → /sales/orders
-- `src/routes/_app/assets/allocations.tsx` → /assets/allocations
-- `src/routes/_app/tax/gtgt.tsx` → /tax/gtgt
-- `src/routes/_app/tax/tncn.tsx` → /tax/tncn
-- `src/routes/_app/tax/tndn.tsx` → /tax/tndn
-
-Mỗi file dùng `createFileRoute(...)` với component đơn giản (tiêu đề + đoạn mô tả), tái sử dụng layout `_app`. Không cần loader hay backend.
-
-## 3. Header (`src/components/app-header.tsx`)
-
-Thêm 2 link nhanh **Thuế** (`/tax/gtgt`) và **Báo cáo** (`/reports`) trong nhóm action, ẩn trên mobile (`hidden md:inline-flex`), dùng `Link` của `@tanstack/react-router` với `activeProps` để highlight.
-
-## Phạm vi không thay đổi
-- Không sửa logic, backend, RLS hay DB.
-- Không động đến các trang hiện có; chỉ thêm 5 placeholder.
-- `routeTree.gen.ts` sẽ được Vite plugin tự sinh lại.
+- Không xác minh chữ ký số CQT (chỉ đọc dữ liệu nghiệp vụ).
+- Không tự sinh bút toán/journal entry — vẫn dùng luồng hiện có sau khi HĐ đã tạo.
+- Không import ZIP/PDF kèm XML ở vòng này.
