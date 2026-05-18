@@ -91,40 +91,16 @@ function ReportsPage() {
   const cfFn = useServerFn(getCashFlowDirect);
   const notesFn = useServerFn(getNotesData);
   const exportFn = useServerFn(exportReportXlsx);
-  const tbFn = useServerFn(getTrialBalance);
 
   const bs = useQuery({ queryKey: ["bs99", to, compareEnabled, prevAsOf], queryFn: () => bsFn({ data: { asOf: to, compareAsOf: compareEnabled ? prevAsOf : undefined } }), ...QUERY_PRESETS.REPORT });
   const is = useQuery({ queryKey: ["is99", from, to, compareEnabled, prevFrom, prevTo, dims], queryFn: () => isFn({ data: { from, to, compareFrom: compareEnabled ? prevFrom : undefined, compareTo: compareEnabled ? prevTo : undefined, dims } }), ...QUERY_PRESETS.REPORT });
   const cf = useQuery({ queryKey: ["cf99", from, to], queryFn: () => cfFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
-  const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
-  const exportTbFn = useServerFn(exportTrialBalanceXlsx);
-  const unbalancedFn = useServerFn(getUnbalancedEntries);
-  const unbalanced = useQuery({
-    queryKey: ["unbalanced", from, to],
-    queryFn: () => unbalancedFn({ data: { from, to, limit: 50 } }),
-    enabled: !!tb.data && !tb.data.balanced,
-    ...QUERY_PRESETS.REPORT,
-  });
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
       toast.loading("Đang xuất Excel...", { id: "xlsx" });
       const res = await exportFn({ data: { report, from, to, asOf: to } });
-      const link = document.createElement("a");
-      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
-      link.download = res.filename;
-      link.click();
-      toast.success("Đã xuất file", { id: "xlsx" });
-    } catch (e: any) {
-      toast.error(e.message ?? "Xuất file thất bại", { id: "xlsx" });
-    }
-  }
-
-  async function handleExportTrialBalance() {
-    try {
-      toast.loading("Đang xuất Excel...", { id: "xlsx" });
-      const res = await exportTbFn({ data: { from, to, dims, hideZero } });
       const link = document.createElement("a");
       link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
       link.download = res.filename;
