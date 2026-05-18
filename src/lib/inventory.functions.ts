@@ -6,6 +6,7 @@ const ProductSchema = z.object({
   id: z.string().optional(),
   code: z.string().min(1).max(50),
   name: z.string().min(1).max(255),
+  item_type: z.enum(["goods", "service", "combo"]).default("goods"),
   unit: z.string().min(1).max(20).default("cái"),
   unit_cost: z.number().min(0).default(0),
   unit_price: z.number().min(0).default(0),
