@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { DimensionPickers, type DimensionValue } from "@/components/dimension-pickers";
+import { DocumentLinksManager } from "@/components/document-links-manager";
 
 import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
