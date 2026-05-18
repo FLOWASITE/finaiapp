@@ -9,6 +9,9 @@ const ReceiptSchema = z.object({
   amount: z.number().positive(),
   reference: z.string().max(255).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
+  branch_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
 });
 
 export const listReceipts = createServerFn({ method: "POST" })
