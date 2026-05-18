@@ -414,7 +414,7 @@ export const createPurchaseFromEInvoice = createServerFn({ method: "POST" })
         total: e.total,
         currency: e.currency,
         status: "extracted",
-        file_path: e.xml_path,
+        file_path: e.xml_path ?? "",
         raw_ocr: {
           source: "einvoice",
           series: e.invoice_series,
