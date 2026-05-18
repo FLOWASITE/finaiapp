@@ -28,7 +28,12 @@ export function TenantSwitcher() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({ queryKey: ["my-tenants"], queryFn: () => list() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-tenants"],
+    queryFn: () => list(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
   const [openCreate, setOpenCreate] = React.useState(false);
 
   const switchMut = useMutation({
