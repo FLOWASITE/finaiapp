@@ -144,7 +144,8 @@ export const extractInvoice = createServerFn({ method: "POST" })
       await supabase
         .from("invoices")
         .update({ status: "failed", notes: String(err) })
-        .eq("id", invoice.id);
+        .eq("id", invoice.id)
+        .eq("tenant_id", tenantId);
       throw err;
     }
   });
