@@ -190,6 +190,8 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const inEinvoiceModule = pathname.startsWith("/einvoices");
+  const activeSections = inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
