@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { DimensionPickers, type DimensionValue } from "@/components/dimension-pickers";
 
 import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
@@ -100,6 +101,7 @@ export function VoucherFormDialog({
   const [reason, setReason] = useState(type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp");
   const [amountStr, setAmountStr] = useState("");
   const [attachments, setAttachments] = useState("");
+  const [dims, setDims] = useState<DimensionValue>({});
 
   const fetchNextNo = useServerFn(nextVoucherNo);
 
@@ -118,6 +120,7 @@ export function VoucherFormDialog({
     setReason(type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp");
     setAmountStr("");
     setAttachments("");
+    setDims({});
   }, [open, type]);
 
   useEffect(() => {
@@ -164,6 +167,9 @@ export function VoucherFormDialog({
           reason: [reason.trim(), idNumber && `CMND/CCCD: ${idNumber}`, attachments && `Kèm theo: ${attachments} chứng từ`]
             .filter(Boolean)
             .join(" — ") || undefined,
+          branch_id: dims.branch_id ?? null,
+          project_id: dims.project_id ?? null,
+          cost_center_id: dims.cost_center_id ?? null,
         },
       }),
     onSuccess: () => {
@@ -318,6 +324,13 @@ export function VoucherFormDialog({
               <div className="text-[11px] uppercase text-muted-foreground">Bằng chữ</div>
               <div className="text-sm italic min-h-[1.25rem]">{amountWords || "—"}</div>
             </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">Phân tích quản trị</h3>
+            <DimensionPickers value={dims} onChange={setDims} show={["branch","project","cost_center"]} layout="row" />
           </div>
 
           <Separator />
