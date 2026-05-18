@@ -252,11 +252,30 @@ export function AppSidebar() {
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-r-0">
-        <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-3">
-          <Link to="/dashboard" className="flex items-center gap-2.5">
+      <Sidebar
+        collapsible="icon"
+        className="border-r-0 relative overflow-hidden"
+        style={{ background: "var(--sidebar-bg-gradient)" }}
+      >
+        {/* Ambient glow overlays */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "var(--sidebar-glow)" }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 opacity-60"
+          style={{
+            background:
+              "radial-gradient(400px circle at 50% 100%, oklch(0.72 0.16 162 / 0.12), transparent 60%)",
+          }}
+        />
+
+        <SidebarHeader className="relative border-b border-sidebar-border/40 px-3 py-3">
+          <Link to="/dashboard" className="group/brand flex items-center gap-2.5">
             <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 transition-transform duration-300 group-hover/brand:rotate-3 group-hover/brand:scale-105"
               style={{ background: "var(--gradient-ai)" }}
             >
               A
