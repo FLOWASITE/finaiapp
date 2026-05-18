@@ -291,14 +291,14 @@ export function AppSidebar() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="gap-1">
+        <SidebarContent className="relative gap-1">
           {/* AI LAUNCHER */}
           <div className="px-2 pt-3 pb-2">
             {collapsed ? (
               <button
                 onClick={() => setOpenCmd(true)}
                 aria-label="Ask FinAI AI"
-                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] hover-scale"
+                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 hover-scale transition-all duration-300 hover:shadow-[0_0_24px_-4px_oklch(0.72_0.16_162/0.6)]"
                 style={{ background: "var(--gradient-ai)" }}
               >
                 <Sparkles className="h-4 w-4" />
@@ -306,12 +306,12 @@ export function AppSidebar() {
             ) : (
               <button
                 onClick={() => setOpenCmd(true)}
-                className="group relative w-full overflow-hidden rounded-xl p-[1px] hover-scale animate-fade-in"
+                className="group relative w-full overflow-hidden rounded-xl p-[1px] animate-fade-in transition-all duration-300 hover:shadow-[0_0_28px_-6px_oklch(0.72_0.16_162/0.55)]"
                 style={{ background: "var(--gradient-ai)" }}
               >
-                <div className="rounded-[11px] bg-sidebar/90 backdrop-blur-sm px-3 py-2.5">
+                <div className="rounded-[11px] bg-sidebar/85 backdrop-blur-md px-3 py-2.5 transition-colors group-hover:bg-sidebar/70">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-sidebar-primary" />
+                    <Sparkles className="h-4 w-4 text-sidebar-primary animate-[pulse_2.8s_ease-in-out_infinite]" />
                     <span className="text-[12.5px] font-medium tracking-tight text-sidebar-foreground/90 flex-1 text-left">
                       Hỏi FinAI AI…
                     </span>
@@ -329,7 +329,7 @@ export function AppSidebar() {
                   <button
                     key={q.label}
                     onClick={() => go(q.to)}
-                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2.5 py-1 text-[10.5px] font-medium tracking-wide whitespace-nowrap text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground transition-colors"
+                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2.5 py-1 text-[10.5px] font-medium tracking-wide whitespace-nowrap text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_oklch(0_0_0/0.4)] transition-all duration-200"
                   >
                     {q.label}
                   </button>
@@ -339,38 +339,47 @@ export function AppSidebar() {
           </div>
 
           {activeSections.map((section, idx) => (
-            <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
-              {section.label && (
-                <SidebarGroupLabel className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
-                  {section.label}
-                </SidebarGroupLabel>
+            <React.Fragment key={section.label ?? `s-${idx}`}>
+              {section.label && idx > 0 && (
+                <div
+                  aria-hidden
+                  className="mx-3 my-1 h-px bg-gradient-to-r from-transparent via-sidebar-border/50 to-transparent"
+                />
               )}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {section.entries.map((entry) =>
-                    isGroup(entry) ? (
-                      <GroupItem
-                        key={entry.label}
-                        group={entry}
-                        open={!!openMap[entry.label]}
-                        onOpenChange={(v) => setOpen(entry.label, v)}
-                        isActive={isActive}
-                        collapsed={collapsed}
-                        onNavigate={(to) => navigate({ to })}
+              <SidebarGroup className={section.label ? undefined : "py-0"}>
+                {section.label && (
+                  <SidebarGroupLabel className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
+                    <span className="inline-block h-1 w-1 rounded-full bg-sidebar-primary/50" />
+                    {section.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {section.entries.map((entry) =>
+                      isGroup(entry) ? (
+                        <GroupItem
+                          key={entry.label}
+                          group={entry}
+                          open={!!openMap[entry.label]}
+                          onOpenChange={(v) => setOpen(entry.label, v)}
+                          isActive={isActive}
+                          collapsed={collapsed}
+                          onNavigate={(to) => navigate({ to })}
+                        />
+                      ) : (
+                        <LeafItem key={entry.to} item={entry} active={isActive(entry.to)} />
+                      ),
+                    )}
+                    {section.label === "Hệ thống" && isSuperadmin && (
+                      <LeafItem
+                        item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
+                        active={isActive("/superadmin")}
                       />
-                    ) : (
-                      <LeafItem key={entry.to} item={entry} active={isActive(entry.to)} />
-                    ),
-                  )}
-                  {section.label === "Hệ thống" && isSuperadmin && (
-                    <LeafItem
-                      item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
-                      active={isActive("/superadmin")}
-                    />
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </React.Fragment>
           ))}
         </SidebarContent>
 
