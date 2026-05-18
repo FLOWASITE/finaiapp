@@ -166,6 +166,15 @@ function EInvoicesPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
+            onClick={() => autoMatchMut.mutate()}
+            disabled={autoMatchMut.isPending}
+            title="Tự động ghép HĐĐT với HĐ nội bộ theo MST + số HĐ"
+          >
+            <Zap className="mr-2 h-4 w-4" />
+            {autoMatchMut.isPending ? "Đang ghép…" : "Tự động ghép"}
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setSyncOpen(true)}
             title="Đồng bộ trực tiếp từ cổng TCT"
           >
