@@ -7,7 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
-import { getTrialBalance, exportTrialBalanceXlsx } from "@/lib/ledgers.functions";
+import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +101,13 @@ function ReportsPage() {
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
   const exportTbFn = useServerFn(exportTrialBalanceXlsx);
+  const unbalancedFn = useServerFn(getUnbalancedEntries);
+  const unbalanced = useQuery({
+    queryKey: ["unbalanced", from, to],
+    queryFn: () => unbalancedFn({ data: { from, to, limit: 50 } }),
+    enabled: !!tb.data && !tb.data.balanced,
+    ...QUERY_PRESETS.REPORT,
+  });
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
@@ -259,8 +266,15 @@ function ReportsPage() {
             {!tb.data ? <Loading /> : (
               <>
                 {!tb.data.balanced && (
-                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive print:hidden">
-                    <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
+                  <div className="mb-3 space-y-2 print:hidden">
+                    <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      Tổng PS Nợ ≠ Tổng PS Có — chênh lệch {fmt(tb.data.totals.debit - tb.data.totals.credit)}
+                    </div>
+                    <UnbalancedEntriesPanel
+                      loading={unbalanced.isLoading}
+                      data={unbalanced.data}
+                    />
                   </div>
                 )}
                 <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
@@ -603,6 +617,78 @@ function TrialBalanceTable({
     </table>
   );
 }
+
+type UnbalancedData = {
+  entries: Array<{
+    entry_id: string;
+    entry_date: string;
+    description: string | null;
+    totalDebit: number;
+    totalCredit: number;
+    delta: number;
+    lineCount: number;
+    reason: string;
+  }>;
+  totalCount: number;
+  totalDelta: number;
+};
+
+function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
+  if (loading) {
+    return <div className="rounded border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Đang phân tích bút toán lệch cân…</div>;
+  }
+  if (!data || data.entries.length === 0) {
+    return (
+      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+        Không phát hiện bút toán nào có Nợ ≠ Có trong kỳ. Chênh lệch có thể đến từ
+        <span className="font-medium"> số dư đầu kỳ chưa cân</span> hoặc
+        <span className="font-medium"> dữ liệu ngoài khoảng thời gian đang lọc</span>.
+        Hãy mở rộng kỳ hoặc kiểm tra số dư khởi tạo trong <Link to="/coa" className="underline">Hệ thống tài khoản</Link>.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded border border-destructive/30 bg-destructive/5 p-3">
+      <div className="mb-2 flex items-center justify-between text-xs">
+        <span className="font-semibold text-destructive">
+          {data.totalCount} bút toán có Nợ ≠ Có (tổng lệch: {fmt(data.totalDelta)})
+        </span>
+        <span className="text-muted-foreground">Hiển thị tối đa {data.entries.length} dòng — sắp xếp theo mức lệch giảm dần</span>
+      </div>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border text-muted-foreground">
+            <th className="py-1 text-left">Ngày</th>
+            <th className="text-left">Diễn giải</th>
+            <th className="text-center">Số dòng</th>
+            <th className="text-right">Tổng Nợ</th>
+            <th className="text-right">Tổng Có</th>
+            <th className="text-right">Lệch</th>
+            <th className="text-left pl-2">Gợi ý nguyên nhân</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.entries.map((e) => (
+            <tr key={e.entry_id} className="border-b border-border/40">
+              <td className="py-1 font-mono">{e.entry_date}</td>
+              <td className="max-w-[280px] truncate" title={e.description ?? ""}>{e.description ?? "—"}</td>
+              <td className="text-center">{e.lineCount}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(e.totalDebit)}</td>
+              <td className="text-right font-mono tabular-nums">{fmt(e.totalCredit)}</td>
+              <td className="text-right font-mono tabular-nums font-semibold text-destructive">{fmt(e.delta)}</td>
+              <td className="pl-2 text-muted-foreground">{e.reason}</td>
+              <td className="text-right">
+                <Link to="/journal" hash={`entry-${e.entry_id}`} className="text-primary underline">Mở</Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 
 function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (

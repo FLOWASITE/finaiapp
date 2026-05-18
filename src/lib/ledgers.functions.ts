@@ -477,6 +477,78 @@ export const exportTrialBalanceXlsx = createServerFn({ method: "POST" })
     return { filename: `BCDPS_${data.from}_${data.to}.xlsx`, base64 };
   });
 
+// ============ 5. Phát hiện bút toán lệch cân (Nợ ≠ Có) ============
+export type UnbalancedEntry = {
+  entry_id: string;
+  entry_date: string;
+  description: string | null;
+  totalDebit: number;
+  totalCredit: number;
+  delta: number; // debit - credit
+  lineCount: number;
+  reason: string; // gợi ý nguyên nhân
+};
+
+export const getUnbalancedEntries = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { from: string; to: string; limit?: number }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("journal_entries")
+      .select("id, entry_date, description, journal_lines(debit, credit)")
+      .eq("user_id", userId)
+      .gte("entry_date", data.from)
+      .lte("entry_date", data.to)
+      .order("entry_date", { ascending: false });
+    if (error) throw error;
+
+    const results: UnbalancedEntry[] = [];
+    for (const e of (rows ?? []) as any[]) {
+      const ls = (e.journal_lines ?? []) as Array<{ debit: number | string; credit: number | string }>;
+      let td = 0, tc = 0;
+      for (const l of ls) {
+        td += Number(l.debit) || 0;
+        tc += Number(l.credit) || 0;
+      }
+      const delta = td - tc;
+      if (Math.abs(delta) < 0.5) continue;
+
+      // Gợi ý nguyên nhân
+      let reason = "Tổng Nợ ≠ Tổng Có";
+      if (ls.length === 0) reason = "Bút toán không có dòng hạch toán nào";
+      else if (ls.length === 1) reason = "Chỉ có 1 dòng — thiếu vế đối ứng";
+      else if (Math.abs(delta) < 100) reason = "Chênh lệch nhỏ — có thể do làm tròn / nhập sai số lẻ";
+      else if (td === 0) reason = "Thiếu toàn bộ vế Nợ";
+      else if (tc === 0) reason = "Thiếu toàn bộ vế Có";
+      else {
+        const maxSide = Math.max(td, tc);
+        const ratio = Math.abs(delta) / maxSide;
+        if (ratio > 0.4) reason = "Chênh lệch lớn — có thể nhập sai số tiền 1 dòng";
+        else reason = "Sai số tiền / thiếu dòng đối ứng";
+      }
+
+      results.push({
+        entry_id: e.id,
+        entry_date: e.entry_date,
+        description: e.description,
+        totalDebit: td,
+        totalCredit: tc,
+        delta,
+        lineCount: ls.length,
+        reason,
+      });
+    }
+
+    results.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    const limit = data.limit ?? 100;
+    return {
+      entries: results.slice(0, limit),
+      totalCount: results.length,
+      totalDelta: results.reduce((s, r) => s + r.delta, 0),
+    };
+  });
+
 
 function prevDay(d: string): string {
   const x = new Date(d);
