@@ -170,7 +170,7 @@ function VoucherListPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Số CT, diễn giải, đối tác, TK"
+                placeholder="Lọc trong trang (số CT, diễn giải, TK…)"
                 className="h-9 w-72 pl-7 text-sm"
               />
             </div>
