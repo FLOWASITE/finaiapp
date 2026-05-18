@@ -280,7 +280,7 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
   .inputValidator((i: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; accountPrefix?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const res = await buildVoucherList(supabase, userId, data);
+    const res = await buildVoucherList(supabase, userId, { ...data, page: 1, pageSize: 100000 });
 
     const profile = (await supabase
       .from("profiles")
