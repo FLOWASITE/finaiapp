@@ -585,9 +585,13 @@ export const postPayrollRun = createServerFn({ method: "POST" })
     const { data: details } = await supabase
       .from("payroll_run_lines").select("*").eq("run_id", data.id);
     const { data: lines } = await supabase
-      .from("payroll_lines")
-      .select("*, employees(department_id, branch_id, project_id, departments(name))")
-      .eq("run_id", data.id);
+      .from("payroll_lines").select("*").eq("run_id", data.id);
+    const empIds = Array.from(new Set((lines ?? []).map((l: any) => l.employee_id)));
+    const { data: empRows } = await supabase
+      .from("employees")
+      .select("id, department_id, branch_id, project_id, departments(name)")
+      .in("id", empIds.length ? empIds : ["00000000-0000-0000-0000-000000000000"]);
+    const empMap = new Map<string, any>((empRows ?? []).map((e: any) => [e.id, e]));
 
     // Create entry
     const { data: entry, error: eErr } = await supabase.from("journal_entries").insert({
