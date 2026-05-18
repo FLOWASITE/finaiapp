@@ -16,6 +16,24 @@ import { cn } from "@/lib/utils";
  *     2) Mở dialog (Radix):     <DialogTrigger asChild><AddNew label="..." /></DialogTrigger>
  *     3) Điều hướng route:      <AddNew label="Thêm hoá đơn" to="/sales/new" />
  *
+ * ─────────────────────────────────────────────────────────────
+ * QUY ƯỚC CHỌN SIZE — áp dụng nhất quán toàn app:
+ * ─────────────────────────────────────────────────────────────
+ *   • `default` (mặc định, KHÔNG truyền size):
+ *       Nút CTA chính ở header trang/section (h1/h2 cỡ lớn).
+ *       Ví dụ: "Thêm khách hàng", "Thêm chi nhánh", "Phiếu thu",
+ *              "Báo có (Thu)", "Thêm hoá đơn".
+ *
+ *   • `size="sm"`:
+ *       - Inline trong sub-editor / form con (vd: unit-conversions).
+ *       - Empty-state CTA ở giữa bảng (no-data placeholder).
+ *       - Header sub-section dùng h2 `text-sm` (vd: Mời thành viên).
+ *
+ *   • `size="lg"`:
+ *       - Hero / landing CTA chiếm vị trí trung tâm.
+ *       - Submit chính trong wizard/onboarding nhiều bước.
+ *       Không dùng trong table/header thông thường.
+ *
  * Không chứa business logic — chỉ là lớp trình bày để loại bỏ trùng lặp UI.
  */
 
