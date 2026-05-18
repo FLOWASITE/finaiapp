@@ -6,6 +6,7 @@ import {
   Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
+  ArrowLeft, Inbox, Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -119,6 +120,30 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+const EINVOICE_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "← Quay lại tổng quan", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Hoá đơn điện tử",
+    entries: [
+      { to: "/einvoices", label: "Tất cả hoá đơn", icon: FileText },
+      { to: "/einvoices?tab=in", label: "Hoá đơn đầu vào", icon: Inbox },
+      { to: "/einvoices?tab=out", label: "Hoá đơn đầu ra", icon: Send },
+    ],
+  },
+  {
+    label: "Liên kết",
+    entries: [
+      { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
+      { to: "/invoices", label: "Hoá đơn bán", icon: Receipt },
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Calculator },
+    ],
+  },
+];
+
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
   { label: "Lập BCTC quý gần nhất", to: "/reports" },
@@ -157,6 +182,8 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const inEinvoiceModule = pathname.startsWith("/einvoices");
+  const activeSections = inEinvoiceModule ? EINVOICE_SECTIONS : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
@@ -171,7 +198,7 @@ export function AppSidebar() {
   // Initial open = groups containing active route
   const initialOpen = React.useMemo(() => {
     const map: Record<string, boolean> = {};
-    SECTIONS.forEach((s) =>
+    activeSections.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e)) map[e.label] = e.items.some((i) => isActive(i.to));
       }),
@@ -183,7 +210,7 @@ export function AppSidebar() {
 
   // Auto-open the group of the active route on navigation
   React.useEffect(() => {
-    SECTIONS.forEach((s) =>
+    activeSections.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e) && e.items.some((i) => isActive(i.to)) && !openMap[e.label]) {
           setOpen(e.label, true);
@@ -291,7 +318,7 @@ export function AppSidebar() {
             )}
           </div>
 
-          {SECTIONS.map((section, idx) => (
+          {activeSections.map((section, idx) => (
             <SidebarGroup key={section.label ?? `s-${idx}`} className={section.label ? undefined : "py-0"}>
               {section.label && (
                 <SidebarGroupLabel className="text-[10px] tracking-wider text-sidebar-foreground/45">
@@ -423,10 +450,14 @@ export function AppSidebar() {
 
 function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
   const Icon = item.icon ?? FileText;
+  const [path, query] = item.to.split("?");
+  const search = query
+    ? Object.fromEntries(new URLSearchParams(query).entries())
+    : undefined;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
-        <Link to={item.to}>
+        <Link to={path} search={search as never}>
           {active && (
             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
           )}
