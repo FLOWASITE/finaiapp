@@ -17,6 +17,7 @@ type LineRow = {
   entry_id: string;
   description: string | null;
   line_order: number;
+  invoice_id: string | null;
 };
 
 const hasDims = (d?: DimFilter) =>
