@@ -463,9 +463,9 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
           )}
           <Icon className={cn("h-4 w-4 transition-transform group-hover:scale-110", active && "text-sidebar-primary")} />
-          <span>{item.label}</span>
+          <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
           {item.badge != null && (
-            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70">
+            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
               {item.badge}
             </span>
           )}
