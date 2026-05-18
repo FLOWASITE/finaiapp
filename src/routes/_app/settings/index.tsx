@@ -203,7 +203,7 @@ function OrganizationTab() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold truncate">{form.company_name || form.name || "(chưa đặt tên)"}</h2>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{ROLE_LABEL[data.myRole ?? ""] ?? data.myRole}</Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}</Badge>
               {!canEdit && <Badge variant="outline" className="text-[10px]">Chỉ đọc</Badge>}
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
