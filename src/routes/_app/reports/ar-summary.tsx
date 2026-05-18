@@ -826,9 +826,16 @@ function ArSummaryPage() {
               <div>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="text-sm font-semibold">
-                    Chứng từ ({drillGroupByDoc
-                      ? `${drillDisplayRows.length} chứng từ / ${drillFiltered.lines.length} dòng`
-                      : `${drillFiltered.lines.length}${drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""}`})
+                    {(() => {
+                      const totalLines = drillQ.data?.lines.length ?? 0;
+                      const filteredLines = drillFiltered.lines.length;
+                      const label = drillGroupByDoc
+                        ? `${drillDisplayRows.length} chứng từ / ${filteredLines} dòng`
+                        : filteredLines !== totalLines
+                          ? `${filteredLines} / ${totalLines}`
+                          : `${filteredLines}`;
+                      return `Chứng từ (${label})`;
+                    })()}
                   </div>
                   <Button
                     variant="outline"
