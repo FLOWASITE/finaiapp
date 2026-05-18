@@ -880,6 +880,7 @@ function ReceiptsTab({
               <th className="px-2 sm:px-4 py-2 text-left hidden lg:table-cell">Tham chiếu</th>
               <th className="px-2 sm:px-4 py-2 text-right">Số tiền</th>
               <th className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">Đối soát</th>
+              <th className="px-2 sm:px-4 py-2 text-center hidden md:table-cell">Tài liệu</th>
               <th className="px-2 sm:px-4 py-2"></th>
             </tr>
           </thead>
