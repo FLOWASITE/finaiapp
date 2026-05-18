@@ -291,13 +291,28 @@ function ArSummaryPage() {
     };
   }, [drillSortedRows, drillPage, drillPageSize]);
 
+  // Map entry_id -> raw journal lines for inline expansion of grouped rows.
+  const linesByEntry = useMemo(() => {
+    const m = new Map<string, typeof drillFiltered.lines>();
+    for (const l of drillFiltered.lines) {
+      const arr = m.get(l.entry_id);
+      if (arr) arr.push(l);
+      else m.set(l.entry_id, [l]);
+    }
+    return m;
+  }, [drillFiltered.lines]);
+
   // Virtualizer over the full sorted list (used when "Cuộn ảo" is on).
+  // estimateSize is just a starting hint — measureElement re-measures each row
+  // after render, so expanded rows with child content size correctly.
   const drillRowVirtualizer = useVirtualizer({
     count: drillSortedRows.length,
     getScrollElement: () => drillScrollRef.current,
     estimateSize: () => 36,
     overscan: 12,
+    getItemKey: (i) => drillSortedRows[i]?.key ?? i,
   });
+
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
