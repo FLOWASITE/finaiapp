@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number };
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
@@ -152,7 +153,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
-  const { data: cu } = useCurrentUser();
+  const { data: cu, isLoading: cuLoading } = useCurrentUser();
   const email = cu?.email ?? "";
   const isSuperadmin = cu?.isSuperadmin ?? false;
 
@@ -333,10 +334,19 @@ export function AppSidebar() {
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="truncate text-xs font-medium text-sidebar-foreground">
-                        {email || "Người dùng"}
-                      </div>
-                      <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                      {cuLoading && !cu ? (
+                        <>
+                          <Skeleton className="h-3 w-24 mb-1" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="truncate text-xs font-medium text-sidebar-foreground">
+                            {email || "Người dùng"}
+                          </div>
+                          <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                        </>
+                      )}
                     </div>
                     <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                   </>
