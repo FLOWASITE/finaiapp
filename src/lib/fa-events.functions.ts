@@ -194,11 +194,13 @@ export const createAssetEvent = createServerFn({ method: "POST" })
           .eq("tenant_id", tenantId)
           .eq("is_primary", true)
           .maybeSingle();
-        const { data: deps } = await supabase
-          .from("depreciation_entries")
-          .select("amount")
-          .eq("asset_id", asset.id)
-          .eq("book_id", prim?.id ?? null);
+        const { data: deps } = prim?.id
+          ? await supabase
+              .from("depreciation_entries")
+              .select("amount")
+              .eq("asset_id", asset.id)
+              .eq("book_id", prim.id)
+          : { data: [] as any[] };
         const accum = (deps ?? []).reduce((s: number, e: any) => s + Number(e.amount), 0)
           + Number(asset.opening_accumulated ?? 0);
 
