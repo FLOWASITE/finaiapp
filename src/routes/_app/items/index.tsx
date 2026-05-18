@@ -431,9 +431,6 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
                 <Field label="TK doanh thu" hint="TT133/TT200: 511x">
                   <Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} placeholder="511" />
                 </Field>
-                <Field label="TK thuế GTGT đầu ra" hint="Thường là 3331">
-                  <Input value={form.vat_account} onChange={(e) => setForm({ ...form, vat_account: e.target.value })} placeholder="3331" />
-                </Field>
                 {hasStock && (
                   <>
                     <Field label="TK kho" hint="156 - Hàng hoá / 155 - Thành phẩm">
