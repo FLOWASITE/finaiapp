@@ -32,6 +32,7 @@ function PayrollPage() {
           <Link to="/payroll/components" className="text-primary underline">Khoản lương</Link>
           <Link to="/payroll/timesheets" className="text-primary underline">Chấm công</Link>
           <Link to="/payroll/advances" className="text-primary underline">Tạm ứng</Link>
+          <Link to="/payroll/reports" className="text-primary underline">Báo cáo Thuế/BHXH</Link>
           <Link to="/payroll/policies" className="text-primary underline">Chính sách BHXH/TNCN →</Link>
         </div>
       </div>
