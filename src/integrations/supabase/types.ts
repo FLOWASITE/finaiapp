@@ -1062,64 +1062,85 @@ export type Database = {
           accounting_standard: string
           active_tenant_id: string | null
           address: string | null
+          avatar_url: string | null
           bank_account: string | null
           base_currency: string
           chief_accountant_name: string | null
           company_name: string | null
           created_at: string
+          date_format: string
+          display_name: string | null
           email: string | null
           fiscal_year_start: number
           id: string
+          job_title: string | null
+          language: string
           legal_rep_name: string | null
           logo_url: string | null
+          number_format: string
           phone: string | null
           preparer_name: string | null
           signature_url: string | null
           signer_name: string | null
           stamp_url: string | null
           tax_id: string | null
+          timezone: string
         }
         Insert: {
           accounting_standard?: string
           active_tenant_id?: string | null
           address?: string | null
+          avatar_url?: string | null
           bank_account?: string | null
           base_currency?: string
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          date_format?: string
+          display_name?: string | null
           email?: string | null
           fiscal_year_start?: number
           id: string
+          job_title?: string | null
+          language?: string
           legal_rep_name?: string | null
           logo_url?: string | null
+          number_format?: string
           phone?: string | null
           preparer_name?: string | null
           signature_url?: string | null
           signer_name?: string | null
           stamp_url?: string | null
           tax_id?: string | null
+          timezone?: string
         }
         Update: {
           accounting_standard?: string
           active_tenant_id?: string | null
           address?: string | null
+          avatar_url?: string | null
           bank_account?: string | null
           base_currency?: string
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          date_format?: string
+          display_name?: string | null
           email?: string | null
           fiscal_year_start?: number
           id?: string
+          job_title?: string | null
+          language?: string
           legal_rep_name?: string | null
           logo_url?: string | null
+          number_format?: string
           phone?: string | null
           preparer_name?: string | null
           signature_url?: string | null
           signer_name?: string | null
           stamp_url?: string | null
           tax_id?: string | null
+          timezone?: string
         }
         Relationships: []
       }
