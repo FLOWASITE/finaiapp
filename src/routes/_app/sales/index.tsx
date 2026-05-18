@@ -920,6 +920,17 @@ function ReceiptsTab({
                   <td className="px-2 sm:px-4 py-2 text-center hidden sm:table-cell">
                     <PaymentBadge status={status} />
                   </td>
+                  <td className="px-2 sm:px-4 py-2 text-center hidden md:table-cell">
+                    <button
+                      type="button"
+                      onClick={() => setDocFor(r)}
+                      className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-xs hover:bg-muted/40"
+                      title="Mở tài liệu / OCR / đổi trạng thái"
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      <DocStatusBadge status={r.status} />
+                    </button>
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
