@@ -7,7 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
-import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries } from "@/lib/ledgers.functions";
+import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries, getAccountLedger } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ function ReportsPage() {
   const [dims, setDims] = useState<DimensionValue>({});
   const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
   const [tbTree, setTbTree] = useState(true);
+  const [drillAcc, setDrillAcc] = useState<{ code: string; name: string } | null>(null);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
@@ -277,7 +278,13 @@ function ReportsPage() {
                     />
                   </div>
                 )}
-                <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
+                <TrialBalanceTable
+                  data={tb.data}
+                  hideZero={hideZero}
+                  level={tbLevel}
+                  tree={tbTree}
+                  onDrill={(code, name) => setDrillAcc({ code, name })}
+                />
               </>
             )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
@@ -286,6 +293,7 @@ function ReportsPage() {
       </Tabs>
 
       <DrilldownDialog drill={drill} from={from} to={to} asOf={to} onClose={() => setDrill(null)} />
+      <AccountDrilldownDialog account={drillAcc} from={from} to={to} dims={dims} onClose={() => setDrillAcc(null)} />
     </div>
   );
 }
@@ -530,12 +538,13 @@ function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
 }
 
 function TrialBalanceTable({
-  data, hideZero, level, tree,
+  data, hideZero, level, tree, onDrill,
 }: {
   data: TrialBalanceData;
   hideZero: boolean;
   level: "all" | "1" | "2" | "3";
   tree: boolean;
+  onDrill?: (code: string, name: string) => void;
 }) {
   const aggregated = aggregateTrialBalance(data.rows, level);
   const withAncestors = tree ? ensureAncestors(aggregated) : aggregated;
@@ -579,6 +588,7 @@ function TrialBalanceTable({
           <th colSpan={2} className="text-center border-l border-border">Số dư đầu kỳ</th>
           <th colSpan={2} className="text-center border-l border-border">Phát sinh trong kỳ</th>
           <th colSpan={2} className="text-center border-l border-border">Số dư cuối kỳ</th>
+          {onDrill && <th rowSpan={2} className="print:hidden"></th>}
         </tr>
         <tr className="border-b border-border text-muted-foreground">
           <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
@@ -592,7 +602,7 @@ function TrialBalanceTable({
           const indent = tree ? (lvl - 1) * 16 : 0;
           const bold = tree && lvl < 3;
           return (
-            <tr key={r.code} className="border-b border-border/40">
+            <tr key={r.code} className="border-b border-border/40 group">
               <td className={`py-1 font-mono ${bold ? "font-semibold" : ""}`} style={{ paddingLeft: indent }}>{r.code}</td>
               <td className={bold ? "font-semibold" : ""}>{r.name}</td>
               <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
@@ -601,6 +611,18 @@ function TrialBalanceTable({
               <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
               <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
               <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
+              {onDrill && (
+                <td className="pl-2 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => onDrill(r.code, r.name)}
+                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground opacity-0 hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                    title="Xem chi tiết phát sinh"
+                  >
+                    Chi tiết
+                  </button>
+                </td>
+              )}
             </tr>
           );
         })}
@@ -612,6 +634,7 @@ function TrialBalanceTable({
           <td className="text-right font-mono">{fmt(totals.credit)}</td>
           <td className="text-right font-mono border-l border-border">{fmt(totals.closingDebit)}</td>
           <td className="text-right font-mono">{fmt(totals.closingCredit)}</td>
+          {onDrill && <td className="print:hidden"></td>}
         </tr>
       </tbody>
     </table>
@@ -686,6 +709,83 @@ function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: Un
         </tbody>
       </table>
     </div>
+  );
+}
+
+
+function AccountDrilldownDialog({
+  account, from, to, dims, onClose,
+}: {
+  account: { code: string; name: string } | null;
+  from: string;
+  to: string;
+  dims: DimensionValue;
+  onClose: () => void;
+}) {
+  const alFn = useServerFn(getAccountLedger);
+  const q = useQuery({
+    queryKey: ["acc-ledger-drill", account?.code, from, to, dims],
+    queryFn: () => alFn({ data: { account: account!.code, from, to, dims } }),
+    enabled: !!account,
+    ...QUERY_PRESETS.REPORT,
+  });
+  const open = !!account;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>
+            Phát sinh chi tiết — TK {account?.code} {account?.name ? `· ${account.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {!account ? null : q.isLoading || !q.data ? (
+          <Loading />
+        ) : (
+          <div className="max-h-[70vh] overflow-auto">
+            <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+              <span>Kỳ: <b className="text-foreground">{from} → {to}</b></span>
+              <span>Số dư đầu: <b className="text-foreground font-mono">{fmt(q.data.opening)}</b></span>
+              <span>Tổng PS Nợ: <b className="text-foreground font-mono">{fmt(q.data.totalDebit)}</b></span>
+              <span>Tổng PS Có: <b className="text-foreground font-mono">{fmt(q.data.totalCredit)}</b></span>
+              <span>Số dư cuối: <b className="text-foreground font-mono">{fmt(q.data.closing)}</b></span>
+              <span>Số dòng: <b className="text-foreground">{q.data.lines.length}</b></span>
+            </div>
+            {q.data.lines.length === 0 ? (
+              <div className="rounded border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                Không có chứng từ nào phát sinh trên TK {account.code} trong kỳ.
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="py-1 text-left">Ngày</th>
+                    <th className="text-left">Chứng từ / Diễn giải</th>
+                    <th className="text-right">PS Nợ</th>
+                    <th className="text-right">PS Có</th>
+                    <th className="text-right">Lũy kế</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {q.data.lines.map((l: any, i: number) => (
+                    <tr key={`${l.entry_id}-${i}`} className="border-b border-border/40">
+                      <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
+                      <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
+                      <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
+                      <td className="pl-2 text-right">
+                        <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
