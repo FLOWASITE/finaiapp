@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -52,6 +52,12 @@ function VoucherListPage() {
   const [sources, setSources] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+
+  // Reset to page 1 whenever filters change
+  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources });
+  useEffect(() => { setPage(1); }, [filterKey]);
 
   const profileQ = useQuery({
     queryKey: ["profile-fiscal"],
@@ -63,23 +69,30 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix],
+    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
+          page,
+          pageSize,
         },
       }),
     ...QUERY_PRESETS.REPORT,
+    placeholderData: (prev) => prev,
   });
 
+  const pageRows = q.data?.rows ?? [];
+  const totalRows = q.data?.totalRows ?? 0;
+  const totalPages = q.data?.totalPages ?? 1;
+
+  // Client-side search filters within the current page only
   const rows = useMemo(() => {
-    const all = q.data?.rows ?? [];
     const s = norm(search);
-    if (!s) return all;
-    return all.filter((r) =>
+    if (!s) return pageRows;
+    return pageRows.filter((r) =>
       norm(r.voucher_no).includes(s) ||
       norm(r.voucher_type).includes(s) ||
       norm(r.description ?? "").includes(s) ||
@@ -87,7 +100,7 @@ function VoucherListPage() {
       norm(r.account_code).includes(s) ||
       norm(r.reference ?? "").includes(s)
     );
-  }, [q.data, search]);
+  }, [pageRows, search]);
 
   const totals = useMemo(
     () => rows.reduce((s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }), { debit: 0, credit: 0 }),
@@ -157,7 +170,7 @@ function VoucherListPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Số CT, diễn giải, đối tác, TK"
+                placeholder="Lọc trong trang (số CT, diễn giải, TK…)"
                 className="h-9 w-72 pl-7 text-sm"
               />
             </div>
@@ -211,68 +224,111 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${rows.length} dòng — Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${rows.length} dòng) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
         >
-          {q.isLoading ? (
+          {q.isLoading && !q.data ? (
             <Loading />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-muted/40 uppercase">
-                  <tr>
-                    <th className="px-2 py-2 text-left">Ngày</th>
-                    <th className="px-2 py-2 text-left">Số CT</th>
-                    <th className="px-2 py-2 text-left">Loại CT</th>
-                    <th className="px-2 py-2 text-left">Diễn giải</th>
-                    <th className="px-2 py-2 text-center">TK</th>
-                    <th className="px-2 py-2 text-right">Phát sinh Nợ</th>
-                    <th className="px-2 py-2 text-right">Phát sinh Có</th>
-                    <th className="px-2 py-2 text-left">Đối tác</th>
-                    <th className="px-2 py-2 text-left">Tham chiếu</th>
-                    <th className="px-2 py-2 text-left">Chi nhánh</th>
-                    <th className="px-2 py-2 text-left">Phòng ban</th>
-                    <th className="px-2 py-2 text-left">Dự án</th>
-                    <th className="px-2 py-2 text-left">TT chi phí</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.line_id} className="border-t border-border/60 align-top">
-                      <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
-                      <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
-                      <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
-                      <td className="px-2 py-1.5">{r.description ?? "—"}</td>
-                      <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
-                      <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
-                      <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
-                      <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40 uppercase">
                     <tr>
-                      <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
-                        Không có chứng từ phù hợp bộ lọc
-                      </td>
+                      <th className="px-2 py-2 text-left">Ngày</th>
+                      <th className="px-2 py-2 text-left">Số CT</th>
+                      <th className="px-2 py-2 text-left">Loại CT</th>
+                      <th className="px-2 py-2 text-left">Diễn giải</th>
+                      <th className="px-2 py-2 text-center">TK</th>
+                      <th className="px-2 py-2 text-right">Phát sinh Nợ</th>
+                      <th className="px-2 py-2 text-right">Phát sinh Có</th>
+                      <th className="px-2 py-2 text-left">Đối tác</th>
+                      <th className="px-2 py-2 text-left">Tham chiếu</th>
+                      <th className="px-2 py-2 text-left">Chi nhánh</th>
+                      <th className="px-2 py-2 text-left">Phòng ban</th>
+                      <th className="px-2 py-2 text-left">Dự án</th>
+                      <th className="px-2 py-2 text-left">TT chi phí</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.line_id} className="border-t border-border/60 align-top">
+                        <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
+                        <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
+                        <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
+                        <td className="px-2 py-1.5">{r.description ?? "—"}</td>
+                        <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
+                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
+                        <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                          Không có chứng từ phù hợp bộ lọc
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {rows.length > 0 && (
+                    <tfoot className="bg-muted/40 font-semibold">
+                      <tr className="border-t-2 border-border">
+                        <td className="px-2 py-2" colSpan={5}>Tổng trang này</td>
+                        <td className="px-2 py-2 text-right font-mono">{fmt(totals.debit)}</td>
+                        <td className="px-2 py-2 text-right font-mono">{fmt(totals.credit)}</td>
+                        <td colSpan={6} />
+                      </tr>
+                    </tfoot>
                   )}
-                </tbody>
-                {rows.length > 0 && (
-                  <tfoot className="bg-muted/40 font-semibold">
-                    <tr className="border-t-2 border-border">
-                      <td className="px-2 py-2" colSpan={5}>TỔNG CỘNG</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmt(totals.debit)}</td>
-                      <td className="px-2 py-2 text-right font-mono">{fmt(totals.credit)}</td>
-                      <td colSpan={6} />
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+                </table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2 text-xs print:hidden">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span>Số dòng/trang:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+                  >
+                    {[50, 100, 200, 500].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  {q.isFetching && <span className="italic">Đang tải…</span>}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page <= 1 || q.isFetching}
+                    onClick={() => setPage(1)}
+                  >«</Button>
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page <= 1 || q.isFetching}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >‹ Trước</Button>
+                  <span className="px-2 tabular-nums">
+                    Trang {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page >= totalPages || q.isFetching}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >Sau ›</Button>
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page >= totalPages || q.isFetching}
+                    onClick={() => setPage(totalPages)}
+                  >»</Button>
+                </div>
+              </div>
+            </>
           )}
         </ReportCard>
 
