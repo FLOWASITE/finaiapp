@@ -317,16 +317,13 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
               <Field label="Tên *">
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <Field label="ĐVT *">
-                <Input
-                  list="unit-suggestions"
+              <Field label="ĐVT mặc định *">
+                <UnitPicker
                   value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  placeholder={isService ? "lần / giờ" : "cái"}
+                  onChange={(v) => setForm({ ...form, unit: v })}
+                  units={units}
+                  isService={isService}
                 />
-                <datalist id="unit-suggestions">
-                  {UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
-                </datalist>
               </Field>
               <Field label="Nhóm">
                 <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
