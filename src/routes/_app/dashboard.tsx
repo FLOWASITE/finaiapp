@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useMemo } from "react";
 import {
   TrendingUp,
@@ -77,7 +78,7 @@ function Dashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-overview", period],
     queryFn: () => fetchOverview({ data: { period } }),
-    staleTime: 60_000,
+    ...QUERY_PRESETS.REPORT,
   });
 
   return (
