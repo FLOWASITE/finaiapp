@@ -546,3 +546,121 @@ function DeleteButton({ id, hasEntries }: { id: string; hasEntries: boolean }) {
     </AlertDialog>
   );
 }
+
+// ---------- Run allocation dialog ----------
+function RunAllocationDialog() {
+  const previewFn = useServerFn(previewAllocation);
+  const runFn = useServerFn(runMonthlyAllocation);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const now = new Date();
+  const [upToMonth, setUpToMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+  );
+
+  const { data: preview, isFetching } = useQuery({
+    queryKey: ["alloc-preview", upToMonth, open],
+    enabled: open,
+    queryFn: () => previewFn({ data: { upToMonth } }),
+  });
+
+  const mut = useMutation({
+    mutationFn: () => runFn({ data: { upToMonth } }),
+    onSuccess: (res) => {
+      toast.success(
+        `Đã hạch toán ${res.created_entries} kỳ cho ${res.assets_touched} tài sản (${Number(res.total_amount).toLocaleString("vi-VN")} đ)`,
+      );
+      qc.invalidateQueries({ queryKey: ["alloc-assets"] });
+      qc.invalidateQueries({ queryKey: ["alloc-assets-summary"] });
+      qc.invalidateQueries({ queryKey: ["alloc-preview"] });
+      setOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <PlayCircle className="h-4 w-4" /> Phân bổ kỳ
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Chạy phân bổ chi phí (Nợ 6xx / Có 242)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Phân bổ đến tháng</Label>
+            <Input
+              type="month"
+              value={upToMonth}
+              onChange={(e) => setUpToMonth(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Hệ thống sẽ tự sinh bút toán cho tất cả các kỳ chưa hạch toán
+              của các tài sản còn hiệu lực, tính đến hết tháng đã chọn.
+            </p>
+          </div>
+
+          <div className="rounded-lg border bg-muted/30 max-h-72 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/60 text-xs uppercase">
+                <tr>
+                  <th className="px-3 py-2 text-left">Mã</th>
+                  <th className="px-3 py-2 text-left">Tên</th>
+                  <th className="px-3 py-2 text-center">Số kỳ</th>
+                  <th className="px-3 py-2 text-right">Tổng tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isFetching && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                      Đang tính…
+                    </td>
+                  </tr>
+                )}
+                {!isFetching && (preview?.items ?? []).length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                      Không có tài sản nào cần phân bổ.
+                    </td>
+                  </tr>
+                )}
+                {(preview?.items ?? []).map((it) => (
+                  <tr key={it.id} className="border-t">
+                    <td className="px-3 py-2 font-mono text-xs">{it.code}</td>
+                    <td className="px-3 py-2">{it.name}</td>
+                    <td className="px-3 py-2 text-center">{it.periods}</td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {Number(it.total_amount).toLocaleString("vi-VN")}
+                    </td>
+                  </tr>
+                ))}
+                {(preview?.items?.length ?? 0) > 0 && (
+                  <tr className="border-t bg-muted/40 font-semibold">
+                    <td colSpan={2} className="px-3 py-2 text-right">Tổng</td>
+                    <td className="px-3 py-2 text-center">{preview?.total_periods}</td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {Number(preview?.total_amount ?? 0).toLocaleString("vi-VN")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || (preview?.items?.length ?? 0) === 0}
+          >
+            {mut.isPending ? "Đang chạy…" : "Hạch toán"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
