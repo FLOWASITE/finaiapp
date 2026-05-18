@@ -198,6 +198,66 @@ export type Database = {
           },
         ]
       }
+      bank_vouchers: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          bank_transaction_id: string | null
+          counter_account: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          party_id: string | null
+          party_name: string | null
+          reason: string | null
+          reference: string | null
+          tenant_id: string | null
+          transfer_pair_id: string | null
+          user_id: string
+          voucher_date: string
+          voucher_no: string
+          voucher_type: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          bank_transaction_id?: string | null
+          counter_account: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          reason?: string | null
+          reference?: string | null
+          tenant_id?: string | null
+          transfer_pair_id?: string | null
+          user_id: string
+          voucher_date?: string
+          voucher_no: string
+          voucher_type: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          bank_transaction_id?: string | null
+          counter_account?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          reason?: string | null
+          reference?: string | null
+          tenant_id?: string | null
+          transfer_pair_id?: string | null
+          user_id?: string
+          voucher_date?: string
+          voucher_no?: string
+          voucher_type?: string
+        }
+        Relationships: []
+      }
       cash_vouchers: {
         Row: {
           amount: number

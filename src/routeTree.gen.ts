@@ -42,6 +42,7 @@ import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/i
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppBankIndexRouteImport } from './routes/_app/bank.index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
 import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
@@ -64,6 +65,9 @@ import { Route as AppInventoryMovementsRouteImport } from './routes/_app/invento
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
+import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
+import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
+import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -235,6 +239,11 @@ const AppCashIndexRoute = AppCashIndexRouteImport.update({
   path: '/cash/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBankIndexRoute = AppBankIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -346,6 +355,21 @@ const AppEinvoicesIdRoute = AppEinvoicesIdRouteImport.update({
   path: '/einvoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
+  getParentRoute: () => AppBankRoute,
+} as any)
+const AppBankBookRoute = AppBankBookRouteImport.update({
+  id: '/book',
+  path: '/book',
+  getParentRoute: () => AppBankRoute,
+} as any)
+const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   id: '/allocations',
   path: '/allocations',
@@ -382,7 +406,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/assets': typeof AppAssetsRouteWithChildren
-  '/bank': typeof AppBankRoute
+  '/bank': typeof AppBankRouteWithChildren
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRouteWithChildren
@@ -396,6 +420,9 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/bank/accounts': typeof AppBankAccountsRoute
+  '/bank/book': typeof AppBankBookRoute
+  '/bank/vouchers': typeof AppBankVouchersRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -418,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
   '/admin/': typeof AppAdminIndexRoute
+  '/bank/': typeof AppBankIndexRoute
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
@@ -443,7 +471,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/assets': typeof AppAssetsRouteWithChildren
-  '/bank': typeof AppBankRoute
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/journal': typeof AppJournalRoute
@@ -454,6 +481,9 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/bank/accounts': typeof AppBankAccountsRoute
+  '/bank/book': typeof AppBankBookRoute
+  '/bank/vouchers': typeof AppBankVouchersRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -476,6 +506,7 @@ export interface FileRoutesByTo {
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
   '/admin': typeof AppAdminIndexRoute
+  '/bank': typeof AppBankIndexRoute
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
@@ -504,7 +535,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/assets': typeof AppAssetsRouteWithChildren
-  '/_app/bank': typeof AppBankRoute
+  '/_app/bank': typeof AppBankRouteWithChildren
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
@@ -518,6 +549,9 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/_app/bank/accounts': typeof AppBankAccountsRoute
+  '/_app/bank/book': typeof AppBankBookRoute
+  '/_app/bank/vouchers': typeof AppBankVouchersRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
@@ -540,6 +574,7 @@ export interface FileRoutesById {
   '/_app/tax/tncn': typeof AppTaxTncnRoute
   '/_app/tax/tndn': typeof AppTaxTndnRoute
   '/_app/admin/': typeof AppAdminIndexRoute
+  '/_app/bank/': typeof AppBankIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
@@ -582,6 +617,9 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/bank/accounts'
+    | '/bank/book'
+    | '/bank/vouchers'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -604,6 +642,7 @@ export interface FileRouteTypes {
     | '/tax/tncn'
     | '/tax/tndn'
     | '/admin/'
+    | '/bank/'
     | '/cash/'
     | '/coa/'
     | '/customers/'
@@ -629,7 +668,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/assets'
-    | '/bank'
     | '/chat'
     | '/dashboard'
     | '/journal'
@@ -640,6 +678,9 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/bank/accounts'
+    | '/bank/book'
+    | '/bank/vouchers'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -662,6 +703,7 @@ export interface FileRouteTypes {
     | '/tax/tncn'
     | '/tax/tndn'
     | '/admin'
+    | '/bank'
     | '/cash'
     | '/coa'
     | '/customers'
@@ -703,6 +745,9 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/bank/accounts'
+    | '/_app/bank/book'
+    | '/_app/bank/vouchers'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
     | '/_app/inventory/$id'
@@ -725,6 +770,7 @@ export interface FileRouteTypes {
     | '/_app/tax/tncn'
     | '/_app/tax/tndn'
     | '/_app/admin/'
+    | '/_app/bank/'
     | '/_app/cash/'
     | '/_app/coa/'
     | '/_app/customers/'
@@ -987,6 +1033,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bank/': {
+      id: '/_app/bank/'
+      path: '/'
+      fullPath: '/bank/'
+      preLoaderRoute: typeof AppBankIndexRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/admin/': {
       id: '/_app/admin/'
       path: '/'
@@ -1141,6 +1194,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEinvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bank/vouchers': {
+      id: '/_app/bank/vouchers'
+      path: '/vouchers'
+      fullPath: '/bank/vouchers'
+      preLoaderRoute: typeof AppBankVouchersRouteImport
+      parentRoute: typeof AppBankRoute
+    }
+    '/_app/bank/book': {
+      id: '/_app/bank/book'
+      path: '/book'
+      fullPath: '/bank/book'
+      preLoaderRoute: typeof AppBankBookRouteImport
+      parentRoute: typeof AppBankRoute
+    }
+    '/_app/bank/accounts': {
+      id: '/_app/bank/accounts'
+      path: '/accounts'
+      fullPath: '/bank/accounts'
+      preLoaderRoute: typeof AppBankAccountsRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/assets/allocations': {
       id: '/_app/assets/allocations'
       path: '/allocations'
@@ -1218,6 +1292,23 @@ const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
   AppAssetsRouteChildren,
 )
 
+interface AppBankRouteChildren {
+  AppBankAccountsRoute: typeof AppBankAccountsRoute
+  AppBankBookRoute: typeof AppBankBookRoute
+  AppBankVouchersRoute: typeof AppBankVouchersRoute
+  AppBankIndexRoute: typeof AppBankIndexRoute
+}
+
+const AppBankRouteChildren: AppBankRouteChildren = {
+  AppBankAccountsRoute: AppBankAccountsRoute,
+  AppBankBookRoute: AppBankBookRoute,
+  AppBankVouchersRoute: AppBankVouchersRoute,
+  AppBankIndexRoute: AppBankIndexRoute,
+}
+
+const AppBankRouteWithChildren =
+  AppBankRoute._addFileChildren(AppBankRouteChildren)
+
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
@@ -1279,7 +1370,7 @@ const AppSuperadminRouteWithChildren = AppSuperadminRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAssetsRoute: typeof AppAssetsRouteWithChildren
-  AppBankRoute: typeof AppBankRoute
+  AppBankRoute: typeof AppBankRouteWithChildren
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
@@ -1319,7 +1410,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppAssetsRoute: AppAssetsRouteWithChildren,
-  AppBankRoute: AppBankRoute,
+  AppBankRoute: AppBankRouteWithChildren,
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,

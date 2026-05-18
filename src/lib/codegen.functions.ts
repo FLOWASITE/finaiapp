@@ -10,15 +10,17 @@ export type CodeEntity =
   | "product_goods"
   | "product_service"
   | "product_combo"
-  | "warehouse";
+  | "warehouse"
+  | "bank_receipt"
+  | "bank_payment"
+  | "bank_transfer";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses";
-  column: "invoice_no" | "code";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers";
+  column: "invoice_no" | "code" | "voucher_no";
   prefix: string;
   dateScoped: boolean;
   padLen: number;
-  // optional extra filter (e.g. item_type for products)
   extraFilter?: { column: string; value: string };
 };
 
@@ -40,14 +42,27 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
     extraFilter: { column: "item_type", value: "combo" },
   },
   warehouse: { table: "warehouses", column: "code", prefix: "KHO", dateScoped: false, padLen: 2 },
+  bank_receipt: {
+    table: "bank_vouchers", column: "voucher_no", prefix: "BC", dateScoped: true, padLen: 5,
+    extraFilter: { column: "voucher_type", value: "receipt" },
+  },
+  bank_payment: {
+    table: "bank_vouchers", column: "voucher_no", prefix: "BN", dateScoped: true, padLen: 5,
+    extraFilter: { column: "voucher_type", value: "payment" },
+  },
+  bank_transfer: {
+    table: "bank_vouchers", column: "voucher_no", prefix: "BT", dateScoped: true, padLen: 5,
+    extraFilter: { column: "voucher_type", value: "transfer_out" },
+  },
 };
 
 const InputSchema = z.object({
   entity: z.enum([
     "sale_invoice", "purchase_invoice", "customer", "supplier",
     "product_goods", "product_service", "product_combo", "warehouse",
+    "bank_receipt", "bank_payment", "bank_transfer",
   ]),
-  date: z.string().optional(), // ISO date string, used for dateScoped entities
+  date: z.string().optional(),
 });
 
 function yyyymm(dateStr?: string): string {
