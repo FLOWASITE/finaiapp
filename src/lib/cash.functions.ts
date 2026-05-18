@@ -13,6 +13,28 @@ const VoucherSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+export const nextVoucherNo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { voucher_type: "receipt" | "payment"; year_month: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const prefix = data.voucher_type === "receipt" ? "PT" : "PC";
+    const pattern = `${prefix}${data.year_month}/%`;
+    const { data: rows, error } = await supabase
+      .from("cash_vouchers")
+      .select("voucher_no")
+      .eq("user_id", userId)
+      .like("voucher_no", pattern);
+    if (error) throw new Error(error.message);
+    let max = 0;
+    for (const r of rows ?? []) {
+      const m = /\/(\d+)$/.exec(r.voucher_no ?? "");
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    const seq = String(max + 1).padStart(5, "0");
+    return { voucher_no: `${prefix}${data.year_month}/${seq}` };
+  });
+
 export const listCashVouchers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
