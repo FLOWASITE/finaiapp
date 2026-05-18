@@ -180,7 +180,7 @@ const COUNTER_ACCOUNTS_OUT = [
 ];
 
 function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: any[] }) {
-  const rec = useServerFn(recordMovement);
+  const create = useServerFn(createStockVoucher);
   const listWh = useServerFn(listWarehouses);
   const previewNo = useServerFn(previewStockVoucherNo);
   const qc = useQueryClient();
@@ -200,28 +200,27 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   );
 
   const counterOptions = type === "in" ? COUNTER_ACCOUNTS_IN : COUNTER_ACCOUNTS_OUT;
-
-  const [form, setForm] = useState({
-    voucher_no: "",
-    product_id: "",
-    warehouse_id: "",
-    qty: 0,
-    unit_cost: 0,
-    movement_date: new Date().toISOString().slice(0, 10),
-    counter_account: counterOptions[0].code,
-    note: "",
-  });
-
   const goodsOnly = useMemo(
     () => products.filter((p: any) => (p.item_type ?? "goods") !== "service"),
     [products],
   );
-  const selectedProduct = useMemo(
-    () => goodsOnly.find((p: any) => p.id === form.product_id),
-    [goodsOnly, form.product_id],
+  const productMap = useMemo(
+    () => new Map(goodsOnly.map((p: any) => [p.id, p])),
+    [goodsOnly],
   );
 
-  // Auto-fill warehouse + voucher_no when opening
+  type Line = { product_id: string; qty: number; unit_cost: number; note: string };
+  const emptyLine = (): Line => ({ product_id: "", qty: 0, unit_cost: 0, note: "" });
+
+  const [form, setForm] = useState({
+    voucher_no: "",
+    warehouse_id: "",
+    movement_date: new Date().toISOString().slice(0, 10),
+    counter_account: counterOptions[0].code,
+    reason: "",
+    lines: [emptyLine()] as Line[],
+  });
+
   useEffect(() => {
     if (!open) return;
     if (!form.warehouse_id && defaultWh) {
@@ -234,48 +233,79 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     }
   }, [open, defaultWh, type]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // For "out", auto-fill unit_cost from product avg cost (read-only display)
+  const updateLine = (i: number, patch: Partial<Line>) =>
+    setForm((f) => ({ ...f, lines: f.lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) }));
+  const removeLine = (i: number) =>
+    setForm((f) => ({ ...f, lines: f.lines.length > 1 ? f.lines.filter((_, idx) => idx !== i) : f.lines }));
+  const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }));
+
+  const productIdsKey = form.lines.map((l) => l.product_id).join("|");
   useEffect(() => {
-    if (type === "out" && selectedProduct) {
-      setForm((f) => ({ ...f, unit_cost: Number(selectedProduct.unit_cost ?? 0) }));
+    if (type !== "out") return;
+    setForm((f) => ({
+      ...f,
+      lines: f.lines.map((l) => {
+        if (!l.product_id) return l;
+        const p = productMap.get(l.product_id);
+        return p ? { ...l, unit_cost: Number(p.unit_cost ?? 0) } : l;
+      }),
+    }));
+  }, [type, productMap, productIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totals = useMemo(() => {
+    let qty = 0, value = 0;
+    for (const l of form.lines) {
+      qty += Number(l.qty || 0);
+      value += Number(l.qty || 0) * Number(l.unit_cost || 0);
     }
-  }, [selectedProduct, type]);
+    return { qty, value: +value.toFixed(2) };
+  }, [form.lines]);
 
-  const overStock =
-    type === "out" && selectedProduct && form.qty > Number(selectedProduct.on_hand ?? 0);
-  const total = +(form.qty * form.unit_cost).toFixed(2);
-
-  const canSave =
-    !!form.product_id &&
-    !!form.warehouse_id &&
-    form.qty > 0 &&
-    (type === "out" || form.unit_cost > 0) &&
-    !overStock;
+  const errors = useMemo(() => {
+    const errs: string[] = [];
+    if (!form.warehouse_id) errs.push("Chọn kho");
+    const valid = form.lines.filter((l) => l.product_id && l.qty > 0);
+    if (valid.length === 0) errs.push("Thêm ít nhất 1 dòng hợp lệ");
+    for (const l of form.lines) {
+      if (!l.product_id) continue;
+      const p = productMap.get(l.product_id);
+      if (!p) continue;
+      if (type === "in" && !(l.unit_cost > 0)) errs.push(`Đơn giá nhập cho ${p.code} phải > 0`);
+      if (type === "out" && Number(l.qty) > Number(p.on_hand ?? 0)) errs.push(`Vượt tồn ${p.code} (còn ${fmt(p.on_hand)})`);
+    }
+    return errs;
+  }, [form, productMap, type]);
+  const canSave = errors.length === 0;
 
   const m = useMutation({
     mutationFn: () =>
-      rec({
+      create({
         data: {
-          product_id: form.product_id,
-          movement_type: type,
-          qty: form.qty,
-          unit_cost: form.unit_cost,
-          movement_date: form.movement_date,
-          note: form.note,
+          voucher_type: type,
+          voucher_date: form.movement_date,
+          voucher_no: form.voucher_no || undefined,
           warehouse_id: form.warehouse_id || null,
           counter_account: form.counter_account,
-          voucher_no: form.voucher_no,
+          reason: form.reason || undefined,
+          lines: form.lines
+            .filter((l) => l.product_id && l.qty > 0)
+            .map((l) => ({
+              product_id: l.product_id,
+              qty: Number(l.qty),
+              unit_cost: Number(l.unit_cost || 0),
+              note: l.note || undefined,
+            })),
         } as any,
       }),
     onSuccess: (r: any) => {
-      toast.success(`Đã lưu ${type === "in" ? "Phiếu nhập" : "Phiếu xuất"} ${r.voucher_no}`);
+      toast.success(`Đã lưu ${type === "in" ? "Phiếu nhập" : "Phiếu xuất"} ${r.voucher_no} (${r.line_count} dòng)`);
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["stock-report"] });
       qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
-      qc.invalidateQueries({ queryKey: ["movements"] });
+      qc.invalidateQueries({ queryKey: ["vouchers-list"] });
       qc.invalidateQueries({ queryKey: ["warehouses"] });
       setOpen(false);
-      setForm((f) => ({ ...f, voucher_no: "", product_id: "", qty: 0, unit_cost: 0, note: "" }));
+      setForm((f) => ({ ...f, voucher_no: "", reason: "", lines: [emptyLine()] }));
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -287,140 +317,147 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant={type === "in" ? "default" : "outline"}>
-          <Icon className="mr-2 h-4 w-4" />
-          {title}
+          <Icon className="mr-2 h-4 w-4" />{title}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            {title}
+            <Icon className="h-5 w-5" />{title}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Field label="Số phiếu">
               <div className="flex gap-1">
-                <Input
-                  value={form.voucher_no}
+                <Input value={form.voucher_no}
                   onChange={(e) => setForm({ ...form, voucher_no: e.target.value })}
-                  placeholder={type === "in" ? "PN..." : "PX..."}
-                  className="font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  title="Tạo lại số phiếu"
-                  onClick={() =>
-                    previewNo({ data: { type, movement_date: form.movement_date } })
-                      .then((r) => setForm((f) => ({ ...f, voucher_no: r.code })))
-                      .catch((e: any) => toast.error(e.message))
-                  }
-                >
+                  placeholder={type === "in" ? "PN..." : "PX..."} className="font-mono" />
+                <Button type="button" variant="outline" size="icon"
+                  onClick={() => previewNo({ data: { type, movement_date: form.movement_date } })
+                    .then((r) => setForm((f) => ({ ...f, voucher_no: r.code }))).catch(() => {})}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
             </Field>
             <Field label="Ngày">
-              <Input
-                type="date"
-                value={form.movement_date}
-                onChange={(e) => setForm({ ...form, movement_date: e.target.value })}
-              />
+              <Input type="date" value={form.movement_date}
+                onChange={(e) => setForm({ ...form, movement_date: e.target.value })} />
+            </Field>
+            <Field label="Kho">
+              <Select value={form.warehouse_id} onValueChange={(v) => setForm({ ...form, warehouse_id: v })}
+                disabled={activeWhs.length === 0}>
+                <SelectTrigger>
+                  <SelectValue placeholder={activeWhs.length === 0 ? "Chưa có kho" : "Chọn kho..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeWhs.map((w: any) => (
+                    <SelectItem key={w.id} value={w.id}>{w.code} · {w.name}{w.is_default ? " ★" : ""}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={type === "in" ? "TK đối ứng (Có)" : "TK đối ứng (Nợ)"}>
+              <Select value={form.counter_account} onValueChange={(v) => setForm({ ...form, counter_account: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {counterOptions.map((o) => (
+                    <SelectItem key={o.code} value={o.code}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
 
-          <Field label="Kho">
-            <Select
-              value={form.warehouse_id}
-              onValueChange={(v) => setForm({ ...form, warehouse_id: v })}
-              disabled={activeWhs.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={activeWhs.length === 0 ? "Chưa có kho — tạo ở Danh mục kho" : "Chọn kho..."} />
-              </SelectTrigger>
-              <SelectContent>
-                {activeWhs.map((w: any) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.code} · {w.name}{w.is_default ? " ★" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Mặt hàng">
-            <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
-              <SelectContent>
-                {goodsOnly.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.code} · {p.name} (tồn {fmt(p.on_hand)} {p.unit})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Số lượng">
-              <Input
-                type="number"
-                min={0}
-                value={form.qty || ""}
-                onChange={(e) => setForm({ ...form, qty: Number(e.target.value) })}
-              />
-              {overStock && (
-                <p className="text-xs text-rose-600 mt-1">
-                  Vượt tồn (hiện có {fmt(Number(selectedProduct?.on_hand ?? 0))})
-                </p>
-              )}
-            </Field>
-            <Field label={type === "in" ? "Đơn giá nhập" : "Đơn giá xuất (BQ)"}>
-              <Input
-                type="number"
-                min={0}
-                value={form.unit_cost || ""}
-                onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })}
-                disabled={type === "out"}
-              />
-            </Field>
-            <Field label="Thành tiền">
-              <Input value={fmt(total)} disabled className="font-mono text-right" />
-            </Field>
+          <div className="rounded-md border">
+            <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs font-medium uppercase text-muted-foreground">
+              <span>Chi tiết các dòng ({form.lines.length})</span>
+              <Button size="sm" variant="ghost" onClick={addLine}>+ Thêm dòng</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 w-[40%]">Mặt hàng</th>
+                    <th className="px-3 py-2 text-right">Số lượng</th>
+                    <th className="px-3 py-2 text-right">{type === "in" ? "Đơn giá" : "Giá BQ"}</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.lines.map((l, i) => {
+                    const amount = Number(l.qty || 0) * Number(l.unit_cost || 0);
+                    return (
+                      <tr key={i} className="border-t align-top">
+                        <td className="px-3 py-2">
+                          <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v })}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Chọn mặt hàng..." /></SelectTrigger>
+                            <SelectContent>
+                              {goodsOnly.map((pp: any) => (
+                                <SelectItem key={pp.id} value={pp.id}>
+                                  {pp.code} · {pp.name} (tồn {fmt(pp.on_hand)} {pp.unit})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input className="mt-1 h-8 text-xs" placeholder="Ghi chú dòng..."
+                            value={l.note} onChange={(e) => updateLine(i, { note: e.target.value })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="number" min={0} value={l.qty || ""} className="text-right h-9"
+                            onChange={(e) => updateLine(i, { qty: Number(e.target.value) })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="number" min={0} value={l.unit_cost || ""} className="text-right h-9"
+                            disabled={type === "out"}
+                            onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) })} />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">{fmt(amount)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button size="sm" variant="ghost" onClick={() => removeLine(i)}
+                            disabled={form.lines.length === 1}>×</Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t bg-muted/30 font-medium">
+                    <td className="px-3 py-2 text-right" colSpan={3}>Tổng cộng</td>
+                    <td className="px-3 py-2 text-right font-mono">{fmt(totals.value)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
 
-          <Field label={type === "in" ? "Tài khoản đối ứng (Có)" : "Tài khoản đối ứng (Nợ)"}>
-            <Select value={form.counter_account} onValueChange={(v) => setForm({ ...form, counter_account: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {counterOptions.map((o) => (
-                  <SelectItem key={o.code} value={o.code}>{o.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Diễn giải">
-            <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          <Field label="Lý do / Diễn giải chung">
+            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           </Field>
 
           <div className="rounded-md bg-muted/40 p-3 text-xs space-y-1">
-            <div className="font-medium text-foreground">Bút toán tự sinh</div>
-            {type === "in" ? (
-              <>
-                <div>Nợ <span className="font-mono">{selectedProduct?.stock_account || "156"}</span> — Hàng tồn kho: <span className="font-mono">{fmt(total)}</span></div>
-                <div>Có <span className="font-mono">{form.counter_account}</span>: <span className="font-mono">{fmt(total)}</span></div>
-              </>
-            ) : (
-              <>
-                <div>Nợ <span className="font-mono">{form.counter_account}</span>: <span className="font-mono">{fmt(total)}</span></div>
-                <div>Có <span className="font-mono">{selectedProduct?.stock_account || "156"}</span> — Hàng tồn kho: <span className="font-mono">{fmt(total)}</span></div>
-              </>
-            )}
+            <div className="font-medium text-foreground">Bút toán tự sinh (mỗi dòng 1 cặp Nợ/Có)</div>
+            {form.lines.filter((l) => l.product_id && l.qty > 0).map((l, i) => {
+              const p = productMap.get(l.product_id);
+              const amt = Number(l.qty) * Number(l.unit_cost || 0);
+              const stock = p?.stock_account || "156";
+              return (
+                <div key={i}>
+                  {type === "in"
+                    ? <>Nợ <span className="font-mono">{stock}</span> / Có <span className="font-mono">{form.counter_account}</span>: <span className="font-mono">{fmt(amt)}</span> — {p?.code}</>
+                    : <>Nợ <span className="font-mono">{form.counter_account}</span> / Có <span className="font-mono">{stock}</span>: <span className="font-mono">{fmt(amt)}</span> — {p?.code}</>}
+                </div>
+              );
+            })}
           </div>
+
+          {errors.length > 0 && (
+            <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
+              {errors.map((e, i) => <div key={i}>• {e}</div>)}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
