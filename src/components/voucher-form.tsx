@@ -103,6 +103,7 @@ export function VoucherFormDialog({
   const [amountStr, setAmountStr] = useState("");
   const [attachments, setAttachments] = useState("");
   const [dims, setDims] = useState<DimensionValue>({});
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const fetchNextNo = useServerFn(nextVoucherNo);
 
