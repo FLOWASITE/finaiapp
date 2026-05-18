@@ -113,6 +113,21 @@
   --gradient-payment-hover: linear-gradient(135deg, oklch(0.6 0.22 25) 0%, oklch(0.68 0.22 35) 50%, oklch(0.76 0.2 55) 100%);
   --shadow-payment: 0 1px 0 0 oklch(1 0 0 / 0.28) inset, 0 -1px 0 0 oklch(0 0 0 / 0.12) inset, 0 4px 14px -4px oklch(0.6 0.22 30 / 0.5), 0 2px 6px -2px oklch(0.55 0.2 40 / 0.4);
   --shadow-payment-hover: 0 1px 0 0 oklch(1 0 0 / 0.34) inset, 0 -1px 0 0 oklch(0 0 0 / 0.14) inset, 0 12px 28px -8px oklch(0.65 0.24 30 / 0.65), 0 6px 14px -4px oklch(0.6 0.22 40 / 0.55), 0 0 0 1px oklch(1 0 0 / 0.08);
+  /* Nút "Default / Primary" — gradient sapphire→violet */
+  --gradient-primary-btn: linear-gradient(135deg, oklch(0.32 0.08 260) 0%, oklch(0.38 0.1 265) 50%, oklch(0.44 0.12 270) 100%);
+  --gradient-primary-btn-hover: linear-gradient(135deg, oklch(0.38 0.1 260) 0%, oklch(0.44 0.12 265) 50%, oklch(0.52 0.14 270) 100%);
+  --shadow-primary-btn: 0 1px 0 0 oklch(1 0 0 / 0.22) inset, 0 -1px 0 0 oklch(0 0 0 / 0.18) inset, 0 4px 14px -4px oklch(0.32 0.1 265 / 0.55), 0 2px 6px -2px oklch(0.3 0.08 260 / 0.4);
+  --shadow-primary-btn-hover: 0 1px 0 0 oklch(1 0 0 / 0.28) inset, 0 -1px 0 0 oklch(0 0 0 / 0.2) inset, 0 12px 28px -8px oklch(0.4 0.14 265 / 0.7), 0 6px 14px -4px oklch(0.38 0.12 270 / 0.55), 0 0 0 1px oklch(1 0 0 / 0.08);
+  /* Nút "Destructive" — gradient crimson */
+  --gradient-destructive-btn: linear-gradient(135deg, oklch(0.45 0.2 18) 0%, oklch(0.52 0.22 22) 50%, oklch(0.58 0.21 28) 100%);
+  --gradient-destructive-btn-hover: linear-gradient(135deg, oklch(0.5 0.22 18) 0%, oklch(0.57 0.24 22) 50%, oklch(0.63 0.23 28) 100%);
+  --shadow-destructive-btn: 0 1px 0 0 oklch(1 0 0 / 0.25) inset, 0 -1px 0 0 oklch(0 0 0 / 0.18) inset, 0 4px 14px -4px oklch(0.5 0.22 22 / 0.55), 0 2px 6px -2px oklch(0.45 0.2 18 / 0.4);
+  --shadow-destructive-btn-hover: 0 1px 0 0 oklch(1 0 0 / 0.32) inset, 0 -1px 0 0 oklch(0 0 0 / 0.2) inset, 0 12px 28px -8px oklch(0.55 0.24 22 / 0.7), 0 6px 14px -4px oklch(0.5 0.22 18 / 0.55), 0 0 0 1px oklch(1 0 0 / 0.08);
+  /* Nút "Secondary" — gradient slate trung tính, glow nhẹ */
+  --gradient-secondary-btn: linear-gradient(135deg, oklch(0.92 0.01 260) 0%, oklch(0.96 0.008 260) 50%, oklch(0.99 0.005 260) 100%);
+  --gradient-secondary-btn-hover: linear-gradient(135deg, oklch(0.88 0.012 260) 0%, oklch(0.93 0.01 260) 50%, oklch(0.97 0.008 260) 100%);
+  --shadow-secondary-btn: 0 1px 0 0 oklch(1 0 0 / 0.6) inset, 0 -1px 0 0 oklch(0 0 0 / 0.06) inset, 0 2px 8px -2px oklch(0.3 0.04 260 / 0.18), 0 1px 3px -1px oklch(0.3 0.04 260 / 0.12);
+  --shadow-secondary-btn-hover: 0 1px 0 0 oklch(1 0 0 / 0.7) inset, 0 -1px 0 0 oklch(0 0 0 / 0.08) inset, 0 8px 20px -6px oklch(0.3 0.04 260 / 0.28), 0 4px 10px -2px oklch(0.3 0.04 260 / 0.2);
 }
 
 @keyframes add-shimmer {
