@@ -64,6 +64,8 @@ const CreateTenantSchema = z.object({
   name: z.string().min(1).max(255),
   company_name: z.string().max(255).optional(),
   tax_id: z.string().max(50).optional(),
+  address: z.string().max(500).optional(),
+  legal_rep_name: z.string().max(255).optional(),
   accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
   base_currency: z.string().max(10).default("VND"),
 });
