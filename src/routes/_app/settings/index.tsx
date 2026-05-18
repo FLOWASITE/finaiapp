@@ -60,14 +60,34 @@ function SettingsPage() {
         <p className="text-sm text-muted-foreground">Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền</p>
       </div>
       <Tabs value={tab} onValueChange={handleTabChange}>
-        <div className="-mx-1 overflow-x-auto">
-          <TabsList className="inline-flex w-max">
-            <TabsTrigger value="organization">Tổ chức</TabsTrigger>
-            <TabsTrigger value="company">Hồ sơ cá nhân</TabsTrigger>
-            <TabsTrigger value="members">Thành viên</TabsTrigger>
-            <TabsTrigger value="roles">Phân quyền</TabsTrigger>
-            <TabsTrigger value="periods">Khoá sổ</TabsTrigger>
-            <TabsTrigger value="fx">Tỷ giá</TabsTrigger>
+        <div
+          className="-mx-6 px-6 sm:mx-0 sm:px-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
+          role="tablist"
+          aria-label="Cài đặt"
+        >
+          <TabsList className="inline-flex h-auto w-max gap-1 bg-muted/60 p-1 rounded-lg">
+            {[
+              { v: "organization", label: "Tổ chức" },
+              { v: "company", label: "Hồ sơ cá nhân" },
+              { v: "members", label: "Thành viên" },
+              { v: "roles", label: "Phân quyền" },
+              { v: "periods", label: "Khoá sổ" },
+              { v: "fx", label: "Tỷ giá" },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                data-tab-value={t.v}
+                ref={(el) => {
+                  if (el && t.v === tab) {
+                    el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                  }
+                }}
+                className="snap-start shrink-0 min-h-9 px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
         <TabsContent value="organization"><OrganizationTab /></TabsContent>
