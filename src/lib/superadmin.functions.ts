@@ -117,9 +117,10 @@ export const getTenantDetail = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false })
         .limit(50),
       supabaseAdmin
-        .from("period_locks")
-        .select("*")
+        .from("fiscal_periods")
+        .select("id,year,period_no,status,closed_at,note,user_id")
         .eq("user_id", data.tenant_id)
+        .in("status", ["soft_closed", "closed"])
         .order("year", { ascending: false }),
     ]);
 
