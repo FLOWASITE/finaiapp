@@ -80,6 +80,7 @@ function InvoicesList() {
 
   // ---- Manual entry ----
   const [manualOpen, setManualOpen] = useState(false);
+  const [docFor, setDocFor] = useState<{ id: string; status: string; invoice_no?: string | null } | null>(null);
 
   // Chỉ tải suppliers/products khi mở form nhập tay để giảm request
   // chạy song song lúc vào trang.
