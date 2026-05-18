@@ -98,13 +98,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Báo cáo",
-    entries: [
-      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
-      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
-    ],
-  },
-  {
     label: "Hệ thống",
     entries: [
       { to: "/admin", label: "Quản trị", icon: Shield },
