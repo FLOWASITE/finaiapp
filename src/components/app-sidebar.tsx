@@ -138,6 +138,22 @@ const EINVOICE_SECTIONS: NavSection[] = [
   },
 ];
 
+const TAX_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Thuế",
+    entries: [
+      { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
+      { to: "/invoices", label: "Hoá đơn bán", icon: Receipt },
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Calculator },
+    ],
+  },
+];
+
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
   { label: "Lập BCTC quý gần nhất", to: "/reports" },
