@@ -89,7 +89,56 @@ const MovementSchema = z.object({
   movement_date: z.string(),
   note: z.string().max(255).optional(),
   warehouse_id: z.string().uuid().nullable().optional(),
+  counter_account: z.string().min(2).max(20).optional(),
+  voucher_no: z.string().max(50).optional(),
+  post_journal: z.boolean().optional().default(true),
 });
+
+function yyyymm(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+async function nextStockVoucherNo(
+  supabase: any,
+  tenantId: string | null,
+  userId: string,
+  type: "in" | "out",
+  movementDate: string,
+) {
+  const prefix = `${type === "in" ? "PN" : "PX"}${yyyymm(movementDate)}/`;
+  let q = supabase
+    .from("stock_movements")
+    .select("note")
+    .eq("movement_type", type)
+    .ilike("note", `${prefix}%`);
+  q = tenantId ? q.eq("tenant_id", tenantId) : q.eq("user_id", userId);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  const re = new RegExp(`^${prefix.replace("/", "\\/")}(\\d+)`);
+  let max = 0;
+  for (const r of (data as any[]) ?? []) {
+    const m = re.exec(r?.note ?? "");
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return `${prefix}${String(max + 1).padStart(5, "0")}`;
+}
+
+export const previewStockVoucherNo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { type: "in" | "out"; movement_date: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase
+      .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const code = await nextStockVoucherNo(
+      supabase, profile?.active_tenant_id ?? null, userId, data.type, data.movement_date,
+    );
+    return { code };
+  });
 
 export const recordMovement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -98,7 +147,7 @@ export const recordMovement = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("on_hand, unit_cost, tenant_id, item_type")
+      .select("on_hand, unit_cost, tenant_id, item_type, code, name, stock_account")
       .eq("id", data.product_id)
       .single();
     if (pErr || !product) throw new Error("Không tìm thấy mặt hàng");
@@ -106,8 +155,14 @@ export const recordMovement = createServerFn({ method: "POST" })
       throw new Error("Dịch vụ không quản lý tồn kho");
     }
 
+    if (!(data.qty > 0)) throw new Error("Số lượng phải lớn hơn 0");
+    if (data.movement_type === "in" && !(data.unit_cost > 0)) {
+      throw new Error("Đơn giá nhập phải lớn hơn 0");
+    }
+
     let newOnHand = Number(product.on_hand);
     let newCost = Number(product.unit_cost);
+    let effectiveUnit = data.unit_cost;
     if (data.movement_type === "in") {
       const totalQty = newOnHand + data.qty;
       newCost = totalQty > 0
@@ -117,18 +172,57 @@ export const recordMovement = createServerFn({ method: "POST" })
     } else {
       if (data.qty > newOnHand) throw new Error(`Tồn không đủ. Hiện có ${newOnHand}`);
       newOnHand -= data.qty;
+      effectiveUnit = Number(product.unit_cost); // xuất theo giá bình quân
     }
+
+    const voucherNo = data.voucher_no?.trim() || (await nextStockVoucherNo(
+      supabase, (product as any).tenant_id ?? null, userId, data.movement_type, data.movement_date,
+    ));
+
+    // Auto journal entry
+    let journalEntryId: string | null = null;
+    if (data.post_journal !== false) {
+      const stockAcc = (product as any).stock_account || "156";
+      const counter = data.counter_account || (data.movement_type === "in" ? "1111" : "632");
+      const amount = +(data.qty * effectiveUnit).toFixed(2);
+      const debit = data.movement_type === "in" ? stockAcc : counter;
+      const credit = data.movement_type === "in" ? counter : stockAcc;
+      const desc =
+        `${data.movement_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho"} ${voucherNo}` +
+        ` — ${(product as any).code} ${(product as any).name}`;
+
+      const { data: entry, error: eErr } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: userId,
+          tenant_id: (product as any).tenant_id ?? null,
+          entry_date: data.movement_date,
+          description: desc,
+        })
+        .select("id")
+        .single();
+      if (eErr || !entry) throw new Error(eErr?.message || "Không tạo được bút toán");
+      journalEntryId = entry.id;
+      const { error: lErr } = await supabase.from("journal_lines").insert([
+        { entry_id: entry.id, account_code: debit, debit: amount, credit: 0, line_order: 0 },
+        { entry_id: entry.id, account_code: credit, debit: 0, credit: amount, line_order: 1 },
+      ]);
+      if (lErr) throw new Error(lErr.message);
+    }
+
+    const noteWithVoucher = data.note?.trim() ? `${voucherNo} — ${data.note.trim()}` : voucherNo;
 
     await supabase.from("stock_movements").insert({
       user_id: userId,
-      tenant_id: product.tenant_id,
+      tenant_id: (product as any).tenant_id ?? null,
       product_id: data.product_id,
       movement_type: data.movement_type,
       qty: data.qty,
-      unit_cost: data.movement_type === "in" ? data.unit_cost : Number(product.unit_cost),
+      unit_cost: effectiveUnit,
       movement_date: data.movement_date,
-      note: data.note,
-      ref_type: "manual",
+      note: noteWithVoucher,
+      ref_type: data.movement_type === "in" ? "stock_voucher_in" : "stock_voucher_out",
+      ref_id: journalEntryId,
       warehouse_id: data.warehouse_id ?? null,
     });
 
@@ -137,7 +231,7 @@ export const recordMovement = createServerFn({ method: "POST" })
       .update({ on_hand: newOnHand, unit_cost: newCost })
       .eq("id", data.product_id);
 
-    return { ok: true, on_hand: newOnHand, unit_cost: newCost };
+    return { ok: true, on_hand: newOnHand, unit_cost: newCost, voucher_no: voucherNo, journal_entry_id: journalEntryId };
   });
 
 export const getStockReport = createServerFn({ method: "GET" })
