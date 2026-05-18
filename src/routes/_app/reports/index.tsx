@@ -170,7 +170,9 @@ function ReportsPage() {
           <TabsTrigger value="b02">B02 — KQKD</TabsTrigger>
           <TabsTrigger value="b03">B03 — LCTT</TabsTrigger>
           <TabsTrigger value="b09">B09 — Thuyết minh</TabsTrigger>
-          <TabsTrigger value="tb">BCĐPS — Cân đối phát sinh</TabsTrigger>
+          <Link to="/reports/trial-balance" className="ml-2 inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
+            BCĐPS — Cân đối phát sinh →
+          </Link>
         </TabsList>
 
         <TabsContent value="b01">
