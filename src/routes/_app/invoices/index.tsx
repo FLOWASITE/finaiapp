@@ -20,6 +20,7 @@ import {
 } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesList,
