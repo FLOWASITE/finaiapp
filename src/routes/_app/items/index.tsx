@@ -167,7 +167,6 @@ const emptyForm = () => ({
   stock_account: "156",
   revenue_account: "511",
   cogs_account: "632",
-  vat_account: "3331",
   vat_rate: 10,
   category_id: null as string | null,
   is_active: true,
