@@ -84,6 +84,8 @@ import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
+import { Route as AppAssetsReclassifyRouteImport } from './routes/_app/assets/reclassify'
+import { Route as AppAssetsInventoryRouteImport } from './routes/_app/assets/inventory'
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
 import { Route as AppAssetsFromFixedAssetRouteImport } from './routes/_app/assets/from-fixed-asset'
 import { Route as AppAssetsEventsRouteImport } from './routes/_app/assets/events'
@@ -476,6 +478,16 @@ const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppAssetsReclassifyRoute = AppAssetsReclassifyRouteImport.update({
+  id: '/assets/reclassify',
+  path: '/assets/reclassify',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsInventoryRoute = AppAssetsInventoryRouteImport.update({
+  id: '/assets/inventory',
+  path: '/assets/inventory',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsFromInvoiceRoute = AppAssetsFromInvoiceRouteImport.update({
   id: '/assets/from-invoice',
   path: '/assets/from-invoice',
@@ -572,6 +584,8 @@ export interface FileRoutesByFullPath {
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
+  '/assets/inventory': typeof AppAssetsInventoryRoute
+  '/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -657,6 +671,8 @@ export interface FileRoutesByTo {
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
+  '/assets/inventory': typeof AppAssetsInventoryRoute
+  '/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -749,6 +765,8 @@ export interface FileRoutesById {
   '/_app/assets/events': typeof AppAssetsEventsRoute
   '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
+  '/_app/assets/inventory': typeof AppAssetsInventoryRoute
+  '/_app/assets/reclassify': typeof AppAssetsReclassifyRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
@@ -841,6 +859,8 @@ export interface FileRouteTypes {
     | '/assets/events'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
+    | '/assets/inventory'
+    | '/assets/reclassify'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -926,6 +946,8 @@ export interface FileRouteTypes {
     | '/assets/events'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
+    | '/assets/inventory'
+    | '/assets/reclassify'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -1017,6 +1039,8 @@ export interface FileRouteTypes {
     | '/_app/assets/events'
     | '/_app/assets/from-fixed-asset'
     | '/_app/assets/from-invoice'
+    | '/_app/assets/inventory'
+    | '/_app/assets/reclassify'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
@@ -1617,6 +1641,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankAccountsRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/assets/reclassify': {
+      id: '/_app/assets/reclassify'
+      path: '/assets/reclassify'
+      fullPath: '/assets/reclassify'
+      preLoaderRoute: typeof AppAssetsReclassifyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assets/inventory': {
+      id: '/_app/assets/inventory'
+      path: '/assets/inventory'
+      fullPath: '/assets/inventory'
+      preLoaderRoute: typeof AppAssetsInventoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/from-invoice': {
       id: '/_app/assets/from-invoice'
       path: '/assets/from-invoice'
@@ -1846,6 +1884,8 @@ interface AppRouteChildren {
   AppAssetsEventsRoute: typeof AppAssetsEventsRoute
   AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
+  AppAssetsInventoryRoute: typeof AppAssetsInventoryRoute
+  AppAssetsReclassifyRoute: typeof AppAssetsReclassifyRoute
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
@@ -1908,6 +1948,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsEventsRoute: AppAssetsEventsRoute,
   AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
+  AppAssetsInventoryRoute: AppAssetsInventoryRoute,
+  AppAssetsReclassifyRoute: AppAssetsReclassifyRoute,
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
@@ -1963,3 +2005,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
