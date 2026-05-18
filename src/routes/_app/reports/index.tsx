@@ -173,6 +173,9 @@ function ReportsPage() {
 
         <TabsContent value="b02">
           <ReportCard title="Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DN)" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B02")}>
+            <div className="mb-3 print:hidden">
+              <DimensionFilterBar value={dims} onChange={setDims} />
+            </div>
             <PrintHeader profile={profile} title="BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH" subtitle={`Mẫu số B02-DN — Kỳ từ ${from} đến ${to}`} />
             {!is.data ? <Loading /> : (
               <ReportTable
