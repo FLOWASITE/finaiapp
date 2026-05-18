@@ -293,6 +293,7 @@ function ReportsPage() {
       </Tabs>
 
       <DrilldownDialog drill={drill} from={from} to={to} asOf={to} onClose={() => setDrill(null)} />
+      <AccountDrilldownDialog account={drillAcc} from={from} to={to} dims={dims} onClose={() => setDrillAcc(null)} />
     </div>
   );
 }
