@@ -425,6 +425,13 @@ export function AppSidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Hồ sơ</DropdownMenuItem>
               <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Cài đặt</DropdownMenuItem>
+              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme(); }}>
+                {theme === "dark" ? (
+                  <><Sun className="mr-2 h-4 w-4" />Chế độ sáng</>
+                ) : (
+                  <><Moon className="mr-2 h-4 w-4" />Chế độ tối</>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />Đăng xuất
