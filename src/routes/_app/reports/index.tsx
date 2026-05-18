@@ -587,6 +587,7 @@ function TrialBalanceTable({
           <th colSpan={2} className="text-center border-l border-border">Số dư đầu kỳ</th>
           <th colSpan={2} className="text-center border-l border-border">Phát sinh trong kỳ</th>
           <th colSpan={2} className="text-center border-l border-border">Số dư cuối kỳ</th>
+          {onDrill && <th rowSpan={2} className="print:hidden"></th>}
         </tr>
         <tr className="border-b border-border text-muted-foreground">
           <th className="text-right border-l border-border">Nợ</th><th className="text-right">Có</th>
@@ -600,7 +601,7 @@ function TrialBalanceTable({
           const indent = tree ? (lvl - 1) * 16 : 0;
           const bold = tree && lvl < 3;
           return (
-            <tr key={r.code} className="border-b border-border/40">
+            <tr key={r.code} className="border-b border-border/40 group">
               <td className={`py-1 font-mono ${bold ? "font-semibold" : ""}`} style={{ paddingLeft: indent }}>{r.code}</td>
               <td className={bold ? "font-semibold" : ""}>{r.name}</td>
               <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.openingDebit)}</td>
@@ -609,6 +610,18 @@ function TrialBalanceTable({
               <td className="text-right font-mono tabular-nums">{fmt(r.credit)}</td>
               <td className="text-right font-mono tabular-nums border-l border-border">{fmt(r.closingDebit)}</td>
               <td className="text-right font-mono tabular-nums">{fmt(r.closingCredit)}</td>
+              {onDrill && (
+                <td className="pl-2 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => onDrill(r.code, r.name)}
+                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground opacity-0 hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                    title="Xem chi tiết phát sinh"
+                  >
+                    Chi tiết
+                  </button>
+                </td>
+              )}
             </tr>
           );
         })}
