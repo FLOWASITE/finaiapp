@@ -1422,6 +1422,110 @@ export type Database = {
         }
         Relationships: []
       }
+      fiscal_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          end_date: string
+          fiscal_year_id: string
+          id: string
+          note: string | null
+          period_no: number
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date: string
+          fiscal_year_id: string
+          id?: string
+          note?: string | null
+          period_no: number
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date?: string
+          fiscal_year_id?: string
+          id?: string
+          note?: string | null
+          period_no?: number
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_periods_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_years: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          end_date: string
+          id: string
+          note: string | null
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          note?: string | null
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          note?: string | null
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       fixed_assets: {
         Row: {
           accumulated_account: string
@@ -1983,36 +2087,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      period_locks: {
-        Row: {
-          id: string
-          locked_at: string
-          month: number
-          note: string | null
-          tenant_id: string | null
-          user_id: string
-          year: number
-        }
-        Insert: {
-          id?: string
-          locked_at?: string
-          month: number
-          note?: string | null
-          tenant_id?: string | null
-          user_id: string
-          year: number
-        }
-        Update: {
-          id?: string
-          locked_at?: string
-          month?: number
-          note?: string | null
-          tenant_id?: string | null
-          user_id?: string
-          year?: number
-        }
-        Relationships: []
       }
       product_categories: {
         Row: {
@@ -3056,10 +3130,18 @@ export type Database = {
           bank_account_no: string | null
           bank_branch: string | null
           bank_name: string | null
+          blacklist_reason: string | null
+          branch_tax_id: string | null
           code: string | null
+          contact_email2: string | null
           contact_person: string | null
+          contact_phone2: string | null
+          country: string | null
           created_at: string
+          credit_limit: number | null
           currency: string
+          default_expense_account: string | null
+          default_vat_rate: number | null
           email: string | null
           fax: string | null
           group_id: string | null
@@ -3076,6 +3158,7 @@ export type Database = {
           phone: string | null
           risk_flag: string | null
           tax_id: string | null
+          tax_office: string | null
           tenant_id: string | null
           user_id: string
           website: string | null
@@ -3085,10 +3168,18 @@ export type Database = {
           bank_account_no?: string | null
           bank_branch?: string | null
           bank_name?: string | null
+          blacklist_reason?: string | null
+          branch_tax_id?: string | null
           code?: string | null
+          contact_email2?: string | null
           contact_person?: string | null
+          contact_phone2?: string | null
+          country?: string | null
           created_at?: string
+          credit_limit?: number | null
           currency?: string
+          default_expense_account?: string | null
+          default_vat_rate?: number | null
           email?: string | null
           fax?: string | null
           group_id?: string | null
@@ -3105,6 +3196,7 @@ export type Database = {
           phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
+          tax_office?: string | null
           tenant_id?: string | null
           user_id: string
           website?: string | null
@@ -3114,10 +3206,18 @@ export type Database = {
           bank_account_no?: string | null
           bank_branch?: string | null
           bank_name?: string | null
+          blacklist_reason?: string | null
+          branch_tax_id?: string | null
           code?: string | null
+          contact_email2?: string | null
           contact_person?: string | null
+          contact_phone2?: string | null
+          country?: string | null
           created_at?: string
+          credit_limit?: number | null
           currency?: string
+          default_expense_account?: string | null
+          default_vat_rate?: number | null
           email?: string | null
           fax?: string | null
           group_id?: string | null
@@ -3134,6 +3234,7 @@ export type Database = {
           phone?: string | null
           risk_flag?: string | null
           tax_id?: string | null
+          tax_office?: string | null
           tenant_id?: string | null
           user_id?: string
           website?: string | null
@@ -3435,6 +3536,7 @@ export type Database = {
     }
     Functions: {
       current_tenant_id: { Args: never; Returns: string }
+      generate_fiscal_year: { Args: { p_year: number }; Returns: string }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -3448,6 +3550,10 @@ export type Database = {
       }
       has_tenant_role: {
         Args: { _roles: string[]; _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_period_hard_locked: {
+        Args: { _date: string; _user_id: string }
         Returns: boolean
       }
       is_period_locked: {
