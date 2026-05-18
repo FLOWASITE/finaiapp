@@ -35,7 +35,10 @@ function UnitsPage() {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Ruler className="h-6 w-6" /> Đơn vị tính</h1>
           <p className="text-sm text-muted-foreground">Quản lý danh mục đơn vị tính dùng cho hàng hoá &amp; dịch vụ.</p>
         </div>
-        <UnitDialog />
+        <div className="flex gap-2">
+          <SeedButton />
+          <UnitDialog />
+        </div>
       </div>
 
       <Card>
