@@ -112,10 +112,15 @@ const SECTIONS = [
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
-  const getProgress = useServerFn(getSetupProgress);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["active-tenant"], queryFn: () => get() });
-  const { data: progress } = useQuery({ queryKey: ["setup-progress"], queryFn: () => getProgress() });
+  const { data } = useQuery({
+    queryKey: ["active-tenant"],
+    queryFn: () => get(),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
   React.useEffect(() => {
@@ -133,21 +138,20 @@ function OrganizationTab() {
       toast.success("Đã lưu thay đổi");
       qc.invalidateQueries({ queryKey: ["active-tenant"] });
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
-      qc.invalidateQueries({ queryKey: ["setup-progress"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!data?.tenant) return (
+  if (data && !data.tenant) return (
     <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
       Chưa chọn tổ chức nào. Vui lòng chọn ở góc trên màn hình.
     </CardContent></Card>
   );
-  if (!form) return <p className="p-4">Đang tải…</p>;
+  if (!form) return <OrganizationSkeleton />;
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
 
-  const dirty = JSON.stringify(form) !== JSON.stringify(data.tenant);
-  const reset = () => setForm(data.tenant);
+  const dirty = JSON.stringify(form) !== JSON.stringify(data?.tenant);
+  const reset = () => setForm(data?.tenant);
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
@@ -160,8 +164,8 @@ function OrganizationTab() {
     owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
   };
   const initials = (form.name ?? form.company_name ?? "?").trim().split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
-  const isComplete = !!progress?.completed;
-  const pct = progress?.percent ?? 0;
+  const isComplete = !!progress.completed;
+  const pct = progress.percent;
 
   return (
     <div className="space-y-6 pb-24">
