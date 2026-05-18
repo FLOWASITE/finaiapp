@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -91,6 +92,59 @@ function ArSummaryPage() {
         },
       }),
   });
+
+  // Drill-down local filters
+  const [drillFrom, setDrillFrom] = useState("");
+  const [drillTo, setDrillTo] = useState("");
+  const [drillDocTypes, setDrillDocTypes] = useState<string[]>([]);
+  const [drillSearch, setDrillSearch] = useState("");
+
+  // Reset local filters when opening a new drill-down
+  useEffect(() => {
+    if (drillRow) {
+      setDrillFrom("");
+      setDrillTo("");
+      setDrillDocTypes([]);
+      setDrillSearch("");
+    }
+  }, [drillRow]);
+
+  const toggleDrillDocType = (v: string) =>
+    setDrillDocTypes((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
+    );
+
+  const drillFiltered = useMemo(() => {
+    const all = drillQ.data?.lines ?? [];
+    const s = norm(drillSearch);
+    const lines = all.filter((l) => {
+      if (drillFrom && l.entry_date < drillFrom) return false;
+      if (drillTo && l.entry_date > drillTo) return false;
+      if (drillDocTypes.length && !drillDocTypes.includes(l.doc_type)) return false;
+      if (s && !norm(l.doc_no ?? "").includes(s) && !norm(l.description ?? "").includes(s))
+        return false;
+      return true;
+    });
+    // Recompute daily aggregates + running balance starting from opening
+    const opening = drillQ.data?.opening ?? 0;
+    const byDate = new Map<string, { date: string; debit: number; credit: number; running: number }>();
+    for (const l of lines) {
+      const d = byDate.get(l.entry_date) ?? { date: l.entry_date, debit: 0, credit: 0, running: 0 };
+      d.debit += l.debit;
+      d.credit += l.credit;
+      byDate.set(l.entry_date, d);
+    }
+    const daily = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+    let run = opening;
+    for (const d of daily) {
+      run += d.debit - d.credit;
+      d.running = run;
+    }
+    const debit = lines.reduce((s, l) => s + l.debit, 0);
+    const credit = lines.reduce((s, l) => s + l.credit, 0);
+    return { lines, daily, debit, credit };
+  }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
+
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
@@ -314,8 +368,85 @@ function ArSummaryPage() {
           {drillQ.isLoading ? (
             <div className="mt-6"><Loading /></div>
           ) : drillQ.data ? (
-            <div className="mt-4 space-y-6">
+            <div className="mt-4 space-y-4">
+              <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Từ ngày</span>
+                    <Input
+                      type="date"
+                      value={drillFrom}
+                      min={from}
+                      max={to}
+                      onChange={(e) => setDrillFrom(e.target.value)}
+                      className="h-8 w-36 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Đến ngày</span>
+                    <Input
+                      type="date"
+                      value={drillTo}
+                      min={from}
+                      max={to}
+                      onChange={(e) => setDrillTo(e.target.value)}
+                      className="h-8 w-36 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                    <span className="text-xs text-muted-foreground">Tìm số CT / diễn giải</span>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={drillSearch}
+                        onChange={(e) => setDrillSearch(e.target.value)}
+                        placeholder="vd: HD0001, lương…"
+                        className="h-8 pl-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  {(drillFrom || drillTo || drillDocTypes.length || drillSearch) ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDrillFrom(""); setDrillTo("");
+                        setDrillDocTypes([]); setDrillSearch("");
+                      }}
+                      className="text-xs text-muted-foreground underline"
+                    >
+                      Xoá lọc
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+                  {[
+                    { v: "HD", label: "HĐ bán" },
+                    { v: "PT", label: "Phiếu thu" },
+                    { v: "KHAC", label: "Khác" },
+                  ].map((opt) => {
+                    const active = drillDocTypes.includes(opt.v);
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => toggleDrillDocType(opt.v)}
+                        className={
+                          "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                          (active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-muted-foreground hover:text-foreground")
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-3 text-sm">
+
                 <div className="rounded-md border border-border p-3">
                   <div className="text-xs text-muted-foreground">Số dư đầu kỳ</div>
                   <div className="mt-1 font-mono font-semibold">
@@ -325,15 +456,15 @@ function ArSummaryPage() {
                   </div>
                 </div>
                 <div className="rounded-md border border-border p-3">
-                  <div className="text-xs text-muted-foreground">Phát sinh Nợ</div>
+                  <div className="text-xs text-muted-foreground">Phát sinh Nợ {drillFiltered.lines.length !== drillQ.data.lines.length ? "(đã lọc)" : ""}</div>
                   <div className="mt-1 font-mono font-semibold">
-                    {fmt(drillRow?.debit ?? 0)}
+                    {fmt(drillFiltered.debit)}
                   </div>
                 </div>
                 <div className="rounded-md border border-border p-3">
-                  <div className="text-xs text-muted-foreground">Phát sinh Có</div>
+                  <div className="text-xs text-muted-foreground">Phát sinh Có {drillFiltered.lines.length !== drillQ.data.lines.length ? "(đã lọc)" : ""}</div>
                   <div className="mt-1 font-mono font-semibold">
-                    {fmt(drillRow?.credit ?? 0)}
+                    {fmt(drillFiltered.credit)}
                   </div>
                 </div>
               </div>
@@ -351,7 +482,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {drillQ.data.daily.map((d) => (
+                      {drillFiltered.daily.map((d) => (
                         <tr key={d.date} className="border-t border-border">
                           <td className="px-3 py-1.5">{d.date}</td>
                           <td className="px-3 py-1.5 text-right font-mono">{fmt(d.debit)}</td>
@@ -363,7 +494,7 @@ function ArSummaryPage() {
                           </td>
                         </tr>
                       ))}
-                      {drillQ.data.daily.length === 0 && (
+                      {drillFiltered.daily.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
                             Không có phát sinh trong kỳ
@@ -377,7 +508,7 @@ function ArSummaryPage() {
 
               <div>
                 <div className="mb-2 text-sm font-semibold">
-                  Chứng từ ({drillQ.data.lines.length})
+                  Chứng từ ({drillFiltered.lines.length}{drillFiltered.lines.length !== drillQ.data.lines.length ? ` / ${drillQ.data.lines.length}` : ""})
                 </div>
                 <div className="overflow-x-auto rounded-md border border-border">
                   <table className="w-full text-sm">
@@ -392,7 +523,7 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {drillQ.data.lines.map((l, i) => (
+                      {drillFiltered.lines.map((l, i) => (
                         <tr key={l.entry_id + i} className="border-t border-border align-top">
                           <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
                           <td className="px-3 py-1.5">
@@ -425,7 +556,7 @@ function ArSummaryPage() {
                           <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
                         </tr>
                       ))}
-                      {drillQ.data.lines.length === 0 && (
+                      {drillFiltered.lines.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                             Không có chứng từ trong kỳ
