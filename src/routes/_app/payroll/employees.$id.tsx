@@ -8,6 +8,10 @@ import {
   upsertContract, deleteContract,
   upsertDependent, deleteDependent,
 } from "@/lib/payroll.functions";
+import {
+  listSalaryComponents,
+  listEmployeeStructure, upsertEmployeeStructure, deleteEmployeeStructure,
+} from "@/lib/payroll-phaseb.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
