@@ -42,14 +42,16 @@ export const setPeriodStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = { status: data.status };
-    if (data.status === "open") {
-      patch.closed_at = null;
-      patch.closed_by = null;
-    } else {
-      patch.closed_at = new Date().toISOString();
-      patch.closed_by = userId;
-    }
+    const patch: {
+      status: "open" | "soft_closed" | "closed";
+      closed_at: string | null;
+      closed_by: string | null;
+      note?: string;
+    } = {
+      status: data.status,
+      closed_at: data.status === "open" ? null : new Date().toISOString(),
+      closed_by: data.status === "open" ? null : userId,
+    };
     if (data.note !== undefined) patch.note = data.note;
     const { error } = await supabase.from("fiscal_periods").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
