@@ -39,7 +39,7 @@ const EventInput = z.object({
   event_date: z.string(),
   description: z.string().max(500).nullable().optional(),
   amount: z.number().nullable().optional(),
-  payload: z.record(z.any()).default({}),
+  payload: z.record(z.string(), z.any()).default({}),
 });
 
 export const listAssetEvents = createServerFn({ method: "GET" })
