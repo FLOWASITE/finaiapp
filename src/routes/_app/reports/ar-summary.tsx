@@ -721,6 +721,9 @@ function ArSummaryPage() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <VoucherDetailDialog entryId={detailEntryId} onClose={() => setDetailEntryId(null)} />
+
     </div>
   );
 }
