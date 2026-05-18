@@ -494,6 +494,7 @@ function OrganizationSkeleton() {
       </div>
     </div>
   );
+}
 
 function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
   return (
