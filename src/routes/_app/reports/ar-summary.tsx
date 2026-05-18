@@ -453,8 +453,17 @@ function ArSummaryPage() {
                       </button>
                     );
                   })}
+                  <label className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={drillGroupByDoc}
+                      onChange={(e) => setDrillGroupByDoc(e.target.checked)}
+                    />
+                    Gộp theo chứng từ
+                  </label>
                 </div>
               </div>
+
 
               <div className="grid grid-cols-3 gap-3 text-sm">
 
