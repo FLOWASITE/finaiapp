@@ -149,7 +149,7 @@ function ConversionDialog({
         {row ? (
           <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
         ) : (
-          <Button size="sm"><Plus className="mr-1 h-4 w-4" />Thêm quy đổi</Button>
+          <Button variant="add" size="sm"><Plus className="mr-1 h-4 w-4" />Thêm quy đổi</Button>
         )}
       </DialogTrigger>
       <DialogContent>

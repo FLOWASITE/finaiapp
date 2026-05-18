@@ -243,7 +243,7 @@ function UnitDialog({ unit }: { unit?: any }) {
         {unit ? (
           <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
         ) : (
-          <Button><Plus className="mr-2 h-4 w-4" />Thêm đơn vị</Button>
+          <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm đơn vị</Button>
         )}
       </DialogTrigger>
       <DialogContent>

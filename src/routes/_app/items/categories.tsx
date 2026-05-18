@@ -156,7 +156,7 @@ function CategoryDialog({ cat, allCats, parentId, addChild }: { cat?: Cat; allCa
         ) : addChild ? (
           <Button variant="ghost" size="icon" title="Thêm nhóm con"><Plus className="h-4 w-4" /></Button>
         ) : (
-          <Button><Plus className="mr-2 h-4 w-4" />Thêm nhóm</Button>
+          <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm nhóm</Button>
         )}
       </DialogTrigger>
       <DialogContent>

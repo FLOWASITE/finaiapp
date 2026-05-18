@@ -76,7 +76,7 @@ function AccountsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{accounts.length} tài khoản</p>
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button variant="add" onClick={() => { setEditing(null); setOpen(true); }}>
           <Plus className="mr-2 h-4 w-4" /> Thêm tài khoản
         </Button>
       </div>

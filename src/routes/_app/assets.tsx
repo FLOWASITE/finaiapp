@@ -139,7 +139,7 @@ function Assets() {
               <Input placeholder="TK HM" value={form.accumulated_account} onChange={(e) => setForm({ ...form, accumulated_account: e.target.value })} />
               <Input placeholder="TK CP" value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} />
             </div>
-            <Button className="w-full" onClick={create}><Plus className="mr-1 h-4 w-4" /> Thêm</Button>
+            <Button variant="add" className="w-full" onClick={create}><Plus className="mr-1 h-4 w-4" /> Thêm</Button>
           </div>
         </div>
       </div>

@@ -109,7 +109,7 @@ function ProjectDialog({ row, refs }: { row?: any; refs?: { customers: any[]; em
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <Button><Plus className="mr-2 h-4 w-4" />Thêm dự án</Button>}
+        {row ? <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button> : <Button variant="add"><Plus className="mr-2 h-4 w-4" />Thêm dự án</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader><DialogTitle>{row ? "Sửa dự án" : "Thêm dự án"}</DialogTitle></DialogHeader>
