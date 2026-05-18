@@ -138,6 +138,61 @@ export const deleteTctCredentials = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Verify login: dùng captcha vừa nhập + mật khẩu đã lưu.
+// Khi thành công sẽ cập nhật last_login_at để hiển thị trên UI.
+export const verifyTctLogin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        captchaKey: z.string().min(1),
+        captchaValue: z.string().trim().min(1).max(20),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { tenantId } = await resolveTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn tổ chức");
+    const { data: cred } = await supabase
+      .from("einvoice_credentials")
+      .select("id, tct_username, tct_password_encrypted")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!cred) throw new Error("Chưa khai báo tài khoản TCT");
+
+    let password: string;
+    try {
+      password = await decryptPwd(cred.tct_password_encrypted);
+    } catch {
+      throw new Error("Không giải mã được mật khẩu đã lưu, vui lòng nhập lại.");
+    }
+
+    try {
+      await loginTct({
+        username: cred.tct_username,
+        password,
+        ckey: data.captchaKey,
+        cvalue: data.captchaValue,
+      });
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      if (/fetch failed|ENOTFOUND|ECONNREFUSED|timeout/i.test(msg)) {
+        throw new Error(
+          "Không kết nối được tới Tổng cục Thuế (cổng :30000 có thể bị chặn). Chi tiết: " +
+            msg,
+        );
+      }
+      throw new Error(msg);
+    }
+
+    await supabase
+      .from("einvoice_credentials")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", cred.id);
+    return { ok: true };
+  });
+
 // =================== Captcha ===================
 export const getTctCaptcha = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
