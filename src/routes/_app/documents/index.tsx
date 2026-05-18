@@ -304,10 +304,20 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                             {l.entity_table}
                           </Badge>
                           <span className="text-muted-foreground">{l.link_type}</span>
+                          <code className="ml-2 text-xs text-muted-foreground">
+                            {l.entity_id.slice(0, 8)}…
+                          </code>
                         </div>
-                        <code className="text-xs text-muted-foreground">
-                          {l.entity_id.slice(0, 8)}…
-                        </code>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={unlinkMut.isPending}
+                          onClick={() =>
+                            unlinkMut.mutate({ entity_table: l.entity_table, entity_id: l.entity_id })
+                          }
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Gỡ
+                        </Button>
                       </li>
                     ))}
                   </ul>
