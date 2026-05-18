@@ -52,9 +52,10 @@ const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground [&_svg]:transition-transform [&_svg]:duration-300 hover:[&_svg]:scale-110",
         link: "text-primary underline-offset-4 hover:underline",
         /** "Thêm mới" — indigo→teal cao cấp */
+        /** "Thêm mới" — indigo→teal cao cấp, icon xoay spring */
         add: cn(
           SHIMMER_BASE,
-          "text-white [background:var(--gradient-add)] [box-shadow:var(--shadow-add)] hover:[background:var(--gradient-add-hover)] hover:[box-shadow:var(--shadow-add-hover)] before:[background:var(--gradient-add)] focus-visible:ring-[oklch(0.72_0.16_165)] hover:[&_svg]:rotate-90",
+          "text-white [background:var(--gradient-add)] [box-shadow:var(--shadow-add)] hover:[background:var(--gradient-add-hover)] hover:[box-shadow:var(--shadow-add-hover)] before:[background:var(--gradient-add)] focus-visible:ring-[oklch(0.72_0.16_165)] hover:[&_svg]:[transform:rotate(135deg)_scale(1.18)] active:[&_svg]:[transform:rotate(135deg)_scale(0.92)]",
         ),
         /** "Phiếu thu" — emerald→teal (tiền vào) */
         receipt: cn(
