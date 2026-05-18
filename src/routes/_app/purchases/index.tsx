@@ -1128,7 +1128,7 @@ function NewPaymentInline({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="payment" onClick={() => setOpen(true)}>
         <Banknote className="mr-2 h-4 w-4" /> Phiếu chi
       </Button>
       <NewPaymentDialog
