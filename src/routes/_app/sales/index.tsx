@@ -1101,7 +1101,7 @@ function NewReceiptInline({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="receipt" onClick={() => setOpen(true)}>
         <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
       </Button>
       <NewReceiptDialog
