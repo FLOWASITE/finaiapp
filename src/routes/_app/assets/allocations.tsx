@@ -252,6 +252,11 @@ function AllocatedAssetsPage() {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-1">
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Chi tiết">
+                      <Link to="/assets/allocations/$id" params={{ id: r.id }}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    </Button>
                     <UpsertDialog asset={r} />
                     <DeleteButton id={r.id} hasEntries={Number(r.periods_done) > 0} />
                   </div>
