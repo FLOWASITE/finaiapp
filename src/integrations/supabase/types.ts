@@ -1918,6 +1918,114 @@ export type Database = {
         }
         Relationships: []
       }
+      fa_disposals: {
+        Row: {
+          accumulated_account: string | null
+          accumulated_snapshot: number
+          asset_account: string | null
+          asset_id: string
+          buyer_party_id: string | null
+          cost_snapshot: number
+          created_at: string
+          created_by: string | null
+          disposal_cost: number | null
+          disposal_cost_account: string | null
+          disposal_date: string
+          disposal_type: string
+          gain_loss: number
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          other_expense_account: string | null
+          other_income_account: string | null
+          proceeds_account: string | null
+          reason: string | null
+          residual_value: number
+          sale_amount: number | null
+          sale_vat: number | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          vat_output_account: string | null
+          void_reason: string | null
+        }
+        Insert: {
+          accumulated_account?: string | null
+          accumulated_snapshot: number
+          asset_account?: string | null
+          asset_id: string
+          buyer_party_id?: string | null
+          cost_snapshot: number
+          created_at?: string
+          created_by?: string | null
+          disposal_cost?: number | null
+          disposal_cost_account?: string | null
+          disposal_date: string
+          disposal_type: string
+          gain_loss: number
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          other_expense_account?: string | null
+          other_income_account?: string | null
+          proceeds_account?: string | null
+          reason?: string | null
+          residual_value: number
+          sale_amount?: number | null
+          sale_vat?: number | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          vat_output_account?: string | null
+          void_reason?: string | null
+        }
+        Update: {
+          accumulated_account?: string | null
+          accumulated_snapshot?: number
+          asset_account?: string | null
+          asset_id?: string
+          buyer_party_id?: string | null
+          cost_snapshot?: number
+          created_at?: string
+          created_by?: string | null
+          disposal_cost?: number | null
+          disposal_cost_account?: string | null
+          disposal_date?: string
+          disposal_type?: string
+          gain_loss?: number
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          other_expense_account?: string | null
+          other_income_account?: string | null
+          proceeds_account?: string | null
+          reason?: string | null
+          residual_value?: number
+          sale_amount?: number | null
+          sale_vat?: number | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          vat_output_account?: string | null
+          void_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_disposals_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fa_disposals_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fa_events: {
         Row: {
           amount: number | null
@@ -1977,6 +2085,198 @@ export type Database = {
           },
           {
             foreignKeyName: "fa_events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fa_inventory_count_lines: {
+        Row: {
+          asset_id: string | null
+          count_id: string
+          created_at: string
+          expected_location: string | null
+          found_location: string | null
+          id: string
+          notes: string | null
+          scanned_at: string | null
+          scanned_by: string | null
+          scanned_code: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          count_id: string
+          created_at?: string
+          expected_location?: string | null
+          found_location?: string | null
+          id?: string
+          notes?: string | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+          scanned_code?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          count_id?: string
+          created_at?: string
+          expected_location?: string | null
+          found_location?: string | null
+          id?: string
+          notes?: string | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+          scanned_code?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_inventory_count_lines_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fa_inventory_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "fa_inventory_counts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fa_inventory_counts: {
+        Row: {
+          branch_id: string | null
+          code: string
+          count_date: string
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          description: string | null
+          id: string
+          location: string | null
+          posted_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          code: string
+          count_date: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          posted_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          code?: string
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          posted_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fa_reclassifications: {
+        Row: {
+          accumulated_account: string | null
+          accumulated_snapshot: number
+          allocation_months: number | null
+          asset_account: string | null
+          asset_id: string
+          cost_snapshot: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          expense_account: string | null
+          id: string
+          journal_entry_id: string | null
+          reason: string | null
+          reclass_date: string
+          residual_value: number
+          status: string
+          target_account: string
+          tenant_id: string
+          updated_at: string
+          void_reason: string | null
+        }
+        Insert: {
+          accumulated_account?: string | null
+          accumulated_snapshot: number
+          allocation_months?: number | null
+          asset_account?: string | null
+          asset_id: string
+          cost_snapshot: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          expense_account?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          reclass_date: string
+          residual_value: number
+          status?: string
+          target_account: string
+          tenant_id: string
+          updated_at?: string
+          void_reason?: string | null
+        }
+        Update: {
+          accumulated_account?: string | null
+          accumulated_snapshot?: number
+          allocation_months?: number | null
+          asset_account?: string | null
+          asset_id?: string
+          cost_snapshot?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          expense_account?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          reclass_date?: string
+          residual_value?: number
+          status?: string
+          target_account?: string
+          tenant_id?: string
+          updated_at?: string
+          void_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_reclassifications_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fa_reclassifications_journal_entry_id_fkey"
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
@@ -2096,6 +2396,7 @@ export type Database = {
           asset_kind: string
           assignee_id: string | null
           attachments: Json
+          barcode: string | null
           branch_id: string | null
           category_id: string | null
           code: string
@@ -2141,6 +2442,7 @@ export type Database = {
           asset_kind?: string
           assignee_id?: string | null
           attachments?: Json
+          barcode?: string | null
           branch_id?: string | null
           category_id?: string | null
           code: string
@@ -2186,6 +2488,7 @@ export type Database = {
           asset_kind?: string
           assignee_id?: string | null
           attachments?: Json
+          barcode?: string | null
           branch_id?: string | null
           category_id?: string | null
           code?: string
