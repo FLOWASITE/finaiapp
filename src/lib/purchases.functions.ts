@@ -205,6 +205,10 @@ export const createManualInvoice = createServerFn({ method: "POST" })
         total,
         expense_account: data.expense_account,
         notes: data.notes,
+        branch_id: data.branch_id || null,
+        department_id: data.department_id || null,
+        project_id: data.project_id || null,
+        cost_center_id: data.cost_center_id || null,
         status: "extracted",
       })
       .select("id")
