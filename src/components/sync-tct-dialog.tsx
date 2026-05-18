@@ -196,26 +196,12 @@ export function SyncTctDialog({
 
             {mode === "manual" && (
               <div className="space-y-2 rounded-md border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <Label>Captcha</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadCaptcha}
-                    disabled={capLoading}
-                  >
-                    <RefreshCw
-                      className={`mr-1 h-3 w-3 ${capLoading ? "animate-spin" : ""}`}
-                    />
-                    Tải lại
-                  </Button>
-                </div>
+                <Label>Captcha</Label>
                 <div className="flex items-center gap-3">
-                  <div
-                    className="h-12 w-40 rounded bg-white border border-border flex items-center justify-center overflow-hidden"
-                    // eslint-disable-next-line react/no-danger
-                    dangerouslySetInnerHTML={{ __html: cap?.svg ?? "" }}
+                  <TctCaptcha
+                    svg={cap?.svg}
+                    loading={capLoading}
+                    onReload={loadCaptcha}
                   />
                   <Input
                     value={capValue}
