@@ -175,6 +175,7 @@ function SalesHubPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ImportEinvoiceXmlDialog triggerLabel="Nhập XML hoá đơn" />
           <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
           <NewInvoiceDialog />
         </div>
