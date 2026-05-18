@@ -10,14 +10,11 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  RefreshCw,
   Loader2,
   ArrowLeft,
   AlertTriangle,
 } from "lucide-react";
 import { TctCaptcha } from "@/components/tct-captcha";
-
-void RefreshCw;
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
