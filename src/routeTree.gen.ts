@@ -89,6 +89,7 @@ import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -491,6 +492,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppAssetsAllocationsIdRoute = AppAssetsAllocationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAssetsAllocationsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -510,7 +516,7 @@ export interface FileRoutesByFullPath {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
-  '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -571,6 +577,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
@@ -586,7 +593,7 @@ export interface FileRoutesByTo {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
-  '/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -647,6 +654,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
@@ -669,7 +677,7 @@ export interface FileRoutesById {
   '/_app/admin/backup': typeof AppAdminBackupRoute
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
-  '/_app/assets/allocations': typeof AppAssetsAllocationsRoute
+  '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
@@ -730,6 +738,7 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
@@ -813,6 +822,7 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/assets/allocations/$id'
     | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -889,6 +899,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/assets/allocations/$id'
     | '/superadmin/tenant/$id'
   id:
     | '__root__'
@@ -971,6 +982,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/assets/allocations/$id'
     | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
@@ -1543,6 +1555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/assets/allocations/$id': {
+      id: '/_app/assets/allocations/$id'
+      path: '/$id'
+      fullPath: '/assets/allocations/$id'
+      preLoaderRoute: typeof AppAssetsAllocationsIdRouteImport
+      parentRoute: typeof AppAssetsAllocationsRoute
+    }
   }
 }
 
@@ -1566,12 +1585,23 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
   AppAdminRouteChildren,
 )
 
+interface AppAssetsAllocationsRouteChildren {
+  AppAssetsAllocationsIdRoute: typeof AppAssetsAllocationsIdRoute
+}
+
+const AppAssetsAllocationsRouteChildren: AppAssetsAllocationsRouteChildren = {
+  AppAssetsAllocationsIdRoute: AppAssetsAllocationsIdRoute,
+}
+
+const AppAssetsAllocationsRouteWithChildren =
+  AppAssetsAllocationsRoute._addFileChildren(AppAssetsAllocationsRouteChildren)
+
 interface AppAssetsRouteChildren {
-  AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRoute
+  AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
 }
 
 const AppAssetsRouteChildren: AppAssetsRouteChildren = {
-  AppAssetsAllocationsRoute: AppAssetsAllocationsRoute,
+  AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
 }
 
 const AppAssetsRouteWithChildren = AppAssetsRoute._addFileChildren(
