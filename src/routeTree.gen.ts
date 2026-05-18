@@ -102,6 +102,7 @@ import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
+import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -570,6 +571,11 @@ const AppAssetsAllocationsIdRoute = AppAssetsAllocationsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppAssetsAllocationsRoute,
 } as any)
+const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
+  id: '/assets/$id/card',
+  path: '/assets/$id/card',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -661,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -750,6 +757,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -846,6 +854,7 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
@@ -942,6 +951,7 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
@@ -1031,6 +1041,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/assets/$id/card'
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/superadmin/tenant/$id'
@@ -1126,6 +1137,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/assets/$id/card'
     | '/_app/assets/allocations/$id'
     | '/_app/assets/inventory/$id'
     | '/_app/superadmin/tenant/$id'
@@ -1791,6 +1803,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsAllocationsIdRouteImport
       parentRoute: typeof AppAssetsAllocationsRoute
     }
+    '/_app/assets/$id/card': {
+      id: '/_app/assets/$id/card'
+      path: '/assets/$id/card'
+      fullPath: '/assets/$id/card'
+      preLoaderRoute: typeof AppAssetsIdCardRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1978,6 +1997,7 @@ interface AppRouteChildren {
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
   AppTaxIndexRoute: typeof AppTaxIndexRoute
+  AppAssetsIdCardRoute: typeof AppAssetsIdCardRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2043,6 +2063,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
   AppTaxIndexRoute: AppTaxIndexRoute,
+  AppAssetsIdCardRoute: AppAssetsIdCardRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
