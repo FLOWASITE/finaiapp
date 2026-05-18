@@ -44,6 +44,20 @@ const AssetInput = z.object({
   status: z.enum(["active", "suspended", "disposed"]).default("active"),
 });
 
+export const listFixedAssets = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .handler(async ({ context }) => {
+    const { supabase, tenantId } = context;
+    const { data, error } = await supabase
+      .from("fixed_assets")
+      .select("id, code, name, cost, status, asset_account, accumulated_account, expense_account, location, department_id, branch_id, assignee_id")
+      .eq("tenant_id", tenantId)
+      .order("code");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+
 export const upsertFixedAsset = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i) => AssetInput.parse(i))
