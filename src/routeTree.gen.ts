@@ -39,6 +39,7 @@ import { Route as AppItemsIndexRouteImport } from './routes/_app/items/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
 import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/index'
+import { Route as AppDocumentsIndexRouteImport } from './routes/_app/documents/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
@@ -231,6 +232,11 @@ const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
 const AppEinvoicesIndexRoute = AppEinvoicesIndexRouteImport.update({
   id: '/einvoices/',
   path: '/einvoices/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentsIndexRoute = AppDocumentsIndexRouteImport.update({
+  id: '/documents/',
+  path: '/documents/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
@@ -513,6 +519,7 @@ export interface FileRoutesByFullPath {
   '/cash/': typeof AppCashIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
+  '/documents/': typeof AppDocumentsIndexRoute
   '/einvoices/': typeof AppEinvoicesIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
@@ -583,6 +590,7 @@ export interface FileRoutesByTo {
   '/cash': typeof AppCashIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
+  '/documents': typeof AppDocumentsIndexRoute
   '/einvoices': typeof AppEinvoicesIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
@@ -660,6 +668,7 @@ export interface FileRoutesById {
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
+  '/_app/documents/': typeof AppDocumentsIndexRoute
   '/_app/einvoices/': typeof AppEinvoicesIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
@@ -737,6 +746,7 @@ export interface FileRouteTypes {
     | '/cash/'
     | '/coa/'
     | '/customers/'
+    | '/documents/'
     | '/einvoices/'
     | '/inventory/'
     | '/invoices/'
@@ -807,6 +817,7 @@ export interface FileRouteTypes {
     | '/cash'
     | '/coa'
     | '/customers'
+    | '/documents'
     | '/einvoices'
     | '/inventory'
     | '/invoices'
@@ -883,6 +894,7 @@ export interface FileRouteTypes {
     | '/_app/cash/'
     | '/_app/coa/'
     | '/_app/customers/'
+    | '/_app/documents/'
     | '/_app/einvoices/'
     | '/_app/inventory/'
     | '/_app/invoices/'
@@ -1119,6 +1131,13 @@ declare module '@tanstack/react-router' {
       path: '/einvoices'
       fullPath: '/einvoices/'
       preLoaderRoute: typeof AppEinvoicesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/documents/': {
+      id: '/_app/documents/'
+      path: '/documents'
+      fullPath: '/documents/'
+      preLoaderRoute: typeof AppDocumentsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/customers/': {
@@ -1575,6 +1594,7 @@ interface AppRouteChildren {
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppCoaIndexRoute: typeof AppCoaIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
+  AppDocumentsIndexRoute: typeof AppDocumentsIndexRoute
   AppEinvoicesIndexRoute: typeof AppEinvoicesIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppPayablesIndexRoute: typeof AppPayablesIndexRoute
@@ -1622,6 +1642,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCashIndexRoute: AppCashIndexRoute,
   AppCoaIndexRoute: AppCoaIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
+  AppDocumentsIndexRoute: AppDocumentsIndexRoute,
   AppEinvoicesIndexRoute: AppEinvoicesIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppPayablesIndexRoute: AppPayablesIndexRoute,

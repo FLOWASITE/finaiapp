@@ -1,109 +1,61 @@
-## Mục tiêu (D)
-1. Mở rộng bảng `suppliers` với các trường còn thiếu thường dùng cho NCC Việt Nam.
-2. Tạo bảng kỳ kế toán chuẩn (`fiscal_years` + `fiscal_periods`) thay thế hoàn toàn `period_locks`.
-3. UI quản lý NCC và quản lý kỳ.
 
----
+## Mục tiêu
+Đưa state machine `transition_document_status` + bảng `documents` vào UI để người dùng có thể: xem trạng thái chứng từ, chuyển trạng thái qua nút hành động, và quản lý kho tài liệu tập trung.
 
-## Phần 1 — Migration DB
+## Phạm vi
 
-### 1.1. Bổ sung cột cho `suppliers`
-- `country` text default `'VN'`
-- `tax_office` text — cơ quan thuế quản lý
-- `branch_tax_id` text — MST chi nhánh/đơn vị phụ thuộc
-- `default_expense_account` text — TK chi phí mặc định (vd 642, 627)
-- `default_vat_rate` numeric — % VAT mặc định
-- `credit_limit` numeric — hạn mức công nợ
-- `blacklist_reason` text — lý do nếu `risk_flag='blacklist'`
-- `contact_phone2`, `contact_email2` — liên hệ phụ
-- Index: `(tenant_id, is_active)`, `(tenant_id, name)` cho tìm kiếm
+### 1. Server functions — `src/lib/documents.functions.ts`
+- `transitionStatus({ table, id, to_status, reason? })` — wrapper gọi RPC `transition_document_status`, validate bằng Zod (whitelist 7 bảng: `einvoices`, `cash_vouchers`, `bank_vouchers`, `customer_receipts`, `sales_invoices`, `purchase_invoices`, `payroll_runs` — chốt lại theo schema thực tế).
+- `listDocuments({ search?, doc_kind?, ocr_status?, limit, offset })` — list `documents` theo tenant, kèm count links.
+- `getDocument({ id })` — chi tiết + `document_links` + `document_status_history` của các entity liên kết.
+- `getStatusHistory({ entity_table, entity_id })` — đọc `document_status_history` cho 1 chứng từ (dùng trong drawer chi tiết).
+- `deleteDocument({ id })` — chặn nếu còn `document_links` đang trỏ về chứng từ đã `posted`.
+- (Tuỳ chọn) `linkDocument` / `unlinkDocument` — quản lý `document_links` từ UI chứng từ.
 
-### 1.2. Bảng `fiscal_years`
-- `id`, `tenant_id` (NOT NULL), `user_id`
-- `year` int (vd 2026) — UNIQUE `(tenant_id, year)`
-- `start_date` date, `end_date` date
-- `status` text CHECK in (`open`,`closed`) default `open`
-- `closed_at` timestamptz, `closed_by` uuid
-- `note` text
-- `created_at`, `updated_at`
-- Trigger validate: `end_date > start_date`, độ dài ~12 tháng
+Dùng `requireSupabaseAuth` cho mọi function.
 
-### 1.3. Bảng `fiscal_periods`
-- `id`, `tenant_id` (NOT NULL), `user_id`
-- `fiscal_year_id` uuid FK → `fiscal_years(id)` ON DELETE CASCADE
-- `year` int, `period_no` int (1–12) — UNIQUE `(tenant_id, year, period_no)`
-- `start_date`, `end_date` date
-- `status` text CHECK in (`open`,`soft_closed`,`closed`) default `open`
-  - `open`: ghi sổ tự do
-  - `soft_closed`: chỉ chặn người dùng thường, owner/admin vẫn sửa được
-  - `closed`: khoá cứng, không ai sửa
-- `closed_at`, `closed_by`, `note`
-- Index: `(tenant_id, year, period_no)`, `(tenant_id, status)`
+### 2. Component dùng chung
+- `src/components/doc-status-badge.tsx` — `<DocStatusBadge status="..." />` map sang variant + label tiếng Việt:
+  - `uploaded` → outline "Đã tải lên"
+  - `ai_read` → secondary "AI đã đọc"
+  - `reviewed` → default "Đã duyệt"
+  - `posted` → success "Đã ghi sổ"
+  - `void` → destructive outline "Đã huỷ"
+  - `rejected` → destructive "Từ chối"
+- `src/components/doc-status-actions.tsx` — dropdown "Hành động" nhận `{ table, id, status, hasJournalEntry }`, hiển thị nút hợp lệ theo state machine:
+  - `uploaded` → "Đánh dấu AI đã đọc", "Từ chối"
+  - `ai_read` → "Duyệt", "Từ chối"
+  - `reviewed` → "Ghi sổ" (mở dialog nếu chưa có journal_entry_id → điều hướng tới form post), "Huỷ duyệt"
+  - `posted` → "Huỷ chứng từ" (yêu cầu lý do, dialog)
+  - `void` / `rejected` → readonly
+  Gọi `transitionStatus` qua `useServerFn` + `useMutation`, invalidate query list của bảng cha, toast kết quả, xử lý lỗi từ trigger (kỳ khoá, thiếu JE…).
+- `src/components/doc-status-history.tsx` — timeline đọc từ `document_status_history`, dùng trong drawer/dialog chi tiết.
 
-### 1.4. RLS
-Cả 2 bảng dùng pattern hiện hành:
-- `own ... all` theo `user_id`
-- `tenant ... select` qua `is_tenant_member`
-- `tenant ... insert/update/delete` qua `has_tenant_role(['owner','admin'])` + `current_tenant_id()`
+### 3. Tích hợp vào các trang chứng từ hiện có
+Trên các bảng list của: hoá đơn bán/mua, phiếu thu/chi, chứng từ ngân hàng, e-invoice (7 bảng có cột `status`):
+- Thêm cột "Trạng thái" dùng `DocStatusBadge`.
+- Thêm cột "Hành động" dùng `DocStatusActions`.
+- Thay mọi chỗ đang `UPDATE status` thẳng bằng `transitionStatus`.
+- Trong drawer/dialog chi tiết: thêm tab/section "Lịch sử trạng thái".
 
-### 1.5. Hàm hỗ trợ + sửa `is_period_locked`
-- `generate_fiscal_year(p_tenant uuid, p_year int)` — RPC: tạo 1 `fiscal_years` + 12 `fiscal_periods` theo năm dương lịch (start 01/01, end 31/12).
-- Viết lại `is_period_locked(_user_id uuid, _date date)`:
-  ```sql
-  SELECT EXISTS (
-    SELECT 1 FROM fiscal_periods fp
-    JOIN profiles p ON p.active_tenant_id = fp.tenant_id
-    WHERE p.id = _user_id
-      AND fp.year = EXTRACT(YEAR FROM _date)
-      AND fp.period_no = EXTRACT(MONTH FROM _date)
-      AND fp.status IN ('soft_closed','closed')
-  )
-  ```
-- Bổ sung `is_period_hard_locked(...)` chỉ check `closed` — để admin có thể bypass `soft_closed` sau này.
+### 4. Trang `/documents` — kho tài liệu
+File: `src/routes/_app/documents/index.tsx` (+ `documents.$id.tsx` cho chi tiết).
+- Filter: search filename, `doc_kind`, `ocr_status`, khoảng ngày.
+- Bảng: tên file, loại, nguồn (`source`), OCR status, số liên kết, ngày tạo, người tạo.
+- Hành động hàng: Xem trước (storage signed URL), Tải về, Xoá (có check).
+- Drawer chi tiết:
+  - Metadata + preview (img/pdf).
+  - Tab "OCR" hiển thị `ocr_extracted` JSON.
+  - Tab "Liên kết" liệt kê `document_links` (entity_table, entity_id → link sang trang chứng từ tương ứng + `DocStatusBadge` của chứng từ đó).
 
-### 1.6. Migrate `period_locks` → `fiscal_periods`
-- Hiện `period_locks` có **0 dòng** → không cần backfill.
-- DROP TABLE `period_locks` (sau khi `is_period_locked` đã trỏ sang bảng mới).
-- Gỡ trigger audit `audit_period_locks`.
+### 5. Điều hướng
+- Thêm mục "Tài liệu" vào sidebar `_app` layout, icon `FileText`, route `/documents`.
 
-### 1.7. Audit + updated_at
-- Gắn `set_updated_at` trigger cho cả 2 bảng mới.
-- Gắn `audit_trigger` cho `fiscal_years`, `fiscal_periods`.
+## Ngoài phạm vi (để loop sau)
+- Bulk transition.
+- Upload tài liệu mới từ trang `/documents` (giữ flow upload hiện tại trong từng chứng từ).
+- Reassign link giữa các chứng từ.
 
----
-
-## Phần 2 — UI
-
-### 2.1. NCC: `src/routes/_app/suppliers/`
-- `index.tsx` đã có — bổ sung các cột mới vào bảng list + bộ lọc (`is_active`, `risk_flag`, `group_id`, search theo `name`/`tax_id`/`code`).
-- `$id.tsx` — form chi tiết: tabs `Thông tin chung | Tài chính | Liên hệ | Ngân hàng | Ghi chú`.
-  - Tài chính: `payable_account`, `default_expense_account`, `default_vat_rate`, `credit_limit`, `payment_terms_days`, `opening_balance_*`, `currency`.
-  - Liên hệ: `contact_person`, `phone`, `email`, `contact_phone2`, `contact_email2`, `website`, `fax`.
-  - Ngân hàng: `bank_account_no`, `bank_name`, `bank_branch`.
-  - Thông tin chung: `code`, `name`, `tax_id`, `party_type`, `legal_rep`, `address`, `country`, `tax_office`, `branch_tax_id`, `group_id`, `is_active`, `risk_flag` + `blacklist_reason`.
-- Server fn: `list/get/create/update/delete` trong `src/lib/suppliers.functions.ts` (dùng `requireSupabaseAuth`).
-
-### 2.2. Kỳ kế toán: `src/routes/_app/settings/fiscal-periods.tsx`
-- Bảng năm tài chính (collapsible) → 12 ô tháng dạng grid.
-- Mỗi ô tháng: badge trạng thái (open/soft_closed/closed) + nút đổi trạng thái (owner/admin).
-- Nút "Tạo năm tài chính mới" → modal nhập `year` → gọi RPC `generate_fiscal_year`.
-- Nút "Khoá toàn bộ năm" → set 12 tháng = `closed`.
-- Hiện lịch sử ai khoá khi nào (`closed_by`, `closed_at`).
-- Server fns trong `src/lib/fiscal-periods.functions.ts`:
-  - `listFiscalYears`, `generateFiscalYear`, `setPeriodStatus`, `closeFiscalYear`.
-
-### 2.3. Liên kết menu
-- Thêm link `/settings/fiscal-periods` trong `settings/index.tsx`.
-- Suppliers đã có sẵn ở sidebar.
-
----
-
-## Phần 3 — Bảo vệ máy trạng thái chứng từ
-Hàm `enforce_document_status_transition` hiện đã gọi `is_period_locked` — tự động hoạt động sau khi đổi backend của hàm này. **Không cần sửa code trigger**.
-
----
-
-## Câu hỏi xác nhận
-1. Trạng thái `soft_closed` có cần thật không, hay chỉ cần `open`/`closed` cho gọn?
-2. Khi tạo `fiscal_year` mới, có tự sinh luôn năm dương lịch hiện tại + năm sau, hay chờ người dùng bấm nút?
-3. Form NCC: chia 5 tab như trên có hợp lý, hay bạn muốn 1 form dài duy nhất với các section?
+## Câu hỏi xác nhận trước khi build
+1. 7 bảng có cột `status` chính xác là gì — cho mình dùng đúng danh sách user đã chốt trong migration vừa rồi (mình sẽ đọc lại schema để khớp, nhưng nếu user đã có list sẵn thì paste vào nhanh hơn).
+2. Khi bấm "Ghi sổ" mà chứng từ chưa có `journal_entry_id`: (a) tự sinh JE từ dữ liệu chứng từ rồi transition, hay (b) chỉ điều hướng tới form hiện có để user tự post? Mặc định mình chọn (b) cho an toàn.

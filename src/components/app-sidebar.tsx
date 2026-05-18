@@ -75,6 +75,7 @@ const SECTIONS: NavSection[] = [
         ],
       },
       { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+      { to: "/documents", label: "Tài liệu", icon: Inbox },
       {
         label: "Đối tác",
         icon: ContactIcon,
