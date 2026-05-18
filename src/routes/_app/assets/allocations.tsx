@@ -53,6 +53,8 @@ import {
   upsertAllocatedAsset,
   deleteAllocatedAsset,
   allocatedAssetsSummary,
+  previewAllocation,
+  runMonthlyAllocation,
 } from "@/lib/allocated-assets.functions";
 
 export const Route = createFileRoute("/_app/assets/allocations")({
