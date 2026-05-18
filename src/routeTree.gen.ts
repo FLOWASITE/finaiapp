@@ -59,6 +59,7 @@ import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppInventoryWarehousesRouteImport } from './routes/_app/inventory/warehouses'
+import { Route as AppInventoryVouchersInRouteImport } from './routes/_app/inventory/vouchers-in'
 import { Route as AppInventoryStockTakesRouteImport } from './routes/_app/inventory/stock-takes'
 import { Route as AppInventoryStockCardRouteImport } from './routes/_app/inventory/stock-card'
 import { Route as AppInventoryMovementsRouteImport } from './routes/_app/inventory/movements'
@@ -325,6 +326,11 @@ const AppInventoryWarehousesRoute = AppInventoryWarehousesRouteImport.update({
   path: '/warehouses',
   getParentRoute: () => AppInventoryRoute,
 } as any)
+const AppInventoryVouchersInRoute = AppInventoryVouchersInRouteImport.update({
+  id: '/vouchers-in',
+  path: '/vouchers-in',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
 const AppInventoryStockTakesRoute = AppInventoryStockTakesRouteImport.update({
   id: '/stock-takes',
   path: '/stock-takes',
@@ -429,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/vouchers-in': typeof AppInventoryVouchersInRoute
   '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/items/categories': typeof AppItemsCategoriesRoute
@@ -490,6 +497,7 @@ export interface FileRoutesByTo {
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/vouchers-in': typeof AppInventoryVouchersInRoute
   '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/items/categories': typeof AppItemsCategoriesRoute
@@ -558,6 +566,7 @@ export interface FileRoutesById {
   '/_app/inventory/movements': typeof AppInventoryMovementsRoute
   '/_app/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/_app/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/_app/inventory/vouchers-in': typeof AppInventoryVouchersInRoute
   '/_app/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/items/categories': typeof AppItemsCategoriesRoute
@@ -626,6 +635,7 @@ export interface FileRouteTypes {
     | '/inventory/movements'
     | '/inventory/stock-card'
     | '/inventory/stock-takes'
+    | '/inventory/vouchers-in'
     | '/inventory/warehouses'
     | '/invoices/$id'
     | '/items/categories'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/inventory/movements'
     | '/inventory/stock-card'
     | '/inventory/stock-takes'
+    | '/inventory/vouchers-in'
     | '/inventory/warehouses'
     | '/invoices/$id'
     | '/items/categories'
@@ -754,6 +765,7 @@ export interface FileRouteTypes {
     | '/_app/inventory/movements'
     | '/_app/inventory/stock-card'
     | '/_app/inventory/stock-takes'
+    | '/_app/inventory/vouchers-in'
     | '/_app/inventory/warehouses'
     | '/_app/invoices/$id'
     | '/_app/items/categories'
@@ -1152,6 +1164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryWarehousesRouteImport
       parentRoute: typeof AppInventoryRoute
     }
+    '/_app/inventory/vouchers-in': {
+      id: '/_app/inventory/vouchers-in'
+      path: '/vouchers-in'
+      fullPath: '/inventory/vouchers-in'
+      preLoaderRoute: typeof AppInventoryVouchersInRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
     '/_app/inventory/stock-takes': {
       id: '/_app/inventory/stock-takes'
       path: '/stock-takes'
@@ -1314,6 +1333,7 @@ interface AppInventoryRouteChildren {
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
   AppInventoryStockCardRoute: typeof AppInventoryStockCardRoute
   AppInventoryStockTakesRoute: typeof AppInventoryStockTakesRoute
+  AppInventoryVouchersInRoute: typeof AppInventoryVouchersInRoute
   AppInventoryWarehousesRoute: typeof AppInventoryWarehousesRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
 }
@@ -1323,6 +1343,7 @@ const AppInventoryRouteChildren: AppInventoryRouteChildren = {
   AppInventoryMovementsRoute: AppInventoryMovementsRoute,
   AppInventoryStockCardRoute: AppInventoryStockCardRoute,
   AppInventoryStockTakesRoute: AppInventoryStockTakesRoute,
+  AppInventoryVouchersInRoute: AppInventoryVouchersInRoute,
   AppInventoryWarehousesRoute: AppInventoryWarehousesRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
 }
@@ -1458,3 +1479,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
