@@ -554,67 +554,232 @@ function CompanyTab() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["settings"], queryFn: () => get() });
   const [form, setForm] = React.useState<any>(null);
+  const [email, setEmail] = React.useState<string>("");
+  const [userId, setUserId] = React.useState<string>("");
+  const [createdAt, setCreatedAt] = React.useState<string>("");
+  const [pwd, setPwd] = React.useState({ next: "", confirm: "" });
+  const [pwdLoading, setPwdLoading] = React.useState(false);
+
   React.useEffect(() => { if (data?.profile && !form) setForm(data.profile); }, [data, form]);
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      setEmail(user.email ?? "");
+      setUserId(user.id);
+      setCreatedAt(user.created_at ?? "");
+    });
+  }, []);
 
   const mutate = useMutation({
     mutationFn: (v: any) => upd({ data: v }),
-    onSuccess: () => { toast.success("Đã lưu"); qc.invalidateQueries({ queryKey: ["settings"] }); },
+    onSuccess: () => { toast.success("Đã lưu hồ sơ"); qc.invalidateQueries({ queryKey: ["settings"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   if (!form) return <p className="p-4">Đang tải…</p>;
-
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
 
+  const dirty = JSON.stringify(form) !== JSON.stringify(data?.profile);
+  const save = () => mutate.mutate({
+    display_name: form.display_name, job_title: form.job_title, phone: form.phone,
+    avatar_url: form.avatar_url, language: form.language, timezone: form.timezone,
+    date_format: form.date_format, number_format: form.number_format,
+  });
+
+  const initials = (form.display_name || email || "?").trim().split(/[\s@.]+/).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join("") || "?";
+  const langLabel: Record<string, string> = { vi: "Tiếng Việt", en: "English" };
+
+  async function changePassword() {
+    if (pwd.next.length < 8) return toast.error("Mật khẩu tối thiểu 8 ký tự");
+    if (pwd.next !== pwd.confirm) return toast.error("Mật khẩu xác nhận không khớp");
+    setPwdLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwd.next });
+      if (error) throw error;
+      setPwd({ next: "", confirm: "" });
+      toast.success("Đã đổi mật khẩu");
+    } catch (e: any) { toast.error(e.message); } finally { setPwdLoading(false); }
+  }
+
+  async function signOutEverywhere() {
+    if (!confirm("Đăng xuất khỏi tất cả thiết bị khác?")) return;
+    const { error } = await supabase.auth.signOut({ scope: "others" });
+    if (error) toast.error(error.message); else toast.success("Đã đăng xuất phiên khác");
+  }
+
   return (
-    <Card>
-      <CardHeader><CardTitle>Hồ sơ doanh nghiệp & người ký BCTC</CardTitle></CardHeader>
-      <CardContent className="grid md:grid-cols-2 gap-4">
-        <div><Label>Tên DN</Label><Input value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
-        <div><Label>Mã số thuế</Label><TaxIdLookupInput value={form.tax_id ?? ""} onChange={(v) => set("tax_id", v)} onResolved={(d) => setForm({ ...form, tax_id: d.taxId, company_name: form.company_name || d.name, address: form.address || d.address || "" })} /></div>
-        <div className="md:col-span-2"><Label>Địa chỉ</Label><Input value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} /></div>
-        <div><Label>Điện thoại</Label><Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></div>
-        <div><Label>Tài khoản NH</Label><Input value={form.bank_account ?? ""} onChange={(e) => set("bank_account", e.target.value)} /></div>
+    <div className="space-y-6 pb-24">
+      <Card>
+        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 py-5">
+          <Avatar className="h-20 w-20 ring-2 ring-border shadow-sm">
+            {form.avatar_url ? <AvatarImage src={form.avatar_url} alt={form.display_name ?? email} className="object-cover" /> : null}
+            <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold truncate">{form.display_name || "(Chưa đặt tên)"}</h2>
+            <p className="text-sm text-muted-foreground truncate">{email}</p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {form.job_title && <Badge variant="secondary" className="text-[10px]">{form.job_title}</Badge>}
+              <Badge variant="outline" className="text-[10px]">{langLabel[form.language ?? "vi"]}</Badge>
+              <Badge variant="outline" className="text-[10px]">{form.timezone ?? "Asia/Ho_Chi_Minh"}</Badge>
+            </div>
+          </div>
+          <AvatarUploader url={form.avatar_url} userId={userId} onChange={(u) => set("avatar_url", u)} />
+        </CardContent>
+      </Card>
 
-        <div className="md:col-span-2 mt-2 border-t pt-3">
-          <div className="text-sm font-semibold mb-2">Người ký Báo cáo tài chính</div>
-        </div>
-        <div><Label>Người lập biểu</Label><Input value={form.preparer_name ?? ""} onChange={(e) => set("preparer_name", e.target.value)} placeholder="VD: Nguyễn Văn A" /></div>
-        <div><Label>Kế toán trưởng</Label><Input value={form.chief_accountant_name ?? ""} onChange={(e) => set("chief_accountant_name", e.target.value)} placeholder="VD: Trần Thị B" /></div>
-        <div><Label>Người đại diện theo pháp luật / Giám đốc</Label><Input value={form.legal_rep_name ?? ""} onChange={(e) => set("legal_rep_name", e.target.value)} placeholder="VD: Lê Văn C" /></div>
-        <div><Label>Người ký mặc định khác (tuỳ chọn)</Label><Input value={form.signer_name ?? ""} onChange={(e) => set("signer_name", e.target.value)} /></div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <UsersIcon className="h-4 w-4 text-primary" /> Thông tin cá nhân
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-4">
+          <Field label="Tên hiển thị" required>
+            <Input value={form.display_name ?? ""} onChange={(e) => set("display_name", e.target.value)} placeholder="VD: Nguyễn Văn A" />
+          </Field>
+          <Field label="Chức danh">
+            <Input value={form.job_title ?? ""} onChange={(e) => set("job_title", e.target.value)} placeholder="VD: Kế toán trưởng" />
+          </Field>
+          <Field label="Email đăng nhập">
+            <Input value={email} disabled />
+            <Hint>Liên hệ quản trị để thay đổi email.</Hint>
+          </Field>
+          <Field label="Số điện thoại">
+            <Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="0901234567" />
+          </Field>
+        </CardContent>
+      </Card>
 
-        <ImageUploader label="Ảnh chữ ký (PNG nền trong)" url={form.signature_url} onChange={(u) => set("signature_url", u)} prefix="signature" />
-        <ImageUploader label="Ảnh dấu công ty (PNG nền trong)" url={form.stamp_url} onChange={(u) => set("stamp_url", u)} prefix="stamp" />
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Calculator className="h-4 w-4 text-primary" /> Khu vực & Hiển thị
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-4">
+          <Field label="Ngôn ngữ">
+            <Select value={form.language ?? "vi"} onValueChange={(v) => set("language", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vi">Tiếng Việt</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Múi giờ">
+            <Select value={form.timezone ?? "Asia/Ho_Chi_Minh"} onValueChange={(v) => set("timezone", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Asia/Ho_Chi_Minh">(GMT+7) Hồ Chí Minh / Hà Nội</SelectItem>
+                <SelectItem value="Asia/Bangkok">(GMT+7) Bangkok</SelectItem>
+                <SelectItem value="Asia/Singapore">(GMT+8) Singapore</SelectItem>
+                <SelectItem value="Asia/Tokyo">(GMT+9) Tokyo</SelectItem>
+                <SelectItem value="UTC">(GMT+0) UTC</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Định dạng ngày">
+            <Select value={form.date_format ?? "dd/MM/yyyy"} onValueChange={(v) => set("date_format", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dd/MM/yyyy">31/12/2026</SelectItem>
+                <SelectItem value="yyyy-MM-dd">2026-12-31</SelectItem>
+                <SelectItem value="MM/dd/yyyy">12/31/2026</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Định dạng số">
+            <Select value={form.number_format ?? "vi-VN"} onValueChange={(v) => set("number_format", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vi-VN">1.234.567,89</SelectItem>
+                <SelectItem value="en-US">1,234,567.89</SelectItem>
+                <SelectItem value="de-DE">1.234.567,89 (EU)</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </CardContent>
+      </Card>
 
-        <div className="md:col-span-2 mt-2 border-t pt-3">
-          <div className="text-sm font-semibold mb-2">Chế độ kế toán</div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Lock className="h-4 w-4 text-primary" /> Bảo mật
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Field label="Mật khẩu mới">
+              <Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" />
+            </Field>
+            <Field label="Xác nhận mật khẩu">
+              <Input type="password" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} autoComplete="new-password" />
+            </Field>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" onClick={changePassword} disabled={pwdLoading || !pwd.next}>
+              <Lock className="mr-1 h-3.5 w-3.5" /> Đổi mật khẩu
+            </Button>
+            <Button variant="ghost" size="sm" onClick={signOutEverywhere}>
+              <Unlock className="mr-1 h-3.5 w-3.5" /> Đăng xuất phiên khác
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="grid sm:grid-cols-2 gap-3 py-4 text-xs">
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">User ID</span><span className="font-mono truncate">{userId.slice(0, 8)}…</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Ngày tạo tài khoản</span><span>{createdAt ? new Date(createdAt).toLocaleDateString("vi-VN") : "—"}</span></div>
+        </CardContent>
+      </Card>
+
+      {dirty && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+          <span className="text-xs text-muted-foreground pl-2">Có thay đổi chưa lưu</span>
+          <Button variant="ghost" size="sm" onClick={() => setForm(data?.profile)}>
+            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Huỷ
+          </Button>
+          <Button size="sm" onClick={save} disabled={mutate.isPending}>
+            <Save className="mr-1 h-3.5 w-3.5" /> Lưu thay đổi
+          </Button>
         </div>
-        <div><Label>Chuẩn kế toán</Label>
-          <Select value={form.accounting_standard} onValueChange={(v) => set("accounting_standard", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TT133">TT133 (SME)</SelectItem>
-              <SelectItem value="TT200">TT200 (Đầy đủ)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div><Label>Tháng bắt đầu năm tài chính</Label>
-          <Input type="number" min={1} max={12} value={form.fiscal_year_start ?? 1} onChange={(e) => set("fiscal_year_start", Number(e.target.value))} />
-        </div>
-        <div><Label>Đồng tiền hạch toán</Label><Input value={form.base_currency ?? "VND"} onChange={(e) => set("base_currency", e.target.value)} /></div>
-        <div className="md:col-span-2">
-          <Button onClick={() => mutate.mutate({
-            company_name: form.company_name, tax_id: form.tax_id, address: form.address,
-            phone: form.phone, bank_account: form.bank_account, signer_name: form.signer_name,
-            legal_rep_name: form.legal_rep_name, chief_accountant_name: form.chief_accountant_name,
-            preparer_name: form.preparer_name, signature_url: form.signature_url, stamp_url: form.stamp_url,
-            accounting_standard: form.accounting_standard, fiscal_year_start: form.fiscal_year_start,
-            base_currency: form.base_currency,
-          })} disabled={mutate.isPending}>Lưu thay đổi</Button>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
+  );
+}
+
+function AvatarUploader({ url, userId, onChange }: { url?: string | null; userId: string; onChange: (u: string | null) => void }) {
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  async function handleFile(file: File) {
+    if (!userId) return toast.error("Chưa đăng nhập");
+    if (file.size > 2 * 1024 * 1024) return toast.error("Ảnh tối đa 2MB");
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${userId}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      onChange(data.publicUrl);
+      toast.success("Đã cập nhật ảnh đại diện");
+    } catch (e: any) { toast.error(e.message ?? "Tải ảnh thất bại"); }
+    finally { setUploading(false); }
+  }
+  return (
+    <div className="flex flex-col gap-1.5 shrink-0">
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+        <Upload className="mr-1 h-3 w-3" />{uploading ? "Đang tải..." : url ? "Đổi ảnh" : "Tải ảnh"}
+      </Button>
+      {url && (
+        <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onChange(null)}>
+          <X className="mr-1 h-3 w-3" /> Xoá
+        </Button>
+      )}
+    </div>
   );
 }
 
