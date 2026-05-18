@@ -77,7 +77,13 @@ export function TenantSwitcher() {
   });
 
   const createMut = useMutation({
-    mutationFn: (v: { name: string; company_name?: string; tax_id?: string }) =>
+    mutationFn: (v: {
+      name: string;
+      company_name?: string;
+      tax_id?: string;
+      address?: string;
+      legal_rep_name?: string;
+    }) =>
       create({ data: { ...v, accounting_standard: "TT133", base_currency: "VND" } }),
     onSuccess: () => {
       toast.success("Đã tạo tổ chức");
