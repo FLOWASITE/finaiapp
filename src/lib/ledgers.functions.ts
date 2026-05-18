@@ -549,6 +549,136 @@ export const getUnbalancedEntries = createServerFn({ method: "POST" })
     };
   });
 
+// Xuất Excel chi tiết phát sinh theo tài khoản (drill-down)
+export const exportAccountLedgerXlsx = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { account: string; from: string; to: string; dims?: DimFilter }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Số dư đầu kỳ
+    const before = await fetchLines(supabase, userId, {
+      to: prevDay(data.from), accountPrefix: data.account, dims: data.dims,
+    });
+    const period = await fetchLines(supabase, userId, {
+      from: data.from, to: data.to, accountPrefix: data.account, dims: data.dims,
+    });
+    let opening = 0;
+    for (const l of before) opening += l.debit - l.credit;
+
+    const sorted = period.slice().sort((a, b) => {
+      if (a.entry_date !== b.entry_date) return a.entry_date.localeCompare(b.entry_date);
+      return a.line_order - b.line_order;
+    });
+    let running = opening;
+    const lines = sorted.map((l) => {
+      running += l.debit - l.credit;
+      return {
+        entry_date: l.entry_date,
+        entry_id: l.entry_id,
+        description: l.description,
+        debit: l.debit,
+        credit: l.credit,
+        running,
+      };
+    });
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+    const closing = opening + totalDebit - totalCredit;
+
+    const { data: coa } = await supabase
+      .from("chart_of_accounts")
+      .select("name")
+      .eq("code", data.account)
+      .maybeSingle();
+    const accountName = (coa?.name as string | undefined) ?? "";
+
+    const profile = (await supabase
+      .from("profiles")
+      .select("company_name, tax_id, address")
+      .eq("id", userId)
+      .maybeSingle()).data;
+
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("SoChiTiet");
+
+    ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
+    ws.getCell("A1").font = { bold: true, size: 13 };
+    ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
+    ws.getCell("A3").value = profile?.address ?? "";
+
+    ws.mergeCells("A5:E5");
+    ws.getCell("A5").value = `SỔ CHI TIẾT TÀI KHOẢN ${data.account}${accountName ? ` — ${accountName}` : ""}`;
+    ws.getCell("A5").font = { bold: true, size: 13 };
+    ws.getCell("A5").alignment = { horizontal: "center" };
+
+    ws.mergeCells("A6:E6");
+    ws.getCell("A6").value = `Kỳ từ ${data.from} đến ${data.to}`;
+    ws.getCell("A6").alignment = { horizontal: "center" };
+
+    const headers = ["Ngày", "Chứng từ / Diễn giải", "PS Nợ", "PS Có", "Lũy kế"];
+    headers.forEach((h, i) => {
+      const cell = ws.getCell(8, i + 1);
+      cell.value = h;
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+
+    // Số dư đầu kỳ
+    let row = 9;
+    ws.mergeCells(`A${row}:B${row}`);
+    ws.getCell(`A${row}`).value = "Số dư đầu kỳ";
+    ws.getCell(`A${row}`).font = { italic: true };
+    ws.getCell(`E${row}`).value = Math.round(opening);
+    ws.getCell(`E${row}`).numFmt = "#,##0;(#,##0);-";
+    ws.getCell(`E${row}`).font = { italic: true };
+    row++;
+
+    for (const l of lines) {
+      ws.getCell(`A${row}`).value = l.entry_date;
+      ws.getCell(`B${row}`).value = l.description ?? "";
+      ws.getCell(`C${row}`).value = Math.round(l.debit);
+      ws.getCell(`D${row}`).value = Math.round(l.credit);
+      ws.getCell(`E${row}`).value = Math.round(l.running);
+      ["C", "D", "E"].forEach((col) => {
+        ws.getCell(`${col}${row}`).numFmt = "#,##0;(#,##0);-";
+      });
+      row++;
+    }
+
+    // Tổng cộng
+    ws.mergeCells(`A${row}:B${row}`);
+    ws.getCell(`A${row}`).value = "Tổng cộng";
+    ws.getCell(`C${row}`).value = Math.round(totalDebit);
+    ws.getCell(`D${row}`).value = Math.round(totalCredit);
+    ws.getCell(`E${row}`).value = Math.round(closing);
+    ["A", "B", "C", "D", "E"].forEach((col) => {
+      const cell = ws.getCell(`${col}${row}`);
+      cell.font = { bold: true };
+      cell.border = { top: { style: "thin" }, bottom: { style: "double" } };
+      if (col === "C" || col === "D" || col === "E") cell.numFmt = "#,##0;(#,##0);-";
+    });
+    row++;
+
+    ws.mergeCells(`A${row}:D${row}`);
+    ws.getCell(`A${row}`).value = "Số dư cuối kỳ";
+    ws.getCell(`A${row}`).font = { italic: true };
+    ws.getCell(`E${row}`).value = Math.round(closing);
+    ws.getCell(`E${row}`).numFmt = "#,##0;(#,##0);-";
+    ws.getCell(`E${row}`).font = { italic: true, bold: true };
+
+    ws.getColumn(1).width = 12;
+    ws.getColumn(2).width = 50;
+    ws.getColumn(3).width = 16;
+    ws.getColumn(4).width = 16;
+    ws.getColumn(5).width = 18;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const base64 = Buffer.from(buf).toString("base64");
+    return { filename: `SoChiTiet_${data.account}_${data.from}_${data.to}.xlsx`, base64 };
+  });
 
 function prevDay(d: string): string {
   const x = new Date(d);
