@@ -67,7 +67,15 @@ async function resolveTenant(supabase: any, userId: string) {
 }
 
 // =================== TCT endpoints ===================
-const TCT_BASE = "https://hoadondientu.gdt.gov.vn:30000";
+const TCT_DIRECT = "https://hoadondientu.gdt.gov.vn:30000";
+// Cloudflare Workers (Lovable Cloud runtime) chặn outbound tới cổng :30000.
+// Người dùng phải tự host một HTTPS proxy (xem docs/tct-proxy) và set secret
+// TCT_PROXY_URL = "https://<proxy-domain>" — server functions sẽ gọi qua đó.
+function getTctBase(): string {
+  const p = (process.env.TCT_PROXY_URL || "").trim().replace(/\/+$/, "");
+  return p || TCT_DIRECT;
+}
+const TCT_BASE_LABEL = TCT_DIRECT;
 
 // =================== Credentials ===================
 export const getTctCredentials = createServerFn({ method: "POST" })
@@ -197,8 +205,10 @@ export const verifyTctLogin = createServerFn({ method: "POST" })
 export const getTctCaptcha = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
+    const base = getTctBase();
+    const hasProxy = !!process.env.TCT_PROXY_URL;
     try {
-      const res = await fetch(`${TCT_BASE}/captcha`, {
+      const res = await fetch(`${base}/captcha`, {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(15000),
       });
@@ -223,9 +233,10 @@ export const getTctCaptcha = createServerFn({ method: "POST" })
         ok: false as const,
         key: "",
         svg: "",
-        error:
-          `Không kết nối được tới hệ thống HĐĐT của Tổng cục Thuế (${TCT_BASE}). ` +
-          `Máy chủ Lovable Cloud có thể bị chặn outbound tới cổng :30000. Chi tiết: ${msg}`,
+        error: hasProxy
+          ? `Không kết nối được tới proxy TCT (${base}). Kiểm tra TCT_PROXY_URL có online & HTTPS hợp lệ. Chi tiết: ${msg}`
+          : `Lovable Cloud (Cloudflare Workers) không gọi trực tiếp được tới cổng :30000 của TCT (${TCT_BASE_LABEL}). ` +
+            `Hãy tự host một HTTPS proxy (xem docs/tct-proxy/README.md) và thiết lập secret TCT_PROXY_URL. Chi tiết: ${msg}`,
       };
     }
   });
@@ -275,7 +286,7 @@ async function loginTct(args: {
   cvalue: string;
   ckey: string;
 }): Promise<string> {
-  const res = await fetch(`${TCT_BASE}/security-taxpayer/authenticate`, {
+  const res = await fetch(`${getTctBase()}/security-taxpayer/authenticate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -321,7 +332,7 @@ async function fetchTctInvoices(args: {
     });
     if (state) qp.set("state", state);
     const res = await fetch(
-      `${TCT_BASE}/query/invoices/${path}?${qp.toString()}`,
+      `${getTctBase()}/query/invoices/${path}?${qp.toString()}`,
       { headers: { Authorization: `Bearer ${args.token}`, Accept: "application/json" } },
     );
     if (!res.ok) throw new Error(`Lỗi tải danh sách HĐ: HTTP ${res.status}`);
@@ -368,7 +379,7 @@ export const syncTctInvoices = createServerFn({ method: "POST" })
     let cvalue = data.captchaValue ?? "";
     if (data.captchaMode === "auto") {
       // fetch fresh captcha + auto-solve
-      const cap = await fetch(`${TCT_BASE}/captcha`).then((r) => r.json() as any);
+      const cap = await fetch(`${getTctBase()}/captcha`).then((r) => r.json() as any);
       ckey = String(cap?.key ?? "");
       cvalue = await solveCaptchaWith2Captcha(String(cap?.content ?? ""));
     }
