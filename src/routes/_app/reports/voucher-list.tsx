@@ -393,31 +393,66 @@ function VoucherListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.line_id} className="border-t border-border/60 align-top">
-                        <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
-                        <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
-                        <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
-                        <td className="px-2 py-1.5">{r.description ?? "—"}</td>
-                        <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
-                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
-                        <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
-                        <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
-                      </tr>
-                    ))}
-                    {rows.length === 0 && (
-                      <tr>
-                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
-                          Không có chứng từ phù hợp bộ lọc
-                        </td>
-                      </tr>
+                    {groupByVoucher ? (
+                      <>
+                        {groupedRows.map((g) => (
+                          <tr key={g.key} className="border-t border-border/60 align-top">
+                            <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
+                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
+                            <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
+                            <td className="px-2 py-1.5">{g.description ?? "—"}</td>
+                            <td className="px-2 py-1.5 text-center font-mono text-muted-foreground" title={g.accounts.join(", ")}>
+                              {g.accounts.length <= 2 ? g.accounts.join(", ") : `${g.accounts.slice(0, 2).join(", ")} +${g.accounts.length - 2}`}
+                              <div className="text-[10px] opacity-70">({g.line_count} dòng)</div>
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.debit)}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.credit)}</td>
+                            <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.project_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{g.cost_center_name ?? ""}</td>
+                          </tr>
+                        ))}
+                        {groupedRows.length === 0 && (
+                          <tr>
+                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                              Không có chứng từ phù hợp bộ lọc
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {rows.map((r) => (
+                          <tr key={r.line_id} className="border-t border-border/60 align-top">
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
+                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
+                            <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
+                            <td className="px-2 py-1.5">{r.description ?? "—"}</td>
+                            <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
+                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
+                            <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
+                          </tr>
+                        ))}
+                        {rows.length === 0 && (
+                          <tr>
+                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                              Không có chứng từ phù hợp bộ lọc
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
+
                   {rows.length > 0 && (
                     <tfoot className="bg-muted/40 font-semibold">
                       <tr className="border-t-2 border-border">
