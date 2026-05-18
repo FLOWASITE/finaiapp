@@ -62,8 +62,7 @@ export function TenantSwitcher() {
   const { data, isPending, isFetching } = useQuery({
     queryKey: ["my-tenants"],
     queryFn: () => list(),
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    ...QUERY_PRESETS.TENANT_STATIC,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     placeholderData: (prev) => prev,
