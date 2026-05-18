@@ -5,6 +5,8 @@ import { useState } from "react";
 import { ArrowLeft, Send, CheckCircle2, XCircle, Plus, Trash2, Wallet } from "lucide-react";
 import { getSalesInvoice, issueSalesInvoice, voidSalesInvoice } from "@/lib/sales.functions";
 import { recordReceipt, deleteReceipt } from "@/lib/receipts.functions";
+import { getLinkedEInvoice } from "@/lib/einvoices.functions";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,10 +65,15 @@ function SalesDetail() {
   const fn = useServerFn(getSalesInvoice);
   const issue = useServerFn(issueSalesInvoice);
   const voidFn = useServerFn(voidSalesInvoice);
+  const linkedFn = useServerFn(getLinkedEInvoice);
   const qc = useQueryClient();
   const { data: inv, isLoading } = useQuery({
     queryKey: ["sales-invoice", id],
     queryFn: () => fn({ data: { id } }),
+  });
+  const { data: linked } = useQuery({
+    queryKey: ["sales-einvoice", id],
+    queryFn: () => linkedFn({ data: { kind: "out", invoiceId: id } }),
   });
 
   const issueM = useMutation({
@@ -117,6 +124,17 @@ function SalesDetail() {
                 <CheckCircle2 className="inline h-3 w-3 mr-1" />
                 Mã CQT: <span className="font-mono">{inv.einvoice_code}</span>
               </p>
+            )}
+            {linked?.einvoice && (
+              <Link
+                to="/einvoices/$id"
+                params={{ id: linked.einvoice.id }}
+                className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline"
+              >
+                <FileText className="h-3 w-3" />
+                Đã gắn HĐĐT: {linked.einvoice.invoice_series ?? ""}
+                {linked.einvoice.invoice_no ?? ""}
+              </Link>
             )}
           </div>
           <div className="text-right text-sm space-y-1">

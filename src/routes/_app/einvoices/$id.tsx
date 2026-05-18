@@ -3,7 +3,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Download, FilePlus2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FilePlus2, Trash2, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,9 @@ import {
   getEInvoice,
   createPurchaseFromEInvoice,
   deleteEInvoice,
+  linkEInvoice,
 } from "@/lib/einvoices.functions";
+import { LinkEInvoiceDialog } from "@/components/link-einvoice-dialog";
 
 export const Route = createFileRoute("/_app/einvoices/$id")({
   component: EInvoiceDetail,
@@ -26,6 +28,8 @@ function EInvoiceDetail() {
   const getFn = useServerFn(getEInvoice);
   const createPurchase = useServerFn(createPurchaseFromEInvoice);
   const delFn = useServerFn(deleteEInvoice);
+  const unlink = useServerFn(linkEInvoice);
+  const [linkOpen, setLinkOpen] = React.useState(false);
 
   const q = useQuery({
     queryKey: ["einvoice", id],
@@ -38,6 +42,15 @@ function EInvoiceDetail() {
       toast.success("Đã tạo phiếu mua từ HĐĐT");
       q.refetch();
       router.navigate({ to: "/invoices/$id", params: { id: r.invoiceId } });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi"),
+  });
+
+  const unlinkMut = useMutation({
+    mutationFn: () => unlink({ data: { einvoiceId: id, targetId: null } }),
+    onSuccess: () => {
+      toast.success("Đã bỏ liên kết");
+      q.refetch();
     },
     onError: (e: any) => toast.error(e?.message ?? "Lỗi"),
   });
@@ -63,6 +76,11 @@ function EInvoiceDetail() {
 
   const e = q.data.einvoice as any;
   const lines = q.data.lines as any[];
+  const matched = q.data.matched as any;
+  const isMatched = !!matched;
+  const diff = isMatched
+    ? Math.abs(Number(matched.total ?? 0) - Number(e.total ?? 0))
+    : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-5xl">
@@ -83,14 +101,24 @@ function EInvoiceDetail() {
               </a>
             </Button>
           )}
-          {e.direction === "in" && !e.matched_purchase_invoice_id && (
+          {!isMatched && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setLinkOpen(true)}
+            >
+              <Link2 className="mr-2 h-4 w-4" />
+              Liên kết HĐ có sẵn
+            </Button>
+          )}
+          {e.direction === "in" && !isMatched && (
             <Button
               size="sm"
               onClick={() => createMut.mutate()}
               disabled={createMut.isPending}
             >
               <FilePlus2 className="mr-2 h-4 w-4" />
-              Ghi nhận vào Mua hàng
+              Tạo phiếu mua mới
             </Button>
           )}
           <Button
@@ -150,6 +178,42 @@ function EInvoiceDetail() {
         </div>
       </div>
 
+      {isMatched && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm flex items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-emerald-700" />
+              <span>Đã liên kết với </span>
+              <Link
+                to={e.direction === "in" ? "/invoices/$id" : "/sales/$id"}
+                params={{ id: matched.id }}
+                className="font-medium text-primary hover:underline"
+              >
+                {matched.invoice_no || matched.id.slice(0, 8)}
+              </Link>
+              <span className="text-muted-foreground">
+                · {matched.party_name || "—"} · {matched.issue_date || "—"} ·{" "}
+                {vnd(matched.total)}
+              </span>
+            </div>
+            {diff > 1 && (
+              <div className="text-xs text-amber-700 mt-1">
+                ⚠ Tổng tiền lệch {vnd(diff)} so với HĐĐT ({vnd(e.total)})
+              </div>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => unlinkMut.mutate()}
+            disabled={unlinkMut.isPending}
+          >
+            <Unlink className="mr-1 h-3 w-3" />
+            Bỏ liên kết
+          </Button>
+        </div>
+      )}
+
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs">
@@ -201,28 +265,13 @@ function EInvoiceDetail() {
         </table>
       </div>
 
-      {(e.matched_purchase_invoice_id || e.matched_sales_invoice_id) && (
-        <div className="rounded-lg border border-border p-3 text-sm">
-          Đã liên kết với{" "}
-          {e.direction === "in" ? (
-            <Link
-              to="/invoices/$id"
-              params={{ id: e.matched_purchase_invoice_id }}
-              className="text-primary hover:underline"
-            >
-              phiếu mua hàng
-            </Link>
-          ) : (
-            <Link
-              to="/sales/$id"
-              params={{ id: e.matched_sales_invoice_id }}
-              className="text-primary hover:underline"
-            >
-              hoá đơn bán
-            </Link>
-          )}
-        </div>
-      )}
+      <LinkEInvoiceDialog
+        einvoiceId={id}
+        direction={e.direction}
+        open={linkOpen}
+        onOpenChange={setLinkOpen}
+        onLinked={() => q.refetch()}
+      />
     </div>
   );
 }

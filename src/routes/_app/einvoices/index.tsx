@@ -31,7 +31,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportEinvoiceStoreDialog } from "@/components/import-einvoice-store-dialog";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
-import { listEInvoices } from "@/lib/einvoices.functions";
+import { listEInvoices, autoMatchEInvoices } from "@/lib/einvoices.functions";
+import { Zap } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/einvoices/")({
@@ -88,6 +89,7 @@ function EInvoicesPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const list = useServerFn(listEInvoices);
+  const autoMatch = useServerFn(autoMatchEInvoices);
 
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<string>("all");
@@ -102,6 +104,24 @@ function EInvoicesPage() {
   const [syncOpen, setSyncOpen] = React.useState(false);
 
   React.useEffect(() => setPage(1), [tab, q, status, matched, dateRange]);
+
+  const autoMatchMut = useMutation({
+    mutationFn: () =>
+      autoMatch({
+        data: {
+          direction: tab,
+          dateFrom: dateRange.from ?? null,
+          dateTo: dateRange.to ?? null,
+        },
+      }),
+    onSuccess: (r) => {
+      toast.success(
+        `Tự động ghép: ${r.matched} thành công · ${r.ambiguous} mơ hồ · ${r.skipped} bỏ qua (quét ${r.scanned})`,
+      );
+      query.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi auto-match"),
+  });
 
   const query = useQuery({
     queryKey: [
@@ -144,6 +164,15 @@ function EInvoicesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => autoMatchMut.mutate()}
+            disabled={autoMatchMut.isPending}
+            title="Tự động ghép HĐĐT với HĐ nội bộ theo MST + số HĐ"
+          >
+            <Zap className="mr-2 h-4 w-4" />
+            {autoMatchMut.isPending ? "Đang ghép…" : "Tự động ghép"}
+          </Button>
           <Button
             variant="outline"
             onClick={() => setSyncOpen(true)}

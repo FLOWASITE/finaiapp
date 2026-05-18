@@ -1,14 +1,15 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Save } from "lucide-react";
+import { Sparkles, Save, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useServerFn } from "@tanstack/react-start";
 import { suggestJournalEntry, approveJournalEntry } from "@/lib/journal.functions";
+import { getLinkedEInvoice } from "@/lib/einvoices.functions";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
   component: InvoiceDetail,
@@ -28,6 +29,12 @@ function InvoiceDetail() {
   const router = useRouter();
   const suggest = useServerFn(suggestJournalEntry);
   const approve = useServerFn(approveJournalEntry);
+  const linkedFn = useServerFn(getLinkedEInvoice);
+
+  const { data: linked } = useQuery({
+    queryKey: ["invoice-einvoice", id],
+    queryFn: () => linkedFn({ data: { kind: "in", invoiceId: id } }),
+  });
 
   const { data: invoice, refetch } = useQuery({
     queryKey: ["invoice", id],
@@ -115,6 +122,23 @@ function InvoiceDetail() {
       <div className="overflow-auto p-8">
         <h1 className="text-xl font-bold tracking-tight">Review hóa đơn</h1>
         <p className="text-sm text-muted-foreground">Kiểm tra các trường AI bóc tách trước khi định khoản</p>
+
+        {linked?.einvoice && (
+          <Link
+            to="/einvoices/$id"
+            params={{ id: linked.einvoice.id }}
+            className="mt-3 inline-flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-500/10"
+          >
+            <FileText className="h-3 w-3" />
+            Đã gắn HĐĐT: {linked.einvoice.invoice_series ?? ""}
+            {linked.einvoice.invoice_no ?? ""}
+            {linked.einvoice.tct_lookup_code && (
+              <span className="font-mono opacity-70">
+                · {linked.einvoice.tct_lookup_code}
+              </span>
+            )}
+          </Link>
+        )}
 
         <div className="mt-6 grid grid-cols-2 gap-4">
           <Field label="Nhà cung cấp" value={invoice.supplier_name ?? ""} />

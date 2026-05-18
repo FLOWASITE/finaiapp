@@ -129,7 +129,254 @@ export const getEInvoice = createServerFn({ method: "POST" })
       xmlUrl = signed?.signedUrl ?? null;
     }
 
-    return { einvoice: e, lines: lines ?? [], xmlUrl };
+    // Preview của HĐ đã liên kết (nếu có)
+    let matched: {
+      id: string;
+      invoice_no: string | null;
+      issue_date: string | null;
+      total: number | null;
+      party_name: string | null;
+    } | null = null;
+    if (e.direction === "in" && e.matched_purchase_invoice_id) {
+      const { data: m } = await supabase
+        .from("invoices")
+        .select("id, invoice_no, issue_date, total, supplier_name")
+        .eq("id", e.matched_purchase_invoice_id)
+        .maybeSingle();
+      if (m)
+        matched = {
+          id: m.id,
+          invoice_no: m.invoice_no,
+          issue_date: m.issue_date,
+          total: m.total,
+          party_name: m.supplier_name,
+        };
+    } else if (e.direction === "out" && e.matched_sales_invoice_id) {
+      const { data: m } = await supabase
+        .from("sales_invoices")
+        .select("id, invoice_no, issue_date, total, customer_name")
+        .eq("id", e.matched_sales_invoice_id)
+        .maybeSingle();
+      if (m)
+        matched = {
+          id: m.id,
+          invoice_no: m.invoice_no,
+          issue_date: m.issue_date,
+          total: m.total,
+          party_name: m.customer_name,
+        };
+    }
+
+    return { einvoice: e, lines: lines ?? [], xmlUrl, matched };
+  });
+
+// ============ SEARCH LINKABLE INVOICES ============
+export const searchLinkableInvoices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        einvoiceId: z.string().uuid(),
+        q: z.string().max(120).optional().default(""),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: e } = await supabase
+      .from("einvoices")
+      .select("id, tenant_id, direction, seller_tax_id, buyer_tax_id, invoice_no, total")
+      .eq("id", data.einvoiceId)
+      .maybeSingle();
+    if (!e) throw new Error("Không tìm thấy HĐĐT");
+
+    const term = data.q.trim();
+    const counterpartTax = e.direction === "in" ? e.seller_tax_id : e.buyer_tax_id;
+
+    if (e.direction === "in") {
+      let q = supabase
+        .from("invoices")
+        .select("id, invoice_no, issue_date, total, supplier_name, supplier_tax_id")
+        .eq("tenant_id", e.tenant_id)
+        .order("issue_date", { ascending: false, nullsFirst: false })
+        .limit(30);
+      if (counterpartTax) q = q.eq("supplier_tax_id", counterpartTax);
+      if (term) {
+        const like = `%${term}%`;
+        q = q.or(`invoice_no.ilike.${like},supplier_name.ilike.${like}`);
+      } else if (e.invoice_no) {
+        q = q.ilike("invoice_no", `%${e.invoice_no}%`);
+      }
+      const { data: rows } = await q;
+      return {
+        rows: (rows ?? []).map((r: any) => ({
+          id: r.id,
+          invoice_no: r.invoice_no,
+          issue_date: r.issue_date,
+          total: r.total,
+          party_name: r.supplier_name,
+          party_tax_id: r.supplier_tax_id,
+          exact_no: r.invoice_no === e.invoice_no,
+        })),
+        einvoiceTotal: e.total,
+      };
+    } else {
+      let q = supabase
+        .from("sales_invoices")
+        .select("id, invoice_no, issue_date, total, customer_name, customer_tax_id")
+        .eq("tenant_id", e.tenant_id)
+        .order("issue_date", { ascending: false, nullsFirst: false })
+        .limit(30);
+      if (counterpartTax) q = q.eq("customer_tax_id", counterpartTax);
+      if (term) {
+        const like = `%${term}%`;
+        q = q.or(`invoice_no.ilike.${like},customer_name.ilike.${like}`);
+      } else if (e.invoice_no) {
+        q = q.ilike("invoice_no", `%${e.invoice_no}%`);
+      }
+      const { data: rows } = await q;
+      return {
+        rows: (rows ?? []).map((r: any) => ({
+          id: r.id,
+          invoice_no: r.invoice_no,
+          issue_date: r.issue_date,
+          total: r.total,
+          party_name: r.customer_name,
+          party_tax_id: r.customer_tax_id,
+          exact_no: r.invoice_no === e.invoice_no,
+        })),
+        einvoiceTotal: e.total,
+      };
+    }
+  });
+
+// ============ REVERSE LOOKUP: linked einvoice for a given invoice ============
+export const getLinkedEInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        kind: z.enum(["in", "out"]),
+        invoiceId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const col =
+      data.kind === "in" ? "matched_purchase_invoice_id" : "matched_sales_invoice_id";
+    const { data: rows } = await supabase
+      .from("einvoices")
+      .select(
+        "id, invoice_series, invoice_no, issue_date, total, tct_lookup_code, tct_status, direction",
+      )
+      .eq(col, data.invoiceId)
+      .limit(1);
+    return { einvoice: rows?.[0] ?? null };
+  });
+
+// ============ AUTO-MATCH ============
+export const autoMatchEInvoices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        direction: z.enum(["in", "out"]),
+        dateFrom: z.string().optional().nullable(),
+        dateTo: z.string().optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { tenantId } = await resolveTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn tổ chức");
+
+    const matchedCol =
+      data.direction === "in"
+        ? "matched_purchase_invoice_id"
+        : "matched_sales_invoice_id";
+
+    let q = supabase
+      .from("einvoices")
+      .select("id, invoice_no, seller_tax_id, buyer_tax_id, total")
+      .eq("tenant_id", tenantId)
+      .eq("direction", data.direction)
+      .is(matchedCol, null)
+      .not("invoice_no", "is", null);
+    if (data.dateFrom) q = q.gte("issue_date", data.dateFrom);
+    if (data.dateTo) q = q.lte("issue_date", data.dateTo);
+
+    const { data: candidates, error } = await q.limit(500);
+    if (error) throw new Error(error.message);
+
+    let matched = 0;
+    let ambiguous = 0;
+    let skipped = 0;
+
+    for (const e of candidates ?? []) {
+      if (!e.invoice_no) {
+        skipped++;
+        continue;
+      }
+      const partyTax =
+        data.direction === "in" ? e.seller_tax_id : e.buyer_tax_id;
+      if (!partyTax) {
+        skipped++;
+        continue;
+      }
+
+      if (data.direction === "in") {
+        const { data: hits } = await supabase
+          .from("invoices")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("invoice_no", e.invoice_no)
+          .eq("supplier_tax_id", partyTax)
+          .limit(2);
+        if (!hits || hits.length === 0) {
+          skipped++;
+          continue;
+        }
+        if (hits.length > 1) {
+          ambiguous++;
+          continue;
+        }
+        await supabase
+          .from("einvoices")
+          .update({ matched_purchase_invoice_id: hits[0].id })
+          .eq("id", e.id);
+        matched++;
+      } else {
+        const { data: hits } = await supabase
+          .from("sales_invoices")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("invoice_no", e.invoice_no)
+          .eq("customer_tax_id", partyTax)
+          .limit(2);
+        if (!hits || hits.length === 0) {
+          skipped++;
+          continue;
+        }
+        if (hits.length > 1) {
+          ambiguous++;
+          continue;
+        }
+        await supabase
+          .from("einvoices")
+          .update({ matched_sales_invoice_id: hits[0].id })
+          .eq("id", e.id);
+        matched++;
+      }
+    }
+
+    return {
+      scanned: candidates?.length ?? 0,
+      matched,
+      ambiguous,
+      skipped,
+    };
   });
 
 // ============ IMPORT XML INTO STORE ============
@@ -336,10 +583,23 @@ export const linkEInvoice = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: e, error } = await supabase
       .from("einvoices")
-      .select("id, direction")
+      .select("id, direction, tenant_id")
       .eq("id", data.einvoiceId)
       .maybeSingle();
     if (error || !e) throw new Error("Không tìm thấy HĐĐT");
+
+    // validate target belongs to same tenant + correct table
+    if (data.targetId) {
+      const table = e.direction === "in" ? "invoices" : "sales_invoices";
+      const { data: t } = await supabase
+        .from(table)
+        .select("id, tenant_id")
+        .eq("id", data.targetId)
+        .maybeSingle();
+      if (!t) throw new Error("Không tìm thấy hoá đơn nội bộ để liên kết");
+      if (t.tenant_id !== e.tenant_id)
+        throw new Error("Hoá đơn không thuộc cùng tổ chức");
+    }
 
     const patch =
       e.direction === "in"
