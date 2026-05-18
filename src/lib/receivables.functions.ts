@@ -368,3 +368,178 @@ export const exportArSummaryXlsx = createServerFn({ method: "POST" })
     };
   });
 
+
+// ============ AR drill-down theo khách hàng ============
+export type ArDrilldownLine = {
+  entry_id: string;
+  entry_date: string;
+  doc_type: "HD" | "PT" | "KHAC";
+  doc_no: string | null;
+  doc_id: string | null;
+  description: string;
+  reference: string | null;
+  debit: number;
+  credit: number;
+};
+
+export type ArDrilldownResult = {
+  opening: number; // signed (debit positive)
+  lines: ArDrilldownLine[];
+  daily: { date: string; debit: number; credit: number; running: number }[];
+};
+
+export const getArDrilldown = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: {
+      from: string;
+      to: string;
+      customer_id?: string | null;
+      customer_name?: string | null;
+      dims?: DimFilter;
+      account?: string;
+    }) => i,
+  )
+  .handler(
+    withLatency("getArDrilldown", async ({ data, context }) => {
+      const { supabase, userId } = context;
+      const account = data.account ?? "131";
+
+      let q = supabase
+        .from("journal_lines")
+        .select(
+          "debit, credit, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(user_id, entry_date, description)",
+        )
+        .like("account_code", `${account}%`)
+        .eq("journal_entries.user_id", userId)
+        .lte("journal_entries.entry_date", data.to);
+      const d = data.dims;
+      if (d?.branch_id) q = q.eq("branch_id", d.branch_id);
+      if (d?.department_id) q = q.eq("department_id", d.department_id);
+      if (d?.project_id) q = q.eq("project_id", d.project_id);
+      if (d?.cost_center_id) q = q.eq("cost_center_id", d.cost_center_id);
+
+      const { data: lines, error } = await q;
+      if (error) throw new Error(error.message);
+
+      const entryIds = Array.from(
+        new Set((lines ?? []).map((l: any) => l.entry_id)),
+      );
+      const placeholder = ["00000000-0000-0000-0000-000000000000"];
+      const ids = entryIds.length ? entryIds : placeholder;
+
+      const [{ data: sInv }, { data: receipts }] = await Promise.all([
+        supabase
+          .from("sales_invoices")
+          .select(
+            "id, journal_entry_id, customer_id, customer_name, invoice_no, issue_date",
+          )
+          .in("journal_entry_id", ids),
+        supabase
+          .from("customer_receipts")
+          .select(
+            "id, journal_entry_id, customer_id, customer_name, reference, method, pay_date",
+          )
+          .in("journal_entry_id", ids),
+      ]);
+
+      type Doc = {
+        type: "HD" | "PT";
+        no: string | null;
+        id: string | null;
+        ref: string | null;
+        cust_id: string | null;
+        cust_name: string;
+      };
+      const entryToDoc = new Map<string, Doc>();
+      for (const r of (sInv ?? []) as any[]) {
+        entryToDoc.set(r.journal_entry_id, {
+          type: "HD",
+          no: r.invoice_no ?? null,
+          id: r.id ?? null,
+          ref: null,
+          cust_id: r.customer_id ?? null,
+          cust_name: (r.customer_name ?? "").trim() || "Không rõ",
+        });
+      }
+      for (const r of (receipts ?? []) as any[]) {
+        if (!entryToDoc.has(r.journal_entry_id)) {
+          entryToDoc.set(r.journal_entry_id, {
+            type: "PT",
+            no: r.reference ?? null,
+            id: r.id ?? null,
+            ref: r.method ?? null,
+            cust_id: r.customer_id ?? null,
+            cust_name: (r.customer_name ?? "").trim() || "Không rõ",
+          });
+        }
+      }
+
+      const wantedId = data.customer_id ?? null;
+      const wantedName = (data.customer_name ?? "").trim();
+
+      let opening = 0;
+      const periodLines: ArDrilldownLine[] = [];
+
+      for (const l of (lines ?? []) as any[]) {
+        const e = l.journal_entries;
+        const doc = entryToDoc.get(l.entry_id);
+        const fallbackName =
+          ((e.description ?? "Không rõ").split("—")[0].trim().slice(0, 80) ||
+            "Không rõ") as string;
+        const cId = doc?.cust_id ?? null;
+        const cName = doc?.cust_name ?? fallbackName;
+
+        const match = wantedId
+          ? cId === wantedId
+          : !cId && cName === wantedName;
+        if (!match) continue;
+
+        const dr = Number(l.debit) || 0;
+        const cr = Number(l.credit) || 0;
+
+        if (e.entry_date < data.from) {
+          opening += dr - cr;
+        } else {
+          periodLines.push({
+            entry_id: l.entry_id,
+            entry_date: e.entry_date,
+            doc_type: doc?.type ?? "KHAC",
+            doc_no: doc?.no ?? null,
+            doc_id: doc?.id ?? null,
+            description: e.description ?? "",
+            reference: doc?.ref ?? null,
+            debit: dr,
+            credit: cr,
+          });
+        }
+      }
+
+      periodLines.sort((a, b) =>
+        a.entry_date.localeCompare(b.entry_date) ||
+        (a.doc_no ?? "").localeCompare(b.doc_no ?? ""),
+      );
+
+      const dailyMap = new Map<string, { debit: number; credit: number }>();
+      for (const l of periodLines) {
+        const cur = dailyMap.get(l.entry_date) ?? { debit: 0, credit: 0 };
+        cur.debit += l.debit;
+        cur.credit += l.credit;
+        dailyMap.set(l.entry_date, cur);
+      }
+      const dailyArr = Array.from(dailyMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, v]) => ({ date, ...v, running: 0 }));
+      let run = opening;
+      for (const d of dailyArr) {
+        run += d.debit - d.credit;
+        d.running = run;
+      }
+
+      return {
+        opening,
+        lines: periodLines,
+        daily: dailyArr,
+      } as ArDrilldownResult;
+    }),
+  );
