@@ -44,6 +44,11 @@ const SEGMENT_LABELS: Record<string, string> = {
   organizations: "Tổ chức",
   accounts: "Tài khoản",
   tenant: "Đơn vị",
+  items: "Hàng hoá & Dịch vụ",
+  units: "Đơn vị tính",
+  "stock-card": "Thẻ kho",
+  "stock-takes": "Kiểm kê",
+  warehouses: "Danh mục kho",
 };
 
 type Crumb = { label: string; href: string; last: boolean };
