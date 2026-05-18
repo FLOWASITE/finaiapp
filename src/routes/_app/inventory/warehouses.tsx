@@ -187,15 +187,14 @@ function WarehousesPage() {
                   <div className="flex flex-col items-center gap-2">
                     <WarehouseIcon className="h-8 w-8 opacity-40" />
                     <div>Chưa có kho nào. Hãy thêm kho đầu tiên.</div>
-                    <Button variant="add"
+                    <AddNew
                       size="sm"
+                      label="Thêm kho"
                       onClick={() => {
                         setEditing(null);
                         setDialogOpen(true);
                       }}
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> Thêm kho
-                    </Button>
+                    />
                   </div>
                 </td>
               </tr>
