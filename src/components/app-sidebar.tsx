@@ -262,9 +262,9 @@ export function AppSidebar() {
               A
             </div>
             {!collapsed && (
-              <div className="flex flex-col leading-tight animate-fade-in">
-                <span className="font-semibold tracking-tight text-sidebar-foreground">FinAI</span>
-                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50">
+              <div className="flex flex-col leading-snug animate-fade-in">
+                <span className="font-bold text-[15px] tracking-tight text-sidebar-foreground">FinAI</span>
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55">
                   AI Accounting · v3
                 </span>
               </div>
