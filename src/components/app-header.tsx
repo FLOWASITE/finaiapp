@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useMatches } from "@tanstack/react-router";
 import { BarChart3, ChevronRight, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
@@ -17,37 +17,93 @@ import {
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const LABELS: Record<string, string> = {
+// Maps last URL segment to a human label. Keep keys in sync with src/routes/_app/*.
+const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Bảng điều khiển",
+  chat: "Trợ lý AI",
+  setup: "Thiết lập",
+  einvoices: "Hóa đơn điện tử",
+  credentials: "Chứng thư số",
   invoices: "Hóa đơn",
-  suppliers: "Nhà cung cấp",
   sales: "Bán hàng",
+  orders: "Đơn hàng",
+  "sales-dashboard": "Dashboard bán hàng",
+  purchases: "Mua hàng",
+  receipts: "Phiếu thu",
+  customers: "Khách hàng",
+  suppliers: "Nhà cung cấp",
   receivables: "Phải thu",
   payables: "Phải trả",
   inventory: "Kho",
+  categories: "Nhóm hàng",
+  movements: "Xuất nhập kho",
   bank: "Ngân hàng",
   cash: "Tiền mặt",
-  assets: "Tài sản",
+  assets: "Tài sản cố định",
+  allocations: "Phân bổ",
   payroll: "Lương",
   tax: "Thuế",
+  gtgt: "Thuế GTGT",
+  tncn: "Thuế TNCN",
+  tndn: "Thuế TNDN",
   reports: "Báo cáo",
+  ledgers: "Sổ cái",
   journal: "Sổ nhật ký",
-  coa: "Hệ thống TK",
+  coa: "Hệ thống tài khoản",
   settings: "Cài đặt",
   admin: "Quản trị",
+  members: "Thành viên",
+  periods: "Kỳ kế toán",
+  audit: "Nhật ký",
+  backup: "Sao lưu",
   superadmin: "Super Admin",
-  chat: "Trợ lý AI",
+  organizations: "Tổ chức",
+  accounts: "Tài khoản",
+  tenant: "Đơn vị",
 };
 
-function useBreadcrumbs() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const parts = pathname.split("/").filter((p) => p && p !== "_app");
-  return parts.map((seg, i) => ({
-    label: LABELS[seg] ?? decodeURIComponent(seg),
-    href: "/" + parts.slice(0, i + 1).join("/"),
-    last: i === parts.length - 1,
-  }));
+type Crumb = { label: string; href: string; last: boolean };
+
+function useBreadcrumbs(): Crumb[] {
+  const matches = useMatches();
+  const crumbs: Crumb[] = [];
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    // Skip root and pathless layouts (__root, /_app, /_app/admin layout etc).
+    if (m.routeId === "__root__" || m.pathname === "/" || m.pathname === "") continue;
+
+    const href = m.pathname.replace(/\/$/, "") || "/";
+    const segments = href.split("/").filter(Boolean);
+    const lastSeg = segments[segments.length - 1] ?? "";
+
+    // Prefer route-supplied crumb if present, then label map, then param value.
+    const staticCrumb = (m as unknown as { staticData?: { crumb?: string } }).staticData?.crumb;
+    const paramValues = Object.values((m.params ?? {}) as Record<string, string>);
+    const isDynamic = paramValues.includes(lastSeg);
+
+    let label = staticCrumb ?? SEGMENT_LABELS[lastSeg];
+    if (!label) {
+      label = isDynamic
+        ? `#${decodeURIComponent(lastSeg).slice(0, 8)}`
+        : decodeURIComponent(lastSeg)
+            .replace(/[-_]/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    // Avoid duplicates (matches can include both layout and child at same path).
+    const prev = crumbs[crumbs.length - 1];
+    if (prev && prev.href === href) {
+      prev.label = label;
+      continue;
+    }
+    crumbs.push({ label, href, last: false });
+  }
+
+  if (crumbs.length > 0) crumbs[crumbs.length - 1].last = true;
+  return crumbs;
 }
+
 
 export function AppHeader() {
   const crumbs = useBreadcrumbs();
