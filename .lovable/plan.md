@@ -1,94 +1,41 @@
+## Kết quả kiểm tra
 
-## Mục tiêu
+- Lovable Cloud đang hoạt động bình thường; không thấy dấu hiệu backend bị lỗi.
+- Nút **Tổ chức** chậm vì `TenantSwitcher` đang gọi server function `listMyTenants` sau khi trang render; request thực tế mất khoảng **1.0–1.3s**.
+- Trên trang `/invoices`, cùng lúc còn có nhiều request khác chạy song song: kiểm tra user nhiều lần, profile/user roles lặp, danh sách hóa đơn, nhà cung cấp, sản phẩm. Việc này làm phần header giữ trạng thái **“Đang tải…”** lâu hơn cảm nhận thực tế.
+- Code hiện tại đã cache `my-tenants` 60 giây, nhưng cache chỉ có hiệu lực sau lần tải đầu; chưa có dữ liệu khởi tạo nhanh từ session/local cache.
+- Một nguyên nhân phụ là các component `AppHeader` và `AppSidebar` tự gọi `supabase.auth.getUser()`/profile/roles riêng biệt, tạo nhiều request xác thực/profile trùng nhau khi vào app.
 
-Tái cấu trúc `src/components/app-sidebar.tsx` để điều hướng được nhóm theo dạng **collapsible groups** giống ảnh tham chiếu: mỗi mục cha (Items, Sales, Purchases, Contacts, Financial, Cash & Banking…) có mũi tên `›` / `⌄`, click để mở/đóng danh sách con. Các section header lớn (SALES & INVENTORY, ACCOUNTING, INSIGHTS) dùng làm nhãn phân vùng.
+## Kế hoạch xử lý dứt điểm
 
-## Cấu trúc nhóm mới
+1. **Tạo nguồn dữ liệu session/profile dùng chung**
+   - Thêm query/hook dùng chung cho current user, profile cơ bản và role.
+   - `AppHeader` và `AppSidebar` dùng lại cache này thay vì tự gọi `getUser()` riêng.
+   - Mục tiêu: giảm các request `/auth/v1/user`, `profiles`, `user_roles` bị lặp.
 
-```
-— (top-level)
-  Tổng quan (Home)
-  Trợ lý AI
-  Cài đặt nhanh (Settings shortcut)
+2. **Làm TenantSwitcher hiển thị tức thì hơn**
+   - Lưu tổ chức active gần nhất vào cache trình duyệt sau khi tải thành công.
+   - Khi mở app, hiển thị ngay tên tổ chức từ cache trong lúc server xác nhận lại.
+   - Giữ request thật để đảm bảo dữ liệu đúng, nhưng không để UI bị kẹt ở “Đang tải…” nếu đã có tổ chức gần nhất.
 
-SALES & INVENTORY
-  ▸ Hàng hoá (Items)
-      • Tồn kho
-      • Thẻ kho / Phát sinh
-      • Kiểm kê
-      • Danh mục
-  ▸ Bán hàng (Sales)
-      • Bán hàng (Tổng quan)
-      • Hoá đơn bán
-      • Phiếu thu
-      • Công nợ phải thu
-  ▸ Mua hàng (Purchases)
-      • Mua hàng (Tổng quan)
-      • Hoá đơn mua
-      • Phiếu chi
-      • Công nợ phải trả
-  ▸ Đối tác (Contacts)
-      • Khách hàng
-      • Nhà cung cấp
+3. **Tối ưu server function `listMyTenants`**
+   - Chạy truy vấn memberships và profile song song thay vì tuần tự.
+   - Chỉ select đúng trường cần thiết.
+   - Nếu cần, đổi sang dùng server-side/admin read an toàn cho phần đọc danh sách tổ chức để tránh overhead RLS không cần thiết, vẫn dựa trên userId đã xác thực từ middleware.
 
-ACCOUNTING
-  ▸ Tài chính (Financial)
-      • Sổ nhật ký
-      • Hệ thống tài khoản
-      • Tài sản cố định
-      • Tiền lương
-      • Thuế
-  ▸ Tiền & Ngân hàng (Cash & Banking)
-      • Quỹ tiền mặt
-      • Đối soát ngân hàng
+4. **Thiết lập cache mặc định hợp lý cho TanStack Query**
+   - Cấu hình `QueryClient` có `staleTime`, `gcTime`, `refetchOnWindowFocus: false`, retry nhẹ.
+   - Các query danh mục như suppliers/products/tenants không refetch lại liên tục khi chuyển trang.
 
-INSIGHTS
-  • Báo cáo tài chính
-  • Sổ sách kế toán
+5. **Tối ưu riêng trang hóa đơn**
+   - Thêm `staleTime` cho `purchase-invoices`, `suppliers`, `products`.
+   - Cân nhắc chỉ tải `suppliers/products` khi form nhập tay mở, thay vì luôn tải ngay khi vào trang.
 
-HỆ THỐNG
-  • Quản trị
-  • Cài đặt
-  • Super Admin (nếu có quyền)
-```
+6. **Kiểm tra sau khi sửa**
+   - Vào lại `/invoices`, đo network/performance.
+   - Kỳ vọng: số request auth/profile giảm rõ rệt, nút Tổ chức có tên gần như ngay lập tức sau lần tải đầu, và request `listMyTenants` không còn chặn cảm nhận UI.
 
-Lá đơn (Reports, Settings) vẫn render phẳng như cũ.
+## Ghi chú kỹ thuật
 
-## Triển khai kỹ thuật
-
-1. **Type model mới** trong `app-sidebar.tsx`:
-   ```ts
-   type NavLeaf = { to: string; label: string; icon: React.ElementType; badge?: number };
-   type NavGroup = { label: string; icon: React.ElementType; defaultOpen?: boolean; items: NavLeaf[] };
-   type NavSection = { label: string; entries: Array<NavLeaf | NavGroup> };
-   ```
-   Phân biệt group vs leaf bằng `"items" in entry`.
-
-2. **Collapsible group** dùng `@/components/ui/collapsible` (`Collapsible`, `CollapsibleTrigger`, `CollapsibleContent`) kết hợp `SidebarMenuItem` + `SidebarMenuButton` + `SidebarMenuSub` / `SidebarMenuSubItem` / `SidebarMenuSubButton` đã có sẵn trong `src/components/ui/sidebar.tsx`. Trigger hiển thị icon + label + `ChevronRight` xoay 90° khi mở (`group-data-[state=open]/collapsible:rotate-90`).
-
-3. **State mở/đóng**:
-   - `defaultOpen` = group chứa route đang active (tính từ `pathname`).
-   - Lưu trạng thái user toggle vào `localStorage` key `sidebar:groups:v1` (map `groupLabel -> boolean`) để giữ giữa các lần load.
-
-4. **Active highlight**:
-   - Leaf: như hiện tại (`isActive`, vạch trái).
-   - Group cha: thêm style nhạt khi 1 trong các con đang active (badge dot hoặc `text-sidebar-primary`).
-
-5. **Trạng thái collapsed (icon-only)**:
-   - Khi sidebar collapsed, group trigger chỉ hiện icon, click sẽ mở popover (dùng `SidebarMenuButton` với `tooltip` + `DropdownMenu` chứa các sub item) — pattern chuẩn shadcn.
-
-6. **Section headers** (`SALES & INVENTORY`, `ACCOUNTING`, `INSIGHTS`, `HỆ THỐNG`) tiếp tục dùng `SidebarGroupLabel` với typography đã có (`text-[10px] tracking-wider`).
-
-7. **Giữ nguyên**: header (logo + AI launcher + quick chips), footer (user dropdown), CommandDialog (cập nhật flatten list để search vẫn ra mọi leaf trong các group).
-
-## File thay đổi
-
-- `src/components/app-sidebar.tsx` — viết lại phần `SECTIONS` và render logic cho group/leaf, thêm hook quản lý open state + persist localStorage.
-
-Không đụng `_app.tsx`, không đổi route, không tạo file mới.
-
-## Phạm vi không làm
-
-- Không thêm tính năng badge số liệu thực (chỉ chừa trường `badge?` để dùng sau nếu cần).
-- Không đổi màu / theme tổng thể.
-- Không refactor route hay tạo trang mới (các leaf hiện chưa có route như `/invoices`, `/payables`… vẫn trỏ đến route hiện hữu tương ứng đã thấy trong `src/routes/_app/`).
+- Không cần thay đổi giao diện lớn.
+- Có thể cần một migration nhỏ nếu kiểm tra thêm cho thấy thiếu index tối ưu theo `tenant_members(user_id, status)` hoặc bảng hóa đơn cần index theo ngày/trạng thái; hiện tại phần tổ chức có index cơ bản nhưng chưa tối ưu hoàn toàn cho filter `user_id + status`.
