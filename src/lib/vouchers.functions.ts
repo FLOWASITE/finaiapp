@@ -140,18 +140,17 @@ async function loadDimNames(supabase: any) {
   };
 }
 
-export const getVoucherList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: {
-    from: string; to: string;
-    dims?: DimFilter;
-    sourceTables?: string[]; // filter by source_table values
-    accountPrefix?: string;
-  }) => i)
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
+async function buildVoucherList(
+  supabase: any, userId: string,
+  data: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; accountPrefix?: string },
+) {
     let lq = supabase
+      .from("journal_lines")
+      .select("id, account_code, debit, credit, line_order, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(id, entry_date, description, user_id)")
+      .eq("journal_entries.user_id", userId)
+      .gte("journal_entries.entry_date", data.from)
+      .lte("journal_entries.entry_date", data.to)
+      .order("entry_date", { foreignTable: "journal_entries", ascending: true });
       .from("journal_lines")
       .select("id, account_code, debit, credit, line_order, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(id, entry_date, description, user_id)")
       .eq("journal_entries.user_id", userId)
