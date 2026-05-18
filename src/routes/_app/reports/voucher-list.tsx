@@ -67,14 +67,17 @@ function VoucherListPage() {
   const [dims, setDims] = useState<DimensionValue>({});
   const [accountPrefix, setAccountPrefix] = useState("");
   const [sources, setSources] = useState<string[]>([]);
+  const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
   // Reset to page 1 whenever filters change
-  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources });
+  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources, voucherTypes });
   useEffect(() => { setPage(1); }, [filterKey]);
+
 
   const profileQ = useQuery({
     queryKey: ["profile-fiscal"],
