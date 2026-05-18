@@ -1,61 +1,38 @@
 ## Mục tiêu
+Làm chữ trên Sidebar (`src/components/app-sidebar.tsx`) thẩm mỹ, có phân cấp rõ ràng kiểu Linear/Notion — không đổi cấu trúc menu hay logic.
 
-Hiện tại việc khai báo tài khoản TCT đang nằm chung trong dialog "Đồng bộ HĐĐT" (tab "Tài khoản TCT"). Người dùng không thấy ngay trạng thái đăng nhập, không có chỗ rõ ràng để cập nhật và sidebar chưa có lối vào riêng. Kế hoạch này tách phần khai báo thành 1 trang chuyên biệt và bổ sung các thao tác còn thiếu.
+## Hệ thống typography mới (đồng bộ thang)
 
-## Phạm vi thay đổi
+| Cấp | Size | Weight | Tracking | Màu |
+|---|---|---|---|---|
+| Brand "FinAI" | 15px | bold | tight | foreground |
+| Brand sub "AI Accounting · v3" | 10px | medium | 0.14em uppercase | foreground/55 |
+| Section label ("Vận hành"…) | 10.5px | semibold | 0.18em uppercase | foreground/50 |
+| Group label (Bán hàng, Mua hàng…) | 13px | medium → semibold khi active | -0.005em | foreground |
+| Leaf item | 13px | medium → semibold khi active | -0.005em | foreground |
+| Sub leaf | 12.5px | regular → semibold khi active | -0.005em | foreground/75 |
+| Footer email | 12.5px | semibold | tight | foreground |
+| Footer status | 10.5px | medium | wide | foreground/55 |
+| Badge | 10px | semibold | wide tabular-nums | — |
+| AI pill text | 12.5px | medium | tight | — |
+| Quick-AI chip | 10.5px | medium | wide | — |
 
-### 1. Trang mới `/einvoices/credentials`
-File: `src/routes/_app/einvoices/credentials.tsx`
+## Thay đổi cụ thể (chỉ class)
 
-Hiển thị:
-- **Trạng thái hiện tại**: tên đăng nhập (MST), lần đăng nhập gần nhất (`last_login_at`), thời điểm cập nhật.
-- **Form khai báo**:
-  - Tên đăng nhập TCT (mặc định lấy MST của tenant đang chọn, cho phép sửa).
-  - Mật khẩu (input password, có nút hiện/ẩn).
-  - Nút **Lưu** (gọi `saveTctCredentials`).
-  - Nút **Kiểm tra kết nối** (chỉ enable khi đã lưu) — gọi server fn mới `testTctLogin` (xem mục 3).
-  - Nút **Xoá tài khoản** (confirm) — gọi `deleteTctCredentials`.
-- **Hướng dẫn ngắn**: mật khẩu được mã hoá AES-GCM trước khi lưu, chỉ chủ tài khoản tenant đọc được.
-- Khi chưa chọn tenant: thông báo + link tới chọn tổ chức.
+1. **Brand header** (line ~266-269): `font-semibold` → `font-bold text-[15px] leading-snug`; sub-label `text-[10px] tracking-wider` → `text-[10px] font-medium tracking-[0.14em]`.
+2. **SidebarGroupLabel** (line ~325): `text-[10px] tracking-wider` → `text-[10.5px] font-semibold uppercase tracking-[0.18em] mb-1`.
+3. **LeafItem** (line ~466): thêm `text-[13px] font-medium tracking-[-0.005em] truncate`; khi `active` thêm `font-semibold`. Badge: `text-[10px] font-semibold tracking-wide tabular-nums`.
+4. **GroupItem trigger label** (line ~525): `text-[13px] font-medium` + `font-semibold` khi có child active.
+5. **Sub leaf** (line ~537-539): wrap span class `text-[12.5px] tracking-[-0.005em] text-sidebar-foreground/75 hover:text-sidebar-foreground`; active `font-semibold text-sidebar-primary`.
+6. **AI launcher pill** (line ~296): "Hỏi FinAI AI…" → `text-[12.5px] font-medium tracking-tight`.
+7. **Quick-AI chips** (line ~313): `text-[10px]` → `text-[10.5px] font-medium tracking-wide whitespace-nowrap`, padding `px-2.5 py-1`.
+8. **Footer user info** (line ~378-381): email `text-[12.5px] font-semibold tracking-tight truncate`; status `text-[10.5px] font-medium tracking-wide text-sidebar-foreground/55`; avatar initial `font-bold`.
+9. **"← Quay lại tổng quan"** (line 126): bỏ mũi tên `←` trong text (icon `ArrowLeft` đã đủ) → `"Quay lại tổng quan"`.
 
-### 2. Cập nhật sidebar
-File: `src/components/app-sidebar.tsx`
+## Phạm vi
+- 1 file: `src/components/app-sidebar.tsx`.
+- Không đổi `src/styles.css`, không thêm font.
+- Không đổi `SECTIONS`/`EINVOICE_SECTIONS` (trừ bỏ ký tự `←`), không đổi logic state/hook.
 
-Trong nhóm "Hoá đơn điện tử" của `EINVOICE_SECTIONS`, thêm entry:
-- `{ to: "/einvoices/credentials", label: "Thông tin đăng nhập TCT", icon: KeyRound }`
-
-### 3. Server function `testTctLogin`
-File: `src/lib/einvoices-sync.functions.ts`
-
-- Mới: `testTctLogin = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])`
-- Lấy credentials theo tenant, giải mã mật khẩu, lấy captcha → trả về `{ captchaKey, captchaSvg }` cho FE.
-- FE nhập captcha → gọi tiếp `verifyTctLogin({ captchaKey, captchaValue })`: thực hiện `loginTct(...)`, cập nhật `einvoice_credentials.last_login_at = now()` khi thành công, trả về `{ ok: true }` hoặc throw lỗi rõ ràng (sai captcha / sai mật khẩu / TCT không phản hồi).
-- Bọc try/catch giống `getTctCaptcha` để không trả 500 trắng màn hình.
-
-### 4. Dialog "Đồng bộ HĐĐT" gọn lại
-File: `src/components/sync-tct-dialog.tsx`
-
-- Bỏ tab "Tài khoản TCT" khỏi dialog (chỉ còn phần Đồng bộ).
-- Khi `hasCreds = false`: hiển thị banner "Bạn chưa khai báo tài khoản TCT" + nút điều hướng tới `/einvoices/credentials`.
-- Mọi import/state liên quan tới save/delete bỏ đi.
-
-### 5. Cập nhật điều hướng phụ
-- Trên `src/routes/_app/einvoices/index.tsx`, nút header "Tài khoản TCT" (nếu có) trỏ về `/einvoices/credentials`. Nếu chưa có, thêm 1 nút phụ bên cạnh "Đồng bộ".
-
-## Lưu ý kỹ thuật
-
-- Dùng `useServerFn` + React Query, invalidate `["tct-creds"]` sau khi lưu/xoá.
-- Validation client + server (zod đã có sẵn ở `saveTctCredentials`).
-- Không log mật khẩu ra console.
-- Trang dùng layout `_app` sẵn có, không tạo layout mới.
-- Không đổi schema DB — `einvoice_credentials` đã đủ cột (`tct_username`, `tct_password_encrypted`, `last_login_at`, `updated_at`).
-
-## File sẽ chỉnh
-
-- Tạo: `src/routes/_app/einvoices/credentials.tsx`
-- Sửa: `src/components/app-sidebar.tsx`, `src/components/sync-tct-dialog.tsx`, `src/lib/einvoices-sync.functions.ts`, `src/routes/_app/einvoices/index.tsx`
-
-## Câu hỏi xác nhận
-
-1. Có cần nút "Kiểm tra kết nối" (gọi thật lên TCT để verify mật khẩu) ngay trong scope này không? Mặc định: **có**, vì đây là cách duy nhất chắc chắn mật khẩu lưu đúng.
-2. Có cần hỗ trợ nhiều tài khoản TCT trên cùng 1 tenant (ví dụ MST chi nhánh) không? Mặc định: **không** — giữ 1 record / tenant như hiện tại.
+## Kết quả mong đợi
+Sidebar có phân cấp thị giác rõ: section label (uppercase wide letter-spacing) → group (medium) → leaf (medium) → sub-leaf (nhỏ, mờ hơn). Active state nổi bật bằng cả màu + font weight thay vì chỉ màu icon.

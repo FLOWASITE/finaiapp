@@ -123,7 +123,7 @@ const SECTIONS: NavSection[] = [
 const EINVOICE_SECTIONS: NavSection[] = [
   {
     entries: [
-      { to: "/dashboard", label: "← Quay lại tổng quan", icon: ArrowLeft },
+      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
     ],
   },
   {
