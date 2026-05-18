@@ -282,6 +282,127 @@ function ArSummaryPage() {
     }
   }
 
+  const docTypeLabel = (t: "HD" | "PT" | "KHAC") =>
+    t === "HD" ? "Hóa đơn bán" : t === "PT" ? "Phiếu thu" : "Khác";
+
+  async function handleExportDrill(kind: "daily" | "docs") {
+    if (!drillRow || !drillQ.data) return;
+    const toastId = `xlsx-ar-drill-${kind}`;
+    try {
+      toast.loading("Đang xuất Excel...", { id: toastId });
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      const safeName = (drillRow.customer_name || "KH").replace(/[\\/?*[\]:]/g, "_").slice(0, 80);
+      const periodTxt = `${from} → ${to}`;
+      let filename = "";
+
+      if (kind === "daily") {
+        const ws = wb.addWorksheet("Tổng hợp theo ngày");
+        ws.addRow(["Khách hàng:", drillRow.customer_name]);
+        ws.addRow(["Mã KH:", drillRow.customer_code ?? ""]);
+        ws.addRow(["Kỳ:", periodTxt]);
+        ws.addRow([
+          "Số dư đầu kỳ:",
+          drillQ.data.opening >= 0
+            ? `${drillQ.data.opening} (Nợ)`
+            : `${-drillQ.data.opening} (Có)`,
+        ]);
+        ws.addRow([]);
+        const header = ws.addRow(["Ngày", "Nợ", "Có", "Lũy kế"]);
+        header.font = { bold: true };
+        for (const d of drillFiltered.daily) {
+          ws.addRow([d.date, d.debit, d.credit, d.running]);
+        }
+        ws.addRow([
+          "Tổng",
+          drillFiltered.debit,
+          drillFiltered.credit,
+          "",
+        ]).font = { bold: true };
+        ws.columns = [
+          { width: 14 },
+          { width: 18 },
+          { width: 18 },
+          { width: 20 },
+        ];
+        for (let i = 2; i <= 4; i++) ws.getColumn(i).numFmt = "#,##0;(#,##0);-";
+        filename = `tong-hop-theo-ngay_${safeName}_${from}_${to}.xlsx`;
+      } else {
+        const ws = wb.addWorksheet("Chứng từ");
+        ws.addRow(["Khách hàng:", drillRow.customer_name]);
+        ws.addRow(["Mã KH:", drillRow.customer_code ?? ""]);
+        ws.addRow(["Kỳ:", periodTxt]);
+        ws.addRow(["Chế độ:", drillGroupByDoc ? "Gộp theo chứng từ" : "Chi tiết bút toán"]);
+        ws.addRow([]);
+        const cols = drillGroupByDoc
+          ? ["Ngày", "Loại", "Số CT", "Diễn giải (đại diện)", "Số dòng", "Nợ", "Có"]
+          : ["Ngày", "Loại", "Số CT", "Diễn giải", "Nợ", "Có"];
+        ws.addRow(cols).font = { bold: true };
+        for (const l of drillDisplayRows) {
+          if (drillGroupByDoc) {
+            ws.addRow([
+              l.entry_date,
+              docTypeLabel(l.doc_type),
+              l.doc_no ?? "",
+              l.description,
+              l.line_count,
+              l.debit,
+              l.credit,
+            ]);
+          } else {
+            ws.addRow([
+              l.entry_date,
+              docTypeLabel(l.doc_type),
+              l.doc_no ?? "",
+              l.description,
+              l.debit,
+              l.credit,
+            ]);
+          }
+        }
+        const totalRow = drillGroupByDoc
+          ? ["Tổng", "", "", "", "", drillFiltered.debit, drillFiltered.credit]
+          : ["Tổng", "", "", "", drillFiltered.debit, drillFiltered.credit];
+        ws.addRow(totalRow).font = { bold: true };
+        ws.columns = drillGroupByDoc
+          ? [
+              { width: 12 },
+              { width: 14 },
+              { width: 16 },
+              { width: 50 },
+              { width: 10 },
+              { width: 18 },
+              { width: 18 },
+            ]
+          : [
+              { width: 12 },
+              { width: 14 },
+              { width: 16 },
+              { width: 50 },
+              { width: 18 },
+              { width: 18 },
+            ];
+        const amtCols = drillGroupByDoc ? [6, 7] : [5, 6];
+        for (const c of amtCols) ws.getColumn(c).numFmt = "#,##0;(#,##0);-";
+        filename = `chung-tu_${safeName}_${from}_${to}.xlsx`;
+      }
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Đã xuất file", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Xuất file thất bại", { id: toastId });
+    }
+  }
+
   return (
     <div className="p-8 print:p-0">
       <div className="flex items-center justify-between print:hidden">
