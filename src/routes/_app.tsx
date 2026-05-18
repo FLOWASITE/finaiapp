@@ -21,12 +21,14 @@ function AppLayout() {
       <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-secondary/30">
         <AppSidebar />
         <SidebarInset className="flex-1 overflow-hidden">
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
-            <SidebarTrigger className="h-8 w-8" />
-            <Separator orientation="vertical" className="h-5" />
-            <TenantSwitcher />
-            <Separator orientation="vertical" className="h-5 hidden md:block" />
-            <AppHeader />
+          <header className="sticky top-0 z-20 px-3 pt-3">
+            <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/5 bg-background/70 px-3 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
+              <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
+              <Separator orientation="vertical" className="h-6 bg-white/10" />
+              <TenantSwitcher />
+              <Separator orientation="vertical" className="h-6 hidden md:block bg-white/10" />
+              <AppHeader />
+            </div>
           </header>
           <main className="overflow-auto">
             <Outlet />
