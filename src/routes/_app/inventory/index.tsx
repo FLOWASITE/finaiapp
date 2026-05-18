@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories } from "@/lib/inventory.functions";
+import { listProducts, recordMovement, getStockReport, inventoryDashboard, listCategories, previewStockVoucherNo } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Boxes, AlertTriangle, Activity, Wrench, ExternalLink } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Boxes, AlertTriangle, Activity, Wrench, ExternalLink, RefreshCw } from "lucide-react";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 
 export const Route = createFileRoute("/_app/inventory/")({ component: StockPage });
+
 
 function StockPage() {
   const list = useServerFn(listProducts);
@@ -58,7 +59,11 @@ function StockPage() {
             </Link>.
           </p>
         </div>
-        <MovementDialog products={products ?? []} />
+        <div className="flex gap-2">
+          <StockVoucherDialog type="in" products={products ?? []} />
+          <StockVoucherDialog type="out" products={products ?? []} />
+        </div>
+
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -158,9 +163,26 @@ function Kpi({ label, value, sub, icon, tone }: { label: string; value: string; 
   );
 }
 
-function MovementDialog({ products }: { products: any[] }) {
+const COUNTER_ACCOUNTS_IN = [
+  { code: "1111", name: "1111 — Tiền mặt VND" },
+  { code: "1121", name: "1121 — Tiền gửi ngân hàng VND" },
+  { code: "331", name: "331 — Phải trả người bán (mua chịu)" },
+  { code: "154", name: "154 — Chi phí SXKD dở dang (nhập thành phẩm)" },
+  { code: "711", name: "711 — Thu nhập khác" },
+];
+const COUNTER_ACCOUNTS_OUT = [
+  { code: "632", name: "632 — Giá vốn hàng bán" },
+  { code: "621", name: "621 — Chi phí NVL trực tiếp" },
+  { code: "627", name: "627 — Chi phí sản xuất chung" },
+  { code: "641", name: "641 — Chi phí bán hàng" },
+  { code: "642", name: "642 — Chi phí QLDN" },
+  { code: "154", name: "154 — Xuất cho sản xuất" },
+];
+
+function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: any[] }) {
   const rec = useServerFn(recordMovement);
   const listWh = useServerFn(listWarehouses);
+  const previewNo = useServerFn(previewStockVoucherNo);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -177,111 +199,233 @@ function MovementDialog({ products }: { products: any[] }) {
     [activeWhs],
   );
 
+  const counterOptions = type === "in" ? COUNTER_ACCOUNTS_IN : COUNTER_ACCOUNTS_OUT;
+
   const [form, setForm] = useState({
+    voucher_no: "",
     product_id: "",
     warehouse_id: "",
-    movement_type: "in" as "in" | "out",
     qty: 0,
     unit_cost: 0,
     movement_date: new Date().toISOString().slice(0, 10),
+    counter_account: counterOptions[0].code,
     note: "",
   });
 
-  // Auto-pick default warehouse when dialog opens or warehouses load
+  const goodsOnly = useMemo(
+    () => products.filter((p: any) => (p.item_type ?? "goods") !== "service"),
+    [products],
+  );
+  const selectedProduct = useMemo(
+    () => goodsOnly.find((p: any) => p.id === form.product_id),
+    [goodsOnly, form.product_id],
+  );
+
+  // Auto-fill warehouse + voucher_no when opening
   useEffect(() => {
-    if (open && !form.warehouse_id && defaultWh) {
+    if (!open) return;
+    if (!form.warehouse_id && defaultWh) {
       setForm((f) => ({ ...f, warehouse_id: defaultWh.id }));
     }
-  }, [open, defaultWh, form.warehouse_id]);
+    if (!form.voucher_no) {
+      previewNo({ data: { type, movement_date: form.movement_date } })
+        .then((r) => setForm((f) => (f.voucher_no ? f : { ...f, voucher_no: r.code })))
+        .catch(() => {});
+    }
+  }, [open, defaultWh, type]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // For "out", auto-fill unit_cost from product avg cost (read-only display)
+  useEffect(() => {
+    if (type === "out" && selectedProduct) {
+      setForm((f) => ({ ...f, unit_cost: Number(selectedProduct.unit_cost ?? 0) }));
+    }
+  }, [selectedProduct, type]);
+
+  const overStock =
+    type === "out" && selectedProduct && form.qty > Number(selectedProduct.on_hand ?? 0);
+  const total = +(form.qty * form.unit_cost).toFixed(2);
+
+  const canSave =
+    !!form.product_id &&
+    !!form.warehouse_id &&
+    form.qty > 0 &&
+    (type === "out" || form.unit_cost > 0) &&
+    !overStock;
 
   const m = useMutation({
     mutationFn: () =>
       rec({
         data: {
           product_id: form.product_id,
-          movement_type: form.movement_type,
+          movement_type: type,
           qty: form.qty,
           unit_cost: form.unit_cost,
           movement_date: form.movement_date,
           note: form.note,
           warehouse_id: form.warehouse_id || null,
-        },
+          counter_account: form.counter_account,
+          voucher_no: form.voucher_no,
+        } as any,
       }),
-    onSuccess: () => {
-      toast.success("Đã ghi nhận");
+    onSuccess: (r: any) => {
+      toast.success(`Đã lưu ${type === "in" ? "Phiếu nhập" : "Phiếu xuất"} ${r.voucher_no}`);
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["stock-report"] });
       qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
       qc.invalidateQueries({ queryKey: ["warehouses"] });
       setOpen(false);
+      setForm((f) => ({ ...f, voucher_no: "", product_id: "", qty: 0, unit_cost: 0, note: "" }));
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const title = type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho";
+  const Icon = type === "in" ? ArrowDownToLine : ArrowUpFromLine;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          {form.movement_type === "in" ? <ArrowDownToLine className="mr-2 h-4 w-4" /> : <ArrowUpFromLine className="mr-2 h-4 w-4" />}
-          Ghi nhận nhập / xuất
+        <Button variant={type === "in" ? "default" : "outline"}>
+          <Icon className="mr-2 h-4 w-4" />
+          {title}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Phiếu nhập / xuất kho</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Icon className="h-5 w-5" />
+            {title}
+          </DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Loại">
-              <Select value={form.movement_type} onValueChange={(v) => setForm({ ...form, movement_type: v as any })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="in">Nhập kho</SelectItem>
-                  <SelectItem value="out">Xuất kho</SelectItem>
-                </SelectContent>
-              </Select>
+            <Field label="Số phiếu">
+              <div className="flex gap-1">
+                <Input
+                  value={form.voucher_no}
+                  onChange={(e) => setForm({ ...form, voucher_no: e.target.value })}
+                  placeholder={type === "in" ? "PN..." : "PX..."}
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Tạo lại số phiếu"
+                  onClick={() =>
+                    previewNo({ data: { type, movement_date: form.movement_date } })
+                      .then((r) => setForm((f) => ({ ...f, voucher_no: r.code })))
+                      .catch((e: any) => toast.error(e.message))
+                  }
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </Field>
-            <Field label="Kho">
-              <Select
-                value={form.warehouse_id}
-                onValueChange={(v) => setForm({ ...form, warehouse_id: v })}
-                disabled={activeWhs.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={activeWhs.length === 0 ? "Chưa có kho — tạo ở Danh mục kho" : "Chọn kho..."} />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeWhs.map((w: any) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.code} · {w.name}{w.is_default ? " ★" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Field label="Ngày">
+              <Input
+                type="date"
+                value={form.movement_date}
+                onChange={(e) => setForm({ ...form, movement_date: e.target.value })}
+              />
             </Field>
           </div>
-          <Field label="Mặt hàng">
-            <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
+
+          <Field label="Kho">
+            <Select
+              value={form.warehouse_id}
+              onValueChange={(v) => setForm({ ...form, warehouse_id: v })}
+              disabled={activeWhs.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={activeWhs.length === 0 ? "Chưa có kho — tạo ở Danh mục kho" : "Chọn kho..."} />
+              </SelectTrigger>
               <SelectContent>
-                {products.filter((p: any) => (p.item_type ?? "goods") !== "service").map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>{p.code} · {p.name} (tồn {fmt(p.on_hand)})</SelectItem>
+                {activeWhs.map((w: any) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    {w.code} · {w.name}{w.is_default ? " ★" : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Số lượng"><Input type="number" value={form.qty} onChange={(e) => setForm({ ...form, qty: Number(e.target.value) })} /></Field>
-            <Field label="Đơn giá"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
+
+          <Field label="Mặt hàng">
+            <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
+              <SelectContent>
+                {goodsOnly.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.code} · {p.name} (tồn {fmt(p.on_hand)} {p.unit})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Số lượng">
+              <Input
+                type="number"
+                min={0}
+                value={form.qty || ""}
+                onChange={(e) => setForm({ ...form, qty: Number(e.target.value) })}
+              />
+              {overStock && (
+                <p className="text-xs text-rose-600 mt-1">
+                  Vượt tồn (hiện có {fmt(Number(selectedProduct?.on_hand ?? 0))})
+                </p>
+              )}
+            </Field>
+            <Field label={type === "in" ? "Đơn giá nhập" : "Đơn giá xuất (BQ)"}>
+              <Input
+                type="number"
+                min={0}
+                value={form.unit_cost || ""}
+                onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })}
+                disabled={type === "out"}
+              />
+            </Field>
+            <Field label="Thành tiền">
+              <Input value={fmt(total)} disabled className="font-mono text-right" />
+            </Field>
           </div>
-          <Field label="Ngày"><Input type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} /></Field>
-          <Field label="Ghi chú"><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></Field>
+
+          <Field label={type === "in" ? "Tài khoản đối ứng (Có)" : "Tài khoản đối ứng (Nợ)"}>
+            <Select value={form.counter_account} onValueChange={(v) => setForm({ ...form, counter_account: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {counterOptions.map((o) => (
+                  <SelectItem key={o.code} value={o.code}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Diễn giải">
+            <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          </Field>
+
+          <div className="rounded-md bg-muted/40 p-3 text-xs space-y-1">
+            <div className="font-medium text-foreground">Bút toán tự sinh</div>
+            {type === "in" ? (
+              <>
+                <div>Nợ <span className="font-mono">{selectedProduct?.stock_account || "156"}</span> — Hàng tồn kho: <span className="font-mono">{fmt(total)}</span></div>
+                <div>Có <span className="font-mono">{form.counter_account}</span>: <span className="font-mono">{fmt(total)}</span></div>
+              </>
+            ) : (
+              <>
+                <div>Nợ <span className="font-mono">{form.counter_account}</span>: <span className="font-mono">{fmt(total)}</span></div>
+                <div>Có <span className="font-mono">{selectedProduct?.stock_account || "156"}</span> — Hàng tồn kho: <span className="font-mono">{fmt(total)}</span></div>
+              </>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
-          <Button
-            onClick={() => m.mutate()}
-            disabled={!form.product_id || !form.warehouse_id || form.qty <= 0 || m.isPending}
-          >
-            Ghi nhận
+          <Button onClick={() => m.mutate()} disabled={!canSave || m.isPending}>
+            {m.isPending ? "Đang lưu..." : `Lưu ${title}`}
           </Button>
         </DialogFooter>
       </DialogContent>
