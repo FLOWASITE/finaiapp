@@ -184,7 +184,7 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
     const [{ data: products = [] }, { data: movs30 = [] }] = await Promise.all([
       supabase
         .from("products")
-        .select("id, code, name, unit, on_hand, unit_cost, min_stock, is_active")
+        .select("id, code, name, unit, item_type, on_hand, unit_cost, min_stock, is_active")
         .eq("is_active", true),
       supabase
         .from("stock_movements")
@@ -194,12 +194,14 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
 
     const enriched = (products ?? []).map((p: any) => ({
       ...p,
-      value: Number(p.on_hand) * Number(p.unit_cost),
-      low_stock: Number(p.min_stock) > 0 && Number(p.on_hand) <= Number(p.min_stock),
+      value: p.item_type === "service" ? 0 : Number(p.on_hand) * Number(p.unit_cost),
+      low_stock: p.item_type !== "service" && Number(p.min_stock) > 0 && Number(p.on_hand) <= Number(p.min_stock),
     }));
-    const totalValue = enriched.reduce((s, p) => s + p.value, 0);
-    const lowStock = enriched.filter((p) => p.low_stock);
-    const topValue = [...enriched].sort((a, b) => b.value - a.value).slice(0, 8);
+    const goods = enriched.filter((p: any) => p.item_type !== "service");
+    const services = enriched.filter((p: any) => p.item_type === "service");
+    const totalValue = goods.reduce((s, p) => s + p.value, 0);
+    const lowStock = goods.filter((p) => p.low_stock);
+    const topValue = [...goods].sort((a, b) => b.value - a.value).slice(0, 8);
 
     const inValue = (movs30 ?? [])
       .filter((m: any) => m.movement_type === "in")
@@ -211,6 +213,8 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
     return {
       total_value: totalValue,
       sku_count: enriched.length,
+      goods_count: goods.length,
+      service_count: services.length,
       low_stock_count: lowStock.length,
       movements_30d: (movs30 ?? []).length,
       in_value_30d: inValue,
