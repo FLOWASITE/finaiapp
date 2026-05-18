@@ -774,6 +774,33 @@ function AccountDrilldownDialog({
     ...QUERY_PRESETS.REPORT,
   });
   const open = !!account;
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Reset khi mở/đóng hoặc đổi tài khoản
+  useEffect(() => {
+    setSearch("");
+    setPage(1);
+  }, [account?.code]);
+
+  const allLines: any[] = q.data?.lines ?? [];
+  const term = search.trim().toLowerCase();
+  const filteredLines = term
+    ? allLines.filter(
+        (l) =>
+          (l.description ?? "").toLowerCase().includes(term) ||
+          (l.entry_date ?? "").toLowerCase().includes(term) ||
+          String(l.debit).includes(term) ||
+          String(l.credit).includes(term),
+      )
+    : allLines;
+  const totalPages = Math.max(1, Math.ceil(filteredLines.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const pageLines = filteredLines.slice(start, start + pageSize);
+
+  useEffect(() => { setPage(1); }, [search, pageSize]);
 
   async function handleExport() {
     if (!account) return;
@@ -817,37 +844,84 @@ function AccountDrilldownDialog({
               <span>Số dư cuối: <b className="text-foreground font-mono">{fmt(q.data.closing)}</b></span>
               <span>Số dòng: <b className="text-foreground">{q.data.lines.length}</b></span>
             </div>
-            {q.data.lines.length === 0 ? (
+            {allLines.length === 0 ? (
               <div className="rounded border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
                 Không có chứng từ nào phát sinh trên TK {account.code} trong kỳ.
               </div>
             ) : (
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-background">
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="py-1 text-left">Ngày</th>
-                    <th className="text-left">Chứng từ / Diễn giải</th>
-                    <th className="text-right">PS Nợ</th>
-                    <th className="text-right">PS Có</th>
-                    <th className="text-right">Lũy kế</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {q.data.lines.map((l: any, i: number) => (
-                    <tr key={`${l.entry_id}-${i}`} className="border-b border-border/40">
-                      <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
-                      <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
-                      <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
-                      <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
-                      <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
-                      <td className="pl-2 text-right">
-                        <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="relative flex-1 min-w-[220px]">
+                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Tìm theo diễn giải, ngày hoặc số tiền…"
+                      className="h-8 w-full rounded border border-border bg-background pl-7 pr-2 text-xs"
+                    />
+                  </div>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Số dòng/trang:
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="h-8 rounded border border-border bg-background px-1 text-xs"
+                    >
+                      {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
+                  <span className="text-muted-foreground">
+                    {filteredLines.length === 0
+                      ? "Không có kết quả"
+                      : `${start + 1}–${Math.min(start + pageSize, filteredLines.length)} / ${filteredLines.length}`}
+                    {term && allLines.length !== filteredLines.length && ` (lọc từ ${allLines.length})`}
+                  </span>
+                </div>
+                {filteredLines.length === 0 ? (
+                  <div className="rounded border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                    Không tìm thấy dòng nào khớp "{search}".
+                  </div>
+                ) : (
+                  <>
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-background">
+                        <tr className="border-b border-border text-muted-foreground">
+                          <th className="py-1 text-left">Ngày</th>
+                          <th className="text-left">Chứng từ / Diễn giải</th>
+                          <th className="text-right">PS Nợ</th>
+                          <th className="text-right">PS Có</th>
+                          <th className="text-right">Lũy kế</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageLines.map((l: any, i: number) => (
+                          <tr key={`${l.entry_id}-${start + i}`} className="border-b border-border/40">
+                            <td className="py-1 font-mono whitespace-nowrap">{l.entry_date}</td>
+                            <td className="max-w-[420px] truncate" title={l.description ?? ""}>{l.description ?? "—"}</td>
+                            <td className="text-right font-mono tabular-nums">{fmt(l.debit)}</td>
+                            <td className="text-right font-mono tabular-nums">{fmt(l.credit)}</td>
+                            <td className="text-right font-mono tabular-nums">{fmt(l.running)}</td>
+                            <td className="pl-2 text-right">
+                              <Link to="/journal" hash={`entry-${l.entry_id}`} className="text-primary underline" onClick={onClose}>Mở</Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {totalPages > 1 && (
+                      <div className="mt-2 flex items-center justify-end gap-2 text-xs">
+                        <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(1)}>« Đầu</Button>
+                        <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>‹ Trước</Button>
+                        <span className="px-1 text-muted-foreground">Trang {safePage} / {totalPages}</span>
+                        <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Sau ›</Button>
+                        <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Cuối »</Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </div>
         )}
