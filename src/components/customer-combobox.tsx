@@ -3,6 +3,7 @@ import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listCustomers, upsertCustomer } from "@/lib/customers.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -32,7 +33,7 @@ export function CustomerCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const list = useServerFn(listCustomers);
-  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}) });
+  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => list({}), ...QUERY_PRESETS.REFERENCE });
   const active = useMemo(() => (customers ?? []).find((c) => c.id === value) ?? null, [customers, value]);
 
   return (

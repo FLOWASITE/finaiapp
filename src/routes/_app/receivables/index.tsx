@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getReceivables } from "@/lib/receivables.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
@@ -12,7 +13,7 @@ function ReceivablesPage() {
   const fn = useServerFn(getReceivables);
   const [kind, setKind] = useState<"AR" | "AP">("AR");
   const [dims, setDims] = useState<DimensionValue>({});
-  const { data } = useQuery({ queryKey: ["receivables", kind, dims], queryFn: () => fn({ data: { kind, dims } }) });
+  const { data } = useQuery({ queryKey: ["receivables", kind, dims], queryFn: () => fn({ data: { kind, dims } }), ...QUERY_PRESETS.REPORT });
 
   const totals = (data ?? []).reduce(
     (s, r) => ({

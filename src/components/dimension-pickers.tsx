@@ -7,6 +7,7 @@ import { Building2, Users, FolderKanban, Layers } from "lucide-react";
 import {
   listBranches, listDepartments, listProjects, listCostCenters,
 } from "@/lib/dimensions.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 
 export type DimensionValue = {
   branch_id?: string | null;
@@ -43,19 +44,19 @@ export function DimensionPickers({
 
   const { data: branches } = useQuery({
     queryKey: ["dim-branches"], queryFn: () => listB(),
-    enabled: show.includes("branch"), staleTime: 5 * 60_000,
+    enabled: show.includes("branch"), ...QUERY_PRESETS.REFERENCE,
   });
   const { data: departments } = useQuery({
     queryKey: ["dim-departments"], queryFn: () => listD(),
-    enabled: show.includes("department"), staleTime: 5 * 60_000,
+    enabled: show.includes("department"), ...QUERY_PRESETS.REFERENCE,
   });
   const { data: projects } = useQuery({
     queryKey: ["dim-projects"], queryFn: () => listP(),
-    enabled: show.includes("project"), staleTime: 5 * 60_000,
+    enabled: show.includes("project"), ...QUERY_PRESETS.REFERENCE,
   });
   const { data: ccs } = useQuery({
     queryKey: ["dim-cost-centers"], queryFn: () => listC(),
-    enabled: show.includes("cost_center"), staleTime: 5 * 60_000,
+    enabled: show.includes("cost_center"), ...QUERY_PRESETS.REFERENCE,
   });
 
   const wrap = layout === "row"

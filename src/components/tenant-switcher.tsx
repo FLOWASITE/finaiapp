@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { listMyTenants, switchTenant, createTenant } from "@/lib/tenants.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,8 +63,7 @@ export function TenantSwitcher() {
   const { data, isPending, isFetching } = useQuery({
     queryKey: ["my-tenants"],
     queryFn: () => list(),
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    ...QUERY_PRESETS.TENANT_STATIC,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     placeholderData: (prev) => prev,

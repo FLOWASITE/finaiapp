@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getJournal, getGeneralLedger, getAccountLedger, getTrialBalance,
 } from "@/lib/ledgers.functions";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,10 +36,10 @@ function LedgersPage() {
   const alFn = useServerFn(getAccountLedger);
   const tbFn = useServerFn(getTrialBalance);
 
-  const j = useQuery({ queryKey: ["journal", from, to, dims], queryFn: () => jFn({ data: { from, to, dims } }) });
-  const gl = useQuery({ queryKey: ["gl", from, to, dims], queryFn: () => glFn({ data: { from, to, dims } }) });
-  const al = useQuery({ queryKey: ["al", account, from, to, dims], queryFn: () => alFn({ data: { account, from, to, dims } }) });
-  const tb = useQuery({ queryKey: ["tb", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }) });
+  const j = useQuery({ queryKey: ["journal", from, to, dims], queryFn: () => jFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
+  const gl = useQuery({ queryKey: ["gl", from, to, dims], queryFn: () => glFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
+  const al = useQuery({ queryKey: ["al", account, from, to, dims], queryFn: () => alFn({ data: { account, from, to, dims } }), ...QUERY_PRESETS.REPORT });
+  const tb = useQuery({ queryKey: ["tb", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
 
   return (
     <div className="p-8 print:p-0">

@@ -31,4 +31,4 @@ export const QUERY_PRESETS = {
     staleTime: 30 * 60_000,
     gcTime: 2 * 60 * 60_000,
   },
-} as const;
+};
