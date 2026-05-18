@@ -454,6 +454,42 @@ export type Database = {
           },
         ]
       }
+      einvoice_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          last_login_at: string | null
+          last_session_token: string | null
+          tct_password_encrypted: string
+          tct_username: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_login_at?: string | null
+          last_session_token?: string | null
+          tct_password_encrypted: string
+          tct_username: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_login_at?: string | null
+          last_session_token?: string | null
+          tct_password_encrypted?: string
+          tct_username?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       einvoice_lines: {
         Row: {
           amount: number | null
