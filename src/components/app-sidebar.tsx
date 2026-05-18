@@ -346,52 +346,6 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="relative gap-1">
-          {/* AI LAUNCHER */}
-          <div className="px-2 pt-3 pb-2">
-            {collapsed ? (
-              <button
-                onClick={() => setOpenCmd(true)}
-                aria-label="Ask FinAI AI"
-                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 hover-scale transition-all duration-300 hover:shadow-[0_0_24px_-4px_oklch(0.72_0.16_162/0.6)]"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                <Sparkles className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => setOpenCmd(true)}
-                className="group relative w-full overflow-hidden rounded-xl p-[1px] animate-fade-in transition-all duration-300 hover:shadow-[0_0_28px_-6px_oklch(0.72_0.16_162/0.55)]"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                <div className="rounded-[11px] bg-sidebar/85 backdrop-blur-md px-3 py-2.5 transition-colors group-hover:bg-sidebar/70">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-sidebar-primary animate-[pulse_2.8s_ease-in-out_infinite]" />
-                    <span className="text-[12.5px] font-medium tracking-tight text-sidebar-foreground/90 flex-1 text-left">
-                      Hỏi FinAI AI…
-                    </span>
-                    <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-sidebar-border/60 bg-sidebar-accent/40 px-1.5 py-0.5 text-[10px] font-mono text-sidebar-foreground/60">
-                      <CommandIcon className="h-2.5 w-2.5" />K
-                    </kbd>
-                  </div>
-                </div>
-              </button>
-            )}
-
-            {!collapsed && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {QUICK_AI.map((q) => (
-                  <button
-                    key={q.label}
-                    onClick={() => go(q.to)}
-                    className="rounded-full border border-sidebar-border/60 bg-sidebar-accent/30 px-2.5 py-1 text-[10.5px] font-medium tracking-wide whitespace-nowrap text-sidebar-foreground/70 hover:border-sidebar-primary/60 hover:text-sidebar-foreground hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_oklch(0_0_0/0.4)] transition-all duration-200"
-                  >
-                    {q.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {activeSections.map((section, idx) => (
             <React.Fragment key={section.label ?? `s-${idx}`}>
               {section.label && idx > 0 && (
