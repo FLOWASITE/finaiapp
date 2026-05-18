@@ -45,6 +45,7 @@ import {
   deleteReceipt,
 } from "@/lib/receipts.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
