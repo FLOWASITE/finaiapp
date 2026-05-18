@@ -37,8 +37,10 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 function ItemsListPage() {
   const list = useServerFn(listProducts);
   const cats = useServerFn(listCategories);
+  const unitsFn = useServerFn(listUnits);
   const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats() });
+  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn() });
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
@@ -66,7 +68,7 @@ function ItemsListPage() {
             </Link>.
           </p>
         </div>
-        <ProductDialog categories={categories ?? []} existingCodes={(products ?? []).map((p: any) => p.code)} />
+        <ProductDialog categories={categories ?? []} existingCodes={(products ?? []).map((p: any) => p.code)} units={(units as any[]) ?? []} />
       </div>
 
       <Card>
@@ -175,7 +177,7 @@ const emptyForm = () => ({
   notes: "",
 });
 
-function ProductDialog({ categories, existingCodes }: { categories: any[]; existingCodes: string[] }) {
+function ProductDialog({ categories, existingCodes, units }: { categories: any[]; existingCodes: string[]; units: any[] }) {
   const upsert = useServerFn(upsertProduct);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -315,16 +317,13 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
               <Field label="Tên *">
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <Field label="ĐVT *">
-                <Input
-                  list="unit-suggestions"
+              <Field label="ĐVT mặc định *">
+                <UnitPicker
                   value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  placeholder={isService ? "lần / giờ" : "cái"}
+                  onChange={(v) => setForm({ ...form, unit: v })}
+                  units={units}
+                  isService={isService}
                 />
-                <datalist id="unit-suggestions">
-                  {UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
-                </datalist>
               </Field>
               <Field label="Nhóm">
                 <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
@@ -490,5 +489,62 @@ function Field({
         {hint && error && <div className="text-[11px] text-destructive">{hint}</div>}
       </div>
     </TooltipProvider>
+  );
+}
+
+function UnitPicker({
+  value,
+  onChange,
+  units,
+  isService,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  units: any[];
+  isService: boolean;
+}) {
+  const active = (units ?? []).filter((u: any) => u.is_active);
+  const merged = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; usage?: number }>();
+    for (const u of active) map.set(u.code.toLowerCase(), { code: u.code, name: u.name, usage: u.usage ?? 0 });
+    for (const s of UNIT_SUGGESTIONS) if (!map.has(s.toLowerCase())) map.set(s.toLowerCase(), { code: s, name: s });
+    if (value && !map.has(value.toLowerCase())) map.set(value.toLowerCase(), { code: value, name: value });
+    return Array.from(map.values()).sort((a, b) => (b.usage ?? 0) - (a.usage ?? 0) || a.code.localeCompare(b.code));
+  }, [active, value]);
+  const [custom, setCustom] = useState(false);
+  const inCatalog = useMemo(
+    () => merged.some((m) => m.code.toLowerCase() === value.toLowerCase()),
+    [merged, value]
+  );
+
+  if (custom) {
+    return (
+      <div className="flex gap-1">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={isService ? "lần / giờ" : "cái"}
+          autoFocus
+        />
+        <Button type="button" variant="ghost" size="sm" onClick={() => setCustom(false)}>Chọn</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-1">
+      <Select value={inCatalog ? value : ""} onValueChange={onChange}>
+        <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn đơn vị..." /></SelectTrigger>
+        <SelectContent>
+          {merged.map((u) => (
+            <SelectItem key={u.code} value={u.code}>
+              <span className="font-mono">{u.code}</span>
+              {u.name !== u.code && <span className="text-muted-foreground"> · {u.name}</span>}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button type="button" variant="outline" size="sm" onClick={() => setCustom(true)} title="Nhập thủ công">+</Button>
+    </div>
   );
 }
