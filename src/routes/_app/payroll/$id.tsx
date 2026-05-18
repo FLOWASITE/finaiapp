@@ -1,3 +1,4 @@
+import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5,6 +6,9 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import {
   getPayrollRun, postPayrollRun, approvePayrollRun, deletePayrollRun,
 } from "@/lib/payroll.functions";
+import {
+  applyAdvancesToRun, markRunPaid, exportBankCSV,
+} from "@/lib/payroll-phased.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +26,9 @@ function RunDetail() {
   const post = useServerFn(postPayrollRun);
   const approve = useServerFn(approvePayrollRun);
   const del = useServerFn(deletePayrollRun);
+  const applyAdv = useServerFn(applyAdvancesToRun);
+  const markPaid = useServerFn(markRunPaid);
+  const csvFn = useServerFn(exportBankCSV);
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["payroll", id], queryFn: () => get({ data: { id } }),
@@ -40,6 +47,28 @@ function RunDetail() {
   const mDel = useMutation({
     mutationFn: () => del({ data: { id } }),
     onSuccess: () => { toast.success("Đã xoá"); window.location.href = "/payroll"; },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mAdv = useMutation({
+    mutationFn: () => applyAdv({ data: { run_id: id } }),
+    onSuccess: (r: any) => { toast.success(`Đã áp dụng ${r.applied} tạm ứng`); qc.invalidateQueries({ queryKey: ["payroll", id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mPaid = useMutation({
+    mutationFn: (ref: string) => markPaid({ data: { id, reference: ref } }),
+    onSuccess: () => { toast.success("Đã ghi nhận thanh toán"); qc.invalidateQueries({ queryKey: ["payroll", id] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mCsv = useMutation({
+    mutationFn: () => csvFn({ data: { id } }),
+    onSuccess: (r: any) => {
+      const blob = new Blob([r.content], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = r.filename; a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Đã xuất ${r.count} dòng — Tổng ${Number(r.total).toLocaleString("vi-VN")} VND`);
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -61,16 +90,25 @@ function RunDetail() {
           <Link to="/payroll" className="text-sm text-muted-foreground">← Quay lại</Link>
           <h1 className="text-2xl font-semibold mt-1">Kỳ lương {String(r.period_month).slice(0, 7)}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge variant={r.status === "posted" ? "default" : "secondary"}>{r.status}</Badge>
+          {r.payment_status === "paid" && <Badge className="bg-emerald-600 hover:bg-emerald-600">Đã trả</Badge>}
           {r.status === "draft" && (
             <>
-              <Button variant="outline" onClick={() => mApp.mutate()} disabled={mApp.isPending}>Duyệt</Button>
-              <Button variant="destructive" onClick={() => { if (confirm("Xoá kỳ lương?")) mDel.mutate(); }}>Xoá</Button>
+              <Button variant="outline" size="sm" onClick={() => mAdv.mutate()} disabled={mAdv.isPending}>Áp tạm ứng</Button>
+              <Button variant="outline" size="sm" onClick={() => mApp.mutate()} disabled={mApp.isPending}>Duyệt</Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (confirm("Xoá kỳ lương?")) mDel.mutate(); }}>Xoá</Button>
             </>
           )}
+          <Link to="/payroll/payslips/$id" params={{ id }}>
+            <Button variant="outline" size="sm">Phiếu lương / PDF</Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => mCsv.mutate()} disabled={mCsv.isPending}>CSV ngân hàng</Button>
           {r.status !== "posted" && (
-            <Button onClick={() => mPost.mutate()} disabled={mPost.isPending}>Ghi sổ</Button>
+            <Button size="sm" onClick={() => mPost.mutate()} disabled={mPost.isPending}>Ghi sổ</Button>
+          )}
+          {r.status === "posted" && r.payment_status !== "paid" && (
+            <Button size="sm" onClick={() => { const ref = prompt("Mã chứng từ thanh toán (tuỳ chọn):") ?? ""; mPaid.mutate(ref); }}>Đánh dấu đã trả</Button>
           )}
         </div>
       </div>

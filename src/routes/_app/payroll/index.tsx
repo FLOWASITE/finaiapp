@@ -28,9 +28,10 @@ function PayrollPage() {
           <h1 className="text-2xl font-semibold">Tiền lương</h1>
           <p className="text-sm text-muted-foreground">Quản lý nhân viên và bảng lương theo chuẩn Việt Nam</p>
         </div>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           <Link to="/payroll/components" className="text-primary underline">Khoản lương</Link>
           <Link to="/payroll/timesheets" className="text-primary underline">Chấm công</Link>
+          <Link to="/payroll/advances" className="text-primary underline">Tạm ứng</Link>
           <Link to="/payroll/policies" className="text-primary underline">Chính sách BHXH/TNCN →</Link>
         </div>
       </div>
