@@ -171,6 +171,10 @@ const ManualInvoiceSchema = z.object({
   issue_date: z.string(),
   expense_account: z.string().max(20).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  branch_id: z.string().uuid().nullable().optional(),
+  department_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
   lines: z.array(ManualLineSchema).min(1).max(50),
 });
 
