@@ -796,13 +796,13 @@ async function applyVoucherLines(
     await supabase.from("stock_vouchers").update({ journal_entry_id: journalEntryId }).eq("id", header.id);
   }
 
-  // Insert stock_movements
+  // Insert stock_movements (qty/unit_cost in base unit; txn_* preserve the unit entered)
   const movements = prepared.map((pr) => ({
     user_id: userId,
     tenant_id: header.tenant_id,
     product_id: pr.product.id,
     movement_type: header.voucher_type,
-    qty: pr.line.qty,
+    qty: pr.qtyBase,
     unit_cost: pr.effectiveUnit,
     movement_date: header.voucher_date,
     note: pr.line.note?.trim()
@@ -812,6 +812,10 @@ async function applyVoucherLines(
     ref_id: journalEntryId,
     warehouse_id: header.warehouse_id,
     voucher_id: header.id,
+    txn_unit: pr.txnUnit,
+    txn_qty: pr.txnQty,
+    txn_unit_cost: pr.txnUnitCost,
+    conversion_factor: pr.factor,
   }));
   const { error: mErr } = await supabase.from("stock_movements").insert(movements);
   if (mErr) throw new Error(mErr.message);
