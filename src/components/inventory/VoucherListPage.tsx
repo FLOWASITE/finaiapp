@@ -210,6 +210,7 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
   const get = useServerFn(getMovement);
   const cancelFn = useServerFn(cancelMovement);
   const updateFn = useServerFn(updateMovement);
+  const qc = useQueryClient();
   const whsFn = useServerFn(listWarehouses);
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn() });
 
