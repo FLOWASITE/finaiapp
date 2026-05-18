@@ -67,7 +67,15 @@ async function resolveTenant(supabase: any, userId: string) {
 }
 
 // =================== TCT endpoints ===================
-const TCT_BASE = "https://hoadondientu.gdt.gov.vn:30000";
+const TCT_DIRECT = "https://hoadondientu.gdt.gov.vn:30000";
+// Cloudflare Workers (Lovable Cloud runtime) chặn outbound tới cổng :30000.
+// Người dùng phải tự host một HTTPS proxy (xem docs/tct-proxy) và set secret
+// TCT_PROXY_URL = "https://<proxy-domain>" — server functions sẽ gọi qua đó.
+function getTctBase(): string {
+  const p = (process.env.TCT_PROXY_URL || "").trim().replace(/\/+$/, "");
+  return p || TCT_DIRECT;
+}
+const TCT_BASE_LABEL = TCT_DIRECT;
 
 // =================== Credentials ===================
 export const getTctCredentials = createServerFn({ method: "POST" })
