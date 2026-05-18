@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { listCashVouchers, getCashBook } from "@/lib/cash.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
@@ -34,12 +35,8 @@ function CashPage() {
           <p className="text-sm text-muted-foreground">Phiếu thu, phiếu chi & sổ quỹ</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="receipt" onClick={() => setOpenType("receipt")}>
-            <ArrowDownToLine className="mr-2 h-4 w-4" /> Phiếu thu
-          </Button>
-          <Button variant="payment" onClick={() => setOpenType("payment")}>
-            <ArrowUpFromLine className="mr-2 h-4 w-4" /> Phiếu chi
-          </Button>
+          <AddNew label="Phiếu thu" icon={ArrowDownToLine} onClick={() => setOpenType("receipt")} />
+          <AddNew label="Phiếu chi" icon={ArrowUpFromLine} onClick={() => setOpenType("payment")} />
         </div>
       </div>
 

@@ -14,6 +14,7 @@ import {
 import { listCustomers } from "@/lib/customers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,12 +92,8 @@ function VouchersPage() {
           </SelectContent>
         </Select>
         <div className="ml-auto flex items-center gap-2">
-          <Button onClick={() => setMode("receipt")} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            <ArrowDownToLine className="mr-2 h-4 w-4" /> Báo có (Thu)
-          </Button>
-          <Button onClick={() => setMode("payment")} variant="destructive">
-            <ArrowUpFromLine className="mr-2 h-4 w-4" /> Báo nợ (Chi)
-          </Button>
+          <AddNew label="Báo có (Thu)" icon={ArrowDownToLine} onClick={() => setMode("receipt")} />
+          <AddNew label="Báo nợ (Chi)" icon={ArrowUpFromLine} onClick={() => setMode("payment")} />
           <Button onClick={() => setMode("transfer")} variant="outline">
             <ArrowLeftRight className="mr-2 h-4 w-4" /> Chuyển khoản nội bộ
           </Button>

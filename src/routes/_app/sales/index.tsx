@@ -52,6 +52,7 @@ import {
 import { listProducts } from "@/lib/inventory.functions";
 import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
 import { Button } from "@/components/ui/button";
+import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1101,9 +1102,7 @@ function NewReceiptInline({
 
   return (
     <>
-      <Button variant="receipt" onClick={() => setOpen(true)}>
-        <Banknote className="mr-2 h-4 w-4" /> Phiếu thu
-      </Button>
+      <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
       <NewReceiptDialog
         open={open}
         onOpenChange={setOpen}
