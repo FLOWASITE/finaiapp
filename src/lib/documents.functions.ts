@@ -158,7 +158,7 @@ export const listLinkedDocuments = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: links, error } = await context.supabase
       .from("document_links")
-      .select("document_id, link_type, created_at, documents!inner(id, original_filename, doc_kind, mime_type, size_bytes, storage_bucket, storage_path, ocr_status, created_at)")
+      .select("document_id, link_type, created_at, documents!inner(id, original_filename, doc_kind, mime_type, size_bytes, storage_bucket, storage_path, ocr_status, ocr_extracted, created_at)")
       .eq("entity_table", data.entity_table)
       .eq("entity_id", data.entity_id)
       .order("created_at", { ascending: false });
