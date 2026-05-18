@@ -152,7 +152,7 @@ async function buildVoucherList(
   },
 ) {
   const page = Math.max(1, Math.floor(data.page ?? 1));
-  const pageSize = Math.min(500, Math.max(10, Math.floor(data.pageSize ?? 100)));
+  const pageSize = Math.min(100000, Math.max(10, Math.floor(data.pageSize ?? 100)));
 
   // Base filter (shared by data + count queries)
   const applyBase = (q: any) => {
