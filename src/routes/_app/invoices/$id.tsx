@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, Save, FileText } from "lucide-react";
@@ -34,6 +35,7 @@ function InvoiceDetail() {
   const { data: linked } = useQuery({
     queryKey: ["invoice-einvoice", id],
     queryFn: () => linkedFn({ data: { kind: "in", invoiceId: id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const { data: invoice, refetch } = useQuery({
@@ -50,6 +52,7 @@ function InvoiceDetail() {
         .createSignedUrl(data.file_path, 600);
       return { ...data, signedUrl: signed?.signedUrl };
     },
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);

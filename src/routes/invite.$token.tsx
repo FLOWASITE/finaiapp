@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getInvitationByToken, acceptInvitation } from "@/lib/invitations.functions";
@@ -28,6 +29,7 @@ function InvitePage() {
   const { data, isLoading } = useQuery({
     queryKey: ["invite", token],
     queryFn: () => fetchInv({ data: { token } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const inv = data?.invitation;

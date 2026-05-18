@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Search, Link2, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -39,6 +40,7 @@ export function LinkEInvoiceDialog({
     queryKey: ["linkable-invoices", einvoiceId, q],
     queryFn: () => search({ data: { einvoiceId, q } }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const linkMut = useMutation({

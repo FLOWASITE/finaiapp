@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listProducts, upsertProduct, listCategories } from "@/lib/inventory.functions";
@@ -38,9 +39,15 @@ function ItemsListPage() {
   const list = useServerFn(listProducts);
   const cats = useServerFn(listCategories);
   const unitsFn = useServerFn(listUnits);
-  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list() });
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats() });
-  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn() });
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => cats(),
+ ...QUERY_PRESETS.REFERENCE,
+});
+  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => unitsFn(),
+ ...QUERY_PRESETS.REFERENCE,
+});
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");

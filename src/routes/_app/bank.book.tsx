@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBankAccounts, getBankBook } from "@/lib/bank.functions";
 import { Input } from "@/components/ui/input";
@@ -21,13 +22,16 @@ function BookPage() {
   const [to, setTo] = useState(todayStr);
   const [acc, setAcc] = useState<string>("");
 
-  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}) });
+  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}),
+ ...QUERY_PRESETS.REPORT,
+});
   if (!acc && accounts[0]?.id) setAcc(accounts[0].id);
 
   const { data: book } = useQuery({
     queryKey: ["bank-book", acc, from, to],
     enabled: !!acc,
     queryFn: () => fetchBook({ data: { bankAccountId: acc, from, to } }),
+    ...QUERY_PRESETS.REPORT,
   });
 
   return (

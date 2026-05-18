@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -63,6 +64,7 @@ function WarehousesPage() {
   const { data: warehouses, isLoading } = useQuery({
     queryKey: ["warehouses"],
     queryFn: () => list(),
+    ...QUERY_PRESETS.REFERENCE,
   });
 
   const [search, setSearch] = useState("");

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { Plus, Pencil, Trash2, Search, FolderTree, Users, Building2 } from "lucide-react";
@@ -48,6 +49,7 @@ export function PartyGroupsPage({ kind }: Props) {
   const { data: groups, isLoading } = useQuery({
     queryKey: ["party-groups", kind],
     queryFn: () => listFn({ data: { kind } }),
+    ...QUERY_PRESETS.REFERENCE,
   });
 
   const [q, setQ] = useState("");

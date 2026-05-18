@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { FileCode2 } from "lucide-react";
@@ -47,7 +48,9 @@ function VatPanel() {
   const today = new Date();
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10));
-  const { data, isFetching } = useQuery({ queryKey: ["vat", from, to], queryFn: () => fn({ data: { from, to } }) });
+  const { data, isFetching } = useQuery({ queryKey: ["vat", from, to], queryFn: () => fn({ data: { from, to } }),
+ ...QUERY_PRESETS.REPORT,
+});
   const dl = useMutation({
     mutationFn: () => xmlFn({ data: { from, to } }),
     onSuccess: (r) => {
@@ -128,7 +131,9 @@ function CitPanel() {
   const xmlFn = useServerFn(buildCITXml);
   const upsertFn = useServerFn(upsertReportNote);
   const [year, setYear] = useState(new Date().getFullYear());
-  const { data, refetch } = useQuery({ queryKey: ["cit", year], queryFn: () => fn({ data: { year } }) });
+  const { data, refetch } = useQuery({ queryKey: ["cit", year], queryFn: () => fn({ data: { year } }),
+ ...QUERY_PRESETS.REPORT,
+});
 
   const [adjAdd, setAdjAdd] = useState("");
   const [adjSub, setAdjSub] = useState("");
@@ -193,7 +198,9 @@ function PitPanel() {
   const fn = useServerFn(getPITAnnual);
   const xmlFn = useServerFn(buildPITXml);
   const [year, setYear] = useState(new Date().getFullYear());
-  const { data } = useQuery({ queryKey: ["pit", year], queryFn: () => fn({ data: { year } }) });
+  const { data } = useQuery({ queryKey: ["pit", year], queryFn: () => fn({ data: { year } }),
+ ...QUERY_PRESETS.REPORT,
+});
   const dl = useMutation({
     mutationFn: () => xmlFn({ data: { year } }),
     onSuccess: (r) => {

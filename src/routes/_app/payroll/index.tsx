@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import {
   listEmployees, upsertEmployee, listPayrollRuns, createPayrollRun,
 } from "@/lib/payroll.functions";
@@ -42,7 +43,9 @@ function RunsTab() {
   const list = useServerFn(listPayrollRuns);
   const create = useServerFn(createPayrollRun);
   const qc = useQueryClient();
-  const { data = [] } = useQuery({ queryKey: ["payroll-runs"], queryFn: () => list() });
+  const { data = [] } = useQuery({ queryKey: ["payroll-runs"], queryFn: () => list(),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const [open, setOpen] = React.useState(false);
   const [month, setMonth] = React.useState(new Date().toISOString().slice(0, 7));
   const [allowance, setAllowance] = React.useState("0");
@@ -105,7 +108,9 @@ function EmployeesTab() {
   const list = useServerFn(listEmployees);
   const upsert = useServerFn(upsertEmployee);
   const qc = useQueryClient();
-  const { data = [] } = useQuery({ queryKey: ["employees"], queryFn: () => list() });
+  const { data = [] } = useQuery({ queryKey: ["employees"], queryFn: () => list(),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<any>({
     code: "", full_name: "", position: "", base_salary: 0, insurance_salary: 0, dependents: 0,

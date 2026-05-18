@@ -2,6 +2,7 @@ import { useForm, type UseFormReturn, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Building2, User, Landmark, Calculator, MapPin } from "lucide-react";
@@ -474,6 +475,7 @@ function GroupSelect({
   const { data: groups } = useQuery({
     queryKey: ["party-groups", kind],
     queryFn: () => listFn({ data: { kind } }),
+    ...QUERY_PRESETS.REFERENCE,
   });
   return (
     <Select value={value || "none"} onValueChange={(v: string) => onChange(v === "none" ? "" : v)}>

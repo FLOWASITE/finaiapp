@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -92,6 +93,7 @@ function DocumentsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["documents", filters],
     queryFn: () => list({ data: { ...filters, limit: 100, offset: 0 } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const activeCount =
@@ -246,6 +248,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
     queryKey: ["document", id],
     queryFn: () => getDoc({ data: { id: id! } }),
     enabled: !!id,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const delMut = useMutation({

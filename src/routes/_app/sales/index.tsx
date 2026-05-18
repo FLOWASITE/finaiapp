@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -156,6 +157,7 @@ function SalesHubPage() {
   const { data: dash } = useQuery({
     queryKey: ["sales-dashboard"],
     queryFn: () => dashFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const setTab = (t: SalesTab, extra: Partial<SalesSearch> = {}) =>
@@ -413,6 +415,7 @@ function InvoicesTab({ statusFilter }: { statusFilter?: string }) {
   const { data: invoices } = useQuery({
     queryKey: ["sales-invoices"],
     queryFn: () => list({}),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const [q, setQ] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>(statusFilter ?? "all");
@@ -715,14 +718,17 @@ function ReceiptsTab({
   const { data: rows = [] } = useQuery({
     queryKey: ["receipts", filter],
     queryFn: () => listFn({ data: filter }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: stats } = useQuery({
     queryKey: ["receipts-stats", from, to],
     queryFn: () => statsFn({ data: { from, to } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-invoices"],
     queryFn: () => outFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const filtered = useMemo(() => {
@@ -1087,6 +1093,7 @@ function NewReceiptInline({
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-invoices"],
     queryFn: () => outFn(),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const filteredOut = preselectCustomerId
@@ -1375,6 +1382,7 @@ function NewInvoiceDialog() {
     queryKey: ["products"],
     queryFn: () => list({}),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const todayStr = today();

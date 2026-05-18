@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import { listMembers, inviteMember, updateMemberRole, removeMember, revokeInvitation } from "@/lib/admin.functions";
@@ -23,7 +24,9 @@ function MembersPage() {
   const remove = useServerFn(removeMember);
   const revoke = useServerFn(revokeInvitation);
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-members"], queryFn: () => list() });
+  const { data, isLoading } = useQuery({ queryKey: ["admin-members"], queryFn: () => list(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
 
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");

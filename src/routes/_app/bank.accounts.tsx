@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -56,7 +57,9 @@ function AccountsPage() {
   const qc = useQueryClient();
   const fetchFn = useServerFn(listBankAccounts);
   const delFn = useServerFn(deleteBankAccount);
-  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchFn({}) });
+  const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchFn({}),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const [editing, setEditing] = useState<any | null>(null);
   const [open, setOpen] = useState(false);
 

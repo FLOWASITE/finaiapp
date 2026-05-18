@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +31,7 @@ function Journal() {
       if (error) throw error;
       return data;
     },
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const exportCsv = () => {

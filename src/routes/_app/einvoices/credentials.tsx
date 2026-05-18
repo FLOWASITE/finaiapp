@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -61,6 +62,7 @@ function CredentialsPage() {
   const credsQ = useQuery({
     queryKey: ["tct-creds"],
     queryFn: () => getCreds({ data: undefined as any }),
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
   const creds = credsQ.data?.credentials ?? null;
   const hasCreds = !!creds;

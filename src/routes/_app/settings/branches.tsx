@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBranches, upsertBranch, deleteBranch } from "@/lib/dimensions.functions";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,9 @@ export const Route = createFileRoute("/_app/settings/branches")({ component: Bra
 
 function BranchesPage() {
   const list = useServerFn(listBranches);
-  const { data } = useQuery({ queryKey: ["branches"], queryFn: () => list() });
+  const { data } = useQuery({ queryKey: ["branches"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const rows = (data as any[]) ?? [];
   return (
     <div className="p-6 space-y-4 max-w-5xl">

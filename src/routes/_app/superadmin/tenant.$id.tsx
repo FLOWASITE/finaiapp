@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { toast } from "sonner";
 import { getTenantDetail, setSuperadminRole } from "@/lib/superadmin.functions";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,7 @@ function TenantDetailPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["superadmin-tenant", id],
     queryFn: () => get({ data: { tenant_id: id } }),
+    ...QUERY_PRESETS.TENANT_STATIC,
   });
 
   const isSa = (data?.roles ?? []).some((r: any) => r.role === "superadmin");

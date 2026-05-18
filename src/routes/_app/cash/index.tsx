@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
@@ -18,8 +19,12 @@ function CashPage() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
 
-  const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}) });
-  const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }) });
+  const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
+  const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
 
   return (
     <div className="p-8 space-y-6">

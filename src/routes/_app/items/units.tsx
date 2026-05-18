@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listUnits, upsertUnit, deleteUnit, seedCommonUnits } from "@/lib/units.functions";
@@ -39,7 +40,9 @@ export const Route = createFileRoute("/_app/items/units")({ component: UnitsPage
 
 function UnitsPage() {
   const list = useServerFn(listUnits);
-  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => list() });
+  const { data: units } = useQuery({ queryKey: ["units"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "hidden">("all");
   const [usage, setUsage] = useState<"all" | "in_use" | "unused">("all");

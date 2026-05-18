@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState, useMemo } from "react";
 import { listAllTenants } from "@/lib/superadmin.functions";
 import { Card } from "@/components/ui/card";
@@ -15,7 +16,9 @@ export const Route = createFileRoute("/_app/superadmin/")({
 
 function TenantsPage() {
   const list = useServerFn(listAllTenants);
-  const { data, isLoading } = useQuery({ queryKey: ["superadmin-tenants"], queryFn: () => list() });
+  const { data, isLoading } = useQuery({ queryKey: ["superadmin-tenants"], queryFn: () => list(),
+ ...QUERY_PRESETS.TENANT_STATIC,
+});
   const [q, setQ] = useState("");
 
   const tenants = useMemo(() => {

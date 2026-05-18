@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -22,7 +23,9 @@ function SuppliersPage() {
   const upsert = useServerFn(upsertSupplier);
   const qc = useQueryClient();
 
-  const { data } = useQuery({ queryKey: ["suppliers"], queryFn: () => list() });
+  const { data } = useQuery({ queryKey: ["suppliers"], queryFn: () => list(),
+ ...QUERY_PRESETS.REFERENCE,
+});
 
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);

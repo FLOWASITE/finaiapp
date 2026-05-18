@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { ChevronDown, ChevronRight, ExternalLink, FileText } from "lucide-react";
 
 import {
@@ -68,6 +69,7 @@ export function ReceiptDocsSheet({
         data: { entity_table: table, entity_id: receiptId! },
       }),
     enabled: !!receiptId && open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const rows = data?.rows ?? [];
@@ -147,6 +149,7 @@ function LinkedDocOcr({ doc }: { doc: any }) {
     queryKey: ["doc-signed", doc?.id],
     queryFn: () => getDoc({ data: { id: doc.id } }),
     enabled: !!doc?.id && previewOpen,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   if (!doc) return null;

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -148,7 +149,8 @@ function EInvoicesPage() {
           pageSize: 50,
         },
       }),
-  });
+      ...QUERY_PRESETS.TRANSACTIONAL,
+    });
 
   const rows = query.data?.rows ?? [];
   const total = query.data?.total ?? 0;

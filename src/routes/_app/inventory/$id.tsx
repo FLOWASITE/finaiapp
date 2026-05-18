@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { getProduct } from "@/lib/inventory.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,9 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 function ProductDetail() {
   const { id } = Route.useParams();
   const fn = useServerFn(getProduct);
-  const { data } = useQuery({ queryKey: ["product", id], queryFn: () => fn({ data: { id } }) });
+  const { data } = useQuery({ queryKey: ["product", id], queryFn: () => fn({ data: { id } }),
+ ...QUERY_PRESETS.TRANSACTIONAL,
+});
 
   if (!data) return <div className="p-8 text-muted-foreground">Đang tải...</div>;
   const { product, kardex } = data;

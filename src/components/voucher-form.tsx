@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarIcon, Check, ChevronsUpDown, ArrowDownToLine, ArrowUpFromLine, Paperclip, IdCard } from "lucide-react";
 import { toast } from "sonner";
@@ -81,12 +82,13 @@ export function VoucherFormDialog({
     queryKey: [type === "receipt" ? "customers" : "suppliers"],
     queryFn: async () => (type === "receipt" ? await fetchCustomers({}) : await fetchSuppliers({})) as any[],
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: coa } = useQuery({
     queryKey: ["coa"],
     queryFn: () => fetchCoa({}),
     enabled: open,
-    staleTime: 5 * 60_000,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const today = useMemo(() => new Date(), []);

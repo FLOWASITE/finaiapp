@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Bell, CheckCheck, Inbox } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,7 @@ export function NotificationsMenu() {
       if (error) throw error;
       return data ?? [];
     },
-    refetchOnWindowFocus: true,
+    ...QUERY_PRESETS.REALTIME,
   });
 
   // Realtime subscription

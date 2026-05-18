@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ArrowLeft, Download, FilePlus2, Trash2, Link2, Unlink } from "lucide-react";
@@ -34,6 +35,7 @@ function EInvoiceDetail() {
   const q = useQuery({
     queryKey: ["einvoice", id],
     queryFn: () => getFn({ data: { id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const createMut = useMutation({

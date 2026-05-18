@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { toast } from "sonner";
 import { Paperclip, X, FileText, Plus, Search } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -43,6 +44,7 @@ export function DocumentLinksManager({
     queryKey: linkedKey,
     queryFn: () => listLinked({ data: { entity_table: entityTable, entity_id: entityId! } }),
     enabled: !!entityId,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const unlinkMut = useMutation({
@@ -161,6 +163,7 @@ function AttachPicker({
         data: { entity_table: entityTable, entity_id: entityId, search: search || undefined },
       }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const linkMut = useMutation({

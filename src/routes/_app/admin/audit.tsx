@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { listAuditLogs, getAuditFacets } from "@/lib/admin.functions";
 import { diffJsonb, formatDiffValue } from "@/lib/audit-diff";
@@ -38,11 +39,13 @@ function AuditPage() {
   const { data: facets } = useQuery({
     queryKey: ["audit-facets"],
     queryFn: () => facetsFn({}),
+    ...QUERY_PRESETS.REPORT,
   });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["audit", filter, page],
     queryFn: () => fn({ data: { ...filter, limit: PAGE_SIZE, offset: page * PAGE_SIZE } }),
+    ...QUERY_PRESETS.REPORT,
   });
 
   const reset = () => {
