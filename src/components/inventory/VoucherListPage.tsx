@@ -170,6 +170,17 @@ export function VoucherListPage({ type }: Props) {
                       <Button size="sm" variant="ghost" onClick={() => setOpenId(r.id)}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={async () => {
+                        const full = await getStockVoucherFn({ data: { id: r.id } });
+                        printVoucher({
+                          voucher: full.voucher as any,
+                          lines: full.lines as any,
+                          journal_lines: full.journal_lines as any,
+                          type,
+                        });
+                      }}>
+                        <Printer className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
