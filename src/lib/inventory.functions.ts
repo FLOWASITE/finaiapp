@@ -681,17 +681,40 @@ async function applyVoucherLines(
   const ids = Array.from(new Set(lines.map((l) => l.product_id)));
   const { data: prods, error: pErr } = await supabase
     .from("products")
-    .select("id, code, name, on_hand, unit_cost, item_type, stock_account")
+    .select("id, code, name, unit, on_hand, unit_cost, item_type, stock_account")
     .in("id", ids);
   if (pErr) throw new Error(pErr.message);
   const prodMap = new Map<string, any>((prods ?? []).map((p: any) => [p.id, p]));
 
-  // Validate each line and compute effective unit cost
+  // Preload unit conversions for these products
+  const { data: convs } = await supabase
+    .from("product_unit_conversions")
+    .select("product_id, unit, factor")
+    .in("product_id", ids);
+  const convMap = new Map<string, { factor: number }>();
+  for (const c of convs ?? []) {
+    convMap.set(`${c.product_id}::${String(c.unit).toLowerCase()}`, { factor: Number(c.factor) });
+  }
+
+  function resolveFactor(productId: string, baseUnit: string, txnUnit?: string): number {
+    if (!txnUnit || !txnUnit.trim()) return 1;
+    if (txnUnit.toLowerCase() === String(baseUnit ?? "").toLowerCase()) return 1;
+    const c = convMap.get(`${productId}::${txnUnit.toLowerCase()}`);
+    if (!c) throw new Error(`Chưa khai báo quy đổi "${txnUnit}" cho mặt hàng`);
+    return c.factor;
+  }
+
+  // Validate each line and compute effective unit cost (in base unit)
   type Prepared = {
     line: z.infer<typeof VoucherLineSchema>;
     product: any;
-    effectiveUnit: number;
-    amount: number;
+    effectiveUnit: number;     // base unit cost stored on stock_movements.unit_cost
+    amount: number;            // line total (same regardless of unit)
+    qtyBase: number;           // quantity in base unit
+    txnUnit: string;           // transaction-time unit label
+    txnQty: number;            // quantity as entered (in txnUnit)
+    txnUnitCost: number;       // unit cost as entered (per txnUnit)
+    factor: number;            // 1 txnUnit = factor × base unit
   };
   // Simulate per-product running on_hand for validation in same voucher (for "out")
   const sim = new Map<string, { qty: number; cost: number }>();
@@ -701,28 +724,39 @@ async function applyVoucherLines(
     if (!p) throw new Error(`Không tìm thấy mặt hàng ${line.product_id}`);
     if (p.item_type === "service") throw new Error(`Dịch vụ "${p.name}" không quản lý tồn kho`);
     if (!(line.qty > 0)) throw new Error(`Số lượng phải > 0 (${p.code})`);
+
+    const factor = resolveFactor(p.id, p.unit, line.unit);
+    const txnUnit = line.unit?.trim() || p.unit;
+    const qtyBase = line.qty * factor;
     let s = sim.get(p.id);
     if (!s) s = { qty: Number(p.on_hand), cost: Number(p.unit_cost) };
     let effective: number;
+    let txnUnitCost = line.unit_cost;
     if (header.voucher_type === "in") {
       if (!(line.unit_cost > 0)) throw new Error(`Đơn giá nhập phải > 0 (${p.code})`);
-      effective = line.unit_cost;
-      const total = s.qty + line.qty;
-      s.cost = total > 0 ? (s.qty * s.cost + line.qty * effective) / total : effective;
+      effective = line.unit_cost / factor; // base-unit cost
+      const total = s.qty + qtyBase;
+      s.cost = total > 0 ? (s.qty * s.cost + qtyBase * effective) / total : effective;
       s.qty = total;
     } else {
-      if (line.qty > s.qty + 1e-9) {
-        throw new Error(`Tồn không đủ cho ${p.code} (còn ${s.qty})`);
+      if (qtyBase > s.qty + 1e-9) {
+        throw new Error(`Tồn không đủ cho ${p.code} (còn ${s.qty} ${p.unit})`);
       }
-      effective = s.cost; // xuất theo giá bình quân hiện tại
-      s.qty -= line.qty;
+      effective = s.cost; // xuất theo giá bình quân hiện tại (base)
+      txnUnitCost = +(effective * factor).toFixed(4);
+      s.qty -= qtyBase;
     }
     sim.set(p.id, s);
     prepared.push({
       line,
       product: p,
       effectiveUnit: effective,
-      amount: +(line.qty * effective).toFixed(2),
+      amount: +(qtyBase * effective).toFixed(2),
+      qtyBase,
+      txnUnit,
+      txnQty: line.qty,
+      txnUnitCost,
+      factor,
     });
   }
 
