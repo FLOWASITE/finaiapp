@@ -67,7 +67,9 @@ import { Route as AppReportsLedgersRouteImport } from './routes/_app/reports/led
 import { Route as AppReportsArSummaryRouteImport } from './routes/_app/reports/ar-summary'
 import { Route as AppReportsApSummaryRouteImport } from './routes/_app/reports/ap-summary'
 import { Route as AppReportsAllocationScheduleRouteImport } from './routes/_app/reports/allocation-schedule'
+import { Route as AppPayrollTimesheetsRouteImport } from './routes/_app/payroll/timesheets'
 import { Route as AppPayrollPoliciesRouteImport } from './routes/_app/payroll/policies'
+import { Route as AppPayrollComponentsRouteImport } from './routes/_app/payroll/components'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
@@ -398,9 +400,19 @@ const AppReportsAllocationScheduleRoute =
     path: '/reports/allocation-schedule',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPayrollTimesheetsRoute = AppPayrollTimesheetsRouteImport.update({
+  id: '/payroll/timesheets',
+  path: '/payroll/timesheets',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollPoliciesRoute = AppPayrollPoliciesRouteImport.update({
   id: '/payroll/policies',
   path: '/payroll/policies',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayrollComponentsRoute = AppPayrollComponentsRouteImport.update({
+  id: '/payroll/components',
+  path: '/payroll/components',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
@@ -634,7 +646,9 @@ export interface FileRoutesByFullPath {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/payroll/components': typeof AppPayrollComponentsRoute
   '/payroll/policies': typeof AppPayrollPoliciesRoute
+  '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
   '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
@@ -726,7 +740,9 @@ export interface FileRoutesByTo {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/payroll/components': typeof AppPayrollComponentsRoute
   '/payroll/policies': typeof AppPayrollPoliciesRoute
+  '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
   '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/reports/ar-summary': typeof AppReportsArSummaryRoute
@@ -825,7 +841,9 @@ export interface FileRoutesById {
   '/_app/items/categories': typeof AppItemsCategoriesRoute
   '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/payroll/components': typeof AppPayrollComponentsRoute
   '/_app/payroll/policies': typeof AppPayrollPoliciesRoute
+  '/_app/payroll/timesheets': typeof AppPayrollTimesheetsRoute
   '/_app/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/_app/reports/ap-summary': typeof AppReportsApSummaryRoute
   '/_app/reports/ar-summary': typeof AppReportsArSummaryRoute
@@ -924,7 +942,9 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/payroll/components'
     | '/payroll/policies'
+    | '/payroll/timesheets'
     | '/reports/allocation-schedule'
     | '/reports/ap-summary'
     | '/reports/ar-summary'
@@ -1016,7 +1036,9 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/payroll/components'
     | '/payroll/policies'
+    | '/payroll/timesheets'
     | '/reports/allocation-schedule'
     | '/reports/ap-summary'
     | '/reports/ar-summary'
@@ -1114,7 +1136,9 @@ export interface FileRouteTypes {
     | '/_app/items/categories'
     | '/_app/items/units'
     | '/_app/payroll/$id'
+    | '/_app/payroll/components'
     | '/_app/payroll/policies'
+    | '/_app/payroll/timesheets'
     | '/_app/reports/allocation-schedule'
     | '/_app/reports/ap-summary'
     | '/_app/reports/ar-summary'
@@ -1582,11 +1606,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsAllocationScheduleRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/payroll/timesheets': {
+      id: '/_app/payroll/timesheets'
+      path: '/payroll/timesheets'
+      fullPath: '/payroll/timesheets'
+      preLoaderRoute: typeof AppPayrollTimesheetsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/policies': {
       id: '/_app/payroll/policies'
       path: '/payroll/policies'
       fullPath: '/payroll/policies'
       preLoaderRoute: typeof AppPayrollPoliciesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payroll/components': {
+      id: '/_app/payroll/components'
+      path: '/payroll/components'
+      fullPath: '/payroll/components'
+      preLoaderRoute: typeof AppPayrollComponentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/payroll/$id': {
@@ -1998,7 +2036,9 @@ interface AppRouteChildren {
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppPayrollComponentsRoute: typeof AppPayrollComponentsRoute
   AppPayrollPoliciesRoute: typeof AppPayrollPoliciesRoute
+  AppPayrollTimesheetsRoute: typeof AppPayrollTimesheetsRoute
   AppReportsAllocationScheduleRoute: typeof AppReportsAllocationScheduleRoute
   AppReportsApSummaryRoute: typeof AppReportsApSummaryRoute
   AppReportsArSummaryRoute: typeof AppReportsArSummaryRoute
@@ -2066,7 +2106,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppPayrollComponentsRoute: AppPayrollComponentsRoute,
   AppPayrollPoliciesRoute: AppPayrollPoliciesRoute,
+  AppPayrollTimesheetsRoute: AppPayrollTimesheetsRoute,
   AppReportsAllocationScheduleRoute: AppReportsAllocationScheduleRoute,
   AppReportsApSummaryRoute: AppReportsApSummaryRoute,
   AppReportsArSummaryRoute: AppReportsArSummaryRoute,
