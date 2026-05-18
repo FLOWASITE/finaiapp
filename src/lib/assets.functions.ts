@@ -1,13 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 // Run monthly depreciation: for each active asset, for every month from start_date up to target month
 // that hasn't been posted yet, compute amount and create journal entry: Nợ expense / Có accumulated.
 export const runMonthlyDepreciation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { upToMonth: string }) => i) // YYYY-MM
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const [yStr, mStr] = data.upToMonth.split("-");
     const targetY = Number(yStr), targetM = Number(mStr);
     if (!targetY || !targetM) throw new Error("upToMonth phải có dạng YYYY-MM");
@@ -15,7 +15,7 @@ export const runMonthlyDepreciation = createServerFn({ method: "POST" })
     const { data: assets } = await supabase
       .from("fixed_assets")
       .select("*")
-      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
       .eq("status", "active");
 
     let created = 0;
@@ -38,6 +38,7 @@ export const runMonthlyDepreciation = createServerFn({ method: "POST" })
           const lastDay = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
           const { data: entry, error: eErr } = await supabase.from("journal_entries").insert({
             user_id: userId,
+            tenant_id: tenantId,
             entry_date: lastDay.toISOString().slice(0, 10),
             description: `Trích khấu hao ${a.name} (${a.code}) tháng ${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`,
           }).select("id").single();

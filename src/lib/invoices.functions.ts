@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 
 const InvoiceLineSchema = z.object({
@@ -26,10 +26,10 @@ const InvoiceSchema = z.object({
 });
 
 export const extractInvoice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((input: { invoiceId: string }) => input)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Thiếu LOVABLE_API_KEY");
 
@@ -38,9 +38,9 @@ export const extractInvoice = createServerFn({ method: "POST" })
       .from("invoices")
       .select("id, file_path, user_id")
       .eq("id", data.invoiceId)
+      .eq("tenant_id", tenantId)
       .single();
     if (invErr || !invoice) throw new Error("Không tìm thấy hóa đơn");
-    if (invoice.user_id !== userId) throw new Error("Không có quyền");
 
     const { data: signed, error: sErr } = await supabase.storage
       .from("invoices")
@@ -86,7 +86,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
         const { data: existing } = await supabase
           .from("suppliers")
           .select("id")
-          .eq("user_id", userId)
+          .eq("tenant_id", tenantId)
           .eq("tax_id", result.supplier_tax_id)
           .maybeSingle();
         if (existing) supplierId = existing.id;
@@ -95,6 +95,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
             .from("suppliers")
             .insert({
               user_id: userId,
+              tenant_id: tenantId,
               tax_id: result.supplier_tax_id,
               name: result.supplier_name || "Chưa rõ",
             })
@@ -120,7 +121,8 @@ export const extractInvoice = createServerFn({ method: "POST" })
           raw_ocr: result,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", invoice.id);
+        .eq("id", invoice.id)
+        .eq("tenant_id", tenantId);
 
       // 6. Insert lines
       await supabase.from("invoice_lines").delete().eq("invoice_id", invoice.id);
@@ -142,7 +144,8 @@ export const extractInvoice = createServerFn({ method: "POST" })
       await supabase
         .from("invoices")
         .update({ status: "failed", notes: String(err) })
-        .eq("id", invoice.id);
+        .eq("id", invoice.id)
+        .eq("tenant_id", tenantId);
       throw err;
     }
   });

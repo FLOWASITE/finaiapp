@@ -1,15 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-async function getTenantId(supabase: any, userId: string) {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 // ===================== BRANCHES =====================
 const BranchSchema = z.object({
@@ -24,23 +15,29 @@ const BranchSchema = z.object({
 });
 
 export const listBranches = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("branches").select("*").order("code");
+      .from("branches")
+      .select("*")
+      .eq("tenant_id", context.tenantId)
+      .order("code");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
 
 export const upsertBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => BranchSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const tenant_id = await getTenantId(supabase, userId);
-    const payload: any = { ...data, user_id: userId, tenant_id };
+    const { supabase, userId, tenantId } = context;
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (data.id) {
-      const { error } = await supabase.from("branches").update(payload).eq("id", data.id);
+      const { error } = await supabase
+        .from("branches")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("tenant_id", tenantId);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
@@ -50,13 +47,22 @@ export const upsertBranch = createServerFn({ method: "POST" })
   });
 
 export const deleteBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { count } = await supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("branch_id", data.id);
-    if ((count ?? 0) > 0) throw new Error(`Chi nhánh đang được dùng ở ${count} bút toán — hãy ngưng hoạt động thay vì xoá.`);
-    const { error } = await supabase.from("branches").delete().eq("id", data.id);
+    const { supabase, tenantId } = context;
+    const { count } = await supabase
+      .from("journal_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("branch_id", data.id)
+      .eq("tenant_id", tenantId);
+    if ((count ?? 0) > 0)
+      throw new Error(`Chi nhánh đang được dùng ở ${count} bút toán — hãy ngưng hoạt động thay vì xoá.`);
+    const { error } = await supabase
+      .from("branches")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -73,24 +79,30 @@ const DepartmentSchema = z.object({
 });
 
 export const listDepartments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("departments").select("*, branches(name)").order("code");
+      .from("departments")
+      .select("*, branches(name)")
+      .eq("tenant_id", context.tenantId)
+      .order("code");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
 
 export const upsertDepartment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => DepartmentSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const tenant_id = await getTenantId(supabase, userId);
-    const payload: any = { ...data, user_id: userId, tenant_id };
+    const { supabase, userId, tenantId } = context;
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (data.id) {
       if (data.parent_id === data.id) throw new Error("Phòng ban không thể là cha của chính nó");
-      const { error } = await supabase.from("departments").update(payload).eq("id", data.id);
+      const { error } = await supabase
+        .from("departments")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("tenant_id", tenantId);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
@@ -100,17 +112,29 @@ export const upsertDepartment = createServerFn({ method: "POST" })
   });
 
 export const deleteDepartment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const [{ count: empCount }, { count: childCount }] = await Promise.all([
-      supabase.from("employees").select("id", { count: "exact", head: true }).eq("department_id", data.id),
-      supabase.from("departments").select("id", { count: "exact", head: true }).eq("parent_id", data.id),
+      supabase
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("department_id", data.id)
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("departments")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_id", data.id)
+        .eq("tenant_id", tenantId),
     ]);
     if ((empCount ?? 0) > 0) throw new Error(`Phòng ban còn ${empCount} nhân viên.`);
     if ((childCount ?? 0) > 0) throw new Error(`Phòng ban còn ${childCount} phòng ban con.`);
-    const { error } = await supabase.from("departments").delete().eq("id", data.id);
+    const { error } = await supabase
+      .from("departments")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -130,35 +154,52 @@ const ProjectSchema = z.object({
 });
 
 export const listProjects = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("projects").select("*, customers(name), employees:manager_employee_id(full_name)").order("code");
+      .from("projects")
+      .select("*, customers(name), employees:manager_employee_id(full_name)")
+      .eq("tenant_id", context.tenantId)
+      .order("code");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
 
 export const listProjectRefs = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
+    const { supabase, tenantId } = context;
     const [c, e] = await Promise.all([
-      context.supabase.from("customers").select("id, name").eq("is_active", true).order("name"),
-      context.supabase.from("employees").select("id, full_name").eq("status", "active").order("full_name"),
+      supabase
+        .from("customers")
+        .select("id, name")
+        .eq("is_active", true)
+        .eq("tenant_id", tenantId)
+        .order("name"),
+      supabase
+        .from("employees")
+        .select("id, full_name")
+        .eq("status", "active")
+        .eq("tenant_id", tenantId)
+        .order("full_name"),
     ]);
     return { customers: c.data ?? [], employees: e.data ?? [] };
   });
 
 export const upsertProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => ProjectSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const tenant_id = await getTenantId(supabase, userId);
-    const payload: any = { ...data, user_id: userId, tenant_id };
+    const { supabase, userId, tenantId } = context;
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (!payload.start_date) payload.start_date = null;
     if (!payload.end_date) payload.end_date = null;
     if (data.id) {
-      const { error } = await supabase.from("projects").update(payload).eq("id", data.id);
+      const { error } = await supabase
+        .from("projects")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("tenant_id", tenantId);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
@@ -168,13 +209,21 @@ export const upsertProject = createServerFn({ method: "POST" })
   });
 
 export const deleteProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { count } = await supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("project_id", data.id);
+    const { supabase, tenantId } = context;
+    const { count } = await supabase
+      .from("journal_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", data.id)
+      .eq("tenant_id", tenantId);
     if ((count ?? 0) > 0) throw new Error(`Dự án đang được dùng ở ${count} bút toán.`);
-    const { error } = await supabase.from("projects").delete().eq("id", data.id);
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -189,24 +238,30 @@ const CostCenterSchema = z.object({
 });
 
 export const listCostCenters = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("cost_centers").select("*").order("code");
+      .from("cost_centers")
+      .select("*")
+      .eq("tenant_id", context.tenantId)
+      .order("code");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
 
 export const upsertCostCenter = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => CostCenterSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const tenant_id = await getTenantId(supabase, userId);
-    const payload: any = { ...data, user_id: userId, tenant_id };
+    const { supabase, userId, tenantId } = context;
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (data.id) {
       if (data.parent_id === data.id) throw new Error("Bộ phận không thể là cha của chính nó");
-      const { error } = await supabase.from("cost_centers").update(payload).eq("id", data.id);
+      const { error } = await supabase
+        .from("cost_centers")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("tenant_id", tenantId);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
@@ -216,17 +271,30 @@ export const upsertCostCenter = createServerFn({ method: "POST" })
   });
 
 export const deleteCostCenter = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const [{ count: jl }, { count: child }] = await Promise.all([
-      supabase.from("journal_lines").select("id", { count: "exact", head: true }).eq("cost_center_id", data.id),
-      supabase.from("cost_centers").select("id", { count: "exact", head: true }).eq("parent_id", data.id),
+      // journal_lines không có tenant_id — join entries trước
+      supabase
+        .from("journal_lines")
+        .select("id, journal_entries!inner(tenant_id)", { count: "exact", head: true })
+        .eq("cost_center_id", data.id)
+        .eq("journal_entries.tenant_id", tenantId),
+      supabase
+        .from("cost_centers")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_id", data.id)
+        .eq("tenant_id", tenantId),
     ]);
     if ((jl ?? 0) > 0) throw new Error(`Bộ phận đang được dùng ở ${jl} dòng bút toán.`);
     if ((child ?? 0) > 0) throw new Error(`Bộ phận còn ${child} bộ phận con.`);
-    const { error } = await supabase.from("cost_centers").delete().eq("id", data.id);
+    const { error } = await supabase
+      .from("cost_centers")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
