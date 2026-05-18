@@ -28,7 +28,14 @@ const ProfileSchema = z.object({
   accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
   fiscal_year_start: z.number().int().min(1).max(12).default(1),
   base_currency: z.string().max(10).default("VND"),
-});
+  display_name: z.string().max(100).optional().nullable(),
+  avatar_url: z.string().max(500).optional().nullable(),
+  job_title: z.string().max(100).optional().nullable(),
+  language: z.enum(["vi", "en"]).optional(),
+  timezone: z.string().max(64).optional(),
+  date_format: z.string().max(32).optional(),
+  number_format: z.string().max(16).optional(),
+}).partial();
 
 export const updateSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
