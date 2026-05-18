@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
