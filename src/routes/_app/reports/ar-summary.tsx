@@ -143,7 +143,7 @@ function ArSummaryPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4 print:hidden">
-        <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         <DimensionFilterBar value={dims} onChange={setDims} />
         <div className="flex items-end gap-2">
           <div className="relative">
