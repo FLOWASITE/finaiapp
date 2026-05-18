@@ -6,7 +6,7 @@ import {
   Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
-  ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown,
+  ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown, ArrowRightLeft,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +94,7 @@ const SECTIONS: NavSection[] = [
       { to: "/assets", label: "Tài sản cố định", icon: Briefcase },
       { to: "/assets/books", label: "Sổ khấu hao", icon: BookOpen },
       { to: "/assets/depreciation", label: "Bảng tính khấu hao", icon: TrendingDown },
+      { to: "/assets/events", label: "Biến động tài sản", icon: ArrowRightLeft },
       { to: "/assets/allocations", label: "Tài sản phân bổ", icon: Boxes },
       { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
       { to: "/payroll", label: "Tiền lương", icon: Wallet },

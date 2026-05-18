@@ -1918,6 +1918,72 @@ export type Database = {
         }
         Relationships: []
       }
+      fa_events: {
+        Row: {
+          amount: number | null
+          asset_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          journal_entry_id: string | null
+          payload: Json
+          status: string
+          tenant_id: string
+          updated_at: string
+          void_reason: string | null
+        }
+        Insert: {
+          amount?: number | null
+          asset_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_date?: string
+          event_type: string
+          id?: string
+          journal_entry_id?: string | null
+          payload?: Json
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          void_reason?: string | null
+        }
+        Update: {
+          amount?: number | null
+          asset_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          journal_entry_id?: string | null
+          payload?: Json
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          void_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fa_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fa_events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_periods: {
         Row: {
           closed_at: string | null
