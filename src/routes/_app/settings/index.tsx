@@ -7,8 +7,9 @@ import {
 } from "@/lib/settings.functions";
 import {
   getActiveTenant, updateActiveTenant, listTenantMembers, inviteTenantMember,
-  updateMemberRole, removeMember, getSetupProgress,
+  updateMemberRole, removeMember,
 } from "@/lib/tenants.functions";
+import { computeTenantSetupProgress } from "@/lib/tenant-setup-fields";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
