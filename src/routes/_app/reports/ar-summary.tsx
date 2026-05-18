@@ -236,9 +236,30 @@ function ArSummaryPage() {
     );
   }, [drillFiltered.lines, drillGroupByDoc]);
 
+  // Apply user-selected sort on top of the display rows.
+  const drillSortedRows = useMemo<DrillDisplayRow[]>(() => {
+    const arr = drillDisplayRows.slice();
+    const { key, dir } = drillSort;
+    const mult = dir === "asc" ? 1 : -1;
+    arr.sort((a, b) => {
+      if (key === "entry_date") {
+        const c = a.entry_date.localeCompare(b.entry_date);
+        return (c !== 0 ? c : (a.doc_no ?? "").localeCompare(b.doc_no ?? "")) * mult;
+      }
+      if (key === "doc_no") {
+        const c = (a.doc_no ?? "").localeCompare(b.doc_no ?? "", undefined, { numeric: true });
+        return (c !== 0 ? c : a.entry_date.localeCompare(b.entry_date)) * mult;
+      }
+      const av = key === "debit" ? a.debit : a.credit;
+      const bv = key === "debit" ? b.debit : b.credit;
+      return (av - bv) * mult;
+    });
+    return arr;
+  }, [drillDisplayRows, drillSort]);
+
   // Memoize pagination slice so unrelated re-renders don't reslice the dataset.
   const drillPaged = useMemo(() => {
-    const total = drillDisplayRows.length;
+    const total = drillSortedRows.length;
     const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
     const page = Math.min(drillPage, totalPages);
     const start = (page - 1) * drillPageSize;
@@ -249,9 +270,9 @@ function ArSummaryPage() {
       page,
       start,
       end,
-      slice: drillDisplayRows.slice(start, end),
+      slice: drillSortedRows.slice(start, end),
     };
-  }, [drillDisplayRows, drillPage, drillPageSize]);
+  }, [drillSortedRows, drillPage, drillPageSize]);
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
