@@ -33,6 +33,10 @@ const InvoiceSchema = z.object({
   shipping_fee: z.number().min(0).default(0),
   other_fees: z.number().min(0).default(0),
   notes: z.string().max(1000).optional().nullable(),
+  branch_id: z.string().uuid().nullable().optional(),
+  department_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
   lines: z.array(LineSchema).min(1),
 });
 
