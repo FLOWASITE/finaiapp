@@ -98,6 +98,8 @@ function ArSummaryPage() {
   const [drillTo, setDrillTo] = useState("");
   const [drillDocTypes, setDrillDocTypes] = useState<string[]>([]);
   const [drillSearch, setDrillSearch] = useState("");
+  const [drillPage, setDrillPage] = useState(1);
+  const [drillPageSize, setDrillPageSize] = useState(50);
 
   // Reset local filters when opening a new drill-down
   useEffect(() => {
@@ -106,8 +108,15 @@ function ArSummaryPage() {
       setDrillTo("");
       setDrillDocTypes([]);
       setDrillSearch("");
+      setDrillPage(1);
     }
   }, [drillRow]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setDrillPage(1);
+  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize]);
+
 
   const toggleDrillDocType = (v: string) =>
     setDrillDocTypes((prev) =>
