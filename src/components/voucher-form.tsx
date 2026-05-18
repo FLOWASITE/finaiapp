@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-import { createCashVoucher } from "@/lib/cash.functions";
+import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listChartOfAccounts } from "@/lib/coa.functions";
