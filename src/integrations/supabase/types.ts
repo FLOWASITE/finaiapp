@@ -85,6 +85,259 @@ export type Database = {
           },
         ]
       }
+      allocated_asset_adjustments: {
+        Row: {
+          adj_date: string
+          asset_id: string
+          created_at: string
+          delta_cost: number
+          delta_periods: number
+          id: string
+          journal_entry_id: string | null
+          reason: string | null
+          type: string
+        }
+        Insert: {
+          adj_date: string
+          asset_id: string
+          created_at?: string
+          delta_cost?: number
+          delta_periods?: number
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          type: string
+        }
+        Update: {
+          adj_date?: string
+          asset_id?: string
+          created_at?: string
+          delta_cost?: number
+          delta_periods?: number
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocated_asset_adjustments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "allocated_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocated_asset_adjustments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      allocated_asset_targets: {
+        Row: {
+          asset_id: string
+          created_at: string
+          expense_account: string | null
+          id: string
+          ratio_percent: number
+          target_ref_id: string
+          target_type: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          expense_account?: string | null
+          id?: string
+          ratio_percent?: number
+          target_ref_id: string
+          target_type: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          expense_account?: string | null
+          id?: string
+          ratio_percent?: number
+          target_ref_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocated_asset_targets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "allocated_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      allocated_assets: {
+        Row: {
+          allocated: number
+          branch_id: string | null
+          category: string
+          code: string
+          cost: number
+          cost_center_id: string | null
+          created_at: string
+          department_id: string | null
+          expense_account: string
+          id: string
+          method: string
+          name: string
+          notes: string | null
+          period_unit: string
+          periods_done: number
+          periods_total: number
+          prepaid_account: string
+          project_id: string | null
+          quantity: number
+          source_doc_id: string | null
+          source_doc_table: string | null
+          source_type: string
+          start_date: string
+          status: string
+          tenant_id: string
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allocated?: number
+          branch_id?: string | null
+          category?: string
+          code: string
+          cost: number
+          cost_center_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          expense_account?: string
+          id?: string
+          method?: string
+          name: string
+          notes?: string | null
+          period_unit?: string
+          periods_done?: number
+          periods_total: number
+          prepaid_account?: string
+          project_id?: string | null
+          quantity?: number
+          source_doc_id?: string | null
+          source_doc_table?: string | null
+          source_type?: string
+          start_date: string
+          status?: string
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allocated?: number
+          branch_id?: string | null
+          category?: string
+          code?: string
+          cost?: number
+          cost_center_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          expense_account?: string
+          id?: string
+          method?: string
+          name?: string
+          notes?: string | null
+          period_unit?: string
+          periods_done?: number
+          periods_total?: number
+          prepaid_account?: string
+          project_id?: string | null
+          quantity?: number
+          source_doc_id?: string | null
+          source_doc_table?: string | null
+          source_type?: string
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocated_assets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocated_assets_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocated_assets_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocated_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      allocation_entries: {
+        Row: {
+          amount: number
+          asset_id: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          period_month: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          period_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocation_entries_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "allocated_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_entries_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
