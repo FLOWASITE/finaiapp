@@ -115,6 +115,7 @@ const SECTIONS = [
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
+  const lookupFn = useServerFn(lookupTaxId);
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["active-tenant"],
@@ -126,6 +127,7 @@ function OrganizationTab() {
   const progress = React.useMemo(() => computeTenantSetupProgress(data?.tenant), [data?.tenant]);
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
+  const [overwriteAll, setOverwriteAll] = React.useState(false);
   React.useEffect(() => {
     if (data?.tenant && !form) {
       setForm(data.tenant);
@@ -143,6 +145,48 @@ function OrganizationTab() {
       qc.invalidateQueries({ queryKey: ["my-tenants"] });
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  const applyLookup = React.useCallback((r: TaxLookupResult) => {
+    setForm((prev: any) => {
+      if (!prev) return prev;
+      const mapping: Record<string, any> = {
+        tax_id: r.taxId,
+        company_name: r.name,
+        trade_name: r.tradeName,
+        address: r.address,
+        legal_rep_name: r.director,
+        legal_form: r.legalForm,
+        business_reg_no: r.registrationNo,
+        business_reg_date: r.registrationDate,
+        established_date: r.establishedDate,
+        industry_code: r.industryCode,
+        industry_name: r.industryName,
+        tax_authority: r.taxAuthority,
+        phone: r.phone,
+        email: r.email,
+      };
+      const next = { ...prev };
+      let n = 0;
+      for (const [k, v] of Object.entries(mapping)) {
+        if (v === null || v === undefined || v === "") continue;
+        const cur = prev[k];
+        const isEmpty = cur === null || cur === undefined || cur === "";
+        if (!overwriteAll && !isEmpty) continue;
+        if (cur === v) continue;
+        next[k] = v;
+        n++;
+      }
+      if (n > 0) toast.success(`Đã điền ${n} trường từ MST — bấm Lưu để xác nhận`);
+      else toast.info("Không có trường nào cần cập nhật");
+      return next;
+    });
+  }, [overwriteAll]);
+
+  const refetchMut = useMutation({
+    mutationFn: (taxCode: string) => lookupFn({ data: { taxCode } }),
+    onSuccess: (r) => applyLookup(r),
+    onError: (e: any) => toast.error(e.message || "Tra cứu MST thất bại"),
   });
 
   if (data && !data.tenant) return (
