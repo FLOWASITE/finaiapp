@@ -130,6 +130,9 @@ const BankVoucherSchema = z.object({
   party_name: z.string().max(255).optional().nullable(),
   reason: z.string().max(500).optional().nullable(),
   reference: z.string().max(100).optional().nullable(),
+  branch_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
 });
 
 export const listBankVouchers = createServerFn({ method: "POST" })
