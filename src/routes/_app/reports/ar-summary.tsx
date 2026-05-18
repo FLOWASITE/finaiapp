@@ -116,6 +116,14 @@ function ArSummaryPage() {
     );
   const [drillVirtual, setDrillVirtual] = useState(true);
   const drillScrollRef = useRef<HTMLDivElement | null>(null);
+  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const toggleExpand = (entryId: string) =>
+    setExpandedEntries((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
 
 
 
