@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/assets")({
+export const Route = createFileRoute("/_app/assets/")({
   component: Assets,
 });
 
