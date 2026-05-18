@@ -306,8 +306,9 @@ function InvoicesList() {
               <th className="px-4 py-3">Nhà cung cấp</th>
               <th className="px-4 py-3 text-right">Tổng</th>
               <th className="px-4 py-3 text-right">Còn nợ</th>
-              <th className="px-4 py-3">OCR</th>
+              <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">TT</th>
+              <th className="px-4 py-3 text-center">Tài liệu</th>
             </tr>
           </thead>
           <tbody>
