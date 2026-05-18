@@ -117,7 +117,8 @@ function ArSummaryPage() {
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setDrillPage(1);
-  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize]);
+  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize, drillGroupByDoc]);
+
 
 
   const toggleDrillDocType = (v: string) =>
