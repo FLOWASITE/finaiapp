@@ -145,3 +145,36 @@
     color: var(--color-foreground);
   }
 }
+
+/* ============ Sidebar polish ============ */
+:root {
+  --sidebar-bg-gradient: linear-gradient(
+    180deg,
+    oklch(0.20 0.04 262) 0%,
+    oklch(0.16 0.035 265) 55%,
+    oklch(0.18 0.045 270) 100%
+  );
+  --sidebar-glow: radial-gradient(
+    520px circle at 0% 0%,
+    oklch(0.45 0.18 270 / 0.22),
+    transparent 55%
+  );
+  --shadow-sidebar-active:
+    0 0 18px -6px oklch(0.72 0.16 162 / 0.45),
+    inset 0 0 0 1px oklch(0.72 0.16 162 / 0.15);
+}
+
+[data-slot="sidebar-container"] [data-sidebar="content"]::-webkit-scrollbar {
+  width: 4px;
+}
+[data-slot="sidebar-container"] [data-sidebar="content"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-slot="sidebar-container"] [data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 0.08);
+  border-radius: 9999px;
+}
+[data-slot="sidebar-container"] [data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 0.18);
+}
+
