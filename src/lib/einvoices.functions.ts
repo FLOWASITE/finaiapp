@@ -341,11 +341,13 @@ export const linkEInvoice = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error || !e) throw new Error("Không tìm thấy HĐĐT");
 
-    const field =
-      e.direction === "in" ? "matched_purchase_invoice_id" : "matched_sales_invoice_id";
+    const patch =
+      e.direction === "in"
+        ? { matched_purchase_invoice_id: data.targetId }
+        : { matched_sales_invoice_id: data.targetId };
     const { error: upErr } = await supabase
       .from("einvoices")
-      .update({ [field]: data.targetId })
+      .update(patch)
       .eq("id", data.einvoiceId);
     if (upErr) throw new Error(upErr.message);
     return { ok: true };
