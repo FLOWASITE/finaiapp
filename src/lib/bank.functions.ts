@@ -140,7 +140,7 @@ export const listBankVouchers = createServerFn({ method: "POST" })
     const tenantId = await getTenant(supabase, userId);
     let q = supabase
       .from("bank_vouchers")
-      .select("*, bank_accounts(name, bank_name, account_no, gl_account_code)")
+      .select("*")
       .order("voucher_date", { ascending: false })
       .limit(500);
     if (tenantId) q = q.eq("tenant_id", tenantId);
@@ -150,7 +150,16 @@ export const listBankVouchers = createServerFn({ method: "POST" })
     if (data.to) q = q.lte("voucher_date", data.to);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const ids = Array.from(new Set((rows ?? []).map((r: any) => r.bank_account_id).filter(Boolean)));
+    let accMap = new Map<string, any>();
+    if (ids.length) {
+      const { data: accs } = await supabase
+        .from("bank_accounts")
+        .select("id, name, bank_name, account_no, gl_account_code")
+        .in("id", ids);
+      accMap = new Map((accs ?? []).map((a: any) => [a.id, a]));
+    }
+    return (rows ?? []).map((r: any) => ({ ...r, bank_accounts: accMap.get(r.bank_account_id) ?? null }));
   });
 
 export const createBankVoucher = createServerFn({ method: "POST" })
