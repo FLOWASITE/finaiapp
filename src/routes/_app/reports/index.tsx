@@ -48,7 +48,6 @@ function ReportsPage() {
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
   const [dims, setDims] = useState<DimensionValue>({});
-  const [dims, setDims] = useState<DimensionValue>({});
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
