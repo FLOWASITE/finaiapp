@@ -379,7 +379,7 @@ export const syncTctInvoices = createServerFn({ method: "POST" })
     let cvalue = data.captchaValue ?? "";
     if (data.captchaMode === "auto") {
       // fetch fresh captcha + auto-solve
-      const cap = await fetch(`${TCT_BASE}/captcha`).then((r) => r.json() as any);
+      const cap = await fetch(`${getTctBase()}/captcha`).then((r) => r.json() as any);
       ckey = String(cap?.key ?? "");
       cvalue = await solveCaptchaWith2Captcha(String(cap?.content ?? ""));
     }
