@@ -358,7 +358,7 @@ function MovementDialog({ products }: { products: any[] }) {
             <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
               <SelectTrigger><SelectValue placeholder="Chọn..." /></SelectTrigger>
               <SelectContent>
-                {products.map((p: any) => (
+                {products.filter((p: any) => (p.item_type ?? "goods") !== "service").map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>{p.code} · {p.name} (tồn {fmt(p.on_hand)})</SelectItem>
                 ))}
               </SelectContent>
