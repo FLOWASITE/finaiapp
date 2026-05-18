@@ -114,6 +114,8 @@ function ArSummaryPage() {
     setDrillSort((prev) =>
       prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
     );
+  const [drillVirtual, setDrillVirtual] = useState(true);
+  const drillScrollRef = useRef<HTMLDivElement | null>(null);
 
 
 
