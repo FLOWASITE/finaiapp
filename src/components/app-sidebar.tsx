@@ -383,15 +383,18 @@ export function AppSidebar() {
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-sidebar-border/60 p-2">
+        <SidebarFooter className="relative border-t border-sidebar-border/40 p-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors">
+              <button className="flex w-full items-center gap-2 rounded-xl border border-sidebar-border/40 bg-sidebar-accent/25 backdrop-blur-sm px-2 py-1.5 hover:bg-sidebar-accent/50 hover:border-sidebar-border/60 transition-all duration-200">
                 <div className="relative">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold">
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-sidebar-accent-foreground text-xs font-bold ring-2 ring-sidebar-primary/25 shadow-[var(--shadow-ai-card)]"
+                    style={{ background: "var(--gradient-ai)" }}
+                  >
                     {email.charAt(0).toUpperCase() || "U"}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse shadow-[0_0_8px_oklch(0.78_0.18_152/0.9)]" />
                 </div>
                 {!collapsed && (
                   <>
