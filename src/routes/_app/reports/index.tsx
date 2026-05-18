@@ -237,6 +237,25 @@ function ReportsPage() {
             <div className="mb-3 print:hidden">
               <DimensionFilterBar value={dims} onChange={setDims} />
             </div>
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
+              <label className="flex items-center gap-2">
+                <span className="text-muted-foreground">Cấp tài khoản:</span>
+                <select
+                  className="h-8 rounded border border-border bg-background px-2 text-sm"
+                  value={tbLevel}
+                  onChange={(e) => setTbLevel(e.target.value as "all" | "1" | "2" | "3")}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="1">Cấp 1 (3 ký tự)</option>
+                  <option value="2">Cấp 2 (4 ký tự)</option>
+                  <option value="3">Cấp 3 (5 ký tự)</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={tbTree} onChange={(e) => setTbTree(e.target.checked)} />
+                Xem dạng cây
+              </label>
+            </div>
             {!tb.data ? <Loading /> : (
               <>
                 {!tb.data.balanced && (
@@ -244,7 +263,7 @@ function ReportsPage() {
                     <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
                   </div>
                 )}
-                <TrialBalanceTable data={tb.data} hideZero={hideZero} />
+                <TrialBalanceTable data={tb.data} hideZero={hideZero} level={tbLevel} tree={tbTree} />
               </>
             )}
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
