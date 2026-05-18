@@ -219,12 +219,13 @@ function ProductDialog({ categories }: { categories: any[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const empty = {
-    code: "", name: "", unit: "cái", barcode: "",
+    code: "", name: "", item_type: "goods" as ItemType, unit: "cái", barcode: "",
     unit_cost: 0, unit_price: 0, min_stock: 0, max_stock: 0,
     stock_account: "156", revenue_account: "511", cogs_account: "632",
     vat_rate: 10, category_id: null as string | null, is_active: true, notes: "",
   };
   const [form, setForm] = useState(empty);
+  const isService = form.item_type === "service";
   const m = useMutation({
     mutationFn: () => upsert({ data: form as any }),
     onSuccess: () => {
@@ -242,12 +243,37 @@ function ProductDialog({ categories }: { categories: any[] }) {
         <Button variant="outline"><Plus className="mr-2 h-4 w-4" />Mặt hàng</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Thêm mặt hàng</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Thêm mặt hàng</DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Mã *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+          <Field label="Loại *">
+            <Select
+              value={form.item_type}
+              onValueChange={(v) => {
+                const t = v as ItemType;
+                setForm({
+                  ...form,
+                  item_type: t,
+                  // Khi đổi sang dịch vụ → reset các trường tồn & TK kho/giá vốn
+                  ...(t === "service"
+                    ? { unit_cost: 0, min_stock: 0, max_stock: 0, stock_account: "", cogs_account: "" }
+                    : {}),
+                });
+              }}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="goods">📦 Hàng hóa</SelectItem>
+                <SelectItem value="service">🛎 Dịch vụ</SelectItem>
+                <SelectItem value="combo">🧩 Combo</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="Mã vạch"><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></Field>
+          <Field label="Mã *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+          <Field label="ĐVT"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder={isService ? "lần / giờ" : "cái"} /></Field>
           <Field label="Tên *" full><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="ĐVT"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
           <Field label="Danh mục">
             <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
@@ -256,15 +282,25 @@ function ProductDialog({ categories }: { categories: any[] }) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Giá vốn"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
-          <Field label="Giá bán"><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></Field>
-          <Field label="Tồn tối thiểu"><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></Field>
-          <Field label="Tồn tối đa"><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: Number(e.target.value) })} /></Field>
           <Field label="VAT %"><Input type="number" value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: Number(e.target.value) })} /></Field>
-          <Field label="TK kho"><Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} /></Field>
+          <Field label="Giá bán"><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></Field>
+          {!isService && (
+            <>
+              <Field label="Giá vốn"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
+              <Field label="Tồn tối thiểu"><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></Field>
+              <Field label="Tồn tối đa"><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: Number(e.target.value) })} /></Field>
+              <Field label="TK kho"><Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} /></Field>
+              <Field label="TK giá vốn"><Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} /></Field>
+            </>
+          )}
           <Field label="TK doanh thu"><Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} /></Field>
-          <Field label="TK giá vốn"><Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} /></Field>
         </div>
+        {isService && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            <Layers className="inline h-3 w-3 mr-1" />
+            Dịch vụ không quản lý tồn kho, không nhập/xuất kho.
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
           <Button onClick={() => m.mutate()} disabled={!form.code || !form.name || m.isPending}>Lưu</Button>
