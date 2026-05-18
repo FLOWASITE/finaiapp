@@ -774,6 +774,33 @@ function AccountDrilldownDialog({
     ...QUERY_PRESETS.REPORT,
   });
   const open = !!account;
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Reset khi mở/đóng hoặc đổi tài khoản
+  useEffect(() => {
+    setSearch("");
+    setPage(1);
+  }, [account?.code]);
+
+  const allLines: any[] = q.data?.lines ?? [];
+  const term = search.trim().toLowerCase();
+  const filteredLines = term
+    ? allLines.filter(
+        (l) =>
+          (l.description ?? "").toLowerCase().includes(term) ||
+          (l.entry_date ?? "").toLowerCase().includes(term) ||
+          String(l.debit).includes(term) ||
+          String(l.credit).includes(term),
+      )
+    : allLines;
+  const totalPages = Math.max(1, Math.ceil(filteredLines.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const pageLines = filteredLines.slice(start, start + pageSize);
+
+  useEffect(() => { setPage(1); }, [search, pageSize]);
 
   async function handleExport() {
     if (!account) return;
