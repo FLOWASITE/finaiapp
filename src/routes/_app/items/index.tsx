@@ -15,8 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NumberInput } from "@/components/ui/number-input";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { toast } from "sonner";
-import { Plus, Layers, Warehouse, RefreshCw, Loader2, Info, Package, Wrench, Boxes } from "lucide-react";
+import { Plus, Layers, Warehouse, Loader2, Info, Package, Wrench, Boxes } from "lucide-react";
 
 type ItemType = "goods" | "service" | "combo";
 const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
@@ -173,16 +174,6 @@ const emptyForm = () => ({
   notes: "",
 });
 
-function genCode(type: ItemType, existing: string[]): string {
-  const prefix = CODE_PREFIX[type];
-  const nums = existing
-    .filter((c) => c?.startsWith(prefix))
-    .map((c) => parseInt(c.slice(prefix.length), 10))
-    .filter((n) => !isNaN(n));
-  const next = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `${prefix}${String(next).padStart(4, "0")}`;
-}
-
 function ProductDialog({ categories, existingCodes }: { categories: any[]; existingCodes: string[] }) {
   const upsert = useServerFn(upsertProduct);
   const qc = useQueryClient();
@@ -304,28 +295,21 @@ function ProductDialog({ categories, existingCodes }: { categories: any[]; exist
           <TabsContent value="general" className="space-y-3 pt-4 min-h-[280px]">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Mã *" hint={codeDuplicate ? "Mã đã tồn tại" : undefined} error={codeDuplicate}>
-                <div className="flex gap-1">
-                  <Input
-                    ref={codeRef}
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
-                    placeholder={`${CODE_PREFIX[form.item_type]}0001`}
-                    className={codeDuplicate ? "border-destructive" : ""}
-                  />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setForm({ ...form, code: genCode(form.item_type, existingCodes) })}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Tự sinh mã</TooltipContent>
-                  </Tooltip>
-                </div>
+                <AutoCodeInput
+                  inputRef={codeRef}
+                  value={form.code}
+                  onChange={(v: string) => setForm((f) => ({ ...f, code: v }))}
+                  entity={
+                    form.item_type === "goods"
+                      ? "product_goods"
+                      : form.item_type === "service"
+                      ? "product_service"
+                      : "product_combo"
+                  }
+                  placeholder={`${CODE_PREFIX[form.item_type]}0001`}
+                  error={codeDuplicate}
+                  autoFillOnMount
+                />
               </Field>
               <Field label="Tên *">
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

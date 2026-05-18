@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { cn } from "@/lib/utils";
 
 /* ---------- Client schema (same rules as server) ---------- */
@@ -263,7 +264,14 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
         <TabsContent value="general" className="space-y-3 pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label={isCustomer ? "Mã KH *" : "Mã NCC"} error={form.formState.errors.code?.message}>
-              <Input placeholder={isCustomer ? "KH001" : "NCC001"} {...form.register("code")} />
+              <AutoCodeInput
+                entity={isCustomer ? "customer" : "supplier"}
+                value={form.watch("code") ?? ""}
+                onChange={(v: string) => form.setValue("code", v, { shouldDirty: true })}
+                placeholder={isCustomer ? "KH00001" : "NCC00001"}
+                autoFillOnMount={!initial?.id}
+                error={!!form.formState.errors.code}
+              />
             </Field>
             <div className="sm:col-span-2">
               <Field
