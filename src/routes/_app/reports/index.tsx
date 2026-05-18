@@ -213,6 +213,26 @@ function ReportsPage() {
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
+
+        <TabsContent value="tb">
+          <ReportCard title="Bảng cân đối số phát sinh" subtitle={`Kỳ từ ${from} đến ${to}`}>
+            <PrintHeader profile={profile} title="BẢNG CÂN ĐỐI SỐ PHÁT SINH" subtitle={`Kỳ từ ${from} đến ${to}`} />
+            <div className="mb-3 print:hidden">
+              <DimensionFilterBar value={dims} onChange={setDims} />
+            </div>
+            {!tb.data ? <Loading /> : (
+              <>
+                {!tb.data.balanced && (
+                  <div className="mb-3 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive print:hidden">
+                    <AlertTriangle className="h-4 w-4" /> Tổng PS Nợ ≠ Tổng PS Có — kiểm tra số liệu hạch toán
+                  </div>
+                )}
+                <TrialBalanceTable data={tb.data} hideZero={hideZero} />
+              </>
+            )}
+            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
+          </ReportCard>
+        </TabsContent>
       </Tabs>
 
       <DrilldownDialog drill={drill} from={from} to={to} asOf={to} onClose={() => setDrill(null)} />
