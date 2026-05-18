@@ -42,6 +42,23 @@ const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "journal_entries", label: "Phiếu kế toán khác" },
 ];
 
+const VOUCHER_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "PT", label: "PT — Phiếu thu" },
+  { value: "PC", label: "PC — Phiếu chi" },
+  { value: "BC", label: "BC — Báo có" },
+  { value: "BN", label: "BN — Báo nợ" },
+  { value: "Phiếu thu KH", label: "Phiếu thu KH" },
+  { value: "Phiếu chi NCC", label: "Phiếu chi NCC" },
+  { value: "Hóa đơn bán", label: "Hóa đơn bán" },
+  { value: "Hóa đơn mua", label: "Hóa đơn mua" },
+  { value: "Phiếu nhập kho", label: "Phiếu nhập kho" },
+  { value: "Phiếu xuất kho", label: "Phiếu xuất kho" },
+  { value: "Bảng lương", label: "Bảng lương" },
+  { value: "Khấu hao", label: "Khấu hao" },
+  { value: "Phiếu kế toán", label: "Phiếu kế toán" },
+];
+
+
 function VoucherListPage() {
   const today = new Date().toISOString().slice(0, 10);
   const year = new Date().getFullYear();
@@ -50,14 +67,17 @@ function VoucherListPage() {
   const [dims, setDims] = useState<DimensionValue>({});
   const [accountPrefix, setAccountPrefix] = useState("");
   const [sources, setSources] = useState<string[]>([]);
+  const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
   // Reset to page 1 whenever filters change
-  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources });
+  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources, voucherTypes });
   useEffect(() => { setPage(1); }, [filterKey]);
+
 
   const profileQ = useQuery({
     queryKey: ["profile-fiscal"],
@@ -69,12 +89,13 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix, page, pageSize],
+    queryKey: ["voucher-list", from, to, dims, sources, voucherTypes, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
+          voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
           page,
           pageSize,
@@ -114,6 +135,7 @@ function VoucherListPage() {
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
+          voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
         },
       });
@@ -130,6 +152,11 @@ function VoucherListPage() {
   function toggleSource(v: string) {
     setSources((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   }
+
+  function toggleVoucherType(v: string) {
+    setVoucherTypes((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+
 
   return (
     <div className="p-8 print:p-0">
@@ -183,9 +210,17 @@ function VoucherListPage() {
             />
             Hiện chữ ký
           </label>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="ml-auto text-xs text-primary underline"
+          >
+            {showAdvanced ? "Ẩn bộ lọc nâng cao" : "Bộ lọc nâng cao"}
+            {voucherTypes.length > 0 && !showAdvanced && ` (${voucherTypes.length} loại CT)`}
+          </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+          <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
           {SOURCE_OPTIONS.map((opt) => {
             const active = sources.includes(opt.value);
             return (
@@ -214,7 +249,47 @@ function VoucherListPage() {
             </button>
           )}
         </div>
+        {showAdvanced && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+            <span className="text-xs text-muted-foreground mr-1">Loại CT (voucher_type):</span>
+            {VOUCHER_TYPE_OPTIONS.map((opt) => {
+              const active = voucherTypes.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleVoucherType(opt.value)}
+                  className={
+                    "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                    (active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setVoucherTypes(VOUCHER_TYPE_OPTIONS.map((o) => o.value))}
+              className="text-xs text-muted-foreground underline ml-1"
+            >
+              Chọn tất cả
+            </button>
+            {voucherTypes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setVoucherTypes([])}
+                className="text-xs text-muted-foreground underline"
+              >
+                Bỏ chọn
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
 
       <div className="mt-4 print:mt-0">
         <PrintHeader
