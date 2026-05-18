@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download, Printer, AlertTriangle, FileText, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
 type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string };
 
@@ -44,6 +45,7 @@ function ReportsPage() {
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
+  const [dims, setDims] = useState<DimensionValue>({});
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
@@ -89,7 +91,7 @@ function ReportsPage() {
   const exportFn = useServerFn(exportReportXlsx);
 
   const bs = useQuery({ queryKey: ["bs99", to, compareEnabled, prevAsOf], queryFn: () => bsFn({ data: { asOf: to, compareAsOf: compareEnabled ? prevAsOf : undefined } }) });
-  const is = useQuery({ queryKey: ["is99", from, to, compareEnabled, prevFrom, prevTo], queryFn: () => isFn({ data: { from, to, compareFrom: compareEnabled ? prevFrom : undefined, compareTo: compareEnabled ? prevTo : undefined } }) });
+  const is = useQuery({ queryKey: ["is99", from, to, compareEnabled, prevFrom, prevTo, dims], queryFn: () => isFn({ data: { from, to, compareFrom: compareEnabled ? prevFrom : undefined, compareTo: compareEnabled ? prevTo : undefined, dims } }) });
   const cf = useQuery({ queryKey: ["cf99", from, to], queryFn: () => cfFn({ data: { from, to } }) });
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }) });
 
@@ -171,6 +173,9 @@ function ReportsPage() {
 
         <TabsContent value="b02">
           <ReportCard title="Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DN)" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B02")}>
+            <div className="mb-3 print:hidden">
+              <DimensionFilterBar value={dims} onChange={setDims} />
+            </div>
             <PrintHeader profile={profile} title="BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH" subtitle={`Mẫu số B02-DN — Kỳ từ ${from} đến ${to}`} />
             {!is.data ? <Loading /> : (
               <ReportTable

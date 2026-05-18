@@ -3,6 +3,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type AgingBucket = "0-30" | "31-60" | "61-90" | "90+";
 
+export type DimFilter = {
+  branch_id?: string | null;
+  department_id?: string | null;
+  project_id?: string | null;
+  cost_center_id?: string | null;
+};
+
 function bucket(days: number): AgingBucket {
   if (days <= 30) return "0-30";
   if (days <= 60) return "31-60";
@@ -12,21 +19,24 @@ function bucket(days: number): AgingBucket {
 
 export const getReceivables = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { kind: "AR" | "AP" }) => i)
+  .inputValidator((i: { kind: "AR" | "AP"; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // AR = TK 131, AP = TK 331
     const account = data.kind === "AR" ? "131" : "331";
+    const d = data.dims;
 
-    // Pull entries for this account
-    const { data: rows, error } = await supabase
+    let q = supabase
       .from("journal_lines")
-      .select("debit, credit, journal_entries!inner(user_id, entry_date, description, invoice_id)")
+      .select("debit, credit, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(user_id, entry_date, description, invoice_id)")
       .eq("account_code", account)
       .eq("journal_entries.user_id", userId);
+    if (d?.branch_id) q = q.eq("branch_id", d.branch_id);
+    if (d?.department_id) q = q.eq("department_id", d.department_id);
+    if (d?.project_id) q = q.eq("project_id", d.project_id);
+    if (d?.cost_center_id) q = q.eq("cost_center_id", d.cost_center_id);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    // AR: dư Nợ (debit−credit). AP: dư Có (credit−debit). Group by description as proxy for party.
     const today = new Date();
     const byParty = new Map<
       string,
@@ -35,7 +45,6 @@ export const getReceivables = createServerFn({ method: "POST" })
 
     for (const r of rows ?? []) {
       const e: any = r.journal_entries;
-      // Crude party extraction: take description's leading clause
       const party = (e.description ?? "Không rõ").split("—")[0].trim().slice(0, 80) || "Không rõ";
       const signed = data.kind === "AR"
         ? Number(r.debit) - Number(r.credit)

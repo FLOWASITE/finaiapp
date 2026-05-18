@@ -159,8 +159,36 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
 
 
 type LineRow = { account_code: string; debit: number; credit: number; entry_date: string };
+export type DimFilter = {
+  branch_id?: string | null;
+  department_id?: string | null;
+  project_id?: string | null;
+  cost_center_id?: string | null;
+};
+const hasDims = (d?: DimFilter) =>
+  !!(d && (d.branch_id || d.department_id || d.project_id || d.cost_center_id));
 
-async function fetchLines(supabase: any, userId: string, from?: string, to?: string): Promise<LineRow[]> {
+async function fetchLines(supabase: any, userId: string, from?: string, to?: string, dims?: DimFilter): Promise<LineRow[]> {
+  if (hasDims(dims)) {
+    let q = supabase
+      .from("journal_lines")
+      .select("account_code, debit, credit, journal_entries!inner(entry_date, user_id)")
+      .eq("journal_entries.user_id", userId);
+    if (from) q = q.gte("journal_entries.entry_date", from);
+    if (to) q = q.lte("journal_entries.entry_date", to);
+    if (dims!.branch_id) q = q.eq("branch_id", dims!.branch_id);
+    if (dims!.department_id) q = q.eq("department_id", dims!.department_id);
+    if (dims!.project_id) q = q.eq("project_id", dims!.project_id);
+    if (dims!.cost_center_id) q = q.eq("cost_center_id", dims!.cost_center_id);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []).map((l: any) => ({
+      account_code: l.account_code,
+      debit: Number(l.debit) || 0,
+      credit: Number(l.credit) || 0,
+      entry_date: l.journal_entries.entry_date,
+    }));
+  }
   let q = supabase
     .from("journal_entries")
     .select("entry_date, journal_lines(account_code, debit, credit)")
@@ -256,11 +284,11 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
 // ============ B02 — Kết quả hoạt động kinh doanh ============
 export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string }) => i)
+  .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const cur = await fetchLines(supabase, userId, data.from, data.to);
-    const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo) : [];
+    const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
+    const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
 
     const computeItem = (item: ISItem, lines: LineRow[], values: Record<string, number>): number => {
       if (item.accounts) {

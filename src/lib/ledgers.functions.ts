@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type DimFilter = {
+  branch_id?: string | null;
+  department_id?: string | null;
+  project_id?: string | null;
+  cost_center_id?: string | null;
+};
+
 type LineRow = {
   account_code: string;
   debit: number;
@@ -11,34 +18,44 @@ type LineRow = {
   line_order: number;
 };
 
+const hasDims = (d?: DimFilter) =>
+  !!(d && (d.branch_id || d.department_id || d.project_id || d.cost_center_id));
+
 async function fetchLines(
   supabase: any,
   userId: string,
-  opts: { from?: string; to?: string; accountPrefix?: string }
+  opts: { from?: string; to?: string; accountPrefix?: string; dims?: DimFilter }
 ): Promise<LineRow[]> {
+  // Query journal_lines directly so we can filter both by date (via inner join)
+  // and by management dimensions in the same query.
   let q = supabase
-    .from("journal_entries")
-    .select("id, entry_date, description, journal_lines(account_code, debit, credit, line_order)")
-    .eq("user_id", userId)
-    .order("entry_date", { ascending: true });
-  if (opts.from) q = q.gte("entry_date", opts.from);
-  if (opts.to) q = q.lte("entry_date", opts.to);
+    .from("journal_lines")
+    .select(
+      "account_code, debit, credit, line_order, entry_id, journal_entries!inner(id, entry_date, description, user_id)"
+    )
+    .eq("journal_entries.user_id", userId);
+  if (opts.from) q = q.gte("journal_entries.entry_date", opts.from);
+  if (opts.to) q = q.lte("journal_entries.entry_date", opts.to);
+  if (opts.accountPrefix) q = q.like("account_code", `${opts.accountPrefix}%`);
+  const d = opts.dims;
+  if (d?.branch_id) q = q.eq("branch_id", d.branch_id);
+  if (d?.department_id) q = q.eq("department_id", d.department_id);
+  if (d?.project_id) q = q.eq("project_id", d.project_id);
+  if (d?.cost_center_id) q = q.eq("cost_center_id", d.cost_center_id);
   const { data, error } = await q;
   if (error) throw error;
   const rows: LineRow[] = [];
-  for (const e of data ?? []) {
-    for (const l of e.journal_lines ?? []) {
-      if (opts.accountPrefix && !l.account_code.startsWith(opts.accountPrefix)) continue;
-      rows.push({
-        account_code: l.account_code,
-        debit: Number(l.debit) || 0,
-        credit: Number(l.credit) || 0,
-        entry_date: e.entry_date,
-        entry_id: e.id,
-        description: e.description,
-        line_order: Number(l.line_order) || 0,
-      });
-    }
+  for (const l of data ?? []) {
+    const e: any = l.journal_entries;
+    rows.push({
+      account_code: l.account_code,
+      debit: Number(l.debit) || 0,
+      credit: Number(l.credit) || 0,
+      entry_date: e.entry_date,
+      entry_id: e.id,
+      description: e.description,
+      line_order: Number(l.line_order) || 0,
+    });
   }
   return rows;
 }
@@ -46,9 +63,25 @@ async function fetchLines(
 // ============ 1. Nhật ký chung ============
 export const getJournal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from: string; to: string; search?: string }) => i)
+  .inputValidator((i: { from: string; to: string; search?: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    type JLine = { account_code: string; debit: number; credit: number };
+    type JEntry = { id: string; entry_date: string; description: string | null; lines: JLine[] };
+
+    // When dimensions are applied, restrict to entries that have at least one
+    // matching line; otherwise return all entries in the date range.
+    let entryIds: string[] | null = null;
+    if (hasDims(data.dims)) {
+      const lines = await fetchLines(supabase, userId, {
+        from: data.from, to: data.to, dims: data.dims,
+      });
+      entryIds = Array.from(new Set(lines.map((l) => l.entry_id)));
+      if (entryIds.length === 0) {
+        return { entries: [], totalDebit: 0, totalCredit: 0 };
+      }
+    }
+
     let q = supabase
       .from("journal_entries")
       .select("id, entry_date, description, created_at, journal_lines(account_code, debit, credit, line_order)")
@@ -57,10 +90,9 @@ export const getJournal = createServerFn({ method: "POST" })
       .lte("entry_date", data.to)
       .order("entry_date", { ascending: true })
       .order("created_at", { ascending: true });
+    if (entryIds) q = q.in("id", entryIds);
     const { data: rows, error } = await q;
     if (error) throw error;
-    type JLine = { account_code: string; debit: number; credit: number };
-    type JEntry = { id: string; entry_date: string; description: string | null; lines: JLine[] };
     const entries: JEntry[] = (rows ?? []).map((e: any) => ({
       id: e.id,
       entry_date: e.entry_date,
@@ -87,11 +119,11 @@ export const getJournal = createServerFn({ method: "POST" })
 // ============ 2. Sổ cái — gom theo TK ============
 export const getGeneralLedger = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from: string; to: string; accountPrefix?: string }) => i)
+  .inputValidator((i: { from: string; to: string; accountPrefix?: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), accountPrefix: data.accountPrefix });
-    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, accountPrefix: data.accountPrefix });
+    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), accountPrefix: data.accountPrefix, dims: data.dims });
+    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, accountPrefix: data.accountPrefix, dims: data.dims });
 
     const byAcc = new Map<string, { opening: number; debit: number; credit: number }>();
     for (const l of before) {
@@ -114,8 +146,8 @@ export const getGeneralLedger = createServerFn({ method: "POST" })
     const accounts = Array.from(byAcc.entries())
       .map(([code, v]) => ({
         code,
-        name: nameMap.get(code)?.name ?? "",
-        type: nameMap.get(code)?.type ?? "",
+        name: (nameMap.get(code) as any)?.name ?? "",
+        type: (nameMap.get(code) as any)?.type ?? "",
         opening: v.opening,
         debit: v.debit,
         credit: v.credit,
@@ -128,11 +160,11 @@ export const getGeneralLedger = createServerFn({ method: "POST" })
 // ============ 3. Sổ chi tiết 1 TK ============
 export const getAccountLedger = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { account: string; from: string; to: string }) => i)
+  .inputValidator((i: { account: string; from: string; to: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), accountPrefix: data.account });
-    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, accountPrefix: data.account });
+    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), accountPrefix: data.account, dims: data.dims });
+    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, accountPrefix: data.account, dims: data.dims });
     const exact = (rows: LineRow[]) => rows.filter((r) => r.account_code === data.account);
     const opening = exact(before).reduce((s, l) => s + l.debit - l.credit, 0);
     const pRows = exact(period).sort((a, b) => a.entry_date.localeCompare(b.entry_date));
@@ -161,11 +193,11 @@ export const getAccountLedger = createServerFn({ method: "POST" })
 // ============ 4. Bảng cân đối số phát sinh ============
 export const getTrialBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { from: string; to: string }) => i)
+  .inputValidator((i: { from: string; to: string; dims?: DimFilter }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const before = await fetchLines(supabase, userId, { to: prevDay(data.from) });
-    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to });
+    const before = await fetchLines(supabase, userId, { to: prevDay(data.from), dims: data.dims });
+    const period = await fetchLines(supabase, userId, { from: data.from, to: data.to, dims: data.dims });
     const map = new Map<string, { opening: number; debit: number; credit: number }>();
     for (const l of before) {
       const m = map.get(l.account_code) ?? { opening: 0, debit: 0, credit: 0 };
