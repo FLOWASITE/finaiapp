@@ -1,97 +1,53 @@
 ## Mục tiêu
-Bổ sung **chức năng sinh mã/số chứng từ tự động** thống nhất cho 7 đối tượng còn thiếu, đồng bộ với pattern đã có ở Phiếu thu/Phiếu chi (`nextVoucherNo`).
+Hoàn thiện `/inventory/warehouses` để quản lý nhiều kho (kho tổng, kho chi nhánh…) và cho phép gán kho khi nhập/xuất kho và khi kiểm kê.
 
-## Hiện trạng
+## 1. Database (migration)
 
-| Đối tượng | Bảng | Cột | Trạng thái |
-|---|---|---|---|
-| Phiếu thu | `cash_vouchers` | `voucher_no` | ✅ Đã có `nextVoucherNo` (`PT{yyyymm}/00001`) — chỉ cần wire vào UI |
-| Phiếu chi | `cash_vouchers` | `voucher_no` | ✅ Đã có (`PC{yyyymm}/00001`) — chỉ cần wire vào UI |
-| Bán hàng | `sales_invoices` | `invoice_no` | ❌ Nhập tay |
-| Mua hàng | `invoices` | `invoice_no` | ❌ Nhập tay |
-| Khách hàng | `customers` | `code` | ❌ Nhập tay |
-| Nhà cung cấp | `suppliers` | `code` | ❌ Nhập tay |
-| Hàng hoá/Dịch vụ | `products` | `code` | ⚠️ Có nút ⟳ client-side ở `/items` (chỉ thấy data đã load) — sẽ chuyển lên server để đếm chính xác |
+**Tạo bảng `warehouses`:**
+- `id`, `user_id`, `tenant_id`, `created_at`, `updated_at`
+- `code text NOT NULL` (mã kho, ví dụ `KHO01`)
+- `name text NOT NULL` (tên kho)
+- `address text`, `manager text`, `phone text`, `notes text`
+- `is_default boolean DEFAULT false` (kho mặc định khi tạo phiếu)
+- `is_active boolean DEFAULT true`
+- UNIQUE `(tenant_id, code)` và `(user_id, code)`
+- RLS theo chuẩn tenant + own (giống `products`, `bank_accounts`)
+- Trigger `updated_at`
 
-## Quy ước mã (theo chuẩn Misa/Fast)
+**Gắn kho vào nghiệp vụ tồn:**
+- `stock_movements`: thêm `warehouse_id uuid REFERENCES warehouses(id) ON DELETE SET NULL` + index `(warehouse_id, movement_date)`
+- `stock_takes`: thêm `warehouse_id uuid REFERENCES warehouses(id) ON DELETE SET NULL` (giữ cột `warehouse` text cũ cho dữ liệu legacy, hiển thị fallback)
+- Cho phép chuyển kho: thêm `transfer_id uuid` trên `stock_movements` để gom 2 dòng in/out của cùng phiếu chuyển kho (cùng `ref_type='transfer'`)
 
-| Đối tượng | Pattern | Ví dụ |
-|---|---|---|
-| Phiếu thu | `PT{yyyymm}/{5d}` | `PT202605/00001` *(đã có)* |
-| Phiếu chi | `PC{yyyymm}/{5d}` | `PC202605/00001` *(đã có)* |
-| Bán hàng | `HD{yyyymm}/{5d}` | `HD202605/00001` |
-| Mua hàng | `HDM{yyyymm}/{5d}` | `HDM202605/00001` |
-| Khách hàng | `KH{5d}` | `KH00001` (không theo tháng — danh mục) |
-| Nhà cung cấp | `NCC{5d}` | `NCC00001` |
-| Hàng hoá | `HH{4d}` | `HH0001` *(giữ format đã có)* |
-| Dịch vụ | `DV{4d}` | `DV0001` |
-| Combo | `CB{4d}` | `CB0001` |
+**Seed:** với mỗi tenant đang có dữ liệu tồn, tự sinh 1 kho mặc định `KHO01 – Kho chính` và gán `warehouse_id` cho movements/takes hiện có.
 
-## Thiết kế
+## 2. Server functions — `src/lib/warehouses.functions.ts`
+- `listWarehouses()` — trả về danh sách + số sản phẩm/giá trị tồn theo kho (group từ `stock_movements`)
+- `upsertWarehouse({ id?, code, name, address?, manager?, phone?, notes?, is_default?, is_active? })` — auto-code qua `nextEntityCode` nếu trống
+- `deleteWarehouse({ id })` — chặn xoá nếu còn movements; cho phép "ngưng hoạt động" thay thế
+- `setDefaultWarehouse({ id })` — bỏ cờ default ở các kho khác
 
-### 1. Server: helper tập trung `src/lib/codegen.functions.ts`
+Bổ sung entity `warehouse` vào `src/lib/codegen.functions.ts` (prefix `KHO`, padLen 2).
 
-Một server function duy nhất `nextEntityCode({ entity, date? })`:
+## 3. UI — `src/routes/_app/inventory/warehouses.tsx`
+Layout chuẩn DataTable (giống `customers`/`suppliers`):
+- Header: tiêu đề + nút **"Thêm kho"** + ô tìm kiếm
+- Bảng: Mã | Tên kho | Địa chỉ | Quản lý | SL mã hàng | Tồn (giá trị) | Mặc định (badge) | Trạng thái | Hành động (Sửa/Xoá/Đặt mặc định)
+- `WarehouseDialog`: form gồm `AutoCodeInput` (entity=`warehouse`), Tên, Địa chỉ, Người quản lý, SĐT, Ghi chú, Switch "Kho mặc định", Switch "Đang hoạt động". Có nút **Lưu** và **Lưu & thêm mới**, shortcut Ctrl+S.
+- Validate trùng mã client-side; toast lỗi DB 23505.
+- Empty state hướng dẫn tạo kho đầu tiên.
 
-```ts
-entity: "sale_invoice" | "purchase_invoice" | "customer" 
-      | "supplier" | "product_goods" | "product_service" | "product_combo"
-```
+## 4. Wire vào các trang tồn kho
+- **`/inventory` (nhập/xuất nhanh)**: thêm Select "Kho" (mặc định = kho `is_default`), lưu `warehouse_id` vào `stock_movements`. Thêm filter "Kho" trên bảng tồn để xem tồn theo từng kho.
+- **`/inventory/movements`**: bảng phiếu nhập/xuất hiển thị cột Kho; filter theo kho + theo loại + theo khoảng ngày.
+- **`/inventory/stock-takes`**: form tạo phiếu kiểm kê đổi field `warehouse` text → `Select` chọn `warehouse_id` (bắt buộc).
+- **`/inventory/stock-card` & `/inventory/$id`**: thêm filter kho; hiển thị tồn cuối kỳ theo từng kho.
 
-- Lookup `{ table, column, prefix, dateScoped, padLen }` theo entity.
-- `dateScoped=true` → pattern `${prefix}${yyyymm}/%`, parse `/(\d+)$`.
-- `dateScoped=false` → pattern `${prefix}%`, parse `(\d+)$`.
-- Quét tất cả mã matching cho **tenant hiện tại** (qua `requireSupabaseAuth` + `active_tenant_id`), lấy `max + 1`.
-- Trả về `{ code: string }`.
-- Race-safe: phía UI vẫn validate trùng + DB có UNIQUE constraint sẽ throw 23505 → user bấm lại nút sinh.
+## 5. Ngoài phạm vi (không làm lần này)
+- Phiếu chuyển kho riêng (transfer document UI) — chỉ chuẩn bị schema, UI để lần sau.
+- Tồn kho theo lot/serial, theo vị trí trong kho.
+- Phân quyền truy cập theo kho.
 
-Phiếu thu/chi giữ nguyên `nextVoucherNo` (đã hoạt động) để tránh đụng code đã chạy.
-
-### 2. UI: component dùng chung `<AutoCodeInput>`
-
-`src/components/ui/auto-code-input.tsx`:
-- Wrapper `Input` + nút icon `RefreshCw` bên phải (tooltip "Tự sinh mã").
-- Props: `value`, `onChange`, `entity`, `date?`, `placeholder`, `error?`.
-- Khi bấm nút → gọi `nextEntityCode` → setValue, toast nhẹ.
-- Khi dialog mới mở mà field rỗng → tự động fill 1 lần (tuỳ chọn `autoFillOnMount`).
-
-### 3. Wire vào từng dialog
-
-| Trang | Dialog | Thay thế field `code/invoice_no/voucher_no` |
-|---|---|---|
-| `/items` (`items/index.tsx`) | ProductDialog | Đã có nút ⟳ — đổi sang gọi `nextEntityCode` cho chính xác |
-| `/customers/index.tsx` | Customer form | Thêm `<AutoCodeInput entity="customer">` |
-| `/suppliers/index.tsx` | Supplier form | Thêm `<AutoCodeInput entity="supplier">` |
-| `/sales/index.tsx` | Sales invoice form (tab "Hoá đơn") | `<AutoCodeInput entity="sale_invoice" date={issue_date}>` |
-| `/purchases/index.tsx` | Purchase invoice form | `<AutoCodeInput entity="purchase_invoice" date={issue_date}>` |
-| `/cash` (PT/PC) | Voucher dialog | Wire vào `nextVoucherNo` qua cùng component (có flag dùng API khác) — hoặc giữ logic riêng nếu UI đã có |
-
-### 4. Hành vi
-- **Auto-fill khi mở dialog tạo mới** (field rỗng → gọi API 1 lần).
-- **Không auto-fill khi sửa** (đã có mã).
-- **Cho phép user sửa tay** sau khi sinh.
-- **Validate trùng client-side** (đã có ở `items` — mở rộng cho khách/NCC bằng cách load danh sách hiện có).
-
-## Phạm vi file
-
-**Tạo mới:**
-- `src/lib/codegen.functions.ts` — `nextEntityCode` + middleware register trong `start.ts` (nếu cần)
-- `src/components/ui/auto-code-input.tsx` — UI component dùng chung
-
-**Sửa:**
-- `src/routes/_app/items/index.tsx` — đổi `genCode` client → gọi `nextEntityCode`
-- `src/routes/_app/customers/index.tsx` — thêm AutoCodeInput
-- `src/routes/_app/suppliers/index.tsx` — thêm AutoCodeInput
-- `src/routes/_app/sales/index.tsx` — thêm AutoCodeInput vào form hoá đơn
-- `src/routes/_app/purchases/index.tsx` — thêm AutoCodeInput vào form hoá đơn
-- `src/routes/_app/cash/*.tsx` — wire `nextVoucherNo` (nếu chưa)
-
-**Không đổi:**
-- Schema DB (không cần migration — các cột mã đã tồn tại)
-- `cash.functions.ts` (giữ `nextVoucherNo`)
-- Backend logic của sales/purchases/customers/suppliers (chỉ FE thay đổi)
-
-## Out of scope
-- Trang Cài đặt cho phép tenant tuỳ biến prefix (đề xuất task riêng — sẽ cần bảng `code_sequences`).
-- Reset số thứ tự theo năm (hiện tại theo tháng cho voucher, theo all-time cho danh mục).
-- Lock số chứng từ kế toán đã ghi sổ.
+## Ghi chú kỹ thuật
+- `on_hand` trên `products` vẫn là tổng tất cả kho; tồn theo kho tính động từ `SUM(stock_movements)` theo `warehouse_id`.
+- Giữ backward-compat: movements/takes cũ không có `warehouse_id` sẽ được seed gán về kho mặc định trong migration.
