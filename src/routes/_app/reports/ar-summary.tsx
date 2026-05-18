@@ -104,6 +104,15 @@ function ArSummaryPage() {
   const [drillPageSize, setDrillPageSize] = useState(50);
   const [drillGroupByDoc, setDrillGroupByDoc] = useState(false);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  type DrillSortKey = "entry_date" | "doc_no" | "debit" | "credit";
+  const [drillSort, setDrillSort] = useState<{ key: DrillSortKey; dir: "asc" | "desc" }>({
+    key: "entry_date",
+    dir: "asc",
+  });
+  const toggleDrillSort = (key: DrillSortKey) =>
+    setDrillSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
+    );
 
 
 
