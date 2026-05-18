@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateDimensions } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBranches, upsertBranch, deleteBranch } from "@/lib/dimensions.functions";
@@ -83,7 +84,7 @@ function BranchDialog({ row }: { row?: any }) {
   }));
   const m = useMutation({
     mutationFn: () => up({ data: { id: row?.id, ...form } as any }),
-    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm chi nhánh"); qc.invalidateQueries({ queryKey: ["branches"] }); setOpen(false); },
+    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm chi nhánh"); invalidateDimensions(qc, "branch"); setOpen(false); },
     onError: (e: any) => toast.error(e.message),
   });
   return (
@@ -118,7 +119,7 @@ function DeleteRow({ id, name }: { id: string; name: string }) {
   const qc = useQueryClient();
   const m = useMutation({
     mutationFn: () => del({ data: { id } }),
-    onSuccess: () => { toast.success("Đã xoá"); qc.invalidateQueries({ queryKey: ["branches"] }); },
+    onSuccess: () => { toast.success("Đã xoá"); invalidateDimensions(qc, "branch"); },
     onError: (e: any) => toast.error(e.message),
   });
   return (

@@ -1,5 +1,6 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -85,7 +86,7 @@ function SalesDetail() {
       toast.success(`Đã phát hành: ${r.einvoice_code}`);
       qc.invalidateQueries({ queryKey: ["sales-invoice", id] });
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
-      qc.invalidateQueries({ queryKey: ["journal"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -96,6 +97,7 @@ function SalesDetail() {
       toast.success("Đã hủy hóa đơn");
       qc.invalidateQueries({ queryKey: ["sales-invoice", id] });
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -345,6 +347,7 @@ function ReceiptRow({ r, invoiceId }: { r: any; invoiceId: string }) {
       toast.success("Đã hủy phiếu thu");
       qc.invalidateQueries({ queryKey: ["sales-invoice", invoiceId] });
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -404,6 +407,7 @@ function ReceiptDialog({ invoiceId, remaining }: { invoiceId: string; remaining:
       qc.invalidateQueries({ queryKey: ["sales-invoice", invoiceId] });
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
       qc.invalidateQueries({ queryKey: ["sales-stats"] });
+      invalidateLedgers(qc);
       setOpen(false);
     },
     onError: (e: any) => toast.error(e.message),

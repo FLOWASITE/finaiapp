@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarIcon, Check, ChevronsUpDown, ArrowDownToLine, ArrowUpFromLine, Paperclip, IdCard } from "lucide-react";
@@ -180,9 +181,7 @@ export function VoucherFormDialog({
     onSuccess: (res: any) => {
       toast.success(`Đã tạo ${type === "receipt" ? "phiếu thu" : "phiếu chi"} & bút toán`);
       qc.invalidateQueries({ queryKey: ["vouchers"] });
-      qc.invalidateQueries({ queryKey: ["cashbook"] });
-      qc.invalidateQueries({ queryKey: ["journal"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
+      invalidateLedgers(qc);
       if (res?.id) setCreatedId(res.id);
       else onOpenChange(false);
     },

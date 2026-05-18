@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
 import { runMonthlyDepreciation } from "@/lib/assets.functions";
@@ -49,6 +50,7 @@ function Assets() {
     if (error) return toast.error(error.message);
     setForm({ ...form, code: "", name: "", cost: 0 });
     qc.invalidateQueries({ queryKey: ["fixed_assets"] });
+    invalidateLedgers(qc);
   };
 
   const runDepreciation = async () => {
@@ -57,6 +59,7 @@ function Assets() {
       const r = await runFn({ data: { upToMonth: period } });
       toast.success(`Đã tạo ${r.created} bút toán khấu hao`);
       qc.invalidateQueries({ queryKey: ["fixed_assets"] });
+      invalidateLedgers(qc);
     } catch (e: any) { toast.error(e.message); }
     finally { setRunning(false); }
   };

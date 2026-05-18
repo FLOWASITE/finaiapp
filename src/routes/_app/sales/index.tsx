@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -747,8 +748,7 @@ function ReceiptsTab({
       toast.success("Đã xoá phiếu thu (đảo bút toán)");
       qc.invalidateQueries({ queryKey: ["receipts"] });
       qc.invalidateQueries({ queryKey: ["receipts-stats"] });
-      qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
-      qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Không xoá được"),
   });
@@ -1002,9 +1002,8 @@ function ReceiptsTab({
             clearPreselect();
             qc.invalidateQueries({ queryKey: ["receipts"] });
             qc.invalidateQueries({ queryKey: ["receipts-stats"] });
-            qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
-            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
             qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+            invalidateLedgers(qc);
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
@@ -1117,9 +1116,8 @@ function NewReceiptInline({
             setOpen(false);
             qc.invalidateQueries({ queryKey: ["receipts"] });
             qc.invalidateQueries({ queryKey: ["receipts-stats"] });
-            qc.invalidateQueries({ queryKey: ["outstanding-invoices"] });
-            qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
             qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+            invalidateLedgers(qc);
           } catch (e: any) {
             toast.error(e?.message || "Lỗi khi ghi nhận");
           }
@@ -1478,7 +1476,7 @@ function NewInvoiceDialog() {
     onSuccess: () => {
       toast.success("Đã lưu hóa đơn nháp");
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
-      qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+      invalidateLedgers(qc);
       setOpen(false);
       setCustomer(null);
       setLines([

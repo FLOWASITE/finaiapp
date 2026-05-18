@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateDimensions } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listCostCenters, upsertCostCenter, deleteCostCenter } from "@/lib/dimensions.functions";
@@ -82,7 +83,7 @@ function CcDialog({ row, rows }: { row?: any; rows: any[] }) {
   }));
   const m = useMutation({
     mutationFn: () => up({ data: { id: row?.id, ...form } as any }),
-    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm bộ phận"); qc.invalidateQueries({ queryKey: ["cost-centers"] }); setOpen(false); },
+    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm bộ phận"); invalidateDimensions(qc, "cost_center"); setOpen(false); },
     onError: (e: any) => toast.error(e.message),
   });
   const parentOptions = rows.filter((r) => r.id !== row?.id);
@@ -124,7 +125,7 @@ function DeleteRow({ id, name }: { id: string; name: string }) {
   const qc = useQueryClient();
   const m = useMutation({
     mutationFn: () => del({ data: { id } }),
-    onSuccess: () => { toast.success("Đã xoá"); qc.invalidateQueries({ queryKey: ["cost-centers"] }); },
+    onSuccess: () => { toast.success("Đã xoá"); invalidateDimensions(qc, "cost_center"); },
     onError: (e: any) => toast.error(e.message),
   });
   return (

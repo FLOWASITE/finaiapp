@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -72,8 +73,7 @@ function VouchersPage() {
     onSuccess: () => {
       toast.success("Đã xoá phiếu (và bút toán liên quan)");
       qc.invalidateQueries({ queryKey: ["bank-vouchers"] });
-      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
-      qc.invalidateQueries({ queryKey: ["journal"] });
+      invalidateLedgers(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
   });
@@ -227,8 +227,7 @@ function VoucherDialog({
     onSuccess: () => {
       toast.success(`Đã tạo ${isReceipt ? "phiếu báo có" : "phiếu báo nợ"} & bút toán`);
       qc.invalidateQueries({ queryKey: ["bank-vouchers"] });
-      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
-      qc.invalidateQueries({ queryKey: ["journal"] });
+      invalidateLedgers(qc);
       onClose();
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
@@ -400,8 +399,7 @@ function TransferDialog({
     onSuccess: () => {
       toast.success("Đã ghi chuyển khoản nội bộ");
       qc.invalidateQueries({ queryKey: ["bank-vouchers"] });
-      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
-      qc.invalidateQueries({ queryKey: ["journal"] });
+      invalidateLedgers(qc);
       onClose();
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
