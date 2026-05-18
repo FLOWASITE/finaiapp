@@ -202,18 +202,31 @@ export const getTctCaptcha = createServerFn({ method: "POST" })
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(15000),
       });
-      if (!res.ok) throw new Error(`Captcha HTTP ${res.status}`);
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          key: "",
+          svg: "",
+          error: `Captcha HTTP ${res.status}`,
+        };
+      }
       const json: any = await res.json();
       return {
+        ok: true as const,
         key: String(json?.key ?? ""),
         svg: String(json?.content ?? ""),
+        error: null,
       };
     } catch (e: any) {
       const msg = e?.message || String(e);
-      throw new Error(
-        `Không kết nối được tới hệ thống HĐĐT của Tổng cục Thuế (${TCT_BASE}). ` +
+      return {
+        ok: false as const,
+        key: "",
+        svg: "",
+        error:
+          `Không kết nối được tới hệ thống HĐĐT của Tổng cục Thuế (${TCT_BASE}). ` +
           `Máy chủ Lovable Cloud có thể bị chặn outbound tới cổng :30000. Chi tiết: ${msg}`,
-      );
+      };
     }
   });
 
