@@ -70,6 +70,7 @@ import { Route as AppReportsAllocationScheduleRouteImport } from './routes/_app/
 import { Route as AppPayrollTimesheetsRouteImport } from './routes/_app/payroll/timesheets'
 import { Route as AppPayrollPoliciesRouteImport } from './routes/_app/payroll/policies'
 import { Route as AppPayrollComponentsRouteImport } from './routes/_app/payroll/components'
+import { Route as AppPayrollAdvancesRouteImport } from './routes/_app/payroll/advances'
 import { Route as AppPayrollIdRouteImport } from './routes/_app/payroll/$id'
 import { Route as AppItemsUnitsRouteImport } from './routes/_app/items/units'
 import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/categories'
@@ -103,6 +104,7 @@ import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
@@ -415,6 +417,11 @@ const AppPayrollComponentsRoute = AppPayrollComponentsRouteImport.update({
   path: '/payroll/components',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPayrollAdvancesRoute = AppPayrollAdvancesRouteImport.update({
+  id: '/payroll/advances',
+  path: '/payroll/advances',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollIdRoute = AppPayrollIdRouteImport.update({
   id: '/payroll/$id',
   path: '/payroll/$id',
@@ -580,6 +587,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppPayrollPayslipsIdRoute = AppPayrollPayslipsIdRouteImport.update({
+  id: '/payroll/payslips/$id',
+  path: '/payroll/payslips/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollEmployeesIdRoute = AppPayrollEmployeesIdRouteImport.update({
   id: '/payroll/employees/$id',
   path: '/payroll/employees/$id',
@@ -646,6 +658,7 @@ export interface FileRoutesByFullPath {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/payroll/advances': typeof AppPayrollAdvancesRoute
   '/payroll/components': typeof AppPayrollComponentsRoute
   '/payroll/policies': typeof AppPayrollPoliciesRoute
   '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
@@ -698,6 +711,7 @@ export interface FileRoutesByFullPath {
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
+  '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesByTo {
@@ -740,6 +754,7 @@ export interface FileRoutesByTo {
   '/items/categories': typeof AppItemsCategoriesRoute
   '/items/units': typeof AppItemsUnitsRoute
   '/payroll/$id': typeof AppPayrollIdRoute
+  '/payroll/advances': typeof AppPayrollAdvancesRoute
   '/payroll/components': typeof AppPayrollComponentsRoute
   '/payroll/policies': typeof AppPayrollPoliciesRoute
   '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
@@ -792,6 +807,7 @@ export interface FileRoutesByTo {
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
+  '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRoutesById {
@@ -841,6 +857,7 @@ export interface FileRoutesById {
   '/_app/items/categories': typeof AppItemsCategoriesRoute
   '/_app/items/units': typeof AppItemsUnitsRoute
   '/_app/payroll/$id': typeof AppPayrollIdRoute
+  '/_app/payroll/advances': typeof AppPayrollAdvancesRoute
   '/_app/payroll/components': typeof AppPayrollComponentsRoute
   '/_app/payroll/policies': typeof AppPayrollPoliciesRoute
   '/_app/payroll/timesheets': typeof AppPayrollTimesheetsRoute
@@ -893,6 +910,7 @@ export interface FileRoutesById {
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
+  '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
 }
 export interface FileRouteTypes {
@@ -942,6 +960,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/payroll/advances'
     | '/payroll/components'
     | '/payroll/policies'
     | '/payroll/timesheets'
@@ -994,6 +1013,7 @@ export interface FileRouteTypes {
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
+    | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1036,6 +1056,7 @@ export interface FileRouteTypes {
     | '/items/categories'
     | '/items/units'
     | '/payroll/$id'
+    | '/payroll/advances'
     | '/payroll/components'
     | '/payroll/policies'
     | '/payroll/timesheets'
@@ -1088,6 +1109,7 @@ export interface FileRouteTypes {
     | '/assets/allocations/$id'
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
+    | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
   id:
     | '__root__'
@@ -1136,6 +1158,7 @@ export interface FileRouteTypes {
     | '/_app/items/categories'
     | '/_app/items/units'
     | '/_app/payroll/$id'
+    | '/_app/payroll/advances'
     | '/_app/payroll/components'
     | '/_app/payroll/policies'
     | '/_app/payroll/timesheets'
@@ -1188,6 +1211,7 @@ export interface FileRouteTypes {
     | '/_app/assets/allocations/$id'
     | '/_app/assets/inventory/$id'
     | '/_app/payroll/employees/$id'
+    | '/_app/payroll/payslips/$id'
     | '/_app/superadmin/tenant/$id'
   fileRoutesById: FileRoutesById
 }
@@ -1627,6 +1651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollComponentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/payroll/advances': {
+      id: '/_app/payroll/advances'
+      path: '/payroll/advances'
+      fullPath: '/payroll/advances'
+      preLoaderRoute: typeof AppPayrollAdvancesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/$id': {
       id: '/_app/payroll/$id'
       path: '/payroll/$id'
@@ -1858,6 +1889,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/payroll/payslips/$id': {
+      id: '/_app/payroll/payslips/$id'
+      path: '/payroll/payslips/$id'
+      fullPath: '/payroll/payslips/$id'
+      preLoaderRoute: typeof AppPayrollPayslipsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/employees/$id': {
       id: '/_app/payroll/employees/$id'
       path: '/payroll/employees/$id'
@@ -2036,6 +2074,7 @@ interface AppRouteChildren {
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppPayrollIdRoute: typeof AppPayrollIdRoute
+  AppPayrollAdvancesRoute: typeof AppPayrollAdvancesRoute
   AppPayrollComponentsRoute: typeof AppPayrollComponentsRoute
   AppPayrollPoliciesRoute: typeof AppPayrollPoliciesRoute
   AppPayrollTimesheetsRoute: typeof AppPayrollTimesheetsRoute
@@ -2078,6 +2117,7 @@ interface AppRouteChildren {
   AppTaxIndexRoute: typeof AppTaxIndexRoute
   AppAssetsIdCardRoute: typeof AppAssetsIdCardRoute
   AppPayrollEmployeesIdRoute: typeof AppPayrollEmployeesIdRoute
+  AppPayrollPayslipsIdRoute: typeof AppPayrollPayslipsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2106,6 +2146,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppPayrollIdRoute: AppPayrollIdRoute,
+  AppPayrollAdvancesRoute: AppPayrollAdvancesRoute,
   AppPayrollComponentsRoute: AppPayrollComponentsRoute,
   AppPayrollPoliciesRoute: AppPayrollPoliciesRoute,
   AppPayrollTimesheetsRoute: AppPayrollTimesheetsRoute,
@@ -2148,6 +2189,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTaxIndexRoute: AppTaxIndexRoute,
   AppAssetsIdCardRoute: AppAssetsIdCardRoute,
   AppPayrollEmployeesIdRoute: AppPayrollEmployeesIdRoute,
+  AppPayrollPayslipsIdRoute: AppPayrollPayslipsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
