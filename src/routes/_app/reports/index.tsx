@@ -148,6 +148,7 @@ function ReportsPage() {
           <TabsTrigger value="b02">B02 — KQKD</TabsTrigger>
           <TabsTrigger value="b03">B03 — LCTT</TabsTrigger>
           <TabsTrigger value="b09">B09 — Thuyết minh</TabsTrigger>
+          <TabsTrigger value="tb">BCĐPS — Cân đối phát sinh</TabsTrigger>
         </TabsList>
 
         <TabsContent value="b01">
