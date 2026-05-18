@@ -235,11 +235,17 @@ async function buildVoucherList(
     };
   });
 
-  // sourceTables filter is applied AFTER meta resolution; for paginated mode
-  // we keep it as a page-local filter to avoid an extra full scan.
-  const pageRows = data.sourceTables && data.sourceTables.length > 0
-    ? rows.filter((r) => data.sourceTables!.includes(r.source_table))
-    : rows;
+  // sourceTables / voucherTypes filters are applied AFTER meta resolution;
+  // for paginated mode we keep these page-local to avoid an extra full scan.
+  let pageRows = rows;
+  if (data.sourceTables && data.sourceTables.length > 0) {
+    const set = new Set(data.sourceTables);
+    pageRows = pageRows.filter((r) => set.has(r.source_table));
+  }
+  if (data.voucherTypes && data.voucherTypes.length > 0) {
+    const set = new Set(data.voucherTypes);
+    pageRows = pageRows.filter((r) => set.has(r.voucher_type));
+  }
 
   pageRows.sort((a, b) =>
     a.entry_date.localeCompare(b.entry_date) ||
