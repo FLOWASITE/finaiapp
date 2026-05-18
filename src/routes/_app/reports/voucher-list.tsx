@@ -52,6 +52,12 @@ function VoucherListPage() {
   const [sources, setSources] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+
+  // Reset to page 1 whenever filters change
+  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources });
+  useMemo(() => { setPage(1); }, [filterKey]);
 
   const profileQ = useQuery({
     queryKey: ["profile-fiscal"],
@@ -63,23 +69,30 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix],
+    queryKey: ["voucher-list", from, to, dims, sources, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
           from, to, dims,
           sourceTables: sources.length ? sources : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
+          page,
+          pageSize,
         },
       }),
     ...QUERY_PRESETS.REPORT,
+    placeholderData: (prev) => prev,
   });
 
+  const pageRows = q.data?.rows ?? [];
+  const totalRows = q.data?.totalRows ?? 0;
+  const totalPages = q.data?.totalPages ?? 1;
+
+  // Client-side search filters within the current page only
   const rows = useMemo(() => {
-    const all = q.data?.rows ?? [];
     const s = norm(search);
-    if (!s) return all;
-    return all.filter((r) =>
+    if (!s) return pageRows;
+    return pageRows.filter((r) =>
       norm(r.voucher_no).includes(s) ||
       norm(r.voucher_type).includes(s) ||
       norm(r.description ?? "").includes(s) ||
@@ -87,7 +100,7 @@ function VoucherListPage() {
       norm(r.account_code).includes(s) ||
       norm(r.reference ?? "").includes(s)
     );
-  }, [q.data, search]);
+  }, [pageRows, search]);
 
   const totals = useMemo(
     () => rows.reduce((s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }), { debit: 0, credit: 0 }),
