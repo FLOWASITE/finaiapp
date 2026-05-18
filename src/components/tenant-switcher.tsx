@@ -204,18 +204,35 @@ export function TenantSwitcher() {
   );
 }
 
+type CreateTenantPayload = {
+  name: string;
+  company_name?: string;
+  tax_id?: string;
+  address?: string;
+  legal_rep_name?: string;
+  trade_name?: string;
+  phone?: string;
+  email?: string;
+  tax_authority?: string;
+  business_reg_no?: string;
+  business_reg_date?: string;
+  established_date?: string;
+  legal_form?: "llc"|"jsc"|"partnership"|"sole_prop"|"household"|"branch"|"other";
+  industry_code?: string;
+  industry_name?: string;
+};
+
+const LEGAL_FORM_LABEL: Record<string, string> = {
+  llc: "TNHH", jsc: "Cổ phần", partnership: "Hợp danh",
+  sole_prop: "DN tư nhân", household: "Hộ KD", branch: "Chi nhánh", other: "Khác",
+};
+
 function CreateTenantDialog({
   open, onOpenChange, onSubmit, pending,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: {
-    name: string;
-    company_name?: string;
-    tax_id?: string;
-    address?: string;
-    legal_rep_name?: string;
-  }) => void;
+  onSubmit: (v: CreateTenantPayload) => void;
   pending: boolean;
 }) {
   const [taxId, setTaxId] = React.useState("");
@@ -224,13 +241,27 @@ function CreateTenantDialog({
   const [address, setAddress] = React.useState("");
   const [legalRep, setLegalRep] = React.useState("");
   const [userEditedName, setUserEditedName] = React.useState(false);
+  const [lookup, setLookup] = React.useState<TaxLookupResult | null>(null);
 
   React.useEffect(() => {
     if (!open) {
       setTaxId(""); setCompanyName(""); setName("");
       setAddress(""); setLegalRep(""); setUserEditedName(false);
+      setLookup(null);
     }
   }, [open]);
+
+  const bonus = lookup
+    ? [
+        lookup.legalForm && { label: "Loại hình", value: LEGAL_FORM_LABEL[lookup.legalForm] ?? lookup.legalForm },
+        lookup.registrationNo && { label: "GPKD/MST", value: lookup.registrationNo },
+        lookup.registrationDate && { label: "Ngày cấp", value: lookup.registrationDate },
+        lookup.taxAuthority && { label: "Cơ quan thuế", value: lookup.taxAuthority },
+        lookup.industryName && { label: "Ngành nghề", value: `${lookup.industryCode ? lookup.industryCode + " - " : ""}${lookup.industryName}` },
+        lookup.phone && { label: "Điện thoại", value: lookup.phone },
+        lookup.email && { label: "Email", value: lookup.email },
+      ].filter(Boolean) as { label: string; value: string }[]
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -246,6 +277,7 @@ function CreateTenantDialog({
               onChange={setTaxId}
               placeholder="Nhập MST rồi bấm tra cứu để tự điền"
               onResolved={(r: TaxLookupResult) => {
+                setLookup(r);
                 setCompanyName(r.name);
                 if (!userEditedName) setName(r.shortName || r.name);
                 if (r.address) setAddress(r.address);
@@ -286,6 +318,22 @@ function CreateTenantDialog({
               placeholder="Họ và tên người đại diện"
             />
           </div>
+
+          {bonus.length > 0 && (
+            <div className="rounded-md border bg-muted/40 p-3 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">
+                Đã lấy từ MST ({bonus.length} trường sẽ tự lưu)
+              </div>
+              <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 text-xs">
+                {bonus.map((b) => (
+                  <React.Fragment key={b.label}>
+                    <dt className="text-muted-foreground">{b.label}</dt>
+                    <dd className="truncate" title={b.value}>{b.value}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
@@ -297,6 +345,16 @@ function CreateTenantDialog({
               tax_id: taxId.trim() || undefined,
               address: address.trim() || undefined,
               legal_rep_name: legalRep.trim() || undefined,
+              trade_name: lookup?.tradeName ?? undefined,
+              phone: lookup?.phone ?? undefined,
+              email: lookup?.email ?? undefined,
+              tax_authority: lookup?.taxAuthority ?? undefined,
+              business_reg_no: lookup?.registrationNo ?? undefined,
+              business_reg_date: lookup?.registrationDate ?? undefined,
+              established_date: lookup?.establishedDate ?? undefined,
+              legal_form: (lookup?.legalForm as any) ?? undefined,
+              industry_code: lookup?.industryCode ?? undefined,
+              industry_name: lookup?.industryName ?? undefined,
             })}
           >
             {pending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
