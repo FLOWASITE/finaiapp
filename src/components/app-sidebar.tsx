@@ -147,9 +147,16 @@ const TAX_SECTIONS: NavSection[] = [
   {
     label: "Thuế",
     entries: [
-      { to: "/purchases", label: "Hoá đơn mua", icon: ShoppingCart },
-      { to: "/invoices", label: "Hoá đơn bán", icon: Receipt },
-      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Calculator },
+      { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
+      { to: "/tax/tncn", label: "Thuế TNCN", icon: UserCog },
+      { to: "/tax/tndn", label: "Thuế TNDN", icon: Calculator },
+    ],
+  },
+  {
+    label: "Liên kết",
+    entries: [
+      { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
     ],
   },
 ];
