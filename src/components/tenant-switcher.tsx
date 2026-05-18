@@ -15,6 +15,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
+import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
+import type { TaxLookupResult } from "@/lib/tax-lookup.functions";
 import { toast } from "sonner";
 
 const ROLE_LABEL: Record<string, string> = {
