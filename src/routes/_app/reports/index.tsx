@@ -579,14 +579,36 @@ function TrialBalanceTable({
       )
     : withAncestors;
 
-  // Lọc theo từ khoá: khớp mã hoặc tên (không phân biệt hoa thường, bỏ dấu cách thừa).
-  // Khi xem dạng cây: giữ lại tổ tiên của các dòng khớp để cây không bị đứt.
-  const q = (search ?? "").trim().toLowerCase();
+  // Chuẩn hoá: bỏ dấu, lowercase, co khoảng trắng. "đ"/"Đ" → "d".
+  const norm = (s: string) =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/gi, "d")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Cú pháp tìm:
+  //   "=131"     → khớp mã chính xác
+  //   "131*"/"131%" hoặc chỉ gồm chữ số → khớp tiền tố mã
+  //   còn lại    → khớp chuỗi con trên mã đã chuẩn hoá hoặc tên đã chuẩn hoá
+  const raw = (search ?? "").trim();
   let filtered = afterHideZero;
-  if (q) {
-    const matches = afterHideZero.filter(
-      (r) => r.code.toLowerCase().includes(q) || (r.name ?? "").toLowerCase().includes(q),
-    );
+  if (raw) {
+    let matches: TrialBalanceRow[];
+    if (raw.startsWith("=")) {
+      const exact = raw.slice(1).trim();
+      matches = afterHideZero.filter((r) => r.code === exact);
+    } else if (/[*%]$/.test(raw) || /^\d+$/.test(raw)) {
+      const prefix = raw.replace(/[*%]+$/, "").trim();
+      matches = prefix ? afterHideZero.filter((r) => r.code.startsWith(prefix)) : afterHideZero;
+    } else {
+      const nq = norm(raw);
+      matches = afterHideZero.filter(
+        (r) => norm(r.code).includes(nq) || norm(r.name ?? "").includes(nq),
+      );
+    }
     if (tree) {
       const keep = new Set(matches.map((r) => r.code));
       for (const r of matches) {
