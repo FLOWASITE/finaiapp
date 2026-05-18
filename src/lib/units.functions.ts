@@ -42,12 +42,24 @@ export const upsertUnit = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-    const payload: any = { ...data, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
+    const code = normalizeCode(data.code);
+    // Auto-fill canonical name from common units catalog when name missing or matches code.
+    let name = data.name?.trim() || "";
+    const match = findCommonUnit(code);
+    if (match && (!name || name.toLowerCase() === code.toLowerCase())) {
+      name = match.name;
+    }
+    if (!name) name = code;
+    const payload: any = { ...data, code, name, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
     if (data.id) {
       const { error } = await supabase.from("product_units").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
+    // Check duplicate (case-insensitive) for this tenant
+    const { data: dup } = await supabase
+      .from("product_units").select("id").ilike("code", code).maybeSingle();
+    if (dup) throw new Error(`Đơn vị "${code}" đã tồn tại`);
     const { data: row, error } = await supabase.from("product_units").insert(payload).select("id").single();
     if (error) throw new Error(error.message);
     return { id: row!.id };
