@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Trash2, Warehouse, Plus } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus } from "lucide-react";
+import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
@@ -28,6 +29,7 @@ interface Props {
 
 export function VoucherListPage({ type }: Props) {
   const list = useServerFn(listStockVouchers);
+  const getStockVoucherFn = useServerFn(getStockVoucher);
   const whs = useServerFn(listWarehouses);
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
@@ -168,6 +170,17 @@ export function VoucherListPage({ type }: Props) {
                     <td className="p-3 text-right">
                       <Button size="sm" variant="ghost" onClick={() => setOpenId(r.id)}>
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={async () => {
+                        const full = await getStockVoucherFn({ data: { id: r.id } });
+                        printVoucher({
+                          voucher: full.voucher as any,
+                          lines: full.lines as any,
+                          journal_lines: full.journal_lines as any,
+                          type,
+                        });
+                      }}>
+                        <Printer className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
@@ -448,6 +461,14 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
               </AlertDialog>
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4 mr-1" /> Sửa phiếu
+              </Button>
+              <Button size="sm" onClick={() => printVoucher({
+                voucher: v,
+                lines,
+                journal_lines: data?.journal_lines as any,
+                type,
+              })}>
+                <Printer className="h-4 w-4 mr-1" /> In / PDF
               </Button>
             </DialogFooter>
           </div>
