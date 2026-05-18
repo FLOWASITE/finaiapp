@@ -275,22 +275,35 @@ export function AppSidebar() {
         />
 
         <SidebarHeader className="relative border-b border-sidebar-border/40 px-3 py-3">
-          <Link to="/dashboard" className="group/brand flex items-center gap-2.5">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 transition-transform duration-300 group-hover/brand:rotate-3 group-hover/brand:scale-105"
-              style={{ background: "var(--gradient-ai)" }}
-            >
-              A
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col leading-snug animate-fade-in">
-                <span className="font-bold text-[15px] tracking-tight text-sidebar-foreground">FinAI</span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55">
-                  AI Accounting · v3
-                </span>
+          <div className="flex items-center justify-between gap-2">
+            <Link to="/dashboard" className="group/brand flex items-center gap-2.5 min-w-0">
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 transition-transform duration-300 group-hover/brand:rotate-3 group-hover/brand:scale-105"
+                style={{ background: "var(--gradient-ai)" }}
+              >
+                A
               </div>
+              {!collapsed && (
+                <div className="flex flex-col leading-snug animate-fade-in min-w-0">
+                  <span className="font-bold text-[15px] tracking-tight text-sidebar-foreground truncate">FinAI</span>
+                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate">
+                    AI Accounting · v3
+                  </span>
+                </div>
+              )}
+            </Link>
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+                title={theme === "dark" ? "Chế độ sáng" : "Chế độ tối"}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border/40 bg-sidebar-accent/25 text-sidebar-foreground/70 hover:bg-sidebar-accent/55 hover:text-sidebar-foreground hover:border-sidebar-border/60 transition-all duration-200"
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
             )}
-          </Link>
+          </div>
         </SidebarHeader>
 
         <SidebarContent className="relative gap-1">
