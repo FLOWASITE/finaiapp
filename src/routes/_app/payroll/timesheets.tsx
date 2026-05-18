@@ -114,36 +114,40 @@ function Page() {
   );
 }
 
+function NumCell({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const [v, setV] = React.useState(String(value));
+  React.useEffect(() => { setV(String(value)); }, [value]);
+  return (
+    <Input
+      type="number"
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => {
+        const n = Number(v);
+        if (n !== value) onCommit(n);
+      }}
+      className="h-8 text-right"
+    />
+  );
+}
+
 function Row({ employee, timesheet, defaultStd, onSave }: any) {
   const t = timesheet ?? {};
-  const num = (key: string, fallback: number) => {
-    const [v, setV] = React.useState(String(Number(t[key] ?? fallback)));
-    React.useEffect(() => { setV(String(Number(t[key] ?? fallback))); }, [t[key]]);
-    return (
-      <Input
-        type="number"
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={() => {
-          const n = Number(v);
-          if (n !== Number(t[key] ?? fallback)) onSave({ [key]: n });
-        }}
-        className="h-8 text-right"
-      />
-    );
-  };
+  const cell = (key: string, fallback: number) => (
+    <NumCell value={Number(t[key] ?? fallback)} onCommit={(n) => onSave({ [key]: n })} />
+  );
   return (
     <TableRow>
       <TableCell className="font-mono">{employee.code}</TableCell>
       <TableCell>{employee.full_name}</TableCell>
-      <TableCell>{num("standard_days", defaultStd)}</TableCell>
-      <TableCell>{num("actual_days", defaultStd)}</TableCell>
-      <TableCell>{num("paid_leave_days", 0)}</TableCell>
-      <TableCell>{num("unpaid_leave_days", 0)}</TableCell>
-      <TableCell>{num("ot_150_hours", 0)}</TableCell>
-      <TableCell>{num("ot_200_hours", 0)}</TableCell>
-      <TableCell>{num("ot_300_hours", 0)}</TableCell>
-      <TableCell>{num("night_hours", 0)}</TableCell>
+      <TableCell>{cell("standard_days", defaultStd)}</TableCell>
+      <TableCell>{cell("actual_days", defaultStd)}</TableCell>
+      <TableCell>{cell("paid_leave_days", 0)}</TableCell>
+      <TableCell>{cell("unpaid_leave_days", 0)}</TableCell>
+      <TableCell>{cell("ot_150_hours", 0)}</TableCell>
+      <TableCell>{cell("ot_200_hours", 0)}</TableCell>
+      <TableCell>{cell("ot_300_hours", 0)}</TableCell>
+      <TableCell>{cell("night_hours", 0)}</TableCell>
     </TableRow>
   );
 }
