@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listProducts, upsertProduct, listCategories } from "@/lib/inventory.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { NumberInput } from "@/components/ui/number-input";
 import { toast } from "sonner";
-import { Plus, Layers, Warehouse } from "lucide-react";
+import { Plus, Layers, Warehouse, RefreshCw, Loader2, Info, Package, Wrench, Boxes } from "lucide-react";
 
 type ItemType = "goods" | "service" | "combo";
 const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
@@ -20,6 +25,8 @@ const ITEM_TYPE_BADGE: Record<ItemType, string> = {
   service: "bg-emerald-50 text-emerald-700 border-emerald-200",
   combo: "bg-violet-50 text-violet-700 border-violet-200",
 };
+const CODE_PREFIX: Record<ItemType, string> = { goods: "HH", service: "DV", combo: "CB" };
+const UNIT_SUGGESTIONS = ["cái", "hộp", "thùng", "kg", "lít", "mét", "bộ", "chiếc", "giờ", "lần", "gói"];
 
 export const Route = createFileRoute("/_app/items/")({ component: ItemsListPage });
 
@@ -57,7 +64,7 @@ function ItemsListPage() {
             </Link>.
           </p>
         </div>
-        <ProductDialog categories={categories ?? []} />
+        <ProductDialog categories={categories ?? []} existingCodes={(products ?? []).map((p: any) => p.code)} />
       </div>
 
       <Card>
@@ -145,102 +152,358 @@ function ItemsListPage() {
   );
 }
 
-function ProductDialog({ categories }: { categories: any[] }) {
+// ---------------- Dialog ----------------
+
+const emptyForm = () => ({
+  code: "",
+  name: "",
+  item_type: "goods" as ItemType,
+  unit: "cái",
+  barcode: "",
+  unit_cost: 0,
+  unit_price: 0,
+  min_stock: 0,
+  max_stock: 0,
+  stock_account: "156",
+  revenue_account: "511",
+  cogs_account: "632",
+  vat_rate: 10,
+  category_id: null as string | null,
+  is_active: true,
+  notes: "",
+});
+
+function genCode(type: ItemType, existing: string[]): string {
+  const prefix = CODE_PREFIX[type];
+  const nums = existing
+    .filter((c) => c?.startsWith(prefix))
+    .map((c) => parseInt(c.slice(prefix.length), 10))
+    .filter((n) => !isNaN(n));
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `${prefix}${String(next).padStart(4, "0")}`;
+}
+
+function ProductDialog({ categories, existingCodes }: { categories: any[]; existingCodes: string[] }) {
   const upsert = useServerFn(upsertProduct);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const empty = {
-    code: "", name: "", item_type: "goods" as ItemType, unit: "cái", barcode: "",
-    unit_cost: 0, unit_price: 0, min_stock: 0, max_stock: 0,
-    stock_account: "156", revenue_account: "511", cogs_account: "632",
-    vat_rate: 10, category_id: null as string | null, is_active: true, notes: "",
-  };
-  const [form, setForm] = useState(empty);
+  const [tab, setTab] = useState("general");
+  const [form, setForm] = useState(emptyForm);
+  const codeRef = useRef<HTMLInputElement>(null);
+
   const isService = form.item_type === "service";
+  const hasStock = form.item_type !== "service";
+
+  const codeDuplicate = useMemo(
+    () => form.code.trim().length > 0 && existingCodes.includes(form.code.trim()),
+    [form.code, existingCodes]
+  );
+
+  const reset = () => {
+    setForm(emptyForm());
+    setTab("general");
+  };
+
   const m = useMutation({
-    mutationFn: () => upsert({ data: form as any }),
-    onSuccess: () => {
+    mutationFn: (keepOpen: boolean) =>
+      upsert({ data: form as any }).then(() => keepOpen),
+    onSuccess: (keepOpen) => {
       toast.success("Đã lưu mặt hàng");
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["stock-report"] });
       qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
-      setOpen(false); setForm(empty);
+      if (keepOpen) {
+        reset();
+        setTimeout(() => codeRef.current?.focus(), 50);
+      } else {
+        setOpen(false);
+        reset();
+      }
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Keyboard shortcut: Ctrl/Cmd+S to save
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (canSave) m.mutate(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form]);
+
+  const canSave =
+    form.code.trim().length > 0 &&
+    form.name.trim().length > 0 &&
+    !codeDuplicate &&
+    !m.isPending;
+
+  const setType = (t: ItemType) => {
+    setForm((f) => ({
+      ...f,
+      item_type: t,
+      unit: t === "service" ? "lần" : f.unit === "lần" || f.unit === "giờ" ? "cái" : f.unit,
+      ...(t === "service" ? { unit_cost: 0, min_stock: 0, max_stock: 0 } : {}),
+    }));
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button><Plus className="mr-2 h-4 w-4" />Thêm mặt hàng</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Thêm hàng hoá / dịch vụ</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Loại *">
-            <Select
-              value={form.item_type}
-              onValueChange={(v) => {
-                const t = v as ItemType;
-                setForm({
-                  ...form,
-                  item_type: t,
-                  ...(t === "service" ? { unit_cost: 0, min_stock: 0, max_stock: 0, stock_account: "", cogs_account: "" } : {}),
-                });
-              }}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="goods">📦 Hàng hóa</SelectItem>
-                <SelectItem value="service">🛎 Dịch vụ</SelectItem>
-                <SelectItem value="combo">🧩 Combo</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Mã vạch"><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></Field>
-          <Field label="Mã *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
-          <Field label="ĐVT"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder={isService ? "lần / giờ" : "cái"} /></Field>
-          <Field label="Tên *" full><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Nhóm">
-            <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="VAT %"><Input type="number" value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: Number(e.target.value) })} /></Field>
-          <Field label="Giá bán"><Input type="number" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></Field>
-          {!isService && (
-            <>
-              <Field label="Giá vốn"><Input type="number" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></Field>
-              <Field label="Tồn tối thiểu"><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></Field>
-              <Field label="Tồn tối đa"><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: Number(e.target.value) })} /></Field>
-              <Field label="TK kho"><Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} /></Field>
-              <Field label="TK giá vốn"><Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} /></Field>
-            </>
-          )}
-          <Field label="TK doanh thu"><Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} /></Field>
+      <DialogContent className="max-w-3xl p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b">
+          <DialogTitle className="text-lg">Thêm hàng hoá / dịch vụ</DialogTitle>
+        </DialogHeader>
+
+        <div className="px-6 pt-4">
+          {/* Segmented type selector */}
+          <div className="grid grid-cols-3 gap-2 p-1 bg-muted rounded-lg mb-4">
+            {(["goods", "service", "combo"] as ItemType[]).map((t) => {
+              const Icon = t === "goods" ? Package : t === "service" ? Wrench : Boxes;
+              const active = form.item_type === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                    active
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {ITEM_TYPE_LABEL[t]}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {isService && (
-          <p className="text-xs text-muted-foreground -mt-1">
-            <Layers className="inline h-3 w-3 mr-1" />
-            Dịch vụ không quản lý tồn kho, không nhập/xuất kho.
-          </p>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
-          <Button onClick={() => m.mutate()} disabled={!form.code || !form.name || m.isPending}>Lưu</Button>
+
+        <Tabs value={tab} onValueChange={setTab} className="px-6">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="general">Thông tin chung</TabsTrigger>
+            <TabsTrigger value="pricing">Giá & Thuế</TabsTrigger>
+            <TabsTrigger value="accounting">{hasStock ? "Kho & Kế toán" : "Kế toán"}</TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1 — General */}
+          <TabsContent value="general" className="space-y-3 pt-4 min-h-[280px]">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Mã *" hint={codeDuplicate ? "Mã đã tồn tại" : undefined} error={codeDuplicate}>
+                <div className="flex gap-1">
+                  <Input
+                    ref={codeRef}
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    placeholder={`${CODE_PREFIX[form.item_type]}0001`}
+                    className={codeDuplicate ? "border-destructive" : ""}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setForm({ ...form, code: genCode(form.item_type, existingCodes) })}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Tự sinh mã</TooltipContent>
+                  </Tooltip>
+                </div>
+              </Field>
+              <Field label="Tên *">
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </Field>
+              <Field label="ĐVT *">
+                <Input
+                  list="unit-suggestions"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  placeholder={isService ? "lần / giờ" : "cái"}
+                />
+                <datalist id="unit-suggestions">
+                  {UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
+                </datalist>
+              </Field>
+              <Field label="Nhóm">
+                <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {hasStock && (
+                <Field label="Mã vạch" full>
+                  <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Quét hoặc nhập mã vạch" />
+                </Field>
+              )}
+              <Field label="Ghi chú" full>
+                <Textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Thông tin bổ sung..."
+                />
+              </Field>
+            </div>
+          </TabsContent>
+
+          {/* TAB 2 — Pricing */}
+          <TabsContent value="pricing" className="space-y-3 pt-4 min-h-[280px]">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Giá bán (VND)">
+                <NumberInput value={form.unit_price} onChange={(v) => setForm({ ...form, unit_price: v })} />
+              </Field>
+              {hasStock && (
+                <Field label="Giá vốn (VND)">
+                  <NumberInput value={form.unit_cost} onChange={(v) => setForm({ ...form, unit_cost: v })} />
+                </Field>
+              )}
+              <Field label="Thuế suất GTGT">
+                <Select
+                  value={String(form.vat_rate)}
+                  onValueChange={(v) => setForm({ ...form, vat_rate: Number(v) })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0% / KCT</SelectItem>
+                    <SelectItem value="5">5%</SelectItem>
+                    <SelectItem value="8">8%</SelectItem>
+                    <SelectItem value="10">10%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="col-span-2 flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
+                <div>
+                  <div className="text-sm font-medium">Đang kinh doanh</div>
+                  <div className="text-xs text-muted-foreground">Mặt hàng hiển thị trong bán hàng / mua hàng</div>
+                </div>
+                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB 3 — Inventory & Accounting */}
+          <TabsContent value="accounting" className="space-y-4 pt-4 min-h-[280px]">
+            {isService ? (
+              <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm">
+                <Layers className="h-5 w-5 text-emerald-600 mt-0.5" />
+                <div>
+                  <div className="font-medium text-emerald-900">Dịch vụ không quản lý tồn kho</div>
+                  <div className="text-emerald-700 text-xs mt-0.5">
+                    Dịch vụ không có nhập/xuất kho, chỉ ghi nhận doanh thu khi xuất hoá đơn.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Section title="Định mức tồn kho">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Tồn tối thiểu">
+                    <NumberInput value={form.min_stock} onChange={(v) => setForm({ ...form, min_stock: v })} />
+                  </Field>
+                  <Field label="Tồn tối đa">
+                    <NumberInput value={form.max_stock} onChange={(v) => setForm({ ...form, max_stock: v })} />
+                  </Field>
+                </div>
+              </Section>
+            )}
+
+            <Section title="Tài khoản kế toán">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="TK doanh thu" hint="TT133/TT200: 511x">
+                  <Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} placeholder="511" />
+                </Field>
+                {hasStock && (
+                  <>
+                    <Field label="TK kho" hint="156 - Hàng hoá / 155 - Thành phẩm">
+                      <Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} placeholder="156" />
+                    </Field>
+                    <Field label="TK giá vốn" hint="632 - Giá vốn hàng bán">
+                      <Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} placeholder="632" />
+                    </Field>
+                  </>
+                )}
+              </div>
+            </Section>
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="px-6 py-4 border-t mt-4 flex-row sm:justify-between gap-2">
+          <div className="text-xs text-muted-foreground flex items-center gap-1">
+            <Info className="h-3 w-3" />
+            <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">Ctrl+S</kbd> để lưu
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
+            <Button variant="secondary" onClick={() => m.mutate(true)} disabled={!canSave}>
+              Lưu & thêm mới
+            </Button>
+            <Button onClick={() => m.mutate(false)} disabled={!canSave}>
+              {m.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Đang lưu…</> : "Lưu"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className={`space-y-1 ${full ? "col-span-2" : ""}`}>
-      <Label className="text-xs">{label}</Label>
+    <div className="space-y-2">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</div>
       {children}
     </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  full,
+  hint,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+  hint?: string;
+  error?: boolean;
+}) {
+  return (
+    <TooltipProvider>
+      <div className={`space-y-1 ${full ? "col-span-2" : ""}`}>
+        <Label className="text-xs flex items-center gap-1">
+          {label}
+          {hint && !error && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>{hint}</TooltipContent>
+            </Tooltip>
+          )}
+        </Label>
+        {children}
+        {hint && error && <div className="text-[11px] text-destructive">{hint}</div>}
+      </div>
+    </TooltipProvider>
   );
 }
