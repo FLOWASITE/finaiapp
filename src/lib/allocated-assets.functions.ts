@@ -186,9 +186,6 @@ function monthsPerUnit(unit: string): number {
   return 1;
 }
 
-function addMonths(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth() + n, 1);
-}
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
