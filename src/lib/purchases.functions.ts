@@ -53,6 +53,7 @@ const SupplierSchema = z
     opening_balance_debit: z.number().min(0).default(0),
     opening_balance_credit: z.number().min(0).default(0),
     notes: optStr(1000),
+    group_id: z.string().uuid().optional().nullable().or(z.literal("")).transform((v) => (v ? v : null)),
     is_active: z.boolean().default(true),
   })
   .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {
