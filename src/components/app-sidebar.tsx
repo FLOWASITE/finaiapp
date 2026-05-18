@@ -6,7 +6,7 @@ import {
   Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
-  ArrowLeft, Inbox, Send,
+  ArrowLeft, Inbox, Send, KeyRound,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
