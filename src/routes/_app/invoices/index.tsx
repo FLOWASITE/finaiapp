@@ -124,8 +124,7 @@ function InvoicesList() {
     }
   };
 
-  // ---- Manual entry ----
-  const [manualOpen, setManualOpen] = useState(false);
+  // ---- Manual entry state ----
   const [manual, setManual] = useState({
     supplier_id: "",
     invoice_no: "",
