@@ -60,6 +60,7 @@ const partySchema = z
     opening_balance_debit: z.number().min(0).default(0),
     opening_balance_credit: z.number().min(0).default(0),
     notes: z.string().trim().max(1000).default(""),
+    group_id: z.string().default(""),
     is_active: z.boolean().default(true),
   })
   .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {
