@@ -175,13 +175,14 @@ export function VoucherFormDialog({
           cost_center_id: dims.cost_center_id ?? null,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       toast.success(`Đã tạo ${type === "receipt" ? "phiếu thu" : "phiếu chi"} & bút toán`);
       qc.invalidateQueries({ queryKey: ["vouchers"] });
       qc.invalidateQueries({ queryKey: ["cashbook"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
-      onOpenChange(false);
+      if (res?.id) setCreatedId(res.id);
+      else onOpenChange(false);
     },
     onError: (e: any) => toast.error(e?.message ?? "Lỗi khi lưu"),
   });
