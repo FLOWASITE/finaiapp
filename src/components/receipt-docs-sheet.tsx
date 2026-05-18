@@ -41,6 +41,7 @@ export function ReceiptDocsSheet({
   title,
   description,
   invalidateKeys = ["receipts"],
+  table = "customer_receipts",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -50,13 +51,21 @@ export function ReceiptDocsSheet({
   title?: string;
   description?: string;
   invalidateKeys?: string[];
+  table?:
+    | "customer_receipts"
+    | "invoices"
+    | "sales_invoices"
+    | "einvoices"
+    | "cash_vouchers"
+    | "bank_vouchers"
+    | "supplier_payments";
 }) {
   const listLinked = useServerFn(listLinkedDocuments);
   const { data, isLoading } = useQuery({
-    queryKey: ["doc-links", "customer_receipts", receiptId],
+    queryKey: ["doc-links", table, receiptId],
     queryFn: () =>
       listLinked({
-        data: { entity_table: "customer_receipts", entity_id: receiptId! },
+        data: { entity_table: table, entity_id: receiptId! },
       }),
     enabled: !!receiptId && open,
   });
@@ -82,7 +91,7 @@ export function ReceiptDocsSheet({
                 <DocStatusBadge status={status} />
               </div>
               <DocStatusActions
-                table="customer_receipts"
+                table={table}
                 id={receiptId}
                 status={status ?? "uploaded"}
                 hasJournalEntry={hasJournalEntry}
@@ -92,7 +101,7 @@ export function ReceiptDocsSheet({
 
             {/* Attach manager */}
             <DocumentLinksManager
-              entityTable="customer_receipts"
+              entityTable={table}
               entityId={receiptId}
             />
 
@@ -119,7 +128,7 @@ export function ReceiptDocsSheet({
             {/* Status history */}
             <div>
               <div className="text-sm font-medium mb-2">Lịch sử trạng thái</div>
-              <DocStatusHistory table="customer_receipts" id={receiptId} />
+              <DocStatusHistory table={table} id={receiptId} />
             </div>
           </div>
         )}

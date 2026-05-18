@@ -2,7 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Upload, Plus, Search, Trash2 } from "lucide-react";
+import { Upload, Plus, Search, Trash2, Paperclip } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import { listProducts } from "@/lib/inventory.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
+import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
+import { DocStatusBadge } from "@/components/doc-status-badge";
 
 export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesList,
@@ -78,6 +80,7 @@ function InvoicesList() {
 
   // ---- Manual entry ----
   const [manualOpen, setManualOpen] = useState(false);
+  const [docFor, setDocFor] = useState<{ id: string; status: string; invoice_no?: string | null } | null>(null);
 
   // Chỉ tải suppliers/products khi mở form nhập tay để giảm request
   // chạy song song lúc vào trang.
@@ -303,8 +306,9 @@ function InvoicesList() {
               <th className="px-4 py-3">Nhà cung cấp</th>
               <th className="px-4 py-3 text-right">Tổng</th>
               <th className="px-4 py-3 text-right">Còn nợ</th>
-              <th className="px-4 py-3">OCR</th>
+              <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">TT</th>
+              <th className="px-4 py-3 text-center">Tài liệu</th>
             </tr>
           </thead>
           <tbody>
@@ -318,6 +322,7 @@ function InvoicesList() {
                     <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3 text-center"><Skeleton className="h-6 w-16 mx-auto" /></td>
                   </tr>
                 ))
               : (data?.rows ?? []).map((i) => (
@@ -331,13 +336,25 @@ function InvoicesList() {
                     <td className="px-4 py-3">{i.supplier_name ?? "—"}</td>
                     <td className="px-4 py-3 text-right font-mono">{vnd(i.total)}</td>
                     <td className="px-4 py-3 text-right font-mono">{vnd(i.remaining)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
+                    <td className="px-4 py-3"><DocStatusBadge status={i.status} /></td>
                     <td className="px-4 py-3"><PayBadge status={i.payment_status} /></td>
+                    <td className="px-4 py-3 text-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1"
+                        onClick={() =>
+                          setDocFor({ id: i.id, status: i.status, invoice_no: i.invoice_no })
+                        }
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
             {!isLoading && (data?.rows ?? []).length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                   Không có hoá đơn theo bộ lọc.
                 </td>
               </tr>
@@ -515,6 +532,18 @@ function InvoicesList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReceiptDocsSheet
+        open={!!docFor}
+        onOpenChange={(o) => !o && setDocFor(null)}
+        receiptId={docFor?.id ?? null}
+        status={docFor?.status}
+        hasJournalEntry={docFor?.status === "posted"}
+        table="invoices"
+        title={`Tài liệu hoá đơn ${docFor?.invoice_no ?? ""}`.trim()}
+        description="Xem OCR, đổi trạng thái và quản lý đính kèm của hoá đơn."
+        invalidateKeys={["purchase-invoices"]}
+      />
     </div>
   );
 }
@@ -529,17 +558,6 @@ function Card({ label, value, tone }: { label: string; value: string; tone?: "ro
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    pending: { label: "Chờ OCR", cls: "bg-muted text-muted-foreground" },
-    extracted: { label: "Bóc tách", cls: "bg-accent/15 text-accent-foreground" },
-    reviewed: { label: "Đã review", cls: "bg-accent/15 text-accent-foreground" },
-    approved: { label: "Ghi sổ", cls: "bg-accent text-accent-foreground" },
-    failed: { label: "Lỗi", cls: "bg-destructive/15 text-destructive" },
-  };
-  const m = map[status] ?? { label: status, cls: "bg-muted" };
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.cls}`}>{m.label}</span>;
-}
 
 function PayBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
