@@ -21,12 +21,40 @@ const ROLE_LABEL: Record<string, string> = {
   owner: "Chủ sở hữu", admin: "Quản trị", accountant: "Kế toán", viewer: "Người xem",
 };
 
+type CachedTenant = {
+  id: string;
+  role: string;
+  name: string;
+  company_name: string | null;
+  tax_id: string | null;
+};
+const CACHE_KEY = "tenant-switcher:last-active";
+
+function readCache(): CachedTenant | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as CachedTenant) : null;
+  } catch {
+    return null;
+  }
+}
+function writeCache(t: CachedTenant | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (t) localStorage.setItem(CACHE_KEY, JSON.stringify(t));
+    else localStorage.removeItem(CACHE_KEY);
+  } catch {}
+}
+
 export function TenantSwitcher() {
   const list = useServerFn(listMyTenants);
   const sw = useServerFn(switchTenant);
   const create = useServerFn(createTenant);
   const qc = useQueryClient();
   const navigate = useNavigate();
+
+  const cached = React.useMemo(readCache, []);
 
   const { data, isPending, isFetching } = useQuery({
     queryKey: ["my-tenants"],
@@ -62,21 +90,41 @@ export function TenantSwitcher() {
 
   const active = data?.tenants?.find((t) => t.is_active);
 
+  // Lưu/đồng bộ cache tổ chức active gần nhất
+  React.useEffect(() => {
+    if (active) {
+      writeCache({
+        id: active.id,
+        role: active.role,
+        name: active.name,
+        company_name: active.company_name,
+        tax_id: active.tax_id,
+      });
+    } else if (data && (data.tenants ?? []).length === 0) {
+      writeCache(null);
+    }
+  }, [active, data]);
+
+  // Tên hiển thị: ưu tiên dữ liệu thật, fallback cache để tránh "Đang tải…"
+  const displayName =
+    (active?.company_name || active?.name) ??
+    (cached?.company_name || cached?.name) ??
+    (isPending ? "Đang tải…" : "Chọn tổ chức");
+
+  const showSpinner = isPending && !cached;
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
-            {isPending ? (
+            {showSpinner ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
             ) : (
               <Building2 className="h-3.5 w-3.5 shrink-0" />
             )}
-            <span className="truncate text-xs">
-              {(active?.company_name || active?.name) ??
-                (isPending ? "Đang tải…" : "Chọn tổ chức")}
-            </span>
-            {isFetching && !isPending ? (
+            <span className="truncate text-xs">{displayName}</span>
+            {isFetching && !showSpinner ? (
               <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-50" />
             ) : (
               <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
