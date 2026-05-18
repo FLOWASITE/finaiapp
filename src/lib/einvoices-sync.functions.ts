@@ -286,7 +286,7 @@ async function loginTct(args: {
   cvalue: string;
   ckey: string;
 }): Promise<string> {
-  const res = await fetch(`${TCT_BASE}/security-taxpayer/authenticate`, {
+  const res = await fetch(`${getTctBase()}/security-taxpayer/authenticate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
