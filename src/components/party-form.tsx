@@ -1,13 +1,14 @@
 import { useForm, type UseFormReturn, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Building2, User, Landmark, Calculator, MapPin } from "lucide-react";
 
 import { upsertCustomer } from "@/lib/customers.functions";
 import { upsertSupplier } from "@/lib/purchases.functions";
+import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +61,7 @@ const partySchema = z
     opening_balance_debit: z.number().min(0).default(0),
     opening_balance_credit: z.number().min(0).default(0),
     notes: z.string().trim().max(1000).default(""),
+    group_id: z.string().default(""),
     is_active: z.boolean().default(true),
   })
   .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {
@@ -98,6 +100,7 @@ const blankCustomer: PartyFormValues = {
   opening_balance_debit: 0,
   opening_balance_credit: 0,
   notes: "",
+  group_id: "",
   is_active: true,
 };
 
@@ -151,6 +154,7 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
         opening_balance_debit: Number(v.opening_balance_debit) || 0,
         opening_balance_credit: Number(v.opening_balance_credit) || 0,
         notes: v.notes || null,
+        group_id: v.group_id || null,
         is_active: v.is_active,
       };
       if (isCustomer) {
@@ -302,9 +306,18 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
             </Field>
           </div>
 
-          <Field label="Website" error={form.formState.errors.website?.message}>
-            <Input placeholder="https://" {...form.register("website")} />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Website" error={form.formState.errors.website?.message}>
+              <Input placeholder="https://" {...form.register("website")} />
+            </Field>
+            <Field label={isCustomer ? "Nhóm khách hàng" : "Nhóm nhà cung cấp"}>
+              <GroupSelect
+                kind={isCustomer ? "customer" : "supplier"}
+                value={form.watch("group_id") ?? ""}
+                onChange={(v) => form.setValue("group_id", v, { shouldDirty: true })}
+              />
+            </Field>
+          </div>
         </TabsContent>
 
         {/* CONTACT */}
@@ -447,3 +460,32 @@ function Field({
 // helper for TS narrowing of typed names — unused export kept for future
 export type _PartyField = FieldPath<PartyFormValues>;
 export type _PartyFormReturn = UseFormReturn<PartyFormValues>;
+
+function GroupSelect({
+  kind,
+  value,
+  onChange,
+}: {
+  kind: "customer" | "supplier";
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const listFn = useServerFn(listPartyGroups);
+  const { data: groups } = useQuery({
+    queryKey: ["party-groups", kind],
+    queryFn: () => listFn({ data: { kind } }),
+  });
+  return (
+    <Select value={value || "none"} onValueChange={(v: string) => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger><SelectValue placeholder="(Không thuộc nhóm)" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">(Không thuộc nhóm)</SelectItem>
+        {((groups ?? []) as any[]).map((g) => (
+          <SelectItem key={g.id} value={g.id}>
+            {g.code ? `${g.code} — ${g.name}` : g.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

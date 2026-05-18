@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Truck, Archive, ArchiveRestore, FolderTree } from "lucide-react";
 import { listSuppliers, deleteSupplier, upsertSupplier } from "@/lib/purchases.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,9 +71,14 @@ function SuppliersPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Mã NCC, MST, ngân hàng, hạn TT, công nợ đầu kỳ</p>
         </div>
-        <Button onClick={() => setEditing({})}>
-          <Plus className="mr-2 h-4 w-4" /> Thêm NCC
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/suppliers/groups"><FolderTree className="mr-2 h-4 w-4" />Nhóm NCC</Link>
+          </Button>
+          <Button onClick={() => setEditing({})}>
+            <Plus className="mr-2 h-4 w-4" /> Thêm NCC
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">

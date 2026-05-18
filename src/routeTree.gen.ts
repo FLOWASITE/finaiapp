@@ -47,6 +47,7 @@ import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
 import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
 import { Route as AppTaxGtgtRouteImport } from './routes/_app/tax/gtgt'
+import { Route as AppSuppliersGroupsRouteImport } from './routes/_app/suppliers/groups'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
@@ -67,6 +68,7 @@ import { Route as AppInventoryMovementsRouteImport } from './routes/_app/invento
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
+import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
@@ -266,6 +268,11 @@ const AppTaxGtgtRoute = AppTaxGtgtRouteImport.update({
   path: '/tax/gtgt',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuppliersGroupsRoute = AppSuppliersGroupsRouteImport.update({
+  id: '/suppliers/groups',
+  path: '/suppliers/groups',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   id: '/suppliers/$id',
   path: '/suppliers/$id',
@@ -367,6 +374,11 @@ const AppEinvoicesIdRoute = AppEinvoicesIdRouteImport.update({
   path: '/einvoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCustomersGroupsRoute = AppCustomersGroupsRouteImport.update({
+  id: '/customers/groups',
+  path: '/customers/groups',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
   id: '/vouchers',
   path: '/vouchers',
@@ -435,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -455,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
@@ -498,6 +512,7 @@ export interface FileRoutesByTo {
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -518,6 +533,7 @@ export interface FileRoutesByTo {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
+  '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
@@ -568,6 +584,7 @@ export interface FileRoutesById {
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
+  '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
@@ -588,6 +605,7 @@ export interface FileRoutesById {
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
+  '/_app/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/_app/tax/gtgt': typeof AppTaxGtgtRoute
   '/_app/tax/tncn': typeof AppTaxTncnRoute
   '/_app/tax/tndn': typeof AppTaxTndnRoute
@@ -638,6 +656,7 @@ export interface FileRouteTypes {
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
+    | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -658,6 +677,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/suppliers/groups'
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
@@ -701,6 +721,7 @@ export interface FileRouteTypes {
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
+    | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
     | '/inventory/$id'
@@ -721,6 +742,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
+    | '/suppliers/groups'
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
@@ -770,6 +792,7 @@ export interface FileRouteTypes {
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
+    | '/_app/customers/groups'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
     | '/_app/inventory/$id'
@@ -790,6 +813,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/audit'
     | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
+    | '/_app/suppliers/groups'
     | '/_app/tax/gtgt'
     | '/_app/tax/tncn'
     | '/_app/tax/tndn'
@@ -1092,6 +1116,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTaxGtgtRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/suppliers/groups': {
+      id: '/_app/suppliers/groups'
+      path: '/suppliers/groups'
+      fullPath: '/suppliers/groups'
+      preLoaderRoute: typeof AppSuppliersGroupsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/suppliers/$id': {
       id: '/_app/suppliers/$id'
       path: '/suppliers/$id'
@@ -1230,6 +1261,13 @@ declare module '@tanstack/react-router' {
       path: '/einvoices/$id'
       fullPath: '/einvoices/$id'
       preLoaderRoute: typeof AppEinvoicesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/customers/groups': {
+      id: '/_app/customers/groups'
+      path: '/customers/groups'
+      fullPath: '/customers/groups'
+      preLoaderRoute: typeof AppCustomersGroupsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/bank/vouchers': {
@@ -1420,6 +1458,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
+  AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
@@ -1428,6 +1467,7 @@ interface AppRouteChildren {
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesOrdersRoute: typeof AppSalesOrdersRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
+  AppSuppliersGroupsRoute: typeof AppSuppliersGroupsRoute
   AppTaxGtgtRoute: typeof AppTaxGtgtRoute
   AppTaxTncnRoute: typeof AppTaxTncnRoute
   AppTaxTndnRoute: typeof AppTaxTndnRoute
@@ -1460,6 +1500,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
+  AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
@@ -1468,6 +1509,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesOrdersRoute: AppSalesOrdersRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
+  AppSuppliersGroupsRoute: AppSuppliersGroupsRoute,
   AppTaxGtgtRoute: AppTaxGtgtRoute,
   AppTaxTncnRoute: AppTaxTncnRoute,
   AppTaxTndnRoute: AppTaxTndnRoute,

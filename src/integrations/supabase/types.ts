@@ -333,6 +333,50 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_groups: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_groups_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "customer_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_receipts: {
         Row: {
           amount: number
@@ -402,6 +446,7 @@ export type Database = {
           email: string | null
           email_cc: string | null
           fax: string | null
+          group_id: string | null
           id: string
           is_active: boolean
           legal_rep: string | null
@@ -431,6 +476,7 @@ export type Database = {
           email?: string | null
           email_cc?: string | null
           fax?: string | null
+          group_id?: string | null
           id?: string
           is_active?: boolean
           legal_rep?: string | null
@@ -460,6 +506,7 @@ export type Database = {
           email?: string | null
           email_cc?: string | null
           fax?: string | null
+          group_id?: string | null
           id?: string
           is_active?: boolean
           legal_rep?: string | null
@@ -477,7 +524,15 @@ export type Database = {
           user_id?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "customer_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       depreciation_entries: {
         Row: {
@@ -2026,6 +2081,50 @@ export type Database = {
           },
         ]
       }
+      supplier_groups: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_groups_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_payments: {
         Row: {
           amount: number
@@ -2083,6 +2182,7 @@ export type Database = {
           currency: string
           email: string | null
           fax: string | null
+          group_id: string | null
           id: string
           is_active: boolean
           legal_rep: string | null
@@ -2111,6 +2211,7 @@ export type Database = {
           currency?: string
           email?: string | null
           fax?: string | null
+          group_id?: string | null
           id?: string
           is_active?: boolean
           legal_rep?: string | null
@@ -2139,6 +2240,7 @@ export type Database = {
           currency?: string
           email?: string | null
           fax?: string | null
+          group_id?: string | null
           id?: string
           is_active?: boolean
           legal_rep?: string | null
@@ -2156,7 +2258,15 @@ export type Database = {
           user_id?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_members: {
         Row: {

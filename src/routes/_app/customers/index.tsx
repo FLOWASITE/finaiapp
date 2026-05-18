@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
-import { Plus, Search, Pencil, Archive, ArchiveRestore, Users } from "lucide-react";
+import { Plus, Search, Pencil, Archive, ArchiveRestore, Users, FolderTree } from "lucide-react";
 import { listCustomers, archiveCustomer } from "@/lib/customers.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,14 @@ function CustomersPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Mã KH, MST, ngân hàng, hạn TT, công nợ đầu kỳ</p>
         </div>
-        <Button onClick={() => setEditing({})}>
-          <Plus className="mr-2 h-4 w-4" />Khách hàng mới
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/customers/groups"><FolderTree className="mr-2 h-4 w-4" />Nhóm KH</Link>
+          </Button>
+          <Button onClick={() => setEditing({})}>
+            <Plus className="mr-2 h-4 w-4" />Khách hàng mới
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
