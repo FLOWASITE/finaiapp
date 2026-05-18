@@ -583,10 +583,23 @@ export const linkEInvoice = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: e, error } = await supabase
       .from("einvoices")
-      .select("id, direction")
+      .select("id, direction, tenant_id")
       .eq("id", data.einvoiceId)
       .maybeSingle();
     if (error || !e) throw new Error("Không tìm thấy HĐĐT");
+
+    // validate target belongs to same tenant + correct table
+    if (data.targetId) {
+      const table = e.direction === "in" ? "invoices" : "sales_invoices";
+      const { data: t } = await supabase
+        .from(table)
+        .select("id, tenant_id")
+        .eq("id", data.targetId)
+        .maybeSingle();
+      if (!t) throw new Error("Không tìm thấy hoá đơn nội bộ để liên kết");
+      if (t.tenant_id !== e.tenant_id)
+        throw new Error("Hoá đơn không thuộc cùng tổ chức");
+    }
 
     const patch =
       e.direction === "in"
