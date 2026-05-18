@@ -7,6 +7,7 @@ import {
   listDocuments,
   getDocument,
   deleteDocument,
+  unlinkDocument,
 } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
