@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { BarChart3, ChevronRight, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
+import { openCommandPalette } from "@/components/command-palette";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,7 @@ export function AppHeader() {
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-cyan-500/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           <button
             type="button"
+            onClick={openCommandPalette}
             className="relative flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs text-muted-foreground hover:bg-white/[0.08] transition-all min-w-[220px]"
           >
             <Search className="h-3.5 w-3.5" />
