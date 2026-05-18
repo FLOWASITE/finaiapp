@@ -103,7 +103,7 @@ function Page() {
                   employee={e}
                   timesheet={t}
                   defaultStd={Number(standardDays)}
-                  onSave={(patch) => update(e.id, t, patch)}
+                  onSave={(patch: any) => update(e.id, t, patch)}
                 />
               ))}
             </TableBody>
