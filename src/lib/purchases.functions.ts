@@ -171,6 +171,10 @@ const ManualInvoiceSchema = z.object({
   issue_date: z.string(),
   expense_account: z.string().max(20).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  branch_id: z.string().uuid().nullable().optional(),
+  department_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
   lines: z.array(ManualLineSchema).min(1).max(50),
 });
 
@@ -201,6 +205,10 @@ export const createManualInvoice = createServerFn({ method: "POST" })
         total,
         expense_account: data.expense_account,
         notes: data.notes,
+        branch_id: data.branch_id || null,
+        department_id: data.department_id || null,
+        project_id: data.project_id || null,
+        cost_center_id: data.cost_center_id || null,
         status: "extracted",
       })
       .select("id")

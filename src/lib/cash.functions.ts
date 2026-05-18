@@ -11,6 +11,9 @@ const VoucherSchema = z.object({
   counter_account: z.string().min(1).max(20),
   party_name: z.string().max(255).optional(),
   reason: z.string().max(500).optional(),
+  branch_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  cost_center_id: z.string().uuid().nullable().optional(),
 });
 
 export const nextVoucherNo = createServerFn({ method: "POST" })
