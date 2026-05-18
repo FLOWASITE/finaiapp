@@ -1004,6 +1004,23 @@ function ReceiptsTab({
           }
         }}
       />
+
+      <ReceiptDocsSheet
+        open={!!docFor}
+        onOpenChange={(o) => !o && setDocFor(null)}
+        receiptId={docFor?.id ?? null}
+        status={docFor?.status}
+        hasJournalEntry={!!docFor?.journal_entry_id}
+        title={`Phiếu thu — ${docFor?.customer_name ?? ""}`}
+        description={
+          docFor
+            ? `${docFor.pay_date} · ${fmt(docFor.amount)} · ${
+                METHOD_LABEL[docFor.method] ?? docFor.method
+              }`
+            : undefined
+        }
+        invalidateKeys={["receipts", "receipts-stats"]}
+      />
     </div>
   );
 }
