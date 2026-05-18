@@ -178,3 +178,298 @@ export const allocatedAssetsSummary = createServerFn({ method: "POST" })
       count: list.length,
     };
   });
+
+// ---------- Helpers ----------
+function monthsPerUnit(unit: string): number {
+  if (unit === "quarter") return 3;
+  if (unit === "year") return 12;
+  return 1;
+}
+
+function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function lastDayOf(d: Date): string {
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return last.toISOString().slice(0, 10);
+}
+
+/**
+ * Build the list of period start-dates that still need posting for one asset,
+ * from start_date up to (and including) the period containing upToMonth.
+ */
+function pendingPeriodsForAsset(
+  asset: {
+    start_date: string;
+    period_unit: string;
+    periods_total: number;
+    periods_done: number;
+  },
+  done: Set<string>,
+  upToMonth: { y: number; m: number },
+): Date[] {
+  const step = monthsPerUnit(asset.period_unit);
+  const start = new Date(asset.start_date);
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const target = new Date(upToMonth.y, upToMonth.m - 1, 1);
+  const out: Date[] = [];
+  let idx = 0;
+  while (idx < Number(asset.periods_total)) {
+    if (cursor > target) break;
+    if (!done.has(ymd(cursor))) out.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + step);
+    idx++;
+  }
+  return out;
+}
+
+// ---------- Preview ----------
+export const previewAllocation = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { upToMonth: string }) =>
+    z.object({ upToMonth: z.string().regex(/^\d{4}-\d{2}$/) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const [yS, mS] = data.upToMonth.split("-");
+    const target = { y: Number(yS), m: Number(mS) };
+
+    const { data: assets, error } = await supabase
+      .from("allocated_assets")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active");
+    if (error) throw new Error(error.message);
+
+    const result: Array<{
+      id: string;
+      code: string;
+      name: string;
+      periods: number;
+      total_amount: number;
+    }> = [];
+    let grand = 0;
+    let totalPeriods = 0;
+    for (const a of assets ?? []) {
+      const { data: existing } = await supabase
+        .from("allocation_entries")
+        .select("period_month")
+        .eq("asset_id", a.id);
+      const done = new Set((existing ?? []).map((e) => e.period_month));
+      const pending = pendingPeriodsForAsset(a as any, done, target);
+      if (pending.length === 0) continue;
+      const perPeriod = Number(a.cost) / Number(a.periods_total);
+      const remainingCost = Number(a.cost) - Number(a.allocated);
+      // amount approximation; last-period remainder applied at run-time
+      const amount = Math.min(perPeriod * pending.length, remainingCost);
+      result.push({
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        periods: pending.length,
+        total_amount: amount,
+      });
+      grand += amount;
+      totalPeriods += pending.length;
+    }
+    return { items: result, total_amount: grand, total_periods: totalPeriods };
+  });
+
+// ---------- Run monthly allocation ----------
+export const runMonthlyAllocation = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { upToMonth: string }) =>
+    z.object({ upToMonth: z.string().regex(/^\d{4}-\d{2}$/) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const [yS, mS] = data.upToMonth.split("-");
+    const target = { y: Number(yS), m: Number(mS) };
+
+    const { data: assets, error } = await supabase
+      .from("allocated_assets")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active");
+    if (error) throw new Error(error.message);
+
+    let createdEntries = 0;
+    let touchedAssets = 0;
+    let postedAmount = 0;
+
+    for (const a of assets ?? []) {
+      const { data: existing } = await supabase
+        .from("allocation_entries")
+        .select("period_month")
+        .eq("asset_id", a.id);
+      const done = new Set((existing ?? []).map((e) => e.period_month));
+      const pending = pendingPeriodsForAsset(a as any, done, target);
+      if (pending.length === 0) continue;
+
+      let assetAllocated = Number(a.allocated);
+      let assetPeriodsDone = Number(a.periods_done);
+      const periodsTotal = Number(a.periods_total);
+      const cost = Number(a.cost);
+      const perPeriod = Math.round((cost / periodsTotal) * 100) / 100;
+
+      for (const periodStart of pending) {
+        assetPeriodsDone += 1;
+        // last period gets the remainder so total equals cost exactly
+        const isLast = assetPeriodsDone >= periodsTotal;
+        const amount = isLast ? Math.round((cost - assetAllocated) * 100) / 100 : perPeriod;
+        if (amount <= 0) continue;
+
+        const periodMonthStr = ymd(periodStart);
+        const entryDate = lastDayOf(periodStart);
+        const desc = `Phân bổ ${a.name} (${a.code}) kỳ ${String(
+          periodStart.getMonth() + 1,
+        ).padStart(2, "0")}/${periodStart.getFullYear()}`;
+
+        const { data: je, error: jErr } = await supabase
+          .from("journal_entries")
+          .insert({
+            user_id: userId,
+            tenant_id: tenantId,
+            entry_date: entryDate,
+            description: desc,
+          })
+          .select("id")
+          .single();
+        if (jErr || !je) continue;
+
+        const { error: lErr } = await supabase.from("journal_lines").insert([
+          {
+            entry_id: je.id,
+            account_code: a.expense_account,
+            debit: amount,
+            credit: 0,
+            line_order: 0,
+            branch_id: a.branch_id,
+            department_id: a.department_id,
+            project_id: a.project_id,
+            cost_center_id: a.cost_center_id,
+          },
+          {
+            entry_id: je.id,
+            account_code: a.prepaid_account,
+            debit: 0,
+            credit: amount,
+            line_order: 1,
+          },
+        ]);
+        if (lErr) continue;
+
+        await supabase.from("allocation_entries").insert({
+          asset_id: a.id,
+          period_month: periodMonthStr,
+          amount,
+          journal_entry_id: je.id,
+        });
+
+        assetAllocated = Math.round((assetAllocated + amount) * 100) / 100;
+        createdEntries += 1;
+        postedAmount += amount;
+      }
+
+      const newStatus =
+        assetPeriodsDone >= periodsTotal ? "finished" : a.status;
+      await supabase
+        .from("allocated_assets")
+        .update({
+          allocated: assetAllocated,
+          periods_done: assetPeriodsDone,
+          status: newStatus,
+        })
+        .eq("id", a.id);
+      touchedAssets += 1;
+    }
+
+    return {
+      created_entries: createdEntries,
+      assets_touched: touchedAssets,
+      total_amount: postedAmount,
+    };
+  });
+
+// ---------- Dispose ----------
+export const disposeAllocatedAsset = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        dispose_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        write_off_account: z.string().min(1).max(20).default("811"),
+        reason: z.string().max(500).optional().nullable(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { data: a, error } = await supabase
+      .from("allocated_assets")
+      .select("*")
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (error || !a) throw new Error("Không tìm thấy CCDC/CPTT");
+    if (a.status === "disposed") throw new Error("Tài sản đã thanh lý");
+
+    const remaining = Math.round((Number(a.cost) - Number(a.allocated)) * 100) / 100;
+
+    if (remaining > 0) {
+      // Nợ <write_off_account> / Có <prepaid_account>
+      const { data: je, error: jErr } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: userId,
+          tenant_id: tenantId,
+          entry_date: data.dispose_date,
+          description: `Thanh lý ${a.name} (${a.code}) — kết chuyển giá trị còn lại${data.reason ? `: ${data.reason}` : ""}`,
+        })
+        .select("id")
+        .single();
+      if (jErr || !je) throw new Error(jErr?.message ?? "Không tạo được bút toán");
+      await supabase.from("journal_lines").insert([
+        {
+          entry_id: je.id,
+          account_code: data.write_off_account,
+          debit: remaining,
+          credit: 0,
+          line_order: 0,
+        },
+        {
+          entry_id: je.id,
+          account_code: a.prepaid_account,
+          debit: 0,
+          credit: remaining,
+          line_order: 1,
+        },
+      ]);
+      await supabase.from("allocated_asset_adjustments").insert({
+        asset_id: a.id,
+        adj_date: data.dispose_date,
+        type: "disposal",
+        delta_cost: -remaining,
+        delta_periods: 0,
+        reason: data.reason ?? null,
+        journal_entry_id: je.id,
+      });
+    }
+
+    await supabase
+      .from("allocated_assets")
+      .update({
+        status: "disposed",
+        allocated: Number(a.cost),
+        periods_done: Number(a.periods_total),
+      })
+      .eq("id", a.id);
+
+    return { ok: true, written_off: remaining };
+  });
