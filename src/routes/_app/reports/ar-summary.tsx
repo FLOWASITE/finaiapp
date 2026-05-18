@@ -98,6 +98,8 @@ function ArSummaryPage() {
   const [drillTo, setDrillTo] = useState("");
   const [drillDocTypes, setDrillDocTypes] = useState<string[]>([]);
   const [drillSearch, setDrillSearch] = useState("");
+  const [drillPage, setDrillPage] = useState(1);
+  const [drillPageSize, setDrillPageSize] = useState(50);
 
   // Reset local filters when opening a new drill-down
   useEffect(() => {
@@ -106,8 +108,15 @@ function ArSummaryPage() {
       setDrillTo("");
       setDrillDocTypes([]);
       setDrillSearch("");
+      setDrillPage(1);
     }
   }, [drillRow]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setDrillPage(1);
+  }, [drillFrom, drillTo, drillDocTypes, drillSearch, drillPageSize]);
+
 
   const toggleDrillDocType = (v: string) =>
     setDrillDocTypes((prev) =>
@@ -523,39 +532,46 @@ function ArSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {drillFiltered.lines.map((l, i) => (
-                        <tr key={l.entry_id + i} className="border-t border-border align-top">
-                          <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
-                          <td className="px-3 py-1.5">
-                            <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
-                              {l.doc_type === "HD"
-                                ? "HĐ bán"
-                                : l.doc_type === "PT"
-                                  ? "Phiếu thu"
-                                  : "Khác"}
-                            </span>
-                          </td>
-                          <td className="px-3 py-1.5 font-mono text-xs">
-                            {l.doc_type === "HD" && l.doc_id ? (
-                              <Link
-                                to="/sales/$id"
-                                params={{ id: l.doc_id }}
-                                className="text-primary hover:underline"
-                                onClick={() => setDrillRow(null)}
-                              >
-                                {l.doc_no ?? "—"}
-                              </Link>
-                            ) : (
-                              l.doc_no ?? "—"
-                            )}
-                          </td>
-                          <td className="px-3 py-1.5 text-muted-foreground">
-                            {l.description}
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const total = drillFiltered.lines.length;
+                        const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
+                        const page = Math.min(drillPage, totalPages);
+                        const start = (page - 1) * drillPageSize;
+                        const slice = drillFiltered.lines.slice(start, start + drillPageSize);
+                        return slice.map((l, i) => (
+                          <tr key={l.entry_id + (start + i)} className="border-t border-border align-top">
+                            <td className="px-3 py-1.5 whitespace-nowrap">{l.entry_date}</td>
+                            <td className="px-3 py-1.5">
+                              <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
+                                {l.doc_type === "HD"
+                                  ? "HĐ bán"
+                                  : l.doc_type === "PT"
+                                    ? "Phiếu thu"
+                                    : "Khác"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 font-mono text-xs">
+                              {l.doc_type === "HD" && l.doc_id ? (
+                                <Link
+                                  to="/sales/$id"
+                                  params={{ id: l.doc_id }}
+                                  className="text-primary hover:underline"
+                                  onClick={() => setDrillRow(null)}
+                                >
+                                  {l.doc_no ?? "—"}
+                                </Link>
+                              ) : (
+                                l.doc_no ?? "—"
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-muted-foreground">
+                              {l.description}
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
+                          </tr>
+                        ));
+                      })()}
                       {drillFiltered.lines.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
@@ -566,7 +582,58 @@ function ArSummaryPage() {
                     </tbody>
                   </table>
                 </div>
+                {drillFiltered.lines.length > 0 && (() => {
+                  const total = drillFiltered.lines.length;
+                  const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
+                  const page = Math.min(drillPage, totalPages);
+                  const start = (page - 1) * drillPageSize;
+                  const end = Math.min(start + drillPageSize, total);
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 py-2 text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span>Hiển thị {start + 1}–{end} / {total}</span>
+                        <span>·</span>
+                        <span>Số dòng/trang:</span>
+                        <select
+                          value={drillPageSize}
+                          onChange={(e) => setDrillPageSize(Number(e.target.value))}
+                          className="h-7 rounded-md border border-border bg-background px-2 text-xs"
+                        >
+                          {[25, 50, 100, 200].map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline" size="sm"
+                          disabled={page <= 1}
+                          onClick={() => setDrillPage(1)}
+                        >«</Button>
+                        <Button
+                          variant="outline" size="sm"
+                          disabled={page <= 1}
+                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
+                        >‹</Button>
+                        <span className="px-2 tabular-nums">
+                          Trang {page} / {totalPages}
+                        </span>
+                        <Button
+                          variant="outline" size="sm"
+                          disabled={page >= totalPages}
+                          onClick={() => setDrillPage((p) => Math.min(totalPages, p + 1))}
+                        >›</Button>
+                        <Button
+                          variant="outline" size="sm"
+                          disabled={page >= totalPages}
+                          onClick={() => setDrillPage(totalPages)}
+                        >»</Button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
+
             </div>
           ) : null}
         </SheetContent>
