@@ -22,6 +22,8 @@ import { listProducts } from "@/lib/inventory.functions";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
+import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
+import { DocStatusBadge } from "@/components/doc-status-badge";
 
 export const Route = createFileRoute("/_app/invoices/")({
   component: InvoicesList,
