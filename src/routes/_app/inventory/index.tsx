@@ -144,6 +144,7 @@ function InventoryPage() {
             <tr>
               <th className="px-4 py-2 text-left">Mã</th>
               <th className="px-4 py-2 text-left">Tên</th>
+              <th className="px-4 py-2 text-left">Loại</th>
               <th className="px-4 py-2 text-left">Danh mục</th>
               <th className="px-4 py-2 text-left">ĐVT</th>
               <th className="px-4 py-2 text-right">Tồn</th>
@@ -154,30 +155,41 @@ function InventoryPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p: any) => (
-              <tr key={p.id} className="border-t border-border hover:bg-muted/30">
-                <td className="px-4 py-2 font-mono">
-                  <Link to="/inventory/$id" params={{ id: p.id }} className="text-primary hover:underline">{p.code}</Link>
-                </td>
-                <td className="px-4 py-2">{p.name}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground">{p.product_categories?.name ?? "—"}</td>
-                <td className="px-4 py-2">{p.unit}</td>
-                <td className="px-4 py-2 text-right font-mono">
-                  <span className={p.low_stock ? "text-rose-600 font-semibold" : ""}>{fmt(p.on_hand)}</span>
-                  {p.low_stock && <Badge variant="outline" className="ml-2 bg-rose-50 text-rose-700 border-rose-200 text-[10px]">Sắp hết</Badge>}
-                </td>
-                <td className="px-4 py-2 text-right font-mono text-muted-foreground">{fmt(p.min_stock)}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmt(p.unit_cost)}</td>
-                <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(p.value)}</td>
-                <td className="px-4 py-2 text-right">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/inventory/$id" params={{ id: p.id }}>Thẻ kho</Link>
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((p: any) => {
+              const t = (p.item_type ?? "goods") as ItemType;
+              const isService = t === "service";
+              return (
+                <tr key={p.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="px-4 py-2 font-mono">
+                    <Link to="/inventory/$id" params={{ id: p.id }} className="text-primary hover:underline">{p.code}</Link>
+                  </td>
+                  <td className="px-4 py-2">{p.name}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>{ITEM_TYPE_LABEL[t]}</Badge>
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{p.product_categories?.name ?? "—"}</td>
+                  <td className="px-4 py-2">{p.unit}</td>
+                  <td className="px-4 py-2 text-right font-mono">
+                    {isService ? <span className="text-muted-foreground">—</span> : (
+                      <>
+                        <span className={p.low_stock ? "text-rose-600 font-semibold" : ""}>{fmt(p.on_hand)}</span>
+                        {p.low_stock && <Badge variant="outline" className="ml-2 bg-rose-50 text-rose-700 border-rose-200 text-[10px]">Sắp hết</Badge>}
+                      </>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono text-muted-foreground">{isService ? "—" : fmt(p.min_stock)}</td>
+                  <td className="px-4 py-2 text-right font-mono">{isService ? "—" : fmt(p.unit_cost)}</td>
+                  <td className="px-4 py-2 text-right font-mono font-semibold">{isService ? "—" : fmt(p.value)}</td>
+                  <td className="px-4 py-2 text-right">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to="/inventory/$id" params={{ id: p.id }}>{isService ? "Chi tiết" : "Thẻ kho"}</Link>
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Không có mặt hàng</td></tr>
+              <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Không có mặt hàng</td></tr>
             )}
           </tbody>
         </table>
