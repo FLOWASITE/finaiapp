@@ -158,6 +158,7 @@ export function AppHeader() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
     </div>
   );
