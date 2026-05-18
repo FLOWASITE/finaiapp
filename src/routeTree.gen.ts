@@ -84,6 +84,7 @@ import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
+import { Route as AppAssetsReportsRouteImport } from './routes/_app/assets/reports'
 import { Route as AppAssetsReclassifyRouteImport } from './routes/_app/assets/reclassify'
 import { Route as AppAssetsInventoryRouteImport } from './routes/_app/assets/inventory'
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
@@ -479,6 +480,11 @@ const AppBankAccountsRoute = AppBankAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppAssetsReportsRoute = AppAssetsReportsRouteImport.update({
+  id: '/assets/reports',
+  path: '/assets/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsReclassifyRoute = AppAssetsReclassifyRouteImport.update({
   id: '/assets/reclassify',
   path: '/assets/reclassify',
@@ -592,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -680,6 +687,7 @@ export interface FileRoutesByTo {
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
@@ -775,6 +783,7 @@ export interface FileRoutesById {
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
   '/_app/assets/inventory': typeof AppAssetsInventoryRouteWithChildren
   '/_app/assets/reclassify': typeof AppAssetsReclassifyRoute
+  '/_app/assets/reports': typeof AppAssetsReportsRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
@@ -870,6 +879,7 @@ export interface FileRouteTypes {
     | '/assets/from-invoice'
     | '/assets/inventory'
     | '/assets/reclassify'
+    | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -958,6 +968,7 @@ export interface FileRouteTypes {
     | '/assets/from-invoice'
     | '/assets/inventory'
     | '/assets/reclassify'
+    | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
     | '/bank/vouchers'
@@ -1052,6 +1063,7 @@ export interface FileRouteTypes {
     | '/_app/assets/from-invoice'
     | '/_app/assets/inventory'
     | '/_app/assets/reclassify'
+    | '/_app/assets/reports'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
     | '/_app/bank/vouchers'
@@ -1653,6 +1665,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankAccountsRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/assets/reports': {
+      id: '/_app/assets/reports'
+      path: '/assets/reports'
+      fullPath: '/assets/reports'
+      preLoaderRoute: typeof AppAssetsReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/reclassify': {
       id: '/_app/assets/reclassify'
       path: '/assets/reclassify'
@@ -1916,6 +1935,7 @@ interface AppRouteChildren {
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
   AppAssetsInventoryRoute: typeof AppAssetsInventoryRouteWithChildren
   AppAssetsReclassifyRoute: typeof AppAssetsReclassifyRoute
+  AppAssetsReportsRoute: typeof AppAssetsReportsRoute
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
@@ -1980,6 +2000,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
   AppAssetsInventoryRoute: AppAssetsInventoryRouteWithChildren,
   AppAssetsReclassifyRoute: AppAssetsReclassifyRoute,
+  AppAssetsReportsRoute: AppAssetsReportsRoute,
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
