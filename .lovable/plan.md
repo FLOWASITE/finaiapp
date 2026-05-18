@@ -1,54 +1,61 @@
+## Mục tiêu
 
-# Hoàn thiện liên kết HĐĐT ↔ Hoá đơn nội bộ
+Hiện tại việc khai báo tài khoản TCT đang nằm chung trong dialog "Đồng bộ HĐĐT" (tab "Tài khoản TCT"). Người dùng không thấy ngay trạng thái đăng nhập, không có chỗ rõ ràng để cập nhật và sidebar chưa có lối vào riêng. Kế hoạch này tách phần khai báo thành 1 trang chuyên biệt và bổ sung các thao tác còn thiếu.
 
-Hiện trạng: đã có `linkEInvoice` (gắn `matched_*_id`) và `createPurchaseFromEInvoice` (tạo mới phiếu mua từ HĐĐT đầu vào). Còn thiếu: link/unlink với HĐ có sẵn ở cả 2 chiều, hiển thị chiều ngược, và auto-match hàng loạt.
+## Phạm vi thay đổi
 
-## Phạm vi
+### 1. Trang mới `/einvoices/credentials`
+File: `src/routes/_app/einvoices/credentials.tsx`
 
-### 1. Liên kết thủ công ở trang chi tiết HĐĐT (`/einvoices/$id`)
+Hiển thị:
+- **Trạng thái hiện tại**: tên đăng nhập (MST), lần đăng nhập gần nhất (`last_login_at`), thời điểm cập nhật.
+- **Form khai báo**:
+  - Tên đăng nhập TCT (mặc định lấy MST của tenant đang chọn, cho phép sửa).
+  - Mật khẩu (input password, có nút hiện/ẩn).
+  - Nút **Lưu** (gọi `saveTctCredentials`).
+  - Nút **Kiểm tra kết nối** (chỉ enable khi đã lưu) — gọi server fn mới `testTctLogin` (xem mục 3).
+  - Nút **Xoá tài khoản** (confirm) — gọi `deleteTctCredentials`.
+- **Hướng dẫn ngắn**: mật khẩu được mã hoá AES-GCM trước khi lưu, chỉ chủ tài khoản tenant đọc được.
+- Khi chưa chọn tenant: thông báo + link tới chọn tổ chức.
 
-- Khi **chưa** liên kết → hiện nút **Liên kết với HĐ có sẵn** (cả `in` lẫn `out`), mở dialog với combobox tìm kiếm:
-  - `in` → tìm trong `invoices` (lọc theo `supplier_tax_id` = seller, gợi ý ưu tiên trùng `invoice_no`, sắp xếp theo độ khớp).
-  - `out` → tìm trong `sales_invoices` (lọc theo `customer.tax_id` = buyer, ưu tiên trùng `invoice_no`).
-  - Hiển thị: số HĐ · ngày · đối tác · tổng tiền; có cảnh báo nếu tổng tiền lệch > 1đ.
-- Khi **đã** liên kết → hiện block "Đã liên kết với …" + nút **Bỏ liên kết** (gọi `linkEInvoice` với `targetId: null`).
-- Giữ nguyên nút **Tạo phiếu mua từ HĐĐT** cho chiều `in`.
+### 2. Cập nhật sidebar
+File: `src/components/app-sidebar.tsx`
 
-### 2. Tự động ghép hàng loạt (auto-match)
+Trong nhóm "Hoá đơn điện tử" của `EINVOICE_SECTIONS`, thêm entry:
+- `{ to: "/einvoices/credentials", label: "Thông tin đăng nhập TCT", icon: KeyRound }`
 
-- Server fn mới `autoMatchEInvoices({ direction, dateFrom?, dateTo? })`:
-  - Quét các HĐĐT chưa `matched_*_id` trong khoảng ngày.
-  - Match theo `(seller_tax_id, invoice_no)` ↔ `(invoices.supplier_tax_id, invoice_no)` cho `in`; tương tự với `sales_invoices` qua `customers.tax_id` + `invoice_no` cho `out`.
-  - Chỉ ghép khi kết quả là 1 hàng duy nhất; bỏ qua trường hợp nhiều / không có.
-  - Trả về `{ matched, skipped, ambiguous }`.
-- Trang list `/einvoices`: thêm nút **Tự động ghép** (chạy theo `tab` + `dateRange` hiện tại), hiện toast kết quả + invalidate query.
+### 3. Server function `testTctLogin`
+File: `src/lib/einvoices-sync.functions.ts`
 
-### 3. Hiển thị chiều ngược
+- Mới: `testTctLogin = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])`
+- Lấy credentials theo tenant, giải mã mật khẩu, lấy captcha → trả về `{ captchaKey, captchaSvg }` cho FE.
+- FE nhập captcha → gọi tiếp `verifyTctLogin({ captchaKey, captchaValue })`: thực hiện `loginTct(...)`, cập nhật `einvoice_credentials.last_login_at = now()` khi thành công, trả về `{ ok: true }` hoặc throw lỗi rõ ràng (sai captcha / sai mật khẩu / TCT không phản hồi).
+- Bọc try/catch giống `getTctCaptcha` để không trả 500 trắng màn hình.
 
-- `src/routes/_app/invoices/$id.tsx` (mua): nếu có HĐĐT trỏ tới (`einvoices.matched_purchase_invoice_id = invoice.id`), hiện badge **Đã gắn HĐĐT** + link sang `/einvoices/{id}`.
-- `src/routes/_app/sales/$id.tsx` (bán): tương tự với `matched_sales_invoice_id`.
-- Thêm server fn nhẹ `getLinkedEInvoice({ kind: 'in'|'out', invoiceId })` hoặc include trong loader hiện có của trang chi tiết.
+### 4. Dialog "Đồng bộ HĐĐT" gọn lại
+File: `src/components/sync-tct-dialog.tsx`
 
-### 4. Sửa chi tiết nhỏ
+- Bỏ tab "Tài khoản TCT" khỏi dialog (chỉ còn phần Đồng bộ).
+- Khi `hasCreds = false`: hiển thị banner "Bạn chưa khai báo tài khoản TCT" + nút điều hướng tới `/einvoices/credentials`.
+- Mọi import/state liên quan tới save/delete bỏ đi.
 
-- `getEInvoice` trả thêm `matchedInvoice` (số HĐ + ngày + tổng) để trang chi tiết không phải fetch riêng.
-- `linkEInvoice`: validate `targetId` thuộc cùng `tenant_id` và đúng bảng theo `direction` trước khi update (chống gắn nhầm).
-- Thêm RLS-safe check `payment_status` không cản trở update (chỉ update cột `matched_*_id`).
+### 5. Cập nhật điều hướng phụ
+- Trên `src/routes/_app/einvoices/index.tsx`, nút header "Tài khoản TCT" (nếu có) trỏ về `/einvoices/credentials`. Nếu chưa có, thêm 1 nút phụ bên cạnh "Đồng bộ".
 
-## Chi tiết kỹ thuật
+## Lưu ý kỹ thuật
 
-**File chỉnh sửa**
-- `src/lib/einvoices.functions.ts`: mở rộng `linkEInvoice` (validate + trả tên HĐ), mở rộng `getEInvoice` (kèm matched preview), thêm `searchLinkableInvoices`, `autoMatchEInvoices`, `getLinkedEInvoice`.
-- `src/components/link-einvoice-dialog.tsx` (mới): combobox + danh sách candidate + xác nhận.
-- `src/routes/_app/einvoices/$id.tsx`: nút Liên kết / Bỏ liên kết, dùng dialog mới.
-- `src/routes/_app/einvoices/index.tsx`: nút **Tự động ghép**.
-- `src/routes/_app/invoices/$id.tsx`, `src/routes/_app/sales/$id.tsx`: badge + link tới HĐĐT.
+- Dùng `useServerFn` + React Query, invalidate `["tct-creds"]` sau khi lưu/xoá.
+- Validation client + server (zod đã có sẵn ở `saveTctCredentials`).
+- Không log mật khẩu ra console.
+- Trang dùng layout `_app` sẵn có, không tạo layout mới.
+- Không đổi schema DB — `einvoice_credentials` đã đủ cột (`tct_username`, `tct_password_encrypted`, `last_login_at`, `updated_at`).
 
-**Không thay đổi**
-- Schema DB giữ nguyên (đã có `matched_sales_invoice_id` / `matched_purchase_invoice_id`).
-- Không động vào flow `createPurchaseFromEInvoice`.
+## File sẽ chỉnh
+
+- Tạo: `src/routes/_app/einvoices/credentials.tsx`
+- Sửa: `src/components/app-sidebar.tsx`, `src/components/sync-tct-dialog.tsx`, `src/lib/einvoices-sync.functions.ts`, `src/routes/_app/einvoices/index.tsx`
 
 ## Câu hỏi xác nhận
 
-1. Khi auto-match phát hiện tổng tiền lệch quá ngưỡng (vd > 1.000đ) — vẫn ghép hay bỏ qua chờ user xác nhận? Mặc định mình sẽ **vẫn ghép** nhưng cảnh báo trên UI list.
-2. Có cần thêm **Tạo HĐ bán từ HĐĐT đầu ra** (đối xứng với `createPurchaseFromEInvoice`) không? Mặc định mình **không làm** trong scope này vì HĐ bán thường được tạo trước, HĐĐT về sau.
+1. Có cần nút "Kiểm tra kết nối" (gọi thật lên TCT để verify mật khẩu) ngay trong scope này không? Mặc định: **có**, vì đây là cách duy nhất chắc chắn mật khẩu lưu đúng.
+2. Có cần hỗ trợ nhiều tài khoản TCT trên cùng 1 tenant (ví dụ MST chi nhánh) không? Mặc định: **không** — giữ 1 record / tenant như hiện tại.
