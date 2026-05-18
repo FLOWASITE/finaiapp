@@ -21,8 +21,8 @@ const SHIMMER_BASE =
   "before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-[inherit] before:blur-lg before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-70 hover:before:[animation:add-glow-pulse_2.4s_ease-in-out_infinite] " +
   // shimmer sweep (::after)
   "after:pointer-events-none after:absolute after:inset-y-0 after:-left-1/2 after:w-1/3 after:[background:linear-gradient(90deg,transparent,oklch(1_0_0/0.45),transparent)] after:opacity-0 group-hover/btn:after:opacity-100 hover:after:[animation:add-shimmer_1.1s_ease-out] " +
-  // icon micro-interaction
-  "[&_svg]:transition-transform [&_svg]:duration-300 hover:[&_svg]:scale-110 " +
+  // icon micro-interaction — spring easing, transform-only để không lệch layout
+  "[&_svg]:will-change-transform [&_svg]:origin-center [&_svg]:transition-transform [&_svg]:duration-[450ms] [&_svg]:[transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] hover:[&_svg]:scale-110 active:[&_svg]:scale-95 active:[&_svg]:duration-150 " +
   // focus ring chuẩn
   "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
