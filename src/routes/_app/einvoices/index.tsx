@@ -89,6 +89,7 @@ function EInvoicesPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const list = useServerFn(listEInvoices);
+  const autoMatch = useServerFn(autoMatchEInvoices);
 
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<string>("all");
@@ -103,6 +104,24 @@ function EInvoicesPage() {
   const [syncOpen, setSyncOpen] = React.useState(false);
 
   React.useEffect(() => setPage(1), [tab, q, status, matched, dateRange]);
+
+  const autoMatchMut = useMutation({
+    mutationFn: () =>
+      autoMatch({
+        data: {
+          direction: tab,
+          dateFrom: dateRange.from ?? null,
+          dateTo: dateRange.to ?? null,
+        },
+      }),
+    onSuccess: (r) => {
+      toast.success(
+        `Tự động ghép: ${r.matched} thành công · ${r.ambiguous} mơ hồ · ${r.skipped} bỏ qua (quét ${r.scanned})`,
+      );
+      query.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi auto-match"),
+  });
 
   const query = useQuery({
     queryKey: [
