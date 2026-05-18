@@ -87,6 +87,7 @@ import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts
 import { Route as AppAssetsFromInvoiceRouteImport } from './routes/_app/assets/from-invoice'
 import { Route as AppAssetsFromFixedAssetRouteImport } from './routes/_app/assets/from-fixed-asset'
 import { Route as AppAssetsEventsRouteImport } from './routes/_app/assets/events'
+import { Route as AppAssetsDisposalRouteImport } from './routes/_app/assets/disposal'
 import { Route as AppAssetsDepreciationRouteImport } from './routes/_app/assets/depreciation'
 import { Route as AppAssetsCategoriesRouteImport } from './routes/_app/assets/categories'
 import { Route as AppAssetsBooksRouteImport } from './routes/_app/assets/books'
@@ -490,6 +491,11 @@ const AppAssetsEventsRoute = AppAssetsEventsRouteImport.update({
   path: '/assets/events',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssetsDisposalRoute = AppAssetsDisposalRouteImport.update({
+  id: '/assets/disposal',
+  path: '/assets/disposal',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsDepreciationRoute = AppAssetsDepreciationRouteImport.update({
   id: '/assets/depreciation',
   path: '/assets/depreciation',
@@ -562,6 +568,7 @@ export interface FileRoutesByFullPath {
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
+  '/assets/disposal': typeof AppAssetsDisposalRoute
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -646,6 +653,7 @@ export interface FileRoutesByTo {
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
+  '/assets/disposal': typeof AppAssetsDisposalRoute
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -737,6 +745,7 @@ export interface FileRoutesById {
   '/_app/assets/books': typeof AppAssetsBooksRoute
   '/_app/assets/categories': typeof AppAssetsCategoriesRoute
   '/_app/assets/depreciation': typeof AppAssetsDepreciationRoute
+  '/_app/assets/disposal': typeof AppAssetsDisposalRoute
   '/_app/assets/events': typeof AppAssetsEventsRoute
   '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -828,6 +837,7 @@ export interface FileRouteTypes {
     | '/assets/books'
     | '/assets/categories'
     | '/assets/depreciation'
+    | '/assets/disposal'
     | '/assets/events'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
@@ -912,6 +922,7 @@ export interface FileRouteTypes {
     | '/assets/books'
     | '/assets/categories'
     | '/assets/depreciation'
+    | '/assets/disposal'
     | '/assets/events'
     | '/assets/from-fixed-asset'
     | '/assets/from-invoice'
@@ -1002,6 +1013,7 @@ export interface FileRouteTypes {
     | '/_app/assets/books'
     | '/_app/assets/categories'
     | '/_app/assets/depreciation'
+    | '/_app/assets/disposal'
     | '/_app/assets/events'
     | '/_app/assets/from-fixed-asset'
     | '/_app/assets/from-invoice'
@@ -1626,6 +1638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsEventsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assets/disposal': {
+      id: '/_app/assets/disposal'
+      path: '/assets/disposal'
+      fullPath: '/assets/disposal'
+      preLoaderRoute: typeof AppAssetsDisposalRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/depreciation': {
       id: '/_app/assets/depreciation'
       path: '/assets/depreciation'
@@ -1823,6 +1842,7 @@ interface AppRouteChildren {
   AppAssetsBooksRoute: typeof AppAssetsBooksRoute
   AppAssetsCategoriesRoute: typeof AppAssetsCategoriesRoute
   AppAssetsDepreciationRoute: typeof AppAssetsDepreciationRoute
+  AppAssetsDisposalRoute: typeof AppAssetsDisposalRoute
   AppAssetsEventsRoute: typeof AppAssetsEventsRoute
   AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
@@ -1884,6 +1904,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsBooksRoute: AppAssetsBooksRoute,
   AppAssetsCategoriesRoute: AppAssetsCategoriesRoute,
   AppAssetsDepreciationRoute: AppAssetsDepreciationRoute,
+  AppAssetsDisposalRoute: AppAssetsDisposalRoute,
   AppAssetsEventsRoute: AppAssetsEventsRoute,
   AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
@@ -1942,3 +1963,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
