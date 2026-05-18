@@ -963,7 +963,7 @@ function ReceiptsTab({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                   Không có phiếu thu trong kỳ
                 </td>
               </tr>
