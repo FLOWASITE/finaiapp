@@ -1,11 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Download, Printer, Search } from "lucide-react";
 
-import { getArSummary, exportArSummaryXlsx } from "@/lib/receivables.functions";
+import {
+  getArSummary,
+  exportArSummaryXlsx,
+  getArDrilldown,
+  type ArSummaryRow,
+} from "@/lib/receivables.functions";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { getCompanyProfile } from "@/lib/reports.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
