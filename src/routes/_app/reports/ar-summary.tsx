@@ -156,6 +156,61 @@ function ArSummaryPage() {
     return { lines, daily, debit, credit };
   }, [drillQ.data, drillFrom, drillTo, drillDocTypes, drillSearch]);
 
+  type DrillDisplayRow = {
+    key: string;
+    entry_id: string;
+    entry_date: string;
+    doc_type: "HD" | "PT" | "KHAC";
+    doc_no: string | null;
+    doc_id: string | null;
+    description: string;
+    debit: number;
+    credit: number;
+    line_count: number;
+  };
+  const drillDisplayRows = useMemo<DrillDisplayRow[]>(() => {
+    if (!drillGroupByDoc) {
+      return drillFiltered.lines.map((l, i) => ({
+        key: l.entry_id + ":" + i,
+        entry_id: l.entry_id,
+        entry_date: l.entry_date,
+        doc_type: l.doc_type,
+        doc_no: l.doc_no,
+        doc_id: l.doc_id,
+        description: l.description,
+        debit: l.debit,
+        credit: l.credit,
+        line_count: 1,
+      }));
+    }
+    const map = new Map<string, DrillDisplayRow>();
+    for (const l of drillFiltered.lines) {
+      const key = l.entry_id;
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          entry_id: l.entry_id,
+          entry_date: l.entry_date,
+          doc_type: l.doc_type,
+          doc_no: l.doc_no,
+          doc_id: l.doc_id,
+          description: l.description,
+          debit: l.debit,
+          credit: l.credit,
+          line_count: 1,
+        });
+      } else {
+        g.debit += l.debit;
+        g.credit += l.credit;
+        g.line_count += 1;
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => a.entry_date.localeCompare(b.entry_date) || (a.doc_no ?? "").localeCompare(b.doc_no ?? ""),
+    );
+  }, [drillFiltered.lines, drillGroupByDoc]);
+
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
