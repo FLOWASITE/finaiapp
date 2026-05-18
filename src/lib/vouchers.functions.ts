@@ -146,6 +146,7 @@ async function buildVoucherList(
     from: string; to: string;
     dims?: DimFilter;
     sourceTables?: string[];
+    voucherTypes?: string[];
     accountPrefix?: string;
     page?: number;
     pageSize?: number;
