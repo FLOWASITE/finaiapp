@@ -132,6 +132,7 @@ const EINVOICE_SECTIONS: NavSection[] = [
       { to: "/einvoices", label: "Tất cả hoá đơn", icon: FileText },
       { to: "/einvoices?tab=in", label: "Hoá đơn đầu vào", icon: Inbox },
       { to: "/einvoices?tab=out", label: "Hoá đơn đầu ra", icon: Send },
+      { to: "/einvoices/credentials", label: "Thông tin đăng nhập TCT", icon: KeyRound },
     ],
   },
   {
