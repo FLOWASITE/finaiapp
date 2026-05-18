@@ -652,3 +652,150 @@ export const reconcile242 = createServerFn({ method: "POST" })
       total_debit: rows.reduce((s, r) => s + r.je_debit, 0),
     };
   });
+
+// ============================================================
+// Step 4: Tích hợp với Hoá đơn mua hàng (purchase invoices)
+// ============================================================
+
+const InvoiceLineSelection = z.object({
+  invoice_line_id: z.string().uuid(),
+  code: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(255),
+  category: Category.default("ccdc"),
+  quantity: z.number().min(0).default(1),
+  unit: z.string().max(32).optional().nullable(),
+  cost: z.number().min(0),
+  periods_total: z.number().int().min(1).max(600),
+  period_unit: PeriodUnit.default("month"),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expense_account: z.string().min(1).max(20).default("6423"),
+  prepaid_account: z.string().min(1).max(20).default("242"),
+});
+
+export const listInvoicesForAllocation = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { q?: string; from?: string; to?: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    let q = supabase
+      .from("invoices")
+      .select("id, invoice_no, supplier_name, issue_date, total, status, payment_status")
+      .eq("tenant_id", tenantId)
+      .in("status", ["reviewed", "posted"])
+      .order("issue_date", { ascending: false })
+      .limit(200);
+    if (data.from) q = q.gte("issue_date", data.from);
+    if (data.to) q = q.lte("issue_date", data.to);
+    if (data.q?.trim()) {
+      const term = `%${data.q.trim()}%`;
+      q = q.or(`invoice_no.ilike.${term},supplier_name.ilike.${term}`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const ids = (rows ?? []).map((r) => r.id);
+    let usedSet = new Set<string>();
+    if (ids.length) {
+      const { data: used } = await supabase
+        .from("allocated_assets")
+        .select("source_doc_id")
+        .eq("tenant_id", tenantId)
+        .eq("source_doc_table", "invoices")
+        .in("source_doc_id", ids);
+      usedSet = new Set((used ?? []).map((u) => u.source_doc_id as string));
+    }
+    return (rows ?? []).map((r) => ({ ...r, has_allocation: usedSet.has(r.id) }));
+  });
+
+export const getInvoiceLinesForAllocation = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { invoice_id: string }) =>
+    z.object({ invoice_id: z.string().uuid() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const { data: inv, error: e1 } = await supabase
+      .from("invoices")
+      .select(
+        "id, invoice_no, supplier_name, issue_date, total, subtotal, expense_account, branch_id, department_id, project_id, cost_center_id",
+      )
+      .eq("id", data.invoice_id)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (e1 || !inv) throw new Error("Không tìm thấy hoá đơn");
+
+    const { data: lines, error: e2 } = await supabase
+      .from("invoice_lines")
+      .select("id, description, qty, unit_price, amount, line_type")
+      .eq("invoice_id", data.invoice_id);
+    if (e2) throw new Error(e2.message);
+
+    const { data: existing } = await supabase
+      .from("allocated_assets")
+      .select("id, code, name, source_doc_id")
+      .eq("tenant_id", tenantId)
+      .eq("source_doc_table", "invoices")
+      .eq("source_doc_id", data.invoice_id);
+
+    return {
+      invoice: inv,
+      lines: lines ?? [],
+      existing_assets: existing ?? [],
+    };
+  });
+
+export const createAllocatedAssetsFromInvoice = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        invoice_id: z.string().uuid(),
+        items: z.array(InvoiceLineSelection).min(1).max(50),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    // Verify invoice belongs to tenant
+    const { data: inv, error: ie } = await supabase
+      .from("invoices")
+      .select("id, branch_id, department_id, project_id, cost_center_id")
+      .eq("id", data.invoice_id)
+      .eq("tenant_id", tenantId)
+      .single();
+    if (ie || !inv) throw new Error("Không tìm thấy hoá đơn");
+
+    const rows = data.items.map((it) => ({
+      tenant_id: tenantId,
+      user_id: userId,
+      code: it.code,
+      name: it.name,
+      category: it.category,
+      source_type: "purchase_invoice" as const,
+      source_doc_table: "invoices",
+      source_doc_id: data.invoice_id,
+      quantity: it.quantity,
+      unit: it.unit ?? null,
+      cost: it.cost,
+      allocated: 0,
+      periods_total: it.periods_total,
+      periods_done: 0,
+      period_unit: it.period_unit,
+      start_date: it.start_date,
+      method: "straight_line" as const,
+      prepaid_account: it.prepaid_account,
+      expense_account: it.expense_account,
+      status: "active" as const,
+      branch_id: inv.branch_id ?? null,
+      department_id: inv.department_id ?? null,
+      project_id: inv.project_id ?? null,
+      cost_center_id: inv.cost_center_id ?? null,
+    }));
+
+    const { data: created, error } = await supabase
+      .from("allocated_assets")
+      .insert(rows)
+      .select("id, code, name");
+    if (error) throw new Error(error.message);
+    return { created: created ?? [] };
+  });
