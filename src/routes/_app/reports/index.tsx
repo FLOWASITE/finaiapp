@@ -7,7 +7,7 @@ import {
   getNotesData, upsertReportNote, exportReportXlsx, getCompanyProfile,
   drilldownReportItem,
 } from "@/lib/reports.functions";
-import { getTrialBalance, exportTrialBalanceXlsx, getUnbalancedEntries, getAccountLedger, exportAccountLedgerXlsx } from "@/lib/ledgers.functions";
+import { getAccountLedger, exportAccountLedgerXlsx } from "@/lib/ledgers.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/reports/")({
   component: ReportsPage,
 });
 
-const fmt = (n: number) => {
+export const fmt = (n: number) => {
   if (!n) return "-";
   const abs = Math.abs(Math.round(n)).toLocaleString("vi-VN");
   return n < 0 ? `(${abs})` : abs;
@@ -48,11 +48,6 @@ function ReportsPage() {
   const [hideZero, setHideZero] = useState(true);
   const [showSignature, setShowSignature] = useState(true);
   const [dims, setDims] = useState<DimensionValue>({});
-  const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
-  const [tbTree, setTbTree] = useState(true);
-  const [tbSearch, setTbSearch] = useState("");
-  const [tbSearchDraft, setTbSearchDraft] = useState("");
-  const [drillAcc, setDrillAcc] = useState<{ code: string; name: string } | null>(null);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const drill = search.drillR && search.drillM
@@ -96,40 +91,16 @@ function ReportsPage() {
   const cfFn = useServerFn(getCashFlowDirect);
   const notesFn = useServerFn(getNotesData);
   const exportFn = useServerFn(exportReportXlsx);
-  const tbFn = useServerFn(getTrialBalance);
 
   const bs = useQuery({ queryKey: ["bs99", to, compareEnabled, prevAsOf], queryFn: () => bsFn({ data: { asOf: to, compareAsOf: compareEnabled ? prevAsOf : undefined } }), ...QUERY_PRESETS.REPORT });
   const is = useQuery({ queryKey: ["is99", from, to, compareEnabled, prevFrom, prevTo, dims], queryFn: () => isFn({ data: { from, to, compareFrom: compareEnabled ? prevFrom : undefined, compareTo: compareEnabled ? prevTo : undefined, dims } }), ...QUERY_PRESETS.REPORT });
   const cf = useQuery({ queryKey: ["cf99", from, to], queryFn: () => cfFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
   const notes = useQuery({ queryKey: ["notes99", from, to], queryFn: () => notesFn({ data: { from, to } }), ...QUERY_PRESETS.REPORT });
-  const tb = useQuery({ queryKey: ["tb-reports", from, to, dims], queryFn: () => tbFn({ data: { from, to, dims } }), ...QUERY_PRESETS.REPORT });
-  const exportTbFn = useServerFn(exportTrialBalanceXlsx);
-  const unbalancedFn = useServerFn(getUnbalancedEntries);
-  const unbalanced = useQuery({
-    queryKey: ["unbalanced", from, to],
-    queryFn: () => unbalancedFn({ data: { from, to, limit: 50 } }),
-    enabled: !!tb.data && !tb.data.balanced,
-    ...QUERY_PRESETS.REPORT,
-  });
 
   async function handleExport(report: "B01" | "B02" | "B03") {
     try {
       toast.loading("Đang xuất Excel...", { id: "xlsx" });
       const res = await exportFn({ data: { report, from, to, asOf: to } });
-      const link = document.createElement("a");
-      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
-      link.download = res.filename;
-      link.click();
-      toast.success("Đã xuất file", { id: "xlsx" });
-    } catch (e: any) {
-      toast.error(e.message ?? "Xuất file thất bại", { id: "xlsx" });
-    }
-  }
-
-  async function handleExportTrialBalance() {
-    try {
-      toast.loading("Đang xuất Excel...", { id: "xlsx" });
-      const res = await exportTbFn({ data: { from, to, dims, hideZero } });
       const link = document.createElement("a");
       link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.base64}`;
       link.download = res.filename;
@@ -165,7 +136,7 @@ function ReportsPage() {
         </label>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" />In / Xuất PDF</Button>
-          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); tb.refetch(); }}>Cập nhật</Button>
+          <Button size="sm" onClick={() => { bs.refetch(); is.refetch(); cf.refetch(); notes.refetch(); }}>Cập nhật</Button>
         </div>
       </div>
 
@@ -175,7 +146,9 @@ function ReportsPage() {
           <TabsTrigger value="b02">B02 — KQKD</TabsTrigger>
           <TabsTrigger value="b03">B03 — LCTT</TabsTrigger>
           <TabsTrigger value="b09">B09 — Thuyết minh</TabsTrigger>
-          <TabsTrigger value="tb">BCĐPS — Cân đối phát sinh</TabsTrigger>
+          <Link to="/reports/trial-balance" className="ml-2 inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
+            BCĐPS — Cân đối phát sinh →
+          </Link>
         </TabsList>
 
         <TabsContent value="b01">
@@ -240,105 +213,14 @@ function ReportsPage() {
             {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
           </ReportCard>
         </TabsContent>
-
-        <TabsContent value="tb">
-          <ReportCard title="Bảng cân đối số phát sinh" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={handleExportTrialBalance}>
-            <PrintHeader profile={profile} title="BẢNG CÂN ĐỐI SỐ PHÁT SINH" subtitle={`Kỳ từ ${from} đến ${to}`} />
-            <div className="mb-3 print:hidden">
-              <DimensionFilterBar value={dims} onChange={setDims} />
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-3 text-sm print:hidden">
-              <label className="flex items-center gap-2">
-                <span className="text-muted-foreground">Cấp tài khoản:</span>
-                <select
-                  className="h-8 rounded border border-border bg-background px-2 text-sm"
-                  value={tbLevel}
-                  onChange={(e) => setTbLevel(e.target.value as "all" | "1" | "2" | "3")}
-                >
-                  <option value="all">Tất cả</option>
-                  <option value="1">Cấp 1 (3 ký tự)</option>
-                  <option value="2">Cấp 2 (4 ký tự)</option>
-                  <option value="3">Cấp 3 (5 ký tự)</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={tbTree} onChange={(e) => setTbTree(e.target.checked)} />
-                Xem dạng cây
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="text-muted-foreground">Tìm:</span>
-                <input
-                  type="search"
-                  value={tbSearchDraft}
-                  onChange={(e) => setTbSearchDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); setTbSearch(tbSearchDraft); }
-                    else if (e.key === "Escape") { setTbSearchDraft(""); setTbSearch(""); }
-                  }}
-                  placeholder='Mã/tên · "=131" chính xác · "131*" tiền tố'
-                  title='Bỏ dấu, không phân biệt hoa thường. Dùng "=131" để khớp mã chính xác, "131*" hoặc nhập chỉ chữ số để khớp tiền tố. Bấm Áp dụng (hoặc Enter) để lọc.'
-                  className="h-8 w-64 rounded border border-border bg-background px-2 text-sm"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  onClick={() => setTbSearch(tbSearchDraft)}
-                  disabled={tbSearchDraft === tbSearch}
-                  className="h-8"
-                >
-                  Áp dụng
-                </Button>
-                {(tbSearch || tbSearchDraft) && (
-                  <button
-                    type="button"
-                    onClick={() => { setTbSearchDraft(""); setTbSearch(""); }}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Xoá
-                  </button>
-                )}
-                {tbSearchDraft !== tbSearch && (
-                  <span className="text-[11px] italic text-muted-foreground">chưa áp dụng</span>
-                )}
-              </label>
-            </div>
-            {!tb.data ? <Loading /> : (
-              <>
-                {!tb.data.balanced && (
-                  <div className="mb-3 space-y-2 print:hidden">
-                    <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      Tổng PS Nợ ≠ Tổng PS Có — chênh lệch {fmt(tb.data.totals.debit - tb.data.totals.credit)}
-                    </div>
-                    <UnbalancedEntriesPanel
-                      loading={unbalanced.isLoading}
-                      data={unbalanced.data}
-                    />
-                  </div>
-                )}
-                <TrialBalanceTable
-                  data={tb.data}
-                  hideZero={hideZero}
-                  level={tbLevel}
-                  tree={tbTree}
-                  search={tbSearch}
-                  onDrill={(code, name) => setDrillAcc({ code, name })}
-                />
-              </>
-            )}
-            {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
-          </ReportCard>
-        </TabsContent>
       </Tabs>
 
       <DrilldownDialog drill={drill} from={from} to={to} asOf={to} onClose={() => setDrill(null)} />
-      <AccountDrilldownDialog account={drillAcc} from={from} to={to} dims={dims} onClose={() => setDrillAcc(null)} />
     </div>
   );
 }
 
-function PrintHeader({ profile, title, subtitle }: { profile: any; title: string; subtitle: string }) {
+export function PrintHeader({ profile, title, subtitle }: { profile: any; title: string; subtitle: string }) {
   return (
     <div className="hidden print:mb-4 print:block">
       <div className="text-center">
@@ -353,7 +235,7 @@ function PrintHeader({ profile, title, subtitle }: { profile: any; title: string
   );
 }
 
-function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: string }) {
+export function SignatureFooter({ profile, reportDate }: { profile: any; reportDate: string }) {
   const dateStr = `Ngày ${reportDate.slice(8, 10)} tháng ${reportDate.slice(5, 7)} năm ${reportDate.slice(0, 4)}`;
   const signers = [
     { role: "Người lập biểu", name: profile?.preparer_name, sig: null as string | null, stamp: null as string | null },
@@ -577,7 +459,7 @@ function ensureAncestors(rows: TrialBalanceRow[]): TrialBalanceRow[] {
   return Array.from(byCode.values()).sort((a, b) => a.code.localeCompare(b.code));
 }
 
-function TrialBalanceTable({
+export function TrialBalanceTable({
   data, hideZero, level, tree, search, onDrill,
 }: {
   data: TrialBalanceData;
@@ -740,7 +622,7 @@ type UnbalancedData = {
   totalDelta: number;
 };
 
-function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
+export function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: UnbalancedData }) {
   if (loading) {
     return <div className="rounded border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Đang phân tích bút toán lệch cân…</div>;
   }
@@ -797,7 +679,7 @@ function UnbalancedEntriesPanel({ loading, data }: { loading: boolean; data?: Un
 }
 
 
-function AccountDrilldownDialog({
+export function AccountDrilldownDialog({
   account, from, to, dims, onClose,
 }: {
   account: { code: string; name: string } | null;
@@ -1047,7 +929,7 @@ function AccountDrilldownDialog({
 }
 
 
-function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
+export function ReportCard({ title, subtitle, children, onExport }: { title: string; subtitle?: string; children: React.ReactNode; onExport?: () => void }) {
   return (
     <div className="mt-4 rounded-lg border border-border bg-card p-6">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -1339,4 +1221,4 @@ function NoteEditor({ sectionKey, label, placeholder, initial, upsert, onSaved }
   );
 }
 
-function Loading() { return <div className="py-8 text-center text-sm text-muted-foreground">Đang tính...</div>; }
+export function Loading() { return <div className="py-8 text-center text-sm text-muted-foreground">Đang tính...</div>; }
