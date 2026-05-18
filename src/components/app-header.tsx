@@ -45,18 +45,49 @@ function useBreadcrumbs() {
   }));
 }
 
+type Profile = {
+  display_name: string | null;
+  avatar_url: string | null;
+  job_title: string | null;
+  email: string | null;
+};
+
 export function AppHeader() {
   const crumbs = useBreadcrumbs();
   const [email, setEmail] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (cancelled) return;
+      setEmail(user?.email ?? null);
+      if (!user) return;
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url, job_title, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!cancelled) setProfile(p as Profile | null);
+    };
+    load();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const initials = (email ?? "?")
-    .split("@")[0]
+  const displayName =
+    profile?.display_name?.trim() || email?.split("@")[0] || "Tài khoản";
+  const initials = displayName
+    .split(/\s+/)
     .slice(0, 2)
-    .toUpperCase();
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase() || "?";
 
   return (
     <div className="flex flex-1 items-center gap-3">
@@ -101,25 +132,41 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 gap-2 rounded-full px-1.5 pr-3">
               <Avatar className="h-7 w-7">
+                {profile?.avatar_url ? (
+                  <AvatarImage src={profile.avatar_url} alt={displayName} />
+                ) : null}
                 <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-xs font-semibold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">
-                {email?.split("@")[0] ?? "Tài khoản"}
+                {displayName}
               </span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{email?.split("@")[0]}</span>
-                <span className="text-xs text-muted-foreground truncate">{email}</span>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  {profile?.avatar_url ? (
+                    <AvatarImage src={profile.avatar_url} alt={displayName} />
+                  ) : null}
+                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-sm font-semibold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">{displayName}</span>
+                  {profile?.job_title ? (
+                    <span className="text-[11px] text-muted-foreground truncate">{profile.job_title}</span>
+                  ) : null}
+                  <span className="text-xs text-muted-foreground truncate">{email}</span>
+                </div>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ</Link>
+              <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ cá nhân</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Cài đặt</Link>
