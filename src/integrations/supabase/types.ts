@@ -143,6 +143,7 @@ export type Database = {
         Row: {
           amount: number
           bank_account_id: string
+          branch_id: string | null
           counterparty: string | null
           created_at: string
           description: string | null
@@ -159,6 +160,7 @@ export type Database = {
         Insert: {
           amount: number
           bank_account_id: string
+          branch_id?: string | null
           counterparty?: string | null
           created_at?: string
           description?: string | null
@@ -175,6 +177,7 @@ export type Database = {
         Update: {
           amount?: number
           bank_account_id?: string
+          branch_id?: string | null
           counterparty?: string | null
           created_at?: string
           description?: string | null
@@ -196,6 +199,13 @@ export type Database = {
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bank_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bank_vouchers: {
@@ -203,12 +213,15 @@ export type Database = {
           amount: number
           bank_account_id: string
           bank_transaction_id: string | null
+          branch_id: string | null
+          cost_center_id: string | null
           counter_account: string
           created_at: string
           id: string
           journal_entry_id: string | null
           party_id: string | null
           party_name: string | null
+          project_id: string | null
           reason: string | null
           reference: string | null
           tenant_id: string | null
@@ -222,12 +235,15 @@ export type Database = {
           amount: number
           bank_account_id: string
           bank_transaction_id?: string | null
+          branch_id?: string | null
+          cost_center_id?: string | null
           counter_account: string
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           party_id?: string | null
           party_name?: string | null
+          project_id?: string | null
           reason?: string | null
           reference?: string | null
           tenant_id?: string | null
@@ -241,12 +257,15 @@ export type Database = {
           amount?: number
           bank_account_id?: string
           bank_transaction_id?: string | null
+          branch_id?: string | null
+          cost_center_id?: string | null
           counter_account?: string
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           party_id?: string | null
           party_name?: string | null
+          project_id?: string | null
           reason?: string | null
           reference?: string | null
           tenant_id?: string | null
@@ -256,17 +275,87 @@ export type Database = {
           voucher_no?: string
           voucher_type?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "bank_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_vouchers_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_vouchers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branches: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          manager: string | null
+          name: string
+          phone: string | null
+          tax_id: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager?: string | null
+          name: string
+          phone?: string | null
+          tax_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager?: string | null
+          name?: string
+          phone?: string | null
+          tax_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: []
       }
       cash_vouchers: {
         Row: {
           amount: number
+          branch_id: string | null
           cash_account: string
+          cost_center_id: string | null
           counter_account: string
           created_at: string
           id: string
           journal_entry_id: string | null
           party_name: string | null
+          project_id: string | null
           reason: string | null
           tenant_id: string | null
           user_id: string
@@ -276,12 +365,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          branch_id?: string | null
           cash_account?: string
+          cost_center_id?: string | null
           counter_account: string
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
+          project_id?: string | null
           reason?: string | null
           tenant_id?: string | null
           user_id: string
@@ -291,12 +383,15 @@ export type Database = {
         }
         Update: {
           amount?: number
+          branch_id?: string | null
           cash_account?: string
+          cost_center_id?: string | null
           counter_account?: string
           created_at?: string
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
+          project_id?: string | null
           reason?: string | null
           tenant_id?: string | null
           user_id?: string
@@ -304,7 +399,29 @@ export type Database = {
           voucher_no?: string
           voucher_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cash_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_vouchers_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_vouchers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chart_of_accounts: {
         Row: {
@@ -332,6 +449,50 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      cost_centers: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          parent_id: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_groups: {
         Row: {
@@ -380,6 +541,8 @@ export type Database = {
       customer_receipts: {
         Row: {
           amount: number
+          branch_id: string | null
+          cost_center_id: string | null
           created_at: string
           customer_id: string | null
           customer_name: string | null
@@ -389,12 +552,15 @@ export type Database = {
           method: string
           notes: string | null
           pay_date: string
+          project_id: string | null
           reference: string | null
           tenant_id: string | null
           user_id: string
         }
         Insert: {
           amount: number
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -404,12 +570,15 @@ export type Database = {
           method?: string
           notes?: string | null
           pay_date?: string
+          project_id?: string | null
           reference?: string | null
           tenant_id?: string | null
           user_id: string
         }
         Update: {
           amount?: number
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -419,16 +588,38 @@ export type Database = {
           method?: string
           notes?: string | null
           pay_date?: string
+          project_id?: string | null
           reference?: string | null
           tenant_id?: string | null
           user_id?: string
         }
         Relationships: [
           {
+            foreignKeyName: "customer_receipts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_receipts_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customer_receipts_invoice_fk"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_receipts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -530,6 +721,63 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "customer_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departments: {
+        Row: {
+          branch_id: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          manager: string | null
+          name: string
+          parent_id: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          branch_id?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager?: string | null
+          name: string
+          parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          branch_id?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager?: string | null
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
         ]
@@ -713,11 +961,14 @@ export type Database = {
       }
       einvoices: {
         Row: {
+          branch_id: string | null
           buyer_address: string | null
           buyer_name: string | null
           buyer_tax_id: string | null
+          cost_center_id: string | null
           created_at: string
           currency: string | null
+          department_id: string | null
           direction: string
           exchange_rate: number | null
           id: string
@@ -729,6 +980,7 @@ export type Database = {
           matched_sales_invoice_id: string | null
           notes: string | null
           pdf_path: string | null
+          project_id: string | null
           seller_address: string | null
           seller_name: string | null
           seller_tax_id: string | null
@@ -747,11 +999,14 @@ export type Database = {
           xml_path: string | null
         }
         Insert: {
+          branch_id?: string | null
           buyer_address?: string | null
           buyer_name?: string | null
           buyer_tax_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string | null
+          department_id?: string | null
           direction: string
           exchange_rate?: number | null
           id?: string
@@ -763,6 +1018,7 @@ export type Database = {
           matched_sales_invoice_id?: string | null
           notes?: string | null
           pdf_path?: string | null
+          project_id?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_id?: string | null
@@ -781,11 +1037,14 @@ export type Database = {
           xml_path?: string | null
         }
         Update: {
+          branch_id?: string | null
           buyer_address?: string | null
           buyer_name?: string | null
           buyer_tax_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string | null
+          department_id?: string | null
           direction?: string
           exchange_rate?: number | null
           id?: string
@@ -797,6 +1056,7 @@ export type Database = {
           matched_sales_invoice_id?: string | null
           notes?: string | null
           pdf_path?: string | null
+          project_id?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_id?: string | null
@@ -816,6 +1076,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "einvoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoices_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoices_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "einvoices_matched_purchase_invoice_id_fkey"
             columns: ["matched_purchase_invoice_id"]
             isOneToOne: false
@@ -827,6 +1108,13 @@ export type Database = {
             columns: ["matched_sales_invoice_id"]
             isOneToOne: false
             referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -842,10 +1130,12 @@ export type Database = {
         Row: {
           bank_account: string | null
           base_salary: number
+          branch_id: string | null
           citizen_id: string | null
           code: string
           created_at: string
           department: string | null
+          department_id: string | null
           dependents: number
           end_date: string | null
           full_name: string
@@ -861,10 +1151,12 @@ export type Database = {
         Insert: {
           bank_account?: string | null
           base_salary?: number
+          branch_id?: string | null
           citizen_id?: string | null
           code: string
           created_at?: string
           department?: string | null
+          department_id?: string | null
           dependents?: number
           end_date?: string | null
           full_name: string
@@ -880,10 +1172,12 @@ export type Database = {
         Update: {
           bank_account?: string | null
           base_salary?: number
+          branch_id?: string | null
           citizen_id?: string | null
           code?: string
           created_at?: string
           department?: string | null
+          department_id?: string | null
           dependents?: number
           end_date?: string | null
           full_name?: string
@@ -896,7 +1190,22 @@ export type Database = {
           tenant_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       exchange_rates: {
         Row: {
@@ -935,9 +1244,11 @@ export type Database = {
         Row: {
           accumulated_account: string
           asset_account: string
+          branch_id: string | null
           code: string
           cost: number
           created_at: string
+          department_id: string | null
           expense_account: string
           id: string
           method: string
@@ -953,9 +1264,11 @@ export type Database = {
         Insert: {
           accumulated_account?: string
           asset_account?: string
+          branch_id?: string | null
           code: string
           cost: number
           created_at?: string
+          department_id?: string | null
           expense_account?: string
           id?: string
           method?: string
@@ -971,9 +1284,11 @@ export type Database = {
         Update: {
           accumulated_account?: string
           asset_account?: string
+          branch_id?: string | null
           code?: string
           cost?: number
           created_at?: string
+          department_id?: string | null
           expense_account?: string
           id?: string
           method?: string
@@ -986,7 +1301,22 @@ export type Database = {
           useful_life_months?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fixed_assets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_lines: {
         Row: {
@@ -1034,8 +1364,11 @@ export type Database = {
       }
       invoices: {
         Row: {
+          branch_id: string | null
+          cost_center_id: string | null
           created_at: string
           currency: string | null
+          department_id: string | null
           expense_account: string | null
           file_path: string
           id: string
@@ -1043,6 +1376,7 @@ export type Database = {
           issue_date: string | null
           notes: string | null
           payment_status: string
+          project_id: string | null
           raw_ocr: Json | null
           status: string
           subtotal: number | null
@@ -1056,8 +1390,11 @@ export type Database = {
           vat_amount: number | null
         }
         Insert: {
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string | null
+          department_id?: string | null
           expense_account?: string | null
           file_path: string
           id?: string
@@ -1065,6 +1402,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_status?: string
+          project_id?: string | null
           raw_ocr?: Json | null
           status?: string
           subtotal?: number | null
@@ -1078,8 +1416,11 @@ export type Database = {
           vat_amount?: number | null
         }
         Update: {
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string | null
+          department_id?: string | null
           expense_account?: string | null
           file_path?: string
           id?: string
@@ -1087,6 +1428,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_status?: string
+          project_id?: string | null
           raw_ocr?: Json | null
           status?: string
           subtotal?: number | null
@@ -1100,6 +1442,34 @@ export type Database = {
           vat_amount?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -1111,33 +1481,56 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          branch_id: string | null
+          cost_center_id: string | null
           created_at: string
           description: string | null
           entry_date: string
           id: string
           invoice_id: string | null
+          project_id: string | null
           tenant_id: string | null
           user_id: string
         }
         Insert: {
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           entry_date?: string
           id?: string
           invoice_id?: string | null
+          project_id?: string | null
           tenant_id?: string | null
           user_id: string
         }
         Update: {
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           entry_date?: string
           id?: string
           invoice_id?: string | null
+          project_id?: string | null
           tenant_id?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "journal_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "journal_entries_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -1145,32 +1538,51 @@ export type Database = {
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "journal_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
         ]
       }
       journal_lines: {
         Row: {
           account_code: string
+          branch_id: string | null
+          cost_center_id: string | null
           credit: number
           debit: number
+          department_id: string | null
           entry_id: string
           id: string
           line_order: number
+          project_id: string | null
         }
         Insert: {
           account_code: string
+          branch_id?: string | null
+          cost_center_id?: string | null
           credit?: number
           debit?: number
+          department_id?: string | null
           entry_id: string
           id?: string
           line_order?: number
+          project_id?: string | null
         }
         Update: {
           account_code?: string
+          branch_id?: string | null
+          cost_center_id?: string | null
           credit?: number
           debit?: number
+          department_id?: string | null
           entry_id?: string
           id?: string
           line_order?: number
+          project_id?: string | null
         }
         Relationships: [
           {
@@ -1181,10 +1593,38 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
+            foreignKeyName: "journal_lines_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "journal_lines_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1289,7 +1729,9 @@ export type Database = {
       }
       payroll_runs: {
         Row: {
+          branch_id: string | null
           created_at: string
+          department_id: string | null
           id: string
           journal_entry_id: string | null
           period_month: string
@@ -1303,7 +1745,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
+          department_id?: string | null
           id?: string
           journal_entry_id?: string | null
           period_month: string
@@ -1317,7 +1761,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
+          department_id?: string | null
           id?: string
           journal_entry_id?: string | null
           period_month?: string
@@ -1330,7 +1776,22 @@ export type Database = {
           total_pit?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       period_locks: {
         Row: {
@@ -1567,6 +2028,9 @@ export type Database = {
           company_name: string | null
           created_at: string
           date_format: string
+          default_branch_id: string | null
+          default_department_id: string | null
+          default_project_id: string | null
           display_name: string | null
           email: string | null
           fiscal_year_start: number
@@ -1595,6 +2059,9 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           date_format?: string
+          default_branch_id?: string | null
+          default_department_id?: string | null
+          default_project_id?: string | null
           display_name?: string | null
           email?: string | null
           fiscal_year_start?: number
@@ -1623,6 +2090,9 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           date_format?: string
+          default_branch_id?: string | null
+          default_department_id?: string | null
+          default_project_id?: string | null
           display_name?: string | null
           email?: string | null
           fiscal_year_start?: number
@@ -1639,6 +2109,79 @@ export type Database = {
           stamp_url?: string | null
           tax_id?: string | null
           timezone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_branch_id_fkey"
+            columns: ["default_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_default_department_id_fkey"
+            columns: ["default_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_default_project_id_fkey"
+            columns: ["default_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          code: string
+          created_at: string
+          customer_id: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean
+          manager_employee_id: string | null
+          name: string
+          start_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          manager_employee_id?: string | null
+          name: string
+          start_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          manager_employee_id?: string | null
+          name?: string
+          start_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1768,12 +2311,15 @@ export type Database = {
       sales_invoices: {
         Row: {
           billing_address: string | null
+          branch_id: string | null
+          cost_center_id: string | null
           created_at: string
           currency: string
           customer_email: string | null
           customer_id: string | null
           customer_name: string | null
           customer_tax_id: string | null
+          department_id: string | null
           discount_amount: number
           discount_percent: number
           due_date: string | null
@@ -1791,6 +2337,7 @@ export type Database = {
           paid_amount: number
           payment_status: string
           payment_terms_days: number | null
+          project_id: string | null
           quote_id: string | null
           sales_order_id: string | null
           send_status: string
@@ -1807,12 +2354,15 @@ export type Database = {
         }
         Insert: {
           billing_address?: string | null
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string
           customer_email?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_id?: string | null
+          department_id?: string | null
           discount_amount?: number
           discount_percent?: number
           due_date?: string | null
@@ -1830,6 +2380,7 @@ export type Database = {
           paid_amount?: number
           payment_status?: string
           payment_terms_days?: number | null
+          project_id?: string | null
           quote_id?: string | null
           sales_order_id?: string | null
           send_status?: string
@@ -1846,12 +2397,15 @@ export type Database = {
         }
         Update: {
           billing_address?: string | null
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           currency?: string
           customer_email?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_tax_id?: string | null
+          department_id?: string | null
           discount_amount?: number
           discount_percent?: number
           due_date?: string | null
@@ -1869,6 +2423,7 @@ export type Database = {
           paid_amount?: number
           payment_status?: string
           payment_terms_days?: number | null
+          project_id?: string | null
           quote_id?: string | null
           sales_order_id?: string | null
           send_status?: string
@@ -1885,10 +2440,38 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "sales_invoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoices_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_invoices_customer_fk"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoices_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2182,12 +2765,15 @@ export type Database = {
       supplier_payments: {
         Row: {
           amount: number
+          branch_id: string | null
+          cost_center_id: string | null
           created_at: string
           id: string
           invoice_id: string | null
           journal_entry_id: string | null
           method: string
           pay_date: string
+          project_id: string | null
           reference: string | null
           supplier_id: string | null
           supplier_name: string | null
@@ -2196,12 +2782,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           id?: string
           invoice_id?: string | null
           journal_entry_id?: string | null
           method?: string
           pay_date?: string
+          project_id?: string | null
           reference?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
@@ -2210,19 +2799,44 @@ export type Database = {
         }
         Update: {
           amount?: number
+          branch_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           id?: string
           invoice_id?: string | null
           journal_entry_id?: string | null
           method?: string
           pay_date?: string
+          project_id?: string | null
           reference?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           tenant_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
