@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const Route = createFileRoute("/_app/inventory/movements")({ component: MovementsPage });
+export const Route = createFileRoute("/_app/items/categories")({ component: CategoriesPage });
 
-function MovementsPage() {
+function CategoriesPage() {
   return (
     <div className="p-8">
       <Card>
         <CardHeader>
-          <CardTitle>Phiếu nhập / xuất kho</CardTitle>
+          <CardTitle>Nhóm hàng hoá</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Danh sách phiếu đang được xây dựng. Hiện có thể ghi nhận nhanh nhập/xuất từ trang Tồn kho.
+          Trang quản lý nhóm hàng hoá đang được hoàn thiện. Hiện có thể chọn nhóm khi tạo/sửa mặt hàng.
         </CardContent>
       </Card>
     </div>

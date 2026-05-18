@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const Route = createFileRoute("/_app/inventory/movements")({ component: MovementsPage });
+export const Route = createFileRoute("/_app/items/units")({ component: UnitsPage });
 
-function MovementsPage() {
+function UnitsPage() {
   return (
     <div className="p-8">
       <Card>
         <CardHeader>
-          <CardTitle>Phiếu nhập / xuất kho</CardTitle>
+          <CardTitle>Đơn vị tính & quy đổi</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Danh sách phiếu đang được xây dựng. Hiện có thể ghi nhận nhanh nhập/xuất từ trang Tồn kho.
+          Đang xây dựng. Tạm thời nhập ĐVT trực tiếp khi tạo mặt hàng.
         </CardContent>
       </Card>
     </div>

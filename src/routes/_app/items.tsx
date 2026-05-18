@@ -1,17 +1,15 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/inventory")({ component: InventoryLayout });
+export const Route = createFileRoute("/_app/items")({ component: ItemsLayout });
 
 const TABS = [
-  { to: "/inventory", label: "Tồn kho", exact: true },
-  { to: "/inventory/movements", label: "Phiếu nhập / xuất" },
-  { to: "/inventory/stock-card", label: "Thẻ kho" },
-  { to: "/inventory/stock-takes", label: "Kiểm kê" },
-  { to: "/inventory/warehouses", label: "Danh mục kho" },
+  { to: "/items", label: "Danh sách HHDV", exact: true },
+  { to: "/items/categories", label: "Nhóm hàng hoá" },
+  { to: "/items/units", label: "Đơn vị tính" },
 ];
 
-function InventoryLayout() {
+function ItemsLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <div>
