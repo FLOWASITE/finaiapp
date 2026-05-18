@@ -83,6 +83,8 @@ export const createTenant = createServerFn({ method: "POST" })
         name: data.name,
         company_name: data.company_name ?? data.name,
         tax_id: data.tax_id ?? null,
+        address: data.address ?? null,
+        legal_rep_name: data.legal_rep_name ?? null,
         accounting_standard: data.accounting_standard,
         base_currency: data.base_currency,
         owner_user_id: userId,
