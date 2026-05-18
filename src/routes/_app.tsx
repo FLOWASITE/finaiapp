@@ -5,28 +5,12 @@ import { AppHeader } from "@/components/app-header";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveTenant, listMyTenants } from "@/lib/tenants.functions";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });
-  },
-  loader: ({ context: { queryClient } }) => {
-    // Fire-and-forget prefetch so that opening Settings (or any tenant-aware
-    // screen) finds the data already in cache. Do NOT await — keeps navigation
-    // instant; the queries resolve in background.
-    queryClient.prefetchQuery({
-      queryKey: ["active-tenant"],
-      queryFn: () => getActiveTenant(),
-      staleTime: 60_000,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ["my-tenants"],
-      queryFn: () => listMyTenants(),
-      staleTime: 60_000,
-    });
   },
   component: AppLayout,
 });
