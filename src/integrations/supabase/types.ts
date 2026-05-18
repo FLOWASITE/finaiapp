@@ -1810,6 +1810,7 @@ export type Database = {
           tenant_id: string | null
           unit_cost: number
           user_id: string
+          voucher_id: string | null
           warehouse_id: string | null
         }
         Insert: {
@@ -1825,6 +1826,7 @@ export type Database = {
           tenant_id?: string | null
           unit_cost?: number
           user_id: string
+          voucher_id?: string | null
           warehouse_id?: string | null
         }
         Update: {
@@ -1840,6 +1842,7 @@ export type Database = {
           tenant_id?: string | null
           unit_cost?: number
           user_id?: string
+          voucher_id?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -1848,6 +1851,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "stock_vouchers"
             referencedColumns: ["id"]
           },
           {
@@ -1959,6 +1969,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "stock_takes_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_vouchers: {
+        Row: {
+          counter_account: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          reason: string | null
+          tenant_id: string | null
+          user_id: string
+          voucher_date: string
+          voucher_no: string
+          voucher_type: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          counter_account: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          tenant_id?: string | null
+          user_id: string
+          voucher_date?: string
+          voucher_no: string
+          voucher_type: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          counter_account?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          reason?: string | null
+          tenant_id?: string | null
+          user_id?: string
+          voucher_date?: string
+          voucher_no?: string
+          voucher_type?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_vouchers_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
