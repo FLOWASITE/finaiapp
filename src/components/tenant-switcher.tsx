@@ -67,11 +67,20 @@ export function TenantSwitcher() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
-            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            ) : (
+              <Building2 className="h-3.5 w-3.5 shrink-0" />
+            )}
             <span className="truncate text-xs">
-              {isLoading ? "Đang tải…" : (active?.company_name || active?.name) ?? "Chưa chọn tổ chức"}
+              {(active?.company_name || active?.name) ??
+                (isPending ? "Đang tải…" : "Chọn tổ chức")}
             </span>
-            <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
+            {isFetching && !isPending ? (
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-50" />
+            ) : (
+              <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
