@@ -77,6 +77,7 @@ function EmployeeDetailPage() {
           <TabsTrigger value="info">Hồ sơ</TabsTrigger>
           <TabsTrigger value="contracts">Hợp đồng ({data.contracts.length})</TabsTrigger>
           <TabsTrigger value="dependents">Người phụ thuộc ({data.dependents.length})</TabsTrigger>
+          <TabsTrigger value="salary">Cấu trúc lương</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info">
@@ -90,8 +91,104 @@ function EmployeeDetailPage() {
         <TabsContent value="dependents">
           <DependentsTab employeeId={id} dependents={data.dependents} onSaved={() => qc.invalidateQueries({ queryKey: ["employee", id] })} />
         </TabsContent>
+
+        <TabsContent value="salary">
+          <SalaryStructureTab employeeId={id} />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function SalaryStructureTab({ employeeId }: { employeeId: string }) {
+  const listFn = useServerFn(listEmployeeStructure);
+  const compFn = useServerFn(listSalaryComponents);
+  const upsert = useServerFn(upsertEmployeeStructure);
+  const del = useServerFn(deleteEmployeeStructure);
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery({
+    queryKey: ["emp-struct", employeeId],
+    queryFn: () => listFn({ data: { employee_id: employeeId } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+  const { data: comps = [] } = useQuery({
+    queryKey: ["salary-components"], queryFn: () => compFn(), ...QUERY_PRESETS.REFERENCE,
+  });
+  const [open, setOpen] = React.useState(false);
+  const [form, setForm] = React.useState<any>({
+    employee_id: employeeId, component_id: "", amount: 0,
+    effective_from: new Date().toISOString().slice(0, 10), effective_to: null, notes: "",
+  });
+  const mUp = useMutation({
+    mutationFn: (v: any) => upsert({ data: v }),
+    onSuccess: () => { toast.success("Đã lưu"); setOpen(false); qc.invalidateQueries({ queryKey: ["emp-struct", employeeId] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const mDel = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["emp-struct", employeeId] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Cấu trúc lương</CardTitle>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" onClick={() => setForm({
+              employee_id: employeeId, component_id: "", amount: 0,
+              effective_from: new Date().toISOString().slice(0, 10), effective_to: null, notes: "",
+            })}>+ Thêm khoản</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Khoản lương cho nhân viên</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Khoản lương</Label>
+                <Select value={form.component_id} onValueChange={(v) => setForm({ ...form, component_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Chọn khoản…" /></SelectTrigger>
+                  <SelectContent>
+                    {comps.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Số tiền</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} /></div>
+                <div><Label>Hiệu lực từ</Label><Input type="date" value={form.effective_from} onChange={(e) => setForm({ ...form, effective_from: e.target.value })} /></div>
+              </div>
+              <Button className="w-full" disabled={mUp.isPending || !form.component_id} onClick={() => mUp.mutate(form)}>Lưu</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Mã</TableHead><TableHead>Tên khoản</TableHead>
+            <TableHead className="text-right">Số tiền</TableHead>
+            <TableHead>Từ ngày</TableHead><TableHead>Đến ngày</TableHead>
+            <TableHead></TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-mono">{r.salary_components?.code}</TableCell>
+                <TableCell>{r.salary_components?.name}</TableCell>
+                <TableCell className="text-right">{Number(r.amount).toLocaleString("vi-VN")}</TableCell>
+                <TableCell>{r.effective_from}</TableCell>
+                <TableCell>{r.effective_to ?? "—"}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="icon" variant="ghost" onClick={() => { if (confirm("Xoá?")) mDel.mutate(r.id); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
