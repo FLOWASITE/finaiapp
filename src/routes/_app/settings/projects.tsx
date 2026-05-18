@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateDimensions } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listProjects, upsertProject, deleteProject, listProjectRefs } from "@/lib/dimensions.functions";
@@ -102,7 +103,7 @@ function ProjectDialog({ row, refs }: { row?: any; refs?: { customers: any[]; em
   }));
   const m = useMutation({
     mutationFn: () => up({ data: { id: row?.id, ...form } as any }),
-    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm dự án"); qc.invalidateQueries({ queryKey: ["projects"] }); setOpen(false); },
+    onSuccess: () => { toast.success(row ? "Đã cập nhật" : "Đã thêm dự án"); invalidateDimensions(qc, "project"); setOpen(false); },
     onError: (e: any) => toast.error(e.message),
   });
   return (
@@ -163,7 +164,7 @@ function DeleteRow({ id, name }: { id: string; name: string }) {
   const qc = useQueryClient();
   const m = useMutation({
     mutationFn: () => del({ data: { id } }),
-    onSuccess: () => { toast.success("Đã xoá"); qc.invalidateQueries({ queryKey: ["projects"] }); },
+    onSuccess: () => { toast.success("Đã xoá"); invalidateDimensions(qc, "project"); },
     onError: (e: any) => toast.error(e.message),
   });
   return (
