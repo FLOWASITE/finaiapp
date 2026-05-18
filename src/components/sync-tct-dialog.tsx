@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, KeyRound } from "lucide-react";
+import { Loader2, KeyRound } from "lucide-react";
+import { TctCaptcha } from "@/components/tct-captcha";
 import {
   Dialog,
   DialogContent,
