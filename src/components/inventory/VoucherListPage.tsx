@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Trash2, Warehouse, Plus } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus } from "lucide-react";
+import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
