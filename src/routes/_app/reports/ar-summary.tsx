@@ -815,8 +815,7 @@ function ArSummaryPage() {
                             <td className="px-3 py-1.5 text-right font-mono">{fmt(l.debit)}</td>
                             <td className="px-3 py-1.5 text-right font-mono">{fmt(l.credit)}</td>
                           </tr>
-                        ));
-                      })()}
+                        ))}
                       {drillDisplayRows.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
