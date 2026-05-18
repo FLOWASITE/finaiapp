@@ -117,6 +117,9 @@ export const recordReceipt = createServerFn({ method: "POST" })
       amount: data.amount,
       reference: data.reference || null,
       notes: data.notes || null,
+      branch_id: data.branch_id || null,
+      project_id: data.project_id || null,
+      cost_center_id: data.cost_center_id || null,
       journal_entry_id: entry.id,
     });
     if (error) throw new Error(error.message);
