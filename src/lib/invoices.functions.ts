@@ -86,7 +86,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
         const { data: existing } = await supabase
           .from("suppliers")
           .select("id")
-          .eq("user_id", userId)
+          .eq("tenant_id", tenantId)
           .eq("tax_id", result.supplier_tax_id)
           .maybeSingle();
         if (existing) supplierId = existing.id;
@@ -95,6 +95,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
             .from("suppliers")
             .insert({
               user_id: userId,
+              tenant_id: tenantId,
               tax_id: result.supplier_tax_id,
               name: result.supplier_name || "Chưa rõ",
             })
@@ -120,7 +121,8 @@ export const extractInvoice = createServerFn({ method: "POST" })
           raw_ocr: result,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", invoice.id);
+        .eq("id", invoice.id)
+        .eq("tenant_id", tenantId);
 
       // 6. Insert lines
       await supabase.from("invoice_lines").delete().eq("invoice_id", invoice.id);
