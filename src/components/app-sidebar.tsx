@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number };
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
