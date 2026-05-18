@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronRight, LogOut, Search, Settings, User } from "lucide-react";
+import { BarChart3, Bell, ChevronRight, LogOut, Receipt, Search, Settings, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,24 @@ export function AppHeader() {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Quick links */}
+        <Link
+          to="/tax/gtgt"
+          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          activeProps={{ className: "border-primary/60 bg-primary/10 text-primary" }}
+        >
+          <Receipt className="h-3.5 w-3.5" />
+          Thuế
+        </Link>
+        <Link
+          to="/reports"
+          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          activeProps={{ className: "border-primary/60 bg-primary/10 text-primary" }}
+        >
+          <BarChart3 className="h-3.5 w-3.5" />
+          Báo cáo
+        </Link>
+
         {/* Search / Command */}
         <button
           type="button"
