@@ -273,7 +273,16 @@ function InvoicesList() {
       </div>
 
       {/* Totals */}
-      {totals && (
+      {isLoading && !data ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4">
+              <Skeleton className="h-3 w-16 mb-2" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          ))}
+        </div>
+      ) : totals ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Card label="Tiền hàng" value={vnd(totals.subtotal)} />
           <Card label="VAT" value={vnd(totals.vat)} />
@@ -281,7 +290,7 @@ function InvoicesList() {
           <Card label="Đã trả" value={vnd(totals.paid)} tone="emerald" />
           <Card label="Còn nợ" value={vnd(totals.remaining)} tone="rose" />
         </div>
-      )}
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
@@ -297,22 +306,34 @@ function InvoicesList() {
             </tr>
           </thead>
           <tbody>
-            {(data?.rows ?? []).map((i) => (
-              <tr key={i.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
-                <td className="px-4 py-3">
-                  <Link to="/invoices/$id" params={{ id: i.id }} className="text-accent">
-                    {i.issue_date ?? "—"}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{i.invoice_no ?? "—"}</td>
-                <td className="px-4 py-3">{i.supplier_name ?? "—"}</td>
-                <td className="px-4 py-3 text-right font-mono">{vnd(i.total)}</td>
-                <td className="px-4 py-3 text-right font-mono">{vnd(i.remaining)}</td>
-                <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
-                <td className="px-4 py-3"><PayBadge status={i.payment_status} /></td>
-              </tr>
-            ))}
-            {(data?.rows ?? []).length === 0 && (
+            {isLoading && !data
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                    <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                  </tr>
+                ))
+              : (data?.rows ?? []).map((i) => (
+                  <tr key={i.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
+                    <td className="px-4 py-3">
+                      <Link to="/invoices/$id" params={{ id: i.id }} className="text-accent">
+                        {i.issue_date ?? "—"}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">{i.invoice_no ?? "—"}</td>
+                    <td className="px-4 py-3">{i.supplier_name ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono">{vnd(i.total)}</td>
+                    <td className="px-4 py-3 text-right font-mono">{vnd(i.remaining)}</td>
+                    <td className="px-4 py-3"><StatusBadge status={i.status} /></td>
+                    <td className="px-4 py-3"><PayBadge status={i.payment_status} /></td>
+                  </tr>
+                ))}
+            {!isLoading && (data?.rows ?? []).length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                   Không có hoá đơn theo bộ lọc.
