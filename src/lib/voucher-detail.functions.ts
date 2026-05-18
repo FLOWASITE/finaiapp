@@ -251,13 +251,13 @@ async function loadAttachments(supabase: any, sourceTable: string, sourceId: str
   if (!ALLOWED.has(sourceTable)) return [];
   const { data } = await supabase
     .from("document_links")
-    .select("document_id, link_type, documents!inner(id, file_name, storage_path, mime_type)")
+    .select("document_id, link_type, documents!inner(id, original_filename, storage_path, mime_type)")
     .eq("entity_table", sourceTable)
     .eq("entity_id", sourceId);
   return (data ?? []).map((r: any) => ({
     document_id: r.document_id,
     link_type: r.link_type,
-    file_name: r.documents?.file_name ?? null,
+    file_name: r.documents?.original_filename ?? null,
     storage_path: r.documents?.storage_path ?? null,
     mime_type: r.documents?.mime_type ?? null,
   }));
