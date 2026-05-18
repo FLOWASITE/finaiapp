@@ -69,7 +69,7 @@ function InvoicesList() {
     search?: string;
   }>({});
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading } = useQuery({
     queryKey: ["purchase-invoices", filter],
     queryFn: () => listFn({ data: filter }),
     staleTime: 30_000,
