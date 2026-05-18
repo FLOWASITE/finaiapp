@@ -334,10 +334,19 @@ export function AppSidebar() {
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="truncate text-xs font-medium text-sidebar-foreground">
-                        {email || "Người dùng"}
-                      </div>
-                      <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                      {cuLoading && !cu ? (
+                        <>
+                          <Skeleton className="h-3 w-24 mb-1" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="truncate text-xs font-medium text-sidebar-foreground">
+                            {email || "Người dùng"}
+                          </div>
+                          <div className="text-[10px] text-sidebar-foreground/50">Lovable Cloud · Online</div>
+                        </>
+                      )}
                     </div>
                     <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                   </>
