@@ -458,10 +458,14 @@ export function AppSidebar() {
 
 function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
   const Icon = item.icon ?? FileText;
+  const [path, query] = item.to.split("?");
+  const search = query
+    ? Object.fromEntries(new URLSearchParams(query).entries())
+    : undefined;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative group">
-        <Link to={item.to}>
+        <Link to={path} search={search as never}>
           {active && (
             <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
           )}
