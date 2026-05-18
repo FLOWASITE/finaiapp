@@ -332,7 +332,7 @@ async function fetchTctInvoices(args: {
     });
     if (state) qp.set("state", state);
     const res = await fetch(
-      `${TCT_BASE}/query/invoices/${path}?${qp.toString()}`,
+      `${getTctBase()}/query/invoices/${path}?${qp.toString()}`,
       { headers: { Authorization: `Bearer ${args.token}`, Accept: "application/json" } },
     );
     if (!res.ok) throw new Error(`Lỗi tải danh sách HĐ: HTTP ${res.status}`);
