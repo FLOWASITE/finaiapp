@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Printer, AlertTriangle, ExternalLink } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
 export const Route = createFileRoute("/_app/reports/ledgers")({
   component: LedgersPage,
