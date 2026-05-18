@@ -476,6 +476,25 @@ function OrganizationTab() {
   );
 }
 
+function OrganizationSkeleton() {
+  return (
+    <div className="space-y-6 pb-24 animate-pulse">
+      <div className="h-14 rounded-lg bg-muted/60" />
+      <div className="h-24 rounded-lg bg-muted/60" />
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        <div className="hidden lg:block space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-9 rounded-md bg-muted/60" />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="h-64 rounded-lg bg-muted/60" />
+          <div className="h-48 rounded-lg bg-muted/60" />
+        </div>
+      </div>
+    </div>
+  );
+
 function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
   return (
     <div className={`space-y-1.5 ${className ?? ""}`}>
