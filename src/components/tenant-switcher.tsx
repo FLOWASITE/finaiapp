@@ -86,10 +86,22 @@ export function TenantSwitcher() {
       tax_id?: string;
       address?: string;
       legal_rep_name?: string;
+      trade_name?: string;
+      phone?: string;
+      email?: string;
+      tax_authority?: string;
+      business_reg_no?: string;
+      business_reg_date?: string;
+      established_date?: string;
+      legal_form?: "llc"|"jsc"|"partnership"|"sole_prop"|"household"|"branch"|"other";
+      industry_code?: string;
+      industry_name?: string;
     }) =>
       create({ data: { ...v, accounting_standard: "TT133", base_currency: "VND" } }),
-    onSuccess: () => {
-      toast.success("Đã tạo tổ chức");
+    onSuccess: (_d, vars) => {
+      const bonusKeys = ["trade_name","phone","email","tax_authority","business_reg_no","business_reg_date","established_date","legal_form","industry_code","industry_name"] as const;
+      const n = bonusKeys.filter((k) => (vars as any)[k]).length;
+      toast.success(n > 0 ? `Đã tạo tổ chức — tự điền ${n} trường từ MST` : "Đã tạo tổ chức");
       setOpenCreate(false);
       qc.invalidateQueries();
       navigate({ to: "/settings" });
