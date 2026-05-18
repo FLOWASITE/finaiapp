@@ -456,15 +456,15 @@ function ArSummaryPage() {
                   </div>
                 </div>
                 <div className="rounded-md border border-border p-3">
-                  <div className="text-xs text-muted-foreground">Phát sinh Nợ</div>
+                  <div className="text-xs text-muted-foreground">Phát sinh Nợ {drillFiltered.lines.length !== drillQ.data.lines.length ? "(đã lọc)" : ""}</div>
                   <div className="mt-1 font-mono font-semibold">
-                    {fmt(drillRow?.debit ?? 0)}
+                    {fmt(drillFiltered.debit)}
                   </div>
                 </div>
                 <div className="rounded-md border border-border p-3">
-                  <div className="text-xs text-muted-foreground">Phát sinh Có</div>
+                  <div className="text-xs text-muted-foreground">Phát sinh Có {drillFiltered.lines.length !== drillQ.data.lines.length ? "(đã lọc)" : ""}</div>
                   <div className="mt-1 font-mono font-semibold">
-                    {fmt(drillRow?.credit ?? 0)}
+                    {fmt(drillFiltered.credit)}
                   </div>
                 </div>
               </div>
