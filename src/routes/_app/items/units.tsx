@@ -12,7 +12,25 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Ruler } from "lucide-react";
+import { Plus, Pencil, Trash2, Ruler, Sparkles } from "lucide-react";
+
+function SeedButton() {
+  const seed = useServerFn(seedCommonUnits);
+  const qc = useQueryClient();
+  const m = useMutation({
+    mutationFn: () => seed(),
+    onSuccess: (r: any) => {
+      toast.success(r?.inserted > 0 ? `Đã thêm ${r.inserted} đơn vị thông dụng` : "Tất cả đơn vị thông dụng đã có sẵn");
+      qc.invalidateQueries({ queryKey: ["units"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  return (
+    <Button variant="outline" onClick={() => m.mutate()} disabled={m.isPending}>
+      <Sparkles className="mr-2 h-4 w-4" /> Thêm ĐV thông dụng
+    </Button>
+  );
+}
 
 export const Route = createFileRoute("/_app/items/units")({ component: UnitsPage });
 
