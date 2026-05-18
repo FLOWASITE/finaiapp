@@ -227,6 +227,22 @@ function ArSummaryPage() {
     );
   }, [drillFiltered.lines, drillGroupByDoc]);
 
+  // Memoize pagination slice so unrelated re-renders don't reslice the dataset.
+  const drillPaged = useMemo(() => {
+    const total = drillDisplayRows.length;
+    const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
+    const page = Math.min(drillPage, totalPages);
+    const start = (page - 1) * drillPageSize;
+    const end = start + drillPageSize;
+    return {
+      total,
+      totalPages,
+      page,
+      start,
+      end,
+      slice: drillDisplayRows.slice(start, end),
+    };
+  }, [drillDisplayRows, drillPage, drillPageSize]);
 
   const ar = useQuery({
     queryKey: ["ar-summary", from, to, dims],
