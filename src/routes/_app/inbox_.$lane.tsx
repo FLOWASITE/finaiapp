@@ -284,17 +284,54 @@ function LaneDetailPage() {
       {/* List */}
       <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/30">
         {query.isLoading ? (
-          <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải dữ liệu…
-          </div>
+          <table className="w-full text-sm" aria-busy="true" aria-label="Đang tải dữ liệu">
+            <thead className="border-b border-border/40 bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2.5 text-left font-medium">Mã</th>
+                <th className="px-4 py-2.5 text-left font-medium">Nội dung</th>
+                <th className="px-4 py-2.5 text-left font-medium">Đối tác</th>
+                <th className="px-4 py-2.5 text-left font-medium">Ngày</th>
+                <th className="px-4 py-2.5 text-right font-medium">Số tiền</th>
+                <th className="px-4 py-2.5 text-left font-medium">Trạng thái</th>
+                <th className="px-4 py-2.5 text-right font-medium">Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="border-b border-border/30 last:border-0">
+                  <td className="px-4 py-3"><Skeleton className="h-3 w-16" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-3 w-48" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-3 w-28" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-3 w-20" /></td>
+                  <td className="px-4 py-3"><Skeleton className="ml-auto h-3 w-24" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                  <td className="px-4 py-3"><Skeleton className="ml-auto h-6 w-16" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : query.isError ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-            <AlertTriangle className="h-6 w-6 text-rose-500" />
-            <div className="text-sm text-foreground">Không tải được dữ liệu</div>
-            <div className="text-xs text-muted-foreground">{(query.error as Error)?.message}</div>
-            <Button size="sm" variant="outline" onClick={() => query.refetch()}>
-              Thử lại
-            </Button>
+          <div className="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10 ring-1 ring-rose-500/30">
+              <AlertTriangle className="h-5 w-5 text-rose-500" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-foreground">Không tải được dữ liệu</div>
+              <div className="mt-1 max-w-md text-xs text-muted-foreground">
+                {(query.error as Error)?.message ?? "Có lỗi không xác định khi gọi máy chủ."}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground/70">
+                Nguồn: <span className="font-mono">{config.key}</span> · Kiểm tra kết nối hoặc thử lại sau.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => query.refetch()} className="gap-1">
+                <RefreshCw className={cn("h-3.5 w-3.5", query.isFetching && "animate-spin")} /> Thử lại
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <a href="/inbox">Quay lại Hộp việc</a>
+              </Button>
+            </div>
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
