@@ -251,7 +251,12 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
   const inTaxModule = pathname.startsWith("/tax");
-  const inReportsModule = pathname.startsWith("/reports");
+  const inReportsModule =
+    pathname.startsWith("/reports") ||
+    pathname === "/assets/reports" ||
+    pathname === "/payroll/reports" ||
+    pathname === "/sales-dashboard" ||
+    pathname.startsWith("/sales-dashboard/");
   const activeSections = inTaxModule
     ? TAX_SECTIONS
     : inReportsModule
