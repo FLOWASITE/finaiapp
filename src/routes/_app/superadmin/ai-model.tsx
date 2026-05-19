@@ -905,7 +905,6 @@ function ModelField({
   onChange,
   models,
   onlyFree,
-  search,
   placeholder,
 }: {
   label: string;
@@ -916,11 +915,11 @@ function ModelField({
   onChange: (v: string) => void;
   models: ModelOption[];
   onlyFree: boolean;
-  search: string;
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
+  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     let list = onlyFree ? models.filter((m) => m.isFree) : models;
@@ -1045,7 +1044,11 @@ function ModelField({
           </div>
           <PopoverContent className="w-[460px] p-0" align="start">
             <Command>
-              <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
+              <CommandInput
+                value={search}
+                onValueChange={setSearch}
+                placeholder={`Tìm trong ${models.length} model…`}
+              />
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
                 {grouped.map(([provider, list]) => {
