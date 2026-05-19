@@ -37,8 +37,13 @@ export function AppHeader() {
 
   return (
     <div className="flex flex-1 items-center justify-end gap-3">
+        {/* Workspace switcher (Front-Office ↔ Back-Office) */}
+        <WorkspaceSwitcher />
+
         {/* Accounting period switcher */}
         <PeriodSwitcher />
+
+
 
 
         {/* Quick links grouped pill */}
