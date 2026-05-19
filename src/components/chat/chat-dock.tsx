@@ -302,14 +302,13 @@ export function ChatDock() {
                 <div className="p-1">
                   {(() => {
                     const all = threadsQuery.data ?? [];
-                    const filtered =
-                      historyTab === "all"
-                        ? all
-                        : all.filter((t) =>
-                            historyTab === "inbox"
-                              ? t.kind === "inbox"
-                              : t.kind !== "inbox",
-                          );
+                    const sq = historySearch.trim().toLowerCase();
+                    const filtered = all.filter((t) => {
+                      if (historyTab === "inbox" && t.kind !== "inbox") return false;
+                      if (historyTab === "general" && t.kind === "inbox") return false;
+                      if (sq && !(t.title ?? "").toLowerCase().includes(sq)) return false;
+                      return true;
+                    });
                     if (threadsQuery.isLoading) {
                       return (
                         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -320,9 +319,11 @@ export function ChatDock() {
                     if (!filtered.length) {
                       return (
                         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                          {historyTab === "inbox"
-                            ? "Chưa có phiên Inbox nào"
-                            : "Chưa có hội thoại nào"}
+                          {sq
+                            ? `Không tìm thấy “${historySearch.trim()}”`
+                            : historyTab === "inbox"
+                              ? "Chưa có phiên Inbox nào"
+                              : "Chưa có hội thoại nào"}
                         </div>
                       );
                     }
