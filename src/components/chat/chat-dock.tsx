@@ -51,8 +51,18 @@ export function ChatDock() {
   const submit = async (override?: string) => {
     const q = (override ?? input).trim();
     if (!q || loading) return;
+    const existingThreadId = currentThreadId(location.pathname);
     setLoading(true);
     try {
+      if (existingThreadId) {
+        setInput("");
+        window.dispatchEvent(
+          new CustomEvent("chat:dock-send", {
+            detail: { threadId: existingThreadId, content: q },
+          }),
+        );
+        return;
+      }
       const thread = await createFn({ data: { title: q.slice(0, 60) } });
       await appendFn({
         data: { threadId: thread.id, role: "user", content: q, updateTitleIfBlank: true },
@@ -72,8 +82,31 @@ export function ChatDock() {
 
   const handleAttach = async (payloads: any[]) => {
     if (!payloads.length || loading) return;
+    const existingThreadId = currentThreadId(location.pathname);
     setLoading(true);
     try {
+      if (existingThreadId) {
+        try {
+          sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("chat:dock-send", {
+            detail: {
+              threadId: existingThreadId,
+              content: `Xử lý ${payloads.length} chứng từ:\n${payloads
+                .map((p) => `📎 ${p.name}`)
+                .join("\n")}`,
+              attachments: payloads.map((p) => ({
+                name: p.name,
+                mime: p.mime,
+                size: p.size,
+                kind: p.kind,
+              })),
+            },
+          }),
+        );
+        return;
+      }
       const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
       const thread = await createFn({ data: { title: payloads[0].name.slice(0, 60) } });
       await appendFn({
