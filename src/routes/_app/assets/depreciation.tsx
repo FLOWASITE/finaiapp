@@ -80,6 +80,20 @@ function DepreciationPage() {
     onError: (e: any) => toast.error(e?.message ?? "Lỗi"),
   });
 
+  const voidMut = useMutation({
+    mutationFn: (id: string) => {
+      const reason = window.prompt("Lý do huỷ bút toán khấu hao này?") || undefined;
+      if (reason === undefined && reason !== "") return Promise.reject(new Error("Đã huỷ thao tác"));
+      return voidEntry({ data: { entry_id: id, reason } });
+    },
+    onSuccess: () => {
+      toast.success("Đã đảo ngược bút toán khấu hao");
+      qc.invalidateQueries({ queryKey: ["fa-book-entries"] });
+    },
+    onError: (e: any) => { if (e?.message !== "Đã huỷ thao tác") toast.error(e?.message ?? "Lỗi"); },
+  });
+
+
   const currentBook = books.find((b: any) => b.id === bookId);
 
   return (
