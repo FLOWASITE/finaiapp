@@ -20,16 +20,19 @@ import { toast } from "sonner";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 
-type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string };
+type ReportTab = "b01" | "b02" | "b03" | "b09";
+type DrillSearch = { drillR?: "B01" | "B02" | "B03"; drillM?: string; drillN?: string; tab?: ReportTab };
 
 export const Route = createFileRoute("/_app/reports/")({
   validateSearch: (s: Record<string, unknown>): DrillSearch => ({
     drillR: (s.drillR === "B01" || s.drillR === "B02" || s.drillR === "B03") ? s.drillR : undefined,
     drillM: typeof s.drillM === "string" ? s.drillM : undefined,
     drillN: typeof s.drillN === "string" ? s.drillN : undefined,
+    tab: (s.tab === "b01" || s.tab === "b02" || s.tab === "b03" || s.tab === "b09") ? s.tab : undefined,
   }),
   component: ReportsPage,
 });
+
 
 export const fmt = (n: number) => {
   if (!n) return "-";
