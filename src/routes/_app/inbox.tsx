@@ -1021,7 +1021,13 @@ function ListSkeleton() {
   ];
 
   return (
-    <ul className="space-y-3 p-4" aria-hidden="true">
+    <ul
+      className="space-y-3 p-4"
+      role="status"
+      aria-live="polite"
+      aria-label={INBOX_COPY.loading}
+    >
+
       {variants.map((v, i) => (
         <li
           key={i}
