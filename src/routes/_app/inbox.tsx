@@ -27,6 +27,7 @@ import {
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
 import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
+import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
