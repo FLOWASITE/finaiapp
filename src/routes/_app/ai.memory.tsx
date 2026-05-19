@@ -81,6 +81,7 @@ import {
   renderRule,
   validateSlots,
 } from "@/lib/ai-memory-templates";
+import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -156,9 +157,9 @@ function AIMemoryPage() {
           ) : (
             <>
               {tab === "rules" && <RuleList rules={rules} />}
-              {tab === "partners" && <ComingSoon label="Đối tác (128)" />}
-              {tab === "context" && <ComingSoon label="Bối cảnh doanh nghiệp (12)" />}
-              {tab === "limits" && <ComingSoon label="Giới hạn (8)" />}
+              {tab === "partners" && <PartnersTab />}
+              {tab === "context" && <ContextTab />}
+              {tab === "limits" && <LimitsTab />}
               {tab === "learning" && (
                 <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
               )}

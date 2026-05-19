@@ -143,6 +143,165 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memory_context: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key: string
+          label: string
+          order_index: number
+          tenant_id: string
+          updated_at: string
+          value_json: Json | null
+          value_text: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key: string
+          label: string
+          order_index?: number
+          tenant_id: string
+          updated_at?: string
+          value_json?: Json | null
+          value_text: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key?: string
+          label?: string
+          order_index?: number
+          tenant_id?: string
+          updated_at?: string
+          value_json?: Json | null
+          value_text?: string
+        }
+        Relationships: []
+      }
+      ai_memory_limits: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          last_triggered_at: string | null
+          limit_kind: string
+          params: Json
+          rule_text: string
+          scope: string
+          severity: string
+          tenant_id: string
+          title: string
+          triggered_count: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          limit_kind: string
+          params?: Json
+          rule_text: string
+          scope: string
+          severity?: string
+          tenant_id: string
+          title: string
+          triggered_count?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          limit_kind?: string
+          params?: Json
+          rule_text?: string
+          scope?: string
+          severity?: string
+          tenant_id?: string
+          title?: string
+          triggered_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_memory_partners: {
+        Row: {
+          bank_hints: string[]
+          behavior_text: string
+          confidence: number
+          created_at: string
+          created_by: string | null
+          default_account: string | null
+          default_dept_id: string | null
+          default_project_id: string | null
+          display_name: string
+          id: string
+          last_seen_at: string | null
+          memo_keywords: string[]
+          party_id: string | null
+          party_kind: string
+          sample_count: number
+          tags: string[]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bank_hints?: string[]
+          behavior_text: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          default_account?: string | null
+          default_dept_id?: string | null
+          default_project_id?: string | null
+          display_name: string
+          id?: string
+          last_seen_at?: string | null
+          memo_keywords?: string[]
+          party_id?: string | null
+          party_kind: string
+          sample_count?: number
+          tags?: string[]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bank_hints?: string[]
+          behavior_text?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          default_account?: string | null
+          default_dept_id?: string | null
+          default_project_id?: string | null
+          display_name?: string
+          id?: string
+          last_seen_at?: string | null
+          memo_keywords?: string[]
+          party_id?: string | null
+          party_kind?: string
+          sample_count?: number
+          tags?: string[]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_memory_rules: {
         Row: {
           accuracy_correct: number
@@ -294,6 +453,8 @@ export type Database = {
           journal_code: string | null
           journal_entry_id: string | null
           rule_id: string
+          source_id: string | null
+          source_kind: string
           status: string
           tenant_id: string
           then_snapshot: string
@@ -313,6 +474,8 @@ export type Database = {
           journal_code?: string | null
           journal_entry_id?: string | null
           rule_id: string
+          source_id?: string | null
+          source_kind?: string
           status?: string
           tenant_id: string
           then_snapshot: string
@@ -332,6 +495,8 @@ export type Database = {
           journal_code?: string | null
           journal_entry_id?: string | null
           rule_id?: string
+          source_id?: string | null
+          source_kind?: string
           status?: string
           tenant_id?: string
           then_snapshot?: string
