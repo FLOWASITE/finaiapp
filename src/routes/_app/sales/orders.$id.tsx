@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { getSalesOrder } from "@/lib/sales-orders.functions";
+import { createInvoiceFromSalesOrder } from "@/lib/sales.functions";
 import {
   listSalesOrderDeposits, upsertSalesOrderDeposit, postSalesOrderDeposit,
   voidSalesOrderDeposit, deleteSalesOrderDeposit, listReservationsForOrder,
@@ -14,7 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2, XCircle, Printer } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2, XCircle, Printer, Receipt } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/orders/$id")({
   component: OrderDetail,
@@ -34,12 +38,19 @@ function OrderDetail() {
     queryKey: ["sales-order", id],
     queryFn: () => getFn({ data: { id } }),
   });
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   if (isLoading) return <div className="p-6">Đang tải...</div>;
   if (!data) return <div className="p-6">Không tìm thấy đơn</div>;
 
   const lines = data.sales_order_lines ?? [];
   const invoices = data.invoices ?? [];
+  const remainingTotal = lines.reduce(
+    (s: number, l: any) => s + Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_delivered || 0)),
+    0,
+  );
+  const canInvoice =
+    !["draft", "cancelled", "closed"].includes(data.status) && remainingTotal > 0.0001;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -49,7 +60,15 @@ function OrderDetail() {
         </Button>
         <h1 className="text-2xl font-semibold font-mono">{data.order_no}</h1>
         <Badge variant="secondary">{STATUS_LABEL[data.status] ?? data.status}</Badge>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <Button
+            size="sm"
+            disabled={!canInvoice}
+            onClick={() => setInvoiceOpen(true)}
+            title={canInvoice ? "Tạo hoá đơn từ đơn này" : "Không còn số lượng để xuất hoặc đơn không hợp lệ"}
+          >
+            <Receipt className="h-4 w-4 mr-1" /> Xuất hoá đơn
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/sales/orders/$id/print" params={{ id }} target="_blank">
               <Printer className="h-4 w-4 mr-1" /> In
@@ -57,6 +76,16 @@ function OrderDetail() {
           </Button>
         </div>
       </div>
+
+      <CreateInvoiceDialog
+        open={invoiceOpen}
+        onOpenChange={setInvoiceOpen}
+        orderId={id}
+        lines={lines}
+        depositEnabled={!!data.deposit_enabled}
+        depositStatus={data.deposit_status}
+      />
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card><CardContent className="p-4 space-y-1 text-sm">
@@ -297,3 +326,147 @@ function ReservationSection({ orderId }: { orderId: string }) {
     </Card>
   );
 }
+
+function CreateInvoiceDialog({
+  open, onOpenChange, orderId, lines, depositEnabled, depositStatus,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  orderId: string;
+  lines: any[];
+  depositEnabled: boolean;
+  depositStatus?: string;
+}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const createFn = useServerFn(createInvoiceFromSalesOrder);
+
+  const remainingByLine = useMemo(
+    () =>
+      new Map(
+        lines.map((l) => [
+          l.id,
+          Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_delivered || 0)),
+        ]),
+      ),
+    [lines],
+  );
+
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
+  const [qtyMap, setQtyMap] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const l of lines) {
+      init[l.id] = Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_delivered || 0));
+    }
+    return init;
+  });
+
+  const setAll = (factor: number) => {
+    const next: Record<string, number> = {};
+    for (const l of lines) {
+      const rem = remainingByLine.get(l.id) ?? 0;
+      next[l.id] = +(rem * factor).toFixed(4);
+    }
+    setQtyMap(next);
+  };
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const payload = lines
+        .map((l) => ({ soLineId: l.id as string, qty: Number(qtyMap[l.id] || 0) }))
+        .filter((x) => x.qty > 0);
+      if (payload.length === 0) throw new Error("Vui lòng nhập số lượng giao cho ít nhất 1 dòng");
+      return createFn({ data: { orderId, issueDate, lines: payload } });
+    },
+    onSuccess: (res: any) => {
+      toast.success("Đã tạo hoá đơn (nháp)");
+      qc.invalidateQueries({ queryKey: ["sales-order", orderId] });
+      qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+      onOpenChange(false);
+      navigate({ to: "/sales/$id", params: { id: res.id } });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi tạo hoá đơn"),
+  });
+
+  const totalQty = Object.values(qtyMap).reduce((s, n) => s + Number(n || 0), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Xuất hoá đơn từ đơn đặt hàng</DialogTitle>
+          <DialogDescription>
+            Chọn số lượng giao cho từng dòng. Hoá đơn được tạo ở trạng thái nháp để bạn kiểm tra trước khi phát hành.
+          </DialogDescription>
+        </DialogHeader>
+
+        {depositEnabled && depositStatus && depositStatus !== "received" && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            ⚠ Đơn có yêu cầu đặt cọc nhưng chưa thu đủ ({depositStatus}).
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <Label className="text-xs">Ngày hoá đơn</Label>
+            <Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="w-44" />
+          </div>
+          <div className="ml-auto flex gap-2 self-end">
+            <Button type="button" variant="outline" size="sm" onClick={() => setAll(1)}>Giao hết phần còn lại</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setAll(0)}>Bỏ chọn tất cả</Button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto border rounded-md max-h-[400px]">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left sticky top-0">
+              <tr>
+                <th className="p-2">Diễn giải</th>
+                <th className="p-2 text-right w-24">SL đặt</th>
+                <th className="p-2 text-right w-24">Đã giao</th>
+                <th className="p-2 text-right w-24">Còn lại</th>
+                <th className="p-2 text-right w-32">SL giao lần này</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => {
+                const rem = remainingByLine.get(l.id) ?? 0;
+                return (
+                  <tr key={l.id} className="border-t">
+                    <td className="p-2">{l.description}</td>
+                    <td className="p-2 text-right tabular-nums">{Number(l.qty_ordered)}</td>
+                    <td className="p-2 text-right tabular-nums">{Number(l.qty_delivered)}</td>
+                    <td className="p-2 text-right tabular-nums">{rem}</td>
+                    <td className="p-2 text-right">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={rem}
+                        step="0.01"
+                        value={qtyMap[l.id] ?? 0}
+                        onChange={(e) => {
+                          const v = Math.max(0, Math.min(rem, Number(e.target.value || 0)));
+                          setQtyMap((m) => ({ ...m, [l.id]: v }));
+                        }}
+                        className="text-right h-8"
+                        disabled={rem <= 0}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button onClick={() => create.mutate()} disabled={create.isPending || totalQty <= 0}>
+            <Receipt className="h-4 w-4 mr-1" /> Tạo hoá đơn nháp
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

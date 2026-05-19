@@ -401,3 +401,140 @@ export const voidSalesInvoice = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// ============= Tạo hoá đơn từ Đơn đặt hàng =============
+
+function vatRateToCode(r: number | null | undefined): string {
+  const n = Number(r ?? 0);
+  if (n === 0) return "KCT";
+  if (n === 5) return "5";
+  if (n === 8) return "8";
+  if (n === 10) return "10";
+  return "10";
+}
+
+const CreateFromOrderSchema = z.object({
+  orderId: z.string().uuid(),
+  issueDate: z.string().optional(),
+  lines: z
+    .array(z.object({ soLineId: z.string().uuid(), qty: z.number().positive() }))
+    .min(1)
+    .max(200),
+});
+
+export const createInvoiceFromSalesOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CreateFromOrderSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: order, error: oErr } = await supabase
+      .from("sales_orders")
+      .select("*, sales_order_lines(*)")
+      .eq("id", data.orderId)
+      .single();
+    if (oErr || !order) throw new Error("Không tìm thấy đơn đặt hàng");
+    const o = order as any;
+    if (["draft", "cancelled", "closed"].includes(o.status)) {
+      throw new Error(`Không thể xuất hoá đơn khi đơn ở trạng thái "${o.status}"`);
+    }
+
+    const soLines: any[] = o.sales_order_lines ?? [];
+    const byId = new Map(soLines.map((l) => [l.id, l]));
+
+    // Validate qty
+    const enriched = data.lines.map((req) => {
+      const sl = byId.get(req.soLineId);
+      if (!sl) throw new Error("Dòng đơn hàng không hợp lệ");
+      const remaining = Number(sl.qty_ordered || 0) - Number(sl.qty_delivered || 0);
+      if (req.qty > remaining + 1e-6) {
+        throw new Error(
+          `Dòng "${sl.description}": SL giao ${req.qty} vượt phần còn lại ${remaining}`,
+        );
+      }
+      return { soLine: sl, qty: req.qty };
+    });
+
+    // Compute totals
+    let preVatSum = 0;
+    let vatSum = 0;
+    const invLines = enriched.map(({ soLine, qty }) => {
+      const vat_code = vatRateToCode(soLine.vat_rate);
+      const t = calcLineTax({
+        qty,
+        unit_price: Number(soLine.unit_price || 0),
+        line_discount_percent: Number(soLine.discount_percent || 0),
+        line_discount_amount: 0,
+        vat_code: vat_code as VatCode,
+      });
+      preVatSum += t.pre_vat_amount;
+      vatSum += t.line_vat_amount;
+      return {
+        sales_order_line_id: soLine.id,
+        product_id: soLine.product_id || null,
+        description: soLine.description,
+        qty,
+        unit_price: Number(soLine.unit_price || 0),
+        vat_code,
+        vat_rate: vatRate(vat_code as VatCode),
+        line_discount_percent: Number(soLine.discount_percent || 0),
+        line_discount_amount: 0,
+        pre_vat_amount: t.pre_vat_amount,
+        line_vat_amount: t.line_vat_amount,
+        amount: t.line_total,
+      };
+    });
+
+    const subtotal = preVatSum;
+    const vat = vatSum;
+    const total = subtotal + vat;
+
+    const issue_date = data.issueDate || new Date().toISOString().slice(0, 10);
+    let due_date: string | null = null;
+    if (o.payment_terms_days != null) {
+      const d = new Date(issue_date);
+      d.setDate(d.getDate() + Number(o.payment_terms_days));
+      due_date = d.toISOString().slice(0, 10);
+    }
+
+    const { data: row, error: hErr } = await supabase
+      .from("sales_invoices")
+      .insert({
+        user_id: userId,
+        tenant_id: o.tenant_id ?? null,
+        sales_order_id: o.id,
+        customer_id: o.customer_id ?? null,
+        customer_name: o.customer_name ?? null,
+        customer_tax_id: o.customer_tax_id ?? null,
+        billing_address: o.billing_address ?? null,
+        shipping_address: o.ship_address ?? null,
+        issue_date,
+        due_date,
+        payment_terms_days: o.payment_terms_days ?? null,
+        currency: o.currency ?? "VND",
+        fx_rate: o.fx_rate ?? 1,
+        branch_id: o.branch_id ?? null,
+        department_id: o.department_id ?? null,
+        project_id: o.project_id ?? null,
+        cost_center_id: o.cost_center_id ?? null,
+        notes: o.notes ?? null,
+        subtotal,
+        vat_amount: vat,
+        total,
+        status: "draft",
+      })
+      .select("id")
+      .single();
+    if (hErr || !row) throw new Error(hErr?.message ?? "Không tạo được hoá đơn");
+
+    const { error: lErr } = await supabase.from("sales_invoice_lines").insert(
+      invLines.map((l) => ({ ...l, invoice_id: row.id })),
+    );
+    if (lErr) {
+      // rollback header to avoid orphan
+      await supabase.from("sales_invoices").delete().eq("id", row.id);
+      throw new Error(lErr.message);
+    }
+
+    return { id: row.id as string };
+  });
