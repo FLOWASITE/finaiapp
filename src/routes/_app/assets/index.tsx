@@ -5,7 +5,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { supabase } from "@/integrations/supabase/client";
-import { runMonthlyDepreciation, upsertFixedAsset } from "@/lib/assets.functions";
+import { runMonthlyDepreciation, upsertFixedAsset, bulkImportFixedAssets } from "@/lib/assets.functions";
 import { listFaCategories } from "@/lib/fa-categories.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil } from "lucide-react";
+import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil, Upload, Download, FileText, Printer } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/_app/assets/")({
   component: Assets,
@@ -94,6 +95,84 @@ function Assets() {
     finally { setRunning(false); }
   };
 
+  const importFn = useServerFn(bulkImportFixedAssets);
+
+  const downloadTemplate = () => {
+    const headers = [
+      "code", "name", "asset_kind", "category_code", "cost", "salvage_value",
+      "useful_life_months", "start_date", "in_service_date", "method",
+      "asset_account", "accumulated_account", "expense_account",
+      "department_code", "branch_code", "location", "serial_no", "model",
+      "manufacturer", "origin_country", "mfg_year", "unit", "quantity",
+      "funding_source", "opening_accumulated", "opening_months", "notes",
+    ];
+    const example = [
+      "TSCD001", "Máy tính Dell Latitude", "tangible", "", 25000000, 0,
+      48, "2024-01-15", "2024-01-15", "straight_line",
+      "211", "214", "6422",
+      "", "", "Phòng IT", "DL2024-001", "Latitude 7430",
+      "Dell", "Vietnam", 2024, "Cái", 1,
+      "Vốn chủ sở hữu", 0, 0, "",
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TSCD");
+    XLSX.writeFile(wb, "mau-import-tscd.xlsx");
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<any>(ws, { defval: null });
+      const toDate = (v: any) => {
+        if (!v) return null;
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        return String(v).slice(0, 10);
+      };
+      const toNum = (v: any, d = 0) => v == null || v === "" ? d : Number(v);
+      const rows = raw.map(r => ({
+        code: String(r.code ?? "").trim(),
+        name: String(r.name ?? "").trim(),
+        asset_kind: r.asset_kind === "intangible" ? "intangible" : "tangible",
+        category_code: r.category_code ? String(r.category_code) : null,
+        cost: toNum(r.cost),
+        salvage_value: toNum(r.salvage_value, 0),
+        useful_life_months: toNum(r.useful_life_months),
+        start_date: toDate(r.start_date) ?? new Date().toISOString().slice(0, 10),
+        in_service_date: toDate(r.in_service_date),
+        method: r.method || "straight_line",
+        asset_account: String(r.asset_account ?? "211"),
+        accumulated_account: String(r.accumulated_account ?? "214"),
+        expense_account: String(r.expense_account ?? "6422"),
+        department_code: r.department_code ? String(r.department_code) : null,
+        branch_code: r.branch_code ? String(r.branch_code) : null,
+        location: r.location ? String(r.location) : null,
+        serial_no: r.serial_no ? String(r.serial_no) : null,
+        model: r.model ? String(r.model) : null,
+        manufacturer: r.manufacturer ? String(r.manufacturer) : null,
+        origin_country: r.origin_country ? String(r.origin_country) : null,
+        mfg_year: r.mfg_year ? Number(r.mfg_year) : null,
+        unit: r.unit ? String(r.unit) : null,
+        quantity: toNum(r.quantity, 1),
+        funding_source: r.funding_source ? String(r.funding_source) : null,
+        opening_accumulated: toNum(r.opening_accumulated, 0),
+        opening_months: toNum(r.opening_months, 0),
+        notes: r.notes ? String(r.notes) : null,
+      }));
+      const result = await importFn({ data: { rows } });
+      toast.success(`Nhập ${result.inserted} mới, cập nhật ${result.updated}${result.errors.length ? `, lỗi ${result.errors.length}` : ""}`);
+      if (result.errors.length) console.warn("Import errors:", result.errors);
+      qc.invalidateQueries({ queryKey: ["fixed_assets"] });
+    } catch (err: any) {
+      toast.error(`Lỗi import: ${err.message}`);
+    }
+  };
+
   const onCategoryChange = (id: string) => {
     const c = (cats.data ?? []).find((x: any) => x.id === id);
     setForm({
@@ -144,6 +223,11 @@ function Assets() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" asChild><Link to="/assets/categories"><FolderTree className="mr-2 h-4 w-4" /> Danh mục</Link></Button>
+            <Button variant="secondary" onClick={downloadTemplate}><Download className="mr-2 h-4 w-4" /> Mẫu Excel</Button>
+            <label className="inline-flex items-center cursor-pointer rounded-md bg-white/90 text-foreground hover:bg-white px-3 py-2 text-sm font-medium">
+              <Upload className="mr-2 h-4 w-4" /> Nhập Excel
+              <input type="file" accept=".xlsx,.xls" hidden onChange={handleImport} />
+            </label>
             <div className="flex items-end gap-2 rounded-lg bg-white/10 px-3 py-2">
               <div>
                 <div className="text-[10px] uppercase opacity-80">Trích đến tháng</div>
@@ -222,7 +306,13 @@ function Assets() {
                       {a.status === "active" ? "Đang dùng" : a.status === "disposed" ? "Đã giảm" : "Tạm dừng"}
                     </Badge>
                   </td>
-                  <td className="pr-3 text-right">
+                  <td className="pr-3 text-right whitespace-nowrap">
+                    <Button asChild size="sm" variant="ghost" title="Thẻ TSCĐ">
+                      <Link to="/assets/$id/card" params={{ id: a.id }}><FileText className="h-3.5 w-3.5" /></Link>
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" title="Biên bản giao nhận (01-TSCĐ)">
+                      <Link to="/assets/$id/handover" params={{ id: a.id }}><Printer className="h-3.5 w-3.5" /></Link>
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm({ ...emptyAsset, ...a }); setOpen(true); }}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>

@@ -85,6 +85,7 @@ function InventoryDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline"><Link to="/assets/inventory/$id/print" params={{ id }}><ListChecks className="h-4 w-4 mr-2" />In biên bản (05-TSCĐ)</Link></Button>
           {!isPosted && <Button variant="outline" onClick={() => seed.mutate()} disabled={seed.isPending}><Layers className="h-4 w-4 mr-2" />Nạp DS dự kiến</Button>}
           {!isPosted && <Button onClick={() => post.mutate()} disabled={post.isPending}><CheckCircle2 className="h-4 w-4 mr-2" />Chốt phiên</Button>}
         </div>
