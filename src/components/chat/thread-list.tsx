@@ -34,22 +34,31 @@ type Bucket = { label: string; items: ChatThread[] };
 
 function bucketize(threads: ChatThread[]): Bucket[] {
   const now = Date.now();
+  const pinned: ChatThread[] = [];
+  const rest: ChatThread[] = [];
+  for (const t of threads) {
+    if (t.pinned_at) pinned.push(t);
+    else rest.push(t);
+  }
   const buckets: Record<string, ChatThread[]> = {
     "Hôm nay": [],
     "7 ngày qua": [],
     "30 ngày qua": [],
     "Cũ hơn": [],
   };
-  for (const t of threads) {
+  for (const t of rest) {
     const ageDays = (now - new Date(t.last_message_at).getTime()) / 86_400_000;
     if (ageDays < 1) buckets["Hôm nay"].push(t);
     else if (ageDays < 7) buckets["7 ngày qua"].push(t);
     else if (ageDays < 30) buckets["30 ngày qua"].push(t);
     else buckets["Cũ hơn"].push(t);
   }
-  return Object.entries(buckets)
-    .filter(([, items]) => items.length)
-    .map(([label, items]) => ({ label, items }));
+  const out: Bucket[] = [];
+  if (pinned.length) out.push({ label: "Đã ghim", items: pinned });
+  for (const [label, items] of Object.entries(buckets)) {
+    if (items.length) out.push({ label, items });
+  }
+  return out;
 }
 
 function relativeTime(iso: string): string {
