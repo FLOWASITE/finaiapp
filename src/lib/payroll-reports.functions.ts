@@ -216,8 +216,7 @@ export const reportC02HD = createServerFn({ method: "GET" })
 
     const { data: lines } = await supabase
       .from("payroll_lines")
-      .select(`*, employees(code, full_name, position, citizen_id,
-               departments(name), branches(name))`)
+      .select("*, employees(code, full_name, position, citizen_id, departments(name), branches(name))")
       .eq("run_id", run.id);
 
     const rows = (lines ?? []).map((l: any) => {
