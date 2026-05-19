@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { listFixedAssets } from "@/lib/assets.functions";
 import { listDisposals, createDisposal, voidDisposal, previewDisposal } from "@/lib/fa-disposals.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 
 export const Route = createFileRoute("/_app/assets/disposal")({ component: DisposalPage });
 
