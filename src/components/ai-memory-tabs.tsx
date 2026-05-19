@@ -871,6 +871,13 @@ export function LimitsTab() {
       )}
 
       <LimitCreateDialog open={creating} onClose={() => setCreating(false)} />
+      <SourceAppliedSheet
+        open={!!usedWhere}
+        onOpenChange={(o) => !o && setUsedWhere(null)}
+        sourceKind="limit"
+        sourceId={usedWhere?.id ?? null}
+        sourceLabel={usedWhere?.title ?? ""}
+      />
     </>
   );
 }
