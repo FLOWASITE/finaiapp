@@ -201,6 +201,14 @@ function InboxAiPage() {
     onError: (e: any) => toast.error(e?.message || "Lưu quy tắc thất bại"),
   });
 
+  const isMock = (it: InboxItem) => it.id.startsWith("mock-");
+  const dismissMock = (id: string) =>
+    setDismissedMock((s) => {
+      const n = new Set(s);
+      n.add(id);
+      return n;
+    });
+
   const approveAllHigh = async () => {
     const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
     if (!targets.length) {
@@ -210,8 +218,13 @@ function InboxAiPage() {
     let ok = 0;
     for (const it of targets) {
       try {
-        await approveM.mutateAsync(it);
-        ok++;
+        if (isMock(it)) {
+          dismissMock(it.id);
+          ok++;
+        } else {
+          await approveM.mutateAsync(it);
+          ok++;
+        }
       } catch {}
     }
     toast.success(`Đã ghi sổ ${ok}/${targets.length} mục`);
