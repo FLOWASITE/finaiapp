@@ -105,7 +105,7 @@ export function AskAiSheet() {
     }
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, kind: "purchase_invoice" | "bank_statement" | "cash_voucher" = "purchase_invoice") => {
     if (!file || uploading) return;
     if (file.size > 12 * 1024 * 1024) {
       toast.error("File quá lớn (tối đa 12MB)");
@@ -122,7 +122,6 @@ export function AskAiSheet() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      // Choose kind from mime: pdf/image → purchase_invoice by default
       const isImg = file.type.startsWith("image/");
       const isPdf = file.type === "application/pdf";
       if (!isImg && !isPdf) {
@@ -130,32 +129,41 @@ export function AskAiSheet() {
         setUploading(false);
         return;
       }
+      const kindLabel = kind === "bank_statement" ? "sao kê ngân hàng" : kind === "cash_voucher" ? "phiếu thu/chi" : "hoá đơn mua";
       setMessages((m) => [
         ...m,
-        { role: "user", content: `📎 Đã upload: **${file.name}** — đang trích xuất dữ liệu…` },
+        { role: "user", content: `📎 Upload ${kindLabel}: **${file.name}** — đang trích xuất…` },
         { role: "assistant", content: "" },
       ]);
       const res: any = await parseFn({
-        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind: "purchase_invoice" },
+        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
       });
       const parsed = res?.parsed ?? {};
-      const summary = [
-        `**Đã trích xuất hoá đơn mua:**`,
-        parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
-        parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
-        parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
-        parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
-        parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
-        ``,
-        `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
-      ].filter(Boolean).join("\n");
+      let summary = "";
+      if (kind === "purchase_invoice") {
+        summary = [
+          `**Đã trích xuất hoá đơn mua:**`,
+          parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
+          parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
+          parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
+          parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
+          parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
+          ``,
+          `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
+        ].filter(Boolean).join("\n");
+      } else if (kind === "bank_statement") {
+        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+        summary = `**Đã trích xuất sao kê:**\n\n\`\`\`\n${raw.slice(0, 1500)}${raw.length > 1500 ? "\n…" : ""}\n\`\`\`\n\nMuốn tôi nhập vào hệ thống? Hãy nói "nhập tất cả" hoặc liệt kê các dòng cụ thể.`;
+      } else {
+        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+        summary = `**Đã trích xuất phiếu thu/chi:**\n\n\`\`\`\n${raw.slice(0, 1200)}\n\`\`\`\n\nMuốn tôi tạo phiếu nháp?`;
+      }
       setMessages((prev) => {
         const copy = [...prev];
         copy[copy.length - 1] = { role: "assistant", content: summary };
         return copy;
       });
-      // Stash parsed data into next prompt context
-      (window as any).__lastParsedDoc = parsed;
+      (window as any).__lastParsedDoc = { kind, parsed };
     } catch (e: any) {
       toast.error(`Lỗi parse: ${e.message}`);
       setMessages((prev) => prev.slice(0, -1));
