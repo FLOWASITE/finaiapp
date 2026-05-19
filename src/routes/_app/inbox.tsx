@@ -540,7 +540,7 @@ function InboxAiPage() {
       </header>
 
       {/* Stats strip */}
-      <div className="flex shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4">
+      <div className="hidden shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4 lg:flex">
         <Stat label="Chờ duyệt" value={String(stats?.pending ?? "—")} />
         <Divider />
         <Stat
