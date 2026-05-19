@@ -24,6 +24,8 @@ function Page() {
   const list = useServerFn(listTimesheets);
   const upsert = useServerFn(upsertTimesheet);
   const bulk = useServerFn(bulkInitTimesheets);
+  const importBulk = useServerFn(importTimesheetsBulk);
+  const fileRef = React.useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
   const { data = [] } = useQuery({
