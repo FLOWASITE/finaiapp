@@ -475,211 +475,205 @@ function AiModelPage() {
         </div>
       </Card>
 
-      <Tabs defaultValue="provider" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 md:max-w-md">
-          <TabsTrigger value="provider" className="gap-1.5">
-            <KeyRound className="h-3.5 w-3.5" /> Provider
-          </TabsTrigger>
-          <TabsTrigger value="models" className="gap-1.5">
-            <Cpu className="h-3.5 w-3.5" /> Models
-          </TabsTrigger>
-          <TabsTrigger value="advanced" className="gap-1.5">
-            <Settings2 className="h-3.5 w-3.5" /> Nâng cao
-          </TabsTrigger>
-        </TabsList>
+      {/* Provider + Models (merged) */}
+      <Card className="p-4 md:p-5 space-y-5">
+        {/* Provider section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" />
+            <div className="text-sm font-medium">Provider & API key</div>
+          </div>
 
-        {/* PROVIDER */}
-        <TabsContent value="provider" className="space-y-4 mt-0">
-          <Card className="p-4 md:p-5 space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Tên provider</Label>
-                <Input
-                  value={form.provider_label}
-                  onChange={(e) => update("provider_label", e.target.value)}
-                  placeholder="OpenRouter / OpenAI / Groq…"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Base URL</Label>
-                <Input
-                  value={form.base_url}
-                  onChange={(e) => update("base_url", e.target.value)}
-                  placeholder="https://openrouter.ai/api/v1"
-                  className="font-mono text-sm"
-                />
-                {host && (
-                  <p className="text-[11px] text-muted-foreground">
-                    → <span className="font-mono">{host}</span>
-                  </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Tên provider</Label>
+              <Input
+                value={form.provider_label}
+                onChange={(e) => update("provider_label", e.target.value)}
+                placeholder="OpenRouter / OpenAI / Groq…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Base URL</Label>
+              <Input
+                value={form.base_url}
+                onChange={(e) => update("base_url", e.target.value)}
+                placeholder="https://openrouter.ai/api/v1"
+                className="font-mono text-sm"
+              />
+              {host && (
+                <p className="text-[11px] text-muted-foreground">
+                  → <span className="font-mono">{host}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* API key block */}
+          <div className="flex gap-3 rounded-lg border bg-muted/30 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
+              <KeyRound className="h-4 w-4" />
+            </div>
+            <div className="flex-1 space-y-2 min-w-0">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-sm">API Key</Label>
+                {hasKey && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="gap-1 text-[10px]">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      Đã lưu · AES-GCM
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={form.clearKey ? "destructive" : "ghost"}
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => update("clearKey", !form.clearKey)}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      {form.clearKey ? "Sẽ xoá khi lưu" : "Xoá key"}
+                    </Button>
+                  </div>
                 )}
               </div>
-            </div>
-
-            <Separator />
-
-            {/* API key block */}
-            <div className="flex gap-3 rounded-lg border bg-muted/30 p-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                <KeyRound className="h-4 w-4" />
-              </div>
-              <div className="flex-1 space-y-2 min-w-0">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Label className="text-sm">API Key</Label>
-                  {hasKey && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="gap-1 text-[10px]">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                        Đã lưu · AES-GCM
-                      </Badge>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={form.clearKey ? "destructive" : "ghost"}
-                        className="h-6 px-2 text-[11px]"
-                        onClick={() => update("clearKey", !form.clearKey)}
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" />
-                        {form.clearKey ? "Sẽ xoá khi lưu" : "Xoá key"}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    type={showKey ? "text" : "password"}
-                    value={form.api_key}
-                    disabled={form.clearKey}
-                    onChange={(e) => update("api_key", e.target.value)}
-                    placeholder={
-                      hasKey
-                        ? "••••••••• (nhập mới để thay)"
-                        : isOpenRouter
-                          ? "sk-or-v1-..."
-                          : isAlibaba
-                            ? "sk-..."
-                            : "sk-..."
-                    }
-                    className="pr-10 font-mono text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* MODELS */}
-        <TabsContent value="models" className="space-y-4 mt-0">
-          <Card className="p-4 md:p-5 space-y-4">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <div className="relative">
                 <Input
-                  value={modelSearch}
-                  onChange={(e) => setModelSearch(e.target.value)}
+                  type={showKey ? "text" : "password"}
+                  value={form.api_key}
+                  disabled={form.clearKey}
+                  onChange={(e) => update("api_key", e.target.value)}
                   placeholder={
-                    models.length > 0
-                      ? `Tìm trong ${models.length} model…`
-                      : "Tải danh sách trước khi tìm…"
+                    hasKey
+                      ? "••••••••• (nhập mới để thay)"
+                      : isOpenRouter
+                        ? "sk-or-v1-..."
+                        : "sk-..."
                   }
-                  disabled={models.length === 0}
-                  className="h-9 pl-8 text-sm"
+                  className="pr-10 font-mono text-sm"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowKey((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md border px-2.5 py-1.5">
-                <input
-                  type="checkbox"
-                  checked={onlyFree}
-                  onChange={(e) => setOnlyFree(e.target.checked)}
-                  disabled={models.length === 0}
-                />
-                Chỉ miễn phí
-              </label>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onLoadModels}
-                disabled={loadingModels}
-              >
-                {loadingModels ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                {models.length > 0 ? "Tải lại" : "Tải danh sách"}
-              </Button>
             </div>
+          </div>
+        </div>
 
-            {models.length === 0 && !loadingModels && (
-              <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                <Inbox className="h-3.5 w-3.5" />
-                Chưa tải danh sách. Bạn vẫn có thể gõ model ID thủ công bên dưới.
-              </div>
-            )}
+        <Separator />
 
-            <Separator />
+        {/* Models section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Cpu className="h-4 w-4 text-primary" />
+            <div className="text-sm font-medium">Phân bổ model theo tác vụ</div>
+            <span className="text-xs text-muted-foreground">— để trống = dùng mặc định</span>
+          </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <ModelField
-                icon={<Zap className="h-3.5 w-3.5" />}
-                label="Mặc định"
-                required
-                value={form.model_default}
-                onChange={(v) => update("model_default", v)}
-                models={models}
-                onlyFree={onlyFree}
-                search={modelSearch}
-                placeholder="openai/gpt-4o-mini"
-              />
-              <ModelField
-                icon={<MessageSquare className="h-3.5 w-3.5" />}
-                label="Chat"
-                value={form.model_chat}
-                onChange={(v) => update("model_chat", v)}
-                models={models}
-                onlyFree={onlyFree}
-                search={modelSearch}
-                placeholder="(trống = mặc định)"
-              />
-              <ModelField
-                icon={<FileScan className="h-3.5 w-3.5" />}
-                label="Parse hoá đơn"
-                value={form.model_parse}
-                onChange={(v) => update("model_parse", v)}
-                models={models}
-                onlyFree={onlyFree}
-                search={modelSearch}
-                placeholder="google/gemini-2.5-flash"
-              />
-              <ModelField
-                icon={<Brain className="h-3.5 w-3.5" />}
-                label="Reasoning"
-                value={form.model_reasoning}
-                onChange={(v) => update("model_reasoning", v)}
-                models={models}
-                onlyFree={onlyFree}
-                search={modelSearch}
-                placeholder="deepseek/deepseek-r1"
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                placeholder={
+                  models.length > 0
+                    ? `Tìm trong ${models.length} model…`
+                    : "Tải danh sách trước khi tìm…"
+                }
+                disabled={models.length === 0}
+                className="h-9 pl-8 text-sm"
               />
             </div>
-          </Card>
-        </TabsContent>
+            <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md border px-2.5 py-1.5">
+              <input
+                type="checkbox"
+                checked={onlyFree}
+                onChange={(e) => setOnlyFree(e.target.checked)}
+                disabled={models.length === 0}
+              />
+              Chỉ miễn phí
+            </label>
+            <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+              {loadingModels ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {models.length > 0 ? "Tải lại" : "Tải danh sách"}
+            </Button>
+          </div>
 
-        {/* ADVANCED */}
-        <TabsContent value="advanced" className="space-y-4 mt-0">
-          <Card className="p-4 md:p-5 space-y-4">
+          {models.length === 0 && !loadingModels && (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              <Inbox className="h-3.5 w-3.5" />
+              Chưa tải danh sách. Bạn vẫn có thể gõ model ID thủ công bên dưới.
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <ModelField
+              icon={<Zap className="h-3.5 w-3.5" />}
+              label="Mặc định"
+              required
+              value={form.model_default}
+              onChange={(v) => update("model_default", v)}
+              models={models}
+              onlyFree={onlyFree}
+              search={modelSearch}
+              placeholder="openai/gpt-4o-mini"
+            />
+            <ModelField
+              icon={<MessageSquare className="h-3.5 w-3.5" />}
+              label="Chat"
+              value={form.model_chat}
+              onChange={(v) => update("model_chat", v)}
+              models={models}
+              onlyFree={onlyFree}
+              search={modelSearch}
+              placeholder="(trống = mặc định)"
+            />
+            <ModelField
+              icon={<FileScan className="h-3.5 w-3.5" />}
+              label="Parse hoá đơn"
+              value={form.model_parse}
+              onChange={(v) => update("model_parse", v)}
+              models={models}
+              onlyFree={onlyFree}
+              search={modelSearch}
+              placeholder="google/gemini-2.5-flash"
+            />
+            <ModelField
+              icon={<Brain className="h-3.5 w-3.5" />}
+              label="Reasoning"
+              value={form.model_reasoning}
+              onChange={(v) => update("model_reasoning", v)}
+              models={models}
+              onlyFree={onlyFree}
+              search={modelSearch}
+              placeholder="deepseek/deepseek-r1"
+            />
+          </div>
+        </div>
+
+        {/* Advanced (collapsible) */}
+        <details className="group rounded-lg border bg-muted/20 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+            <span className="flex items-center gap-1.5">
+              <Settings2 className="h-3.5 w-3.5" />
+              Tuỳ chọn nâng cao (headers, ghi chú)
+            </span>
+            <ChevronsUpDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-4 border-t bg-background/50 p-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <Label>Extra headers (JSON)</Label>
+                <Label className="text-xs">Extra headers (JSON)</Label>
                 <Button
                   type="button"
                   size="sm"
@@ -693,7 +687,7 @@ function AiModelPage() {
                 </Button>
               </div>
               <Textarea
-                rows={5}
+                rows={4}
                 value={form.extra_headers_json}
                 onChange={(e) => update("extra_headers_json", e.target.value)}
                 placeholder={`{\n  "HTTP-Referer": "https://app.finai.one",\n  "X-Title": "FinAI"\n}`}
@@ -719,11 +713,9 @@ function AiModelPage() {
               ) : null}
             </div>
 
-            <Separator />
-
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>Ghi chú nội bộ</Label>
+                <Label className="text-xs">Ghi chú nội bộ</Label>
                 <span className="text-[11px] text-muted-foreground">
                   {form.notes.length} ký tự
                 </span>
@@ -735,9 +727,9 @@ function AiModelPage() {
                 placeholder="Chỉ admin nhìn thấy"
               />
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </div>
+        </details>
+      </Card>
 
       {/* Sticky action bar */}
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/85 backdrop-blur shadow-[0_-2px_12px_-4px_rgba(0,0,0,0.08)] md:left-60">
