@@ -347,12 +347,19 @@ function EventsPage() {
             )}
 
             {type === "MAJOR_REPAIR" && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Field
                   label="Số tiền ghi tăng *"
                   value={amount}
                   onChange={setAmount}
                   type="number"
+                />
+                <Field
+                  label="Gia hạn thời gian KH (tháng)"
+                  value={payload.extend_useful_life_months ?? "0"}
+                  onChange={(v) => setPayload({ ...payload, extend_useful_life_months: Number(v) || 0 })}
+                  type="number"
+                  placeholder="0 = giữ nguyên"
                 />
                 <Field
                   label="TK tài sản"
