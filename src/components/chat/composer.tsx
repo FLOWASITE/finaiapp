@@ -1,8 +1,19 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { ArrowUp, Square, Paperclip, Mic } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+
+type ImportKind = "purchase_invoice" | "bank_statement" | "cash_voucher";
 
 export type ComposerProps = {
   value: string;
@@ -15,12 +26,17 @@ export type ComposerProps = {
   autoFocus?: boolean;
   compact?: boolean;
   inputRef?: Ref<HTMLTextAreaElement>;
+  /** Bật nút đính kèm chứng từ (mặc định true). */
+  enableAttach?: boolean;
+  /** Bật nút ghi âm (mặc định true). */
+  enableVoice?: boolean;
+  /**
+   * Khi mic ghi xong: nếu truyền callback, parent quyết định gửi;
+   * nếu không, transcript được điền vào ô input.
+   */
+  onTranscript?: (text: string) => void;
 };
 
-/**
- * ChatGPT-style composer: auto-grow textarea, Enter to send,
- * Shift+Enter for newline, send button on the right.
- */
 export function Composer({
   value,
   onChange,
@@ -32,9 +48,19 @@ export function Composer({
   autoFocus,
   compact,
   inputRef,
+  enableAttach = true,
+  enableVoice = true,
+  onTranscript,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const recogRef = useRef<any>(null);
   const [focused, setFocused] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const navigate = useNavigate();
+  const parseFn = useServerFn(parseDocument);
+
   useImperativeHandle(inputRef, () => ref.current as HTMLTextAreaElement, []);
 
   useEffect(() => {
@@ -56,8 +82,138 @@ export function Composer({
     }
   };
 
+  // ----- Mic (Web Speech API) -----
+  const toggleVoice = () => {
+    const SR: any =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Trình duyệt không hỗ trợ ghi âm. Hãy dùng Chrome/Safari.");
+      return;
+    }
+    if (recording && recogRef.current) {
+      recogRef.current.stop();
+      return;
+    }
+    const r = new SR();
+    r.lang = "vi-VN";
+    r.interimResults = true;
+    r.continuous = false;
+    let finalText = "";
+    r.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      onChange((finalText + interim).trim());
+    };
+    r.onerror = (e: any) => {
+      toast.error(`Lỗi ghi âm: ${e.error || "unknown"}`);
+      setRecording(false);
+    };
+    r.onend = () => {
+      setRecording(false);
+      recogRef.current = null;
+      const text = finalText.trim();
+      if (text && onTranscript) setTimeout(() => onTranscript(text), 80);
+    };
+    recogRef.current = r;
+    setRecording(true);
+    r.start();
+  };
+
+  // ----- Attach (parse chứng từ) -----
+  const openPicker = (kind: ImportKind) => {
+    if (!fileRef.current) return;
+    fileRef.current.dataset.kind = kind;
+    fileRef.current.click();
+  };
+
+  const handleUploadBatch = async (files: File[], kind: ImportKind) => {
+    if (!files.length || uploading) return;
+    const valid = files.filter((f) => {
+      if (f.size > 12 * 1024 * 1024) {
+        toast.error(`${f.name}: quá 12MB, bỏ qua`);
+        return false;
+      }
+      if (!f.type.startsWith("image/") && f.type !== "application/pdf") {
+        toast.error(`${f.name}: chỉ PDF/ảnh`);
+        return false;
+      }
+      return true;
+    });
+    if (!valid.length) return;
+    setUploading(true);
+    const toastId = toast.loading(`Đang xử lý ${valid.length} file…`);
+
+    const items: Array<{ filename: string; kind: ImportKind; parsed: any; error?: string }> = [];
+    for (let i = 0; i < valid.length; i++) {
+      const file = valid[i];
+      try {
+        toast.loading(`(${i + 1}/${valid.length}) ${file.name}`, { id: toastId });
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const s = String(reader.result || "");
+            resolve(s.split(",")[1] || s);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const res: any = await parseFn({
+          data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
+        });
+        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {} });
+      } catch (e: any) {
+        items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
+      }
+    }
+
+    const ok = items.filter((i) => !i.error);
+    const failed = items.filter((i) => i.error);
+    const batchPayload = { kind, items: ok, failed, createdAt: Date.now() };
+    (window as any).__lastBatchImport = batchPayload;
+    if (ok.length) (window as any).__lastParsedDoc = { kind, parsed: ok[0].parsed };
+    try {
+      sessionStorage.setItem("lastBatchImport", JSON.stringify(batchPayload));
+    } catch {}
+
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+
+    if (!ok.length) {
+      toast.error(`Không xử lý được file nào (${failed.length} lỗi)`, { id: toastId });
+      return;
+    }
+    toast.success(
+      `${ok.length}/${items.length} file đã xử lý — mở trang xem trước`,
+      { id: toastId },
+    );
+    if (kind === "bank_statement") {
+      navigate({ to: "/bank/import-statement" });
+    } else {
+      navigate({ to: "/import/preview" });
+    }
+  };
+
+  const busy = !!loading || uploading;
+
   return (
     <div className="relative">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,image/*"
+        multiple
+        className="hidden"
+        data-kind="purchase_invoice"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          const k = (e.target.dataset.kind as ImportKind) || "purchase_invoice";
+          if (files.length) handleUploadBatch(files, k);
+        }}
+      />
       <div
         className={cn(
           "group relative flex w-full items-end gap-2 rounded-3xl border bg-card/70 px-4 py-2.5 backdrop-blur-xl transition-all duration-200",
@@ -73,32 +229,64 @@ export function Composer({
           onKeyDown={handleKey}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={placeholder}
+          placeholder={recording ? "Đang nghe…" : placeholder}
           rows={1}
           className="flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
         />
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={() => toast.info("Tính năng đính kèm file đang phát triển")}
-          className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          aria-label="Đính kèm file"
-          title="Đính kèm file"
-        >
-          <Paperclip className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={() => toast.info("Tính năng ghi âm đang phát triển")}
-          className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          aria-label="Ghi âm"
-          title="Ghi âm"
-        >
-          <Mic className="h-4 w-4" />
-        </Button>
+
+        {enableAttach && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                disabled={busy}
+                className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                aria-label="Đính kèm chứng từ"
+                title="Đính kèm chứng từ"
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openPicker("purchase_invoice")}>
+                Hoá đơn mua (PDF/ảnh)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openPicker("bank_statement")}>
+                Sao kê ngân hàng
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openPicker("cash_voucher")}>
+                Phiếu thu/chi viết tay
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {enableVoice && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={toggleVoice}
+            disabled={busy}
+            className={cn(
+              "h-9 w-9 shrink-0 rounded-2xl",
+              recording
+                ? "bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            )}
+            aria-label={recording ? "Dừng ghi âm" : "Ghi âm"}
+            title={recording ? "Dừng ghi âm" : "Ghi âm (vi-VN)"}
+          >
+            {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        )}
+
         {loading && onStop ? (
           <Button
             type="button"
@@ -116,7 +304,7 @@ export function Composer({
             type="button"
             size="icon"
             onClick={onSubmit}
-            disabled={disabled || loading || !value.trim()}
+            disabled={disabled || busy || !value.trim()}
             className={cn(
               "h-9 w-9 shrink-0 rounded-2xl transition-transform",
               "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95",
