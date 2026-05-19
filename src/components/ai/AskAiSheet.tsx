@@ -262,16 +262,27 @@ export function AskAiSheet() {
                       </div>
                     )}
                     <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                         m.role === "user"
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
                           : "bg-card border border-border"
                       }`}
                     >
-                      {m.content ||
-                        (loading && i === messages.length - 1 ? (
+                      {m.role === "assistant" ? (
+                        m.content ? (
+                          parseChartBlocks(m.content).map((part, idx) =>
+                            part.type === "chart" ? (
+                              <ChartBlock key={idx} spec={part.spec} />
+                            ) : (
+                              <div key={idx} className="whitespace-pre-wrap">{part.value}</div>
+                            )
+                          )
+                        ) : loading && i === messages.length - 1 ? (
                           <span className="text-muted-foreground">Đang truy vấn dữ liệu…</span>
-                        ) : null)}
+                        ) : null
+                      ) : (
+                        m.content
+                      )}
                     </div>
                     {m.role === "user" && (
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
