@@ -1,59 +1,55 @@
 ## Mục tiêu
 
-Tạo script kiểm tra các quan hệ foreign key trong database PostgreSQL (Supabase) và cảnh báo khi phát hiện cột có vẻ là khóa ngoại (theo quy ước đặt tên) nhưng **thiếu** constraint FK thực sự — tránh lặp lại lỗi như `projects.customer_id` không có FK tới `customers.id` khiến PostgREST không nhận diện được quan hệ.
+Thêm migration bổ sung **tất cả các foreign key còn thiếu** mà script `check-fk-relationships.ts` vừa phát hiện (25 cảnh báo), để PostgREST nhận diện đúng quan hệ và không tái diễn lỗi schema cache như `projects ↔ customers`.
 
-## Phạm vi
+## Danh sách FK sẽ thêm
 
-- Script Node.js/TS chạy độc lập (`scripts/check-fk-relationships.ts`), gọi bằng `bun run scripts/check-fk-relationships.ts`.
-- Kết nối qua biến môi trường `SUPABASE_DB_URL` (đã có sẵn trong secrets).
-- Chỉ kiểm tra schema `public`.
-- Báo cáo ra console với màu (✓ pass, ⚠ warning, ✗ error) và exit code khác 0 nếu có cảnh báo (để dùng được trong CI sau này).
+Mỗi FK dùng `ON DELETE SET NULL` cho cột tham chiếu tùy chọn (dimensions, journal_entry_id, salesperson…) và `ON DELETE CASCADE` cho line/child tables thực sự thuộc về parent.
 
-## Logic kiểm tra
+**SET NULL** (tham chiếu tùy chọn, không nên xoá lan):
+- `sales_invoices.journal_entry_id → journal_entries.id`
+- `sales_invoices.sales_order_id → sales_orders.id`
+- `sales_order_deposits.branch_id → branches.id`
+- `sales_order_deposits.cost_center_id → cost_centers.id`
+- `sales_order_deposits.department_id → departments.id`
+- `sales_order_deposits.project_id → projects.id`
+- `sales_orders.salesperson_id → employees.id`
+- `stock_takes.journal_entry_id → journal_entries.id`
+- `stock_vouchers.journal_entry_id → journal_entries.id`
+- `supplier_payments.journal_entry_id → journal_entries.id`
 
-1. **Liệt kê FK hiện có** từ `information_schema.table_constraints` + `key_column_usage` + `constraint_column_usage`.
-2. **Quét các cột nghi là FK** trong tất cả bảng `public.*`:
-   - Cột kết thúc bằng `_id` (trừ `id`, `user_id` — vì user_id thường tham chiếu `auth.users` và không cần FK cứng theo guideline Supabase).
-   - Heuristic suy ra bảng đích:
-     - `customer_id` → `customers`
-     - `project_id` → `projects`
-     - `<name>_id` → `<name>s` hoặc `<name>` (thử cả 2 dạng số nhiều/số ít).
-3. **So sánh**: nếu cột nghi FK không có constraint tương ứng VÀ bảng đích tồn tại trong `public` → cảnh báo.
-4. **Bổ sung** cảnh báo cho các trường hợp đặc biệt đã biết (whitelist nội bộ trong script):
-   - Bỏ qua `tenant_id`, `user_id`, `created_by`, `updated_by`, `changed_by` (tham chiếu `auth.users` hoặc `tenants` tùy convention).
-   - Cho phép cấu hình `IGNORE` set ở đầu file.
+**CASCADE / RESTRICT** (quan hệ chính, master phải tồn tại):
+- `product_unit_conversions.product_id → products.id` (CASCADE)
+- `supplier_payments.invoice_id → invoices.id` (CASCADE — payment thuộc invoice)
+- `supplier_payments.supplier_id → suppliers.id` (RESTRICT)
 
-## Output mẫu
+## Các bước
 
-```
-Đang kiểm tra FK trong schema public...
+1. **Kiểm tra dữ liệu mồ côi trước** (read_query) cho từng cặp — nếu có hàng `customer_id`/`supplier_id`/v.v. trỏ tới id không tồn tại, báo lại để user quyết (xoá / set null / sửa). Migration sẽ fail nếu còn mồ côi.
+2. **Tạo 1 migration** chứa toàn bộ `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY ...` ở trên, đặt sau khi đã làm sạch dữ liệu mồ côi (nếu có).
+3. Sau migration, `types.ts` sẽ được Supabase tự cập nhật; PostgREST tự reload schema cache.
 
-✓ sales_invoices.customer_id → customers.id
-✓ sales_orders.salesperson_id → employees.id
-⚠ THIẾU FK: some_table.warehouse_id (nghi tham chiếu warehouses.id)
-⚠ THIẾU FK: foo.bar_id (nghi tham chiếu bars.id)
+## Tự động hoá (chống tái diễn)
 
-Tổng: 142 FK hợp lệ, 2 cảnh báo
-```
+Thêm **script npm** `check:fk` trong `package.json`:
 
-## Cấu trúc file
-
-```text
-scripts/
-  check-fk-relationships.ts    # script chính
+```json
+"scripts": {
+  "check:fk": "bun run scripts/check-fk-relationships.ts"
+}
 ```
 
-Không thêm dependency mới (dùng `pg` đã có sẵn nếu có, hoặc `postgres` — sẽ kiểm tra `package.json`; nếu chưa có sẽ dùng `bun add postgres`).
+Bổ sung mục hướng dẫn ngắn ở đầu `scripts/check-fk-relationships.ts`: chạy script này **sau mỗi lần migration thêm bảng/cột `*_id` mới**; nếu cảnh báo, tạo migration FK ngay.
 
-## Cách chạy
-
-```bash
-bun run scripts/check-fk-relationships.ts
-```
-
-Có thể thêm vào `package.json` script `"check:fk": "bun run scripts/check-fk-relationships.ts"` nếu user muốn.
+> Không cài git hook tự động (sẽ làm chậm commit và cần quyền DB). Việc chạy bằng tay + nhắc trong docs là đủ ở giai đoạn này — có thể nâng cấp lên CI sau.
 
 ## Không nằm trong phạm vi
 
-- Không tự động tạo migration sửa FK (chỉ cảnh báo, để tránh thay đổi schema ngoài ý muốn).
-- Không tích hợp vào CI/pre-commit (có thể làm sau).
+- Không sửa các cảnh báo giả (cột `*_id` không thật sự là FK, nếu có) — script đã có `IGNORE_COLUMNS` và override, có thể tinh chỉnh sau khi user xác nhận.
+- Không đụng tới `tenant_id`, `user_id`, `created_by`… (đã loại trừ).
+
+## Bước tiếp theo cần user xác nhận
+
+Trước khi tôi viết migration, user xác nhận:
+- (a) Danh sách FK + chính sách ON DELETE ở trên có phù hợp?
+- (b) Có muốn tôi kiểm tra dữ liệu mồ côi trước và báo cáo không?
