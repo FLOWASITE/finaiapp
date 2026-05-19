@@ -97,21 +97,19 @@ async function main() {
 
   const fks = (await sql`
     SELECT
-      cl.relname              AS table_name,
-      att.attname             AS column_name,
-      fcl.relname             AS foreign_table_name,
-      fatt.attname            AS foreign_column_name
+      cl.relname   AS table_name,
+      att.attname  AS column_name,
+      fcl.relname  AS foreign_table_name,
+      fatt.attname AS foreign_column_name
     FROM pg_constraint c
-    JOIN pg_class cl   ON cl.oid  = c.conrelid
-    JOIN pg_namespace n ON n.oid  = cl.relnamespace
-    JOIN pg_class fcl  ON fcl.oid = c.confrelid
-    JOIN pg_namespace fn ON fn.oid = fcl.relnamespace
-    JOIN unnest(c.conkey)  WITH ORDINALITY AS ck(attnum, ord)  ON true
-    JOIN unnest(c.confkey) WITH ORDINALITY AS fck(attnum, ord) ON fck.ord = ck.ord
-    JOIN pg_attribute att  ON att.attrelid  = cl.oid  AND att.attnum  = ck.attnum
-    JOIN pg_attribute fatt ON fatt.attrelid = fcl.oid AND fatt.attnum = fck.attnum
+    JOIN pg_class cl     ON cl.oid  = c.conrelid
+    JOIN pg_namespace n  ON n.oid   = cl.relnamespace
+    JOIN pg_class fcl    ON fcl.oid = c.confrelid
+    JOIN pg_attribute att  ON att.attrelid  = cl.oid  AND att.attnum  = c.conkey[1]
+    JOIN pg_attribute fatt ON fatt.attrelid = fcl.oid AND fatt.attnum = c.confkey[1]
     WHERE c.contype = 'f'
       AND n.nspname = 'public'
+      AND array_length(c.conkey, 1) = 1
     ORDER BY cl.relname, att.attname;
   `) as FkRow[];
 
