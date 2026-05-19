@@ -985,6 +985,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          inbox_external_id: string | null
+          kind: string
           last_message_at: string
           tenant_id: string
           title: string
@@ -994,6 +996,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          inbox_external_id?: string | null
+          kind?: string
           last_message_at?: string
           tenant_id: string
           title?: string
@@ -1003,6 +1007,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          inbox_external_id?: string | null
+          kind?: string
           last_message_at?: string
           tenant_id?: string
           title?: string

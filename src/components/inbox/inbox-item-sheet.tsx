@@ -1,4 +1,4 @@
-import { CheckCircle2, Pencil, X, Loader2, Sparkles, AlertTriangle, Lightbulb } from "lucide-react";
+import { CheckCircle2, Pencil, X, Loader2, Sparkles, AlertTriangle, Lightbulb, MessageSquare, ArrowRight } from "lucide-react";
 import type { InboxItem } from "@/lib/ai/inbox-types";
 import {
   Sheet,
@@ -9,9 +9,29 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { openAskAi } from "@/lib/open-ask-ai";
+
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  getInboxThread,
+  getOrCreateInboxThread,
+  getThread,
+  appendMessage,
+} from "@/lib/chat-threads.functions";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
+
+function formatRelative(iso: string) {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "vừa xong";
+  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+  return d.toLocaleDateString("vi-VN");
+}
 
 export type InboxItemSheetProps = {
   item: InboxItem | null;
@@ -126,19 +146,9 @@ export function InboxItemSheet({
                 </div>
               ) : null}
 
-              {/* Hỏi AI */}
-              <button
-                type="button"
-                onClick={() =>
-                  openAskAi(
-                    `Về mục "${item.title}"${item.partner ? ` (${item.partner})` : ""}: `,
-                  )
-                }
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/50 px-3 py-1.5 text-[12px] text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5"
-              >
-                <Sparkles className="h-3 w-3 text-primary" />
-                Hỏi AI về mục này
-              </button>
+              {/* Chat history + Hỏi AI */}
+              <InboxChatHistory item={item} />
+
             </div>
 
             {/* Footer actions */}
@@ -187,5 +197,165 @@ export function InboxItemSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function InboxChatHistory({ item }: { item: InboxItem }) {
+  const navigate = useNavigate();
+  const getInboxThreadFn = useServerFn(getInboxThread);
+  const getThreadFn = useServerFn(getThread);
+  const getOrCreateFn = useServerFn(getOrCreateInboxThread);
+  const appendFn = useServerFn(appendMessage);
+  const [starting, setStarting] = useState(false);
+
+  const threadQ = useQuery({
+    queryKey: ["inbox-thread", item.external_id],
+    queryFn: () => getInboxThreadFn({ data: { externalId: item.external_id } }),
+    staleTime: 10_000,
+  });
+  const threadId = threadQ.data?.id ?? null;
+
+  const messagesQ = useQuery({
+    queryKey: ["inbox-thread-messages", threadId],
+    queryFn: () => getThreadFn({ data: { threadId: threadId! } }),
+    enabled: !!threadId,
+    staleTime: 5_000,
+  });
+
+  const messages = messagesQ.data?.messages ?? [];
+  const hasHistory = messages.length > 0;
+
+  const startOrContinue = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const thread = await getOrCreateFn({
+        data: { externalId: item.external_id, title: item.title.slice(0, 60) },
+      });
+      const fromHref =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : undefined;
+
+      if (!hasHistory) {
+        const prefill = `Về mục "${item.title}"${item.partner ? ` (${item.partner})` : ""}: `;
+        await appendFn({
+          data: {
+            threadId: thread.id,
+            role: "user",
+            content: prefill,
+            updateTitleIfBlank: true,
+          },
+        });
+        navigate({
+          to: "/chat/$threadId",
+          params: { threadId: thread.id },
+          search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
+        });
+      } else {
+        navigate({
+          to: "/chat/$threadId",
+          params: { threadId: thread.id },
+          search: fromHref ? { from: fromHref } : {},
+        });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Không mở được cuộc trò chuyện");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <MessageSquare className="h-3 w-3" />
+        Lịch sử trao đổi với AI
+      </div>
+
+      {threadQ.isLoading ? (
+        <div className="h-10 animate-pulse rounded-md bg-muted/40" />
+      ) : hasHistory ? (
+        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border border-border/40 bg-muted/20 p-2">
+          {messages.map((m) => {
+            if (m.role === "system") {
+              return (
+                <div
+                  key={m.id}
+                  className="text-center text-[10px] text-muted-foreground"
+                >
+                  {m.content}
+                </div>
+              );
+            }
+            const mine = m.role === "user";
+            return (
+              <div
+                key={m.id}
+                className={cn("flex", mine ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-lg px-2.5 py-1.5 text-[12px] leading-snug",
+                    mine
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background border border-border/50",
+                  )}
+                >
+                  <div className="whitespace-pre-wrap">{m.content}</div>
+                  <div
+                    className={cn(
+                      "mt-0.5 text-[9px] opacity-60",
+                      mine ? "text-primary-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {formatRelative(m.created_at)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
+          Chưa có trao đổi nào. Bấm bên dưới để bắt đầu hỏi AI về mục này.
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          disabled={starting}
+          onClick={startOrContinue}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/50 px-3 py-1.5 text-[12px] text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+        >
+          {starting ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3 text-primary" />
+          )}
+          {hasHistory ? "Tiếp tục trao đổi" : "Hỏi AI về mục này"}
+        </button>
+        {hasHistory && threadId && (
+          <button
+            type="button"
+            onClick={() => {
+              const fromHref =
+                typeof window !== "undefined"
+                  ? window.location.pathname + window.location.search
+                  : undefined;
+              navigate({
+                to: "/chat/$threadId",
+                params: { threadId },
+                search: fromHref ? { from: fromHref } : {},
+              });
+            }}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            Mở cuộc trò chuyện đầy đủ <ArrowRight className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
