@@ -165,6 +165,8 @@ export function AskAiSheet() {
             )}
           </div>
 
+          <PendingActions />
+
           <div className="border-t border-border bg-card p-3">
             <div className="flex gap-2">
               <Input
