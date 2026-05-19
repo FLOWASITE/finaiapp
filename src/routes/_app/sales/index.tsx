@@ -1523,8 +1523,8 @@ function NewInvoiceDialog() {
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
               <Label>Khách hàng *</Label>
               <CustomerCombobox value={customer?.id ?? null} onChange={onPickCustomer} />
             </div>
@@ -1591,7 +1591,7 @@ function NewInvoiceDialog() {
                 onChange={(e) => setHead({ ...head, fx_rate: Number(e.target.value) })}
               />
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-2 lg:col-span-3">
               <Label>Địa chỉ giao hàng</Label>
               <Input
                 value={head.billing_address}
