@@ -945,6 +945,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          metadata: Json | null
           role: string
           tenant_id: string
           thread_id: string
@@ -954,6 +955,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          metadata?: Json | null
           role: string
           tenant_id: string
           thread_id: string
@@ -963,6 +965,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          metadata?: Json | null
           role?: string
           tenant_id?: string
           thread_id?: string
