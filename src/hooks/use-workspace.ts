@@ -44,6 +44,8 @@ export function useWorkspace() {
   }, []);
 
   const setWorkspace = React.useCallback((next: Workspace) => {
+    // Cập nhật state ngay để UI đổi mode không phải chờ event/localStorage.
+    setWs(next);
     try {
       localStorage.setItem(WS_KEY, next);
     } catch {}
