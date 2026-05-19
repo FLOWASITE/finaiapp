@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil, Upload, Download, FileText, Printer } from "lucide-react";
+import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil, Upload, Download, FileText, Printer, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
