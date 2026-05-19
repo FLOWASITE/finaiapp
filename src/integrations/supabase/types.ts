@@ -988,6 +988,8 @@ export type Database = {
           inbox_external_id: string | null
           kind: string
           last_message_at: string
+          pinned_at: string | null
+          starred: boolean
           tenant_id: string
           title: string
           updated_at: string
@@ -999,6 +1001,8 @@ export type Database = {
           inbox_external_id?: string | null
           kind?: string
           last_message_at?: string
+          pinned_at?: string | null
+          starred?: boolean
           tenant_id: string
           title?: string
           updated_at?: string
@@ -1010,6 +1014,8 @@ export type Database = {
           inbox_external_id?: string | null
           kind?: string
           last_message_at?: string
+          pinned_at?: string | null
+          starred?: boolean
           tenant_id?: string
           title?: string
           updated_at?: string
