@@ -292,6 +292,21 @@ function ThreadPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {from && (
+        <div className="border-b border-border/40 bg-background/60 px-4 py-2 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-3xl items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => navigate({ to: from })}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Quay lại trang trước
+            </Button>
+          </div>
+        </div>
+      )}
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
         <MessageList
           messages={messages}
