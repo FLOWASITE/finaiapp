@@ -34,6 +34,7 @@ import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 import { IndustryCombobox } from "@/components/industry-combobox";
 import { SectionNav } from "@/components/settings-section-nav";
 import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
+import { DigestSettingsCard } from "@/components/settings/digest-settings-card";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
