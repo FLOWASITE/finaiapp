@@ -297,12 +297,28 @@ function InboxAiPage() {
   }, []);
 
   /* ───── Bulk approve with toast progress ───── */
-  const approveAllHigh = useCallback(async () => {
-    const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
-    if (!targets.length) {
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
+
+  const highTargets = useMemo(
+    () => items.filter((i) => i.confidence_band === "high" && !i.blocker),
+    [items],
+  );
+  const bulkSumAbs = useMemo(
+    () => highTargets.reduce((s, i) => s + Math.abs(i.amount || 0), 0),
+    [highTargets],
+  );
+
+  const requestApproveAllHigh = useCallback(() => {
+    if (!highTargets.length) {
       toast("Không có mục tin cậy cao nào để duyệt");
       return;
     }
+    setConfirmBulkOpen(true);
+  }, [highTargets.length]);
+
+  const runApproveAllHigh = useCallback(async () => {
+    const targets = highTargets;
+    if (!targets.length) return;
     const tId = toast.loading(`Đang duyệt 0/${targets.length} mục…`);
     let ok = 0;
     for (const it of targets) {
@@ -319,7 +335,7 @@ function InboxAiPage() {
       } catch {}
     }
     toast.success(`Đã duyệt ${ok}/${targets.length} mục`, { id: tId });
-  }, [items, approveM]);
+  }, [highTargets, approveM]);
 
   // If context item disappears (was approved/skipped externally), auto close sheet
   useEffect(() => {
