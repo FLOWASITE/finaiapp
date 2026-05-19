@@ -41,6 +41,8 @@ export function AskAiSheet() {
   const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
   const [recording, setRecording] = useState(false);
+  type Stage = "queued" | "reading" | "ocr" | "matching" | "done" | "error";
+  const [batchProgress, setBatchProgress] = useState<Array<{ filename: string; stage: Stage; note?: string }>>([]);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
