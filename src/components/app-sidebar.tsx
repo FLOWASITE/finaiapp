@@ -169,15 +169,32 @@ const REPORTS_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Báo cáo",
+    label: "Kế toán",
     entries: [
-      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+      {
+        label: "Báo cáo tài chính",
+        icon: BarChart3,
+        items: [
+          { to: "/reports?tab=b01", label: "Cân đối kế toán" },
+          { to: "/reports?tab=b02", label: "Kết quả kinh doanh" },
+          { to: "/reports?tab=b03", label: "Lưu chuyển tiền tệ" },
+          { to: "/reports?tab=b09", label: "Thuyết minh" },
+        ],
+      },
       { to: "/reports/trial-balance", label: "Bảng cân đối phát sinh", icon: Calculator },
-      { to: "/reports/ar-summary", label: "Tổng hợp công nợ phải thu", icon: Coins },
-      { to: "/reports/ap-summary", label: "Tổng hợp công nợ phải trả", icon: Coins },
-      { to: "/reports/stock-ios", label: "Báo cáo Nhập – Xuất – Tồn", icon: Warehouse },
-      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
-      { to: "/reports/voucher-list", label: "Bảng kê chứng từ", icon: FileText },
+      { to: "/reports/ar-summary", label: "Phải thu", icon: Coins },
+      { to: "/reports/ap-summary", label: "Phải trả", icon: Coins },
+      { to: "/reports/stock-ios", label: "Hàng tồn kho", icon: Warehouse },
+      { to: "/assets/reports", label: "Tài sản cố định", icon: Briefcase },
+      { to: "/reports/allocation-schedule", label: "Tài sản phân bổ", icon: Boxes },
+      { to: "/payroll/reports", label: "Lương", icon: Wallet },
+    ],
+  },
+  {
+    label: "Quản trị",
+    entries: [
+      { to: "/sales-dashboard", label: "Bán hàng", icon: ShoppingCart },
+      { to: "/purchases", label: "Mua hàng", icon: ShoppingCart },
     ],
   },
   {
@@ -186,9 +203,12 @@ const REPORTS_SECTIONS: NavSection[] = [
       { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
       { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
       { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
+      { to: "/reports/voucher-list", label: "Bảng kê chứng từ", icon: FileText },
     ],
   },
 ];
+
 
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
