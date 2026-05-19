@@ -1,43 +1,43 @@
-## Gộp AskAiSheet vào ChatDock
+# Hoàn tất cấu hình AI Model cho Super Admin
 
-Đã chốt: giữ **ChatDock** (thanh nhập ở footer), bỏ hẳn **AskAiSheet** (Sheet popup + nút Sparkles nổi). Mọi lượt chat đều tạo thread + điều hướng sang `/chat/$threadId` (đã lưu DB như hiện tại).
+## 1. Refactor `src/lib/ai/parse-document.functions.ts`
+- Thay thế hardcoded Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1` + `LOVABLE_API_KEY`) bằng `resolveActiveModel("parsing")` từ `ai-gateway.server.ts`.
+- Giữ nguyên logic prompt, schema, retry, error handling (429/402).
+- Khi config custom được bật → dùng `base_url` + API key đã giải mã + model name của purpose `parsing`.
+- Khi tắt/chưa cấu hình → fallback Lovable AI Gateway như cũ.
 
-### Việc cần làm
+## 2. UI Super Admin `/superadmin/ai-model`
+Tạo route mới `src/routes/_app/superadmin.ai-model.tsx`:
 
-**1. ChatDock (`src/components/chat/chat-dock.tsx`)** — bổ sung 3 thứ nhỏ để thay thế vai trò AskAiSheet:
-- Lắng nghe phím tắt **Cmd/Ctrl + J** → focus vào ô nhập (thay vì mở Sheet).
-- Lắng nghe event `app:open-ai` (giữ tên cũ để không phải sửa nhiều caller) → prefill ô nhập + focus, không auto-submit.
-- Render nút **Sparkles nổi** ở góc dưới-phải (giống nút cũ của AskAiSheet) — bấm vào cũng focus ô nhập. Giữ lại để user quen tay vẫn thấy.
-- Truyền `ref` vào `Composer` để focus được. Cập nhật `Composer` thêm prop `inputRef?: Ref<HTMLTextAreaElement>` (forward sang `<textarea>`).
+**Bảo vệ truy cập**
+- Dùng `is_superadmin(auth.uid())` ở loader/component; non-superadmin redirect về `/`.
 
-**2. Shim cho `openAskAi`** — nhiều file đang import:
-- `src/routes/_app/inbox.tsx`, `inbox_.$lane.tsx`
-- `src/components/ai/InsightWidget.tsx`
-- `src/components/command-palette.tsx`
+**Form cấu hình** (gọi `ai-config.functions.ts`)
+- Toggle "Bật custom AI model" (enabled).
+- Provider name (label tự do, vd: "OpenAI", "Groq", "OpenRouter").
+- Base URL (vd: `https://api.openai.com/v1`).
+- API Key (input password, hiển thị "••••• đã lưu" nếu đã có, cho phép nhập mới để thay).
+- 3 model fields theo purpose:
+  - Chat model (vd: `gpt-4o-mini`)
+  - Parsing model (vd: `gpt-4o`)
+  - Reasoning model (vd: `o1-mini`)
+- Nút **Lưu** → `saveAiConfig`.
+- Nút **Test kết nối** → `testAiConfig` (ping `/models` hoặc 1 completion ngắn), hiển thị success/error.
 
-Tạo file mới **`src/lib/open-ask-ai.ts`** chứa hàm `openAskAi(prefill?: string)` đúng signature cũ — vẫn dispatch `CustomEvent("app:open-ai", { detail: { prefill } })`. ChatDock sẽ bắt event này.
+**Trạng thái hiển thị**
+- Badge "Đang dùng: Custom" hoặc "Đang dùng: Lovable AI (mặc định)".
+- Cảnh báo nếu enabled nhưng thiếu base_url/api_key/model.
 
-Sửa các import từ `@/components/ai/AskAiSheet` → `@/lib/open-ask-ai` ở 4 file trên. Không đổi logic gọi.
+## 3. Navigation
+- Thêm tab "AI Model" vào sidebar/menu khu vực Super Admin (cùng nhóm với các trang superadmin hiện có).
+- Ẩn tab nếu user không có role `superadmin`.
 
-**3. Xoá AskAiSheet**
-- Xoá `src/components/ai/AskAiSheet.tsx`.
-- Trong `src/routes/_app.tsx`: bỏ import + bỏ `<AskAiSheet />` khỏi JSX.
+## 4. Verify
+- Build pass.
+- Test: bật custom config với key giả → `testAiConfig` báo lỗi rõ ràng.
+- Tắt custom → các flow chat/parse/journal/bank/invoice fallback Lovable AI bình thường.
 
-**4. Giữ nguyên**
-- `PendingActions`, `ChartBlock` — vẫn còn được dùng ở route `/chat/$threadId` (kiểm tra nhanh khi sửa, không xoá).
-- Comment trong `bank.import-statement.tsx` ("Load parsed batch from AskAiSheet") — cập nhật text comment cho khớp: "from ChatDock".
-- Toàn bộ luồng upload/mic/thread của ChatDock hiện tại.
-
-### Ngoài phạm vi
-- Không đổi UX `/chat/$threadId` (trang chat full-page).
-- Không thêm tính năng inline chat (popup) — đã thống nhất bỏ.
-- Không refactor `Composer` quá tay, chỉ thêm prop `inputRef`.
-
-### Files sẽ chạm
-- sửa: `src/components/chat/chat-dock.tsx`
-- sửa: `src/components/chat/composer.tsx` (thêm `inputRef`)
-- sửa: `src/routes/_app.tsx` (bỏ `AskAiSheet`)
-- sửa: `src/routes/_app/inbox.tsx`, `src/routes/_app/inbox_.$lane.tsx`, `src/components/ai/InsightWidget.tsx`, `src/components/command-palette.tsx` (đổi import)
-- sửa (comment): `src/routes/_app/bank.import-statement.tsx`
-- tạo: `src/lib/open-ask-ai.ts`
-- xoá: `src/components/ai/AskAiSheet.tsx`
+## Files
+- edit: `src/lib/ai/parse-document.functions.ts`
+- create: `src/routes/_app/superadmin.ai-model.tsx`
+- edit: sidebar/nav component (xác định khi implement)
