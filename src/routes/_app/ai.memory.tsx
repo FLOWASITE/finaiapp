@@ -66,8 +66,11 @@ import {
   deleteRule,
   promoteWatchToRule,
   dismissWatch,
+  listRuleApplications,
+  undoRuleApplication,
   type MemoryRule,
   type MemoryWatch,
+  type RuleApplication,
 } from "@/lib/ai-memory.functions";
 import {
   RULE_TEMPLATES,
