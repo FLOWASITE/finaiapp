@@ -282,14 +282,13 @@ export const reportPayrollAllocation = createServerFn({ method: "GET" })
     const map = new Map<string, any>();
     const key = (acc: string, dept: string, prj: string) => `${acc}|${dept}|${prj}`;
 
-    for (const d of details ?? []) {
-      if (d.kind === "deduction") continue; // deductions are debited to 334, not expense
+    for (const d of details) {
+      if (d.kind === "deduction") continue;
       const acc = (d.salary_components?.expense_account as string) || "6421";
       const dept = (d.employees?.departments?.name as string) || "—";
       const prj = (d.employees?.projects?.name as string) || "—";
       const k = key(acc, dept, prj);
-      const row = map.get(k) ?? { account: acc, department: dept, project: prj,
-        salary: 0, insurance_co: 0 };
+      const row = map.get(k) ?? { account: acc, department: dept, project: prj, salary: 0, insurance_co: 0 };
       row.salary += Number(d.amount || 0);
       map.set(k, row);
     }
