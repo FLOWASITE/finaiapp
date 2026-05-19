@@ -108,8 +108,11 @@ import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superad
 import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
+import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/disposal.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
+import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -608,16 +611,32 @@ const AppAssetsInventoryIdRoute = AppAssetsInventoryIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppAssetsInventoryRoute,
 } as any)
+const AppAssetsDisposalIdRoute = AppAssetsDisposalIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAssetsDisposalRoute,
+} as any)
 const AppAssetsAllocationsIdRoute = AppAssetsAllocationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AppAssetsAllocationsRoute,
+} as any)
+const AppAssetsIdHandoverRoute = AppAssetsIdHandoverRouteImport.update({
+  id: '/assets/$id/handover',
+  path: '/assets/$id/handover',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   id: '/assets/$id/card',
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssetsInventoryIdPrintRoute =
+  AppAssetsInventoryIdPrintRouteImport.update({
+    id: '/print',
+    path: '/print',
+    getParentRoute: () => AppAssetsInventoryIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -640,7 +659,7 @@ export interface FileRoutesByFullPath {
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
-  '/assets/disposal': typeof AppAssetsDisposalRoute
+  '/assets/disposal': typeof AppAssetsDisposalRouteWithChildren
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -715,11 +734,14 @@ export interface FileRoutesByFullPath {
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
+  '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
-  '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
+  '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -737,7 +759,7 @@ export interface FileRoutesByTo {
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
-  '/assets/disposal': typeof AppAssetsDisposalRoute
+  '/assets/disposal': typeof AppAssetsDisposalRouteWithChildren
   '/assets/events': typeof AppAssetsEventsRoute
   '/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -812,11 +834,14 @@ export interface FileRoutesByTo {
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
+  '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
-  '/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
+  '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -841,7 +866,7 @@ export interface FileRoutesById {
   '/_app/assets/books': typeof AppAssetsBooksRoute
   '/_app/assets/categories': typeof AppAssetsCategoriesRoute
   '/_app/assets/depreciation': typeof AppAssetsDepreciationRoute
-  '/_app/assets/disposal': typeof AppAssetsDisposalRoute
+  '/_app/assets/disposal': typeof AppAssetsDisposalRouteWithChildren
   '/_app/assets/events': typeof AppAssetsEventsRoute
   '/_app/assets/from-fixed-asset': typeof AppAssetsFromFixedAssetRoute
   '/_app/assets/from-invoice': typeof AppAssetsFromInvoiceRoute
@@ -916,11 +941,14 @@ export interface FileRoutesById {
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
+  '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
-  '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRoute
+  '/_app/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
+  '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1020,11 +1048,14 @@ export interface FileRouteTypes {
     | '/suppliers/'
     | '/tax/'
     | '/assets/$id/card'
+    | '/assets/$id/handover'
     | '/assets/allocations/$id'
+    | '/assets/disposal/$id'
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
+    | '/assets/inventory/$id/print'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1117,11 +1148,14 @@ export interface FileRouteTypes {
     | '/suppliers'
     | '/tax'
     | '/assets/$id/card'
+    | '/assets/$id/handover'
     | '/assets/allocations/$id'
+    | '/assets/disposal/$id'
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
+    | '/assets/inventory/$id/print'
   id:
     | '__root__'
     | '/'
@@ -1220,11 +1254,14 @@ export interface FileRouteTypes {
     | '/_app/suppliers/'
     | '/_app/tax/'
     | '/_app/assets/$id/card'
+    | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
+    | '/_app/assets/disposal/$id'
     | '/_app/assets/inventory/$id'
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
     | '/_app/superadmin/tenant/$id'
+    | '/_app/assets/inventory/$id/print'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1929,6 +1966,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsInventoryIdRouteImport
       parentRoute: typeof AppAssetsInventoryRoute
     }
+    '/_app/assets/disposal/$id': {
+      id: '/_app/assets/disposal/$id'
+      path: '/$id'
+      fullPath: '/assets/disposal/$id'
+      preLoaderRoute: typeof AppAssetsDisposalIdRouteImport
+      parentRoute: typeof AppAssetsDisposalRoute
+    }
     '/_app/assets/allocations/$id': {
       id: '/_app/assets/allocations/$id'
       path: '/$id'
@@ -1936,12 +1980,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsAllocationsIdRouteImport
       parentRoute: typeof AppAssetsAllocationsRoute
     }
+    '/_app/assets/$id/handover': {
+      id: '/_app/assets/$id/handover'
+      path: '/assets/$id/handover'
+      fullPath: '/assets/$id/handover'
+      preLoaderRoute: typeof AppAssetsIdHandoverRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/$id/card': {
       id: '/_app/assets/$id/card'
       path: '/assets/$id/card'
       fullPath: '/assets/$id/card'
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/assets/inventory/$id/print': {
+      id: '/_app/assets/inventory/$id/print'
+      path: '/print'
+      fullPath: '/assets/inventory/$id/print'
+      preLoaderRoute: typeof AppAssetsInventoryIdPrintRouteImport
+      parentRoute: typeof AppAssetsInventoryIdRoute
     }
   }
 }
@@ -2056,12 +2114,34 @@ const AppAssetsAllocationsRouteChildren: AppAssetsAllocationsRouteChildren = {
 const AppAssetsAllocationsRouteWithChildren =
   AppAssetsAllocationsRoute._addFileChildren(AppAssetsAllocationsRouteChildren)
 
+interface AppAssetsDisposalRouteChildren {
+  AppAssetsDisposalIdRoute: typeof AppAssetsDisposalIdRoute
+}
+
+const AppAssetsDisposalRouteChildren: AppAssetsDisposalRouteChildren = {
+  AppAssetsDisposalIdRoute: AppAssetsDisposalIdRoute,
+}
+
+const AppAssetsDisposalRouteWithChildren =
+  AppAssetsDisposalRoute._addFileChildren(AppAssetsDisposalRouteChildren)
+
+interface AppAssetsInventoryIdRouteChildren {
+  AppAssetsInventoryIdPrintRoute: typeof AppAssetsInventoryIdPrintRoute
+}
+
+const AppAssetsInventoryIdRouteChildren: AppAssetsInventoryIdRouteChildren = {
+  AppAssetsInventoryIdPrintRoute: AppAssetsInventoryIdPrintRoute,
+}
+
+const AppAssetsInventoryIdRouteWithChildren =
+  AppAssetsInventoryIdRoute._addFileChildren(AppAssetsInventoryIdRouteChildren)
+
 interface AppAssetsInventoryRouteChildren {
-  AppAssetsInventoryIdRoute: typeof AppAssetsInventoryIdRoute
+  AppAssetsInventoryIdRoute: typeof AppAssetsInventoryIdRouteWithChildren
 }
 
 const AppAssetsInventoryRouteChildren: AppAssetsInventoryRouteChildren = {
-  AppAssetsInventoryIdRoute: AppAssetsInventoryIdRoute,
+  AppAssetsInventoryIdRoute: AppAssetsInventoryIdRouteWithChildren,
 }
 
 const AppAssetsInventoryRouteWithChildren =
@@ -2081,7 +2161,7 @@ interface AppRouteChildren {
   AppAssetsBooksRoute: typeof AppAssetsBooksRoute
   AppAssetsCategoriesRoute: typeof AppAssetsCategoriesRoute
   AppAssetsDepreciationRoute: typeof AppAssetsDepreciationRoute
-  AppAssetsDisposalRoute: typeof AppAssetsDisposalRoute
+  AppAssetsDisposalRoute: typeof AppAssetsDisposalRouteWithChildren
   AppAssetsEventsRoute: typeof AppAssetsEventsRoute
   AppAssetsFromFixedAssetRoute: typeof AppAssetsFromFixedAssetRoute
   AppAssetsFromInvoiceRoute: typeof AppAssetsFromInvoiceRoute
@@ -2136,6 +2216,7 @@ interface AppRouteChildren {
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
   AppTaxIndexRoute: typeof AppTaxIndexRoute
   AppAssetsIdCardRoute: typeof AppAssetsIdCardRoute
+  AppAssetsIdHandoverRoute: typeof AppAssetsIdHandoverRoute
   AppPayrollEmployeesIdRoute: typeof AppPayrollEmployeesIdRoute
   AppPayrollPayslipsIdRoute: typeof AppPayrollPayslipsIdRoute
 }
@@ -2154,7 +2235,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsBooksRoute: AppAssetsBooksRoute,
   AppAssetsCategoriesRoute: AppAssetsCategoriesRoute,
   AppAssetsDepreciationRoute: AppAssetsDepreciationRoute,
-  AppAssetsDisposalRoute: AppAssetsDisposalRoute,
+  AppAssetsDisposalRoute: AppAssetsDisposalRouteWithChildren,
   AppAssetsEventsRoute: AppAssetsEventsRoute,
   AppAssetsFromFixedAssetRoute: AppAssetsFromFixedAssetRoute,
   AppAssetsFromInvoiceRoute: AppAssetsFromInvoiceRoute,
@@ -2209,6 +2290,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
   AppTaxIndexRoute: AppTaxIndexRoute,
   AppAssetsIdCardRoute: AppAssetsIdCardRoute,
+  AppAssetsIdHandoverRoute: AppAssetsIdHandoverRoute,
   AppPayrollEmployeesIdRoute: AppPayrollEmployeesIdRoute,
   AppPayrollPayslipsIdRoute: AppPayrollPayslipsIdRoute,
 }

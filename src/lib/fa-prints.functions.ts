@@ -54,9 +54,14 @@ export const getInventoryPrint = createServerFn({ method: "GET" })
     const { supabase, tenantId } = context;
     const { data: header, error } = await supabase
       .from("fa_inventory_counts")
-      .select("*, branches(name), departments(name)")
+      .select("*")
       .eq("id", data.count_id).eq("tenant_id", tenantId).single();
     if (error || !header) throw new Error("Không tìm thấy phiên kiểm kê");
+    const [{ data: branch }, { data: dept }] = await Promise.all([
+      header.branch_id ? supabase.from("branches").select("name").eq("id", header.branch_id).maybeSingle() : Promise.resolve({ data: null }),
+      header.department_id ? supabase.from("departments").select("name").eq("id", header.department_id).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const headerOut = { ...header, branches: branch, departments: dept };
     const { data: lines } = await supabase
       .from("fa_inventory_count_lines")
       .select("*, asset:fixed_assets(id, code, name, unit, quantity, cost, in_service_date, location, useful_life_months, opening_accumulated)")
