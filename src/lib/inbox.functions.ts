@@ -178,7 +178,10 @@ export const getInboxLane = createServerFn({ method: "POST" })
         }
       }
       parts.sort((a, b) => b.amount - a.amount);
-      return { rows: parts.filter(matchSearch).slice(0, data.limit), source: "ledger" as const };
+      const filtered = parts.filter(matchSearch);
+      const slice = filtered.slice(data.offset, data.offset + data.limit);
+      const nextOffset = data.offset + slice.length < filtered.length ? data.offset + data.limit : null;
+      return { rows: slice, source: "ledger" as const, nextOffset };
     }
 
     // ============ RECONCILE — Giao dịch ngân hàng chưa khớp ============
