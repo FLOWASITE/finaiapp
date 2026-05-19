@@ -203,7 +203,17 @@ export function ChatDock() {
   };
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-30 px-4 pb-4">
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.focus()}
+        aria-label="Hỏi trợ lý AI (Cmd+J)"
+        title="Hỏi trợ lý AI (Cmd+J)"
+        className="fixed bottom-24 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110 active:scale-95 md:hidden"
+      >
+        <Sparkles className="h-5 w-5" />
+      </button>
+      <div className="pointer-events-none sticky bottom-0 z-30 px-4 pb-4">
       <input
         ref={fileRef}
         type="file"
