@@ -351,6 +351,49 @@ export function AskAiSheet() {
             )}
           </div>
 
+          {batchProgress.length > 0 && (
+            <div className="border-t border-border bg-muted/30 px-4 py-3 max-h-56 overflow-auto">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
+                Tiến độ nhập ({batchProgress.filter(p => p.stage === "done").length}/{batchProgress.length})
+              </div>
+              <ul className="space-y-1.5">
+                {batchProgress.map((p, i) => {
+                  const stages: Stage[] = ["reading", "ocr", "matching", "done"];
+                  const currentIdx = p.stage === "error" ? -1 : stages.indexOf(p.stage);
+                  const labels: Record<Stage, string> = {
+                    queued: "Chờ", reading: "Đọc file", ocr: "OCR", matching: "Đối chiếu", done: "Xong", error: "Lỗi",
+                  };
+                  return (
+                    <li key={i} className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 truncate font-medium">{p.filename}</span>
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 ${
+                          p.stage === "done" ? "bg-emerald-500/15 text-emerald-600" :
+                          p.stage === "error" ? "bg-destructive/15 text-destructive" :
+                          p.stage === "queued" ? "bg-muted text-muted-foreground" :
+                          "bg-primary/15 text-primary"
+                        }`}>
+                          {p.stage !== "done" && p.stage !== "error" && p.stage !== "queued" && (
+                            <Loader2 className="inline h-2.5 w-2.5 animate-spin mr-1" />
+                          )}
+                          {labels[p.stage]}{p.note ? ` · ${p.note}` : ""}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex gap-0.5">
+                        {stages.map((s, si) => (
+                          <div key={s} className={`h-1 flex-1 rounded-full ${
+                            p.stage === "error" ? "bg-destructive/40" :
+                            si <= currentIdx ? "bg-primary" : "bg-muted"
+                          }`} />
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
           <PendingActions />
 
           <div className="border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
