@@ -16,10 +16,15 @@ export type {
   InboxItem,
 } from "./inbox-types";
 import type {
+  ProposalLine,
   Proposal,
+  ReasoningSignal,
   Reasoning,
+  InboxSource,
+  ConfidenceBand,
   InboxItem,
 } from "./inbox-types";
+
 
 
 const VND = (n: number) =>
