@@ -326,31 +326,82 @@ function AiModelPage() {
         )}
       </Card>
 
-      {/* OpenRouter quick setup */}
-      {!isOpenRouter && (
-        <Card className="flex flex-wrap items-center gap-3 border-dashed p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Wand2 className="h-4 w-4" />
+      {/* Quick presets */}
+      <Card className="p-4 border-dashed">
+        <div className="flex items-center gap-2 mb-3">
+          <Wand2 className="h-4 w-4 text-primary" />
+          <div className="text-sm font-medium">Preset nhanh</div>
+          <span className="text-xs text-muted-foreground">— chọn provider để tự fill cấu hình</span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {/* OpenRouter */}
+          <div
+            className={cn(
+              "flex flex-col gap-2 rounded-lg border p-3 transition",
+              isOpenRouter ? "border-primary/50 bg-primary/5" : "hover:bg-muted/40",
+            )}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium flex items-center gap-1.5">
+                  OpenRouter
+                  {isOpenRouter && <Badge variant="secondary" className="text-[10px] h-4">đang dùng</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Gateway 300+ model OpenAI-compatible.{" "}
+                  <a
+                    href="https://openrouter.ai/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                  >
+                    API key <ExternalLink className="h-3 w-3" />
+                  </a>
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={applyOpenRouterPreset} className="self-start">
+              <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Áp preset
+            </Button>
           </div>
-          <div className="flex-1 min-w-[220px]">
-            <div className="text-sm font-medium">Khuyến nghị: OpenRouter</div>
-            <p className="text-xs text-muted-foreground">
-              Gateway thống nhất 300+ model qua API tương thích OpenAI.{" "}
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-0.5 text-primary hover:underline"
-              >
-                Tạo API key <ExternalLink className="h-3 w-3" />
-              </a>
-            </p>
+
+          {/* Alibaba Qwen */}
+          <div
+            className={cn(
+              "flex flex-col gap-2 rounded-lg border p-3 transition",
+              isAlibaba ? "border-primary/50 bg-primary/5" : "hover:bg-muted/40",
+            )}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium flex items-center gap-1.5">
+                  Alibaba Qwen (DashScope)
+                  {isAlibaba && <Badge variant="secondary" className="text-[10px] h-4">đang dùng</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Qwen-plus / max / vl / qwq. Không cần extra headers.{" "}
+                  <a
+                    href="https://bailian.console.alibabacloud.com/?apiKey=1"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                  >
+                    API key <ExternalLink className="h-3 w-3" />
+                  </a>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => applyAlibabaPreset("intl")}>
+                <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Intl (Singapore)
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => applyAlibabaPreset("cn")}>
+                <Wand2 className="mr-1.5 h-3.5 w-3.5" /> China (Beijing)
+              </Button>
+            </div>
           </div>
-          <Button size="sm" variant="outline" onClick={applyOpenRouterPreset}>
-            <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Áp preset
-          </Button>
-        </Card>
-      )}
+        </div>
+      </Card>
 
       <Tabs defaultValue="provider" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
