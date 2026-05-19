@@ -957,15 +957,45 @@ function ModelField({
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
   const [search, setSearch] = useState("");
+  const [providerFilter, setProviderFilter] = useState<string>("all");
 
   const filtered = useMemo(() => {
     let list = onlyFree ? models.filter((m) => m.isFree) : models;
+    if (providerFilter !== "all") {
+      list = list.filter((m) => {
+        const p = m.id.includes("/") ? m.id.split("/")[0].toLowerCase() : "other";
+        return p === providerFilter;
+      });
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
     }
     return list;
-  }, [models, onlyFree, search]);
+  }, [models, onlyFree, search, providerFilter]);
+
+  // All providers present in the base list (ignoring current providerFilter) — for chip row
+  const allProviders = useMemo(() => {
+    const base = onlyFree ? models.filter((m) => m.isFree) : models;
+    const counts = new Map<string, number>();
+    for (const m of base) {
+      const p = m.id.includes("/") ? m.id.split("/")[0].toLowerCase() : "other";
+      counts.set(p, (counts.get(p) ?? 0) + 1);
+    }
+    const order = [
+      "openai", "anthropic", "google", "x-ai", "meta-llama", "mistralai",
+      "deepseek", "qwen", "alibaba", "cohere", "perplexity", "nvidia", "microsoft",
+    ];
+    return Array.from(counts.entries()).sort(([a], [b]) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [models, onlyFree]);
+
 
   // Group by provider prefix with curated order + labels
   const grouped = useMemo(() => {
