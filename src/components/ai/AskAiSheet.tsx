@@ -164,7 +164,43 @@ export function AskAiSheet() {
     }
   };
 
-
+  const toggleVoice = () => {
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Trình duyệt không hỗ trợ ghi âm. Hãy dùng Chrome/Safari.");
+      return;
+    }
+    if (recording && recogRef.current) {
+      recogRef.current.stop();
+      return;
+    }
+    const r = new SR();
+    r.lang = "vi-VN";
+    r.interimResults = true;
+    r.continuous = false;
+    let finalText = "";
+    r.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      setInput((finalText + interim).trim());
+    };
+    r.onerror = (e: any) => {
+      toast.error(`Lỗi ghi âm: ${e.error || "unknown"}`);
+      setRecording(false);
+    };
+    r.onend = () => {
+      setRecording(false);
+      recogRef.current = null;
+      if (finalText.trim()) setTimeout(() => send(finalText.trim()), 100);
+    };
+    recogRef.current = r;
+    setRecording(true);
+    r.start();
+  };
 
   return (
     <>
@@ -172,12 +208,13 @@ export function AskAiSheet() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Mở trợ lý AI (Cmd+J)"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110 active:scale-95"
       >
         <Sparkles className="h-6 w-6" />
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
+
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
           <SheetHeader className="border-b border-border bg-card px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-base">
