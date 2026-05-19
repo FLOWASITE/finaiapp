@@ -296,24 +296,26 @@ export const getInboxLane = createServerFn({ method: "POST" })
     if (data.lane === "anomaly") {
       const { data: insights, error } = await supabase
         .from("ai_insights")
-        .select("id, title, description, severity, created_at, payload, kind")
+        .select("id, title, body, severity, created_at, metadata, category, action_url")
         .is("dismissed_at", null)
         .order("created_at", { ascending: false })
         .limit(data.limit);
       if (error) throw new Error(error.message);
+      const sevMap = (s: string): "low" | "medium" | "high" =>
+        s === "critical" ? "high" : s === "warn" ? "medium" : "low";
       const rows: InboxRow[] = (insights ?? []).map((i: any) => {
-        const sev = (String(i.severity ?? "").toLowerCase()) as "low" | "medium" | "high";
-        const amount = Number(i.payload?.amount ?? i.payload?.total ?? 0);
+        const md = i.metadata ?? {};
+        const amount = Number(md.amount ?? md.total ?? 0);
         return {
           id: i.id,
-          ref: String(i.kind ?? "AI").toUpperCase().slice(0, 8),
-          title: i.title ?? i.description ?? "Cảnh báo",
-          partner: String(i.payload?.partner ?? i.payload?.party ?? "—"),
+          ref: String(i.category ?? "AI").toUpperCase().slice(0, 8),
+          title: i.title ?? "Cảnh báo",
+          partner: String(md.partner ?? md.party ?? "—"),
           date: fmtDate(i.created_at),
           amount,
-          status: i.description ?? "Cần xem",
-          severity: ["low", "medium", "high"].includes(sev) ? sev : "medium",
-          href: "/chat",
+          status: i.body ?? i.category ?? "Cần xem",
+          severity: sevMap(String(i.severity ?? "info")),
+          href: i.action_url ?? "/chat",
         };
       });
       const filtered = rows.filter(matchSearch).filter((r) => {
