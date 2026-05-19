@@ -39,7 +39,11 @@ async function uploadJob(
   tier: LlamaParseTier,
 ): Promise<string> {
   const form = new FormData();
-  const blob = new Blob([fileBuf], { type: mimeType });
+  const ab = fileBuf.buffer.slice(
+    fileBuf.byteOffset,
+    fileBuf.byteOffset + fileBuf.byteLength,
+  ) as ArrayBuffer;
+  const blob = new Blob([ab], { type: mimeType });
   form.append("file", blob, filename);
   form.append("language", "vi");
   // Map tier → mode flags
