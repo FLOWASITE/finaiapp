@@ -169,15 +169,32 @@ const REPORTS_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Báo cáo",
+    label: "Kế toán",
     entries: [
-      { to: "/reports", label: "Báo cáo tài chính", icon: BarChart3 },
+      {
+        label: "Báo cáo tài chính",
+        icon: BarChart3,
+        items: [
+          { to: "/reports?tab=b01", label: "Cân đối kế toán" },
+          { to: "/reports?tab=b02", label: "Kết quả kinh doanh" },
+          { to: "/reports?tab=b03", label: "Lưu chuyển tiền tệ" },
+          { to: "/reports?tab=b09", label: "Thuyết minh" },
+        ],
+      },
       { to: "/reports/trial-balance", label: "Bảng cân đối phát sinh", icon: Calculator },
-      { to: "/reports/ar-summary", label: "Tổng hợp công nợ phải thu", icon: Coins },
-      { to: "/reports/ap-summary", label: "Tổng hợp công nợ phải trả", icon: Coins },
-      { to: "/reports/stock-ios", label: "Báo cáo Nhập – Xuất – Tồn", icon: Warehouse },
-      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
-      { to: "/reports/voucher-list", label: "Bảng kê chứng từ", icon: FileText },
+      { to: "/reports/ar-summary", label: "Phải thu", icon: Coins },
+      { to: "/reports/ap-summary", label: "Phải trả", icon: Coins },
+      { to: "/reports/stock-ios", label: "Hàng tồn kho", icon: Warehouse },
+      { to: "/assets/reports", label: "Tài sản cố định", icon: Briefcase },
+      { to: "/reports/allocation-schedule", label: "Tài sản phân bổ", icon: Boxes },
+      { to: "/payroll/reports", label: "Lương", icon: Wallet },
+    ],
+  },
+  {
+    label: "Quản trị",
+    entries: [
+      { to: "/sales-dashboard", label: "Bán hàng", icon: ShoppingCart },
+      { to: "/purchases", label: "Mua hàng", icon: ShoppingCart },
     ],
   },
   {
@@ -186,9 +203,12 @@ const REPORTS_SECTIONS: NavSection[] = [
       { to: "/journal", label: "Phiếu kế toán", icon: BookOpen },
       { to: "/tax/gtgt", label: "Thuế GTGT", icon: Receipt },
       { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
+      { to: "/reports/ledgers", label: "Sổ sách kế toán", icon: FileSpreadsheet },
+      { to: "/reports/voucher-list", label: "Bảng kê chứng từ", icon: FileText },
     ],
   },
 ];
+
 
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
@@ -226,12 +246,18 @@ export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const searchStr = useRouterState({ select: (r) => r.location.searchStr });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { theme, toggleTheme } = useTheme();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
   const inTaxModule = pathname.startsWith("/tax");
-  const inReportsModule = pathname.startsWith("/reports");
+  const inReportsModule =
+    pathname.startsWith("/reports") ||
+    pathname === "/assets/reports" ||
+    pathname === "/payroll/reports" ||
+    pathname === "/sales-dashboard" ||
+    pathname.startsWith("/sales-dashboard/");
   const activeSections = inTaxModule
     ? TAX_SECTIONS
     : inReportsModule
@@ -258,17 +284,44 @@ export function AppSidebar() {
 
   const isActive = React.useCallback(
     (to: string) => {
-      const match = pathname === to || pathname.startsWith(to + "/");
+      const [toPath, toQuery] = to.split("?");
+      const match = pathname === toPath || pathname.startsWith(toPath + "/");
       if (!match) return false;
+      // If the entry pins a search param (e.g. /reports?tab=b01), require it to match.
+      if (toQuery) {
+        const expected = new URLSearchParams(toQuery);
+        const current = new URLSearchParams((searchStr ?? "").replace(/^\?/, ""));
+        for (const [k, v] of expected.entries()) {
+          if (current.get(k) !== v) return false;
+        }
+        return true;
+      }
+      // Otherwise, don't activate a parent when a more-specific sibling matches.
+      // Also: if any sibling pins this same pathname with a search param that matches current URL,
+      // prefer that sibling and don't light up the bare pathname entry.
+      const current = new URLSearchParams((searchStr ?? "").replace(/^\?/, ""));
+      const pinnedSiblingActive = allTos.some((other) => {
+        if (other === to) return false;
+        const [op, oq] = other.split("?");
+        if (op !== toPath || !oq) return false;
+        const exp = new URLSearchParams(oq);
+        for (const [k, v] of exp.entries()) {
+          if (current.get(k) !== v) return false;
+        }
+        return true;
+      });
+      if (pinnedSiblingActive) return false;
       return !allTos.some(
         (other) =>
           other !== to &&
-          other.startsWith(to + "/") &&
+          !other.includes("?") &&
+          other.startsWith(toPath + "/") &&
           (pathname === other || pathname.startsWith(other + "/")),
       );
     },
-    [pathname, allTos],
+    [pathname, searchStr, allTos],
   );
+
 
   // Initial open = groups containing active route
   const initialOpen = React.useMemo(() => {
@@ -625,10 +678,14 @@ function GroupItem({
           <SidebarMenuSub>
             {group.items.map((i) => {
               const active = isActive(i.to);
+              const [path, query] = i.to.split("?");
+              const search = query
+                ? Object.fromEntries(new URLSearchParams(query).entries())
+                : undefined;
               return (
                 <SidebarMenuSubItem key={i.to}>
                   <SidebarMenuSubButton asChild isActive={active}>
-                    <Link to={i.to}>
+                    <Link to={path} search={search as never}>
                       <span className={cn(
                         "text-[12.5px] tracking-[-0.005em] transition-colors",
                         active ? "font-semibold text-sidebar-primary" : "text-sidebar-foreground/75 hover:text-sidebar-foreground"
