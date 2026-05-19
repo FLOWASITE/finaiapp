@@ -13,10 +13,13 @@ export type CodeEntity =
   | "warehouse"
   | "bank_receipt"
   | "bank_payment"
-  | "bank_transfer";
+  | "bank_transfer"
+  | "fixed_asset"
+  | "fa_category"
+  | "allocated_asset";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets";
   column: "invoice_no" | "code" | "voucher_no";
   prefix: string;
   dateScoped: boolean;
