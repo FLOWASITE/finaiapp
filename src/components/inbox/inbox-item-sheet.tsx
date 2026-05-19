@@ -19,7 +19,7 @@ import {
   getThread,
   appendMessage,
 } from "@/lib/chat-threads.functions";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
