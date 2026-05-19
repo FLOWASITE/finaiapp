@@ -95,12 +95,22 @@ function InboxAiPage() {
     refetchOnWindowFocus: false,
   });
 
-  const items = data?.items ?? [];
+  const allItems = data?.items ?? [];
   const stats = data?.stats;
+  const items = useMemo(
+    () => (bandFilter === "all" ? allItems : allItems.filter((i) => i.confidence_band === bandFilter)),
+    [allItems, bandFilter],
+  );
+  const bandCounts = useMemo(() => {
+    const c = { high: 0, medium: 0, low: 0 } as Record<ConfidenceBand, number>;
+    for (const i of allItems) c[i.confidence_band]++;
+    return c;
+  }, [allItems]);
   const activeItem = useMemo(
     () => items.find((i) => i.id === activeId) ?? items[0] ?? null,
     [items, activeId],
   );
+
 
   useEffect(() => {
     if (!activeId && items[0]) setActiveId(items[0].id);
