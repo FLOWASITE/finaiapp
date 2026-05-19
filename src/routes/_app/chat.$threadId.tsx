@@ -73,7 +73,7 @@ function ThreadPage() {
     });
   }, [messages, streaming]);
 
-  const runAssistant = async (history: ChatMsg[]) => {
+  const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
     setStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
