@@ -88,5 +88,5 @@ export const getInventoryPrint = createServerFn({ method: "GET" })
     });
 
     const tenant = await getTenantInfo(supabase, tenantId);
-    return { header, lines: enriched, tenant };
+    return { header: headerOut, lines: enriched, tenant };
   });
