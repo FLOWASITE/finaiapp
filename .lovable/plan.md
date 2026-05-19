@@ -1,68 +1,60 @@
 ## Mục tiêu
 
-Thay dữ liệu mock trên trang **Trí nhớ AI** bằng dữ liệu thật trong database, với đầy đủ API tạo / sửa / tắt / bật lại / xoá quy tắc và quản lý mẫu "Đang học" (watch list).
+Khi bấm **Tạo quy tắc** trên thẻ đề xuất (suggestion), thay vì giữ nguyên text thô do AI gợi ý, hệ thống sẽ:
 
-## 1. Database (migration)
+1. Nhận diện *mẫu* (template) phù hợp với nội dung đề xuất.
+2. Tự sinh lại WHEN/THEN theo **cú pháp chuẩn** — rõ ràng, đọc được, có thể đối chiếu khi audit.
+3. Cho user xem preview chuẩn-hoá trong dialog, có thể tinh chỉnh slot trước khi xác nhận.
+4. Lưu vào `ai_memory_rules` với `type='active'`, `source='user-taught'`, kèm `origin` ghi rõ mẫu nào được dùng.
 
-Tạo 2 bảng mới, scope theo `tenant_id` + `user_id`, RLS dùng `is_tenant_member(auth.uid(), tenant_id)`:
+## Các mẫu (template) hỗ trợ
 
-**`ai_memory_rules`**
-- `id uuid pk`, `tenant_id uuid`, `created_by uuid` (user tạo)
-- `type text check in ('suggestion','active','disabled')`
-- `source text check in ('ai-learned','user-taught')` nullable
-- `title text`, `when_text text`, `then_text text`
-- `origin text` (mô tả nguồn gốc, vd "Học từ 5 lần duyệt liên tiếp")
-- `applied_count int default 0`, `accuracy_correct int default 0`, `accuracy_total int default 0`
-- `last_used_at timestamptz`, `disable_reason text`
-- `created_at`, `updated_at` + trigger `set_updated_at`
+Mỗi mẫu = `{ id, label, whenTemplate, thenTemplate, slots[] }`. Sinh text bằng cách điền slot.
 
-**`ai_memory_watch`** (mẫu AI đang theo dõi)
-- `id uuid pk`, `tenant_id uuid`, `created_by uuid`
-- `text text`, `seen_count int default 0`, `target_count int default 5`
-- `created_at`, `updated_at`
+| id | Khi nào áp | WHEN chuẩn | THEN chuẩn |
+|---|---|---|---|
+| `vendor-account` | Đề xuất nhắc 1 NCC + 1 TK chi phí | `vendor = "{vendor}"` | `Nợ {debit_acc} / Có {credit_acc}` |
+| `desc-contains-account` | Đề xuất dựa trên từ khoá mô tả | `description contains "{keyword}"` | `Nợ {debit_acc} / Có {credit_acc}` |
+| `amount-threshold` | Đề xuất giới hạn số tiền | `amount {op} {threshold}` (op ∈ `>`, `>=`, `<`, `<=`) | `{action}` (vd: "Yêu cầu duyệt cấp 2") |
+| `vendor-recurring` | Đề xuất giao dịch định kỳ | `vendor = "{vendor}" AND day_of_month = {day}` | `Tạo bút toán định kỳ Nợ {debit_acc} / Có {credit_acc} = {amount}` |
+| `category-routing` | Đề xuất gán nhóm chi phí | `category = "{category}"` | `Hạch toán vào TK {debit_acc}, phòng ban "{department}"` |
 
-RLS: SELECT/INSERT/UPDATE/DELETE chỉ cho thành viên active của tenant.
+Mẫu `vendor-account` là mặc định khi không nhận được mẫu nào khớp.
 
-## 2. Server functions
+## Thay đổi server (`src/lib/ai-memory.functions.ts`)
 
-File mới `src/lib/ai-memory.functions.ts` (dùng middleware `withTenant` giống `digest-prefs.functions.ts`):
+1. Thêm helper `src/lib/ai-memory-templates.ts` (client-safe, dùng được cả ở UI để preview):
+   - Export `RULE_TEMPLATES` (mảng template).
+   - Export `parseSuggestion(rule)` — đọc `when_text/then_text/title` thô, trả về `{ templateId, slots }` đoán tốt nhất qua regex (vd. `/vendor[:=]\s*"?([^"]+)"?/i`, `/(\d{3,4})\b/` để tìm số TK 642/111/331…, `/contains?\s*"([^"]+)"/i`).
+   - Export `renderRule(templateId, slots)` → `{ when_text, then_text, title }` đã chuẩn hoá tiếng Việt.
 
-- `listAiMemory()` → `{ rules: Rule[]; watch: Watch[] }` — đọc cả 2 bảng cho tenant hiện tại.
-- `createRule(input)` — tạo quy tắc mới (mặc định `type='active'`, `source='user-taught'`).
-- `promoteSuggestion({ id })` — chuyển 1 quy tắc từ `suggestion` → `active` + `source='user-taught'`.
-- `updateRule({ id, when_text?, then_text?, title? })`.
-- `disableRule({ id, reason })` — `type='disabled'` + lưu `disable_reason`.
-- `enableRule({ id })` — `type='active'`, xoá `disable_reason`.
-- `deleteRule({ id })` — DELETE (dùng cho "Bỏ qua" đề xuất).
-- `promoteWatchToRule({ watch_id, when_text, then_text, title })` — INSERT rule + DELETE watch trong cùng handler.
-- `dismissWatch({ id })` — DELETE watch.
+2. Sửa `promoteSuggestion`:
+   - Bỏ chữ ký cũ `{ id }` thuần. Thêm optional `template_id`, `slots`, `when_text`, `then_text`, `title` (đều optional — UI sẽ gửi bản đã preview).
+   - Nếu UI gửi WHEN/THEN đã render → dùng trực tiếp.
+   - Nếu chỉ gửi `id` (fallback) → load suggestion, gọi `parseSuggestion` + `renderRule` server-side rồi update.
+   - `origin` ghi: `"Tạo từ đề xuất ngày dd/mm/yyyy — mẫu: {label}"`.
 
-Validation bằng `zod`, tất cả `.eq("tenant_id", tenantId)` trước khi UPDATE/DELETE.
+3. Mở rộng `promoteWatchToRule` tương tự (cũng chuẩn hoá trước khi insert).
 
-## 3. Seed dữ liệu mẫu
+Không cần migration — vẫn dùng các cột hiện có.
 
-Sau migration, dùng tool `insert` chèn 6 quy tắc + 12 watch (tương ứng `INITIAL_RULES` và `INITIAL_WATCH` hiện có) cho mọi tenant đang có trong `tenants` để demo không trống.
+## Thay đổi UI (`src/routes/_app/ai.memory.tsx`)
 
-## 4. UI — `src/routes/_app/ai.memory.tsx`
+Trong `RuleCard`, viết lại dialog **"Xem trước quy tắc"** (`createOpen`):
 
-Refactor để dùng **TanStack Query**:
+1. Khi mở dialog → chạy `parseSuggestion(rule)` ở client → state `{ templateId, slots }`.
+2. Hiển thị:
+   - **Select mẫu**: dropdown 5 mẫu, mặc định mẫu detect được. Đổi mẫu → reset slot mặc định từ rule gốc.
+   - **Slot inputs**: render động theo `RULE_TEMPLATES[templateId].slots` (Label + Input/Select TK). Số TK có gợi ý quick-pick (111, 112, 131, 331, 511, 627, 642…).
+   - **Preview KHI/THÌ chuẩn hoá** (sử dụng `ChipWhen`/`ChipThen` hiện có) — re-render khi slot đổi.
+   - Dòng phụ: "Đề xuất gốc: ..." (text thô, italic muted) để user đối chiếu.
+3. Nút **Xác nhận tạo** gọi `promoteSuggestion.mutate({ data: { id, template_id, slots, when_text, then_text, title } })`.
 
-- `useQuery(['ai-memory'], listAiMemory)` cho rules + watch.
-- `useMutation` cho từng action (create/promote/update/disable/enable/delete/promoteWatch/dismissWatch), `onSuccess` → `queryClient.invalidateQueries(['ai-memory'])` + `toast`.
-- Bỏ `INITIAL_RULES`, `INITIAL_WATCH`, các `setRules/setWatch` local state.
-- `RuleCard` nhận thêm các mutation handlers thay vì cập nhật `setRules` cục bộ.
-- Loading skeleton + empty state khi chưa có rule/watch.
-- Stat cards: `Quy tắc hoạt động` đếm từ rules, `Đề xuất mới` đếm `type='suggestion'`. Hai số tĩnh ("1,284", "98.4%") tạm tính từ `SUM(applied_count)` và `SUM(accuracy_correct)/SUM(accuracy_total)` của tenant.
+Không đổi layout, màu sắc, các phần khác của trang.
 
-## 5. Không thay đổi
+## Kiểm thử
 
-- Giữ nguyên layout, màu sắc, chip KHI/THÌ, dialog/sheet.
-- Không đụng sidebar, không tạo edge function.
-- Sheet "Xem N lần áp dụng" tạm vẫn render mock (chưa có bảng lịch sử áp dụng) — sẽ ghi chú là follow-up.
-
-## Thứ tự thực hiện
-
-1. Gọi `supabase--migration` tạo 2 bảng + RLS + triggers.
-2. Gọi `supabase--insert` seed dữ liệu mẫu.
-3. Tạo `src/lib/ai-memory.functions.ts`.
-4. Refactor `src/routes/_app/ai.memory.tsx` sang React Query + mutations.
+- Suggestion mẫu "Highlands → 642" → preview phải hiện `vendor = "Highlands"` / `Nợ 642 / Có 111`.
+- Đổi sang mẫu `desc-contains-account` → slot keyword auto fill từ title → preview cập nhật.
+- Sửa số TK 642 → 6428 → preview cập nhật ngay; xác nhận → rule lưu đúng text chuẩn, type=`active`, source=`user-taught`, origin có tên mẫu.
+- Suggestion text rỗng/lạ → parseSuggestion vẫn trả default `vendor-account` với slot trống — nút "Xác nhận" disabled cho tới khi slot bắt buộc được điền.
