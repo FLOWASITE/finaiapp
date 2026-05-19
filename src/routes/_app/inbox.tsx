@@ -1,13 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Sparkles,
   CheckCircle2,
   AlertTriangle,
-  Pencil,
-  X,
   Landmark,
   FileText,
   Lightbulb,
@@ -19,6 +17,7 @@ import {
   MoreHorizontal,
   TrendingUp,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import {
   listInboxAi,
@@ -32,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { InboxChat, type ChatEntry } from "@/components/inbox/inbox-chat";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
