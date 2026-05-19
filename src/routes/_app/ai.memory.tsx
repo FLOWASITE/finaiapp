@@ -570,35 +570,159 @@ function RuleCard({ rule }: { rule: MemoryRule }) {
         )}
       </div>
 
-      {/* Create (promote suggestion) dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+      {/* Create (promote suggestion) dialog — template-driven */}
+      <Dialog
+        open={createOpen}
+        onOpenChange={(o) => {
+          setCreateOpen(o);
+          if (o) {
+            // Reset về mẫu detect mỗi lần mở
+            setTplId(initialParsed.templateId);
+            setSlots(initialParsed.slots);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Xem trước quy tắc</DialogTitle>
+            <DialogTitle>Tạo quy tắc từ đề xuất</DialogTitle>
             <DialogDescription>
-              Sau khi tạo, AI sẽ tự động áp dụng cho mọi trường hợp khớp.
+              Chọn mẫu phù hợp và điền các giá trị. AI sẽ áp dụng quy tắc này tự động cho mọi
+              trường hợp khớp.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 rounded-md bg-muted/40 p-3 text-[13px]">
-            <div className="flex items-start gap-2">
-              <ChipWhen />
-              <span>{rule.when_text}</span>
+
+          <div className="space-y-3">
+            {/* Template selector */}
+            <div>
+              <Label className="mb-1 block text-[12px]">Mẫu quy tắc</Label>
+              <Select
+                value={tplId}
+                onValueChange={(v) => {
+                  setTplId(v);
+                  // Khi đổi mẫu, giữ lại các slot trùng key + parse lại từ rule gốc cho slot mới.
+                  const reparsed = parseSuggestion(rule);
+                  const next: Record<string, string> = {};
+                  for (const s of TEMPLATES_BY_ID[v].slots) {
+                    next[s.key] = slots[s.key] ?? reparsed.slots[s.key] ?? "";
+                  }
+                  setSlots(next);
+                }}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RULE_TEMPLATES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11.5px] text-muted-foreground">{tpl.description}</p>
             </div>
-            <div className="flex items-start gap-2">
-              <ChipThen />
-              <span>{rule.then_text}</span>
+
+            {/* Slot inputs */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {tpl.slots.map((s) => {
+                const val = slots[s.key] ?? "";
+                const setVal = (v: string) =>
+                  setSlots((prev) => ({ ...prev, [s.key]: v }));
+                if (s.kind === "op") {
+                  return (
+                    <div key={s.key}>
+                      <Label className="mb-1 block text-[12px]">{s.label}</Label>
+                      <Select value={val || ">"} onValueChange={setVal}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[">", ">=", "<", "<="].map((op) => (
+                            <SelectItem key={op} value={op}>
+                              {op}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={s.key} className={s.kind === "text" ? "col-span-2" : ""}>
+                    <Label className="mb-1 block text-[12px]">
+                      {s.label}
+                      {s.required && <span className="text-destructive"> *</span>}
+                    </Label>
+                    <Input
+                      value={val}
+                      placeholder={s.placeholder}
+                      inputMode={s.kind === "number" || s.kind === "day" ? "numeric" : undefined}
+                      onChange={(e) => setVal(e.target.value)}
+                      className="h-9"
+                    />
+                    {s.kind === "account" && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {ACCOUNT_QUICK_PICKS.slice(0, 8).map((acc) => (
+                          <button
+                            key={acc}
+                            type="button"
+                            onClick={() => setVal(acc)}
+                            className="rounded border bg-muted/40 px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            {acc}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Preview KHI/THÌ chuẩn hoá */}
+            <div className="space-y-1.5 rounded-md border border-[#4F46C7]/30 bg-[#F5F4FE] p-3 text-[12.5px]">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[#4F46C7]">
+                Xem trước quy tắc chuẩn hoá
+              </div>
+              <div className="flex items-start gap-2">
+                <ChipWhen />
+                <span className="flex-1 leading-relaxed">{rendered.when_text}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ChipThen />
+                <span className="flex-1 leading-relaxed">{rendered.then_text}</span>
+              </div>
+            </div>
+
+            {/* Đề xuất gốc */}
+            <div className="rounded-md bg-muted/40 px-3 py-2 text-[11.5px] italic text-muted-foreground">
+              <span className="font-semibold not-italic">Đề xuất gốc:</span> {rule.when_text}
+              {" → "}
+              {rule.then_text}
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Huỷ
             </Button>
             <Button
               className="bg-[#4F46C7] text-white hover:bg-[#4338A8]"
-              onClick={() => promoteM.mutate({ data: { id: rule.id } })}
-              disabled={promoteM.isPending}
+              disabled={promoteM.isPending || !!slotError}
+              onClick={() =>
+                promoteM.mutate({
+                  data: {
+                    id: rule.id,
+                    template_id: tplId,
+                    slots,
+                    title: rendered.title,
+                    when_text: rendered.when_text,
+                    then_text: rendered.then_text,
+                  },
+                })
+              }
             >
-              Xác nhận tạo
+              {slotError ?? "Xác nhận tạo"}
             </Button>
           </DialogFooter>
         </DialogContent>
