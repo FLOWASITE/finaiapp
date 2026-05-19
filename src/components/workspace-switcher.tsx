@@ -20,10 +20,10 @@ export function WorkspaceSwitcher() {
             ? "bg-primary/15 text-primary"
             : "text-muted-foreground hover:text-foreground",
         )}
-        title="Front-Office — vận hành"
+        title="Mode AI"
       >
         <LayoutGrid className="h-3.5 w-3.5" />
-        Vận hành
+        AI
       </button>
       <button
         type="button"
