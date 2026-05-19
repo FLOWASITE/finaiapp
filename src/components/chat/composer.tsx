@@ -77,6 +77,28 @@ export function Composer({
           rows={1}
           className="flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
         />
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={() => toast.info("Tính năng đính kèm file đang phát triển")}
+          className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          aria-label="Đính kèm file"
+          title="Đính kèm file"
+        >
+          <Paperclip className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={() => toast.info("Tính năng ghi âm đang phát triển")}
+          className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          aria-label="Ghi âm"
+          title="Ghi âm"
+        >
+          <Mic className="h-4 w-4" />
+        </Button>
         {loading && onStop ? (
           <Button
             type="button"
