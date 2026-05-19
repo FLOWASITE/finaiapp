@@ -93,20 +93,64 @@ export const createRule = createServerFn({ method: "POST" })
 
 export const promoteSuggestion = createServerFn({ method: "POST" })
   .middleware([withTenant])
-  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        template_id: z.string().min(1).max(64).optional(),
+        slots: z.record(z.string(), z.string()).optional(),
+        title: z.string().trim().min(1).max(255).optional(),
+        when_text: z.string().trim().min(1).max(2000).optional(),
+        then_text: z.string().trim().min(1).max(2000).optional(),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, tenantId } = context;
+
+    // Load current suggestion để fallback nếu UI không gửi đủ thông tin.
+    const { data: current, error: loadErr } = await supabase
+      .from("ai_memory_rules")
+      .select("title,when_text,then_text")
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadErr) throw new Error(loadErr.message);
+    if (!current) throw new Error("Không tìm thấy đề xuất");
+
+    // Quyết định mẫu + slot.
+    let templateId = data.template_id;
+    let slots = data.slots ?? {};
+    if (!templateId || Object.keys(slots).length === 0) {
+      const parsed = parseSuggestion(current as { title: string; when_text: string; then_text: string });
+      templateId = templateId ?? parsed.templateId;
+      slots = Object.keys(slots).length === 0 ? parsed.slots : slots;
+    }
+
+    const tpl = TEMPLATES_BY_ID[templateId!];
+    if (!tpl) throw new Error("Mẫu quy tắc không hợp lệ");
+
+    // Ưu tiên text đã render từ UI; nếu thiếu, render lại từ slot ở server.
+    const rendered = renderRule(templateId!, slots);
+    const finalTitle = (data.title ?? rendered.title).trim();
+    const finalWhen = (data.when_text ?? rendered.when_text).trim();
+    const finalThen = (data.then_text ?? rendered.then_text).trim();
+
+    const today = new Date().toLocaleDateString("vi-VN");
     const { error } = await supabase
       .from("ai_memory_rules")
       .update({
         type: "active",
         source: "user-taught",
-        origin: `Tạo từ đề xuất ngày ${new Date().toLocaleDateString("vi-VN")}`,
+        title: finalTitle,
+        when_text: finalWhen,
+        then_text: finalThen,
+        origin: `Tạo từ đề xuất ngày ${today} — mẫu: ${tpl.label}`,
       })
       .eq("id", data.id)
       .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, template_id: templateId };
   });
 
 export const updateRule = createServerFn({ method: "POST" })
