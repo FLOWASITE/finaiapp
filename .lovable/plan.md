@@ -1,40 +1,61 @@
-# Mở rộng SUGGESTED_MODELS + tự động tải full list
+# Hoàn thiện Chatbot hỏi đáp
 
-## Mục tiêu
-Khi mở trang `/superadmin/ai-model`, danh sách model luôn đầy đủ và cập nhật theo OpenRouter — không cần bấm nút "Tải danh sách đầy đủ".
+Mục tiêu: nâng UX trang `/chat/$threadId` ngang chuẩn ChatGPT — markdown đẹp, thấy được AI đang làm gì, duyệt hành động ngay trong hội thoại, và kiểm soát stream.
 
-## Thay đổi
+## 1) Render markdown trong tin nhắn AI
 
-### 1. Tự động fetch full list khi mở trang
-Trong `src/routes/_app/superadmin/ai-model.tsx`:
-- Thêm `useEffect` chạy 1 lần sau khi `form` được khởi tạo (có `base_url`) → gọi `onLoadModels()` âm thầm.
-- Nếu fetch thành công → `setModels` với full list (hiện tại đã merge với SUGGESTED_MODELS làm fallback).
-- Nếu fetch lỗi (mất mạng, key sai) → giữ nguyên SUGGESTED_MODELS, không hiện toast lỗi (chỉ log console), để user vẫn chọn được.
-- Nút "Tải danh sách đầy đủ" giữ lại để reload thủ công.
+- Cài `react-markdown` + `remark-gfm` (đã có `parseChartBlocks` cho biểu đồ → giữ nguyên).
+- Tạo `src/components/chat/markdown.tsx` bọc `ReactMarkdown` với `remarkGfm`, style bằng tokens hiện có (prose-tone tự viết, không dùng plugin typography để tránh đụng theme):
+  - `p`, `ul/ol/li`, `strong/em`, `code` inline + `pre code` block (nền `bg-muted/50`, `rounded-md`, scroll-x), `table` với border + `th/td` padding, `a` màu primary underline, `blockquote` border-l.
+- `MessageList`: thay `<div className="whitespace-pre-wrap">{part.value}</div>` (assistant text) bằng `<Markdown>{part.value}</Markdown>`. User bubble giữ `whitespace-pre-wrap`.
 
-### 2. Mở rộng SUGGESTED_MODELS thành ~40 model phổ biến của OpenRouter
-Phủ đủ các provider lớn để danh sách offline vẫn dùng được ngay:
+## 2) Hiện tool calls (runQuery / proposeAction)
 
-- **OpenAI**: gpt-4o-mini, gpt-4o, gpt-4.1, gpt-4.1-mini, gpt-5, gpt-5-mini, gpt-5-nano, o1, o1-mini, o3-mini
-- **Anthropic**: claude-sonnet-4.5, claude-haiku-4.5, claude-3.7-sonnet, claude-3.5-sonnet, claude-3.5-haiku, claude-opus-4
-- **Google**: gemini-2.5-flash, gemini-2.5-pro, gemini-2.5-flash-lite, gemini-3-flash-preview, gemini-3.1-pro-preview, gemini-2.0-flash
-- **xAI**: grok-4, grok-3, grok-3-mini, grok-2-vision
-- **DeepSeek**: deepseek-r1, deepseek-chat, deepseek-v3, deepseek-r1-distill-llama-70b
-- **Qwen**: qwen-vl-max, qwen-2.5-72b-instruct, qwen-2.5-coder-32b-instruct, qwq-32b
-- **Meta**: llama-3.3-70b-instruct, llama-3.2-90b-vision-instruct
-- **Mistral**: mistral-large, mistral-small-3.1, codestral-2501
-- **Perplexity**: sonar, sonar-pro, sonar-reasoning
+Hiện stream chỉ trả `delta` text → tool calls vô hình. Mở rộng kênh stream:
 
-Mỗi entry có `context_length` đúng theo doc OpenRouter để hiện badge "k" ngay.
+- `src/lib/chat.functions.ts`: thay vì chỉ `for await (delta of result.textStream)`, dùng `result.fullStream` và yield 3 loại event:
+  - `{ type: "text", delta }`
+  - `{ type: "tool-call", toolCallId, toolName, input }`
+  - `{ type: "tool-result", toolCallId, output }` (cắt ngắn output > 4KB để không phình message)
+- Lưu DB: cùng buffer text như cũ; thêm `tool_events: Array<{...}>` ghi kèm vào `chat_messages.metadata` (cột jsonb — nếu chưa có thì thêm migration `alter table chat_messages add column metadata jsonb`).
+- `ChatMsg` (client): thêm optional `toolEvents`. Khi stream, append vào state theo từng event.
+- `MessageList`: phía trên text của assistant, render `<ToolCallsAccordion events={...} defaultOpen={false} />`:
+  - Hàng tóm tắt: icon (Database cho runQuery, Wand cho proposeAction) + tên tool + badge trạng thái (Đang chạy / Xong / Lỗi).
+  - Click mở details: SQL/params (code block) + JSON result (cắt nếu dài + nút "Sao chép").
+  - Nhiều tool calls → list nhỏ gọn, mỗi cái 1 accordion.
+- Khi load lại thread từ DB: đọc `metadata.toolEvents` để dựng lại accordion.
 
-### 3. UX nhỏ
-- Trong thời gian auto-load chạy, badge "Đang tải…" nhỏ cạnh `onlyFree` toggle (dùng `loadingModels` state đã có).
+## 3) Wire PendingActions vào chat
 
-## Phạm vi code
-- Chỉ sửa `src/routes/_app/superadmin/ai-model.tsx`.
-- Không động backend `ai-config.functions.ts`, `ai-gateway.server.ts`.
+`PendingActions.tsx` đã sẵn (list / approve / cancel), chưa được render.
 
-## Kiểm tra
-- Mở trang lần đầu: thấy ngay danh sách suggested ~40 model. Vài giây sau full list (300+) thay thế.
-- Disable mạng → vẫn dùng được ~40 model suggested.
-- Bấm "Tải danh sách đầy đủ" → reload thủ công như cũ.
+- Trang `/chat/$threadId`: thêm `<PendingActions />` ngay trên `Composer`, chỉ hiện khi có hành động (component tự ẩn nếu list rỗng).
+- Sau khi `proposeAction` tool chạy xong (stream nhận tool-result), invalidate `["ai_actions_pending"]` để card xuất hiện ngay (không phải đợi 5s polling).
+- Trang index `/chat` cũng cho hiện nếu có pending (giúp user thấy việc còn dang dở).
+
+## 4) Stop streaming + Copy + Regenerate
+
+**Stop:**
+- `askAccountingStream` thêm `abortSignal: request.signal` vào `streamText` (server fn của TanStack hỗ trợ — kiểm tra `context.request.signal`; nếu generator bị huỷ phía client, signal sẽ abort).
+- Client: dùng `AbortController`; nút Send chuyển thành nút Stop (icon `Square`) khi `streaming === true`. Click Stop → `controller.abort()` → break vòng `for await`. Phần text đã stream được lưu DB như bình thường (kèm marker `\n\n_Đã dừng._`).
+
+**Copy:**
+- Mỗi assistant message hover hiện hàng action nhỏ phía dưới: nút Copy (icon `Copy`), copy `m.content` (raw markdown) → `navigator.clipboard.writeText` + toast.
+
+**Regenerate:**
+- Nút "Tạo lại" chỉ hiện ở tin assistant cuối cùng (không streaming): xoá tin AI cuối khỏi DB (server fn mới `deleteLastAssistantMessage(threadId)`) + state, rồi gọi lại `runAssistant(history_without_last_assistant)`.
+
+## Phạm vi files
+
+- ➕ `src/components/chat/markdown.tsx`
+- ➕ `src/components/chat/tool-calls.tsx`
+- ➕ `src/components/chat/message-actions.tsx` (Copy / Regenerate)
+- 📝 `src/components/chat/message-list.tsx` — markdown + actions + tool accordion
+- 📝 `src/components/chat/composer.tsx` — hỗ trợ prop `onStop` + đổi icon
+- 📝 `src/routes/_app/chat.$threadId.tsx` — AbortController, regenerate, mount PendingActions, parse stream events
+- 📝 `src/lib/chat.functions.ts` — `fullStream` + abortSignal + emit tool events
+- 📝 `src/lib/chat-threads.functions.ts` — `appendMessage` nhận `metadata`; mới: `deleteLastAssistantMessage`, `getThread` trả metadata
+- 🗄️ Migration: `alter table chat_messages add column if not exists metadata jsonb`
+- 📝 Deps: `bun add react-markdown remark-gfm`
+
+Không đụng `chat-dock.tsx`, không đổi flow tạo thread, không sửa cài đặt model.
