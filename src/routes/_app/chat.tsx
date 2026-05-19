@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_app/chat")({
 function ChatLayout() {
   const navigate = useNavigate();
   return (
-    <div className="flex h-[calc(100vh-7rem)] overflow-hidden">
+    <div className="chat-surface flex h-[calc(100vh-7rem)] overflow-hidden rounded-2xl border border-border/40 bg-background/30 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] backdrop-blur-sm">
       <ThreadList onNew={() => navigate({ to: "/chat" })} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
@@ -16,4 +16,3 @@ function ChatLayout() {
     </div>
   );
 }
-

@@ -18,11 +18,6 @@ type Props = {
   onRegenerate?: () => void;
 };
 
-/**
- * ChatGPT-style transcript:
- *  - Assistant: no bubble background, plain text on the surface, markdown rendered
- *  - User: high-contrast primary bubble, right aligned
- */
 export function MessageList({ messages, streaming, onRegenerate }: Props) {
   const lastAssistantIdx = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -32,7 +27,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
   })();
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
       {messages.map((m, i) => {
         if (m.role === "system") return null;
         const isUser = m.role === "user";
@@ -41,18 +36,24 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
         return (
           <div
             key={m.id ?? i}
-            className={cn("group flex gap-3", isUser ? "justify-end" : "items-start")}
+            className={cn(
+              "group flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
+              isUser ? "justify-end" : "items-start",
+            )}
           >
             {!isUser && (
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
+              <div
+                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-md ring-1 ring-white/10"
+                style={{ background: "var(--gradient-ai)" }}
+              >
+                <Sparkles className="h-4 w-4" />
               </div>
             )}
             <div
               className={cn(
                 "min-w-0 text-sm leading-relaxed",
                 isUser
-                  ? "max-w-[78%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground shadow-md shadow-primary/20"
+                  ? "max-w-[78%] whitespace-pre-wrap rounded-2xl bg-primary px-5 py-3 text-primary-foreground shadow-lg shadow-primary/15"
                   : "flex-1 text-foreground",
               )}
             >
@@ -60,6 +61,9 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                 m.content
               ) : (
                 <>
+                  <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                    Trợ lý
+                  </div>
                   {m.toolEvents && m.toolEvents.length > 0 && (
                     <ToolCalls events={m.toolEvents} />
                   )}
@@ -74,7 +78,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                       )}
                     </div>
                   ) : streaming && isLast ? (
-                    <ThinkingDots />
+                    <ThinkingIndicator />
                   ) : null}
                   {m.content && !(streaming && isLast) && (
                     <MessageActions
@@ -87,8 +91,8 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               )}
             </div>
             {isUser && (
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                <User className="h-3.5 w-3.5" />
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-border/60">
+                <User className="h-4 w-4" />
               </div>
             )}
           </div>
@@ -98,13 +102,10 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
   );
 }
 
-function ThinkingDots() {
+function ThinkingIndicator() {
   return (
-    <span className="inline-flex items-center gap-1 text-muted-foreground">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
-      <span className="ml-2 text-xs">Đang truy vấn dữ liệu…</span>
-    </span>
+    <div className="flex items-center gap-2">
+      <span className="chat-shimmer-text text-sm font-medium">Đang suy nghĩ…</span>
+    </div>
   );
 }
