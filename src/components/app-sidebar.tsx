@@ -384,18 +384,20 @@ export function AppSidebar() {
     pathname === "/sales-dashboard" ||
     pathname.startsWith("/sales-dashboard/") ||
     pathname.startsWith("/purchases/reports");
+  const inSuperadminModule = pathname.startsWith("/superadmin");
   // Workspace Front: ưu tiên dùng FRONT_SECTIONS, trừ khi đang ở các module
-  // chuyên dụng (HĐĐT/Thuế/Báo cáo) thì vẫn dùng sidebar contextual cũ.
-  const activeSections =
-    workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
-      ? FRONT_SECTIONS
-      : inTaxModule
-      ? TAX_SECTIONS
-      : inReportsModule
-      ? REPORTS_SECTIONS
-      : inEinvoiceModule
-      ? EINVOICE_SECTIONS
-      : SECTIONS;
+  // chuyên dụng (HĐĐT/Thuế/Báo cáo/Super Admin) thì vẫn dùng sidebar contextual.
+  const activeSections = inSuperadminModule
+    ? SUPERADMIN_SECTIONS
+    : workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
+    ? FRONT_SECTIONS
+    : inTaxModule
+    ? TAX_SECTIONS
+    : inReportsModule
+    ? REPORTS_SECTIONS
+    : inEinvoiceModule
+    ? EINVOICE_SECTIONS
+    : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
