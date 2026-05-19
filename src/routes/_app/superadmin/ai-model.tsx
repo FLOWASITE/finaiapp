@@ -870,6 +870,8 @@ function ModelField({
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [manual, setManual] = useState(false);
+
   const filtered = useMemo(() => {
     let list = onlyFree ? models.filter((m) => m.isFree) : models;
     if (search.trim()) {
@@ -880,90 +882,180 @@ function ModelField({
     }
     return list;
   }, [models, onlyFree, search]);
+
+  // Group by provider prefix (openai/, google/, anthropic/...)
+  const grouped = useMemo(() => {
+    const groups = new Map<string, ModelOption[]>();
+    for (const m of filtered) {
+      const provider = m.id.includes("/") ? m.id.split("/")[0] : "other";
+      if (!groups.has(provider)) groups.set(provider, []);
+      groups.get(provider)!.push(m);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
   const selected = models.find((m) => m.id === value);
+  const noModelsLoaded = models.length === 0;
+
+  // Display parts for trigger
+  const triggerProvider = value.includes("/") ? value.split("/")[0] : null;
+  const triggerName = value.includes("/") ? value.split("/").slice(1).join("/") : value;
 
   return (
     <div className="space-y-1.5 rounded-lg border bg-muted/20 p-3">
-      <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-        {icon}
-        {label}
-        {required && <span className="text-destructive">*</span>}
-      </Label>
-      <div className="flex gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+          {icon}
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </Label>
+        {!noModelsLoaded && (
+          <button
+            type="button"
+            onClick={() => setManual((m) => !m)}
+            className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            {manual ? "Chọn từ list" : "Gõ tay"}
+          </button>
+        )}
+      </div>
+
+      {manual || noModelsLoaded ? (
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 font-mono text-sm bg-background"
+          className="font-mono text-sm bg-background"
         />
-        {models.length > 0 && (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" type="button" title="Chọn từ danh sách">
-                <ChevronsUpDown className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[420px] p-0" align="end">
-              <Command>
-                <CommandInput placeholder="Tìm model…" />
-                <CommandList>
-                  <CommandEmpty>Không có model phù hợp.</CommandEmpty>
-                  <CommandGroup>
-                    {filtered.map((m) => (
-                      <CommandItem
-                        key={m.id}
-                        value={m.id + " " + m.name}
-                        onSelect={() => {
-                          onChange(m.id);
-                          setOpen(false);
-                        }}
-                        className="flex items-start gap-2"
-                      >
-                        <Check
+      ) : (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2.5 py-2 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors"
+            >
+              <div className="flex flex-1 min-w-0 items-center gap-2">
+                {value ? (
+                  <>
+                    {triggerProvider && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground shrink-0">
+                        {triggerProvider}
+                      </span>
+                    )}
+                    <span className="font-mono text-xs truncate">{triggerName}</span>
+                    {selected?.isFree && (
+                      <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
+                        free
+                      </Badge>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">
+                    {placeholder || "Chọn model…"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {value && (
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange("");
+                    }}
+                    className="text-muted-foreground hover:text-destructive p-0.5"
+                    title="Bỏ chọn"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </span>
+                )}
+                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[460px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
+              <CommandList className="max-h-[360px]">
+                <CommandEmpty>Không có model phù hợp.</CommandEmpty>
+                {grouped.map(([provider, list]) => (
+                  <CommandGroup
+                    key={provider}
+                    heading={`${provider} · ${list.length}`}
+                  >
+                    {list.map((m) => {
+                      const isSel = value === m.id;
+                      const modelName = m.id.includes("/")
+                        ? m.id.split("/").slice(1).join("/")
+                        : m.id;
+                      return (
+                        <CommandItem
+                          key={m.id}
+                          value={m.id + " " + m.name}
+                          onSelect={() => {
+                            onChange(m.id);
+                            setOpen(false);
+                          }}
                           className={cn(
-                            "h-4 w-4 mt-0.5",
-                            value === m.id ? "opacity-100" : "opacity-0",
+                            "flex items-start gap-2 py-2",
+                            isSel && "bg-primary/5",
                           )}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs truncate">{m.id}</span>
-                            {m.isFree && (
-                              <Badge variant="secondary" className="text-[10px] h-4">
-                                free
-                              </Badge>
+                        >
+                          <Check
+                            className={cn(
+                              "h-4 w-4 mt-0.5 shrink-0 text-primary",
+                              isSel ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono text-xs">{modelName}</span>
+                              {m.isFree && (
+                                <Badge variant="secondary" className="text-[10px] h-4">
+                                  free
+                                </Badge>
+                              )}
+                              {m.context_length && (
+                                <Badge variant="outline" className="text-[10px] h-4 font-normal">
+                                  {(m.context_length / 1000).toFixed(0)}k
+                                </Badge>
+                              )}
+                              {!m.isFree && m.pricing?.prompt && (
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  ${m.pricing.prompt}/${m.pricing.completion}
+                                </span>
+                              )}
+                            </div>
+                            {m.name && m.name !== m.id && (
+                              <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                {m.name}
+                              </div>
                             )}
                           </div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {m.name}
-                            {m.context_length
-                              ? ` · ${(m.context_length / 1000).toFixed(0)}k ctx`
-                              : ""}
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
-      {selected && (
-        <div className="flex flex-wrap gap-1.5 text-[10px]">
+                ))}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {selected && !manual && (selected.context_length || selected.pricing?.prompt) && (
+        <div className="flex flex-wrap gap-1 text-[10px] pt-0.5">
           {selected.context_length && (
             <Badge variant="outline" className="font-normal">
               {(selected.context_length / 1000).toFixed(0)}k ctx
             </Badge>
           )}
-          {selected.isFree ? (
-            <Badge variant="secondary" className="font-normal">free</Badge>
-          ) : selected.pricing?.prompt ? (
-            <Badge variant="outline" className="font-normal">
+          {!selected.isFree && selected.pricing?.prompt && (
+            <Badge variant="outline" className="font-normal font-mono">
               in ${selected.pricing.prompt} · out ${selected.pricing.completion}
             </Badge>
-          ) : null}
+          )}
         </div>
       )}
     </div>
