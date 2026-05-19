@@ -338,5 +338,5 @@ export const getInboxLane = createServerFn({ method: "POST" })
       return { rows: filtered, source: "ai_insights" as const, nextOffset };
     }
 
-    return { rows: [], source: "none" as const };
+    return { rows: [], source: "none" as const, nextOffset: null };
   });
