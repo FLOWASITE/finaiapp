@@ -33,7 +33,7 @@ export const getDisposalPrint = createServerFn({ method: "GET" })
     const { supabase, tenantId } = context;
     const { data: d, error } = await supabase
       .from("fa_disposals")
-      .select("*, asset:fixed_assets(*, fa_categories(name), departments(name), branches(name)), buyer:business_partners!buyer_party_id(name, address, tax_id)")
+      .select("*, asset:fixed_assets(*, fa_categories(name), departments(name), branches(name)), buyer:customers!buyer_party_id(name, address, tax_id)")
       .eq("id", data.disposal_id).eq("tenant_id", tenantId).single();
     if (error || !d) throw new Error("Không tìm thấy chứng từ thanh lý");
     const tenant = await getTenantInfo(supabase, tenantId);
