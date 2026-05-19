@@ -41,6 +41,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { dashboardOverview } from "@/lib/dashboard-overview.functions";
 import { useNavigate } from "@tanstack/react-router";
+import { InsightWidget } from "@/components/ai/InsightWidget";
+
 
 type Period = "month" | "quarter" | "ytd";
 
@@ -109,7 +111,10 @@ function Dashboard() {
         </div>
       </div>
 
+      <InsightWidget />
+
       {/* KPI Strip */}
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}

@@ -95,6 +95,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_insights: {
+        Row: {
+          action_url: string | null
+          body: string | null
+          category: string
+          created_at: string
+          dedupe_key: string | null
+          dismissed_at: string | null
+          dismissed_by: string | null
+          id: string
+          metadata: Json
+          severity: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_url?: string | null
+          body?: string | null
+          category: string
+          created_at?: string
+          dedupe_key?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          id?: string
+          metadata?: Json
+          severity?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string | null
+          category?: string
+          created_at?: string
+          dedupe_key?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          id?: string
+          metadata?: Json
+          severity?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_suggestions: {
         Row: {
           chosen_index: number | null

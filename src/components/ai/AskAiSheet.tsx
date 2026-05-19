@@ -4,11 +4,19 @@ import { useServerFn } from "@tanstack/react-start";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2 } from "lucide-react";
+import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2, Mic, MicOff } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
 import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { PendingActions } from "@/components/ai/PendingActions";
 import { toast } from "sonner";
+
+const QUICK_CHIPS = [
+  "Doanh thu hôm nay",
+  "Công nợ quá hạn",
+  "Tồn kho sắp hết",
+  "Báo cáo tháng",
+];
+
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -29,6 +37,8 @@ export function AskAiSheet() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recogRef = useRef<any>(null);
+  const [recording, setRecording] = useState(false);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
@@ -38,6 +48,7 @@ export function AskAiSheet() {
         setOpen((v) => !v);
       }
     };
+
     window.addEventListener("keydown", onKey);
     const onOpen = () => setOpen(true);
     window.addEventListener("app:open-ai", onOpen);
@@ -153,7 +164,43 @@ export function AskAiSheet() {
     }
   };
 
-
+  const toggleVoice = () => {
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Trình duyệt không hỗ trợ ghi âm. Hãy dùng Chrome/Safari.");
+      return;
+    }
+    if (recording && recogRef.current) {
+      recogRef.current.stop();
+      return;
+    }
+    const r = new SR();
+    r.lang = "vi-VN";
+    r.interimResults = true;
+    r.continuous = false;
+    let finalText = "";
+    r.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      setInput((finalText + interim).trim());
+    };
+    r.onerror = (e: any) => {
+      toast.error(`Lỗi ghi âm: ${e.error || "unknown"}`);
+      setRecording(false);
+    };
+    r.onend = () => {
+      setRecording(false);
+      recogRef.current = null;
+      if (finalText.trim()) setTimeout(() => send(finalText.trim()), 100);
+    };
+    recogRef.current = r;
+    setRecording(true);
+    r.start();
+  };
 
   return (
     <>
@@ -161,23 +208,27 @@ export function AskAiSheet() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Mở trợ lý AI (Cmd+J)"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110 active:scale-95"
       >
         <Sparkles className="h-6 w-6" />
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-lg max-sm:!w-screen max-sm:!max-w-none max-sm:inset-0"
+        >
           <SheetHeader className="border-b border-border bg-card px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
               Trợ lý AI
             </SheetTitle>
             <SheetDescription className="flex items-center gap-2 text-xs">
-              <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
+              <span className="hidden sm:inline-flex rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
                 <CommandIcon className="inline h-3 w-3" />+J
               </span>
-              <span>để mở/đóng — đang ở: <code className="text-foreground">{location.pathname}</code></span>
+              <span>đang ở: <code className="text-foreground">{location.pathname}</code></span>
             </SheetDescription>
           </SheetHeader>
 
@@ -234,7 +285,20 @@ export function AskAiSheet() {
 
           <PendingActions />
 
-          <div className="border-t border-border bg-card p-3">
+          <div className="border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {/* Quick chips */}
+            <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+              {QUICK_CHIPS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => send(c)}
+                  disabled={loading || uploading}
+                  className="shrink-0 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs hover:bg-accent hover:border-primary disabled:opacity-50"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
             <input
               ref={fileRef}
               type="file"
@@ -256,13 +320,24 @@ export function AskAiSheet() {
               >
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
               </Button>
+              <Button
+                type="button"
+                variant={recording ? "destructive" : "outline"}
+                size="icon"
+                onClick={toggleVoice}
+                disabled={uploading || loading}
+                title={recording ? "Dừng ghi âm" : "Nói (Web Speech)"}
+              >
+                {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
               <Input
                 ref={inputRef}
-                placeholder="Hỏi AI hoặc upload hoá đơn (PDF/ảnh)…"
+                placeholder={recording ? "Đang nghe…" : "Hỏi AI hoặc upload hoá đơn…"}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
                 disabled={loading || uploading}
+                className="h-11 text-base sm:h-10 sm:text-sm"
               />
               <Button onClick={() => send()} disabled={loading || uploading || !input.trim()} size="icon">
                 <Send className="h-4 w-4" />
@@ -270,6 +345,7 @@ export function AskAiSheet() {
             </div>
           </div>
         </SheetContent>
+
       </Sheet>
     </>
   );
