@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { reportS21, reportS22, reportFundingMovement } from "@/lib/fa-reports.functions";
+import { reportS21, reportS22, reportFundingMovement, reportByDimension } from "@/lib/fa-reports.functions";
 
 export const Route = createFileRoute("/_app/assets/reports")({ component: ReportsPage });
 
