@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles, MessageSquare, Plus } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
