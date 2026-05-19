@@ -1,50 +1,28 @@
-# Hiện ChatDock trên trang Inbox AI
-
-## Vấn đề
-
-Trang `/inbox` đang chạy ở chế độ "chromeless" trong `src/routes/_app.tsx`:
-
-```ts
-const chromeless = location.pathname === "/inbox";
-const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
-// ...
-if (chromeless) {
-  return (
-    <div className="h-screen w-full overflow-hidden bg-background">
-      <Outlet />
-      <CommandPalette />
-    </div>
-  );
-}
-```
-
-Vì `chromeless = true`, layout sớm return và **không render `<ChatDock />`**, nên ở /inbox không thấy chatbot nổi ở góc phải dưới (Sparkles bubble) như các trang khác. Thanh "Chat" xuất hiện trong ảnh chụp là thanh địa chỉ Samsung Internet, không phải UI của app.
-
-## Phạm vi
-
-Chỉ sửa frontend layout. Không đụng logic ChatDock, không đụng business logic Inbox.
+## Mục tiêu
+Thêm nút **Collapse/Expand** (đóng/mở) cho sidebar lịch sử chat ở trang `/chat`, để người dùng có thêm không gian khi cần.
 
 ## Thay đổi
 
-**File:** `src/routes/_app.tsx`
+### 1. `src/components/chat/thread-list.tsx`
+- Đổi `ThreadList` để nhận thêm props `collapsed: boolean` và `onToggle: () => void`.
+- Khi `collapsed = true`:
+  - Sidebar thu hẹp còn `w-14` (chỉ hiển thị icon).
+  - Ẩn tiêu đề "Trợ lý kế toán", nút "Cuộc trò chuyện mới" hiển thị dưới dạng icon `+`.
+  - Ẩn danh sách bucket/threads (hoặc hiển thị icon `MessageSquare` mini list, tuỳ tinh gọn).
+  - Thêm nút toggle (icon `PanelLeftOpen`) ở đầu sidebar.
+- Khi `collapsed = false`:
+  - Giữ nguyên layout hiện tại, thêm nút toggle (icon `PanelLeftClose`) ở header cạnh logo, có tooltip "Ẩn lịch sử (Cmd+\\)".
 
-Trong nhánh `if (chromeless)`, thêm `<ChatDock />` cùng với `<CommandPalette />`, kèm guard `workspace === "front"` để giữ nguyên hành vi ẩn dock ở workspace back-office:
+### 2. `src/routes/_app/chat.tsx`
+- Quản lý state `collapsed` qua `useState` + persist `localStorage` key `chat:sidebar-collapsed`.
+- Truyền `collapsed` và `onToggle` xuống `ThreadList`.
+- Thêm phím tắt `Cmd/Ctrl + \` để toggle.
 
-```tsx
-if (chromeless) {
-  return (
-    <div className="h-screen w-full overflow-hidden bg-background">
-      <Outlet />
-      {workspace === "front" ? <ChatDock /> : null}
-      <CommandPalette />
-    </div>
-  );
-}
-```
+### 3. Out of scope
+- Không thay đổi logic dữ liệu, server functions, hay UX bên trong từng thread.
+- Không đụng ChatDock ở các trang khác.
 
-## Ngoài phạm vi
-
-- Không đổi vị trí / kích thước ChatDock.
-- Không đổi hành vi `openAskAi` / event `app:open-ai`.
-- Không sửa header Inbox vừa hoàn thiện.
-- Các trang chromeless tương lai sẽ tự động cũng có dock (chấp nhận được vì hiện chỉ có /inbox dùng chromeless).
+## Chi tiết kỹ thuật
+- Icon: `PanelLeftClose` / `PanelLeftOpen` từ `lucide-react`.
+- Transition: `transition-[width] duration-200` để mượt.
+- Persist: đọc `localStorage` khi mount (guard `typeof window`), ghi mỗi khi đổi.
