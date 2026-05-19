@@ -380,15 +380,35 @@ function InboxAiPage() {
         {/* REASONING PANEL */}
         <ReasoningPanel
           item={activeItem}
-          onApprove={() =>
-            activeItem &&
+          onApprove={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              dismissMock(activeItem.id);
+              toast.success("Đã ghi sổ");
+              return;
+            }
             approveM.mutate(activeItem, {
               onSuccess: () => toast.success("Đã ghi sổ"),
               onError: (e: any) => toast.error(e?.message || "Không ghi sổ được"),
-            })
-          }
-          onSkip={() => activeItem && skipM.mutate(activeItem)}
-          onRule={() => activeItem && ruleM.mutate(activeItem)}
+            });
+          }}
+          onSkip={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              dismissMock(activeItem.id);
+              toast.success("Đã bỏ qua");
+              return;
+            }
+            skipM.mutate(activeItem);
+          }}
+          onRule={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              toast.success("AI sẽ nhớ quy tắc này cho tương lai");
+              return;
+            }
+            ruleM.mutate(activeItem);
+          }}
           onEdit={() =>
             activeItem && openAskAi(`Sửa đề xuất "${activeItem.title}": `)
           }
