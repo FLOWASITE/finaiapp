@@ -232,16 +232,17 @@ function ThreadPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-auto">
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
         <MessageList
           messages={messages}
           streaming={streaming}
           onRegenerate={!streaming ? regenerate : undefined}
         />
       </div>
-      <div className="border-t border-white/5 bg-background/50 px-4 py-3">
+      <div className="relative px-4 pb-5 pt-4">
+        <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 chat-footer-fade" />
         <div className="mx-auto max-w-3xl">
-          <div className="mb-2">
+          <div className="mb-3">
             <PendingActions />
           </div>
           <Composer
@@ -252,7 +253,7 @@ function ThreadPage() {
             loading={streaming}
             autoFocus
           />
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/60">
+          <p className="mt-3 text-center text-[10px] text-muted-foreground/60">
             AI có thể đưa ra thông tin chưa chính xác — hãy kiểm tra lại số liệu quan trọng.
           </p>
         </div>
