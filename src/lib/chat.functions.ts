@@ -4,6 +4,7 @@ import { streamText, stepCountIs } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
+import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 
 const askInput = z.object({
@@ -41,7 +42,10 @@ export const askAccountingStream = createServerFn({ method: "POST" })
 
     const result = streamText({
       model,
-      tools: { runQuery: makeRunQueryTool(supabase, userId) },
+      tools: {
+        runQuery: makeRunQueryTool(supabase, userId),
+        proposeAction: makeProposeActionTool(supabase, userId),
+      },
       stopWhen: stepCountIs(50),
       system: systemParts.join("\n\n"),
       messages: [

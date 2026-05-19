@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Send, User, Command as CommandIcon } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
+import { PendingActions } from "@/components/ai/PendingActions";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -163,6 +164,8 @@ export function AskAiSheet() {
               </div>
             )}
           </div>
+
+          <PendingActions />
 
           <div className="border-t border-border bg-card p-3">
             <div className="flex gap-2">
