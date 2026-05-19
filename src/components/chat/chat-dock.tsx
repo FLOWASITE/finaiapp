@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
+import { countUnreadDigests } from "@/lib/digest-prefs.functions";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
@@ -53,6 +54,28 @@ export function ChatDock() {
     staleTime: 15_000,
     enabled: historyOpen,
   });
+
+  // ---- Daily digest badge ----
+  const SEEN_KEY = "__digestSeenAt";
+  const countUnreadFn = useServerFn(countUnreadDigests);
+  const [seenAt, setSeenAt] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return localStorage.getItem(SEEN_KEY) ?? ""; } catch { return ""; }
+  });
+  const unreadQuery = useQuery({
+    queryKey: ["digest", "unread", seenAt],
+    queryFn: () => countUnreadFn({ data: { since: seenAt || undefined } }),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unreadCount = unreadQuery.data?.count ?? 0;
+  const latestDigestThreadId = unreadQuery.data?.latest_thread_id ?? null;
+  const markSeen = () => {
+    const now = new Date().toISOString();
+    setSeenAt(now);
+    try { localStorage.setItem(SEEN_KEY, now); } catch {}
+  };
+
 
   const activeThreadId = currentThreadId(location.pathname);
 
@@ -216,7 +239,25 @@ export function ChatDock() {
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-          <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+          {unreadCount > 0 && latestDigestThreadId && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                markSeen();
+                navigate({ to: "/chat/$threadId", params: { threadId: latestDigestThreadId } });
+              }}
+              className="relative h-11 w-11 shrink-0 rounded-xl border-primary/40 bg-primary/10 text-primary backdrop-blur-xl"
+              title={`Có ${unreadCount} tóm tắt chưa đọc`}
+              aria-label="Tóm tắt hàng ngày"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            </Button>
+          )}
+          <Popover open={historyOpen} onOpenChange={(o) => { setHistoryOpen(o); if (o) markSeen(); }}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"

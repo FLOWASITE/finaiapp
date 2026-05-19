@@ -34,6 +34,7 @@ import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 import { IndustryCombobox } from "@/components/industry-combobox";
 import { SectionNav } from "@/components/settings-section-nav";
 import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
+import { DigestSettingsCard } from "@/components/settings/digest-settings-card";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
@@ -76,7 +77,9 @@ function SettingsPage() {
           </Button>
         ))}
       </div>
+      <DigestSettingsCard />
       <Tabs value={tab} onValueChange={handleTabChange}>
+
         <div
           className="-mx-6 px-6 sm:mx-0 sm:px-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
           role="tablist"

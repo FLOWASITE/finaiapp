@@ -6185,6 +6185,44 @@ export type Database = {
           },
         ]
       }
+      user_digest_prefs: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          last_sent_date: string | null
+          send_hour: number
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          last_sent_date?: string | null
+          send_hour?: number
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          last_sent_date?: string | null
+          send_hour?: number
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_digest_prefs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_invitations: {
         Row: {
           accepted_at: string | null
