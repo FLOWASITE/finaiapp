@@ -95,6 +95,84 @@ function Assets() {
     finally { setRunning(false); }
   };
 
+  const importFn = useServerFn(bulkImportFixedAssets);
+
+  const downloadTemplate = () => {
+    const headers = [
+      "code", "name", "asset_kind", "category_code", "cost", "salvage_value",
+      "useful_life_months", "start_date", "in_service_date", "method",
+      "asset_account", "accumulated_account", "expense_account",
+      "department_code", "branch_code", "location", "serial_no", "model",
+      "manufacturer", "origin_country", "mfg_year", "unit", "quantity",
+      "funding_source", "opening_accumulated", "opening_months", "notes",
+    ];
+    const example = [
+      "TSCD001", "Máy tính Dell Latitude", "tangible", "", 25000000, 0,
+      48, "2024-01-15", "2024-01-15", "straight_line",
+      "211", "214", "6422",
+      "", "", "Phòng IT", "DL2024-001", "Latitude 7430",
+      "Dell", "Vietnam", 2024, "Cái", 1,
+      "Vốn chủ sở hữu", 0, 0, "",
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TSCD");
+    XLSX.writeFile(wb, "mau-import-tscd.xlsx");
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<any>(ws, { defval: null });
+      const toDate = (v: any) => {
+        if (!v) return null;
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        return String(v).slice(0, 10);
+      };
+      const toNum = (v: any, d = 0) => v == null || v === "" ? d : Number(v);
+      const rows = raw.map(r => ({
+        code: String(r.code ?? "").trim(),
+        name: String(r.name ?? "").trim(),
+        asset_kind: r.asset_kind === "intangible" ? "intangible" : "tangible",
+        category_code: r.category_code ? String(r.category_code) : null,
+        cost: toNum(r.cost),
+        salvage_value: toNum(r.salvage_value, 0),
+        useful_life_months: toNum(r.useful_life_months),
+        start_date: toDate(r.start_date) ?? new Date().toISOString().slice(0, 10),
+        in_service_date: toDate(r.in_service_date),
+        method: r.method || "straight_line",
+        asset_account: String(r.asset_account ?? "211"),
+        accumulated_account: String(r.accumulated_account ?? "214"),
+        expense_account: String(r.expense_account ?? "6422"),
+        department_code: r.department_code ? String(r.department_code) : null,
+        branch_code: r.branch_code ? String(r.branch_code) : null,
+        location: r.location ? String(r.location) : null,
+        serial_no: r.serial_no ? String(r.serial_no) : null,
+        model: r.model ? String(r.model) : null,
+        manufacturer: r.manufacturer ? String(r.manufacturer) : null,
+        origin_country: r.origin_country ? String(r.origin_country) : null,
+        mfg_year: r.mfg_year ? Number(r.mfg_year) : null,
+        unit: r.unit ? String(r.unit) : null,
+        quantity: toNum(r.quantity, 1),
+        funding_source: r.funding_source ? String(r.funding_source) : null,
+        opening_accumulated: toNum(r.opening_accumulated, 0),
+        opening_months: toNum(r.opening_months, 0),
+        notes: r.notes ? String(r.notes) : null,
+      }));
+      const result = await importFn({ data: { rows } });
+      toast.success(`Nhập ${result.inserted} mới, cập nhật ${result.updated}${result.errors.length ? `, lỗi ${result.errors.length}` : ""}`);
+      if (result.errors.length) console.warn("Import errors:", result.errors);
+      qc.invalidateQueries({ queryKey: ["fixed_assets"] });
+    } catch (err: any) {
+      toast.error(`Lỗi import: ${err.message}`);
+    }
+  };
+
   const onCategoryChange = (id: string) => {
     const c = (cats.data ?? []).find((x: any) => x.id === id);
     setForm({
