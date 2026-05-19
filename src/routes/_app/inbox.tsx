@@ -28,9 +28,9 @@ import {
 } from "@/lib/inbox-ai.functions";
 import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
 import { Button } from "@/components/ui/button";
-import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { InboxChatPanel, sendToInboxChat } from "@/components/chat/inbox-chat-panel";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
