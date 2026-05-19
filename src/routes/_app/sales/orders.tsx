@@ -384,6 +384,11 @@ function OrderFormDialog({
       setExpectedDate(existing.expected_delivery_date ?? "");
       setShipAddress(existing.ship_address ?? "");
       setNotes(existing.notes ?? "");
+      setDepositEnabled(!!existing.deposit_enabled);
+      setReserveEnabled(!!existing.reserve_enabled);
+      setDepositRequired(Number(existing.deposit_required ?? 0));
+      setDepositPercent(existing.deposit_percent != null ? Number(existing.deposit_percent) : "");
+      setDepositDueDate(existing.deposit_due_date ?? "");
       if (existing.customer_id) {
         setCustomer({
           id: existing.customer_id,
@@ -414,6 +419,11 @@ function OrderFormDialog({
       setShipAddress("");
       setNotes("");
       setLines([emptyLine()]);
+      setDepositEnabled(false);
+      setReserveEnabled(false);
+      setDepositRequired(0);
+      setDepositPercent("");
+      setDepositDueDate("");
     }
   }, [existing, editingId, open]);
 
