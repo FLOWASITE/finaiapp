@@ -334,6 +334,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { theme, toggleTheme } = useTheme();
+  const { workspace } = useWorkspace();
   const inEinvoiceModule = pathname.startsWith("/einvoices");
   const inTaxModule = pathname.startsWith("/tax");
   const inReportsModule =
@@ -343,13 +344,18 @@ export function AppSidebar() {
     pathname === "/sales-dashboard" ||
     pathname.startsWith("/sales-dashboard/") ||
     pathname.startsWith("/purchases/reports");
-  const activeSections = inTaxModule
-    ? TAX_SECTIONS
-    : inReportsModule
-    ? REPORTS_SECTIONS
-    : inEinvoiceModule
-    ? EINVOICE_SECTIONS
-    : SECTIONS;
+  // Workspace Front: ưu tiên dùng FRONT_SECTIONS, trừ khi đang ở các module
+  // chuyên dụng (HĐĐT/Thuế/Báo cáo) thì vẫn dùng sidebar contextual cũ.
+  const activeSections =
+    workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
+      ? FRONT_SECTIONS
+      : inTaxModule
+      ? TAX_SECTIONS
+      : inReportsModule
+      ? REPORTS_SECTIONS
+      : inEinvoiceModule
+      ? EINVOICE_SECTIONS
+      : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
