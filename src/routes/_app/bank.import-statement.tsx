@@ -134,7 +134,7 @@ function ImportStatementPage() {
     },
     onSuccess: (res) => {
       toast.success(`Đã hạch toán ${res.posted} GD, bỏ qua ${res.skipped}${res.errors.length ? `, lỗi ${res.errors.length}` : ""}`);
-      invalidateLedgers();
+      invalidateLedgers(qc);
       if (res.errors.length) {
         toast.error(`Lỗi đầu tiên: ${res.errors[0].error}`);
       } else {
