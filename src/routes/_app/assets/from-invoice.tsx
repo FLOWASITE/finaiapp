@@ -313,7 +313,8 @@ function InvoiceLinesPanel({ invoiceId, onClose }: { invoiceId: string; onClose:
                         <Input type="number" min={1} max={600} value={f.periods_total} onChange={(e) => update(l.id, { periods_total: Number(e.target.value) })} className="h-8 w-20 text-right" />
                       </td>
                       <td className="px-2 py-2"><Input type="date" value={f.start_date} onChange={(e) => update(l.id, { start_date: e.target.value })} className="h-8 w-36" /></td>
-                      <td className="px-2 py-2"><Input value={f.expense_account} onChange={(e) => update(l.id, { expense_account: e.target.value })} className="h-8 w-20" /></td>
+                      <td className="px-2 py-2 min-w-[180px]"><AccountCombobox value={f.expense_account} onChange={(v) => update(l.id, { expense_account: v })}
+                        suggestions={[{code:"6422",name:"CP QLDN"},{code:"6423",name:"CP đồ dùng VP"},{code:"6273",name:"CP CCDC SX"},{code:"6413",name:"CP CCDC BH"},{code:"627",name:"CP SX chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"}]} /></td>
                     </tr>
                   );
                 })}
