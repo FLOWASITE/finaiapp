@@ -324,6 +324,15 @@ function RuleCard({ rule }: { rule: MemoryRule }) {
   const [editWhen, setEditWhen] = useState(rule.when_text);
   const [editThen, setEditThen] = useState(rule.then_text);
   const [disableReason, setDisableReason] = useState("");
+
+  // Template-driven promotion state (chỉ dùng khi rule là suggestion).
+  const initialParsed = useMemo(() => parseSuggestion(rule), [rule]);
+  const [tplId, setTplId] = useState<string>(initialParsed.templateId);
+  const [slots, setSlots] = useState<Record<string, string>>(initialParsed.slots);
+  const tpl = TEMPLATES_BY_ID[tplId] ?? TEMPLATES_BY_ID["vendor-account"];
+  const rendered = useMemo(() => renderRule(tplId, slots), [tplId, slots]);
+  const slotError = validateSlots(tplId, slots);
+
   const invalidate = useInvalidate();
 
   const promoteFn = useServerFn(promoteSuggestion);
