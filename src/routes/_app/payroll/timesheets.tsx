@@ -129,6 +129,11 @@ function Page() {
           <Button variant="outline" onClick={() => mBulk.mutate()} disabled={mBulk.isPending}>
             Khởi tạo
           </Button>
+          <Button variant="outline" onClick={downloadTemplate}>Mẫu Excel</Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={mImport.isPending}>
+            {mImport.isPending ? "Đang nhập…" : "Nhập Excel"}
+          </Button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
         </div>
       </div>
 
