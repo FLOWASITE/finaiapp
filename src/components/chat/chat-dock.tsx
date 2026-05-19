@@ -26,7 +26,18 @@ export function ChatDock() {
   const location = useLocation();
   const createFn = useServerFn(createThread);
   const appendFn = useServerFn(appendMessage);
+  const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const threadsQuery = useQuery({
+    queryKey: ["chat", "threads", "recent"],
+    queryFn: () => listFn(),
+    staleTime: 15_000,
+    enabled: historyOpen,
+  });
+
+  const activeThreadId = currentThreadId(location.pathname);
 
   useEffect(() => {
     const focusInput = () => {
