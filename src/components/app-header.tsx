@@ -76,8 +76,17 @@ export function AppHeader() {
           </Link>
         </div>
 
-        {/* Search / Command */}
-        <div className="relative group hidden sm:block">
+        {/* Search / Command — icon-only on mobile, full bar from md */}
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          aria-label="Tìm kiếm"
+          title="Tìm kiếm (⌘K)"
+          className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground hover:bg-white/[0.08] transition-all"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+        <div className="relative group hidden md:block">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-cyan-500/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           <button
             type="button"
