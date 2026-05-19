@@ -25,7 +25,7 @@ import { DocumentLinksManager } from "@/components/document-links-manager";
 import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
-import { listChartOfAccounts } from "@/lib/coa.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { numberToVietnameseWords } from "@/lib/number-to-words-vi";
 
 type VoucherType = "receipt" | "payment";
