@@ -18,13 +18,8 @@ import {
   Cpu,
   Settings2,
   Zap,
-  MessageSquare,
-  FileScan,
-  Brain,
   Trash2,
   Code2,
-  Search,
-  Inbox,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
