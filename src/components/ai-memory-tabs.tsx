@@ -12,9 +12,7 @@ import {
   AlertTriangle,
   ShieldAlert,
   ShieldCheck,
-  Eye,
-  Power,
-  CheckCircle2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +30,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -39,6 +47,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { SourceAppliedSheet } from "@/components/ai-memory-source-sheet";
+import { previewRetroApply, type RetroPreview } from "@/lib/ai-memory.functions";
 import {
   listPartners,
   createPartner,
