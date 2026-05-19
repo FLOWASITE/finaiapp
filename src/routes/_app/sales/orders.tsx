@@ -114,16 +114,16 @@ function SalesOrdersPage() {
           status: statusFilter === "all" ? undefined : statusFilter,
         },
       }),
-    ...QUERY_PRESETS.LIST,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const { data: kpi } = useQuery({
     queryKey: ["sales-orders-stats"],
     queryFn: () => stats({ data: {} }),
-    ...QUERY_PRESETS.LIST,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
-  const rows = rowsResp?.rows ?? [];
+  const rows = (rowsResp as any)?.rows ?? [];
 
   const upsertMut = useMutation({
     mutationFn: (input: any) => upsert({ data: input }),
