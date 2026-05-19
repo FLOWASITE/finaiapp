@@ -145,6 +145,11 @@ function Assets() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" asChild><Link to="/assets/categories"><FolderTree className="mr-2 h-4 w-4" /> Danh mục</Link></Button>
+            <Button variant="secondary" onClick={downloadTemplate}><Download className="mr-2 h-4 w-4" /> Mẫu Excel</Button>
+            <label className="inline-flex items-center cursor-pointer rounded-md bg-white/90 text-foreground hover:bg-white px-3 py-2 text-sm font-medium">
+              <Upload className="mr-2 h-4 w-4" /> Nhập Excel
+              <input type="file" accept=".xlsx,.xls" hidden onChange={handleImport} />
+            </label>
             <div className="flex items-end gap-2 rounded-lg bg-white/10 px-3 py-2">
               <div>
                 <div className="text-[10px] uppercase opacity-80">Trích đến tháng</div>
@@ -223,7 +228,13 @@ function Assets() {
                       {a.status === "active" ? "Đang dùng" : a.status === "disposed" ? "Đã giảm" : "Tạm dừng"}
                     </Badge>
                   </td>
-                  <td className="pr-3 text-right">
+                  <td className="pr-3 text-right whitespace-nowrap">
+                    <Button asChild size="sm" variant="ghost" title="Thẻ TSCĐ">
+                      <Link to="/assets/$id/card" params={{ id: a.id }}><FileText className="h-3.5 w-3.5" /></Link>
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" title="Biên bản giao nhận (01-TSCĐ)">
+                      <Link to="/assets/$id/handover" params={{ id: a.id }}><Printer className="h-3.5 w-3.5" /></Link>
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setForm({ ...emptyAsset, ...a }); setOpen(true); }}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
