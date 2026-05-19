@@ -78,9 +78,9 @@ export const purchaseDetail = createServerFn({ method: "POST" })
         total: amount + vat,
       };
     });
-    rows.sort((a, b) => a.issue_date.localeCompare(b.issue_date) || a.invoice_no.localeCompare(b.invoice_no));
+    rows.sort((a: any, b: any) => a.issue_date.localeCompare(b.issue_date) || a.invoice_no.localeCompare(b.invoice_no));
     const totals = rows.reduce(
-      (s, r) => ({ qty: s.qty + r.qty, pre_vat: s.pre_vat + r.pre_vat, vat: s.vat + r.vat, total: s.total + r.total }),
+      (s: any, r: any) => ({ qty: s.qty + r.qty, pre_vat: s.pre_vat + r.pre_vat, vat: s.vat + r.vat, total: s.total + r.total }),
       { qty: 0, pre_vat: 0, vat: 0, total: 0 },
     );
     return { rows, totals };
