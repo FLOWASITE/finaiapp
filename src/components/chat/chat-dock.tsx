@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles, MessageSquare, Plus, Trash2 } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,10 +45,11 @@ export function ChatDock() {
   const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
 
   const threadsQuery = useQuery({
-    queryKey: ["chat", "threads", "recent"],
-    queryFn: () => listFn(),
+    queryKey: ["chat", "threads", "recent", "all"],
+    queryFn: () => listFn({ data: { kind: "all" } }),
     staleTime: 15_000,
     enabled: historyOpen,
   });
@@ -252,15 +253,59 @@ export function ChatDock() {
                   </Link>
                 </Button>
               </div>
+              <div className="flex items-center gap-1 border-b border-white/5 px-2 py-1.5">
+                {(
+                  [
+                    { k: "all", label: "Tất cả" },
+                    { k: "general", label: "Trò chuyện" },
+                    { k: "inbox", label: "Inbox" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.k}
+                    type="button"
+                    onClick={() => setHistoryTab(tab.k)}
+                    className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                      historyTab === tab.k
+                        ? "bg-white/10 text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
               <ScrollArea className="max-h-80">
                 <div className="p-1">
-                  {threadsQuery.isLoading ? (
-                    <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                      Đang tải…
-                    </div>
-                  ) : threadsQuery.data && threadsQuery.data.length > 0 ? (
-                    threadsQuery.data.slice(0, 30).map((t) => {
+                  {(() => {
+                    const all = threadsQuery.data ?? [];
+                    const filtered =
+                      historyTab === "all"
+                        ? all
+                        : all.filter((t) =>
+                            historyTab === "inbox"
+                              ? t.kind === "inbox"
+                              : t.kind !== "inbox",
+                          );
+                    if (threadsQuery.isLoading) {
+                      return (
+                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                          Đang tải…
+                        </div>
+                      );
+                    }
+                    if (!filtered.length) {
+                      return (
+                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                          {historyTab === "inbox"
+                            ? "Chưa có phiên Inbox nào"
+                            : "Chưa có hội thoại nào"}
+                        </div>
+                      );
+                    }
+                    return filtered.slice(0, 30).map((t) => {
                       const isActive = t.id === activeThreadId;
+                      const isInbox = t.kind === "inbox";
                       const when = t.last_message_at
                         ? new Date(t.last_message_at).toLocaleString("vi-VN", {
                             hour: "2-digit",
@@ -279,10 +324,21 @@ export function ChatDock() {
                             isActive ? "bg-white/5" : ""
                           }`}
                         >
-                          <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          {isInbox ? (
+                            <Inbox className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/80" />
+                          ) : (
+                            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          )}
                           <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium">
-                              {t.title || "(Không tiêu đề)"}
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate font-medium">
+                                {t.title || "(Không tiêu đề)"}
+                              </span>
+                              {isInbox && (
+                                <span className="shrink-0 rounded bg-primary/10 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
+                                  Inbox
+                                </span>
+                              )}
                             </div>
                             {when && (
                               <div className="text-[10px] text-muted-foreground">
@@ -292,12 +348,8 @@ export function ChatDock() {
                           </div>
                         </Link>
                       );
-                    })
-                  ) : (
-                    <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                      Chưa có hội thoại nào
-                    </div>
-                  )}
+                    });
+                  })()}
                 </div>
               </ScrollArea>
             </PopoverContent>
