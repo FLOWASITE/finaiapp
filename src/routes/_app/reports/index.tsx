@@ -143,7 +143,11 @@ function ReportsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="b01" className="mt-6">
+      <Tabs
+        value={search.tab ?? "b01"}
+        onValueChange={(v) => navigate({ search: (prev: any) => ({ ...prev, tab: v }), replace: true })}
+        className="mt-6"
+      >
         <TabsList className="print:hidden">
           <TabsTrigger value="b01">B01 — Tình hình tài chính</TabsTrigger>
           <TabsTrigger value="b02">B02 — KQKD</TabsTrigger>
@@ -153,6 +157,7 @@ function ReportsPage() {
             BCĐPS — Cân đối phát sinh →
           </Link>
         </TabsList>
+
 
         <TabsContent value="b01">
           <ReportCard title="Báo cáo tình hình tài chính (Mẫu B01-DN)" subtitle={`Tại ngày ${to}${compareEnabled ? ` — So sánh với ${prevAsOf}` : ""}`} onExport={() => handleExport("B01")}>
