@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowDown } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -370,21 +371,9 @@ function ThreadPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="border-b border-border/40 bg-background/60 px-4 py-2 backdrop-blur-xl">
+      <div className="bg-transparent px-4 py-2">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              if (from) router.history.push(from);
-              else if (window.history.length > 1) router.history.back();
-              else navigate({ to: "/chat" });
-            }}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {from ? "Quay lại trang trước" : "Quay lại"}
-          </Button>
+          <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
         </div>
       </div>
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
