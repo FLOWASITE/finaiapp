@@ -54,11 +54,18 @@ export function AskAiSheet() {
     };
 
     window.addEventListener("keydown", onKey);
-    const onOpen = () => setOpen(true);
-    window.addEventListener("app:open-ai", onOpen);
+    const onOpen = (e: Event) => {
+      setOpen(true);
+      const detail = (e as CustomEvent<{ prefill?: string }>).detail;
+      if (detail?.prefill) {
+        setInput(detail.prefill);
+        setTimeout(() => inputRef.current?.focus(), 120);
+      }
+    };
+    window.addEventListener("app:open-ai", onOpen as EventListener);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("app:open-ai", onOpen);
+      window.removeEventListener("app:open-ai", onOpen as EventListener);
     };
   }, []);
 
@@ -475,6 +482,8 @@ export function AskAiSheet() {
   );
 }
 
-export function openAskAi() {
-  window.dispatchEvent(new Event("app:open-ai"));
+export function openAskAi(prefill?: string) {
+  window.dispatchEvent(
+    new CustomEvent("app:open-ai", { detail: prefill ? { prefill } : undefined }),
+  );
 }
