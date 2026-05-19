@@ -194,6 +194,11 @@ export const upsertSalesOrder = createServerFn({ method: "POST" })
       vat_amount,
       total,
       status: data.status,
+      deposit_enabled: data.deposit_enabled,
+      reserve_enabled: data.reserve_enabled,
+      deposit_required: data.deposit_required ?? 0,
+      deposit_percent: data.deposit_percent ?? null,
+      deposit_due_date: data.deposit_due_date || null,
       confirmed_at: data.status === "confirmed" ? new Date().toISOString() : null,
       confirmed_by: data.status === "confirmed" ? userId : null,
     };
