@@ -223,6 +223,8 @@ function Assets() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" asChild><Link to="/assets/categories"><FolderTree className="mr-2 h-4 w-4" /> Danh mục</Link></Button>
+            <Button variant="secondary" asChild><Link to="/assets/audit"><ShieldCheck className="mr-2 h-4 w-4" /> Nhật ký</Link></Button>
+
             <Button variant="secondary" onClick={downloadTemplate}><Download className="mr-2 h-4 w-4" /> Mẫu Excel</Button>
             <label className="inline-flex items-center cursor-pointer rounded-md bg-white/90 text-foreground hover:bg-white px-3 py-2 text-sm font-medium">
               <Upload className="mr-2 h-4 w-4" /> Nhập Excel
