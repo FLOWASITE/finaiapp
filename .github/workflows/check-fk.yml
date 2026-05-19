@@ -1,0 +1,34 @@
+name: Check Foreign Keys
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/check-fk-relationships.ts"
+      - ".github/workflows/check-fk.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/check-fk-relationships.ts"
+  workflow_dispatch:
+
+jobs:
+  check-fk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Run FK relationship check
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Missing SUPABASE_DB_URL secret. Add it in Repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          bun run scripts/check-fk-relationships.ts
