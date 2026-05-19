@@ -15,6 +15,14 @@ import { cn } from "@/lib/utils";
 
 type ImportKind = "purchase_invoice" | "bank_statement" | "cash_voucher";
 
+export type AttachmentPayload = {
+  name: string;
+  mime: string;
+  size: number;
+  base64: string;
+  kind: ImportKind;
+};
+
 export type ComposerProps = {
   value: string;
   onChange: (v: string) => void;
@@ -35,6 +43,12 @@ export type ComposerProps = {
    * nếu không, transcript được điền vào ô input.
    */
   onTranscript?: (text: string) => void;
+  /**
+   * Nếu cung cấp, Composer sẽ ĐỌC file → base64 rồi gọi callback này
+   * thay vì tự parse + điều hướng /import/preview.
+   * Dùng để xử lý chứng từ NGAY TRONG phòng hội thoại.
+   */
+  onAttach?: (files: AttachmentPayload[]) => void;
 };
 
 export function Composer({
