@@ -663,10 +663,12 @@ function ItemCard({
   item,
   active,
   onClick,
+  registerRef,
 }: {
   item: InboxItem;
   active: boolean;
   onClick: () => void;
+  registerRef?: (el: HTMLLIElement | null) => void;
 }) {
   const meta = sourceMeta(item);
   const SrcIcon = meta.icon;
@@ -677,13 +679,14 @@ function ItemCard({
 
   return (
     <li
+      ref={registerRef}
       onClick={onClick}
       className={cn(
         "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
         "before:absolute before:inset-y-0 before:left-0 before:w-1",
         bandRail(item.confidence_band),
         active
-          ? "border-foreground/20 bg-accent/30 shadow-sm before:w-1.5"
+          ? "border-primary/40 bg-primary/[0.04] shadow-sm before:w-1.5 before:bg-primary"
           : "border-border/50 hover:border-border hover:bg-card/80",
       )}
     >
@@ -702,6 +705,11 @@ function ItemCard({
             </>
           )}
           <div className="ml-auto flex items-center gap-2">
+            {active && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Đang chat
+              </span>
+            )}
             {item.match_ref && (
               <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300">
                 <Link2 className="h-2.5 w-2.5" /> Khớp {item.match_ref.ref}
@@ -771,179 +779,6 @@ function ItemCard({
   );
 }
 
-/* ───────── Reasoning Panel ───────── */
-function ReasoningPanel({
-  item,
-  onApprove,
-  onSkip,
-  onRule,
-  onEdit,
-  onAsk,
-  approving,
-  skipping,
-  rulePending,
-}: {
-  item: InboxItem | null;
-  onApprove: () => void;
-  onSkip: () => void;
-  onRule: () => void;
-  onEdit: () => void;
-  onAsk: (q: string) => void;
-  approving: boolean;
-  skipping: boolean;
-  rulePending: boolean;
-}) {
-  if (!item) {
-    return (
-      <div className="hidden h-full items-center justify-center bg-card/30 p-10 text-center text-sm text-muted-foreground lg:flex">
-        <div>
-          <Sparkles className="mx-auto mb-3 h-6 w-6 opacity-50" />
-          Chọn một mục để xem AI lập luận.
-        </div>
-      </div>
-    );
-  }
-
-  const questions = [
-    "Tại sao lại là TK này mà không phải khác?",
-    item.partner ? `Tổng đã thu của ${item.partner} là bao nhiêu?` : "Tóm tắt các giao dịch tương tự gần đây",
-  ];
-
-  return (
-    <div className="hidden h-full overflow-y-auto bg-card/30 lg:block">
-      <div className="space-y-5 p-6">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          AI lập luận
-        </div>
-
-        {/* Narrative */}
-        <p className="text-sm leading-relaxed text-foreground/90">
-          {renderReasoningProse(item)}
-        </p>
-
-        {/* Proposed entry block */}
-        <div className="rounded-lg bg-muted/40 p-3">
-          <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-            Bút toán đề xuất
-          </div>
-          <div className="space-y-1 font-mono text-xs">
-            {item.proposal.lines.map((l, i) => {
-              const side = (l.debit ?? 0) > 0 ? "Nợ" : "Có";
-              const amount = (l.debit ?? 0) > 0 ? l.debit! : l.credit ?? 0;
-              return (
-                <div key={i} className="flex items-baseline gap-3">
-                  <span className="text-muted-foreground">{side}</span>
-                  <span className="font-semibold text-foreground">{l.account}</span>
-                  {l.memo && <span className="text-muted-foreground">— {l.memo}</span>}
-                  <span className="ml-auto tabular-nums text-foreground">{VND(amount)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Signal pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {item.reasoning.signals.map((s, i) => (
-            <span
-              key={i}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px]",
-                s.ok
-                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
-                  : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300",
-              )}
-            >
-              {s.ok ? "✓" : "⚠"} {s.label}
-            </span>
-          ))}
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2.5 py-0.5 text-[11px] text-foreground/80">
-            Tin cậy {item.confidence}%
-          </span>
-        </div>
-
-        {item.blocker && (
-          <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-xs">
-            <div className="flex items-center gap-1.5 font-medium text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {item.blocker.reason}
-            </div>
-            {item.blocker.notified && (
-              <div className="mt-1 text-muted-foreground">AI đã gửi tin cho {item.blocker.notified}</div>
-            )}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 pt-1">
-          <Button
-            onClick={onApprove}
-            disabled={approving || !!item.blocker}
-            className="flex-1 gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            Duyệt & ghi sổ
-          </Button>
-          <Button variant="outline" onClick={onEdit} className="gap-1.5">
-            <Pencil className="h-3.5 w-3.5" /> Sửa
-          </Button>
-          <Button variant="outline" size="icon" onClick={onSkip} disabled={skipping} aria-label="Bỏ qua">
-            {skipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        {/* Ask AI */}
-        <div className="border-t border-border/40 pt-4">
-          <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-            Hỏi AI về mục này
-          </div>
-          <div className="space-y-1.5">
-            {questions.map((q) => (
-              <button
-                key={q}
-                onClick={() => onAsk(q)}
-                className="w-full rounded-md border border-border/40 bg-background/40 px-3 py-2 text-left text-xs text-foreground/80 transition hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
-              >
-                {q}
-              </button>
-            ))}
-            <button
-              onClick={onRule}
-              disabled={rulePending}
-              className="flex w-full items-center gap-2 rounded-md border border-border/40 bg-background/40 px-3 py-2 text-left text-xs text-foreground/80 transition hover:border-primary/30 hover:bg-primary/5 hover:text-foreground disabled:opacity-50"
-            >
-              {rulePending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-              Áp dụng quy tắc này cho mục tương lai
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function renderReasoningProse(item: InboxItem) {
-  // If summary already exists, render with simple bold for partner/amount/match
-  const partner = item.partner;
-  const matchRef = item.match_ref?.ref;
-  const summary = item.reasoning.summary || `${item.title} — ${VND(item.amount)} ₫.`;
-  const parts: Array<{ t: string; b?: boolean }> = [];
-  let rest = summary;
-  const tokens = [partner, matchRef, `${VND(item.amount)}`, `${VND(item.amount)} ₫`].filter(Boolean) as string[];
-  // Simple split by tokens
-  const re = new RegExp(`(${tokens.map((t) => t.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")})`, "g");
-  if (tokens.length === 0) {
-    parts.push({ t: summary });
-  } else {
-    const split = rest.split(re);
-    for (const s of split) {
-      if (!s) continue;
-      parts.push({ t: s, b: tokens.includes(s) });
-    }
-  }
-  return parts.map((p, i) => (p.b ? <strong key={i} className="text-foreground">{p.t}</strong> : <span key={i}>{p.t}</span>));
-}
 
 /* ───────── Command Bar ───────── */
 function CommandBar({ onClose }: { onClose: () => void }) {
