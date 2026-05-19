@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number };
@@ -109,6 +110,68 @@ const SECTIONS: NavSection[] = [
     label: "Hệ thống",
     entries: [
       { to: "/admin", label: "Quản trị", icon: Shield },
+      { to: "/settings", label: "Cài đặt", icon: Settings },
+    ],
+  },
+];
+
+// FRONT-OFFICE: 5 không gian + AI. Mọi route gốc vẫn tồn tại,
+// chỉ ẩn bớt mục kế toán đi.
+const FRONT_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/inbox", label: "Hộp việc", icon: Inbox },
+      { to: "/chat", label: "Hỏi AI", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Không gian",
+    entries: [
+      {
+        label: "Tiền",
+        icon: PiggyBank,
+        items: [
+          { to: "/bank", label: "Ngân hàng" },
+          { to: "/cash", label: "Tiền mặt" },
+          { to: "/bank/reconcile", label: "Đối soát" },
+          { to: "/receipts", label: "Phiếu thu" },
+        ],
+      },
+      {
+        label: "Đối tác",
+        icon: ContactIcon,
+        items: [
+          { to: "/customers", label: "Khách hàng" },
+          { to: "/suppliers", label: "Nhà cung cấp" },
+          { to: "/receivables", label: "Khách đang nợ" },
+          { to: "/payables", label: "Mình đang nợ" },
+        ],
+      },
+      {
+        label: "Hàng hoá",
+        icon: Package,
+        items: [
+          { to: "/items", label: "Sản phẩm & dịch vụ" },
+          { to: "/inventory", label: "Tồn kho" },
+          { to: "/assets", label: "Tài sản" },
+        ],
+      },
+      {
+        label: "Hồ sơ",
+        icon: FileText,
+        items: [
+          { to: "/invoices", label: "Hoá đơn bán" },
+          { to: "/purchases", label: "Hoá đơn mua" },
+          { to: "/einvoices", label: "Hoá đơn điện tử" },
+          { to: "/documents", label: "Tài liệu" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Khác",
+    entries: [
+      { to: "/dashboard", label: "Bảng số liệu", icon: LayoutDashboard },
       { to: "/settings", label: "Cài đặt", icon: Settings },
     ],
   },
