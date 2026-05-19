@@ -1600,37 +1600,173 @@ function NewInvoiceDialog() {
             </div>
           </div>
 
-          <div className="rounded-md border border-border overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs uppercase">
-                <tr>
-                  <th className="px-2 py-2 text-left w-32">Mã SP</th>
-                  <th className="px-2 py-2 text-left">Diễn giải</th>
-                  <th className="px-2 py-2 w-16">SL</th>
-                  <th className="px-2 py-2 w-28">Đơn giá</th>
-                  <th className="px-2 py-2 w-20">CK %</th>
-                  <th className="px-2 py-2 w-32">Mã thuế</th>
-                  <th className="px-2 py-2 text-right w-32">Thành tiền</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l, i) => {
-                  const t = calcLineTax({
-                    qty: l.qty,
-                    unit_price: l.unit_price,
-                    line_discount_percent: l.line_discount_percent,
-                    line_discount_amount: l.line_discount_amount,
-                    vat_code: l.vat_code,
-                  });
-                  const upd = (patch: Partial<EditorLine>) => {
-                    const c = [...lines];
-                    c[i] = { ...c[i], ...patch };
-                    setLines(c);
-                  };
-                  return (
-                    <tr key={i} className="border-t border-border">
-                      <td className="px-2 py-1">
+          <div className="rounded-md border border-border">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead className="bg-muted/40 text-xs uppercase">
+                  <tr>
+                    <th className="px-2 py-2 text-left w-32">Mã SP</th>
+                    <th className="px-2 py-2 text-left min-w-[180px]">Diễn giải</th>
+                    <th className="px-2 py-2 w-16">SL</th>
+                    <th className="px-2 py-2 w-28">Đơn giá</th>
+                    <th className="px-2 py-2 w-20">CK %</th>
+                    <th className="px-2 py-2 w-28">Mã thuế</th>
+                    <th className="px-2 py-2 text-right w-32">Thành tiền</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((l, i) => {
+                    const t = calcLineTax({
+                      qty: l.qty,
+                      unit_price: l.unit_price,
+                      line_discount_percent: l.line_discount_percent,
+                      line_discount_amount: l.line_discount_amount,
+                      vat_code: l.vat_code,
+                    });
+                    const upd = (patch: Partial<EditorLine>) => {
+                      const c = [...lines];
+                      c[i] = { ...c[i], ...patch };
+                      setLines(c);
+                    };
+                    return (
+                      <tr key={i} className="border-t border-border">
+                        <td className="px-2 py-1">
+                          <Select
+                            value={l.product_id ?? ""}
+                            onValueChange={(v) => {
+                              const p = products?.find((x) => x.id === v);
+                              upd({
+                                product_id: v,
+                                description: p?.name ?? l.description,
+                                unit_price: p?.unit_price ?? l.unit_price,
+                                vat_code: (p?.vat_rate ?? 10).toString() as VatCode,
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(products ?? []).map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            className="h-8"
+                            value={l.description}
+                            onChange={(e) => upd({ description: e.target.value })}
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            className="h-8"
+                            type="number"
+                            value={l.qty}
+                            onChange={(e) => upd({ qty: Number(e.target.value) })}
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            className="h-8"
+                            type="number"
+                            value={l.unit_price}
+                            onChange={(e) => upd({ unit_price: Number(e.target.value) })}
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            className="h-8"
+                            type="number"
+                            value={l.line_discount_percent}
+                            onChange={(e) =>
+                              upd({ line_discount_percent: Number(e.target.value) })
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Select
+                            value={l.vat_code}
+                            onValueChange={(v) => upd({ vat_code: v as VatCode })}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {VAT_CODES.map((v) => (
+                                <SelectItem key={v.code} value={v.code}>
+                                  {v.code === "0" ||
+                                  v.code === "5" ||
+                                  v.code === "8" ||
+                                  v.code === "10"
+                                    ? `${v.code}%`
+                                    : v.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-2 py-1 text-right font-mono">
+                          {fmt(t.line_total)}
+                        </td>
+                        <td className="px-2 py-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setLines(lines.filter((_, j) => j !== i))}
+                            disabled={lines.length === 1}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-border">
+              {lines.map((l, i) => {
+                const t = calcLineTax({
+                  qty: l.qty,
+                  unit_price: l.unit_price,
+                  line_discount_percent: l.line_discount_percent,
+                  line_discount_amount: l.line_discount_amount,
+                  vat_code: l.vat_code,
+                });
+                const upd = (patch: Partial<EditorLine>) => {
+                  const c = [...lines];
+                  c[i] = { ...c[i], ...patch };
+                  setLines(c);
+                };
+                return (
+                  <div key={i} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Dòng #{i + 1}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setLines(lines.filter((_, j) => j !== i))}
+                        disabled={lines.length === 1}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="col-span-2">
+                        <Label className="text-xs">Mã SP</Label>
                         <Select
                           value={l.product_id ?? ""}
                           onValueChange={(v) => {
@@ -1643,57 +1779,62 @@ function NewInvoiceDialog() {
                             });
                           }}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-9">
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent>
                             {(products ?? []).map((p) => (
                               <SelectItem key={p.id} value={p.id}>
-                                {p.code}
+                                {p.code} — {p.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </td>
-                      <td className="px-2 py-1">
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-xs">Diễn giải</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           value={l.description}
                           onChange={(e) => upd({ description: e.target.value })}
                         />
-                      </td>
-                      <td className="px-2 py-1">
+                      </div>
+                      <div>
+                        <Label className="text-xs">SL</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={l.qty}
                           onChange={(e) => upd({ qty: Number(e.target.value) })}
                         />
-                      </td>
-                      <td className="px-2 py-1">
+                      </div>
+                      <div>
+                        <Label className="text-xs">Đơn giá</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={l.unit_price}
                           onChange={(e) => upd({ unit_price: Number(e.target.value) })}
                         />
-                      </td>
-                      <td className="px-2 py-1">
+                      </div>
+                      <div>
+                        <Label className="text-xs">CK %</Label>
                         <Input
-                          className="h-8"
+                          className="h-9"
                           type="number"
                           value={l.line_discount_percent}
                           onChange={(e) =>
                             upd({ line_discount_percent: Number(e.target.value) })
                           }
                         />
-                      </td>
-                      <td className="px-2 py-1">
+                      </div>
+                      <div>
+                        <Label className="text-xs">Mã thuế</Label>
                         <Select
                           value={l.vat_code}
                           onValueChange={(v) => upd({ vat_code: v as VatCode })}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-9">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1709,26 +1850,17 @@ function NewInvoiceDialog() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </td>
-                      <td className="px-2 py-1 text-right font-mono">
-                        {fmt(t.line_total)}
-                      </td>
-                      <td className="px-2 py-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => setLines(lines.filter((_, j) => j !== i))}
-                          disabled={lines.length === 1}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2 text-sm">
+                      <span className="text-muted-foreground">Thành tiền</span>
+                      <span className="font-mono font-semibold">{fmt(t.line_total)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
