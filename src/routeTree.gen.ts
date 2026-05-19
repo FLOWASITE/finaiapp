@@ -113,6 +113,7 @@ import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
+import { Route as AppAssetsEventIdPrintRouteImport } from './routes/_app/assets/event.$id.print'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -637,6 +638,11 @@ const AppAssetsInventoryIdPrintRoute =
     path: '/print',
     getParentRoute: () => AppAssetsInventoryIdRoute,
   } as any)
+const AppAssetsEventIdPrintRoute = AppAssetsEventIdPrintRouteImport.update({
+  id: '/assets/event/$id/print',
+  path: '/assets/event/$id/print',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -741,6 +747,7 @@ export interface FileRoutesByFullPath {
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRoutesByTo {
@@ -841,6 +848,7 @@ export interface FileRoutesByTo {
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRoutesById {
@@ -948,6 +956,7 @@ export interface FileRoutesById {
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
 }
 export interface FileRouteTypes {
@@ -1055,6 +1064,7 @@ export interface FileRouteTypes {
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
+    | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1155,6 +1165,7 @@ export interface FileRouteTypes {
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/superadmin/tenant/$id'
+    | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
   id:
     | '__root__'
@@ -1261,6 +1272,7 @@ export interface FileRouteTypes {
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
     | '/_app/superadmin/tenant/$id'
+    | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
   fileRoutesById: FileRoutesById
 }
@@ -2001,6 +2013,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsInventoryIdPrintRouteImport
       parentRoute: typeof AppAssetsInventoryIdRoute
     }
+    '/_app/assets/event/$id/print': {
+      id: '/_app/assets/event/$id/print'
+      path: '/assets/event/$id/print'
+      fullPath: '/assets/event/$id/print'
+      preLoaderRoute: typeof AppAssetsEventIdPrintRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -2219,6 +2238,7 @@ interface AppRouteChildren {
   AppAssetsIdHandoverRoute: typeof AppAssetsIdHandoverRoute
   AppPayrollEmployeesIdRoute: typeof AppPayrollEmployeesIdRoute
   AppPayrollPayslipsIdRoute: typeof AppPayrollPayslipsIdRoute
+  AppAssetsEventIdPrintRoute: typeof AppAssetsEventIdPrintRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2293,6 +2313,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsIdHandoverRoute: AppAssetsIdHandoverRoute,
   AppPayrollEmployeesIdRoute: AppPayrollEmployeesIdRoute,
   AppPayrollPayslipsIdRoute: AppPayrollPayslipsIdRoute,
+  AppAssetsEventIdPrintRoute: AppAssetsEventIdPrintRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

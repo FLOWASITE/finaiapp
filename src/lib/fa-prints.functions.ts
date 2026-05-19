@@ -90,3 +90,34 @@ export const getInventoryPrint = createServerFn({ method: "GET" })
     const tenant = await getTenantInfo(supabase, tenantId);
     return { header: headerOut, lines: enriched, tenant };
   });
+
+// ============ 03-TSCĐ — Biên bản giao nhận TSCĐ sửa chữa lớn hoàn thành ============
+// ============ 04-TSCĐ — Biên bản đánh giá lại TSCĐ ============
+// Both share the same data shape (fa_event + asset + tenant). The route decides which template to render.
+export const getEventPrint = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: { event_id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const { data: ev, error } = await supabase
+      .from("fa_events")
+      .select("*, asset:fixed_assets(*, fa_categories(name), departments(name), branches(name))")
+      .eq("id", data.event_id).eq("tenant_id", tenantId).single();
+    if (error || !ev) throw new Error("Không tìm thấy biến động");
+
+    // Cumulative depreciation up to event_date (primary book)
+    const { data: prim } = await supabase
+      .from("fa_depreciation_books").select("id")
+      .eq("tenant_id", tenantId).eq("is_primary", true).maybeSingle();
+    const { data: deps } = prim?.id
+      ? await supabase.from("depreciation_entries")
+          .select("amount, period_month")
+          .eq("asset_id", ev.asset_id).eq("book_id", prim.id)
+          .lte("period_month", ev.event_date)
+      : { data: [] as any[] };
+    const accumulated = (deps ?? []).reduce((s: number, d: any) => s + Number(d.amount), 0)
+      + Number(ev.asset?.opening_accumulated ?? 0);
+
+    const tenant = await getTenantInfo(supabase, tenantId);
+    return { event: ev, tenant, accumulated };
+  });

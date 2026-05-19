@@ -21,8 +21,9 @@ const RevaluationPayload = z.object({
 });
 
 const MajorRepairPayload = z.object({
-  source_account: z.string().min(1).max(20).default("2413"), // XDCB dở dang (sửa chữa lớn)
+  source_account: z.string().min(1).max(20).default("2413"),
   asset_account: z.string().min(1).max(20).default("211"),
+  extend_useful_life_months: z.number().int().min(0).max(600).default(0),
 });
 
 const PartialDisposalPayload = z.object({
@@ -176,10 +177,12 @@ export const createAssetEvent = createServerFn({ method: "POST" })
           ],
         });
         const newCost = Number(asset.cost) + amt;
-        await supabase.from("fixed_assets").update({ cost: newCost }).eq("id", asset.id);
+        const lifeExt = Number(payload.extend_useful_life_months ?? 0);
+        const newLife = Number(asset.useful_life_months) + lifeExt;
+        await supabase.from("fixed_assets").update({ cost: newCost, useful_life_months: newLife }).eq("id", asset.id);
         await supabase
           .from("fa_asset_books")
-          .update({ cost_basis: newCost })
+          .update({ cost_basis: newCost, useful_life_months: newLife })
           .eq("asset_id", asset.id);
         break;
       }
