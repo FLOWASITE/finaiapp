@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ThreadList } from "@/components/chat/thread-list";
+import { emitChatSidebarToggle } from "@/hooks/use-chat-sidebar-collapsed";
 
 export const Route = createFileRoute("/_app/chat")({
   component: ChatLayout,
@@ -21,6 +22,7 @@ function ChatLayout() {
       try {
         localStorage.setItem(KEY, next ? "1" : "0");
       } catch {}
+      emitChatSidebarToggle();
       return next;
     });
   };
