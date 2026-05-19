@@ -217,9 +217,10 @@ function ThreadPage() {
   };
 
   useEffect(() => {
-    if (!autostart || streaming || !query.data) return;
+    if (!autostart || streaming) return;
     if (startedRef.current === threadId) return;
-    const msgs = query.data.messages;
+    // Use either freshly-loaded data or cache-primed data.
+    const msgs = query.data?.messages ?? [];
     if (msgs.length === 1 && msgs[0].role === "user") {
       startedRef.current = threadId;
       const hist: ChatMsg[] = msgs.map((m) => ({ id: m.id, role: m.role, content: m.content }));
