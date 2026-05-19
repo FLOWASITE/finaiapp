@@ -28,6 +28,8 @@ function AppLayout() {
   const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
   const chromeless = location.pathname === "/inbox";
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
+  const chatCollapsed = useChatSidebarCollapsed();
+  const hideHeader = onChatRoute && chatCollapsed;
 
   if (chromeless) {
     return (
