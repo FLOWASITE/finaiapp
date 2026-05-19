@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
-import { createThread, appendMessage } from "@/lib/chat-threads.functions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { createThread, appendMessage, listThreads } from "@/lib/chat-threads.functions";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
@@ -23,7 +26,18 @@ export function ChatDock() {
   const location = useLocation();
   const createFn = useServerFn(createThread);
   const appendFn = useServerFn(appendMessage);
+  const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const threadsQuery = useQuery({
+    queryKey: ["chat", "threads", "recent"],
+    queryFn: () => listFn(),
+    staleTime: 15_000,
+    enabled: historyOpen,
+  });
+
+  const activeThreadId = currentThreadId(location.pathname);
 
   useEffect(() => {
     const focusInput = () => {
@@ -166,17 +180,90 @@ export function ChatDock() {
               inputRef={inputRef}
             />
           </div>
-          <Button
-            asChild
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 shrink-0 rounded-xl border-white/10 bg-background/70 backdrop-blur-xl"
-            title="Lịch sử hội thoại"
-          >
-            <Link to="/chat" aria-label="Lịch sử hội thoại">
-              <History className="h-4 w-4" />
-            </Link>
-          </Button>
+          <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 shrink-0 rounded-xl border-white/10 bg-background/70 backdrop-blur-xl"
+                title="Hội thoại gần đây"
+                aria-label="Hội thoại gần đây"
+              >
+                <History className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              side="top"
+              className="w-80 p-0 border-white/10 bg-background/95 backdrop-blur-xl"
+            >
+              <div className="flex items-center justify-between border-b border-white/5 px-3 py-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Hội thoại gần đây
+                </span>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 px-2 text-xs"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  <Link to="/chat">
+                    <Plus className="h-3 w-3" />
+                    Mới
+                  </Link>
+                </Button>
+              </div>
+              <ScrollArea className="max-h-80">
+                <div className="p-1">
+                  {threadsQuery.isLoading ? (
+                    <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                      Đang tải…
+                    </div>
+                  ) : threadsQuery.data && threadsQuery.data.length > 0 ? (
+                    threadsQuery.data.slice(0, 30).map((t) => {
+                      const isActive = t.id === activeThreadId;
+                      const when = t.last_message_at
+                        ? new Date(t.last_message_at).toLocaleString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            day: "2-digit",
+                            month: "2-digit",
+                          })
+                        : "";
+                      return (
+                        <Link
+                          key={t.id}
+                          to="/chat/$threadId"
+                          params={{ threadId: t.id }}
+                          onClick={() => setHistoryOpen(false)}
+                          className={`flex items-start gap-2 rounded-lg px-2 py-2 text-sm hover:bg-white/5 ${
+                            isActive ? "bg-white/5" : ""
+                          }`}
+                        >
+                          <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">
+                              {t.title || "(Không tiêu đề)"}
+                            </div>
+                            {when && (
+                              <div className="text-[10px] text-muted-foreground">
+                                {when}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                      Chưa có hội thoại nào
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </>
