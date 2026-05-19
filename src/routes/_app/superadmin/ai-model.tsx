@@ -679,7 +679,7 @@ function AiModelPage() {
                   Chỉ miễn phí
                 </label>
               )}
-          <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+              <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
                 {loadingModels ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
