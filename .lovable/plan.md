@@ -1,61 +1,73 @@
-# Hoàn thiện Chatbot hỏi đáp
+# Làm UI khu vực Chatbot đẹp hơn
 
-Mục tiêu: nâng UX trang `/chat/$threadId` ngang chuẩn ChatGPT — markdown đẹp, thấy được AI đang làm gì, duyệt hành động ngay trong hội thoại, và kiểm soát stream.
+Mục tiêu: nâng tầm thẩm mỹ khu vực `/chat` (sidebar + transcript + composer + empty state + tool calls) theo hướng ChatGPT/Claude — tinh tế, có chiều sâu, nhịp khoảng trống tốt hơn, vẫn dùng đúng design tokens hiện có (oklch trong `src/styles.css`). Không đổi logic/business.
 
-## 1) Render markdown trong tin nhắn AI
+## Phạm vi (chỉ frontend, presentation)
 
-- Cài `react-markdown` + `remark-gfm` (đã có `parseChartBlocks` cho biểu đồ → giữ nguyên).
-- Tạo `src/components/chat/markdown.tsx` bọc `ReactMarkdown` với `remarkGfm`, style bằng tokens hiện có (prose-tone tự viết, không dùng plugin typography để tránh đụng theme):
-  - `p`, `ul/ol/li`, `strong/em`, `code` inline + `pre code` block (nền `bg-muted/50`, `rounded-md`, scroll-x), `table` với border + `th/td` padding, `a` màu primary underline, `blockquote` border-l.
-- `MessageList`: thay `<div className="whitespace-pre-wrap">{part.value}</div>` (assistant text) bằng `<Markdown>{part.value}</Markdown>`. User bubble giữ `whitespace-pre-wrap`.
+- `src/routes/_app/chat.tsx` — khung layout
+- `src/routes/_app/chat.index.tsx` — empty state / welcome
+- `src/routes/_app/chat.$threadId.tsx` — vùng footer + nội dung
+- `src/components/chat/thread-list.tsx` — sidebar danh sách hội thoại
+- `src/components/chat/message-list.tsx` — transcript
+- `src/components/chat/composer.tsx` — ô nhập
+- `src/components/chat/tool-calls.tsx` — accordion tool
+- `src/components/chat/message-actions.tsx` — copy/regenerate
 
-## 2) Hiện tool calls (runQuery / proposeAction)
+Không động vào: server functions, schema DB, logic streaming, PendingActions, ChatDock (đã ẩn ở SuperAdmin theo yêu cầu trước).
 
-Hiện stream chỉ trả `delta` text → tool calls vô hình. Mở rộng kênh stream:
+## Thay đổi chi tiết
 
-- `src/lib/chat.functions.ts`: thay vì chỉ `for await (delta of result.textStream)`, dùng `result.fullStream` và yield 3 loại event:
-  - `{ type: "text", delta }`
-  - `{ type: "tool-call", toolCallId, toolName, input }`
-  - `{ type: "tool-result", toolCallId, output }` (cắt ngắn output > 4KB để không phình message)
-- Lưu DB: cùng buffer text như cũ; thêm `tool_events: Array<{...}>` ghi kèm vào `chat_messages.metadata` (cột jsonb — nếu chưa có thì thêm migration `alter table chat_messages add column metadata jsonb`).
-- `ChatMsg` (client): thêm optional `toolEvents`. Khi stream, append vào state theo từng event.
-- `MessageList`: phía trên text của assistant, render `<ToolCallsAccordion events={...} defaultOpen={false} />`:
-  - Hàng tóm tắt: icon (Database cho runQuery, Wand cho proposeAction) + tên tool + badge trạng thái (Đang chạy / Xong / Lỗi).
-  - Click mở details: SQL/params (code block) + JSON result (cắt nếu dài + nút "Sao chép").
-  - Nhiều tool calls → list nhỏ gọn, mỗi cái 1 accordion.
-- Khi load lại thread từ DB: đọc `metadata.toolEvents` để dựng lại accordion.
+### 1) Layout chat (`chat.tsx`)
+- Thêm nền gradient mờ rất nhẹ (radial từ `--primary` ~3% ở góc trên-phải) phủ toàn bộ vùng chat để tạo chiều sâu, không chói.
+- Sidebar và transcript tách biệt bằng đường viền hairline + bóng `inset` thay vì border cứng.
+- Đảm bảo `min-h` ổn định, không nhảy layout khi tool-call mở/đóng.
 
-## 3) Wire PendingActions vào chat
+### 2) Sidebar `ThreadList`
+- Header sidebar: thêm tiêu đề nhỏ "Trợ lý kế toán" với icon Sparkles + subtitle muted; nút "Cuộc trò chuyện mới" chuyển thành dạng outline có icon Plus tròn, hover sáng dần.
+- Bucket headings (Hôm nay / 7 ngày…): chữ uppercase, kerning rộng, có divider mảnh phía dưới.
+- Item: bo `rounded-xl`, padding cao hơn, hiện preview snippet (1 dòng truncate từ `last_message_at` format thời gian tương đối — "2 giờ trước"). Active item dùng nền gradient nhẹ `from-primary/15 to-primary/5` + thanh accent 2px bên trái.
+- Hover: nâng nhẹ background, icon đổi màu primary.
+- Empty state: minh hoạ icon to mờ + text hướng dẫn.
+- Nút "…" (more): chuyển thành button ghost tròn, chỉ hiện khi hover hoặc focus.
 
-`PendingActions.tsx` đã sẵn (list / approve / cancel), chưa được render.
+### 3) Transcript `MessageList`
+- Tăng khoảng cách giữa messages từ `space-y-6` → `space-y-8` cho dễ đọc.
+- Avatar AI: đổi từ vòng tròn nhỏ Sparkles sang badge gradient (primary → primary-glow nếu có) bo `rounded-xl`, kích thước 8x8, có shadow nhẹ.
+- Avatar user: bo `rounded-xl` đồng bộ, dùng `bg-muted` thay vì `bg-secondary` để bớt nổi.
+- User bubble: vẫn primary nhưng padding rộng hơn (`px-5 py-3`), bo `rounded-2xl` đều (không vát góc), shadow mềm hơn.
+- Assistant: thêm tên nhỏ "Trợ lý" muted phía trên đoạn đầu tiên của mỗi message; markdown prose dùng class `prose-invert` (nếu dark) với tinh chỉnh `prose-p:my-2 prose-pre:rounded-xl prose-pre:bg-muted/40`.
+- Thinking indicator: thay 3 chấm bouncing bằng hiệu ứng "shimmer text" trên chữ "Đang suy nghĩ…" (gradient chạy qua text) — dùng utility CSS có sẵn hoặc thêm keyframes `shimmer` trong `styles.css`.
+- Hover message: actions (copy/regenerate) fade-in mượt với `transition-opacity duration-200`.
 
-- Trang `/chat/$threadId`: thêm `<PendingActions />` ngay trên `Composer`, chỉ hiện khi có hành động (component tự ẩn nếu list rỗng).
-- Sau khi `proposeAction` tool chạy xong (stream nhận tool-result), invalidate `["ai_actions_pending"]` để card xuất hiện ngay (không phải đợi 5s polling).
-- Trang index `/chat` cũng cho hiện nếu có pending (giúp user thấy việc còn dang dở).
+### 4) Composer
+- Khung `rounded-3xl` (mềm hơn), viền 1px `border-white/10`, focus-within thêm ring gradient mảnh `ring-1 ring-primary/30`.
+- Bỏ icon Sparkles cố định bên trái (gây thừa khi đã có avatar AI); chuyển thành hint text "Shift+Enter để xuống dòng" ở góc dưới phải khi focus.
+- Nút Send: gradient primary → primary-glow, scale nhẹ khi hover, disabled state mờ rõ ràng hơn.
+- Nút Stop: viền đỏ + nền trong suốt thay vì destructive đặc — tinh tế hơn.
+- Footer chat: gradient fade từ background lên trong suốt (mask) để tin nhắn cuối "chìm" vào composer thay vì bị cắt cứng bởi border-top.
 
-## 4) Stop streaming + Copy + Regenerate
+### 5) Empty state `chat.index.tsx`
+- Hero: icon Sparkles to 16x16 trong khối bo `rounded-3xl` với glow radial; tiêu đề chuyển sang font cỡ `text-3xl` tracking-tight; subtitle 2 dòng có khoảng trống thoáng.
+- Suggestions: chuyển từ grid 2 cột text-only sang **card có icon + label nhỏ** (Database / Users / FileCheck / Receipt), 4 card 2x2, hover nâng nhẹ + đổi border sang primary.
+- Thêm dòng helper "Hoặc nhập câu hỏi bên dưới" trước composer.
 
-**Stop:**
-- `askAccountingStream` thêm `abortSignal: request.signal` vào `streamText` (server fn của TanStack hỗ trợ — kiểm tra `context.request.signal`; nếu generator bị huỷ phía client, signal sẽ abort).
-- Client: dùng `AbortController`; nút Send chuyển thành nút Stop (icon `Square`) khi `streaming === true`. Click Stop → `controller.abort()` → break vòng `for await`. Phần text đã stream được lưu DB như bình thường (kèm marker `\n\n_Đã dừng._`).
+### 6) Tool calls (`tool-calls.tsx`)
+- Card bo `rounded-xl` viền `border-primary/15`, nền `bg-primary/[0.03]` thay vì muted xám.
+- Header: icon trong khối tròn primary mờ, status badge (Đang chạy / Xong / Lỗi) dạng pill nhỏ bên phải với màu phù hợp.
+- Khi mở: panel input/output trong `bg-background/60 backdrop-blur` viền inset; pre code dùng font mono cỡ 11px như cũ nhưng line-height thoáng hơn và scrollbar mảnh.
+- Animation accordion: `data-[state=open]:animate-accordion-down` (đã có trong tailwind config).
 
-**Copy:**
-- Mỗi assistant message hover hiện hàng action nhỏ phía dưới: nút Copy (icon `Copy`), copy `m.content` (raw markdown) → `navigator.clipboard.writeText` + toast.
+### 7) Message actions
+- Hàng action chỉ hiện khi hover message (đã có), nhưng đổi sang ghost button nhỏ 28px, icon-only mặc định, tooltip rõ ràng (Sao chép / Tạo lại). Khi copy thành công đổi icon Check trong 1.2s.
 
-**Regenerate:**
-- Nút "Tạo lại" chỉ hiện ở tin assistant cuối cùng (không streaming): xoá tin AI cuối khỏi DB (server fn mới `deleteLastAssistantMessage(threadId)`) + state, rồi gọi lại `runAssistant(history_without_last_assistant)`.
+### 8) Tokens & assets phụ trợ
+- Thêm vào `src/styles.css`:
+  - keyframes `shimmer` cho thinking indicator.
+  - utility class `.chat-surface` (nếu cần dùng nhiều nơi) cho gradient nền chat.
+  - đảm bảo có `--primary-glow` token; nếu chưa có thì derive từ `--primary` bằng `color-mix`.
+- Không thêm dependency mới.
 
-## Phạm vi files
-
-- ➕ `src/components/chat/markdown.tsx`
-- ➕ `src/components/chat/tool-calls.tsx`
-- ➕ `src/components/chat/message-actions.tsx` (Copy / Regenerate)
-- 📝 `src/components/chat/message-list.tsx` — markdown + actions + tool accordion
-- 📝 `src/components/chat/composer.tsx` — hỗ trợ prop `onStop` + đổi icon
-- 📝 `src/routes/_app/chat.$threadId.tsx` — AbortController, regenerate, mount PendingActions, parse stream events
-- 📝 `src/lib/chat.functions.ts` — `fullStream` + abortSignal + emit tool events
-- 📝 `src/lib/chat-threads.functions.ts` — `appendMessage` nhận `metadata`; mới: `deleteLastAssistantMessage`, `getThread` trả metadata
-- 🗄️ Migration: `alter table chat_messages add column if not exists metadata jsonb`
-- 📝 Deps: `bun add react-markdown remark-gfm`
-
-Không đụng `chat-dock.tsx`, không đổi flow tạo thread, không sửa cài đặt model.
+## Lưu ý
+- Tất cả màu/độ mờ qua semantic tokens (`primary`, `muted`, `foreground`, `background`, `destructive`), không hard-code hex.
+- Giữ nguyên props/contract của tất cả component để không vỡ chỗ gọi khác (ChatDock vẫn dùng `Composer` với `compact`).
+- Sau khi áp dụng: kiểm tra preview ở `/chat` (empty state), `/chat/:id` (có/đang stream/có tool calls), responsive ≥1280px (viewport hiện tại 1538).
