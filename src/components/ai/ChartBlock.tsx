@@ -96,7 +96,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
               {series.map((s, i) => (
                 <Bar
@@ -114,7 +114,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
               {series.map((s, i) => (
                 <Line
@@ -133,7 +133,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
               {series.map((s, i) => (
                 <Area
@@ -150,7 +150,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
             </AreaChart>
           ) : spec.type === "pie" ? (
             <PieChart>
-              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               <Pie
                 data={spec.data}
                 dataKey={series[0].key}
@@ -170,7 +170,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
               <XAxis type="number" dataKey={xKey} tick={{ fontSize: 11 }} name={spec.xLabel ?? xKey} />
               <YAxis tick={{ fontSize: 11 }} />
               <ZAxis range={[40, 200]} />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ fontSize: 12 }} />
+              <Tooltip cursor={{ strokeDasharray: "3 3" }} formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
               {series.map((s, i) => (
                 <Scatter
@@ -187,7 +187,7 @@ export function ChartBlock({ spec }: { spec: ChartSpec }) {
               <PolarGrid />
               <PolarAngleAxis dataKey={xKey} tick={{ fontSize: 11 }} />
               <PolarRadiusAxis tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipContentStyle} />
               {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
               {series.map((s, i) => (
                 <Radar
