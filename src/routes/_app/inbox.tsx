@@ -28,9 +28,9 @@ import {
 } from "@/lib/inbox-ai.functions";
 import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
 import { Button } from "@/components/ui/button";
+import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { InboxChatPanel, sendToInboxChat } from "@/components/chat/inbox-chat-panel";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
@@ -209,14 +209,7 @@ function InboxAiPage() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* LEFT HALF — Chatbot */}
-      <aside className="hidden h-full w-1/2 shrink-0 border-r border-border/40 md:flex md:flex-col">
-        <InboxChatPanel />
-      </aside>
-
-      {/* RIGHT HALF — Inbox */}
-      <div className="flex h-full min-w-0 flex-1 flex-col bg-gradient-to-b from-background via-background to-muted/10">
+    <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
       {/* Top header */}
       <header className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3.5">
         <Link
@@ -375,11 +368,11 @@ function InboxAiPage() {
           onSkip={() => activeItem && skipM.mutate(activeItem)}
           onRule={() => activeItem && ruleM.mutate(activeItem)}
           onEdit={() =>
-            activeItem && sendToInboxChat(`Sửa đề xuất "${activeItem.title}": `)
+            activeItem && openAskAi(`Sửa đề xuất "${activeItem.title}": `)
           }
           onAsk={(q) =>
             activeItem &&
-            sendToInboxChat(`Về mục "${activeItem.title}" (${VND(activeItem.amount)} ₫): ${q}`)
+            openAskAi(`Về mục "${activeItem.title}" (${VND(activeItem.amount)} ₫): ${q}`)
           }
           approving={approveM.isPending}
           skipping={skipM.isPending}
@@ -388,7 +381,6 @@ function InboxAiPage() {
       </div>
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
-      </div>
     </div>
   );
 }
@@ -716,7 +708,7 @@ function CommandBar({ onClose }: { onClose: () => void }) {
 
   const submit = (text: string) => {
     onClose();
-    sendToInboxChat(text);
+    openAskAi(text);
   };
 
   return (
