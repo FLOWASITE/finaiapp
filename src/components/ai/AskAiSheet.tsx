@@ -3,6 +3,7 @@ import { useLocation, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2, Mic, MicOff } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
