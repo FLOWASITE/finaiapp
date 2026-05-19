@@ -1,63 +1,28 @@
-## Vấn đề
-
-Khi user gửi câu hỏi từ ChatDock ở footer, flow hiện tại tuần tự nặng:
-
-1. ChatDock đợi `createThreadWithFirstMessage` xong (server làm **3** truy vấn Supabase: insert thread → insert message → update `last_message_at`).
-2. Navigate sang `/chat/$threadId?autostart=1`.
-3. Trang thread mount, chạy `getThread` — **fetch lại chính thread vừa tạo** → trong lúc đó hiện full‑screen spinner "Đang tải hội thoại…".
-4. Khi `query.data` về, effect autostart mới chạy → mới bắt đầu stream AI.
-
-Tổng cộng: ~2 round‑trip tuần tự + 1 màn hình trắng spinner trước khi AI bắt đầu nói. Đây là nguyên nhân chính gây cảm giác lag.
+# Ẩn header khi click nút thu gọn sidebar chat
 
 ## Mục tiêu
+Khi người dùng bấm nút thu gọn (nút khoanh đỏ trong sidebar "Trợ lý kế toán"), ngoài việc thu gọn cột danh sách hội thoại như hiện tại, **header phía trên** (chứa nút sidebar app, tenant switcher, breadcrumb "Trang chủ › Trợ lý AI › #fb4a520f") cũng sẽ ẩn đi — tạo chế độ chat toàn màn hình, tập trung.
 
-Khi user gửi câu hỏi, trong vòng 1 frame sau click họ phải thấy:
-- Tin nhắn của mình đã hiện trong khung chat
-- Bong bóng assistant đang gõ chữ
-- Stream AI bắt đầu chảy
+Bấm lại nút đó (hoặc Ctrl/Cmd + \\) sẽ hiện header trở lại.
 
-Không còn màn hình spinner "Đang tải hội thoại…", không còn đợi getThread.
+## Phạm vi
+- Chỉ áp dụng cho các route bắt đầu bằng `/chat` (trang Trợ lý AI). Các trang khác không bị ảnh hưởng.
+- Trạng thái thu gọn được lưu sẵn ở `localStorage["chat:sidebar-collapsed"]` — dùng lại key này, không thêm state mới.
 
-## Cách làm
+## Thay đổi kỹ thuật
 
-### 1. Prime React Query cache ngay khi tạo thread (`src/components/chat/chat-dock.tsx`)
+**1. `src/hooks/use-chat-sidebar-collapsed.ts` (mới)**
+- Hook nhỏ đọc `localStorage["chat:sidebar-collapsed"]` và lắng nghe sự kiện `chat-sidebar-toggle` để cập nhật state realtime giữa các component cùng cây.
 
-Sau khi `createThreadWithFirstMessage` trả về `{ thread, message }`:
+**2. `src/routes/_app/chat.tsx`**
+- Trong hàm `toggle()`, sau khi `setItem` localStorage, `window.dispatchEvent(new Event("chat-sidebar-toggle"))` để báo cho `_app.tsx` biết.
 
-- `qc.setQueryData(["chat","thread", thread.id], { thread, messages: [message] })` → khi trang thread mount, `useQuery` đọc từ cache, `isLoading = false`, không refetch (đã có `staleTime: 30s`).
-- `qc.setQueryData(["chat","threads","recent","all"], prev => [thread, ...(prev ?? [])])` → sidebar/popover history hiện ngay thread mới mà không cần invalidate.
-
-### 2. Bỏ full‑screen loader "Đang tải hội thoại…" (`src/routes/_app/chat.$threadId.tsx`)
-
-- Thay vì `if (query.isLoading) return <Spinner/>`, render khung chat ngay với `messages = query.data?.messages ?? []` (hoặc localMsgs). Giữ spinner nhỏ inline ở chỗ messages khi thực sự rỗng + đang loading + không có autostart.
-- Khi đến từ ChatDock thì cache đã prime ở bước 1 → render ngay user message + empty assistant bubble, không bao giờ thấy spinner.
-
-### 3. Stream AI không đợi `query.data` (`src/routes/_app/chat.$threadId.tsx`)
-
-Sửa effect autostart: trigger ngay khi có `autostart` và có ít nhất 1 user message (lấy từ cache đã prime), không đợi `query.isLoading === false`. Đảm bảo `startedRef` chống chạy 2 lần.
-
-### 4. Bỏ 1 query DB thừa khi tạo thread (`src/lib/chat-threads.functions.ts`)
-
-Trong `createThreadWithFirstMessage`:
-- Bỏ hẳn `UPDATE chat_threads SET last_message_at = now()` (query thứ 3). Set `last_message_at` ngay trong câu `INSERT` đầu tiên (`insert({ ..., last_message_at: new Date().toISOString() })`) → cắt 1 round‑trip Supabase mà vẫn đúng dữ liệu.
-
-### 5. (Tuỳ chọn nhỏ) Optimistic UX ở dock
-
-- Khi `setLoading(true)`, nút gửi đổi sang spinner cùng disabled — hiện đã có; chỉ kiểm tra Composer hiển thị đúng `loading` ngay frame đầu để user không bấm 2 lần.
+**3. `src/routes/_app.tsx`**
+- Dùng `useChatSidebarCollapsed()`.
+- Nếu `onChatRoute && collapsed === true` → không render khối `<header>` và `<PageBreadcrumbs />`. Giữ nguyên `<Outlet />` để ThreadList + nút mở lại (PanelLeftOpen) vẫn hiện.
+- Đảm bảo chiều cao `chat-surface` (`h-[calc(100vh-7rem)]`) vẫn đúng khi không có header — có thể chuyển sang `flex-1` của `<main>` (đã `overflow-auto`) nên thực tế không cần đổi class chat-surface; nếu cần sẽ dùng class điều kiện.
 
 ## Không thay đổi
-
-- Logic stream `askAccountingStream`, parse attachments, server prompt — giữ nguyên.
-- Schema DB — không cần migration.
-- Tính năng "Quay lại trang trước", history popover, digest badge — không động vào.
-
-## Kết quả kỳ vọng
-
-- Cắt 1 round‑trip ở server (bước 4) + 1 round‑trip client `getThread` (bước 2) + xoá full‑screen spinner (bước 3).
-- Từ lúc bấm Gửi đến lúc thấy stream AI: ~1 round‑trip duy nhất (đợi `createThreadWithFirstMessage`) thay vì 2 + spinner.
-
-## Tệp sẽ sửa
-
-- `src/components/chat/chat-dock.tsx`
-- `src/routes/_app/chat.$threadId.tsx`
-- `src/lib/chat-threads.functions.ts`
+- Logic chat, stream, RLS, server functions.
+- Hành vi sidebar ThreadList ngoài việc phát thêm event.
+- Các route ngoài `/chat`.
