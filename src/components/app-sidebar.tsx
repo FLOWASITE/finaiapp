@@ -278,7 +278,8 @@ export function AppSidebar() {
     pathname === "/assets/reports" ||
     pathname === "/payroll/reports" ||
     pathname === "/sales-dashboard" ||
-    pathname.startsWith("/sales-dashboard/");
+    pathname.startsWith("/sales-dashboard/") ||
+    pathname.startsWith("/purchases/reports");
   const activeSections = inTaxModule
     ? TAX_SECTIONS
     : inReportsModule
