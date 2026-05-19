@@ -8,8 +8,14 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMsg } from "@/components/chat/message-list";
 import { Button } from "@/components/ui/button";
-import { getThread, appendMessage } from "@/lib/chat-threads.functions";
+import { PendingActions } from "@/components/ai/PendingActions";
+import {
+  getThread,
+  appendMessage,
+  deleteLastAssistantMessage,
+} from "@/lib/chat-threads.functions";
 import { askAccountingStream } from "@/lib/chat.functions";
+import type { ToolEvent } from "@/components/chat/tool-calls";
 import { toast } from "sonner";
 
 const searchSchema = z.object({ autostart: z.string().optional() });
@@ -27,12 +33,14 @@ function ThreadPage() {
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
   const askFn = useServerFn(askAccountingStream);
+  const deleteLastFn = useServerFn(deleteLastAssistantMessage);
 
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [localMsgs, setLocalMsgs] = useState<ChatMsg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
@@ -40,11 +48,12 @@ function ThreadPage() {
     staleTime: 30_000,
   });
 
-  // Reset local state when switching threads
   useEffect(() => {
     setLocalMsgs([]);
     setInput("");
     startedRef.current = null;
+    abortRef.current?.abort();
+    abortRef.current = null;
   }, [threadId]);
 
   const messages: ChatMsg[] =
@@ -54,9 +63,9 @@ function ThreadPage() {
           id: m.id,
           role: m.role,
           content: m.content,
+          toolEvents: (m.metadata?.toolEvents as ToolEvent[] | undefined) ?? undefined,
         }));
 
-  // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -66,9 +75,25 @@ function ThreadPage() {
 
   const runAssistant = async (history: ChatMsg[]) => {
     setStreaming(true);
-    const working = [...history, { role: "assistant" as const, content: "" }];
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const working: ChatMsg[] = [
+      ...history,
+      { role: "assistant", content: "", toolEvents: [] },
+    ];
     setLocalMsgs(working);
     let buffer = "";
+    const toolEvents: ToolEvent[] = [];
+    let sawProposeAction = false;
+
+    const updateLast = (patch: Partial<ChatMsg>) => {
+      setLocalMsgs((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { ...copy[copy.length - 1], ...patch };
+        return copy;
+      });
+    };
+
     try {
       const stream = await askFn({
         data: {
@@ -78,35 +103,53 @@ function ThreadPage() {
             content: m.content,
           })),
         },
-      });
-      for await (const chunk of stream as AsyncIterable<{ delta: string }>) {
-        buffer += chunk.delta;
-        setLocalMsgs((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = { role: "assistant", content: buffer };
-          return copy;
-        });
+        signal: controller.signal,
+      } as any);
+
+      for await (const ev of stream as AsyncIterable<any>) {
+        if (controller.signal.aborted) break;
+        if (ev.type === "text") {
+          buffer += ev.delta;
+          updateLast({ content: buffer });
+        } else if (ev.type === "tool-call") {
+          toolEvents.push(ev);
+          if (ev.toolName === "proposeAction") sawProposeAction = true;
+          updateLast({ toolEvents: [...toolEvents] });
+        } else if (ev.type === "tool-result") {
+          toolEvents.push(ev);
+          updateLast({ toolEvents: [...toolEvents] });
+        }
       }
-      // Persist
+
+      if (controller.signal.aborted) {
+        buffer = buffer + "\n\n_Đã dừng._";
+        updateLast({ content: buffer });
+      }
+
       await appendFn({
-        data: { threadId, role: "assistant", content: buffer },
+        data: {
+          threadId,
+          role: "assistant",
+          content: buffer,
+          metadata: toolEvents.length ? { toolEvents } : undefined,
+        },
       });
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
       qc.invalidateQueries({ queryKey: ["chat", "thread", threadId] });
+      if (sawProposeAction) {
+        qc.invalidateQueries({ queryKey: ["ai_actions_pending"] });
+      }
     } catch (e: any) {
+      if (controller.signal.aborted) return;
       const errText = `Lỗi: ${e?.message || "stream error"}`;
-      setLocalMsgs((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: errText };
-        return copy;
-      });
+      updateLast({ content: errText });
       toast.error(errText);
     } finally {
       setStreaming(false);
+      abortRef.current = null;
     }
   };
 
-  // Autostart: when thread was just created and we landed here with ?autostart=1
   useEffect(() => {
     if (!autostart || streaming || !query.data) return;
     if (startedRef.current === threadId) return;
@@ -115,7 +158,6 @@ function ThreadPage() {
       startedRef.current = threadId;
       const hist: ChatMsg[] = msgs.map((m) => ({ id: m.id, role: m.role, content: m.content }));
       runAssistant(hist);
-      // strip the autostart flag so reload doesn't replay
       navigate({
         to: "/chat/$threadId",
         params: { threadId },
@@ -143,6 +185,29 @@ function ThreadPage() {
     runAssistant(next);
   };
 
+  const stop = () => {
+    abortRef.current?.abort();
+  };
+
+  const regenerate = async () => {
+    if (streaming) return;
+    // remove last assistant from DB + state
+    try {
+      await deleteLastFn({ data: { threadId } });
+    } catch (e: any) {
+      toast.error(e?.message || "Không xoá được tin nhắn cuối");
+      return;
+    }
+    const withoutLast: ChatMsg[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      if (i === messages.length - 1 && messages[i].role === "assistant") continue;
+      withoutLast.push(messages[i]);
+    }
+    setLocalMsgs(withoutLast);
+    qc.invalidateQueries({ queryKey: ["chat", "thread", threadId] });
+    runAssistant(withoutLast);
+  };
+
   if (query.isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -168,14 +233,22 @@ function ThreadPage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <MessageList messages={messages} streaming={streaming} />
+        <MessageList
+          messages={messages}
+          streaming={streaming}
+          onRegenerate={!streaming ? regenerate : undefined}
+        />
       </div>
       <div className="border-t border-white/5 bg-background/50 px-4 py-3">
         <div className="mx-auto max-w-3xl">
+          <div className="mb-2">
+            <PendingActions />
+          </div>
           <Composer
             value={input}
             onChange={setInput}
             onSubmit={send}
+            onStop={stop}
             loading={streaming}
             autoFocus
           />
