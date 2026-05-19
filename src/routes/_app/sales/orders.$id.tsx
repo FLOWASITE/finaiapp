@@ -1,11 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { toast } from "sonner";
 import { getSalesOrder } from "@/lib/sales-orders.functions";
+import {
+  listSalesOrderDeposits, upsertSalesOrderDeposit, postSalesOrderDeposit,
+  voidSalesOrderDeposit, deleteSalesOrderDeposit, listReservationsForOrder,
+} from "@/lib/deposits.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, FileText, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/orders/$id")({
   component: OrderDetail,
