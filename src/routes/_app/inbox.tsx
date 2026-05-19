@@ -368,11 +368,11 @@ function InboxAiPage() {
           onSkip={() => activeItem && skipM.mutate(activeItem)}
           onRule={() => activeItem && ruleM.mutate(activeItem)}
           onEdit={() =>
-            activeItem && openAskAi(`Sửa đề xuất "${activeItem.title}": `)
+            activeItem && sendToInboxChat(`Sửa đề xuất "${activeItem.title}": `)
           }
           onAsk={(q) =>
             activeItem &&
-            openAskAi(`Về mục "${activeItem.title}" (${VND(activeItem.amount)} ₫): ${q}`)
+            sendToInboxChat(`Về mục "${activeItem.title}" (${VND(activeItem.amount)} ₫): ${q}`)
           }
           approving={approveM.isPending}
           skipping={skipM.isPending}
@@ -708,7 +708,7 @@ function CommandBar({ onClose }: { onClose: () => void }) {
 
   const submit = (text: string) => {
     onClose();
-    openAskAi(text);
+    sendToInboxChat(text);
   };
 
   return (
