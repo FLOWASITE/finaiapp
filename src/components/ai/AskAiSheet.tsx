@@ -41,6 +41,8 @@ export function AskAiSheet() {
   const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
   const [recording, setRecording] = useState(false);
+  type Stage = "queued" | "reading" | "ocr" | "matching" | "done" | "error";
+  const [batchProgress, setBatchProgress] = useState<Array<{ filename: string; stage: Stage; note?: string }>>([]);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
@@ -146,13 +148,20 @@ export function AskAiSheet() {
     setMessages((m) => [
       ...m,
       { role: "user", content: `📎 Nhập hàng loạt ${valid.length} ${kindLabel}:\n${valid.map((f) => `• ${f.name}`).join("\n")}` },
-      { role: "assistant", content: `Đang trích xuất 0/${valid.length}…` },
     ]);
+    setBatchProgress(valid.map((f) => ({ filename: f.name, stage: "queued" as Stage })));
+    const setStage = (idx: number, stage: Stage, note?: string) =>
+      setBatchProgress((prev) => {
+        const c = [...prev];
+        c[idx] = { ...c[idx], stage, note };
+        return c;
+      });
 
     const items: Array<{ filename: string; kind: string; parsed: any; error?: string }> = [];
-    let done = 0;
-    for (const file of valid) {
+    for (let i = 0; i < valid.length; i++) {
+      const file = valid[i];
       try {
+        setStage(i, "reading");
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -162,19 +171,24 @@ export function AskAiSheet() {
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
+        setStage(i, "ocr");
         const res: any = await parseFn({
           data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
         });
-        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {} });
+        const parsed = res?.parsed ?? {};
+        setStage(i, "matching");
+        // brief pause so the matching stage is visible; AI matching happens server-side
+        await new Promise((r) => setTimeout(r, 250));
+        let note = "";
+        if (kind === "purchase_invoice") note = parsed.vendor_name ? `${parsed.vendor_name}` : "";
+        else if (kind === "bank_statement") note = Array.isArray(parsed?.transactions) ? `${parsed.transactions.length} GD` : "";
+        else if (parsed?.amount) note = `${Number(parsed.amount).toLocaleString("vi-VN")} ₫`;
+        setStage(i, "done", note);
+        items.push({ filename: file.name, kind, parsed });
       } catch (e: any) {
+        setStage(i, "error", e?.message || "lỗi");
         items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
       }
-      done++;
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: `Đang trích xuất ${done}/${valid.length}…` };
-        return copy;
-      });
     }
 
     const ok = items.filter((i) => !i.error);
@@ -198,15 +212,13 @@ export function AskAiSheet() {
       lines.push(``, `Nói "tạo phiếu tất cả" để tạo phiếu thu/chi nháp.`);
     }
 
-    setMessages((prev) => {
-      const copy = [...prev];
-      copy[copy.length - 1] = { role: "assistant", content: lines.join("\n") };
-      return copy;
-    });
+    setMessages((prev) => [...prev, { role: "assistant", content: lines.join("\n") }]);
     (window as any).__lastBatchImport = { kind, items: ok, failed, createdAt: Date.now() };
     if (ok.length) (window as any).__lastParsedDoc = { kind, parsed: ok[0].parsed };
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    // keep progress visible briefly then clear
+    setTimeout(() => setBatchProgress([]), 4000);
   };
 
   const toggleVoice = () => {
@@ -338,6 +350,49 @@ export function AskAiSheet() {
               </div>
             )}
           </div>
+
+          {batchProgress.length > 0 && (
+            <div className="border-t border-border bg-muted/30 px-4 py-3 max-h-56 overflow-auto">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
+                Tiến độ nhập ({batchProgress.filter(p => p.stage === "done").length}/{batchProgress.length})
+              </div>
+              <ul className="space-y-1.5">
+                {batchProgress.map((p, i) => {
+                  const stages: Stage[] = ["reading", "ocr", "matching", "done"];
+                  const currentIdx = p.stage === "error" ? -1 : stages.indexOf(p.stage);
+                  const labels: Record<Stage, string> = {
+                    queued: "Chờ", reading: "Đọc file", ocr: "OCR", matching: "Đối chiếu", done: "Xong", error: "Lỗi",
+                  };
+                  return (
+                    <li key={i} className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 truncate font-medium">{p.filename}</span>
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 ${
+                          p.stage === "done" ? "bg-emerald-500/15 text-emerald-600" :
+                          p.stage === "error" ? "bg-destructive/15 text-destructive" :
+                          p.stage === "queued" ? "bg-muted text-muted-foreground" :
+                          "bg-primary/15 text-primary"
+                        }`}>
+                          {p.stage !== "done" && p.stage !== "error" && p.stage !== "queued" && (
+                            <Loader2 className="inline h-2.5 w-2.5 animate-spin mr-1" />
+                          )}
+                          {labels[p.stage]}{p.note ? ` · ${p.note}` : ""}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex gap-0.5">
+                        {stages.map((s, si) => (
+                          <div key={s} className={`h-1 flex-1 rounded-full ${
+                            p.stage === "error" ? "bg-destructive/40" :
+                            si <= currentIdx ? "bg-primary" : "bg-muted"
+                          }`} />
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           <PendingActions />
 
