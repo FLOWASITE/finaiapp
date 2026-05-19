@@ -53,6 +53,21 @@ const PALETTE = [
   "hsl(var(--chart-8, 50 85% 55%))",
 ];
 
+const nfVN = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+
+function formatValue(v: any): string {
+  if (v == null) return "—";
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return `${nfVN.format(v)} ₫`;
+  }
+  const n = Number(v);
+  if (Number.isFinite(n) && String(v).trim() !== "") return `${nfVN.format(n)} ₫`;
+  return String(v);
+}
+
+const tooltipFormatter = (value: any, name: any) => [formatValue(value), String(name)];
+const tooltipContentStyle = { fontSize: 12 } as const;
+
 function normalizeSeries(spec: ChartSpec): ChartSeries[] {
   if (spec.series?.length) return spec.series;
   const keys = spec.yKeys?.length ? spec.yKeys : ["value"];
