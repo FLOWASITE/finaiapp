@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { askAccounting } from "@/lib/chat.functions";
+import { askAccountingStream } from "@/lib/chat.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Sparkles, User } from "lucide-react";
@@ -20,34 +20,51 @@ const SUGGESTIONS = [
 ];
 
 function Chat() {
-  const askFn = useServerFn(askAccounting);
+  const askFn = useServerFn(askAccountingStream);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   const send = async (q?: string) => {
     const question = (q ?? input).trim();
     if (!question || loading) return;
     setInput("");
-    const next = [...messages, { role: "user" as const, content: question }];
-    setMessages(next);
+    const history = messages;
+    setMessages([...history, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setLoading(true);
     try {
-      const { answer } = await askFn({ data: { question, history: messages } });
-      setMessages([...next, { role: "assistant", content: answer }]);
+      const stream = await askFn({ data: { question, history } });
+      for await (const chunk of stream as AsyncIterable<{ delta: string }>) {
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { role: "assistant", content: copy[copy.length - 1].content + chunk.delta };
+          return copy;
+        });
+      }
     } catch (e: any) {
-      setMessages([...next, { role: "assistant", content: `Lỗi: ${e.message}` }]);
-    } finally { setLoading(false); }
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", content: `Lỗi: ${e.message}` };
+        return copy;
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-[calc(100vh-7rem)] flex-col">
       <div className="border-b border-border bg-card px-8 py-4">
         <h1 className="text-xl font-bold tracking-tight">Trợ lý kế toán AI</h1>
-        <p className="text-xs text-muted-foreground">Hỏi tự nhiên về dữ liệu kế toán của bạn</p>
+        <p className="text-xs text-muted-foreground">Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời stream theo thời gian thực</p>
       </div>
 
-      <div className="flex-1 overflow-auto p-8">
+      <div ref={scrollRef} className="flex-1 overflow-auto p-8">
         {messages.length === 0 ? (
           <div className="mx-auto max-w-2xl">
             <div className="mb-4 text-center text-sm text-muted-foreground">Một số câu hỏi mẫu:</div>
@@ -71,7 +88,9 @@ function Chat() {
                 )}
                 <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
                   m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"
-                }`}>{m.content}</div>
+                }`}>
+                  {m.content || (loading && i === messages.length - 1 ? <span className="text-muted-foreground">Đang truy vấn dữ liệu…</span> : null)}
+                </div>
                 {m.role === "user" && (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
                     <User className="h-4 w-4" />
@@ -79,16 +98,6 @@ function Chat() {
                 )}
               </div>
             ))}
-            {loading && (
-              <div className="flex gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Sparkles className="h-4 w-4 animate-pulse" />
-                </div>
-                <div className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
-                  Đang truy vấn dữ liệu...
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -101,6 +110,7 @@ function Chat() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             disabled={loading}
+            autoFocus
           />
           <Button onClick={() => send()} disabled={loading || !input.trim()}>
             <Send className="h-4 w-4" />
