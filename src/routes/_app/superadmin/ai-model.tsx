@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Sparkles,
@@ -189,23 +189,59 @@ const suggestedModel = (
 });
 
 const SUGGESTED_MODELS: ModelOption[] = [
+  // OpenAI
   suggestedModel("openai/gpt-4o-mini", "GPT-4o Mini", 128_000),
   suggestedModel("openai/gpt-4o", "GPT-4o", 128_000),
+  suggestedModel("openai/gpt-4.1-mini", "GPT-4.1 Mini", 1_000_000),
+  suggestedModel("openai/gpt-4.1", "GPT-4.1", 1_000_000),
+  suggestedModel("openai/gpt-5-nano", "GPT-5 Nano", 400_000),
   suggestedModel("openai/gpt-5-mini", "GPT-5 Mini", 400_000),
   suggestedModel("openai/gpt-5", "GPT-5", 400_000),
+  suggestedModel("openai/o1-mini", "o1 Mini", 128_000),
+  suggestedModel("openai/o1", "o1", 200_000),
+  suggestedModel("openai/o3-mini", "o3 Mini", 200_000),
+  // Anthropic
+  suggestedModel("anthropic/claude-3.5-haiku", "Claude 3.5 Haiku", 200_000),
+  suggestedModel("anthropic/claude-3.5-sonnet", "Claude 3.5 Sonnet", 200_000),
+  suggestedModel("anthropic/claude-3.7-sonnet", "Claude 3.7 Sonnet", 200_000),
+  suggestedModel("anthropic/claude-haiku-4.5", "Claude Haiku 4.5", 200_000),
+  suggestedModel("anthropic/claude-sonnet-4.5", "Claude Sonnet 4.5", 200_000),
+  suggestedModel("anthropic/claude-opus-4", "Claude Opus 4", 200_000),
+  // Google
+  suggestedModel("google/gemini-2.0-flash-001", "Gemini 2.0 Flash", 1_000_000),
+  suggestedModel("google/gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", 1_000_000),
   suggestedModel("google/gemini-2.5-flash", "Gemini 2.5 Flash", 1_000_000),
-  suggestedModel("google/gemini-2.5-pro", "Gemini 2.5 Pro", 1_000_000),
+  suggestedModel("google/gemini-2.5-pro", "Gemini 2.5 Pro", 2_000_000),
   suggestedModel("google/gemini-3-flash-preview", "Gemini 3 Flash Preview", 1_000_000),
   suggestedModel("google/gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview", 1_000_000),
-  suggestedModel("anthropic/claude-sonnet-4.5", "Claude Sonnet 4.5", 200_000),
-  suggestedModel("anthropic/claude-haiku-4.5", "Claude Haiku 4.5", 200_000),
-  suggestedModel("deepseek/deepseek-r1", "DeepSeek R1", 128_000),
-  suggestedModel("deepseek/deepseek-chat", "DeepSeek Chat", 128_000),
-  suggestedModel("qwen/qwen-vl-max", "Qwen VL Max", 128_000),
-  suggestedModel("qwen/qwq-32b", "QwQ 32B", 128_000),
+  // xAI
+  suggestedModel("x-ai/grok-2-vision-1212", "Grok 2 Vision", 32_000),
+  suggestedModel("x-ai/grok-3-mini", "Grok 3 Mini", 131_000),
+  suggestedModel("x-ai/grok-3", "Grok 3", 131_000),
   suggestedModel("x-ai/grok-4", "Grok 4", 256_000),
-  suggestedModel("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B Instruct", 128_000),
+  // DeepSeek
+  suggestedModel("deepseek/deepseek-chat", "DeepSeek Chat", 128_000),
+  suggestedModel("deepseek/deepseek-chat-v3", "DeepSeek V3", 128_000),
+  suggestedModel("deepseek/deepseek-r1", "DeepSeek R1", 128_000),
+  suggestedModel("deepseek/deepseek-r1-distill-llama-70b", "DeepSeek R1 Distill Llama 70B", 128_000),
+  // Qwen / Alibaba
+  suggestedModel("qwen/qwen-2.5-72b-instruct", "Qwen 2.5 72B Instruct", 131_000),
+  suggestedModel("qwen/qwen-2.5-coder-32b-instruct", "Qwen 2.5 Coder 32B", 131_000),
+  suggestedModel("qwen/qwq-32b", "QwQ 32B", 131_000),
+  suggestedModel("qwen/qwen-vl-max", "Qwen VL Max", 128_000),
+  // Meta Llama
+  suggestedModel("meta-llama/llama-3.2-90b-vision-instruct", "Llama 3.2 90B Vision", 32_000),
+  suggestedModel("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B Instruct", 131_000),
+  // Mistral
+  suggestedModel("mistralai/mistral-small-3.1-24b-instruct", "Mistral Small 3.1", 128_000),
+  suggestedModel("mistralai/mistral-large-2411", "Mistral Large", 128_000),
+  suggestedModel("mistralai/codestral-2501", "Codestral", 256_000),
+  // Perplexity
+  suggestedModel("perplexity/sonar", "Sonar", 127_000),
+  suggestedModel("perplexity/sonar-pro", "Sonar Pro", 200_000),
+  suggestedModel("perplexity/sonar-reasoning", "Sonar Reasoning", 127_000),
 ];
+
 
 function mergeModelOptions(primary: ModelOption[], fallback: ModelOption[]) {
   const map = new Map<string, ModelOption>();
@@ -327,19 +363,31 @@ function AiModelPage() {
     }
   };
 
-  const onLoadModels = async () => {
+  const onLoadModels = async (silent = false) => {
     if (!form) return;
     setLoadingModels(true);
     try {
       const r: any = await listModels({ data: { base_url: form.base_url } });
       setModels(mergeModelOptions((r.models as ModelOption[]) ?? [], SUGGESTED_MODELS));
-      toast.success(`Đã tải ${r.count} model.`);
+      if (!silent) toast.success(`Đã tải ${r.count} model.`);
     } catch (e: any) {
-      toast.error("Không tải được danh sách model: " + e.message);
+      if (!silent) toast.error("Không tải được danh sách model: " + e.message);
+      else console.warn("Auto-load models failed:", e?.message);
     } finally {
       setLoadingModels(false);
     }
   };
+
+  // Auto-fetch full list once when form is ready
+  const autoLoadedRef = useRef(false);
+  useEffect(() => {
+    if (autoLoadedRef.current) return;
+    if (!form?.base_url) return;
+    autoLoadedRef.current = true;
+    void onLoadModels(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form?.base_url]);
+
 
   const onSave = async () => {
     if (!form) return;
@@ -679,7 +727,7 @@ function AiModelPage() {
                   Chỉ miễn phí
                 </label>
               )}
-              <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+              <Button size="sm" variant="outline" onClick={() => onLoadModels()} disabled={loadingModels}>
                 {loadingModels ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
