@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -19,7 +19,11 @@ import {
   MoreHorizontal,
   TrendingUp,
   ArrowLeft,
-  
+  LogOut,
+  Settings,
+  RefreshCw,
+  Keyboard,
+  Home,
 } from "lucide-react";
 
 import {
@@ -45,6 +49,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TenantSwitcher } from "@/components/tenant-switcher";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
@@ -348,56 +365,12 @@ function InboxAiPage() {
   return (
     <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
       {/* Top header */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3.5">
-        <Link
-          to="/dashboard"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
-          title="Quay lại"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 font-semibold text-white">
-          S
-        </div>
-        <div className="text-sm font-semibold tracking-tight">Sổ AI</div>
-        <div
-          className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-          title="Cập nhật cuối: vừa xong"
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          </span>
-          AI online
-          <span className="hidden text-emerald-700/70 sm:inline dark:text-emerald-300/70">
-            ·{" "}
-            {recentlyReadDelta
-              ? `vừa đọc ${recentlyReadDelta} hoá đơn mới`
-              : "đang theo dõi"}
-          </span>
-        </div>
+      <InboxHeader
+        onOpenCmd={() => setCmdOpen(true)}
+        periodLabel={periodLabel()}
+        recentlyReadDelta={recentlyReadDelta}
+      />
 
-        <button
-          type="button"
-          onClick={() => setCmdOpen(true)}
-          className="ml-2 hidden h-9 flex-1 items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card lg:flex"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span className="flex-1 truncate">
-            Hỏi AI: "Chi phí marketing tháng này?", "Đối chiếu HĐ với sao kê"…
-          </span>
-          <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
-        </button>
-
-        <div className="ml-auto hidden items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground lg:flex">
-          <Calendar className="h-3.5 w-3.5" />
-          {periodLabel()}
-        </div>
-
-        <button className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
-      </header>
 
       {/* Stats strip */}
       <div className="hidden shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4 lg:flex">
@@ -612,6 +585,170 @@ function InboxAiPage() {
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
     </div>
+  );
+}
+
+
+/* ───────── Header ───────── */
+function InboxHeader({
+  onOpenCmd,
+  periodLabel,
+  recentlyReadDelta,
+}: {
+  onOpenCmd: () => void;
+  periodLabel: string;
+  recentlyReadDelta: number | null;
+}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { data: me } = useCurrentUser();
+
+  const initial =
+    (me?.profile?.display_name || me?.email || "?").trim().charAt(0).toUpperCase() || "?";
+  const displayName = me?.profile?.display_name || me?.email || "Tài khoản";
+
+  const onSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/login" });
+  };
+
+  return (
+    <header className="mx-3 mt-3 mb-2 flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-border/40 bg-background/70 px-3 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
+      <Link
+        to="/dashboard"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        title="Quay lại"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Link>
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-[13px] font-semibold text-white shadow-sm shadow-emerald-600/30">
+        S
+      </div>
+      <div className="text-sm font-semibold tracking-tight">Sổ AI</div>
+
+      <div
+        className="ml-1 hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-700 sm:flex dark:text-emerald-300"
+        title="Cập nhật cuối: vừa xong"
+      >
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        </span>
+        AI online
+        <span className="hidden text-emerald-700/70 lg:inline dark:text-emerald-300/70">
+          ·{" "}
+          {recentlyReadDelta
+            ? `vừa đọc ${recentlyReadDelta} hoá đơn mới`
+            : "đang theo dõi"}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={onOpenCmd}
+        className="ml-2 hidden h-9 max-w-md flex-1 items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:flex"
+      >
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <span className="flex-1 truncate">
+          <span className="hidden lg:inline">
+            Hỏi AI: "Chi phí marketing tháng này?", "Đối chiếu HĐ với sao kê"…
+          </span>
+          <span className="lg:hidden">Hỏi AI…</span>
+        </span>
+        <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
+      </button>
+
+      <div className="ml-auto flex items-center gap-2">
+        <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 text-xs text-foreground/70 md:flex">
+          <Calendar className="h-3.5 w-3.5" />
+          {periodLabel}
+        </div>
+
+        <div className="hidden md:block">
+          <TenantSwitcher />
+        </div>
+
+        <Separator orientation="vertical" className="hidden h-6 md:block" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-2 rounded-full border border-border/40 p-0.5 pr-2 transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label="Tài khoản"
+            >
+              <Avatar className="h-7 w-7">
+                {me?.profile?.avatar_url ? (
+                  <AvatarImage src={me.profile.avatar_url} alt={displayName} />
+                ) : null}
+                <AvatarFallback className="bg-primary/15 text-[11px] font-semibold text-primary">
+                  {initial}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden max-w-[120px] truncate text-xs font-medium text-foreground/80 lg:inline">
+                {displayName}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="flex flex-col gap-0.5">
+              <span className="truncate text-sm">{displayName}</span>
+              {me?.email && me.email !== displayName && (
+                <span className="truncate text-[11px] font-normal text-muted-foreground">
+                  {me.email}
+                </span>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
+              <Settings className="mr-2 h-4 w-4" /> Cài đặt
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onOpenCmd}>
+              <Keyboard className="mr-2 h-4 w-4" /> Trợ giúp & phím tắt
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label="Thêm tuỳ chọn"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={() => {
+                qc.invalidateQueries({ queryKey: ["inbox-ai"] });
+                toast.success("Đang làm mới Inbox AI…");
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" /> Làm mới dữ liệu
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                // TODO: mở dialog đổi kỳ kế toán khi có
+                toast("Đổi kỳ kế toán — đang phát triển");
+              }}
+            >
+              <Calendar className="mr-2 h-4 w-4" /> Đổi kỳ kế toán
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onOpenCmd}>
+              <Keyboard className="mr-2 h-4 w-4" /> Mở bảng phím tắt
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate({ to: "/dashboard" })}>
+              <Home className="mr-2 h-4 w-4" /> Về Dashboard
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   );
 }
 
