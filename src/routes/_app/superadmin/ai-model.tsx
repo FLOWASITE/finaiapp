@@ -291,7 +291,7 @@ function AiModelPage() {
               {isCustomActive ? (
                 <Badge className="gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  {isOpenRouter ? "OpenRouter" : "Custom"} · {form.provider_label}
+                  {isOpenRouter ? "OpenRouter" : isAlibaba ? "Alibaba Qwen" : "Custom"} · {form.provider_label}
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="gap-1">
