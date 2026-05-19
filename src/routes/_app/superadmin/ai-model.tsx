@@ -18,13 +18,8 @@ import {
   Cpu,
   Settings2,
   Zap,
-  MessageSquare,
-  FileScan,
-  Brain,
   Trash2,
   Code2,
-  Search,
-  Inbox,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -564,99 +559,46 @@ function AiModelPage() {
 
         <Separator />
 
-        {/* Models section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-primary" />
-            <div className="text-sm font-medium">Phân bổ model theo tác vụ</div>
-            <span className="text-xs text-muted-foreground">— để trống = dùng mặc định</span>
-          </div>
-
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder={
-                  models.length > 0
-                    ? `Tìm trong ${models.length} model…`
-                    : "Tải danh sách trước khi tìm…"
-                }
-                disabled={models.length === 0}
-                className="h-9 pl-8 text-sm"
-              />
+        {/* Model section — single picker */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-primary" />
+              <div className="text-sm font-medium">Model</div>
             </div>
-            <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md border px-2.5 py-1.5">
-              <input
-                type="checkbox"
-                checked={onlyFree}
-                onChange={(e) => setOnlyFree(e.target.checked)}
-                disabled={models.length === 0}
-              />
-              Chỉ miễn phí
-            </label>
-            <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
-              {loadingModels ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            <div className="flex items-center gap-2">
+              {models.length > 0 && (
+                <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onlyFree}
+                    onChange={(e) => setOnlyFree(e.target.checked)}
+                  />
+                  Chỉ miễn phí
+                </label>
               )}
-              {models.length > 0 ? "Tải lại" : "Tải danh sách"}
-            </Button>
-          </div>
-
-          {models.length === 0 && !loadingModels && (
-            <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              <Inbox className="h-3.5 w-3.5" />
-              Chưa tải danh sách. Bạn vẫn có thể gõ model ID thủ công bên dưới.
+              <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+                {loadingModels ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách"}
+              </Button>
             </div>
-          )}
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <ModelField
-              icon={<Zap className="h-3.5 w-3.5" />}
-              label="Mặc định"
-              required
-              value={form.model_default}
-              onChange={(v) => update("model_default", v)}
-              models={models}
-              onlyFree={onlyFree}
-              search={modelSearch}
-              placeholder="openai/gpt-4o-mini"
-            />
-            <ModelField
-              icon={<MessageSquare className="h-3.5 w-3.5" />}
-              label="Chat"
-              value={form.model_chat}
-              onChange={(v) => update("model_chat", v)}
-              models={models}
-              onlyFree={onlyFree}
-              search={modelSearch}
-              placeholder="(trống = mặc định)"
-            />
-            <ModelField
-              icon={<FileScan className="h-3.5 w-3.5" />}
-              label="Parse hoá đơn"
-              value={form.model_parse}
-              onChange={(v) => update("model_parse", v)}
-              models={models}
-              onlyFree={onlyFree}
-              search={modelSearch}
-              placeholder="google/gemini-2.5-flash"
-            />
-            <ModelField
-              icon={<Brain className="h-3.5 w-3.5" />}
-              label="Reasoning"
-              value={form.model_reasoning}
-              onChange={(v) => update("model_reasoning", v)}
-              models={models}
-              onlyFree={onlyFree}
-              search={modelSearch}
-              placeholder="deepseek/deepseek-r1"
-            />
           </div>
+
+          <ModelField
+            icon={<Zap className="h-3.5 w-3.5" />}
+            label="Model dùng cho mọi tác vụ"
+            required
+            value={form.model_default}
+            onChange={(v) => update("model_default", v)}
+            models={models}
+            onlyFree={onlyFree}
+            search={modelSearch}
+            placeholder="openai/gpt-4o-mini"
+          />
         </div>
 
         {/* Advanced (collapsible) */}
