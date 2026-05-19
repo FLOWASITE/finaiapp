@@ -319,7 +319,7 @@ function LaneDetailPage() {
                       </Button>
                       {r.href && (
                         <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
-                          <Link to={r.href}>Mở</Link>
+                          <a href={r.href}>Mở</a>
                         </Button>
                       )}
                     </div>
