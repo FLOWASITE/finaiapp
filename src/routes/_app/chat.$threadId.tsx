@@ -173,7 +173,7 @@ function ThreadPage() {
       navigate({
         to: "/chat/$threadId",
         params: { threadId },
-        search: {},
+        search: from ? { from } : {},
         replace: true,
       });
     }
