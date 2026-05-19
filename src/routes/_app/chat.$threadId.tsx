@@ -113,7 +113,7 @@ function ThreadPage() {
       restoredRef.current = true;
       let saved: number | null = null;
       try {
-        const raw = sessionStorage.getItem(SCROLL_KEY);
+        const raw = localStorage.getItem(SCROLL_KEY) ?? sessionStorage.getItem(SCROLL_KEY);
         if (raw != null) saved = Number(raw);
       } catch {}
       if (saved != null && Number.isFinite(saved)) {
