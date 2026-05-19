@@ -80,6 +80,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const query = useQuery({
     queryKey: ["chat", "threads"],
