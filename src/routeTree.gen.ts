@@ -119,6 +119,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
 import { Route as AppSalesDashboardReportsQtyByItemRouteImport } from './routes/_app/sales-dashboard/reports.qty-by-item'
@@ -693,6 +694,12 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const ApiPublicHooksDailyDigestRoute =
+  ApiPublicHooksDailyDigestRouteImport.update({
+    id: '/api/public/hooks/daily-digest',
+    path: '/api/public/hooks/daily-digest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   id: '/tenant/$id',
   path: '/tenant/$id',
@@ -937,6 +944,7 @@ export interface FileRoutesByFullPath {
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1063,6 +1071,7 @@ export interface FileRoutesByTo {
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1197,6 +1206,7 @@ export interface FileRoutesById {
   '/_app/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1331,6 +1341,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
+    | '/api/public/hooks/daily-digest'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1457,6 +1468,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
+    | '/api/public/hooks/daily-digest'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1590,6 +1602,7 @@ export interface FileRouteTypes {
     | '/_app/sales-dashboard/reports/qty-by-item'
     | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
+    | '/api/public/hooks/daily-digest'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
     | '/_app/sales/orders/$id/print'
@@ -1601,6 +1614,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
+  ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2375,6 +2389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/api/public/hooks/daily-digest': {
+      id: '/api/public/hooks/daily-digest'
+      path: '/api/public/hooks/daily-digest'
+      fullPath: '/api/public/hooks/daily-digest'
+      preLoaderRoute: typeof ApiPublicHooksDailyDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/superadmin/tenant/$id': {
       id: '/_app/superadmin/tenant/$id'
       path: '/tenant/$id'
@@ -2910,6 +2931,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   InviteTokenRoute: InviteTokenRoute,
   ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
+  ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
