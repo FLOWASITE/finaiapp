@@ -391,3 +391,73 @@ export const undoRuleApplication = createServerFn({ method: "POST" })
     // Trigger ai_rule_applications_stats_trg sẽ tự trừ applied_count + accuracy.
     return { ok: true };
   });
+
+// ============ Áp dụng theo "nguồn ghi nhớ" (partner / context / limit) ============
+
+export type SourceKind = "rule" | "partner" | "context" | "limit";
+
+export const listApplicationsBySource = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        source_kind: z.enum(["rule", "partner", "context", "limit"]),
+        source_id: z.string().uuid(),
+        limit: z.number().int().min(1).max(200).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }): Promise<RuleApplication[]> => {
+    const { supabase, tenantId } = context;
+    const { data: rows, error } = await supabase
+      .from("ai_rule_applications")
+      .select(APP_COLS)
+      .eq("tenant_id", tenantId)
+      .eq("source_kind", data.source_kind)
+      .eq("source_id", data.source_id)
+      .order("applied_at", { ascending: false })
+      .limit(data.limit ?? 50);
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as RuleApplication[];
+  });
+
+export type RetroPreview = {
+  affected_count: number;
+  samples: Array<{
+    id: string;
+    document_label: string | null;
+    journal_code: string | null;
+    then_snapshot: string;
+    applied_at: string;
+  }>;
+};
+
+// Time-travel: xem trước những bút toán đã chịu ảnh hưởng của một mục bối cảnh
+// (chỉ đếm + lấy mẫu — không tự sửa sổ kế toán; người dùng quyết định).
+export const previewRetroApply = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        source_kind: z.enum(["rule", "partner", "context", "limit"]),
+        source_id: z.string().uuid(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }): Promise<RetroPreview> => {
+    const { supabase, tenantId } = context;
+    const { data: rows, error, count } = await supabase
+      .from("ai_rule_applications")
+      .select("id,document_label,journal_code,then_snapshot,applied_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .eq("source_kind", data.source_kind)
+      .eq("source_id", data.source_id)
+      .eq("status", "applied")
+      .order("applied_at", { ascending: false })
+      .limit(5);
+    if (error) throw new Error(error.message);
+    return {
+      affected_count: count ?? 0,
+      samples: (rows ?? []) as RetroPreview["samples"],
+    };
+  });

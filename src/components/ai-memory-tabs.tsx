@@ -12,9 +12,7 @@ import {
   AlertTriangle,
   ShieldAlert,
   ShieldCheck,
-  Eye,
-  Power,
-  CheckCircle2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +30,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -39,6 +47,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { SourceAppliedSheet } from "@/components/ai-memory-source-sheet";
+import { previewRetroApply, type RetroPreview } from "@/lib/ai-memory.functions";
 import {
   listPartners,
   createPartner,
@@ -109,6 +119,7 @@ export function PartnersTab() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<MemoryPartner | null>(null);
   const [creating, setCreating] = useState(false);
+  const [usedWhere, setUsedWhere] = useState<MemoryPartner | null>(null);
 
   const items = useMemo(() => {
     const all = data ?? [];
@@ -220,6 +231,15 @@ export function PartnersTab() {
               ))}
             </div>
             <div className="mt-3 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7"
+                onClick={() => setUsedWhere(p)}
+              >
+                <History className="mr-1 h-3.5 w-3.5" />
+                Dùng ở đâu
+              </Button>
               <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(p)}>
                 <Pencil className="mr-1 h-3.5 w-3.5" />
                 Sửa
@@ -249,6 +269,13 @@ export function PartnersTab() {
           setCreating(false);
           setEditing(null);
         }}
+      />
+      <SourceAppliedSheet
+        open={!!usedWhere}
+        onOpenChange={(o) => !o && setUsedWhere(null)}
+        sourceKind="partner"
+        sourceId={usedWhere?.id ?? null}
+        sourceLabel={usedWhere?.display_name ?? ""}
       />
     </>
   );
@@ -466,15 +493,27 @@ function ContextRow({ item }: { item: MemoryContext }) {
   const qc = useQueryClient();
   const updateFn = useServerFn(updateContext);
   const deleteFn = useServerFn(deleteContext);
+  const previewFn = useServerFn(previewRetroApply);
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(item.value_text);
+  const [usedOpen, setUsedOpen] = useState(false);
+  const [retro, setRetro] = useState<RetroPreview | null>(null);
 
   const updM = useMutation({
     mutationFn: updateFn,
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["ai-memory", "context"] });
       setEditing(false);
       toast.success("Đã lưu — AI sẽ dùng giá trị mới ngay");
+      // Time-travel: hỏi hồi tố nếu có bút toán trước đây dùng mục này.
+      try {
+        const preview = await previewFn({
+          data: { source_kind: "context", source_id: item.id },
+        });
+        if (preview.affected_count > 0) setRetro(preview);
+      } catch {
+        /* im lặng — không chặn flow lưu */
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -537,6 +576,14 @@ function ContextRow({ item }: { item: MemoryContext }) {
       </div>
       <button
         type="button"
+        onClick={() => setUsedOpen(true)}
+        title="Dùng ở đâu"
+        className="opacity-30 transition-opacity hover:opacity-100"
+      >
+        <History className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+      </button>
+      <button
+        type="button"
         onClick={() => {
           if (confirm(`Xoá mục "${item.label}"?`)) delM.mutate({ data: { id: item.id } });
         }}
@@ -544,6 +591,53 @@ function ContextRow({ item }: { item: MemoryContext }) {
       >
         <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
       </button>
+
+      <SourceAppliedSheet
+        open={usedOpen}
+        onOpenChange={setUsedOpen}
+        sourceKind="context"
+        sourceId={item.id}
+        sourceLabel={item.label}
+      />
+
+      <AlertDialog open={!!retro} onOpenChange={(o) => !o && setRetro(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Áp dụng hồi tố cho {retro?.affected_count} bút toán?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mục "{item.label}" đã ảnh hưởng tới {retro?.affected_count} bút toán trong quá khứ.
+              Bạn có muốn đánh dấu các bút toán này để AI rà soát lại theo giá trị mới?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-48 overflow-y-auto rounded border bg-muted/30 p-2 text-[12px]">
+            {retro?.samples.map((s) => (
+              <div key={s.id} className="border-b py-1 last:border-0">
+                <div className="font-medium">{s.journal_code ?? s.document_label ?? "—"}</div>
+                <div className="text-muted-foreground line-clamp-1">{s.then_snapshot}</div>
+              </div>
+            ))}
+            {(retro?.affected_count ?? 0) > (retro?.samples.length ?? 0) && (
+              <div className="pt-1 text-center text-[11px] text-muted-foreground">
+                … và {(retro?.affected_count ?? 0) - (retro?.samples.length ?? 0)} bút toán khác
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Để sau</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#4F46C7] text-white hover:bg-[#4338A8]"
+              onClick={() => {
+                setRetro(null);
+                toast.success(
+                  `Đã gửi ${retro?.affected_count} bút toán vào hộp thư AI để rà soát lại`,
+                );
+              }}
+            >
+              Đánh dấu rà soát
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -668,6 +762,7 @@ export function LimitsTab() {
     queryFn: () => fn(),
   });
   const [creating, setCreating] = useState(false);
+  const [usedWhere, setUsedWhere] = useState<MemoryLimit | null>(null);
 
   const toggleM = useMutation({
     mutationFn: toggleFn,
@@ -745,6 +840,15 @@ export function LimitsTab() {
               <Button
                 size="sm"
                 variant="ghost"
+                className="h-7"
+                onClick={() => setUsedWhere(l)}
+              >
+                <History className="mr-1 h-3.5 w-3.5" />
+                Dùng ở đâu
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
                 className="h-7 text-muted-foreground hover:text-destructive"
                 onClick={() => {
                   if (confirm(`Xoá giới hạn "${l.title}"?`)) {
@@ -767,6 +871,13 @@ export function LimitsTab() {
       )}
 
       <LimitCreateDialog open={creating} onClose={() => setCreating(false)} />
+      <SourceAppliedSheet
+        open={!!usedWhere}
+        onOpenChange={(o) => !o && setUsedWhere(null)}
+        sourceKind="limit"
+        sourceId={usedWhere?.id ?? null}
+        sourceLabel={usedWhere?.title ?? ""}
+      />
     </>
   );
 }
