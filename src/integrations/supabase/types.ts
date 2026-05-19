@@ -281,6 +281,81 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_rule_applications: {
+        Row: {
+          ai_log: Json
+          applied_at: string
+          applied_by: string | null
+          created_at: string
+          document_id: string | null
+          document_label: string | null
+          document_table: string | null
+          id: string
+          journal_code: string | null
+          journal_entry_id: string | null
+          rule_id: string
+          status: string
+          tenant_id: string
+          then_snapshot: string
+          undo_reason: string | null
+          undone_at: string | null
+          undone_by: string | null
+        }
+        Insert: {
+          ai_log?: Json
+          applied_at?: string
+          applied_by?: string | null
+          created_at?: string
+          document_id?: string | null
+          document_label?: string | null
+          document_table?: string | null
+          id?: string
+          journal_code?: string | null
+          journal_entry_id?: string | null
+          rule_id: string
+          status?: string
+          tenant_id: string
+          then_snapshot: string
+          undo_reason?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Update: {
+          ai_log?: Json
+          applied_at?: string
+          applied_by?: string | null
+          created_at?: string
+          document_id?: string | null
+          document_label?: string | null
+          document_table?: string | null
+          id?: string
+          journal_code?: string | null
+          journal_entry_id?: string | null
+          rule_id?: string
+          status?: string
+          tenant_id?: string
+          then_snapshot?: string
+          undo_reason?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_rule_applications_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_rule_applications_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ai_memory_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_suggestions: {
         Row: {
           chosen_index: number | null
