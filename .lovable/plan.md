@@ -1,85 +1,59 @@
 ## Mục tiêu
 
-Phát triển 8 báo cáo quản trị nằm trong nhóm sidebar **Quản trị → Bán hàng / Mua hàng** (theo ảnh đính kèm). Mỗi báo cáo có:
+Tạo script kiểm tra các quan hệ foreign key trong database PostgreSQL (Supabase) và cảnh báo khi phát hiện cột có vẻ là khóa ngoại (theo quy ước đặt tên) nhưng **thiếu** constraint FK thực sự — tránh lặp lại lỗi như `projects.customer_id` không có FK tới `customers.id` khiến PostgREST không nhận diện được quan hệ.
 
-- Bộ lọc khoảng ngày (mặc định tháng hiện tại), filter phụ (KH/NCC/Nhân viên/Sản phẩm khi phù hợp).
-- Bảng dữ liệu có tổng cộng, sticky header, format số `vi-VN`.
-- Nút Export CSV và nút In.
-- Chỉ đọc dữ liệu đã `posted/reviewed`, loại bỏ `void`.
+## Phạm vi
 
-## Danh sách báo cáo
+- Script Node.js/TS chạy độc lập (`scripts/check-fk-relationships.ts`), gọi bằng `bun run scripts/check-fk-relationships.ts`.
+- Kết nối qua biến môi trường `SUPABASE_DB_URL` (đã có sẵn trong secrets).
+- Chỉ kiểm tra schema `public`.
+- Báo cáo ra console với màu (✓ pass, ⚠ warning, ✗ error) và exit code khác 0 nếu có cảnh báo (để dùng được trong CI sau này).
 
-### Bán hàng (`/sales-dashboard/reports/*`)
+## Logic kiểm tra
 
-| # | Route | Tên | Nguồn dữ liệu |
-|---|---|---|---|
-| 1 | `…/detail` | Sổ chi tiết bán hàng | `sales_invoices` + `sales_invoice_lines` (mỗi dòng = 1 line, kèm số HĐ, ngày, KH, mặt hàng, SL, đơn giá, CK, VAT, thành tiền) |
-| 2 | `…/summary-profit-by-item` | Tổng hợp lãi/lỗ theo mặt hàng | `sales_invoice_lines` group theo `product_id`; doanh thu − giá vốn (`products.unit_cost × qty`) → lãi/lỗ + % |
-| 3 | `…/summary-qty-by-item` | Tổng hợp bán hàng theo số lượng sản phẩm | Group theo product: SL bán, doanh thu, VAT, tổng |
-| 4 | `…/summary-by-customer` | Tổng hợp bán hàng theo khách hàng | Group theo `customer_id`: số HĐ, doanh thu trước VAT, VAT, tổng, đã thu, còn lại |
-| 5 | `…/summary-by-salesperson` | Tổng hợp bán hàng theo nhân viên | Join `sales_invoices → sales_orders.salesperson_id → employees`. HĐ không có SO ghi nhóm "Không xác định" |
-| 6 | `…/summary-by-customer-item` | Tổng hợp bán hàng theo khách hàng & sản phẩm | Group (customer, product): SL, doanh thu, tổng |
-| 7 | `…/summary-by-salesperson-item` | Tổng hợp bán hàng theo nhân viên & sản phẩm | Group (salesperson, product) |
+1. **Liệt kê FK hiện có** từ `information_schema.table_constraints` + `key_column_usage` + `constraint_column_usage`.
+2. **Quét các cột nghi là FK** trong tất cả bảng `public.*`:
+   - Cột kết thúc bằng `_id` (trừ `id`, `user_id` — vì user_id thường tham chiếu `auth.users` và không cần FK cứng theo guideline Supabase).
+   - Heuristic suy ra bảng đích:
+     - `customer_id` → `customers`
+     - `project_id` → `projects`
+     - `<name>_id` → `<name>s` hoặc `<name>` (thử cả 2 dạng số nhiều/số ít).
+3. **So sánh**: nếu cột nghi FK không có constraint tương ứng VÀ bảng đích tồn tại trong `public` → cảnh báo.
+4. **Bổ sung** cảnh báo cho các trường hợp đặc biệt đã biết (whitelist nội bộ trong script):
+   - Bỏ qua `tenant_id`, `user_id`, `created_by`, `updated_by`, `changed_by` (tham chiếu `auth.users` hoặc `tenants` tùy convention).
+   - Cho phép cấu hình `IGNORE` set ở đầu file.
 
-### Mua hàng (`/purchases/reports/*`)
+## Output mẫu
 
-| # | Route | Tên | Nguồn dữ liệu |
-|---|---|---|---|
-| 8 | `…/detail` | Sổ chi tiết mua hàng | `invoices` + `invoice_lines` (mỗi dòng = 1 line, kèm số HĐ, ngày, NCC, mặt hàng, SL, đơn giá, VAT, thành tiền) |
-| 9 | `…/summary-by-item` | Tổng hợp mua hàng theo mặt hàng | Group theo `product_id`: SL mua, giá trị trước VAT, VAT, tổng, NCC chính |
+```
+Đang kiểm tra FK trong schema public...
 
-## Thay đổi sidebar
+✓ sales_invoices.customer_id → customers.id
+✓ sales_orders.salesperson_id → employees.id
+⚠ THIẾU FK: some_table.warehouse_id (nghi tham chiếu warehouses.id)
+⚠ THIẾU FK: foo.bar_id (nghi tham chiếu bars.id)
 
-Mở rộng mục "Quản trị" trong `REPORTS_SECTIONS` (`src/components/app-sidebar.tsx`) — chuyển từ 2 link phẳng thành 2 group "Bán hàng" & "Mua hàng", mỗi group có 2 sub-section "Sổ chi tiết" và "Tổng hợp" dùng cùng kiểu group nested như "Báo cáo tài chính".
-
-Giữ link `Tổng quan bán hàng` (`/sales-dashboard` → redirect `/sales`) và `Tổng quan mua hàng` (`/purchases`) ở đầu mỗi group.
-
-## Kiến trúc kỹ thuật
-
-**Server functions** — thêm 2 file:
-
-- `src/lib/sales-reports.functions.ts`: 7 server functions (`salesDetail`, `salesProfitByItem`, `salesQtyByItem`, `salesByCustomer`, `salesBySalesperson`, `salesByCustomerItem`, `salesBySalespersonItem`).
-- `src/lib/purchase-reports.functions.ts`: 2 functions (`purchaseDetail`, `purchaseByItem`).
-
-Mỗi function dùng `requireSupabaseAuth` middleware, nhận `{ fromDate, toDate, …filters? }` đã validate bằng zod, query qua `context.supabase` (RLS theo tenant), tổng hợp/aggregate trong JS (đơn giản, dữ liệu báo cáo thường <10k dòng/tháng). Trả `{ rows, totals }`.
-
-**UI components** — mỗi báo cáo 1 route file dưới `src/routes/_app/sales-dashboard/reports.*.tsx` và `src/routes/_app/purchases/reports.*.tsx`. Dùng chung 1 component `<ReportShell>` mới (`src/components/reports/report-shell.tsx`) với:
-- header tiêu đề + bộ lọc (DateRange, optional Combobox cho customer/supplier/salesperson/product)
-- toolbar: Refresh, Export CSV, In
-- `<Table>` shadcn với footer tổng
-- empty state
-
-Hàm export CSV chung: `src/lib/csv-export.ts` (chuyển rows + cột → blob, download).
-
-**Không cần migration mới** — toàn bộ join đã khả thi với schema hiện tại (`sales_invoices ↔ sales_orders.salesperson_id ↔ employees`, `sales_invoice_lines.product_id ↔ products.unit_cost`).
+Tổng: 142 FK hợp lệ, 2 cảnh báo
+```
 
 ## Cấu trúc file
 
 ```text
-src/
-  components/reports/report-shell.tsx           [mới]
-  lib/
-    csv-export.ts                                [mới]
-    sales-reports.functions.ts                   [mới]
-    purchase-reports.functions.ts                [mới]
-  routes/_app/
-    sales-dashboard/
-      reports.detail.tsx                         [mới]
-      reports.profit-by-item.tsx                 [mới]
-      reports.qty-by-item.tsx                    [mới]
-      reports.by-customer.tsx                    [mới]
-      reports.by-salesperson.tsx                 [mới]
-      reports.by-customer-item.tsx               [mới]
-      reports.by-salesperson-item.tsx            [mới]
-    purchases/
-      reports.detail.tsx                         [mới]
-      reports.by-item.tsx                        [mới]
-  components/app-sidebar.tsx                     [sửa: REPORTS_SECTIONS Quản trị]
+scripts/
+  check-fk-relationships.ts    # script chính
 ```
 
-## Phạm vi loại trừ (sẽ không làm trong lần này)
+Không thêm dependency mới (dùng `pg` đã có sẵn nếu có, hoặc `postgres` — sẽ kiểm tra `package.json`; nếu chưa có sẽ dùng `bun add postgres`).
 
-- Không thêm cột `salesperson_id` cho `sales_invoices` (dùng join SO; HĐ không SO ghi "Không xác định").
-- Không tính giá vốn theo phương pháp bình quân di động — chỉ dùng `products.unit_cost` hiện tại làm proxy giá vốn cho báo cáo lãi/lỗ (có ghi chú trên UI).
-- Chưa xuất Excel/PDF — chỉ CSV và In trình duyệt ở bước này.
-- Chưa thêm cơ chế "Yêu thích" (icon ⭐ trong ảnh) — sẽ làm sau nếu cần.
+## Cách chạy
+
+```bash
+bun run scripts/check-fk-relationships.ts
+```
+
+Có thể thêm vào `package.json` script `"check:fk": "bun run scripts/check-fk-relationships.ts"` nếu user muốn.
+
+## Không nằm trong phạm vi
+
+- Không tự động tạo migration sửa FK (chỉ cảnh báo, để tránh thay đổi schema ngoài ý muốn).
+- Không tích hợp vào CI/pre-commit (có thể làm sau).
