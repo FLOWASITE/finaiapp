@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { parseSuggestion, renderRule, TEMPLATES_BY_ID } from "./ai-memory-templates";
 
 export type RuleType = "suggestion" | "active" | "disabled";
 export type RuleSource = "ai-learned" | "user-taught";
