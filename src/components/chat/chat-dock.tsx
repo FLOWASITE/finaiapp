@@ -37,6 +37,31 @@ export function ChatDock() {
   const parseFn = useServerFn(parseDocument);
   const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Cmd/Ctrl+J focus + lắng nghe openAskAi(prefill) từ các nơi khác
+  useEffect(() => {
+    const focusInput = () => {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        focusInput();
+      }
+    };
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ prefill?: string }>).detail;
+      if (detail?.prefill) setInput(detail.prefill);
+      focusInput();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("app:open-ai", onOpen as EventListener);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("app:open-ai", onOpen as EventListener);
+    };
+  }, []);
 
   const submit = async (override?: string) => {
     const q = (override ?? input).trim();
