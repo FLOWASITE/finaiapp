@@ -129,7 +129,7 @@ const recordSupplierPayment: ActionHandler = {
         .single();
       if (inv) invLabel = `HĐ mua **${inv.invoice_no}** — ${inv.supplier_name} (tổng ${Number(inv.total).toLocaleString("vi-VN")} ₫)`;
     }
-    const methodLabel: Record<string, string> = { cash: "Tiền mặt", bank: "Chuyển khoản", other: "Khác" };
+    const methodLabel: Record<string, string> = { cash: "Tiền mặt", bank: "Chuyển khoản" };
     return [
       `Chi trả NCC ${input.supplier_name ? `**${input.supplier_name}**` : ""}`,
       invLabel,
