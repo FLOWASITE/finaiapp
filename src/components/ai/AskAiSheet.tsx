@@ -235,16 +235,36 @@ export function AskAiSheet() {
           <PendingActions />
 
           <div className="border-t border-border bg-card p-3">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleUpload(f);
+              }}
+            />
             <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading || loading}
+                title="Upload PDF/ảnh hoá đơn"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
               <Input
                 ref={inputRef}
-                placeholder="Hỏi AI về trang này hoặc dữ liệu bất kỳ…"
+                placeholder="Hỏi AI hoặc upload hoá đơn (PDF/ảnh)…"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                disabled={loading}
+                disabled={loading || uploading}
               />
-              <Button onClick={() => send()} disabled={loading || !input.trim()} size="icon">
+              <Button onClick={() => send()} disabled={loading || uploading || !input.trim()} size="icon">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
