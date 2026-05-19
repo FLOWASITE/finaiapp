@@ -91,7 +91,7 @@ const recordCustomerReceipt: ActionHandler = {
     const ml = methodLabel[input.method];
     return [
       `Thu tiền HĐ **${inv.invoice_no}** — ${inv.customer_name}`,
-      `Hình thức: ${methodLabel} | Ngày: ${input.pay_date}`,
+      `Hình thức: ${ml} | Ngày: ${input.pay_date}`,
       `Số tiền: **${input.amount.toLocaleString("vi-VN")} ₫** (còn nợ ${remaining.toLocaleString("vi-VN")} ₫)`,
       input.reference ? `Tham chiếu: ${input.reference}` : "",
     ].filter(Boolean).join("\n");
