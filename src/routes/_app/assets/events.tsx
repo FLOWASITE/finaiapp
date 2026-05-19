@@ -239,15 +239,24 @@ function EventsPage() {
                         : <Badge variant="secondary" className="text-xs">Đã ghi</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
-                      {ev.status !== "void" && (
-                        <Button size="icon" variant="ghost" title="Huỷ biến động"
-                          onClick={() => {
-                            const reason = prompt("Lý do huỷ?");
-                            if (reason !== null) voidMut.mutate({ id: ev.id, reason });
-                          }}>
-                          <Ban className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        {(ev.event_type === "MAJOR_REPAIR" || ev.event_type === "REVALUATION") && (
+                          <Button asChild size="icon" variant="ghost" title="In chứng từ">
+                            <Link to="/assets/event/$id/print" params={{ id: ev.id }}>
+                              <Printer className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        )}
+                        {ev.status !== "void" && (
+                          <Button size="icon" variant="ghost" title="Huỷ biến động"
+                            onClick={() => {
+                              const reason = prompt("Lý do huỷ?");
+                              if (reason !== null) voidMut.mutate({ id: ev.id, reason });
+                            }}>
+                            <Ban className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
