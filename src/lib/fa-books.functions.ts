@@ -348,8 +348,9 @@ export const voidDepEntry = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: newJe, error } = await supabase.rpc("void_depreciation_entry", {
       _entry_id: data.entry_id,
-      _reason: data.reason ?? null,
+      _reason: data.reason,
     });
+
     if (error) throw new Error(error.message);
     return { ok: true, journal_entry_id: newJe ?? null };
   });
