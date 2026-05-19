@@ -18,14 +18,17 @@ type Msg = { role: "user" | "assistant"; content: string };
  */
 export function AskAiSheet() {
   const askFn = useServerFn(askAccountingStream);
+  const parseFn = useServerFn(parseDocument);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const location = useLocation();
   const params = useParams({ strict: false }) as Record<string, string | undefined>;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
