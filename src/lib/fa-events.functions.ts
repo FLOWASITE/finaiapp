@@ -177,10 +177,12 @@ export const createAssetEvent = createServerFn({ method: "POST" })
           ],
         });
         const newCost = Number(asset.cost) + amt;
-        await supabase.from("fixed_assets").update({ cost: newCost }).eq("id", asset.id);
+        const lifeExt = Number(payload.extend_useful_life_months ?? 0);
+        const newLife = Number(asset.useful_life_months) + lifeExt;
+        await supabase.from("fixed_assets").update({ cost: newCost, useful_life_months: newLife }).eq("id", asset.id);
         await supabase
           .from("fa_asset_books")
-          .update({ cost_basis: newCost })
+          .update({ cost_basis: newCost, useful_life_months: newLife })
           .eq("asset_id", asset.id);
         break;
       }
