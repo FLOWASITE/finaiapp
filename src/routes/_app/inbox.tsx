@@ -1024,7 +1024,7 @@ function MobileInboxOverlay({
   const dragging = !!drag && (tx > 2 || ty > 2);
 
   return (
-    <div className="fixed inset-0 z-40 flex lg:hidden">
+    <div className="fixed inset-x-0 top-0 bottom-[88px] z-40 flex lg:hidden">
       <div
         ref={panelRef}
         onTouchStart={onTouchStart}
@@ -1036,7 +1036,7 @@ function MobileInboxOverlay({
           transition: dragging ? "none" : "transform 200ms ease-out",
           touchAction: "pan-y",
         }}
-        className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl"
+        className="flex h-full w-[92vw] max-w-md flex-col overflow-hidden rounded-br-2xl bg-background shadow-2xl ring-1 ring-border/40"
       >
         {children}
       </div>
