@@ -1036,7 +1036,7 @@ function MobileInboxOverlay({
           transition: dragging ? "none" : "transform 200ms ease-out",
           touchAction: "pan-y",
         }}
-        className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl"
+        className="flex h-full w-[92vw] max-w-md flex-col overflow-hidden rounded-br-2xl bg-background shadow-2xl ring-1 ring-border/40"
       >
         {children}
       </div>
