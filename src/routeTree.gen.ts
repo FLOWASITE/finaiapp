@@ -91,6 +91,7 @@ import { Route as AppImportPreviewRouteImport } from './routes/_app/import.previ
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
+import { Route as AppChatThreadIdRouteImport } from './routes/_app/chat.$threadId'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankReconcileRouteImport } from './routes/_app/bank.reconcile'
 import { Route as AppBankImportStatementRouteImport } from './routes/_app/bank.import-statement'
@@ -546,6 +547,11 @@ const AppCustomersGroupsRoute = AppCustomersGroupsRouteImport.update({
   path: '/customers/groups',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChatThreadIdRoute = AppChatThreadIdRouteImport.update({
+  id: '/$threadId',
+  path: '/$threadId',
+  getParentRoute: () => AppChatRoute,
+} as any)
 const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
   id: '/vouchers',
   path: '/vouchers',
@@ -802,6 +808,7 @@ export interface FileRoutesByFullPath {
   '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/chat/$threadId': typeof AppChatThreadIdRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -921,6 +928,7 @@ export interface FileRoutesByTo {
   '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/chat/$threadId': typeof AppChatThreadIdRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -1048,6 +1056,7 @@ export interface FileRoutesById {
   '/_app/bank/import-statement': typeof AppBankImportStatementRoute
   '/_app/bank/reconcile': typeof AppBankReconcileRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
+  '/_app/chat/$threadId': typeof AppChatThreadIdRoute
   '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -1175,6 +1184,7 @@ export interface FileRouteTypes {
     | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
+    | '/chat/$threadId'
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
@@ -1294,6 +1304,7 @@ export interface FileRouteTypes {
     | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
+    | '/chat/$threadId'
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
@@ -1420,6 +1431,7 @@ export interface FileRouteTypes {
     | '/_app/bank/import-statement'
     | '/_app/bank/reconcile'
     | '/_app/bank/vouchers'
+    | '/_app/chat/$threadId'
     | '/_app/customers/groups'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
@@ -2095,6 +2107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomersGroupsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/chat/$threadId': {
+      id: '/_app/chat/$threadId'
+      path: '/$threadId'
+      fullPath: '/chat/$threadId'
+      preLoaderRoute: typeof AppChatThreadIdRouteImport
+      parentRoute: typeof AppChatRoute
+    }
     '/_app/bank/vouchers': {
       id: '/_app/bank/vouchers'
       path: '/vouchers'
@@ -2434,10 +2453,12 @@ const AppBankRouteWithChildren =
   AppBankRoute._addFileChildren(AppBankRouteChildren)
 
 interface AppChatRouteChildren {
+  AppChatThreadIdRoute: typeof AppChatThreadIdRoute
   AppChatIndexRoute: typeof AppChatIndexRoute
 }
 
 const AppChatRouteChildren: AppChatRouteChildren = {
+  AppChatThreadIdRoute: AppChatThreadIdRoute,
   AppChatIndexRoute: AppChatIndexRoute,
 }
 
