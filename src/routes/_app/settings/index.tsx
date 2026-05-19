@@ -77,7 +77,9 @@ function SettingsPage() {
           </Button>
         ))}
       </div>
+      <DigestSettingsCard />
       <Tabs value={tab} onValueChange={handleTabChange}>
+
         <div
           className="-mx-6 px-6 sm:mx-0 sm:px-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
           role="tablist"
