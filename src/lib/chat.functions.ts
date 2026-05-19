@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { streamText, stepCountIs } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
+import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
