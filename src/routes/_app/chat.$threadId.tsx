@@ -177,21 +177,50 @@ function ThreadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, query.data, threadId]);
 
-  const send = async () => {
-    const q = input.trim();
+  const sendUserMessage = async (content: string, attachments?: any[]) => {
+    const q = content.trim();
     if (!q || streaming) return;
-    setInput("");
     const next: ChatMsg[] = [...messages, { role: "user", content: q }];
     setLocalMsgs(next);
     try {
       await appendFn({
-        data: { threadId, role: "user", content: q, updateTitleIfBlank: true },
+        data: {
+          threadId,
+          role: "user",
+          content: q,
+          updateTitleIfBlank: true,
+          metadata: attachments ? { attachments } : undefined,
+        },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");
       return;
     }
-    runAssistant(next);
+    runAssistant(next, attachments);
+  };
+
+  const send = async () => {
+    const q = input.trim();
+    if (!q || streaming) return;
+    setInput("");
+    await sendUserMessage(q);
+  };
+
+  const handleAttach = (payloads: any[]) => {
+    if (!payloads.length || streaming) return;
+    try {
+      sessionStorage.setItem(`__attach:${threadId}`, JSON.stringify(payloads));
+    } catch {}
+    const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
+    void sendUserMessage(
+      `Xử lý ${payloads.length} chứng từ:\n${summary}`,
+      payloads.map((p) => ({
+        name: p.name,
+        mime: p.mime,
+        size: p.size,
+        kind: p.kind,
+      })),
+    );
   };
 
   useEffect(() => {
@@ -206,22 +235,7 @@ function ThreadPage() {
         toast.error("Đang xử lý câu hỏi trước, vui lòng đợi.");
         return;
       }
-      const next: ChatMsg[] = [
-        ...messages,
-        { role: "user", content: detail.content },
-      ];
-      setLocalMsgs(next);
-      appendFn({
-        data: {
-          threadId,
-          role: "user",
-          content: detail.content,
-          updateTitleIfBlank: true,
-          metadata: detail.attachments ? { attachments: detail.attachments } : undefined,
-        },
-      })
-        .then(() => runAssistant(next, detail.attachments))
-        .catch((err: any) => toast.error(err?.message || "Không gửi được"));
+      void sendUserMessage(detail.content, detail.attachments);
     };
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
     return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
@@ -295,6 +309,11 @@ function ThreadPage() {
             onStop={stop}
             loading={streaming}
             autoFocus
+            onAttach={handleAttach}
+            onTranscript={(t) => {
+              setInput("");
+              void sendUserMessage(t);
+            }}
           />
           <p className="mt-3 text-center text-[10px] text-muted-foreground/60">
             AI có thể đưa ra thông tin chưa chính xác — hãy kiểm tra lại số liệu quan trọng.
