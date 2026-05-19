@@ -1,58 +1,55 @@
-# Hoàn thiện UI · Superadmin · AI Model
+# Thống kê tác vụ AI hiện có & đề xuất chọn model
 
-Mục tiêu: trang `/superadmin/ai-model` trông gọn, hiện đại và "đáng tin" hơn — không thay đổi logic backend / server functions.
+## Inventory: 5 call sites, 3 purpose
 
-## Phạm vi
-Chỉ chỉnh `src/routes/_app/superadmin/ai-model.tsx` (frontend, presentation). Không động vào `ai-config.functions.ts`, schema DB, secrets.
+| # | File / Function | Mục đích nghiệp vụ | `purpose` hiện tại | Đặc tính tải | Đặc tính cần ở model |
+|---|---|---|---|---|---|
+| 1 | `chat.functions.ts` · `askAccountingStream` | Chat hỏi đáp kế toán với user (streaming) | `chat` | Tương tác trực tiếp, cần phản hồi nhanh | Latency thấp, ngôn ngữ tốt (tiếng Việt) |
+| 2 | `invoices.functions.ts` · `extractInvoice` | Trích xuất hoá đơn (vendor, line items, VAT) từ ảnh/PDF | `parse` | Multimodal (ảnh + text), structured output | Vision tốt, JSON ổn định |
+| 3 | `ai/parse-document.functions.ts` · `parseDocument` | Trích xuất sao kê ngân hàng từ file (nhiều trang) | `parse` | Multimodal, context dài, structured output | Vision + context window lớn |
+| 4 | `journal.functions.ts` · `suggestJournalEntry` | Đề xuất định khoản kế toán từ mô tả nghiệp vụ | `reasoning` | Text only, cần lý luận theo chế độ kế toán VN | Reasoning tốt, kiến thức tiếng Việt |
+| 5 | `bank.functions.ts` · `aiMatchTransactions` | Đối khớp giao dịch ngân hàng ↔ bút toán (batch tối đa 50) | `reasoning` | Text only, prompt dài (50 txn × 5 candidate), structured output | Context window vừa, reasoning ổn, **cost-sensitive** vì gọi batch |
 
-## Thay đổi UI
+→ Hiện code chia thành **3 nhóm: `chat` / `parse` / `reasoning`** và mỗi nhóm có thể chọn model riêng (fallback về `model_default`).
 
-### 1. Hero gọn lại + status mạch lạc
-- Bỏ gradient nặng, đổi sang card viền mỏng + chấm trạng thái màu (xanh = active, vàng = thiếu setup, xám = fallback Lovable AI).
-- Hàng meta hiển thị: Provider · Base URL (rút gọn domain) · Model mặc định — dạng inline pill, dễ scan.
-- Switch "Bật custom" gắn nhãn phụ ("Tắt → dùng Lovable AI").
+## Đề xuất quay lại UI 3 model (thay vì 1)
 
-### 2. Preset card chuẩn hoá
-- 2 card cùng kích thước, có logo chữ (OR / 通义) trong ô vuông bo tròn để phân biệt nhanh.
-- Mỗi card: tên + 1 dòng mô tả + meta nhỏ (số model gợi ý, cần header? cần region?).
-- Nút áp preset chuyển thành full-width ở đáy card; Alibaba: 2 nút region dạng segmented (Intl | CN) thay vì 2 nút outline rời.
-- Card đang dùng: viền primary + nền nhạt + dấu check ở góc.
+Sau khi xem lại thực tế, **việc tách 3 model là hợp lý** vì 3 tác vụ này có yêu cầu rất khác nhau:
 
-### 3. Tabs gọn hơn
-- TabsList full width trên mobile, max-w-md trên desktop (giữ).
-- Thêm icon nhỏ + sub-label dưới mỗi tab khi ≥ md (vd: "Provider · key & URL").
+- Parse hoá đơn / sao kê **bắt buộc** dùng model có vision (vd `gemini-2.5-pro`, `gpt-4o`). Model text-only sẽ fail.
+- Chat realtime nên dùng model **nhanh & rẻ** (`gemini-flash`, `gpt-4o-mini`).
+- Reasoning có thể dùng model mạnh hơn (`deepseek-r1`, `gpt-4o`) khi cần chính xác.
 
-### 4. Tab Provider
-- Khối API key nổi bật hơn: card con với icon khoá lớn bên trái, badge "đã lưu (AES-GCM)" + nút "Xoá key" gọn (icon trash) thay cho checkbox đỏ.
-- Hiển thị helper text dưới base URL: parse host và show "→ openrouter.ai" để xác nhận trực quan.
+Nếu ép 1 model cho cả 3, user sẽ phải chọn model "đắt + có vision + nhanh" — không model nào tối ưu cho cả 3 trục.
 
-### 5. Tab Models
-- Header tab: input search nhanh model + filter "Chỉ miễn phí" + nút "Tải danh sách" — đặt thành 1 toolbar.
-- 4 `ModelField` sắp xếp 2x2 (giữ) nhưng đổi thành card nhỏ có nền `muted/30`, label hoa hồng nhạt + icon ở góc, hiện badge giá / context bên dưới input.
-- Khi chưa load models: hiện empty state nhỏ ("Tải danh sách để chọn từ dropdown") thay vì để Popover ẩn im lặng.
+## Phương án UI đề xuất
 
-### 6. Tab Nâng cao
-- Extra headers: thêm nút "Format JSON" + cảnh báo inline khi parse fail (live, không cần lưu).
-- Ghi chú nội bộ: counter ký tự.
+**Quay lại 3 model slot**, nhưng **đơn giản hoá cách trình bày**:
 
-### 7. Sticky action bar
-- Thu gọn padding, thêm nền blur + shadow nhẹ.
-- Test result chuyển thành chip màu (success / error) thay vì text dài; click để xem chi tiết trong popover.
-- Nút "Lưu" disable khi form không có thay đổi (so với `data.config`).
+```text
+┌─ Model ────────────────────────────────────┐
+│  [Tải danh sách] [☐ Chỉ free]              │
+│                                             │
+│  Mặc định *           [openai/gpt-4o-mini ▾]│  ← bắt buộc, fallback cho tất cả
+│                                             │
+│  ▸ Tuỳ chỉnh theo tác vụ (3 mục, mặc định ẩn)│
+│     ├─ 💬 Chat (realtime)     [(mặc định) ▾]│
+│     ├─ 📄 Parse hoá đơn/sao kê[(mặc định) ▾]│ ← nên chọn model có vision
+│     └─ 🧠 Reasoning           [(mặc định) ▾]│
+└─────────────────────────────────────────────┘
+```
 
-### 8. Tinh chỉnh chung
-- Spacing nhất quán: `space-y-4` giữa các Card; padding card `p-5` → `p-4` ở mobile.
-- Dùng `text-foreground/muted-foreground` thay cho mọi màu cứng (kiểm tra dark mode).
-- Thêm transition mượt cho preset card (`transition-colors`).
+- Mặc định chỉ hiện **1 ô "Mặc định"** — user nhập 1 model là chạy được hết.
+- Phần "Tuỳ chỉnh theo tác vụ" ở dạng **collapsible**, mở ra khi muốn fine-tune.
+- Mỗi tác vụ trong collapsible có **hint nhỏ** ("cần vision", "ưu tiên latency thấp", "cần reasoning") để user biết nên chọn gì.
+- Bỏ search bar global ở toolbar — search đã có trong popover của combobox.
 
-## Không đổi
-- Logic save / test / list models.
-- Cấu trúc `FormState`, presets `OPENROUTER_PRESET` / `ALIBABA_PRESETS`.
-- Validation JSON khi submit.
+## Phạm vi code
+- Chỉ sửa `src/routes/_app/superadmin/ai-model.tsx`.
+- Không động backend (`ai-gateway.server.ts`, `ai-config.functions.ts`) — schema 3 field `model_chat / model_parse / model_reasoning` đã sẵn.
 
 ## Kiểm tra sau khi xong
-- Load trang → hero hiển thị đúng 3 trạng thái (active / thiếu setup / disabled).
-- Áp preset OpenRouter / Alibaba Intl / Alibaba CN → fields fill đúng, card highlight đúng.
-- Tab Models: tải list, lọc free, chọn model từ dropdown.
-- Sticky bar: Save disable khi không có thay đổi, enable khi sửa field.
-- Dark mode: contrast OK trên hero, preset card, sticky bar.
+- Mở trang: chỉ thấy 1 ô "Mặc định".
+- Click "Tuỳ chỉnh theo tác vụ" → hiện 3 ô con với hint.
+- Để trống 3 ô con, save → backend dùng `model_default` cho mọi purpose (đã verify ở `resolveActiveModel`).
+- Chọn riêng `model_parse = google/gemini-2.5-pro` → save → khi gọi `extractInvoice` sẽ dùng model này.
