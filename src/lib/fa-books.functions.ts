@@ -265,6 +265,13 @@ export const runBookDepreciation = createServerFn({ method: "POST" })
         if (!done.has(period) && !suspended) {
           const amt = computeMonthlyAmount(ab, idx, life);
           if (amt > 0) {
+            const periodLastDay = ymd(lastDay(cur));
+            const locked = !data.preview && await isPeriodLocked(supabase, userId, periodLastDay);
+            if (locked) {
+              // Skip locked period — caller can re-run later after unlock
+              cur = addMonths(cur, 1);
+              continue;
+            }
             if (data.preview) {
               previewRows.push({
                 asset_code: ab.asset?.code,
@@ -272,6 +279,7 @@ export const runBookDepreciation = createServerFn({ method: "POST" })
                 period,
                 amount: amt,
               });
+
             } else {
               let entryId: string | null = null;
               if (book.post_to_gl) {
