@@ -38,6 +38,7 @@ function AppLayout() {
             <Outlet />
           </main>
           <CommandPalette />
+          <AskAiSheet />
         </SidebarInset>
       </div>
     </SidebarProvider>
