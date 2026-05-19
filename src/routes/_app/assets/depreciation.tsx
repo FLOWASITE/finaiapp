@@ -40,6 +40,8 @@ function DepreciationPage() {
   const listBooks = useServerFn(listDepBooks);
   const run = useServerFn(runBookDepreciation);
   const listEntries = useServerFn(listBookEntries);
+  const voidEntry = useServerFn(voidDepEntry);
+
 
   const { data: books = [] } = useQuery({
     queryKey: ["fa-books"],
