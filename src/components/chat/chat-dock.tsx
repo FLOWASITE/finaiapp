@@ -107,7 +107,7 @@ export function ChatDock() {
       navigate({
         to: "/chat/$threadId",
         params: { threadId: thread.id },
-        search: { autostart: "1", from: location.pathname },
+        search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");
