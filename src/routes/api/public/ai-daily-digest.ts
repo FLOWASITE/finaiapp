@@ -75,18 +75,19 @@ export const Route = createFileRoute("/api/public/ai-daily-digest")({
           // 3) Low / negative stock — products with on_hand <= reorder_point
           const { data: prods } = await supabaseAdmin
             .from("products")
-            .select("id, name, sku, reorder_point")
+            .select("id, name, reorder_point")
             .eq("tenant_id", t.id)
             .not("reorder_point", "is", null)
             .limit(500);
           let lowCount = 0;
-          for (const p of prods ?? []) {
+          for (const p of (prods ?? []) as any[]) {
             const { data: onHand } = await supabaseAdmin.rpc("fn_product_on_hand", {
               p_product: p.id,
               p_warehouse: null,
             } as any);
-            if (Number(onHand ?? 0) <= Number((p as any).reorder_point ?? 0)) lowCount++;
+            if (Number(onHand ?? 0) <= Number(p.reorder_point ?? 0)) lowCount++;
           }
+
           if (lowCount > 0) {
             upserts.push({
               tenant_id: t.id,

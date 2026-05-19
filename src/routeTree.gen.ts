@@ -45,6 +45,7 @@ import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppBankIndexRouteImport } from './routes/_app/bank.index'
 import { Route as AppAssetsIndexRouteImport } from './routes/_app/assets/index'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
+import { Route as ApiPublicAiDailyDigestRouteImport } from './routes/api/public/ai-daily-digest'
 import { Route as AppTaxTndnRouteImport } from './routes/_app/tax/tndn'
 import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
 import { Route as AppTaxGtgtRouteImport } from './routes/_app/tax/gtgt'
@@ -305,6 +306,11 @@ const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppAdminRoute,
+} as any)
+const ApiPublicAiDailyDigestRoute = ApiPublicAiDailyDigestRouteImport.update({
+  id: '/api/public/ai-daily-digest',
+  path: '/api/public/ai-daily-digest',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTaxTndnRoute = AppTaxTndnRouteImport.update({
   id: '/tax/tndn',
@@ -798,6 +804,7 @@ export interface FileRoutesByFullPath {
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
+  '/api/public/ai-daily-digest': typeof ApiPublicAiDailyDigestRoute
   '/admin/': typeof AppAdminIndexRoute
   '/assets/': typeof AppAssetsIndexRoute
   '/bank/': typeof AppBankIndexRoute
@@ -911,6 +918,7 @@ export interface FileRoutesByTo {
   '/tax/gtgt': typeof AppTaxGtgtRoute
   '/tax/tncn': typeof AppTaxTncnRoute
   '/tax/tndn': typeof AppTaxTndnRoute
+  '/api/public/ai-daily-digest': typeof ApiPublicAiDailyDigestRoute
   '/admin': typeof AppAdminIndexRoute
   '/assets': typeof AppAssetsIndexRoute
   '/bank': typeof AppBankIndexRoute
@@ -1031,6 +1039,7 @@ export interface FileRoutesById {
   '/_app/tax/gtgt': typeof AppTaxGtgtRoute
   '/_app/tax/tncn': typeof AppTaxTncnRoute
   '/_app/tax/tndn': typeof AppTaxTndnRoute
+  '/api/public/ai-daily-digest': typeof ApiPublicAiDailyDigestRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/assets/': typeof AppAssetsIndexRoute
   '/_app/bank/': typeof AppBankIndexRoute
@@ -1151,6 +1160,7 @@ export interface FileRouteTypes {
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
+    | '/api/public/ai-daily-digest'
     | '/admin/'
     | '/assets/'
     | '/bank/'
@@ -1264,6 +1274,7 @@ export interface FileRouteTypes {
     | '/tax/gtgt'
     | '/tax/tncn'
     | '/tax/tndn'
+    | '/api/public/ai-daily-digest'
     | '/admin'
     | '/assets'
     | '/bank'
@@ -1383,6 +1394,7 @@ export interface FileRouteTypes {
     | '/_app/tax/gtgt'
     | '/_app/tax/tncn'
     | '/_app/tax/tndn'
+    | '/api/public/ai-daily-digest'
     | '/_app/admin/'
     | '/_app/assets/'
     | '/_app/bank/'
@@ -1434,6 +1446,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1689,6 +1702,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AppAdminIndexRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/api/public/ai-daily-digest': {
+      id: '/api/public/ai-daily-digest'
+      path: '/api/public/ai-daily-digest'
+      fullPath: '/api/public/ai-daily-digest'
+      preLoaderRoute: typeof ApiPublicAiDailyDigestRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/tax/tndn': {
       id: '/_app/tax/tndn'
@@ -2609,6 +2629,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   InviteTokenRoute: InviteTokenRoute,
+  ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
