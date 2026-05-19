@@ -35,9 +35,10 @@ export const listThreads = createServerFn({ method: "GET" })
     const kind = data.kind ?? "general";
     let q = supabase
       .from("chat_threads")
-      .select("id,title,last_message_at,created_at,kind,inbox_external_id")
+      .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
       .eq("user_id", userId)
       .eq("tenant_id", tenantId)
+      .order("pinned_at", { ascending: false, nullsFirst: false })
       .order("last_message_at", { ascending: false })
       .limit(200);
     if (kind !== "all") q = q.eq("kind", kind);
