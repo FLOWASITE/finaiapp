@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -123,9 +123,11 @@ function ReconcilePage() {
   });
 
   // Tự chọn tài khoản đầu tiên
-  if (!accountId && (accounts as any[]).length > 0) {
-    setAccountId((accounts as any[])[0].id);
-  }
+  useEffect(() => {
+    if (!accountId && (accounts as any[]).length > 0) {
+      setAccountId((accounts as any[])[0].id);
+    }
+  }, [accounts, accountId]);
 
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ["reconcile", accountId, from, to, status],
