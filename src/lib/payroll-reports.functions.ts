@@ -266,18 +266,17 @@ export const reportPayrollAllocation = createServerFn({ method: "GET" })
       .from("payroll_runs").select("id, status").eq("period_month", periodDate).maybeSingle();
     if (!run) return { month: period, rows: [], totals: { amount: 0, insurance_co: 0 } };
 
-    const { data: details } = await supabase
+    const detailsRes = await supabase
       .from("payroll_run_lines")
-      .select(`amount, kind, component_code, component_name,
-               salary_components(expense_account, is_insurable),
-               employees(department_id, project_id, departments(name), projects(name))`)
+      .select("amount, kind, component_code, component_name, salary_components(expense_account, is_insurable), employees(department_id, project_id, departments(name), projects(name))")
       .eq("run_id", run.id);
+    const details: any[] = (detailsRes.data as any[]) ?? [];
 
-    const { data: lines } = await supabase
+    const linesRes = await supabase
       .from("payroll_lines")
-      .select(`bhxh_co, bhyt_co, bhtn_co,
-               employees(department_id, project_id, departments(name), projects(name))`)
+      .select("bhxh_co, bhyt_co, bhtn_co, employees(department_id, project_id, departments(name), projects(name))")
       .eq("run_id", run.id);
+    const lines: any[] = (linesRes.data as any[]) ?? [];
 
     // Aggregate earnings/OT by account × dept × project
     const map = new Map<string, any>();
