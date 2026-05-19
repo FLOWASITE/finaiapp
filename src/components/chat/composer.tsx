@@ -65,6 +65,7 @@ export function Composer({
   enableAttach = true,
   enableVoice = true,
   onTranscript,
+  onAttach,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
