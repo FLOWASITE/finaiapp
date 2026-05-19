@@ -139,3 +139,102 @@ export const runMonthlyDepreciation = createServerFn({ method: "POST" })
     }
     return { created };
   });
+
+// =========== Bulk import TSCĐ đầu kỳ (.xlsx) ===========
+const BulkRow = z.object({
+  code: z.string().min(1).max(50),
+  name: z.string().min(1).max(255),
+  asset_kind: z.enum(["tangible", "intangible"]).default("tangible"),
+  category_code: z.string().max(50).nullable().optional(),
+  cost: z.number().positive(),
+  salvage_value: z.number().min(0).default(0),
+  useful_life_months: z.number().int().positive(),
+  start_date: z.string(),
+  in_service_date: z.string().nullable().optional(),
+  method: z.enum(["straight_line", "declining_balance", "units_of_production"]).default("straight_line"),
+  asset_account: z.string().min(1).max(20).default("211"),
+  accumulated_account: z.string().min(1).max(20).default("214"),
+  expense_account: z.string().min(1).max(20).default("6422"),
+  department_code: z.string().max(50).nullable().optional(),
+  branch_code: z.string().max(50).nullable().optional(),
+  location: z.string().max(255).nullable().optional(),
+  serial_no: z.string().max(100).nullable().optional(),
+  model: z.string().max(100).nullable().optional(),
+  manufacturer: z.string().max(100).nullable().optional(),
+  origin_country: z.string().max(50).nullable().optional(),
+  mfg_year: z.number().int().min(1900).max(2100).nullable().optional(),
+  unit: z.string().max(20).nullable().optional(),
+  quantity: z.number().positive().default(1),
+  funding_source: z.string().max(100).nullable().optional(),
+  opening_accumulated: z.number().min(0).default(0),
+  opening_months: z.number().int().min(0).default(0),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+export const bulkImportFixedAssets = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { rows: unknown[] }) => ({ rows: z.array(BulkRow).max(2000).parse(i.rows) }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    if (!data.rows.length) return { inserted: 0, updated: 0, errors: [] as any[] };
+
+    // Pre-fetch categories / departments / branches lookups
+    const [{ data: cats }, { data: depts }, { data: brs }, { data: existing }] = await Promise.all([
+      supabase.from("fa_categories").select("id, code").eq("tenant_id", tenantId),
+      supabase.from("departments").select("id, code").eq("tenant_id", tenantId),
+      supabase.from("branches").select("id, code").eq("tenant_id", tenantId),
+      supabase.from("fixed_assets").select("id, code").eq("tenant_id", tenantId),
+    ]);
+    const catMap = new Map((cats ?? []).map((c: any) => [c.code, c.id]));
+    const deptMap = new Map((depts ?? []).map((d: any) => [d.code, d.id]));
+    const brMap = new Map((brs ?? []).map((b: any) => [b.code, b.id]));
+    const existMap = new Map((existing ?? []).map((e: any) => [e.code, e.id]));
+
+    const errors: { row: number; code: string; message: string }[] = [];
+    let inserted = 0, updated = 0;
+
+    for (let i = 0; i < data.rows.length; i++) {
+      const r = data.rows[i];
+      try {
+        const payload: any = {
+          tenant_id: tenantId, user_id: userId,
+          code: r.code, name: r.name, asset_kind: r.asset_kind,
+          cost: r.cost, salvage_value: r.salvage_value,
+          useful_life_months: r.useful_life_months,
+          start_date: r.start_date,
+          in_service_date: r.in_service_date ?? r.start_date,
+          method: r.method,
+          asset_account: r.asset_account, accumulated_account: r.accumulated_account,
+          expense_account: r.expense_account,
+          category_id: r.category_code ? catMap.get(r.category_code) ?? null : null,
+          department_id: r.department_code ? deptMap.get(r.department_code) ?? null : null,
+          branch_id: r.branch_code ? brMap.get(r.branch_code) ?? null : null,
+          location: r.location ?? null,
+          serial_no: r.serial_no ?? null, model: r.model ?? null,
+          manufacturer: r.manufacturer ?? null, origin_country: r.origin_country ?? null,
+          mfg_year: r.mfg_year ?? null,
+          unit: r.unit ?? null, quantity: r.quantity,
+          funding_source: r.funding_source ?? null,
+          opening_accumulated: r.opening_accumulated,
+          opening_months: r.opening_months,
+          notes: r.notes ?? null,
+          source_type: "manual" as const,
+          status: "active" as const,
+        };
+        const id = existMap.get(r.code);
+        if (id) {
+          const { error } = await supabase.from("fixed_assets").update(payload).eq("id", id);
+          if (error) throw new Error(error.message);
+          updated++;
+        } else {
+          const { error } = await supabase.from("fixed_assets").insert(payload);
+          if (error) throw new Error(error.message);
+          inserted++;
+        }
+      } catch (e: any) {
+        errors.push({ row: i + 2, code: r.code, message: e.message });
+      }
+    }
+
+    return { inserted, updated, errors };
+  });
