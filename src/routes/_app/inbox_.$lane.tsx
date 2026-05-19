@@ -147,14 +147,42 @@ function LaneDetailPage() {
   const [statusFilter, setStatusFilter] = useState<string>(config.filters.status[0] ?? "Tất cả");
   const [rangeFilter, setRangeFilter] = useState<string>(config.filters.ranges[0] ?? "");
 
+  const PAGE_SIZE = 30;
   const fn = useServerFn(getInboxLane);
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: ["inbox-lane", lane, statusFilter, rangeFilter, search],
-    queryFn: () => fn({ data: { lane: config.key, search, statusFilter, rangeFilter, limit: 100 } }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      fn({
+        data: {
+          lane: config.key,
+          search,
+          statusFilter,
+          rangeFilter,
+          limit: PAGE_SIZE,
+          offset: pageParam as number,
+        },
+      }),
+    getNextPageParam: (last) => (last as any).nextOffset ?? undefined,
     staleTime: 30_000,
   });
 
-  const rows: InboxRow[] = query.data?.rows ?? [];
+  const rows: InboxRow[] = query.data?.pages.flatMap((p) => p.rows) ?? [];
+  const source = query.data?.pages[0]?.source ?? "—";
+
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && query.hasNextPage && !query.isFetchingNextPage) {
+        query.fetchNextPage();
+      }
+    }, { rootMargin: "300px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
