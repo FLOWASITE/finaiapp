@@ -112,7 +112,7 @@ const RecordSupplierPaymentInput = z.object({
   supplier_id: z.string().uuid().optional(),
   supplier_name: z.string().optional(),
   pay_date: z.string(),
-  method: z.enum(["cash", "bank", "other"]),
+  method: z.enum(["cash", "bank"]),
   amount: z.number().positive(),
   reference: z.string().optional(),
 });
