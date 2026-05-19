@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
+import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, ShieldAlert, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { openCommandPalette } from "@/components/command-palette";
