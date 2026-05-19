@@ -512,6 +512,42 @@ function OrderFormDialog({
             </div>
           </div>
 
+          {/* Tuỳ chọn: đặt cọc & giữ kho */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={depositEnabled} onChange={(e) => setDepositEnabled(e.target.checked)} />
+                  Yêu cầu đặt cọc
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={reserveEnabled} onChange={(e) => setReserveEnabled(e.target.checked)} />
+                  Giữ tồn kho khi xác nhận
+                </label>
+              </div>
+              {depositEnabled && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">Tỉ lệ cọc (%)</Label>
+                    <Input type="number" value={depositPercent} onChange={(e) => {
+                      const v = e.target.value === "" ? "" : Number(e.target.value);
+                      setDepositPercent(v);
+                      if (v !== "") setDepositRequired(Math.round(totals.total * (Number(v) / 100)));
+                    }} placeholder="VD: 30" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Số tiền cọc</Label>
+                    <Input type="number" value={depositRequired} onChange={(e) => setDepositRequired(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hạn nộp cọc</Label>
+                    <Input type="date" value={depositDueDate} onChange={(e) => setDepositDueDate(e.target.value)} />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Lines - desktop table */}
           <div className="hidden md:block border rounded-md overflow-x-auto">
             <table className="w-full text-sm min-w-[760px]">
