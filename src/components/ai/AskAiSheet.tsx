@@ -204,17 +204,19 @@ export function AskAiSheet() {
     if (kind === "purchase_invoice") {
       const totalSum = ok.reduce((s, i) => s + (Number(i.parsed?.total) || 0), 0);
       lines.push(``, `**Tổng cộng: ${totalSum.toLocaleString("vi-VN")} ₫**`);
-      lines.push(``, `Trả lời "tạo tất cả" để tôi tạo hoá đơn nháp cho ${ok.length} file, hoặc "tạo #1, #3" để chọn.`);
+      lines.push(``, `→ Mở **/import/preview** để chỉnh MST, số HĐ, ngày, dòng tiền trước khi tạo bút toán nháp.`);
     } else if (kind === "bank_statement") {
       const totalTxns = ok.reduce((s, i) => s + (Array.isArray(i.parsed?.transactions) ? i.parsed.transactions.length : 0), 0);
       lines.push(``, `**Tổng giao dịch: ${totalTxns}**`, `→ Mở **/bank/import-statement** để chọn kỳ và xem AI đề xuất TK đối ứng cho từng dòng (đã lưu dữ liệu trong trình duyệt).`);
     } else {
-      lines.push(``, `Nói "tạo phiếu tất cả" để tạo phiếu thu/chi nháp.`);
+      lines.push(``, `→ Mở **/import/preview** để chỉnh số phiếu, ngày, số tiền, TK đối ứng trước khi tạo phiếu nháp.`);
     }
 
     setMessages((prev) => [...prev, { role: "assistant", content: lines.join("\n") }]);
-    (window as any).__lastBatchImport = { kind, items: ok, failed, createdAt: Date.now() };
+    const batchPayload = { kind, items: ok, failed, createdAt: Date.now() };
+    (window as any).__lastBatchImport = batchPayload;
     if (ok.length) (window as any).__lastParsedDoc = { kind, parsed: ok[0].parsed };
+    try { sessionStorage.setItem("lastBatchImport", JSON.stringify(batchPayload)); } catch {}
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
     // keep progress visible briefly then clear
