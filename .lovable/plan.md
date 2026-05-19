@@ -1,47 +1,57 @@
+… (Đây là kết quả rà soát phân hệ **Tài sản cố định**, không phải kế hoạch lương như file `.lovable/plan.md` đang ghi.)
 
-# Rà soát các task Phân hệ Lương
+## Đã có trong hệ thống
 
-## Đã hoàn thành (A → E phần thuế/BHXH)
-
-| Phase | Nội dung | Trạng thái |
+| Nhóm | Tính năng | File |
 |---|---|---|
-| A | Hồ sơ NV mở rộng + `employee_contracts` + `employee_dependents` + `payroll_policies` + RLS | ✅ |
-| B | `salary_components`, `employee_salary_structures`, `timesheets`, `payroll_run_lines` + UI | ✅ |
-| C | Engine tính lương (công chuẩn, OT 150/200/300, ngưỡng miễn thuế, BH cap, PIT 7 bậc, NCT 20%, mùa vụ 10%) + ghi sổ Nợ 622/627/641/642 / Có 334/3383/4/6/3382/3335 | ✅ |
-| D | Payslip PDF (print), CSV ngân hàng UTF-8 BOM, tạm ứng giữa kỳ, đánh dấu đã trả | ✅ |
-| E.1 | 05/KK-TNCN quý, 05/QTT-TNCN năm, C70a-HD (D02-LT) tháng + CSV | ✅ |
+| Danh mục | Nhóm TSCĐ + khung khấu hao | `fa-categories.functions.ts`, `categories.tsx` |
+| Sổ KH | Đa sổ (kế toán / thuế / IFRS) | `fa-books.functions.ts`, `books.tsx`, bảng `fa_asset_books` |
+| Hồ sơ TSCĐ | CRUD + Thẻ TSCĐ (S23-DN) | `assets.functions.ts`, `index.tsx`, `$id.card.tsx` |
+| Tạo từ hoá đơn | Wizard từ AP invoice / từ TSCĐ → CCDC | `from-invoice.tsx`, `from-fixed-asset.tsx` |
+| Khấu hao | Chạy theo tháng + ghi sổ 214/6422… | `runMonthlyDepreciation`, `depreciation.tsx` |
+| CCDC phân bổ | `allocated_assets` + targets + adjustments | `allocated-assets.functions.ts`, `allocations.tsx`, `allocations.$id.tsx` |
+| Biến động | TRANSFER / REVALUATION / MAJOR_REPAIR / PARTIAL_DISPOSAL | `fa-events.functions.ts`, `events.tsx` |
+| Thanh lý | Bán/thanh lý, JE 811/711/214 | `fa-disposals.functions.ts`, `disposal.tsx` |
+| Tái phân loại | Đổi nhóm / TK | `fa-reclass.functions.ts`, `reclassify.tsx` |
+| Kiểm kê | Phiếu + scan barcode | `fa-inventory.functions.ts`, `inventory.tsx`, `inventory.$id.tsx` |
+| Báo cáo | S21-DN, S22-DN, Tăng/giảm theo nguồn vốn, Thẻ TSCĐ | `fa-reports.functions.ts`, `reports.tsx` |
 
 ## Còn dang dở
 
-### Phase E.2 — Báo cáo nội bộ & tờ khai còn thiếu
-1. **Bảng thanh toán tiền lương C02-HD/BB** (mẫu TT200) — bảng in chuẩn để ký nhận, có cột ký tên.
-2. **Bảng phân bổ tiền lương & BHXH** theo TK chi phí × phòng ban × dự án (đối chiếu với JE đã ghi sổ).
-3. **D02-TS** — báo cáo tăng/giảm lao động & điều chỉnh đóng BHXH (khác C70a ở chỗ chỉ liệt kê biến động trong kỳ, không phải toàn bộ LĐ).
-4. **Chứng từ khấu trừ thuế TNCN cá nhân** (mẫu 03/TNCN) — in cho từng NV khi nghỉ việc hoặc cuối năm.
-5. **Import Excel chấm công** (đã ghi trong plan B nhưng chưa làm) — upload .xlsx, mapping cột → bulk upsert `timesheets`.
+### A. Báo cáo & in chứng từ (gap rõ nhất)
+1. **Biên bản giao nhận TSCĐ — mẫu 01-TSCĐ (TT200)** — in khi đưa TSCĐ vào sử dụng (chữ ký bên giao / bên nhận / kế toán).
+2. **Biên bản thanh lý TSCĐ — mẫu 02-TSCĐ** — hiện đã có `fa_disposals` nhưng chưa có bản in chính thức để ký.
+3. **Biên bản bàn giao TSCĐ sửa chữa lớn hoàn thành — mẫu 03-TSCĐ** — gắn với event `MAJOR_REPAIR`.
+4. **Biên bản đánh giá lại TSCĐ — mẫu 04-TSCĐ** — gắn với event `REVALUATION`.
+5. **Biên bản kiểm kê TSCĐ — mẫu 05-TSCĐ** — `fa_inventory_counts` đã có dữ liệu, chưa có template in.
+6. **Báo cáo TSCĐ theo bộ phận / dự án / chi nhánh** — pivot nguyên giá & GTCL theo dimension (để đối chiếu chi phí KH với phân bổ JE).
+7. **Báo cáo TSCĐ sắp hết khấu hao** (còn dưới N tháng) — cảnh báo lập kế hoạch thay thế.
+8. **In nhãn QR/Barcode cho TSCĐ** — kiểm kê đang quét nhưng chưa có chức năng in nhãn.
 
-### Phase F — Tích hợp & tự động hóa (chưa bắt đầu)
-6. **Khóa kỳ lương theo `fiscal_periods`** — không cho tạo/sửa/xóa run nếu kỳ kế toán đã closed.
-7. **Audit trail** cho kỳ lương đã posted — log mọi thao tác approve/post/void/edit vào `audit_logs`.
-8. **Đảo bút toán (void)** kỳ đã ghi sổ — sinh JE ngược, đổi status `posted → voided`.
-9. **Liên kết NV ↔ tài sản** — hiển thị tài sản NV đang giữ trong hồ sơ (FA `assignee_employee_id`).
-10. **Cron nhắc kỳ lương** (`pg_cron`, optional) — gửi nhắc tạo bảng lương ngày 25-28 hàng tháng.
+### B. Nghiệp vụ còn thiếu
+9. **Import Excel TSCĐ đầu kỳ** — upload .xlsx (mã, tên, nguyên giá, KH luỹ kế, ngày SD…) → bulk insert. Hiện chỉ có nhập tay từng cái.
+10. **Khấu hao theo bộ phận sử dụng (đa target)** — TSCĐ dùng chung nhiều bộ phận, chia chi phí KH theo `allocated_asset_targets`. CCDC đã làm, TSCĐ chưa.
+11. **Tự động tính lại lịch khấu hao** khi: nâng cấp tăng nguyên giá, đánh giá lại, đổi useful_life. Hiện event sinh JE nhưng chưa cập nhật base để tháng sau tính đúng.
+12. **Tổn thất / suy giảm giá trị (Impairment)** — VAS 03/IAS 36, ghi giảm GTCL ngoài lịch KH định kỳ.
 
-### Đề xuất bổ sung (ngoài plan gốc)
-11. **Dashboard lương** — KPI quỹ lương 12 tháng, top BP theo chi phí, so sánh tháng/quý, headcount biến động.
+### C. Tích hợp & kiểm soát (Phase F)
+13. **Khoá kỳ** — không cho chạy/huỷ khấu hao, thanh lý, sửa cost_basis nếu `fiscal_periods` đã closed (đã có hàm `is_period_locked`, cần áp vào FA serverFn).
+14. **Audit trail** — log mọi hành động critical (chạy KH, thanh lý, reval, reclass) vào `audit_logs`.
+15. **Đảo bút toán (void)** — huỷ một kỳ khấu hao đã ghi: sinh JE ngược + đánh dấu `depreciation_entries.status = void`.
+16. **Liên kết NV ↔ TSCĐ** — hiển thị danh sách TSCĐ NV đang giữ trong hồ sơ NV (đã có `assignee_id`/`assignee_employee_id`, chỉ thiếu UI).
+17. **Dashboard TSCĐ** — KPI tổng nguyên giá, GTCL, KH năm, tỉ lệ KH, TSCĐ sắp hết hạn, top 10 TSCĐ giá trị cao.
 
 ## Đề xuất ưu tiên
 
-**Đợt 1 (tuần này)** — hoàn thành Phase E.2: items **1, 2, 5** (báo cáo C02-HD, bảng phân bổ, import chấm công). Đây là 3 thứ kế toán dùng hàng tháng, gap rõ nhất so với MISA/FAST.
-
-**Đợt 2** — Phase F core: items **6, 7, 8** (khóa kỳ + audit + void). Đây là chuẩn kiểm soát nội bộ, cần trước khi đưa hệ thống vào dùng thật.
-
-**Đợt 3** — items **3, 4, 9, 10, 11** (D02-TS, chứng từ TNCN cá nhân, FA link, cron, dashboard).
+- **Đợt 1** (tuần này) — items **1, 2, 5, 9**: bộ chứng từ in chuẩn TT200 (01/02/05-TSCĐ) + import Excel đầu kỳ. Đây là 4 thứ kế toán dùng/yêu cầu nhiều nhất khi audit.
+- **Đợt 2** — items **3, 4, 6, 7, 11**: hoàn thiện chứng từ event + báo cáo theo dimension + tự động tính lại lịch KH sau biến động.
+- **Đợt 3** — items **13, 14, 15** (Phase F: khoá kỳ + audit + void).
+- **Đợt 4** — items **8, 10, 12, 16, 17** (nice-to-have: nhãn QR, đa target KH, impairment, link NV, dashboard).
 
 ## Câu hỏi
 
-Bạn muốn:
-- **A** — Triển khai luôn Đợt 1 (C02-HD + bảng phân bổ + import chấm công)?
-- **B** — Nhảy thẳng Phase F (khóa kỳ + audit + void)?
-- **C** — Làm Dashboard lương trước cho dễ nhìn tổng quan?
-- **D** — Chọn cụ thể từng item theo số ở trên.
+Bạn chọn hướng nào?
+- **A** — Triển khai Đợt 1 (4 mẫu chứng từ in + import Excel TSCĐ).
+- **B** — Nhảy thẳng Phase F kiểm soát (khoá kỳ + audit + void KH).
+- **C** — Làm Dashboard TSCĐ trước cho dễ thấy tổng quan.
+- **D** — Chọn cụ thể từng item theo số (vd: "1, 2, 9, 13").
