@@ -131,7 +131,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
   });
 
-  const filtered = (query.data ?? []).filter((t) => (showStarredOnly ? t.starred : true));
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = (query.data ?? []).filter((t) => {
+    if (showStarredOnly && !t.starred) return false;
+    if (q && !(t.title ?? "").toLowerCase().includes(q)) return false;
+    return true;
+  });
   const buckets = bucketize(filtered);
 
   return (
