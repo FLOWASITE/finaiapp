@@ -363,19 +363,31 @@ function AiModelPage() {
     }
   };
 
-  const onLoadModels = async () => {
+  const onLoadModels = async (silent = false) => {
     if (!form) return;
     setLoadingModels(true);
     try {
       const r: any = await listModels({ data: { base_url: form.base_url } });
       setModels(mergeModelOptions((r.models as ModelOption[]) ?? [], SUGGESTED_MODELS));
-      toast.success(`Đã tải ${r.count} model.`);
+      if (!silent) toast.success(`Đã tải ${r.count} model.`);
     } catch (e: any) {
-      toast.error("Không tải được danh sách model: " + e.message);
+      if (!silent) toast.error("Không tải được danh sách model: " + e.message);
+      else console.warn("Auto-load models failed:", e?.message);
     } finally {
       setLoadingModels(false);
     }
   };
+
+  // Auto-fetch full list once when form is ready
+  const autoLoadedRef = useRef(false);
+  useEffect(() => {
+    if (autoLoadedRef.current) return;
+    if (!form?.base_url) return;
+    autoLoadedRef.current = true;
+    void onLoadModels(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form?.base_url]);
+
 
   const onSave = async () => {
     if (!form) return;
