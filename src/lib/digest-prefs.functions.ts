@@ -55,3 +55,29 @@ export const sendDigestNow = createServerFn({ method: "POST" })
     const { generateAndPostDigest } = await import("@/lib/digest-generator.server");
     return generateAndPostDigest({ userId, tenantId, supabase, force: true });
   });
+
+/** Count digest messages newer than the timestamp (for ChatDock badge). */
+export const countUnreadDigests = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ since: z.string().optional() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<{ count: number; latest_thread_id: string | null }> => {
+    const { supabase, userId, tenantId } = context;
+    let q = supabase
+      .from("chat_messages")
+      .select("id,thread_id,created_at", { count: "exact" })
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .eq("role", "assistant")
+      .contains("metadata", { kind: "daily_digest" })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (data.since) q = q.gt("created_at", data.since);
+    const { data: rows, count, error } = await q;
+    if (error) throw new Error(error.message);
+    return {
+      count: count ?? 0,
+      latest_thread_id: rows && rows[0] ? (rows[0] as any).thread_id : null,
+    };
+  });
