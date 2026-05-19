@@ -124,7 +124,7 @@ function Categories() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Mã *</label>
-              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              <AutoCodeInput value={form.code} onChange={(v: string) => setForm({ ...form, code: v })} entity="fa_category" autoFillOnMount={!form.id} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Loại</label>
