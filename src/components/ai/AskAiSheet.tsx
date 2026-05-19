@@ -215,17 +215,20 @@ export function AskAiSheet() {
 
       <Sheet open={open} onOpenChange={setOpen}>
 
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-lg max-sm:!w-screen max-sm:!max-w-none max-sm:inset-0"
+        >
           <SheetHeader className="border-b border-border bg-card px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
               Trợ lý AI
             </SheetTitle>
             <SheetDescription className="flex items-center gap-2 text-xs">
-              <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
+              <span className="hidden sm:inline-flex rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
                 <CommandIcon className="inline h-3 w-3" />+J
               </span>
-              <span>để mở/đóng — đang ở: <code className="text-foreground">{location.pathname}</code></span>
+              <span>đang ở: <code className="text-foreground">{location.pathname}</code></span>
             </SheetDescription>
           </SheetHeader>
 
@@ -282,7 +285,20 @@ export function AskAiSheet() {
 
           <PendingActions />
 
-          <div className="border-t border-border bg-card p-3">
+          <div className="border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {/* Quick chips */}
+            <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+              {QUICK_CHIPS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => send(c)}
+                  disabled={loading || uploading}
+                  className="shrink-0 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs hover:bg-accent hover:border-primary disabled:opacity-50"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
             <input
               ref={fileRef}
               type="file"
@@ -304,19 +320,32 @@ export function AskAiSheet() {
               >
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
               </Button>
+              <Button
+                type="button"
+                variant={recording ? "destructive" : "outline"}
+                size="icon"
+                onClick={toggleVoice}
+                disabled={uploading || loading}
+                title={recording ? "Dừng ghi âm" : "Nói (Web Speech)"}
+              >
+                {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
               <Input
                 ref={inputRef}
-                placeholder="Hỏi AI hoặc upload hoá đơn (PDF/ảnh)…"
+                placeholder={recording ? "Đang nghe…" : "Hỏi AI hoặc upload hoá đơn…"}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
                 disabled={loading || uploading}
+                className="h-11 text-base sm:h-10 sm:text-sm"
               />
               <Button onClick={() => send()} disabled={loading || uploading || !input.trim()} size="icon">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
+        </SheetContent>
+
         </SheetContent>
       </Sheet>
     </>
