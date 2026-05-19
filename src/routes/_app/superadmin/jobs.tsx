@@ -56,8 +56,8 @@ function JobsPage() {
             <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Toàn hệ thống</SelectItem>
-              {(tenants as any[] ?? []).map((t: any) => (
-                <SelectItem key={t.id} value={t.id}>{t.company_name || t.email}</SelectItem>
+              {(tenants?.tenants ?? []).map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.company_name || t.email || t.id}</SelectItem>
               ))}
             </SelectContent>
           </Select>
