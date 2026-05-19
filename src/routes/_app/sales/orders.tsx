@@ -356,6 +356,11 @@ function OrderFormDialog({
   const [shipAddress, setShipAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineForm[]>([emptyLine()]);
+  const [depositEnabled, setDepositEnabled] = useState(false);
+  const [reserveEnabled, setReserveEnabled] = useState(false);
+  const [depositRequired, setDepositRequired] = useState<number>(0);
+  const [depositPercent, setDepositPercent] = useState<number | "">("");
+  const [depositDueDate, setDepositDueDate] = useState("");
 
   const products = useServerFn(listProducts);
   const { data: productList } = useQuery({
