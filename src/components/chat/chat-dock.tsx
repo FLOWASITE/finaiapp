@@ -334,6 +334,12 @@ export function ChatDock() {
                               <span className="truncate font-medium">
                                 {t.title || "(Không tiêu đề)"}
                               </span>
+                              {t.starred && (
+                                <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />
+                              )}
+                              {t.pinned_at && (
+                                <Pin className="h-3 w-3 shrink-0 text-primary/70" />
+                              )}
                               {isInbox && (
                                 <span className="shrink-0 rounded bg-primary/10 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
                                   Inbox
