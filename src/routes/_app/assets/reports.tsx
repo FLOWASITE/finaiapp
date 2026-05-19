@@ -36,6 +36,7 @@ function ReportsPage() {
   const s21Fn = useServerFn(reportS21);
   const s22Fn = useServerFn(reportS22);
   const fundFn = useServerFn(reportFundingMovement);
+  const dimFn = useServerFn(reportByDimension);
 
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState(() => {
@@ -45,10 +46,12 @@ function ReportsPage() {
   const startOfYear = `${new Date().getFullYear()}-01-01`;
   const [from, setFrom] = useState(startOfYear);
   const [to, setTo] = useState(today);
+  const [dim, setDim] = useState<"department" | "project" | "branch">("department");
 
   const s21 = useQuery({ queryKey: ["rep_s21", year], queryFn: () => s21Fn({ data: { year } }) });
   const s22 = useQuery({ queryKey: ["rep_s22", period], queryFn: () => s22Fn({ data: { period } }) });
   const fund = useQuery({ queryKey: ["rep_funding", from, to], queryFn: () => fundFn({ data: { from, to } }) });
+  const dimRep = useQuery({ queryKey: ["rep_dim", dim], queryFn: () => dimFn({ data: { dimension: dim } }) });
 
   return (
     <div className="container mx-auto py-8 space-y-6">
