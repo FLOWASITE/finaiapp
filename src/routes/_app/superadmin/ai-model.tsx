@@ -1018,10 +1018,29 @@ function ModelField({
               <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
-                {grouped.map(([provider, list]) => (
+                {grouped.map(([provider, list]) => {
+                  const meta = providerMeta(provider);
+                  return (
                   <CommandGroup
                     key={provider}
-                    heading={`${provider} · ${list.length}`}
+                    heading={
+                      <div className="flex items-center gap-2 py-0.5">
+                        <span
+                          className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold shrink-0",
+                            meta.color,
+                          )}
+                        >
+                          {meta.logo}
+                        </span>
+                        <span className="text-[11px] font-semibold tracking-wide text-foreground">
+                          {meta.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {list.length} model
+                        </span>
+                      </div>
+                    }
                   >
                     {list.map((m) => {
                       const isSel = value === m.id;
