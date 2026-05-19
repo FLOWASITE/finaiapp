@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { History, Paperclip, Mic, MicOff, Loader2 } from "lucide-react";
+import { History, Paperclip, Mic, MicOff, Loader2, Sparkles } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,31 @@ export function ChatDock() {
   const parseFn = useServerFn(parseDocument);
   const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Cmd/Ctrl+J focus + lắng nghe openAskAi(prefill) từ các nơi khác
+  useEffect(() => {
+    const focusInput = () => {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        focusInput();
+      }
+    };
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ prefill?: string }>).detail;
+      if (detail?.prefill) setInput(detail.prefill);
+      focusInput();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("app:open-ai", onOpen as EventListener);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("app:open-ai", onOpen as EventListener);
+    };
+  }, []);
 
   const submit = async (override?: string) => {
     const q = (override ?? input).trim();
@@ -178,7 +203,17 @@ export function ChatDock() {
   };
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-30 px-4 pb-4">
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.focus()}
+        aria-label="Hỏi trợ lý AI (Cmd+J)"
+        title="Hỏi trợ lý AI (Cmd+J)"
+        className="fixed bottom-24 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-transform hover:scale-110 active:scale-95 md:hidden"
+      >
+        <Sparkles className="h-5 w-5" />
+      </button>
+      <div className="pointer-events-none sticky bottom-0 z-30 px-4 pb-4">
       <input
         ref={fileRef}
         type="file"
@@ -242,9 +277,10 @@ export function ChatDock() {
             onSubmit={() => submit()}
             loading={loading}
             placeholder={
-              recording ? "Đang nghe…" : "Hỏi trợ lý AI bất cứ điều gì…"
+              recording ? "Đang nghe…" : "Hỏi trợ lý AI bất cứ điều gì… (Cmd+J)"
             }
             compact
+            inputRef={inputRef}
           />
         </div>
         <Button
@@ -260,5 +296,6 @@ export function ChatDock() {
         </Button>
       </div>
     </div>
+    </>
   );
 }

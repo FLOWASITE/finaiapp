@@ -17,7 +17,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { openAskAi } from "@/components/ai/AskAiSheet";
+import { openAskAi } from "@/lib/open-ask-ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

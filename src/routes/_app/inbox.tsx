@@ -11,7 +11,7 @@ import {
   Banknote,
   Receipt,
 } from "lucide-react";
-import { openAskAi } from "@/components/ai/AskAiSheet";
+import { openAskAi } from "@/lib/open-ask-ai";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

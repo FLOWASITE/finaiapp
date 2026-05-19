@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listAiInsights, dismissAiInsight } from "@/lib/ai-insights.functions";
-import { openAskAi } from "@/components/ai/AskAiSheet";
+import { openAskAi } from "@/lib/open-ask-ai";
 
 const ICON: Record<string, any> = {
   critical: AlertCircle,
