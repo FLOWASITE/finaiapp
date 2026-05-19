@@ -128,6 +128,15 @@ export function ChatDock() {
     setLoading(true);
     createWithMsgFn({ data: { title: q.slice(0, 60), content: q } })
       .then((res) => {
+        // Prime caches so the thread page renders instantly (no spinner, no refetch).
+        qc.setQueryData(["chat", "thread", res.thread.id], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
+        );
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
