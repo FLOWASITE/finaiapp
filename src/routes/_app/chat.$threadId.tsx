@@ -194,6 +194,40 @@ function ThreadPage() {
     runAssistant(next);
   };
 
+  useEffect(() => {
+    const onDockSend = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        threadId: string;
+        content: string;
+        attachments?: any[];
+      }>).detail;
+      if (!detail || detail.threadId !== threadId) return;
+      if (streaming) {
+        toast.error("Đang xử lý câu hỏi trước, vui lòng đợi.");
+        return;
+      }
+      const next: ChatMsg[] = [
+        ...messages,
+        { role: "user", content: detail.content },
+      ];
+      setLocalMsgs(next);
+      appendFn({
+        data: {
+          threadId,
+          role: "user",
+          content: detail.content,
+          updateTitleIfBlank: true,
+          metadata: detail.attachments ? { attachments: detail.attachments } : undefined,
+        },
+      })
+        .then(() => runAssistant(next, detail.attachments))
+        .catch((err: any) => toast.error(err?.message || "Không gửi được"));
+    };
+    window.addEventListener("chat:dock-send", onDockSend as EventListener);
+    return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, streaming, messages]);
+
   const stop = () => {
     abortRef.current?.abort();
   };
