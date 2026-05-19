@@ -843,6 +843,7 @@ function ModelField({
   label,
   icon,
   required,
+  hint,
   value,
   onChange,
   models,
@@ -853,6 +854,7 @@ function ModelField({
   label: string;
   icon?: React.ReactNode;
   required?: boolean;
+  hint?: string;
   value: string;
   onChange: (v: string) => void;
   models: ModelOption[];
