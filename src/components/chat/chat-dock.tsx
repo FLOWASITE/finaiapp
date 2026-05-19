@@ -276,6 +276,28 @@ export function ChatDock() {
                   </button>
                 ))}
               </div>
+              <div className="border-b border-white/5 px-2 py-1.5">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/60" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Tìm theo tiêu đề…"
+                    className="h-7 w-full rounded-md border border-white/10 bg-background/60 pl-7 pr-6 text-[11px] outline-none transition-colors focus:border-primary/40"
+                  />
+                  {historySearch && (
+                    <button
+                      type="button"
+                      onClick={() => setHistorySearch("")}
+                      aria-label="Xoá tìm kiếm"
+                      className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
               <ScrollArea className="max-h-80">
                 <div className="p-1">
                   {(() => {
