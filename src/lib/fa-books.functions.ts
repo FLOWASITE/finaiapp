@@ -336,3 +336,21 @@ export const listBookEntries = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+// Huỷ (đảo ngược) một bút toán khấu hao đã đăng
+export const voidDepEntry = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i) => z.object({
+    entry_id: z.string().uuid(),
+    reason: z.string().max(500).optional(),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: newJe, error } = await supabase.rpc("void_depreciation_entry", {
+      _entry_id: data.entry_id,
+      _reason: data.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, journal_entry_id: newJe ?? null };
+  });
+
