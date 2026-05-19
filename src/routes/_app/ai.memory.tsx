@@ -48,6 +48,14 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   listAiMemory,
@@ -61,6 +69,14 @@ import {
   type MemoryRule,
   type MemoryWatch,
 } from "@/lib/ai-memory.functions";
+import {
+  RULE_TEMPLATES,
+  TEMPLATES_BY_ID,
+  ACCOUNT_QUICK_PICKS,
+  parseSuggestion,
+  renderRule,
+  validateSlots,
+} from "@/lib/ai-memory-templates";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
