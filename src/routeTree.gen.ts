@@ -106,6 +106,7 @@ import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
 import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
@@ -603,6 +604,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppSalesOrdersIdRoute = AppSalesOrdersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppSalesOrdersRoute,
+} as any)
 const AppPayrollPayslipsIdRoute = AppPayrollPayslipsIdRouteImport.update({
   id: '/payroll/payslips/$id',
   path: '/payroll/payslips/$id',
@@ -709,7 +715,7 @@ export interface FileRoutesByFullPath {
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
-  '/sales/orders': typeof AppSalesOrdersRoute
+  '/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -753,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/sales/orders/$id': typeof AppSalesOrdersIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
@@ -811,7 +818,7 @@ export interface FileRoutesByTo {
   '/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
-  '/sales/orders': typeof AppSalesOrdersRoute
+  '/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -855,6 +862,7 @@ export interface FileRoutesByTo {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/sales/orders/$id': typeof AppSalesOrdersIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
@@ -920,7 +928,7 @@ export interface FileRoutesById {
   '/_app/reports/trial-balance': typeof AppReportsTrialBalanceRoute
   '/_app/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
-  '/_app/sales/orders': typeof AppSalesOrdersRoute
+  '/_app/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/_app/settings/branches': typeof AppSettingsBranchesRoute
   '/_app/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/_app/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -964,6 +972,7 @@ export interface FileRoutesById {
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/_app/sales/orders/$id': typeof AppSalesOrdersIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
@@ -1073,6 +1082,7 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
+    | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
@@ -1175,6 +1185,7 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
+    | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
@@ -1283,6 +1294,7 @@ export interface FileRouteTypes {
     | '/_app/assets/inventory/$id'
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
+    | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
@@ -1976,6 +1988,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/sales/orders/$id': {
+      id: '/_app/sales/orders/$id'
+      path: '/$id'
+      fullPath: '/sales/orders/$id'
+      preLoaderRoute: typeof AppSalesOrdersIdRouteImport
+      parentRoute: typeof AppSalesOrdersRoute
+    }
     '/_app/payroll/payslips/$id': {
       id: '/_app/payroll/payslips/$id'
       path: '/payroll/payslips/$id'
@@ -2185,6 +2204,18 @@ const AppAssetsInventoryRouteChildren: AppAssetsInventoryRouteChildren = {
 const AppAssetsInventoryRouteWithChildren =
   AppAssetsInventoryRoute._addFileChildren(AppAssetsInventoryRouteChildren)
 
+interface AppSalesOrdersRouteChildren {
+  AppSalesOrdersIdRoute: typeof AppSalesOrdersIdRoute
+}
+
+const AppSalesOrdersRouteChildren: AppSalesOrdersRouteChildren = {
+  AppSalesOrdersIdRoute: AppSalesOrdersIdRoute,
+}
+
+const AppSalesOrdersRouteWithChildren = AppSalesOrdersRoute._addFileChildren(
+  AppSalesOrdersRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRouteWithChildren
@@ -2225,7 +2256,7 @@ interface AppRouteChildren {
   AppReportsTrialBalanceRoute: typeof AppReportsTrialBalanceRoute
   AppReportsVoucherListRoute: typeof AppReportsVoucherListRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
-  AppSalesOrdersRoute: typeof AppSalesOrdersRoute
+  AppSalesOrdersRoute: typeof AppSalesOrdersRouteWithChildren
   AppSettingsBranchesRoute: typeof AppSettingsBranchesRoute
   AppSettingsCostCentersRoute: typeof AppSettingsCostCentersRoute
   AppSettingsDepartmentsRoute: typeof AppSettingsDepartmentsRoute
@@ -2301,7 +2332,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsTrialBalanceRoute: AppReportsTrialBalanceRoute,
   AppReportsVoucherListRoute: AppReportsVoucherListRoute,
   AppSalesIdRoute: AppSalesIdRoute,
-  AppSalesOrdersRoute: AppSalesOrdersRoute,
+  AppSalesOrdersRoute: AppSalesOrdersRouteWithChildren,
   AppSettingsBranchesRoute: AppSettingsBranchesRoute,
   AppSettingsCostCentersRoute: AppSettingsCostCentersRoute,
   AppSettingsDepartmentsRoute: AppSettingsDepartmentsRoute,
