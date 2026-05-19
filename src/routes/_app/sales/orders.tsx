@@ -119,11 +119,11 @@ function SalesOrdersPage() {
 
   const { data: kpi } = useQuery({
     queryKey: ["sales-orders-stats"],
-    queryFn: () => stats({ data: {} }),
+    queryFn: () => stats({ data: {} }) as Promise<{ count: number; value: number; partial: number; fulfilled: number; draft: number; confirmed: number }>,
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
-  const rows = (rowsResp as any)?.rows ?? [];
+  const rows: any[] = (rowsResp as any)?.rows ?? [];
 
   const upsertMut = useMutation({
     mutationFn: (input: any) => upsert({ data: input }),
