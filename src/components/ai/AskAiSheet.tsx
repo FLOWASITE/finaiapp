@@ -93,6 +93,68 @@ export function AskAiSheet() {
     }
   };
 
+  const handleUpload = async (file: File) => {
+    if (!file || uploading) return;
+    if (file.size > 12 * 1024 * 1024) {
+      toast.error("File quá lớn (tối đa 12MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const s = String(reader.result || "");
+          resolve(s.split(",")[1] || s);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      // Choose kind from mime: pdf/image → purchase_invoice by default
+      const isImg = file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf";
+      if (!isImg && !isPdf) {
+        toast.error("Chỉ hỗ trợ PDF hoặc ảnh");
+        setUploading(false);
+        return;
+      }
+      setMessages((m) => [
+        ...m,
+        { role: "user", content: `📎 Đã upload: **${file.name}** — đang trích xuất dữ liệu…` },
+        { role: "assistant", content: "" },
+      ]);
+      const res: any = await parseFn({
+        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind: "purchase_invoice" },
+      });
+      const parsed = res?.parsed ?? {};
+      const summary = [
+        `**Đã trích xuất hoá đơn mua:**`,
+        parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
+        parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
+        parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
+        parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
+        parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
+        ``,
+        `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
+      ].filter(Boolean).join("\n");
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", content: summary };
+        return copy;
+      });
+      // Stash parsed data into next prompt context
+      (window as any).__lastParsedDoc = parsed;
+    } catch (e: any) {
+      toast.error(`Lỗi parse: ${e.message}`);
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+
+
   return (
     <>
       {/* Floating trigger button — visible on every page */}
