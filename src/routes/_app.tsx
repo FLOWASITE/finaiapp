@@ -46,7 +46,6 @@ function AppLayout() {
           </main>
           {showDock ? <ChatDock /> : null}
           <CommandPalette />
-          <AskAiSheet />
         </SidebarInset>
       </div>
     </SidebarProvider>
