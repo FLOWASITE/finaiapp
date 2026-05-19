@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/payroll/components")({ component: Page });
