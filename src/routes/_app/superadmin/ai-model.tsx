@@ -912,6 +912,9 @@ function ModelField({
           </button>
         )}
       </div>
+      {hint && (
+        <p className="text-[11px] text-muted-foreground -mt-0.5">{hint}</p>
+      )}
 
       {manual || noModelsLoaded ? (
         <Input
