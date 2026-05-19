@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Sparkles, Pencil, Trash2, Layers } from "lucide-react";
 import { AutoCodeInput } from "@/components/ui/auto-code-input";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/assets/categories")({
