@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Loader2, AlertTriangle, ArrowLeft, ArrowDown } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -45,6 +45,8 @@ function ThreadPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [hasNew, setHasNew] = useState(false);
 
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
@@ -84,6 +86,10 @@ function ThreadPage() {
         try {
           sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
         } catch {}
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const near = dist < 120;
+        setAtBottom(near);
+        if (near) setHasNew(false);
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
@@ -120,10 +126,15 @@ function ThreadPage() {
     // Subsequent updates: keep position stable during streaming so growing
     // content doesn't push the view. Only auto-stick when not streaming and
     // the user is already near the bottom (e.g. after sending a new message).
-    if (streaming) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (streaming) {
+      if (distanceFromBottom >= 120) setHasNew(true);
+      return;
+    }
     if (distanceFromBottom < 120) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      setHasNew(true);
     }
   }, [messages, streaming, SCROLL_KEY]);
 
@@ -368,6 +379,25 @@ function ThreadPage() {
         />
       </div>
       <div className="relative px-4 pb-5 pt-4">
+        {!atBottom && (
+          <div className="pointer-events-none absolute inset-x-0 -top-12 z-10 flex justify-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const el = scrollRef.current;
+                if (!el) return;
+                el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                setHasNew(false);
+              }}
+              className="pointer-events-auto h-8 gap-1.5 rounded-full border border-border/60 bg-background/90 px-3 text-xs shadow-lg backdrop-blur-xl"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+              {hasNew ? "Tin nhắn mới" : "Về cuối"}
+            </Button>
+          </div>
+        )}
         <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 chat-footer-fade" />
         <div className="mx-auto max-w-3xl">
           <div className="mb-3">
