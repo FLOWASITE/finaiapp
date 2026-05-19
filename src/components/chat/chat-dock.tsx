@@ -49,14 +49,46 @@ export function ChatDock() {
     try {
       const thread = await createFn({ data: { title: q.slice(0, 60) } });
       await appendFn({
+        data: { threadId: thread.id, role: "user", content: q, updateTitleIfBlank: true },
+      });
+      setInput("");
+      navigate({
+        to: "/chat/$threadId",
+        params: { threadId: thread.id },
+        search: { autostart: "1" },
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Không gửi được");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAttach = async (payloads: any[]) => {
+    if (!payloads.length || loading) return;
+    setLoading(true);
+    try {
+      const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
+      const thread = await createFn({ data: { title: payloads[0].name.slice(0, 60) } });
+      await appendFn({
         data: {
           threadId: thread.id,
           role: "user",
-          content: q,
+          content: `Xử lý ${payloads.length} chứng từ:\n${summary}`,
           updateTitleIfBlank: true,
+          metadata: {
+            attachments: payloads.map((p) => ({
+              name: p.name,
+              mime: p.mime,
+              size: p.size,
+              kind: p.kind,
+            })),
+          },
         },
       });
-      setInput("");
+      try {
+        sessionStorage.setItem(`__attach:${thread.id}`, JSON.stringify(payloads));
+      } catch {}
       navigate({
         to: "/chat/$threadId",
         params: { threadId: thread.id },
@@ -88,6 +120,7 @@ export function ChatDock() {
               onChange={setInput}
               onSubmit={() => submit()}
               onTranscript={(t) => submit(t)}
+              onAttach={handleAttach}
               loading={loading}
               placeholder="Hỏi trợ lý AI bất cứ điều gì… (Cmd+J)"
               compact
