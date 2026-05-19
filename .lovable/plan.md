@@ -1,73 +1,97 @@
-## Mục tiêu
 
-Mọi nơi đang nhập **mã tài khoản** bằng `<Input>` text trong phân hệ **Tài sản cố định**, **Tài sản phân bổ (CCDC)** và **Lương** sẽ được thay bằng **picker chọn TK từ danh mục TK hệ thống** (`chart_of_accounts`), tránh nhập sai mã / lệch với COA.
+# Đơn đặt hàng bán (Sales Orders) — Kế hoạch triển khai
 
-## Cách tiếp cận
+Hiện trạng: route `/_app/sales/orders` mới là placeholder. Bảng `sales_invoices` đã có cột `sales_order_id` (sẵn sàng liên kết), nhưng **chưa có bảng `sales_orders`**. Cần dựng module chuẩn: nhập đơn → duyệt → giao hàng/xuất hoá đơn → đóng đơn.
 
-Đã có sẵn:
-- `listChartOfAccounts` server fn (`src/lib/coa.functions.ts`).
-- Component `AccountCombobox` đang nằm **private** trong `src/components/voucher-form.tsx` (có search theo mã + tên, có nhóm "Gợi ý thường dùng" + "Toàn bộ COA", chỉ hiện TK active).
+## 1. Phạm vi nghiệp vụ
 
-→ **Tách `AccountCombobox` thành component dùng chung** ở `src/components/ui/account-combobox.tsx`, nhận props:
-- `value`, `onChange`
-- `suggestions?: { code: string; name: string }[]` (gợi ý theo ngữ cảnh, optional)
-- `placeholder?`, `disabled?`
+- Một **Đơn đặt hàng (SO)** = cam kết bán hàng với khách trước khi xuất hoá đơn / phiếu xuất kho.
+- **Không sinh bút toán** (off-balance) — chỉ là chứng từ thương mại. Đúng chuẩn VN: SO không vào sổ kế toán, chỉ là cơ sở để xuất HĐ bán.
+- Vòng đời: `draft` → `confirmed` → `partial` / `fulfilled` → `closed` (hoặc `cancelled`).
+- Cho phép **xuất 1 SO thành nhiều HĐ bán** (giao nhiều đợt). Theo dõi % đã giao theo dòng.
 
-Voucher-form import lại từ component chung (không đổi hành vi).
+## 2. Cấu trúc dữ liệu
 
-Mỗi route dùng `useQuery(["coa"], listChartOfAccounts)` 1 lần, share qua cache (đã có sẵn key `"coa"`).
+### Bảng `sales_orders` (header)
+- `order_no` (auto, prefix `DH{YYYYMM}/00001` — thêm `sale_order` vào `codegen.functions.ts`)
+- `customer_id`, `customer_name`, `customer_tax_id`, `ship_address`
+- `order_date`, `expected_delivery_date`, `valid_until`
+- `currency` (mặc định VND), `exchange_rate`
+- `subtotal`, `discount_amount`, `vat_amount`, `total`
+- `status`: `draft | confirmed | partial | fulfilled | closed | cancelled`
+- `payment_terms_days`, `notes`, `internal_notes`
+- Chiều phân tích: `branch_id`, `department_id`, `project_id`, `cost_center_id`, `salesperson_id`
+- Audit: `user_id`, `tenant_id`, `created_at`, `updated_at`, `confirmed_at`, `confirmed_by`, `closed_at`
 
-## Điểm thay thế
+### Bảng `sales_order_lines`
+- `order_id`, `line_no`, `product_id`, `description`
+- `qty_ordered`, `qty_delivered` (tự tăng khi HĐ liên kết), `qty_remaining` (computed)
+- `unit`, `unit_price`, `discount_pct`, `discount_amount`
+- `vat_rate`, `vat_amount`, `amount`, `line_total`
+- `warehouse_id` (gợi ý kho xuất), `notes`
 
-### A. Tài sản cố định
-1. `src/routes/_app/assets/index.tsx` (form TSCĐ) — 3 ô:
-   - TK Tài sản (211), TK Hao mòn (214), TK Chi phí KH
-   - Suggestions: `211x` / `214x` / `6422,6421,6427,154,627,641,642`
-2. `src/routes/_app/assets/categories.tsx` (nhóm TSCĐ) — 3 ô tương tự (default_*).
-3. `src/routes/_app/assets/disposal.tsx` (thanh lý) — 5 ô:
-   - TK thu tiền, TK VAT đầu ra, TK thu nhập khác (711), TK chi phí khác (811), TK trả chi phí thanh lý.
-4. `src/routes/_app/assets/reclassify.tsx` (tái phân loại) — `target_account` (153/242/211…), `expense_account`.
-5. `src/routes/_app/assets/books.tsx` — sổ KH cũng có 3 ô account theo `fa-books.functions.ts`. Kiểm tra & thay nếu UI đang dùng Input (xem nhanh trước khi sửa).
+### Liên kết HĐ bán
+- Đã có `sales_invoices.sales_order_id`. Thêm `sales_invoice_lines.sales_order_line_id` để cộng dồn `qty_delivered`.
+- Trigger: khi insert/update/delete `sales_invoice_lines` có `sales_order_line_id` → tính lại `qty_delivered` của line và đẩy status header (`partial` nếu một phần, `fulfilled` nếu đủ tất cả lines).
 
-### B. Tài sản phân bổ (CCDC)
-6. `src/routes/_app/assets/allocations.tsx` — `prepaid_account` (242/142), `expense_account` (6423/627…).
-7. Wizard **from-invoice** (`from-invoice.tsx`) & **from-fixed-asset** (`from-fixed-asset.tsx`) nếu có ô account → thay luôn.
+### RLS
+- Theo pattern hiện có: tenant-aware (`tenant_id = active_tenant_id` của user), hoặc `user_id = auth.uid()` khi chưa có tenant. Đầy đủ SELECT/INSERT/UPDATE/DELETE policies.
 
-### C. Lương
-8. `src/routes/_app/payroll/components.tsx` — `expense_account` của cấu phần lương (62x/64x/154).
-9. `src/routes/_app/payroll/policies.tsx` — quét và thay các ô TK nếu có (phụ cấp/BHXH mặc định).
+## 3. Server functions (`src/lib/sales-orders.functions.ts`)
 
-## Không đổi
-- Server fn (zod schema vẫn `z.string().min(1).max(20)`) — phía BE không cần đổi.
-- `bank_account` (số TK ngân hàng NV) **không** phải mã TK COA → giữ nguyên Input.
-- Tên cột DB, JE lines, báo cáo: không đổi.
+- `listSalesOrders({ customerId?, status?, fromDate?, toDate?, search? })` — kèm tổng & % giao hàng.
+- `getSalesOrder({ id })` — header + lines + danh sách HĐ đã xuất từ SO.
+- `upsertSalesOrder(input)` — Zod validate; auto code khi tạo mới qua `nextEntityCode("sale_order")`.
+- `confirmSalesOrder({ id })` — chuyển `draft → confirmed`, chặn sửa lines.
+- `cancelSalesOrder({ id, reason })` — chỉ cho phép khi chưa có HĐ liên kết.
+- `closeSalesOrder({ id })` — đóng thủ công kể cả chưa giao đủ.
+- `createInvoiceFromOrder({ orderId, lineSelections: [{lineId, qty}] })` — tạo HĐ bán nháp từ SO (gọi lại `upsertSalesInvoice`), set `sales_order_id` + `sales_order_line_id` từng dòng.
+- `salesOrderStats({ fromDate, toDate })` — KPI cho dashboard nhỏ trên trang Orders.
 
-## Chi tiết kỹ thuật
+Tất cả dùng `requireSupabaseAuth`. Không tạo voucher / journal lines.
 
-```tsx
-// src/components/ui/account-combobox.tsx
-export function AccountCombobox({ value, onChange, suggestions = [], placeholder, disabled }: Props) {
-  const fetchCoa = useServerFn(listChartOfAccounts);
-  const { data: coa } = useQuery({ queryKey: ["coa"], queryFn: () => fetchCoa({}), ...QUERY_PRESETS.REFERENCE });
-  // ... copy logic từ voucher-form, lọc is_active, merge suggestions, search code+name
-}
-```
+## 4. UI — `src/routes/_app/sales/orders.tsx`
 
-Mỗi điểm thay = đổi:
-```tsx
-<Input value={form.asset_account} onChange={e => set(...)} />
-// →
-<AccountCombobox value={form.asset_account} onChange={v => set("asset_account", v)}
-  suggestions={[{code:"211", name:"TSCĐ hữu hình"}, {code:"2111",...}, ...]} />
-```
+Layout tương tự `/sales` index nhưng gọn hơn:
 
-## Thứ tự thi hành
-1. Tạo `account-combobox.tsx` chung + refactor `voucher-form.tsx` import nó.
-2. Thay tại TSCĐ (5 file mục A).
-3. Thay tại CCDC (mục B).
-4. Thay tại Lương (mục C).
-5. Build check + smoke test mở từng dialog xem combobox load COA OK.
+- **KPI strip**: Tổng SO trong kỳ, Giá trị cam kết, Đã giao, Còn lại, Tỷ lệ hoàn thành.
+- **Toolbar**: tìm theo số/khách, lọc trạng thái + khoảng ngày, nút "Đơn mới".
+- **Bảng SO**: số DH, ngày, khách, giá trị, % đã giao (progress bar), trạng thái (`DocStatusBadge`), action menu (Xem / Duyệt / Tạo HĐ / Huỷ / In).
+- **Dialog Đơn mới / sửa** (responsive như `/sales` invoice):
+  - Header: `CustomerCombobox`, ngày đặt, ngày giao dự kiến, hiệu lực, NV bán hàng, chi nhánh/phòng ban/dự án (dùng `dimension-pickers`).
+  - Lines: bảng desktop + card mobile (`md:hidden`), mỗi dòng: sản phẩm, SL, ĐVT, đơn giá, % CK, % VAT, thành tiền. Auto tính.
+  - Footer: tổng tiền hàng / CK / VAT / Tổng.
+  - Nút: Lưu nháp / Lưu & Duyệt.
+- **Trang chi tiết `/sales/orders/$id`**: thông tin SO + tab "Hoá đơn đã xuất" + nút **"Tạo hoá đơn từ đơn"** (mở dialog chọn dòng + số lượng còn lại).
+- **In phiếu**: `/sales/orders/$id/print` — A4 đơn giản, có logo tenant, chữ ký 2 bên.
 
-## Câu hỏi xác nhận
-- Đồng ý phương án trên?
-- Có muốn **chặn lưu** nếu mã TK không tồn tại trong `chart_of_accounts` (validation phía serverFn), hay chỉ cần UI picker là đủ?
+Mọi ô **tài khoản** (nếu có ở dòng, ví dụ TK doanh thu mặc định) dùng `AccountCombobox` chuẩn hệ thống. Mọi field code dùng `nextEntityCode` server-side, không cho user gõ tay (theo memory ngầm từ các phân hệ khác).
+
+## 5. Tích hợp với hoá đơn bán hiện có
+
+- Trong form `Hoá đơn bán` (`/sales`): thêm ô chọn **Đơn đặt hàng nguồn** (optional). Khi chọn → tự fill khách + lines còn lại; user điều chỉnh SL giao đợt này.
+- Trang `/sales/$id`: hiển thị link ngược về SO nếu có.
+- Khi HĐ bán bị huỷ/xoá → trigger giảm `qty_delivered` tương ứng.
+
+## 6. Cập nhật điều hướng
+
+- Sidebar mục "Bán hàng" đã có "Đơn đặt hàng" → trỏ tới route mới (giữ nguyên path `/sales/orders`).
+- Thêm 2 route con: `sales/orders.$id.tsx`, `sales/orders.$id.print.tsx`.
+
+## 7. Thứ tự thi hành
+
+1. **Migration**: tạo `sales_orders`, `sales_order_lines`, RLS, trigger cập nhật `qty_delivered`, thêm `sales_invoice_lines.sales_order_line_id`.
+2. Bổ sung `sale_order` vào `codegen.functions.ts` (prefix `DH`, date-scoped, padLen 5).
+3. Viết `sales-orders.functions.ts` đầy đủ + Zod schema.
+4. Thay placeholder `orders.tsx` bằng UI đầy đủ; tạo route chi tiết + in.
+5. Patch form hoá đơn bán: chọn SO nguồn, gửi kèm `sales_order_line_id` cho từng dòng.
+6. Smoke test: tạo SO → duyệt → xuất 1 phần → kiểm tra `qty_delivered`, status `partial` → xuất nốt → `fulfilled`.
+
+## 8. Câu hỏi xác nhận
+
+1. **Phê duyệt nhiều cấp** cho SO (vd: SO > X tỷ cần cấp trên duyệt) — có cần ngay đợt này hay để sau?
+2. **Đặt cọc / tạm ứng** theo SO (gắn phiếu thu tạm ứng vào SO) — làm ngay hay tách module riêng?
+3. **Giữ tồn kho** (reserve stock) khi `confirmed` — có muốn không? Nếu có sẽ cần thêm bảng `stock_reservations`.
+4. **Đơn vị tiền tệ ngoại tệ** + tỉ giá — chỉ VND trước hay multi-currency luôn?
+
+Mặc định nếu không trả lời: **(1) 1 cấp duyệt, (2) chưa làm tạm ứng, (3) không reserve stock, (4) VND only** — đủ chuẩn cho phần lớn DN VN, mở rộng sau dễ.

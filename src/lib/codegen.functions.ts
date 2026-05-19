@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CodeEntity =
   | "sale_invoice"
+  | "sale_order"
   | "purchase_invoice"
   | "customer"
   | "supplier"
@@ -19,8 +20,8 @@ export type CodeEntity =
   | "allocated_asset";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets";
-  column: "invoice_no" | "code" | "voucher_no";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets" | "sales_orders";
+  column: "invoice_no" | "code" | "voucher_no" | "order_no";
   prefix: string;
   dateScoped: boolean;
   padLen: number;
@@ -29,6 +30,7 @@ type EntityConfig = {
 
 const CONFIG: Record<CodeEntity, EntityConfig> = {
   sale_invoice: { table: "sales_invoices", column: "invoice_no", prefix: "HD", dateScoped: true, padLen: 5 },
+  sale_order: { table: "sales_orders", column: "order_no", prefix: "DH", dateScoped: true, padLen: 5 },
   purchase_invoice: { table: "invoices", column: "invoice_no", prefix: "HDM", dateScoped: true, padLen: 5 },
   customer: { table: "customers", column: "code", prefix: "KH", dateScoped: false, padLen: 5 },
   supplier: { table: "suppliers", column: "code", prefix: "NCC", dateScoped: false, padLen: 5 },
@@ -64,7 +66,7 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
 
 const InputSchema = z.object({
   entity: z.enum([
-    "sale_invoice", "purchase_invoice", "customer", "supplier",
+    "sale_invoice", "sale_order", "purchase_invoice", "customer", "supplier",
     "product_goods", "product_service", "product_combo", "warehouse",
     "bank_receipt", "bank_payment", "bank_transfer",
     "fixed_asset", "fa_category", "allocated_asset",
