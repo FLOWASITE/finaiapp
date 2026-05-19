@@ -313,7 +313,7 @@ export type RuleApplication = {
   journal_entry_id: string | null;
   journal_code: string | null;
   then_snapshot: string;
-  ai_log: Record<string, unknown>;
+  ai_log: Record<string, any>;
   status: "applied" | "undone";
   applied_at: string;
   undone_at: string | null;
