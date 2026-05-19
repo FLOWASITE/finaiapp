@@ -68,6 +68,7 @@ function ReportsPage() {
           <TabsTrigger value="s21">S21-DN — Sổ TSCĐ</TabsTrigger>
           <TabsTrigger value="s22">S22-DN — Phân bổ KH</TabsTrigger>
           <TabsTrigger value="funding">Tăng/giảm theo nguồn vốn</TabsTrigger>
+          <TabsTrigger value="dim">Theo BP / Dự án / CN</TabsTrigger>
           <TabsTrigger value="card">Thẻ TSCĐ</TabsTrigger>
         </TabsList>
 
