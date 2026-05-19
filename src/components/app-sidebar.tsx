@@ -7,6 +7,7 @@ import {
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
   ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown, ArrowRightLeft, ArrowLeftRight, ScanBarcode, FileBarChart,
+  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
@@ -292,6 +293,46 @@ const REPORTS_SECTIONS: NavSection[] = [
   },
 ];
 
+const SUPERADMIN_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "← Về ứng dụng", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Hệ thống",
+    entries: [
+      { to: "/superadmin", label: "Tổng quan tenants", icon: LayoutDashboard },
+      { to: "/superadmin/organizations", label: "Tổ chức", icon: Building2 },
+      { to: "/superadmin/accounts", label: "Tài khoản", icon: Users },
+    ],
+  },
+  {
+    label: "Người dùng & bảo mật",
+    entries: [
+      { to: "/superadmin/security", label: "Bảo mật", icon: Lock },
+    ],
+  },
+  {
+    label: "Nhật ký & sao lưu",
+    entries: [
+      { to: "/superadmin/audit", label: "Nhật ký", icon: ScrollText },
+      { to: "/superadmin/backups", label: "Sao lưu", icon: DatabaseBackup },
+      { to: "/superadmin/jobs", label: "Tác vụ", icon: ListChecks },
+    ],
+  },
+  {
+    label: "Cài đặt & Billing",
+    entries: [
+      { to: "/superadmin/billing", label: "Billing", icon: CreditCard },
+      { to: "/superadmin/settings", label: "Cài đặt", icon: Settings },
+      { to: "/superadmin/ai-model", label: "AI Model", icon: Sparkles },
+    ],
+  },
+];
+
+
+
 
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
@@ -343,18 +384,20 @@ export function AppSidebar() {
     pathname === "/sales-dashboard" ||
     pathname.startsWith("/sales-dashboard/") ||
     pathname.startsWith("/purchases/reports");
+  const inSuperadminModule = pathname.startsWith("/superadmin");
   // Workspace Front: ưu tiên dùng FRONT_SECTIONS, trừ khi đang ở các module
-  // chuyên dụng (HĐĐT/Thuế/Báo cáo) thì vẫn dùng sidebar contextual cũ.
-  const activeSections =
-    workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
-      ? FRONT_SECTIONS
-      : inTaxModule
-      ? TAX_SECTIONS
-      : inReportsModule
-      ? REPORTS_SECTIONS
-      : inEinvoiceModule
-      ? EINVOICE_SECTIONS
-      : SECTIONS;
+  // chuyên dụng (HĐĐT/Thuế/Báo cáo/Super Admin) thì vẫn dùng sidebar contextual.
+  const activeSections = inSuperadminModule
+    ? SUPERADMIN_SECTIONS
+    : workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
+    ? FRONT_SECTIONS
+    : inTaxModule
+    ? TAX_SECTIONS
+    : inReportsModule
+    ? REPORTS_SECTIONS
+    : inEinvoiceModule
+    ? EINVOICE_SECTIONS
+    : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
@@ -554,39 +597,11 @@ export function AppSidebar() {
                         <LeafItem key={entry.to} item={entry} active={isActive(entry.to)} />
                       ),
                     )}
-                    {section.label === "Hệ thống" && isSuperadmin && (
-                      <LeafItem
-                        item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
-                        active={isActive("/superadmin")}
-                      />
-                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             </React.Fragment>
           ))}
-          {isSuperadmin && !activeSections.some((s) => s.label === "Hệ thống") && (
-            <>
-              <div
-                aria-hidden
-                className="mx-3 my-1 h-px bg-gradient-to-r from-transparent via-sidebar-border/50 to-transparent"
-              />
-              <SidebarGroup>
-                <SidebarGroupLabel className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
-                  <span className="inline-block h-1 w-1 rounded-full bg-sidebar-primary/50" />
-                  Quản trị
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <LeafItem
-                      item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
-                      active={isActive("/superadmin")}
-                    />
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </>
-          )}
         </SidebarContent>
 
         <SidebarFooter className="relative border-t border-sidebar-border/40 p-2">
@@ -629,6 +644,17 @@ export function AppSidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Hồ sơ</DropdownMenuItem>
               <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Cài đặt</DropdownMenuItem>
+              {isSuperadmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/superadmin" className="cursor-pointer">
+                      <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
+                      Super Admin
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme(); }}>
                 {theme === "dark" ? (
                   <><Sun className="mr-2 h-4 w-4" />Chế độ sáng</>
