@@ -7,6 +7,14 @@ import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { parseFileCore } from "@/lib/ai/parse-document.functions";
+
+const AttachmentSchema = z.object({
+  name: z.string(),
+  mime: z.string(),
+  base64: z.string(),
+  kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
+});
 
 const askInput = z.object({
   question: z.string().min(1),
@@ -15,6 +23,8 @@ const askInput = z.object({
     .optional(),
   /** Optional page context — route path + a short JSON snapshot of relevant ids. */
   pageContext: z.string().optional(),
+  /** Files attached to the user message — parsed inline before the LLM runs. */
+  attachments: z.array(AttachmentSchema).optional(),
 });
 
 export type AskStreamEvent =
