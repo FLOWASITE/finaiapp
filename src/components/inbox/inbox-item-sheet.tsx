@@ -1,4 +1,4 @@
-import { CheckCircle2, Pencil, X, Loader2, Sparkles, AlertTriangle, Lightbulb } from "lucide-react";
+import { CheckCircle2, Pencil, X, Loader2, Sparkles, AlertTriangle, Lightbulb, MessageSquare, ArrowRight } from "lucide-react";
 import type { InboxItem } from "@/lib/ai/inbox-types";
 import {
   Sheet,
@@ -10,8 +10,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { openAskAi } from "@/lib/open-ask-ai";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  getInboxThread,
+  getOrCreateInboxThread,
+  getThread,
+  appendMessage,
+} from "@/lib/chat-threads.functions";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
+
+function formatRelative(iso: string) {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "vừa xong";
+  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+  return d.toLocaleDateString("vi-VN");
+}
 
 export type InboxItemSheetProps = {
   item: InboxItem | null;
