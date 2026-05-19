@@ -140,7 +140,7 @@ export const appendMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // bump last_message_at, and auto-title from first user message if needed
-    const updates: Record<string, unknown> = { last_message_at: new Date().toISOString() };
+    let nextTitle: string | undefined;
     if (data.updateTitleIfBlank && data.role === "user") {
       const { data: t } = await supabase
         .from("chat_threads")
@@ -148,12 +148,15 @@ export const appendMessage = createServerFn({ method: "POST" })
         .eq("id", data.threadId)
         .maybeSingle();
       if (t && (t.title === "Cuộc trò chuyện mới" || !t.title)) {
-        updates.title = data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
+        nextTitle = data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
       }
     }
     await supabase
       .from("chat_threads")
-      .update(updates)
+      .update({
+        last_message_at: new Date().toISOString(),
+        ...(nextTitle ? { title: nextTitle } : {}),
+      })
       .eq("id", data.threadId)
       .eq("user_id", userId)
       .eq("tenant_id", tenantId);
