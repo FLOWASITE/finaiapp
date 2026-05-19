@@ -85,7 +85,7 @@ function ChatIndex() {
             <br />
             câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 2xl:grid-cols-2">
             {SUGGESTIONS.map((s) => {
               const Icon = s.icon;
               return (
