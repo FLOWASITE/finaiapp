@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { isPeriodLocked } from "@/lib/period-lock";
 import { z } from "zod";
+
 
 // =================== Books ===================
 const BookInput = z.object({
@@ -263,6 +265,13 @@ export const runBookDepreciation = createServerFn({ method: "POST" })
         if (!done.has(period) && !suspended) {
           const amt = computeMonthlyAmount(ab, idx, life);
           if (amt > 0) {
+            const periodLastDay = ymd(lastDay(cur));
+            const locked = !data.preview && await isPeriodLocked(supabase, userId, periodLastDay);
+            if (locked) {
+              // Skip locked period — caller can re-run later after unlock
+              cur = addMonths(cur, 1);
+              continue;
+            }
             if (data.preview) {
               previewRows.push({
                 asset_code: ab.asset?.code,
@@ -270,6 +279,7 @@ export const runBookDepreciation = createServerFn({ method: "POST" })
                 period,
                 amount: amt,
               });
+
             } else {
               let entryId: string | null = null;
               if (book.post_to_gl) {
@@ -326,3 +336,22 @@ export const listBookEntries = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+// Huỷ (đảo ngược) một bút toán khấu hao đã đăng
+export const voidDepEntry = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i) => z.object({
+    entry_id: z.string().uuid(),
+    reason: z.string().max(500).optional(),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: newJe, error } = await supabase.rpc("void_depreciation_entry", {
+      _entry_id: data.entry_id,
+      _reason: data.reason,
+    });
+
+    if (error) throw new Error(error.message);
+    return { ok: true, journal_entry_id: newJe ?? null };
+  });
+

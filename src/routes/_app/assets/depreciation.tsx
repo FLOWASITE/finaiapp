@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { TrendingDown, PlayCircle, Eye, ArrowLeft, BookOpen, Calendar, Wallet, FileText } from "lucide-react";
+import { TrendingDown, PlayCircle, Eye, ArrowLeft, BookOpen, Calendar, Wallet, FileText, Undo2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { listDepBooks, runBookDepreciation, listBookEntries } from "@/lib/fa-books.functions";
+import { listDepBooks, runBookDepreciation, listBookEntries, voidDepEntry } from "@/lib/fa-books.functions";
+
 
 type Search = { bookId?: string; period?: string };
 
@@ -39,6 +40,8 @@ function DepreciationPage() {
   const listBooks = useServerFn(listDepBooks);
   const run = useServerFn(runBookDepreciation);
   const listEntries = useServerFn(listBookEntries);
+  const voidEntry = useServerFn(voidDepEntry);
+
 
   const { data: books = [] } = useQuery({
     queryKey: ["fa-books"],
@@ -77,6 +80,20 @@ function DepreciationPage() {
     onError: (e: any) => toast.error(e?.message ?? "Lỗi"),
   });
 
+  const voidMut = useMutation({
+    mutationFn: (id: string) => {
+      const reason = window.prompt("Lý do huỷ bút toán khấu hao này?") || undefined;
+      if (reason === undefined && reason !== "") return Promise.reject(new Error("Đã huỷ thao tác"));
+      return voidEntry({ data: { entry_id: id, reason } });
+    },
+    onSuccess: () => {
+      toast.success("Đã đảo ngược bút toán khấu hao");
+      qc.invalidateQueries({ queryKey: ["fa-book-entries"] });
+    },
+    onError: (e: any) => { if (e?.message !== "Đã huỷ thao tác") toast.error(e?.message ?? "Lỗi"); },
+  });
+
+
   const currentBook = books.find((b: any) => b.id === bookId);
 
   return (
@@ -85,7 +102,11 @@ function DepreciationPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/assets"><ArrowLeft className="h-4 w-4 mr-1" />Tài sản</Link>
         </Button>
+        <Button asChild variant="outline" size="sm" className="ml-auto">
+          <Link to="/assets/audit"><ShieldCheck className="h-4 w-4 mr-1" />Nhật ký TSCĐ</Link>
+        </Button>
       </div>
+
 
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
@@ -148,14 +169,15 @@ function DepreciationPage() {
                 <TableHead>Tài sản</TableHead>
                 <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Bút toán</TableHead>
+                <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entriesLoading && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Đang tải…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Đang tải…</TableCell></TableRow>
               )}
               {!entriesLoading && entries.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sổ này chưa có bút toán khấu hao nào.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sổ này chưa có bút toán khấu hao nào.</TableCell></TableRow>
               )}
               {entries.map((e: any) => (
                 <TableRow key={e.id}>
@@ -168,8 +190,16 @@ function DepreciationPage() {
                       ? <Badge variant="default" className="text-xs">Đã hạch toán</Badge>
                       : <Badge variant="outline" className="text-xs">Theo dõi</Badge>}
                   </TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" title="Huỷ bút toán này (tạo BT đảo ngược)"
+                      disabled={voidMut.isPending}
+                      onClick={() => voidMut.mutate(e.id)}>
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
+
             </TableBody>
           </Table>
         </CardContent>

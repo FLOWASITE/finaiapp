@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { assertPeriodOpen } from "@/lib/period-lock";
 import { z } from "zod";
+
 
 const DisposalInput = z.object({
   asset_id: z.string().uuid(),
@@ -61,8 +63,10 @@ export const createDisposal = createServerFn({ method: "POST" })
   .inputValidator((i) => DisposalInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, tenantId, userId } = context;
+    await assertPeriodOpen(supabase, userId, data.disposal_date, `ngày thanh lý ${data.disposal_date}`);
     const snap = await snapshot(supabase, tenantId, data.asset_id);
     const a = snap.asset;
+
     const dim = {
       branch_id: a.branch_id ?? null, department_id: a.department_id ?? null,
       project_id: a.project_id ?? null, cost_center_id: a.cost_center_id ?? null,

@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { assertPeriodOpen } from "@/lib/period-lock";
 import { z } from "zod";
+
 
 // ============== Payload schemas per event type ==============
 const TransferPayload = z.object({
@@ -99,6 +101,8 @@ export const createAssetEvent = createServerFn({ method: "POST" })
   .inputValidator((i) => EventInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId, tenantId } = context;
+    await assertPeriodOpen(supabase, userId, data.event_date, `ngày biến động ${data.event_date}`);
+
 
     const { data: asset } = await supabase
       .from("fixed_assets")
