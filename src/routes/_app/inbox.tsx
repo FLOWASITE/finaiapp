@@ -442,109 +442,103 @@ function InboxAiPage() {
         ))}
       </div>
 
-      {/* Body — Desktop: pane-mode driven grid */}
-      <div
-        className={cn(
-          "hidden min-h-0 flex-1 overflow-hidden lg:grid",
-          paneMode === "split" && "lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]",
-          paneMode === "inbox" && "lg:grid-cols-[1fr]",
-          paneMode === "chat" && "lg:grid-cols-[1fr]",
-        )}
-      >
-        {/* LIST */}
-        {paneMode !== "chat" && (
-          <div className="relative min-h-0 overflow-hidden">
-            <div ref={listRef} className="h-full overflow-y-auto">
-              {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
-                <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
-              ) : isLoading ? (
-                <ListSkeleton />
-              ) : items.length === 0 ? (
-                <EmptyInbox />
-              ) : (
-                <>
-                  <ul className={cn("space-y-3 p-4", paneMode === "inbox" && "mx-auto max-w-3xl")}>
-                    {items.map((it) => (
-                      <ItemCard
-                        key={it.id}
-                        item={it}
-                        active={activeId === it.id}
-                        onClick={() => handleCardClick(it.id)}
-                        registerRef={(el) => {
-                          if (el) cardRefs.current.set(it.id, el);
-                          else cardRefs.current.delete(it.id);
-                        }}
-                      />
-                    ))}
-                  </ul>
-                  {stats && stats.pending > items.length && (
-                    <div className="px-4 pb-6">
-                      <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
-                        + {stats.pending - items.length} mục khác
-                      </div>
+      {/* Body — Desktop: single full-width list */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden lg:block">
+        <div className="relative h-full min-h-0 overflow-hidden">
+          <div ref={listRef} className="h-full overflow-y-auto">
+            {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
+              <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
+            ) : isLoading ? (
+              <ListSkeleton />
+            ) : items.length === 0 ? (
+              <EmptyInbox />
+            ) : (
+              <>
+                <ul className="mx-auto max-w-3xl space-y-3 p-4">
+                  {items.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      active={activeId === it.id}
+                      onClick={() => handleCardClick(it.id)}
+                      registerRef={(el) => {
+                        if (el) cardRefs.current.set(it.id, el);
+                        else cardRefs.current.delete(it.id);
+                      }}
+                    />
+                  ))}
+                </ul>
+                {stats && stats.pending > items.length && (
+                  <div className="mx-auto max-w-3xl px-4 pb-6">
+                    <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
+                      + {stats.pending - items.length} mục khác
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {showScrollDown && (
-              <button
-                type="button"
-                onClick={() =>
-                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
-                }
-                className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
-                aria-label="Cuộn xuống"
-              >
-                <ArrowDown className="h-4 w-4" />
-              </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-        )}
 
-        {/* CHAT */}
-        {paneMode !== "inbox" && (
-          <div className="min-h-0">
-            <InboxChat
-              contextItem={contextItem}
-              items={items}
-              log={chatLog}
-              onUserSend={handleUserSend}
-              onCloseContext={closeContext}
-              onPickItem={pickItem}
-              onApprove={handleApproveItem}
-              onSkip={handleSkipItem}
-              onRule={handleRuleItem}
-              onEdit={handleEditItem}
-              approving={approveM.isPending}
-            />
-          </div>
-        )}
+          {showScrollDown && (
+            <button
+              type="button"
+              onClick={() =>
+                listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
+              }
+              className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
+              aria-label="Cuộn xuống"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Mobile: nội dung theo tab */}
+      {/* Mobile: danh sách theo tab */}
       <div className="block min-h-0 flex-1 overflow-hidden lg:hidden">
         {tab === "inbox" ? (
-          <InboxChat
-            contextItem={contextItem}
-            items={items}
-            log={chatLog}
-            onUserSend={handleUserSend}
-            onCloseContext={closeContext}
-            onPickItem={pickItem}
-            onApprove={handleApproveItem}
-            onSkip={handleSkipItem}
-            onRule={handleRuleItem}
-            onEdit={handleEditItem}
-            approving={approveM.isPending}
-          />
+          <div className="h-full overflow-y-auto">
+            {isLoading ? (
+              <ListSkeleton />
+            ) : items.length === 0 ? (
+              <EmptyInbox />
+            ) : (
+              <ul className="space-y-3 p-4">
+                {items.map((it) => (
+                  <ItemCard
+                    key={it.id}
+                    item={it}
+                    active={activeId === it.id}
+                    onClick={() => handleCardClick(it.id)}
+                    registerRef={() => {}}
+                  />
+                ))}
+                {stats && stats.pending > items.length && (
+                  <li className="pt-1 text-center text-[11px] text-muted-foreground">
+                    + {stats.pending - items.length} mục khác
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
         ) : (
           <div className="h-full overflow-y-auto">
             <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
           </div>
         )}
       </div>
+
+      {/* Sheet chi tiết item */}
+      <InboxItemSheet
+        item={sheetItem}
+        onClose={() => setSheetItem(null)}
+        onApprove={handleApproveItem}
+        onSkip={handleSkipItem}
+        onRule={handleRuleItem}
+        onEdit={handleEditItem}
+        approving={approveM.isPending}
+      />
+
 
       {/* Mobile: Inbox overlay (slide from left) */}
       {inboxOpenMobile && (
