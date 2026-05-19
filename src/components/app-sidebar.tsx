@@ -597,39 +597,11 @@ export function AppSidebar() {
                         <LeafItem key={entry.to} item={entry} active={isActive(entry.to)} />
                       ),
                     )}
-                    {section.label === "Hệ thống" && isSuperadmin && (
-                      <LeafItem
-                        item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
-                        active={isActive("/superadmin")}
-                      />
-                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             </React.Fragment>
           ))}
-          {isSuperadmin && !activeSections.some((s) => s.label === "Hệ thống") && (
-            <>
-              <div
-                aria-hidden
-                className="mx-3 my-1 h-px bg-gradient-to-r from-transparent via-sidebar-border/50 to-transparent"
-              />
-              <SidebarGroup>
-                <SidebarGroupLabel className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
-                  <span className="inline-block h-1 w-1 rounded-full bg-sidebar-primary/50" />
-                  Quản trị
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <LeafItem
-                      item={{ to: "/superadmin", label: "Super Admin", icon: ShieldAlert }}
-                      active={isActive("/superadmin")}
-                    />
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </>
-          )}
         </SidebarContent>
 
         <SidebarFooter className="relative border-t border-sidebar-border/40 p-2">
