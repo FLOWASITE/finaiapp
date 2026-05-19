@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { withTenant } from "@/integrations/supabase/with-tenant";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
+import { resolveActiveModel } from "@/lib/ai-gateway.server";
 
 const InvoiceLineSchema = z.object({
   description: z.string(),
