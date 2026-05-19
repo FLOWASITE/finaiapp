@@ -370,9 +370,9 @@ function ThreadPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="bg-transparent px-4 py-2">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
+    <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-transparent px-4 py-2">
+        <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-2">
           <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
         </div>
       </div>
