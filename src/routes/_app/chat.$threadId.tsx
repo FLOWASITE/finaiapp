@@ -84,7 +84,7 @@ function ThreadPage() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         try {
-          sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
+          localStorage.setItem(SCROLL_KEY, String(el.scrollTop));
         } catch {}
         const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
         const near = dist < 120;
@@ -113,7 +113,7 @@ function ThreadPage() {
       restoredRef.current = true;
       let saved: number | null = null;
       try {
-        const raw = sessionStorage.getItem(SCROLL_KEY);
+        const raw = localStorage.getItem(SCROLL_KEY) ?? sessionStorage.getItem(SCROLL_KEY);
         if (raw != null) saved = Number(raw);
       } catch {}
       if (saved != null && Number.isFinite(saved)) {
