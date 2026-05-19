@@ -309,6 +309,11 @@ function ThreadPage() {
             onStop={stop}
             loading={streaming}
             autoFocus
+            onAttach={handleAttach}
+            onTranscript={(t) => {
+              setInput("");
+              void sendUserMessage(t);
+            }}
           />
           <p className="mt-3 text-center text-[10px] text-muted-foreground/60">
             AI có thể đưa ra thông tin chưa chính xác — hãy kiểm tra lại số liệu quan trọng.
