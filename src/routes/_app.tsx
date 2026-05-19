@@ -32,6 +32,7 @@ function AppLayout() {
     return (
       <div className="h-screen w-full overflow-hidden bg-background">
         <Outlet />
+        {workspace === "front" ? <ChatDock /> : null}
         <CommandPalette />
       </div>
     );
