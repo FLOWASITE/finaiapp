@@ -61,85 +61,93 @@ function extractJSON(raw: string): any | null {
   try { return JSON.parse(s); } catch { return null; }
 }
 
-export const parseDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => InputSchema.parse(i))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context as { supabase: any; userId: string };
-    const { model } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
+/**
+ * Core parsing logic (no createServerFn wrapper) — callable from other server
+ * functions (e.g. the chat stream) so we can run parseDocument inline as a
+ * tool-call without an extra HTTP roundtrip.
+ */
+export async function parseFileCore(opts: {
+  fileBase64: string;
+  mimeType: string;
+  filename?: string;
+  kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto";
+  supabase?: any;
+  userId?: string;
+}) {
+  const { model } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
+  const useStrict = opts.kind === "purchase_invoice";
+  const fileBuf = Buffer.from(opts.fileBase64, "base64");
 
+  const messages = [
+    {
+      role: "user" as const,
+      content: [
+        {
+          type: "text" as const,
+          text:
+            (PROMPTS[opts.kind] || PROMPTS.auto) +
+            "\n\nCHỈ trả về JSON hợp lệ, không giải thích, không markdown fences. Số tiền là số (không dấu phẩy/chấm phân cách hàng nghìn). Thiếu thông tin thì dùng null.",
+        },
+        {
+          type: "file" as const,
+          data: fileBuf,
+          mediaType: opts.mimeType,
+        } as any,
+      ],
+    },
+  ];
 
-    // For purchase_invoice we use a strict schema; other kinds free-form JSON.
-    const useStrict = data.kind === "purchase_invoice";
-
-    const fileBuf = Buffer.from(data.fileBase64, "base64");
-
-    const messages = [
-      {
-        role: "user" as const,
-        content: [
-          {
-            type: "text" as const,
-            text:
-              (PROMPTS[data.kind] || PROMPTS.auto) +
-              "\n\nCHỈ trả về JSON hợp lệ, không giải thích, không markdown fences. Số tiền là số (không dấu phẩy/chấm phân cách hàng nghìn). Thiếu thông tin thì dùng null.",
-          },
-          {
-            type: "file" as const,
-            data: fileBuf,
-            mediaType: data.mimeType,
-          } as any,
-        ],
-      },
-    ];
-
-    let parsed: any;
-    try {
-      if (useStrict) {
-        const r = await generateText({
-          model,
-          output: Output.object({ schema: PurchaseInvoiceSchema }),
-          messages,
-        });
-        parsed = (r as any).output;
-      } else {
-        const r = await generateText({ model, messages });
-        parsed = extractJSON(r.text) ?? { raw: r.text };
-      }
-    } catch (err: any) {
-      // Strict schema mismatch → fall back to free-form text + best-effort JSON extraction.
+  let parsed: any;
+  try {
+    if (useStrict) {
+      const r = await generateText({
+        model,
+        output: Output.object({ schema: PurchaseInvoiceSchema }),
+        messages,
+      });
+      parsed = (r as any).output;
+    } else {
       const r = await generateText({ model, messages });
-      parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
+      parsed = extractJSON(r.text) ?? { raw: r.text };
     }
+  } catch (err: any) {
+    const r = await generateText({ model, messages });
+    parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
+  }
 
-    // Persist upload metadata (best-effort).
-    let uploadId: string | null = null;
+  let uploadId: string | null = null;
+  if (opts.supabase && opts.userId) {
     try {
-      const path = `ai-uploads/${userId}/${Date.now()}-${data.filename || "file"}`;
-      await supabase.storage.from("invoices").upload(path, fileBuf, {
-        contentType: data.mimeType,
+      const path = `ai-uploads/${opts.userId}/${Date.now()}-${opts.filename || "file"}`;
+      await opts.supabase.storage.from("invoices").upload(path, fileBuf, {
+        contentType: opts.mimeType,
         upsert: false,
       });
-      const { data: row } = await supabase
+      const { data: row } = await opts.supabase
         .from("ai_uploads")
         .insert({
-          user_id: userId,
+          user_id: opts.userId,
           file_path: path,
-          mime_type: data.mimeType,
-          filename: data.filename || null,
-          kind: data.kind,
+          mime_type: opts.mimeType,
+          filename: opts.filename || null,
+          kind: opts.kind,
           parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
         })
         .select("id")
         .maybeSingle();
       uploadId = row?.id ?? null;
     } catch {
-      // ai_uploads table may not exist yet — ignore silently
+      // best-effort
     }
+  }
 
-    return {
-      kind: data.kind,
-      uploadId,
-      parsed,
-    };
+  return { kind: opts.kind, uploadId, parsed };
+}
+
+export const parseDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => InputSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    return parseFileCore({ ...data, supabase, userId });
   });
