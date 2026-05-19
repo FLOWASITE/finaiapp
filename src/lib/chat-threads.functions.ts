@@ -21,17 +21,78 @@ const Uuid = z.string().uuid();
 
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([withTenant])
-  .handler(async ({ context }): Promise<ChatThread[]> => {
+  .inputValidator((i: unknown) =>
+    z
+      .object({ kind: z.enum(["general", "inbox", "all"]).optional() })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<ChatThread[]> => {
     const { supabase, userId, tenantId } = context;
-    const { data, error } = await supabase
+    const kind = data.kind ?? "general";
+    let q = supabase
       .from("chat_threads")
       .select("id,title,last_message_at,created_at")
       .eq("user_id", userId)
       .eq("tenant_id", tenantId)
       .order("last_message_at", { ascending: false })
       .limit(200);
+    if (kind !== "all") q = q.eq("kind", kind);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (data ?? []) as ChatThread[];
+    return (rows ?? []) as ChatThread[];
+  });
+
+export const getInboxThread = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ externalId: z.string().min(1).max(255) }).parse(i),
+  )
+  .handler(async ({ data, context }): Promise<ChatThread | null> => {
+    const { supabase, userId, tenantId } = context;
+    const { data: row, error } = await supabase
+      .from("chat_threads")
+      .select("id,title,last_message_at,created_at")
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .eq("inbox_external_id", data.externalId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (row as ChatThread | null) ?? null;
+  });
+
+export const getOrCreateInboxThread = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        externalId: z.string().min(1).max(255),
+        title: z.string().trim().min(1).max(200).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }): Promise<ChatThread> => {
+    const { supabase, userId, tenantId } = context;
+    const { data: existing } = await supabase
+      .from("chat_threads")
+      .select("id,title,last_message_at,created_at")
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .eq("inbox_external_id", data.externalId)
+      .maybeSingle();
+    if (existing) return existing as ChatThread;
+    const { data: row, error } = await supabase
+      .from("chat_threads")
+      .insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        title: data.title?.trim() || "Trao đổi về mục Inbox",
+        inbox_external_id: data.externalId,
+        kind: "inbox",
+      } as any)
+      .select("id,title,last_message_at,created_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return row as ChatThread;
   });
 
 export const getThread = createServerFn({ method: "POST" })
