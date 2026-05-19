@@ -1,57 +1,73 @@
-… (Đây là kết quả rà soát phân hệ **Tài sản cố định**, không phải kế hoạch lương như file `.lovable/plan.md` đang ghi.)
+## Mục tiêu
 
-## Đã có trong hệ thống
+Mọi nơi đang nhập **mã tài khoản** bằng `<Input>` text trong phân hệ **Tài sản cố định**, **Tài sản phân bổ (CCDC)** và **Lương** sẽ được thay bằng **picker chọn TK từ danh mục TK hệ thống** (`chart_of_accounts`), tránh nhập sai mã / lệch với COA.
 
-| Nhóm | Tính năng | File |
-|---|---|---|
-| Danh mục | Nhóm TSCĐ + khung khấu hao | `fa-categories.functions.ts`, `categories.tsx` |
-| Sổ KH | Đa sổ (kế toán / thuế / IFRS) | `fa-books.functions.ts`, `books.tsx`, bảng `fa_asset_books` |
-| Hồ sơ TSCĐ | CRUD + Thẻ TSCĐ (S23-DN) | `assets.functions.ts`, `index.tsx`, `$id.card.tsx` |
-| Tạo từ hoá đơn | Wizard từ AP invoice / từ TSCĐ → CCDC | `from-invoice.tsx`, `from-fixed-asset.tsx` |
-| Khấu hao | Chạy theo tháng + ghi sổ 214/6422… | `runMonthlyDepreciation`, `depreciation.tsx` |
-| CCDC phân bổ | `allocated_assets` + targets + adjustments | `allocated-assets.functions.ts`, `allocations.tsx`, `allocations.$id.tsx` |
-| Biến động | TRANSFER / REVALUATION / MAJOR_REPAIR / PARTIAL_DISPOSAL | `fa-events.functions.ts`, `events.tsx` |
-| Thanh lý | Bán/thanh lý, JE 811/711/214 | `fa-disposals.functions.ts`, `disposal.tsx` |
-| Tái phân loại | Đổi nhóm / TK | `fa-reclass.functions.ts`, `reclassify.tsx` |
-| Kiểm kê | Phiếu + scan barcode | `fa-inventory.functions.ts`, `inventory.tsx`, `inventory.$id.tsx` |
-| Báo cáo | S21-DN, S22-DN, Tăng/giảm theo nguồn vốn, Thẻ TSCĐ | `fa-reports.functions.ts`, `reports.tsx` |
+## Cách tiếp cận
 
-## Còn dang dở
+Đã có sẵn:
+- `listChartOfAccounts` server fn (`src/lib/coa.functions.ts`).
+- Component `AccountCombobox` đang nằm **private** trong `src/components/voucher-form.tsx` (có search theo mã + tên, có nhóm "Gợi ý thường dùng" + "Toàn bộ COA", chỉ hiện TK active).
 
-### A. Báo cáo & in chứng từ (gap rõ nhất)
-1. **Biên bản giao nhận TSCĐ — mẫu 01-TSCĐ (TT200)** — in khi đưa TSCĐ vào sử dụng (chữ ký bên giao / bên nhận / kế toán).
-2. **Biên bản thanh lý TSCĐ — mẫu 02-TSCĐ** — hiện đã có `fa_disposals` nhưng chưa có bản in chính thức để ký.
-3. **Biên bản bàn giao TSCĐ sửa chữa lớn hoàn thành — mẫu 03-TSCĐ** — gắn với event `MAJOR_REPAIR`.
-4. **Biên bản đánh giá lại TSCĐ — mẫu 04-TSCĐ** — gắn với event `REVALUATION`.
-5. **Biên bản kiểm kê TSCĐ — mẫu 05-TSCĐ** — `fa_inventory_counts` đã có dữ liệu, chưa có template in.
-6. **Báo cáo TSCĐ theo bộ phận / dự án / chi nhánh** — pivot nguyên giá & GTCL theo dimension (để đối chiếu chi phí KH với phân bổ JE).
-7. **Báo cáo TSCĐ sắp hết khấu hao** (còn dưới N tháng) — cảnh báo lập kế hoạch thay thế.
-8. **In nhãn QR/Barcode cho TSCĐ** — kiểm kê đang quét nhưng chưa có chức năng in nhãn.
+→ **Tách `AccountCombobox` thành component dùng chung** ở `src/components/ui/account-combobox.tsx`, nhận props:
+- `value`, `onChange`
+- `suggestions?: { code: string; name: string }[]` (gợi ý theo ngữ cảnh, optional)
+- `placeholder?`, `disabled?`
 
-### B. Nghiệp vụ còn thiếu
-9. **Import Excel TSCĐ đầu kỳ** — upload .xlsx (mã, tên, nguyên giá, KH luỹ kế, ngày SD…) → bulk insert. Hiện chỉ có nhập tay từng cái.
-10. **Khấu hao theo bộ phận sử dụng (đa target)** — TSCĐ dùng chung nhiều bộ phận, chia chi phí KH theo `allocated_asset_targets`. CCDC đã làm, TSCĐ chưa.
-11. **Tự động tính lại lịch khấu hao** khi: nâng cấp tăng nguyên giá, đánh giá lại, đổi useful_life. Hiện event sinh JE nhưng chưa cập nhật base để tháng sau tính đúng.
-12. **Tổn thất / suy giảm giá trị (Impairment)** — VAS 03/IAS 36, ghi giảm GTCL ngoài lịch KH định kỳ.
+Voucher-form import lại từ component chung (không đổi hành vi).
 
-### C. Tích hợp & kiểm soát (Phase F)
-13. **Khoá kỳ** — không cho chạy/huỷ khấu hao, thanh lý, sửa cost_basis nếu `fiscal_periods` đã closed (đã có hàm `is_period_locked`, cần áp vào FA serverFn).
-14. **Audit trail** — log mọi hành động critical (chạy KH, thanh lý, reval, reclass) vào `audit_logs`.
-15. **Đảo bút toán (void)** — huỷ một kỳ khấu hao đã ghi: sinh JE ngược + đánh dấu `depreciation_entries.status = void`.
-16. **Liên kết NV ↔ TSCĐ** — hiển thị danh sách TSCĐ NV đang giữ trong hồ sơ NV (đã có `assignee_id`/`assignee_employee_id`, chỉ thiếu UI).
-17. **Dashboard TSCĐ** — KPI tổng nguyên giá, GTCL, KH năm, tỉ lệ KH, TSCĐ sắp hết hạn, top 10 TSCĐ giá trị cao.
+Mỗi route dùng `useQuery(["coa"], listChartOfAccounts)` 1 lần, share qua cache (đã có sẵn key `"coa"`).
 
-## Đề xuất ưu tiên
+## Điểm thay thế
 
-- **Đợt 1** (tuần này) — items **1, 2, 5, 9**: bộ chứng từ in chuẩn TT200 (01/02/05-TSCĐ) + import Excel đầu kỳ. Đây là 4 thứ kế toán dùng/yêu cầu nhiều nhất khi audit.
-- **Đợt 2** — items **3, 4, 6, 7, 11**: hoàn thiện chứng từ event + báo cáo theo dimension + tự động tính lại lịch KH sau biến động.
-- **Đợt 3** — items **13, 14, 15** (Phase F: khoá kỳ + audit + void).
-- **Đợt 4** — items **8, 10, 12, 16, 17** (nice-to-have: nhãn QR, đa target KH, impairment, link NV, dashboard).
+### A. Tài sản cố định
+1. `src/routes/_app/assets/index.tsx` (form TSCĐ) — 3 ô:
+   - TK Tài sản (211), TK Hao mòn (214), TK Chi phí KH
+   - Suggestions: `211x` / `214x` / `6422,6421,6427,154,627,641,642`
+2. `src/routes/_app/assets/categories.tsx` (nhóm TSCĐ) — 3 ô tương tự (default_*).
+3. `src/routes/_app/assets/disposal.tsx` (thanh lý) — 5 ô:
+   - TK thu tiền, TK VAT đầu ra, TK thu nhập khác (711), TK chi phí khác (811), TK trả chi phí thanh lý.
+4. `src/routes/_app/assets/reclassify.tsx` (tái phân loại) — `target_account` (153/242/211…), `expense_account`.
+5. `src/routes/_app/assets/books.tsx` — sổ KH cũng có 3 ô account theo `fa-books.functions.ts`. Kiểm tra & thay nếu UI đang dùng Input (xem nhanh trước khi sửa).
 
-## Câu hỏi
+### B. Tài sản phân bổ (CCDC)
+6. `src/routes/_app/assets/allocations.tsx` — `prepaid_account` (242/142), `expense_account` (6423/627…).
+7. Wizard **from-invoice** (`from-invoice.tsx`) & **from-fixed-asset** (`from-fixed-asset.tsx`) nếu có ô account → thay luôn.
 
-Bạn chọn hướng nào?
-- **A** — Triển khai Đợt 1 (4 mẫu chứng từ in + import Excel TSCĐ).
-- **B** — Nhảy thẳng Phase F kiểm soát (khoá kỳ + audit + void KH).
-- **C** — Làm Dashboard TSCĐ trước cho dễ thấy tổng quan.
-- **D** — Chọn cụ thể từng item theo số (vd: "1, 2, 9, 13").
+### C. Lương
+8. `src/routes/_app/payroll/components.tsx` — `expense_account` của cấu phần lương (62x/64x/154).
+9. `src/routes/_app/payroll/policies.tsx` — quét và thay các ô TK nếu có (phụ cấp/BHXH mặc định).
+
+## Không đổi
+- Server fn (zod schema vẫn `z.string().min(1).max(20)`) — phía BE không cần đổi.
+- `bank_account` (số TK ngân hàng NV) **không** phải mã TK COA → giữ nguyên Input.
+- Tên cột DB, JE lines, báo cáo: không đổi.
+
+## Chi tiết kỹ thuật
+
+```tsx
+// src/components/ui/account-combobox.tsx
+export function AccountCombobox({ value, onChange, suggestions = [], placeholder, disabled }: Props) {
+  const fetchCoa = useServerFn(listChartOfAccounts);
+  const { data: coa } = useQuery({ queryKey: ["coa"], queryFn: () => fetchCoa({}), ...QUERY_PRESETS.REFERENCE });
+  // ... copy logic từ voucher-form, lọc is_active, merge suggestions, search code+name
+}
+```
+
+Mỗi điểm thay = đổi:
+```tsx
+<Input value={form.asset_account} onChange={e => set(...)} />
+// →
+<AccountCombobox value={form.asset_account} onChange={v => set("asset_account", v)}
+  suggestions={[{code:"211", name:"TSCĐ hữu hình"}, {code:"2111",...}, ...]} />
+```
+
+## Thứ tự thi hành
+1. Tạo `account-combobox.tsx` chung + refactor `voucher-form.tsx` import nó.
+2. Thay tại TSCĐ (5 file mục A).
+3. Thay tại CCDC (mục B).
+4. Thay tại Lương (mục C).
+5. Build check + smoke test mở từng dialog xem combobox load COA OK.
+
+## Câu hỏi xác nhận
+- Đồng ý phương án trên?
+- Có muốn **chặn lưu** nếu mã TK không tồn tại trong `chart_of_accounts` (validation phía serverFn), hay chỉ cần UI picker là đủ?
