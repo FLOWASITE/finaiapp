@@ -4,9 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Send, User, Command as CommandIcon } from "lucide-react";
+import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2 } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
+import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { PendingActions } from "@/components/ai/PendingActions";
+import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -16,14 +18,17 @@ type Msg = { role: "user" | "assistant"; content: string };
  */
 export function AskAiSheet() {
   const askFn = useServerFn(askAccountingStream);
+  const parseFn = useServerFn(parseDocument);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const location = useLocation();
   const params = useParams({ strict: false }) as Record<string, string | undefined>;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
@@ -87,6 +92,68 @@ export function AskAiSheet() {
       setLoading(false);
     }
   };
+
+  const handleUpload = async (file: File) => {
+    if (!file || uploading) return;
+    if (file.size > 12 * 1024 * 1024) {
+      toast.error("File quá lớn (tối đa 12MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const s = String(reader.result || "");
+          resolve(s.split(",")[1] || s);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      // Choose kind from mime: pdf/image → purchase_invoice by default
+      const isImg = file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf";
+      if (!isImg && !isPdf) {
+        toast.error("Chỉ hỗ trợ PDF hoặc ảnh");
+        setUploading(false);
+        return;
+      }
+      setMessages((m) => [
+        ...m,
+        { role: "user", content: `📎 Đã upload: **${file.name}** — đang trích xuất dữ liệu…` },
+        { role: "assistant", content: "" },
+      ]);
+      const res: any = await parseFn({
+        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind: "purchase_invoice" },
+      });
+      const parsed = res?.parsed ?? {};
+      const summary = [
+        `**Đã trích xuất hoá đơn mua:**`,
+        parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
+        parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
+        parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
+        parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
+        parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
+        ``,
+        `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
+      ].filter(Boolean).join("\n");
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", content: summary };
+        return copy;
+      });
+      // Stash parsed data into next prompt context
+      (window as any).__lastParsedDoc = parsed;
+    } catch (e: any) {
+      toast.error(`Lỗi parse: ${e.message}`);
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+
 
   return (
     <>
@@ -168,16 +235,36 @@ export function AskAiSheet() {
           <PendingActions />
 
           <div className="border-t border-border bg-card p-3">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleUpload(f);
+              }}
+            />
             <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading || loading}
+                title="Upload PDF/ảnh hoá đơn"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
               <Input
                 ref={inputRef}
-                placeholder="Hỏi AI về trang này hoặc dữ liệu bất kỳ…"
+                placeholder="Hỏi AI hoặc upload hoá đơn (PDF/ảnh)…"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                disabled={loading}
+                disabled={loading || uploading}
               />
-              <Button onClick={() => send()} disabled={loading || !input.trim()} size="icon">
+              <Button onClick={() => send()} disabled={loading || uploading || !input.trim()} size="icon">
                 <Send className="h-4 w-4" />
               </Button>
             </div>

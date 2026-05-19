@@ -136,6 +136,42 @@ export type Database = {
           },
         ]
       }
+      ai_uploads: {
+        Row: {
+          created_at: string
+          error: string | null
+          file_path: string | null
+          filename: string | null
+          id: string
+          kind: string
+          mime_type: string | null
+          parsed: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          file_path?: string | null
+          filename?: string | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          parsed?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          file_path?: string | null
+          filename?: string | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          parsed?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       allocated_asset_adjustments: {
         Row: {
           adj_date: string
