@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { History, Sparkles } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { createThread, appendMessage } from "@/lib/chat-threads.functions";
+
+function currentThreadId(pathname: string): string | null {
+  const m = pathname.match(/^\/chat\/([^/]+)$/);
+  return m ? m[1] : null;
+}
 
 /**
  * Khung chat dock ở footer các trang trong Mode AI.
@@ -15,6 +20,7 @@ export function ChatDock() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const createFn = useServerFn(createThread);
   const appendFn = useServerFn(appendMessage);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -45,8 +51,18 @@ export function ChatDock() {
   const submit = async (override?: string) => {
     const q = (override ?? input).trim();
     if (!q || loading) return;
+    const existingThreadId = currentThreadId(location.pathname);
     setLoading(true);
     try {
+      if (existingThreadId) {
+        setInput("");
+        window.dispatchEvent(
+          new CustomEvent("chat:dock-send", {
+            detail: { threadId: existingThreadId, content: q },
+          }),
+        );
+        return;
+      }
       const thread = await createFn({ data: { title: q.slice(0, 60) } });
       await appendFn({
         data: { threadId: thread.id, role: "user", content: q, updateTitleIfBlank: true },
@@ -66,8 +82,31 @@ export function ChatDock() {
 
   const handleAttach = async (payloads: any[]) => {
     if (!payloads.length || loading) return;
+    const existingThreadId = currentThreadId(location.pathname);
     setLoading(true);
     try {
+      if (existingThreadId) {
+        try {
+          sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("chat:dock-send", {
+            detail: {
+              threadId: existingThreadId,
+              content: `Xử lý ${payloads.length} chứng từ:\n${payloads
+                .map((p) => `📎 ${p.name}`)
+                .join("\n")}`,
+              attachments: payloads.map((p) => ({
+                name: p.name,
+                mime: p.mime,
+                size: p.size,
+                kind: p.kind,
+              })),
+            },
+          }),
+        );
+        return;
+      }
       const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
       const thread = await createFn({ data: { title: payloads[0].name.slice(0, 60) } });
       await appendFn({
