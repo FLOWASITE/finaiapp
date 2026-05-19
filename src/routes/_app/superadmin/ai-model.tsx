@@ -702,7 +702,7 @@ function AiModelPage() {
           />
 
           {/* Per-purpose overrides (collapsible) */}
-          <details className="group rounded-lg border bg-background [&_summary::-webkit-details-marker]:hidden">
+          <details open className="group rounded-lg border bg-background [&_summary::-webkit-details-marker]:hidden">
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
               <span className="flex items-center gap-1.5">
                 <Settings2 className="h-3.5 w-3.5" />
