@@ -1,57 +1,54 @@
-# Giảm độ trễ ChatDock trên Inbox & các trang khác
-
-## Vấn đề
-Trên các trang ngoài `/chat/$threadId` (Inbox, Dashboard, …), khi bấm Gửi trong ChatDock luồng hiện tại là:
-1. `await createThread` (roundtrip 1)
-2. `await appendMessage` (roundtrip 2)
-3. `setInput("")` + `navigate` sang `/chat/$threadId?autostart=1`
-
-→ Composer "treo" 1–2 giây, ô nhập không clear, nút Gửi không phản hồi → cảm giác "không phản hồi liền".
-
 ## Mục tiêu
-- Bấm Enter/Gửi → ô nhập clear ngay, composer disable + hiện trạng thái "Đang mở phiên…" ngay lập tức.
-- Tạo thread ở nền và navigate sang phiên mới ngay khi sẵn sàng; trên trang `/chat/$threadId` đã có sẵn skeleton + autostart.
+Cho phép AI trả lời kèm biểu đồ (bar, line, area, pie, scatter, radar) bằng cơ chế **tool call**. AI có thể tự sinh dữ liệu từ ngữ cảnh chat hoặc truy vấn DB qua `runQuery` rồi vẽ. Frontend render bằng Recharts (đã có `src/components/ui/chart.tsx`).
 
-## Thay đổi (chỉ UI/serverFn nội bộ, không đụng business logic)
+## Thiết kế tổng quan
 
-### 1. `src/lib/chat-threads.functions.ts`
-Thêm `createThreadWithFirstMessage` để gộp create + append vào **1 roundtrip**:
-- Input: `{ title?, role: "user", content, metadata? }`
-- Handler: insert `chat_threads` → insert `chat_messages` (cùng user_id/tenant_id) → update `last_message_at` + `title` nếu trống.
-- Output: `{ thread: ChatThread, message: ChatMessage }`.
-- Dùng cùng pattern `withTenant` + validator như các fn hiện có.
+### 1. Tool mới: `renderChart`
+File: `src/lib/ai/tools/chart.tool.ts`
 
-### 2. `src/components/chat/chat-dock.tsx`
-Refactor `submit()` và `handleAttach()` cho nhánh "chưa có thread":
+- AI SDK `tool()` với Zod schema:
+  - `type`: enum `bar | line | area | pie | scatter | radar`
+  - `title`, `description?`
+  - `data`: array of records `{ [key: string]: string | number }`
+  - `xKey`: string (trục danh mục / thời gian; với pie là tên slice)
+  - `series`: array `{ key: string; label?: string; color?: string }` (với pie chỉ cần 1 series là value)
+  - `stacked?`, `xLabel?`, `yLabel?`
+- `execute`: chỉ validate + trả lại payload đã chuẩn hoá (không side-effect). Output là spec biểu đồ — frontend tự render. Giới hạn an toàn: ≤500 điểm dữ liệu, ≤8 series, từ chối nếu vượt.
+- Đăng ký trong `src/lib/chat.functions.ts` cùng `runQuery`, `proposeAction`.
 
-```text
-submit(q):
-  if no existing thread:
-    setInput("")           // clear NGAY
-    setLoading(true)       // composer disabled NGAY (đã có)
-    // optional: toast.loading("Đang mở phiên trò chuyện…")
-    createThreadWithFirstMessage({ ... })  // 1 roundtrip thay vì 2
-      .then(t => navigate("/chat/$threadId", { autostart: "1", from }))
-      .catch(err => { setInput(q); toast.error(...) })  // rollback nếu fail
-      .finally(() => setLoading(false))
-    return  // không await ở caller → UI tự do
-```
+### 2. System prompt
+Bổ sung 1 đoạn ngắn vào `src/lib/ai/system-prompt.ts`:
+> Khi user yêu cầu trực quan hoá / so sánh / xu hướng / cơ cấu, hãy gọi `renderChart`. Nếu cần dữ liệu thật, gọi `runQuery` trước rồi dùng kết quả làm `data`. Chọn `type` phù hợp: xu hướng → line/area, so sánh → bar, cơ cấu → pie, phân bố → scatter, đa chiều → radar.
 
-Tương tự cho `handleAttach`: clear input + setLoading ngay, dispatch background, navigate khi xong; nếu lỗi rollback `setInput(q)` để user không mất nháp.
+### 3. Renderer phía client
+File mới: `src/components/chat/chart-render.tsx`
+- Nhận `spec` từ `tool-result.output`.
+- Dùng `ChartContainer/ChartTooltip` từ `@/components/ui/chart` + Recharts (`BarChart`, `LineChart`, `AreaChart`, `PieChart`, `ScatterChart`, `RadarChart`).
+- Auto màu: nếu `series.color` thiếu → dùng token `hsl(var(--chart-1..8))` (đã có sẵn trong chart.tsx).
+- Responsive, chiều cao mặc định 280px.
 
-Giữ nguyên nhánh "đã có thread" (đã instant qua event `chat:dock-send`).
+Cập nhật `src/components/chat/tool-calls.tsx`:
+- Thêm meta cho `renderChart` (icon `BarChart3` từ lucide).
+- Khi `toolName === "renderChart"` và có `output` không lỗi → render `<ChartRender spec={output} />` thay vì JSON accordion. Vẫn cho expand xem input/spec thô.
 
-### 3. Không thay đổi
-- `chat.$threadId.tsx` autostart loader đã đọc `messages.length === 1 && role === "user"` → vẫn chạy đúng vì serverFn mới đã chèn message đầu tiên.
-- `thread-list.tsx`, `inbox.tsx`, system-prompt: không đụng.
+### 4. Persistence
+Tool spec đã nằm trong `tool-result` event → lưu vào `chat_messages.tool_calls` (đã có cơ chế persist hiện tại). Reload thread sẽ replay đúng.
 
-## Kiểm thử nhanh sau khi build
-1. Vào `/inbox`, gõ "test" → bấm Enter: input phải clear < 100ms, nút Gửi disable + spinner; sau đó nhảy sang `/chat/<id>?autostart=1` và assistant bắt đầu stream.
-2. Kéo file PDF vào ChatDock ở `/inbox`: composer clear ngay, chuyển sang thread mới, parse + stream như cũ.
-3. Trên `/chat/<id>` đang mở: gửi tin vẫn instant như trước (không đổi nhánh code này).
-4. Tắt mạng → bấm Gửi ở `/inbox`: hiện toast lỗi, input được khôi phục.
+## Files thay đổi
+- `src/lib/ai/tools/chart.tool.ts` (new)
+- `src/lib/chat.functions.ts` (đăng ký tool)
+- `src/lib/ai/system-prompt.ts` (thêm hướng dẫn ngắn)
+- `src/components/chat/chart-render.tsx` (new)
+- `src/components/chat/tool-calls.tsx` (route renderChart sang ChartRender)
 
-## Lý do hợp lý
-- Cắt 1 roundtrip mạng (≈ 200–500 ms) bằng serverFn gộp.
-- Bỏ `await` trên đường UI chính → cảm giác phản hồi tức thì kể cả khi mạng chậm.
-- Rollback nháp khi lỗi để không mất nội dung user đã gõ.
+## Kiểm thử
+1. "Vẽ biểu đồ cột doanh thu 6 tháng gần nhất" → AI gọi `runQuery` lấy số liệu rồi `renderChart` type=bar.
+2. "Vẽ pie cơ cấu chi phí Q1 với data: A 30, B 50, C 20" → AI gọi thẳng `renderChart` không qua DB.
+3. "So sánh xu hướng tồn kho 2 kho theo tuần" → line, 2 series.
+4. Reload thread vẫn thấy biểu đồ.
+5. Spec lỗi (vd quá 500 điểm) → hiển thị error message thay vì crash.
+
+## Lưu ý kỹ thuật
+- KHÔNG dùng màu hard-code; lấy từ design tokens `--chart-1..8`.
+- Tool `execute` không gọi DB → giữ phản hồi nhanh. Nếu cần data thật, AI tự chain `runQuery` trước.
+- Output size sau truncate 4000 chars có thể cắt mất data lớn — sẽ nâng giới hạn riêng cho `renderChart` lên ~32KB trong `truncateOutput` (theo tool name).
