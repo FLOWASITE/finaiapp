@@ -1025,7 +1025,7 @@ const SKELETON_VARIANTS: ReadonlyArray<SkeletonVariant> = [
 ];
 
 /** Một dòng skeleton — memo theo `variant` (object tham chiếu ổn định ở module scope). */
-const SkeletonRow = React.memo(function SkeletonRow({
+const SkeletonRow = memo(function SkeletonRow({
   variant,
 }: {
   variant: SkeletonVariant;
@@ -1070,7 +1070,7 @@ const SkeletonRow = React.memo(function SkeletonRow({
 });
 
 /** Khung danh sách skeleton — memo hoá vì props rỗng, không re-render khi parent đổi tab. */
-const ListSkeleton = React.memo(function ListSkeleton() {
+const ListSkeleton = memo(function ListSkeleton() {
   return (
     <ul
       className="space-y-3 p-4"
