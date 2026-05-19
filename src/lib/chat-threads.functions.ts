@@ -14,6 +14,7 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   created_at: string;
+  metadata?: any;
 };
 
 const Uuid = z.string().uuid();
