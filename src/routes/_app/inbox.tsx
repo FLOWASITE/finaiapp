@@ -382,29 +382,6 @@ function InboxAiPage() {
           ) : null}
         </button>
 
-        {/* Desktop: pane mode segmented control */}
-        <div className="hidden items-center gap-0.5 rounded-md border border-border/40 p-0.5 lg:flex">
-          {([
-            { k: "inbox", label: "Inbox", icon: InboxIcon, sc: "⌘1" },
-            { k: "split", label: "Split", icon: Columns2, sc: "" },
-            { k: "chat", label: "Chat", icon: MessageSquare, sc: "⌘2" },
-          ] as const).map((m) => (
-            <button
-              key={m.k}
-              onClick={() => setPaneMode(m.k as PaneMode)}
-              title={m.sc ? `${m.label} (${m.sc})` : m.label}
-              className={cn(
-                "flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition",
-                paneMode === m.k
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-              )}
-            >
-              <m.icon className="h-3.5 w-3.5" />
-              {m.label}
-            </button>
-          ))}
-        </div>
         <button className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
           <MoreHorizontal className="h-4 w-4" />
         </button>
