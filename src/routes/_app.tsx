@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -28,8 +27,7 @@ function AppLayout() {
   const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
   const chromeless = location.pathname === "/inbox";
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
-  const chatCollapsed = useChatSidebarCollapsed();
-  const hideHeader = onChatRoute && chatCollapsed;
+  const hideHeader = onChatRoute;
 
   if (chromeless) {
     return (
@@ -57,7 +55,7 @@ function AppLayout() {
               </div>
             </header>
           )}
-          <main className={`flex-1 overflow-auto ${showDock ? "pb-4" : ""}`}>
+          <main className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}>
             {!onChatRoute && <PageBreadcrumbs />}
             <Outlet />
           </main>
