@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_actions: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          input: Json
+          result: Json | null
+          result_ref_id: string | null
+          result_ref_table: string | null
+          status: string
+          summary: string
+          tenant_id: string | null
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          input?: Json
+          result?: Json | null
+          result_ref_id?: string | null
+          result_ref_table?: string | null
+          status?: string
+          summary: string
+          tenant_id?: string | null
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          input?: Json
+          result?: Json | null
+          result_ref_id?: string | null
+          result_ref_table?: string | null
+          status?: string
+          summary?: string
+          tenant_id?: string | null
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_suggestions: {
         Row: {
           chosen_index: number | null
