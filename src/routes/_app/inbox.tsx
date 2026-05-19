@@ -418,7 +418,7 @@ function InboxAiPage() {
         <div className="ml-auto">
           <Button
             variant="outline"
-            onClick={approveAllHigh}
+            onClick={requestApproveAllHigh}
             disabled={approveM.isPending || highCount === 0}
             className="gap-2 border-border/60"
           >
