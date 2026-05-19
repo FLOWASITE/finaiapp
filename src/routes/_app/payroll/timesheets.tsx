@@ -48,6 +48,55 @@ function Page() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const mImport = useMutation({
+    mutationFn: (rows: any[]) => importBulk({ data: { period_month: period, rows } }),
+    onSuccess: (r: any) => {
+      toast.success(`Nhập ${r.updated} dòng${r.skipped ? `, bỏ qua ${r.skipped}` : ""}`);
+      if (r.errors?.length) r.errors.forEach((e: string) => toast.warning(e));
+      qc.invalidateQueries({ queryKey: ["timesheets", period] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: 0 });
+      const rows = raw.map((r) => ({
+        employee_code: String(r.employee_code ?? r["Mã NV"] ?? r["Ma NV"] ?? r.code ?? "").trim(),
+        standard_days: Number(r.standard_days ?? r["Công chuẩn"] ?? 0) || undefined,
+        actual_days: Number(r.actual_days ?? r["Công thực tế"] ?? 0) || undefined,
+        paid_leave_days: Number(r.paid_leave_days ?? r["Nghỉ phép"] ?? 0) || 0,
+        unpaid_leave_days: Number(r.unpaid_leave_days ?? r["Nghỉ không lương"] ?? 0) || 0,
+        ot_150_hours: Number(r.ot_150_hours ?? r["OT 150"] ?? 0) || 0,
+        ot_200_hours: Number(r.ot_200_hours ?? r["OT 200"] ?? 0) || 0,
+        ot_300_hours: Number(r.ot_300_hours ?? r["OT 300"] ?? 0) || 0,
+        night_hours: Number(r.night_hours ?? r["Đêm"] ?? 0) || 0,
+      })).filter((r) => r.employee_code);
+      if (!rows.length) { toast.error("File trống hoặc thiếu cột employee_code"); return; }
+      mImport.mutate(rows);
+    } catch (err: any) {
+      toast.error("Lỗi đọc file: " + err.message);
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([{
+      employee_code: "NV001", standard_days: 22, actual_days: 22,
+      paid_leave_days: 0, unpaid_leave_days: 0,
+      ot_150_hours: 0, ot_200_hours: 0, ot_300_hours: 0, night_hours: 0,
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Timesheet");
+    XLSX.writeFile(wb, `ChamCong_Mau_${period}.xlsx`);
+  };
+
+
   const update = (employee_id: string, current: any, patch: any) => {
     const base = current ?? {
       employee_id, period_month: period,
