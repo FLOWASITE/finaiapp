@@ -58,7 +58,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("vi-VN");
 }
 
-export function ThreadList({ onNew }: { onNew: () => void }) {
+export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () => void; collapsed?: boolean; onToggle?: () => void }) {
   const list = useServerFn(listThreads);
   const rename = useServerFn(renameThread);
   const del = useServerFn(deleteThread);
