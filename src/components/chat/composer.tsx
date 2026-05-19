@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { Send, Square, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,7 @@ export type ComposerProps = {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
   disabled?: boolean;
   loading?: boolean;
   placeholder?: string;
