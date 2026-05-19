@@ -22,7 +22,7 @@ KHÔNG bao giờ tự ý ghi/sửa/xoá. Quy trình bắt buộc:
   Gợi ý: nếu user nói "thu hết", lấy \`amount = total - paid_amount\` của hoá đơn.
 
 - \`recordSupplierPayment\` — ghi nhận khoản chi cho NCC (theo HĐ hoặc trả tự do).
-  Input: \`{ invoice_id?: uuid, supplier_id?: uuid, supplier_name?: string, pay_date: 'YYYY-MM-DD', method: 'cash'|'bank'|'other', amount: number, reference?: string }\`
+  Input: \`{ invoice_id?: uuid, supplier_id?: uuid, supplier_name?: string, pay_date: 'YYYY-MM-DD', method: 'cash'|'bank', amount: number, reference?: string }\`
   Gợi ý: ưu tiên truyền \`invoice_id\` nếu chi cho 1 HĐ cụ thể; nếu trả gộp, để \`supplier_id\` và bỏ \`invoice_id\`.
 
 - \`createBankVoucher\` — tạo phiếu báo có/báo nợ ngân hàng (giao dịch lẻ không gắn HĐ).
