@@ -88,6 +88,7 @@ import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvo
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
+import { Route as AppBankReconcileRouteImport } from './routes/_app/bank.reconcile'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsReportsRouteImport } from './routes/_app/assets/reports'
@@ -525,6 +526,11 @@ const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
   path: '/vouchers',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppBankReconcileRoute = AppBankReconcileRouteImport.update({
+  id: '/reconcile',
+  path: '/reconcile',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppBankBookRoute = AppBankBookRouteImport.update({
   id: '/book',
   path: '/book',
@@ -762,6 +768,7 @@ export interface FileRoutesByFullPath {
   '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
+  '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
@@ -876,6 +883,7 @@ export interface FileRoutesByTo {
   '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
+  '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
@@ -997,6 +1005,7 @@ export interface FileRoutesById {
   '/_app/assets/reports': typeof AppAssetsReportsRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
+  '/_app/bank/reconcile': typeof AppBankReconcileRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
   '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
@@ -1118,6 +1127,7 @@ export interface FileRouteTypes {
     | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
+    | '/bank/reconcile'
     | '/bank/vouchers'
     | '/customers/groups'
     | '/einvoices/$id'
@@ -1232,6 +1242,7 @@ export interface FileRouteTypes {
     | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
+    | '/bank/reconcile'
     | '/bank/vouchers'
     | '/customers/groups'
     | '/einvoices/$id'
@@ -1352,6 +1363,7 @@ export interface FileRouteTypes {
     | '/_app/assets/reports'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
+    | '/_app/bank/reconcile'
     | '/_app/bank/vouchers'
     | '/_app/customers/groups'
     | '/_app/einvoices/$id'
@@ -2004,6 +2016,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankVouchersRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/bank/reconcile': {
+      id: '/_app/bank/reconcile'
+      path: '/reconcile'
+      fullPath: '/bank/reconcile'
+      preLoaderRoute: typeof AppBankReconcileRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/bank/book': {
       id: '/_app/bank/book'
       path: '/book'
@@ -2303,6 +2322,7 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 interface AppBankRouteChildren {
   AppBankAccountsRoute: typeof AppBankAccountsRoute
   AppBankBookRoute: typeof AppBankBookRoute
+  AppBankReconcileRoute: typeof AppBankReconcileRoute
   AppBankVouchersRoute: typeof AppBankVouchersRoute
   AppBankIndexRoute: typeof AppBankIndexRoute
 }
@@ -2310,6 +2330,7 @@ interface AppBankRouteChildren {
 const AppBankRouteChildren: AppBankRouteChildren = {
   AppBankAccountsRoute: AppBankAccountsRoute,
   AppBankBookRoute: AppBankBookRoute,
+  AppBankReconcileRoute: AppBankReconcileRoute,
   AppBankVouchersRoute: AppBankVouchersRoute,
   AppBankIndexRoute: AppBankIndexRoute,
 }
