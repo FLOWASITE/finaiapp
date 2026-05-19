@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { listFixedAssets } from "@/lib/assets.functions";
 import { listReclassifications, createReclassification, voidReclassification } from "@/lib/fa-reclass.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 
 export const Route = createFileRoute("/_app/assets/reclassify")({ component: ReclassPage });
 
