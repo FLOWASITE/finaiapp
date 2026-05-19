@@ -200,6 +200,22 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
       </div>
       {!collapsed && (
       <div className="chat-scroll flex-1 overflow-auto px-2 py-3">
+        <div className="mb-2 flex items-center justify-between px-3">
+          <button
+            type="button"
+            onClick={() => setShowStarredOnly((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+              showStarredOnly
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            title="Chỉ hiển thị hội thoại đã đánh dấu sao"
+          >
+            <Star className={cn("h-3 w-3", showStarredOnly && "fill-current")} />
+            {showStarredOnly ? "Đang lọc sao" : "Chỉ hiện sao"}
+          </button>
+        </div>
         {query.isLoading && (
           <div className="px-2 py-4 text-xs text-muted-foreground">Đang tải…</div>
         )}
@@ -210,6 +226,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               Chưa có cuộc trò chuyện nào.<br />
               Bấm <span className="font-medium text-foreground">Cuộc trò chuyện mới</span> để bắt đầu.
             </p>
+          </div>
+        )}
+        {query.data && query.data.length > 0 && buckets.length === 0 && (
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+            Không có hội thoại đánh dấu sao
           </div>
         )}
         {buckets.map((b) => (
