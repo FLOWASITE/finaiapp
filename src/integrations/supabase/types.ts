@@ -3254,6 +3254,44 @@ export type Database = {
           },
         ]
       }
+      ip_allowlist: {
+        Row: {
+          cidr: string
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          scope: string
+          tenant_id: string | null
+        }
+        Insert: {
+          cidr: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          scope: string
+          tenant_id?: string | null
+        }
+        Update: {
+          cidr?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          scope?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ip_allowlist_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           branch_id: string | null
@@ -4949,6 +4987,33 @@ export type Database = {
           },
         ]
       }
+      security_policies: {
+        Row: {
+          id: number
+          ip_allowlist_enabled: boolean
+          require_2fa_for_roles: Json
+          session_timeout_minutes: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          ip_allowlist_enabled?: boolean
+          require_2fa_for_roles?: Json
+          session_timeout_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          ip_allowlist_enabled?: boolean
+          require_2fa_for_roles?: Json
+          session_timeout_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           conversion_factor: number
@@ -5555,6 +5620,113 @@ export type Database = {
           },
         ]
       }
+      system_backups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          file_path: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          row_counts: Json | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          file_path?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          row_counts?: Json | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          file_path?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          row_counts?: Json | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_backups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_job_runs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job: string
+          output: Json | null
+          params: Json | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job: string
+          output?: Json | null
+          params?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job?: string
+          output?: Json | null
+          params?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          id: number
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       tenant_members: {
         Row: {
           created_at: string
@@ -5583,6 +5755,94 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tenant_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_plans: {
+        Row: {
+          ai_tokens_quota: number | null
+          notes: string | null
+          period_end: string | null
+          period_start: string | null
+          plan: string
+          seats_limit: number | null
+          status: string
+          storage_quota_mb: number | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ai_tokens_quota?: number | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan?: string
+          seats_limit?: number | null
+          status?: string
+          storage_quota_mb?: number | null
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ai_tokens_quota?: number | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan?: string
+          seats_limit?: number | null
+          status?: string
+          storage_quota_mb?: number | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_plans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_usage: {
+        Row: {
+          ai_files_parsed: number
+          ai_tokens_used: number
+          documents_count: number
+          period_ym: string
+          storage_used_mb: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          ai_files_parsed?: number
+          ai_tokens_used?: number
+          documents_count?: number
+          period_ym: string
+          storage_used_mb?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          ai_files_parsed?: number
+          ai_tokens_used?: number
+          documents_count?: number
+          period_ym?: string
+          storage_used_mb?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_usage_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5627,6 +5887,9 @@ export type Database = {
           shipping_address: string | null
           signature_url: string | null
           stamp_url: string | null
+          status: string
+          suspended_at: string | null
+          suspended_reason: string | null
           tax_authority: string | null
           tax_id: string | null
           tax_method: string | null
@@ -5671,6 +5934,9 @@ export type Database = {
           shipping_address?: string | null
           signature_url?: string | null
           stamp_url?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
           tax_authority?: string | null
           tax_id?: string | null
           tax_method?: string | null
@@ -5715,6 +5981,9 @@ export type Database = {
           shipping_address?: string | null
           signature_url?: string | null
           stamp_url?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
           tax_authority?: string | null
           tax_id?: string | null
           tax_method?: string | null
@@ -6174,6 +6443,7 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      is_tenant_suspended: { Args: { _tenant: string }; Returns: boolean }
       rebuild_account_period_balances: {
         Args: { p_tenant?: string }
         Returns: undefined
