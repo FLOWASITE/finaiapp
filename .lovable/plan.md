@@ -1,28 +1,71 @@
-# Hiển thị tabs trên mobile (Inbox)
 
-## Vấn đề
-Trên mobile, dải tabs ("Inbox AI", "Đã hạch toán", "Cần xem lại", "Tài liệu", "Báo cáo") đang bị ẩn vì có class `hidden lg:flex` (line 572 của `src/routes/_app/inbox.tsx`). Mobile chỉ thấy khu chat fullscreen, không có cách chuyển tab.
+## Mục tiêu
 
-## Thay đổi (chỉ UI, không đụng logic)
+Bỏ hẳn pane `InboxChat` chuyên dụng trong `/inbox`. Mọi hội thoại tự do đi qua `ChatDock` (mở bằng `openAskAi`). Thao tác Approve / Skip / Edit / Rule cho từng `InboxItem` chuyển vào một **Sheet chi tiết** mở khi click vào card.
 
-File: `src/routes/_app/inbox.tsx`
+## Trạng thái sau khi đổi
 
-1. **Bỏ ẩn dải tabs trên mobile** (line 572):
-   - Đổi `hidden ... lg:flex` → luôn `flex`.
-   - Thêm `overflow-x-auto` + `whitespace-nowrap` + ẩn scrollbar để tabs cuộn ngang gọn trên màn hình hẹp.
-   - Giảm padding ngang trên mobile (`px-3 lg:px-5`), giảm chiều cao tab (`py-2.5 lg:py-3`) để không chiếm quá nhiều không gian.
+```text
+/inbox  ──┬── Header tabs (Inbox AI / Đã hạch toán / …)
+          ├── Danh sách ItemCard  (full width, không còn pane phải)
+          │     └── click  ──►  InboxItemSheet  (Sheet bên phải)
+          │                         ├── Tiêu đề / partner / amount / ngày
+          │                         ├── Lý do AI + danh sách Proposals
+          │                         ├── Nút  [Duyệt] [Bỏ qua] [Sửa] [Tạo quy tắc]
+          │                         └── Nút  "Hỏi AI về mục này"  ──►  openAskAi(prefill)
+          └── ChatDock sticky bottom (giữ nguyên — toàn app)
+```
 
-2. **Mobile body nghe theo `tab`** (line 679):
-   - Khi `tab === "inbox"` → giữ nguyên `<InboxChat …>` fullscreen như hiện tại.
-   - Khi `tab` thuộc `posted | review | documents | reports` → render `<EmptyTab label={…} />` (component đã có sẵn cho desktop) để mobile cũng thấy được nội dung tương ứng (placeholder "đang xây dựng" giống desktop), thay vì luôn cố định chat.
+## Phạm vi thay đổi
 
-3. Không đổi:
-   - Logic state `tab`, badge số `stats.pending`, mock data, server functions.
-   - Overlay Inbox trượt từ trái (nút "Inbox (47)"), loading/empty state vừa thêm ở turn trước.
-   - Desktop layout giữ y nguyên.
+### 1. Component mới — `src/components/inbox/inbox-item-sheet.tsx`
+- Dùng `Sheet` (`@/components/ui/sheet`) side="right", width ~520px (mobile full).
+- Props: `item: InboxItem | null`, `onClose`, các handler `onApprove/onSkip/onEdit/onRule`, `approving?: boolean`.
+- Body tái sử dụng đoạn render proposal hiện có trong `InboxChat` (proposal pills, blocker badge, followup) — copy ra component nhỏ `ProposalList`.
+- Footer cố định 4 nút action + nút secondary **"Hỏi AI về mục này"** → gọi `openAskAi` với prefill dạng `"Về mục \"<title>\" (<partner>, <amount>): "`.
 
-## Kiểm thử
-- Mở `/inbox` ở 360px / 390px / 414px: thấy 5 tab có thể cuộn ngang, bấm chuyển tab thấy nội dung đổi.
-- Tab "Inbox AI" vẫn hiện chat + badge số `pending`.
-- Tab khác hiển thị `EmptyTab` placeholder.
-- Desktop ≥ lg: không thay đổi gì.
+### 2. `src/routes/_app/inbox.tsx`
+- Xoá:
+  - Import `InboxChat`, `ChatEntry`, `chatReducer`, state `chatLog`, `pushSystem`, `pushProposal`.
+  - State `paneMode` + thanh chuyển pane (Split/Inbox/Chat).
+  - Grid 2 cột desktop + nhánh `tab === "inbox" ? <InboxChat .../> : …` ở mobile.
+  - `MobileInboxOverlay` (không còn cần vì list giờ là content chính).
+- Giữ:
+  - State items, stats, mutations `approveM/skipM/ruleM`, `handleApproveItem/…`.
+  - Tabs strip, ListSkeleton, EmptyInbox, ItemCard.
+- Thêm:
+  - State `sheetItem: InboxItem | null`. Click ItemCard → `setSheetItem(it)`.
+  - Render `<InboxItemSheet item={sheetItem} onClose={() => setSheetItem(null)} onApprove={…} onSkip={…} onEdit={…} onRule={…} approving={approveM.isPending} />`.
+  - Sau khi `handleApproveItem` / skip thành công: đóng sheet (`setSheetItem(null)`) + `toast.success(...)` thay cho `pushSystem`.
+  - Nút "Duyệt nhanh N mục tin cậy cao" ở header: giữ logic mutation, đổi feedback từ `pushSystem` + progress bar sang `toast.promise` (hoặc `Sonner` progress).
+
+### 3. `src/components/inbox/inbox-chat.tsx`
+- Xoá file. Không còn nơi import.
+
+### 4. Không đụng
+- `ChatDock`, `openAskAi`, schema chat-threads, server functions inbox/approve.
+- Mock data, AI reasoning, RLS.
+
+## Mapping hành vi cũ → mới
+
+| Cũ (InboxChat)                             | Mới                                           |
+|---------------------------------------------|-----------------------------------------------|
+| Click item → push `ai_proposal` vào chat   | Click item → mở Sheet                         |
+| Nút Approve trong message bubble            | Nút Approve trong footer Sheet                |
+| `pushSystem("✓ Đã ghi sổ …")`              | `toast.success("Đã ghi sổ …")`                |
+| `ai_progress` bar khi duyệt nhanh           | `toast.promise(…, { loading, success })`      |
+| Composer trong pane chat                    | Dùng ChatDock chung; nút "Hỏi AI về mục này" → `openAskAi(prefill)` |
+| Mobile tab "Inbox AI" hiện InboxChat        | Mobile tab "Inbox AI" hiện danh sách ItemCard |
+
+## Rủi ro & lưu ý
+
+- Mất tính liên tục "lịch sử thao tác trong phiên" mà `chatLog` đang giữ. Thay bằng toast là đủ cho phần lớn use-case; nếu sau này cần nhật ký, dùng `record-audit-history`.
+- Nút "Duyệt nhanh" hiện ghi progress vào chatLog; chuyển sang toast.promise cần test với list lớn (>10 mục) để đảm bảo UX vẫn ổn.
+- `paneMode` đang ảnh hưởng layout/grid — xoá hẳn cả tri-state button group, không để dead code.
+- Sheet trên mobile (<707px) phải full-screen để 4 nút action không bị che; dùng `className="w-full sm:max-w-lg"`.
+
+## Không trong phạm vi
+
+- Mở rộng schema thread chat để lưu proposal/approve (đã loại — user chọn Sheet riêng).
+- Thay đổi ChatDock UI.
+- Thêm tính năng mới ngoài chuyển luồng.
