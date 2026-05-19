@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox, Pin, Star } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox, Pin, Star, Search, X } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,6 +46,7 @@ export function ChatDock() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
+  const [historySearch, setHistorySearch] = useState("");
 
   const threadsQuery = useQuery({
     queryKey: ["chat", "threads", "recent", "all"],
@@ -275,18 +276,39 @@ export function ChatDock() {
                   </button>
                 ))}
               </div>
+              <div className="border-b border-white/5 px-2 py-1.5">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/60" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Tìm theo tiêu đề…"
+                    className="h-7 w-full rounded-md border border-white/10 bg-background/60 pl-7 pr-6 text-[11px] outline-none transition-colors focus:border-primary/40"
+                  />
+                  {historySearch && (
+                    <button
+                      type="button"
+                      onClick={() => setHistorySearch("")}
+                      aria-label="Xoá tìm kiếm"
+                      className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
               <ScrollArea className="max-h-80">
                 <div className="p-1">
                   {(() => {
                     const all = threadsQuery.data ?? [];
-                    const filtered =
-                      historyTab === "all"
-                        ? all
-                        : all.filter((t) =>
-                            historyTab === "inbox"
-                              ? t.kind === "inbox"
-                              : t.kind !== "inbox",
-                          );
+                    const sq = historySearch.trim().toLowerCase();
+                    const filtered = all.filter((t) => {
+                      if (historyTab === "inbox" && t.kind !== "inbox") return false;
+                      if (historyTab === "general" && t.kind === "inbox") return false;
+                      if (sq && !(t.title ?? "").toLowerCase().includes(sq)) return false;
+                      return true;
+                    });
                     if (threadsQuery.isLoading) {
                       return (
                         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -297,9 +319,11 @@ export function ChatDock() {
                     if (!filtered.length) {
                       return (
                         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                          {historyTab === "inbox"
-                            ? "Chưa có phiên Inbox nào"
-                            : "Chưa có hội thoại nào"}
+                          {sq
+                            ? `Không tìm thấy “${historySearch.trim()}”`
+                            : historyTab === "inbox"
+                              ? "Chưa có phiên Inbox nào"
+                              : "Chưa có hội thoại nào"}
                         </div>
                       );
                     }
