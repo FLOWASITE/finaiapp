@@ -174,10 +174,11 @@ export const getStockAvailability = createServerFn({ method: "POST" })
     z.object({ productId: z.string().uuid(), warehouseId: z.string().uuid().nullable().optional() }).parse(i),
   )
   .handler(async ({ data, context }) => {
+    const wh = (data.warehouseId ?? null) as any;
     const { data: onHand } = await context.supabase
-      .rpc("fn_product_on_hand", { p_product: data.productId, p_warehouse: data.warehouseId ?? null });
+      .rpc("fn_product_on_hand", { p_product: data.productId, p_warehouse: wh });
     const { data: reserved } = await context.supabase
-      .rpc("fn_product_reserved_qty", { p_product: data.productId, p_warehouse: data.warehouseId ?? null });
+      .rpc("fn_product_reserved_qty", { p_product: data.productId, p_warehouse: wh });
     const oh = Number(onHand ?? 0);
     const rv = Number(reserved ?? 0);
     return { on_hand: oh, reserved: rv, available: oh - rv };
