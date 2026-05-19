@@ -41,6 +41,7 @@ export function ChatDock() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
   const createWithMsgFn = useServerFn(createThreadWithFirstMessage);
   const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
