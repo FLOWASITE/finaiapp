@@ -206,6 +206,28 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
       </div>
       {!collapsed && (
       <div className="chat-scroll flex-1 overflow-auto px-2 py-3">
+        <div className="mb-2 px-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm hội thoại…"
+              className="h-8 w-full rounded-lg border border-border/40 bg-background/60 pl-8 pr-7 text-xs outline-none transition-colors focus:border-primary/40 focus:bg-background"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="Xoá tìm kiếm"
+                className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
         <div className="mb-2 flex items-center justify-between px-3">
           <button
             type="button"
