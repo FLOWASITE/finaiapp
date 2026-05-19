@@ -145,19 +145,26 @@ function LaneDetailPage() {
   const Icon = config.icon;
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(config.filters.status[0] ?? "Tất cả");
   const [rangeFilter, setRangeFilter] = useState<string>(config.filters.ranges[0] ?? "");
+
+  // Debounce search (350ms) — tránh gọi server mỗi keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const PAGE_SIZE = 30;
   const fn = useServerFn(getInboxLane);
   const query = useInfiniteQuery({
-    queryKey: ["inbox-lane", lane, statusFilter, rangeFilter, search],
+    queryKey: ["inbox-lane", lane, statusFilter, rangeFilter, debouncedSearch],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       fn({
         data: {
           lane: config.key,
-          search,
+          search: debouncedSearch,
           statusFilter,
           rangeFilter,
           limit: PAGE_SIZE,
@@ -165,7 +172,16 @@ function LaneDetailPage() {
         },
       }),
     getNextPageParam: (last) => (last as any).nextOffset ?? undefined,
-    staleTime: 30_000,
+    // Cache mạnh hơn: 60s fresh, 5 phút trong bộ nhớ. Đổi filter nhanh sẽ hit cache.
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    // Giữ dữ liệu cũ khi đổi filter để không nháy skeleton
+    placeholderData: keepPreviousData,
+    // Tự refetch nền mỗi 2 phút, chỉ khi tab đang hiển thị
+    refetchInterval: 120_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: false,
   });
 
   const rows: InboxRow[] = query.data?.pages.flatMap((p) => p.rows) ?? [];
