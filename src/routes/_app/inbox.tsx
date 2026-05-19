@@ -526,65 +526,6 @@ function InboxAiPage() {
       />
 
 
-      {/* Mobile: Inbox overlay (slide from left) */}
-      {inboxOpenMobile && (
-        <MobileInboxOverlay onClose={() => setInboxOpenMobile(false)}>
-          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <InboxIcon className="h-4 w-4" />
-                Inbox
-                {stats?.pending ? (
-                  <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background tabular-nums">
-                    {stats.pending}
-                  </span>
-                ) : null}
-              </div>
-              <button
-                onClick={() => setInboxOpenMobile(false)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Đóng
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="space-y-3 p-4" role="status" aria-live="polite">
-                  <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {INBOX_COPY.loading}
-                  </div>
-                  <ListSkeleton />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="p-4">
-                  <EmptyInbox />
-                </div>
-
-              ) : (
-                <ul className="space-y-3 p-4">
-                  {items.map((it) => (
-                    <ItemCard
-                      key={it.id}
-                      item={it}
-                      active={activeId === it.id}
-                      onClick={() => {
-                        handleCardClick(it.id);
-                        setInboxOpenMobile(false);
-                      }}
-                      registerRef={() => {}}
-                    />
-                  ))}
-                  {stats && stats.pending > items.length && (
-                    <li className="pt-1 text-center text-[11px] text-muted-foreground">
-                      + {stats.pending - items.length} mục khác
-                    </li>
-                  )}
-                </ul>
-              )}
-            </div>
-
-        </MobileInboxOverlay>
-      )}
 
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
