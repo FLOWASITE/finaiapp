@@ -218,12 +218,63 @@ const createBankTransferAction: ActionHandler = {
   },
 };
 
+// ============= Handler: createPurchaseInvoice =============
+const PurchaseInvoiceLineInput = z.object({
+  description: z.string().min(1),
+  qty: z.number().min(0).default(1),
+  unit_price: z.number().min(0).default(0),
+  amount: z.number().min(0),
+  vat_rate: z.number().min(0).max(100).default(0),
+});
+
+const PurchaseInvoiceInput = z.object({
+  supplier_name: z.string().optional(),
+  supplier_tax_id: z.string().optional(),
+  invoice_no: z.string().optional(),
+  issue_date: z.string(),
+  notes: z.string().optional(),
+  lines: z.array(PurchaseInvoiceLineInput).min(1),
+});
+
+const createPurchaseInvoice: ActionHandler = {
+  schema: PurchaseInvoiceInput,
+  preview: async (input) => {
+    const subtotal = input.lines.reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+    const vat = input.lines.reduce(
+      (s: number, l: any) => s + Number(l.amount || 0) * (Number(l.vat_rate || 0) / 100),
+      0,
+    );
+    const total = subtotal + vat;
+    return [
+      `Tạo HĐ mua **${input.invoice_no || "(chưa số)"}** — ${input.supplier_name || "NCC?"}`,
+      `Ngày: ${input.issue_date}`,
+      ...input.lines.slice(0, 5).map(
+        (l: any) => `• ${l.description}: ${l.qty} × ${Number(l.unit_price).toLocaleString("vi-VN")} = ${Number(l.amount).toLocaleString("vi-VN")} ₫`,
+      ),
+      input.lines.length > 5 ? `… +${input.lines.length - 5} dòng` : "",
+      `Subtotal: ${subtotal.toLocaleString("vi-VN")} ₫ | VAT: ${vat.toLocaleString("vi-VN")} ₫`,
+      `**Tổng: ${total.toLocaleString("vi-VN")} ₫**`,
+    ].filter(Boolean).join("\n");
+  },
+  execute: async (input) => {
+    const { createManualInvoice } = await import("@/lib/purchases.functions");
+    const result: any = await (createManualInvoice as any)({
+      data: {
+        ...input,
+        lines: input.lines.map((l: any) => ({ ...l, line_type: "goods" })),
+      },
+    });
+    return { ref_table: "invoices", ref_id: result?.id, message: "Đã tạo hoá đơn mua nháp" };
+  },
+};
+
 export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   createInvoiceFromSO,
   recordCustomerReceipt,
   recordSupplierPayment,
   createBankVoucher: createBankVoucherAction,
   createBankTransfer: createBankTransferAction,
+  createPurchaseInvoice,
 };
 
 export const ACTION_CATALOG = Object.keys(ACTION_HANDLERS);
