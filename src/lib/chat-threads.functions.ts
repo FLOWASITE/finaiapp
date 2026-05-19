@@ -50,7 +50,7 @@ export const getThread = createServerFn({ method: "POST" })
     if (!thread) throw new Error("Không tìm thấy cuộc trò chuyện");
     const { data: messages, error: e2 } = await supabase
       .from("chat_messages")
-      .select("id,role,content,created_at")
+      .select("id,role,content,created_at,metadata")
       .eq("thread_id", data.threadId)
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
