@@ -418,3 +418,140 @@ export const detectInternalTransfers = createServerFn({ method: "POST" })
     }
     return { pairsFound: pairs.length, created };
   });
+
+// ============ IMPORT + AUTO-POST FROM PARSED STATEMENT ============
+const PostingRowSchema = z.object({
+  txn_date: z.string(),
+  description: z.string().max(500).optional().nullable(),
+  amount: z.number(),
+  counterparty: z.string().max(200).optional().nullable(),
+  counter_account: z.string().min(2).max(20),
+  party_name: z.string().max(200).optional().nullable(),
+  reason: z.string().max(500).optional().nullable(),
+  skip: z.boolean().optional().default(false),
+});
+
+export const importAndPostStatement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        bankAccountId: z.string().uuid(),
+        period: z
+          .object({ year: z.number().int().min(2000).max(2100), month: z.number().int().min(1).max(12) })
+          .optional(),
+        rows: z.array(PostingRowSchema).min(1).max(500),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
+    const { data: acc } = await supabase
+      .from("bank_accounts")
+      .select("gl_account_code, name")
+      .eq("id", data.bankAccountId)
+      .single();
+    const bankGl = acc?.gl_account_code || "1121";
+
+    // dedupe vs existing txns
+    const { data: existing } = await supabase
+      .from("bank_transactions")
+      .select("txn_date, amount, description")
+      .eq("bank_account_id", data.bankAccountId);
+    const existKey = new Set<string>(
+      (existing ?? []).map((e: any) => `${e.txn_date}|${Number(e.amount)}|${(e.description ?? "").trim()}`),
+    );
+
+    let posted = 0;
+    let skipped = 0;
+    const errors: Array<{ row: number; error: string }> = [];
+
+    for (let i = 0; i < data.rows.length; i++) {
+      const r = data.rows[i];
+      if (r.skip) {
+        skipped++;
+        continue;
+      }
+      // period filter
+      if (data.period) {
+        const d = new Date(r.txn_date);
+        if (d.getUTCFullYear() !== data.period.year || d.getUTCMonth() + 1 !== data.period.month) {
+          skipped++;
+          continue;
+        }
+      }
+      const key = `${r.txn_date}|${Number(r.amount)}|${(r.description ?? "").trim()}`;
+      if (existKey.has(key)) {
+        skipped++;
+        continue;
+      }
+      try {
+        // 1) insert bank_transaction
+        const { data: txn, error: tErr } = await supabase
+          .from("bank_transactions")
+          .insert({
+            user_id: userId,
+            tenant_id: tenantId,
+            bank_account_id: data.bankAccountId,
+            txn_date: r.txn_date,
+            description: r.description ?? null,
+            amount: r.amount,
+            counterparty: r.counterparty ?? null,
+            status: "unmatched",
+          })
+          .select("id")
+          .single();
+        if (tErr || !txn) throw new Error(tErr?.message || "insert txn failed");
+
+        // 2) create journal entry + lines
+        const amt = Math.abs(Number(r.amount));
+        const isReceipt = Number(r.amount) >= 0;
+        const voucherType = isReceipt ? "receipt" : "payment";
+        const debit = isReceipt ? bankGl : r.counter_account;
+        const credit = isReceipt ? r.counter_account : bankGl;
+        const vNo = `${isReceipt ? "BC" : "BN"}-${r.txn_date.replace(/-/g, "")}-${txn.id.slice(0, 4)}`;
+        const desc = `${isReceipt ? "Báo có" : "Báo nợ"} ${vNo}${r.reason ? ` — ${r.reason}` : r.description ? ` — ${r.description}` : ""}`;
+        const { data: entry, error: eErr } = await supabase
+          .from("journal_entries")
+          .insert({ user_id: userId, tenant_id: tenantId, entry_date: r.txn_date, description: desc })
+          .select("id")
+          .single();
+        if (eErr || !entry) throw new Error(eErr?.message || "create JE failed");
+        await supabase.from("journal_lines").insert([
+          { entry_id: entry.id, account_code: debit, debit: amt, credit: 0, line_order: 0 },
+          { entry_id: entry.id, account_code: credit, debit: 0, credit: amt, line_order: 1 },
+        ]);
+
+        // 3) bank voucher + link
+        await supabase.from("bank_vouchers").insert({
+          user_id: userId,
+          tenant_id: tenantId,
+          bank_account_id: data.bankAccountId,
+          voucher_type: voucherType,
+          voucher_no: vNo,
+          voucher_date: r.txn_date,
+          amount: amt,
+          counter_account: r.counter_account,
+          party_name: r.party_name || r.counterparty || null,
+          reason: r.reason || r.description || null,
+          journal_entry_id: entry.id,
+          bank_transaction_id: txn.id,
+        });
+        await supabase
+          .from("bank_transactions")
+          .update({
+            status: "matched",
+            matched_entry_id: entry.id,
+            match_confidence: 1,
+            match_reason: `Tự sinh phiếu ${vNo}`,
+          })
+          .eq("id", txn.id);
+        posted++;
+      } catch (err: any) {
+        errors.push({ row: i + 1, error: err?.message || "unknown error" });
+      }
+    }
+
+    return { posted, skipped, errors };
+  });

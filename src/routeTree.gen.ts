@@ -89,6 +89,7 @@ import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankReconcileRouteImport } from './routes/_app/bank.reconcile'
+import { Route as AppBankImportStatementRouteImport } from './routes/_app/bank.import-statement'
 import { Route as AppBankBookRouteImport } from './routes/_app/bank.book'
 import { Route as AppBankAccountsRouteImport } from './routes/_app/bank.accounts'
 import { Route as AppAssetsReportsRouteImport } from './routes/_app/assets/reports'
@@ -531,6 +532,11 @@ const AppBankReconcileRoute = AppBankReconcileRouteImport.update({
   path: '/reconcile',
   getParentRoute: () => AppBankRoute,
 } as any)
+const AppBankImportStatementRoute = AppBankImportStatementRouteImport.update({
+  id: '/import-statement',
+  path: '/import-statement',
+  getParentRoute: () => AppBankRoute,
+} as any)
 const AppBankBookRoute = AppBankBookRouteImport.update({
   id: '/book',
   path: '/book',
@@ -768,6 +774,7 @@ export interface FileRoutesByFullPath {
   '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
+  '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
@@ -883,6 +890,7 @@ export interface FileRoutesByTo {
   '/assets/reports': typeof AppAssetsReportsRoute
   '/bank/accounts': typeof AppBankAccountsRoute
   '/bank/book': typeof AppBankBookRoute
+  '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
@@ -1005,6 +1013,7 @@ export interface FileRoutesById {
   '/_app/assets/reports': typeof AppAssetsReportsRoute
   '/_app/bank/accounts': typeof AppBankAccountsRoute
   '/_app/bank/book': typeof AppBankBookRoute
+  '/_app/bank/import-statement': typeof AppBankImportStatementRoute
   '/_app/bank/reconcile': typeof AppBankReconcileRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
   '/_app/customers/groups': typeof AppCustomersGroupsRoute
@@ -1127,6 +1136,7 @@ export interface FileRouteTypes {
     | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
+    | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
     | '/customers/groups'
@@ -1242,6 +1252,7 @@ export interface FileRouteTypes {
     | '/assets/reports'
     | '/bank/accounts'
     | '/bank/book'
+    | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
     | '/customers/groups'
@@ -1363,6 +1374,7 @@ export interface FileRouteTypes {
     | '/_app/assets/reports'
     | '/_app/bank/accounts'
     | '/_app/bank/book'
+    | '/_app/bank/import-statement'
     | '/_app/bank/reconcile'
     | '/_app/bank/vouchers'
     | '/_app/customers/groups'
@@ -2023,6 +2035,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankReconcileRouteImport
       parentRoute: typeof AppBankRoute
     }
+    '/_app/bank/import-statement': {
+      id: '/_app/bank/import-statement'
+      path: '/import-statement'
+      fullPath: '/bank/import-statement'
+      preLoaderRoute: typeof AppBankImportStatementRouteImport
+      parentRoute: typeof AppBankRoute
+    }
     '/_app/bank/book': {
       id: '/_app/bank/book'
       path: '/book'
@@ -2322,6 +2341,7 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 interface AppBankRouteChildren {
   AppBankAccountsRoute: typeof AppBankAccountsRoute
   AppBankBookRoute: typeof AppBankBookRoute
+  AppBankImportStatementRoute: typeof AppBankImportStatementRoute
   AppBankReconcileRoute: typeof AppBankReconcileRoute
   AppBankVouchersRoute: typeof AppBankVouchersRoute
   AppBankIndexRoute: typeof AppBankIndexRoute
@@ -2330,6 +2350,7 @@ interface AppBankRouteChildren {
 const AppBankRouteChildren: AppBankRouteChildren = {
   AppBankAccountsRoute: AppBankAccountsRoute,
   AppBankBookRoute: AppBankBookRoute,
+  AppBankImportStatementRoute: AppBankImportStatementRoute,
   AppBankReconcileRoute: AppBankReconcileRoute,
   AppBankVouchersRoute: AppBankVouchersRoute,
   AppBankIndexRoute: AppBankIndexRoute,

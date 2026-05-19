@@ -207,7 +207,7 @@ export function AskAiSheet() {
       lines.push(``, `Trả lời "tạo tất cả" để tôi tạo hoá đơn nháp cho ${ok.length} file, hoặc "tạo #1, #3" để chọn.`);
     } else if (kind === "bank_statement") {
       const totalTxns = ok.reduce((s, i) => s + (Array.isArray(i.parsed?.transactions) ? i.parsed.transactions.length : 0), 0);
-      lines.push(``, `**Tổng giao dịch: ${totalTxns}**`, `Nói "nhập tất cả" để gộp vào sổ đối soát ngân hàng.`);
+      lines.push(``, `**Tổng giao dịch: ${totalTxns}**`, `→ Mở **/bank/import-statement** để chọn kỳ và xem AI đề xuất TK đối ứng cho từng dòng (đã lưu dữ liệu trong trình duyệt).`);
     } else {
       lines.push(``, `Nói "tạo phiếu tất cả" để tạo phiếu thu/chi nháp.`);
     }
