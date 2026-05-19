@@ -37,6 +37,8 @@ export function AskAiSheet() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recogRef = useRef<any>(null);
+  const [recording, setRecording] = useState(false);
 
   // Keyboard shortcut: Cmd/Ctrl + J
   useEffect(() => {
@@ -46,6 +48,7 @@ export function AskAiSheet() {
         setOpen((v) => !v);
       }
     };
+
     window.addEventListener("keydown", onKey);
     const onOpen = () => setOpen(true);
     window.addEventListener("app:open-ai", onOpen);
