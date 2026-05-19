@@ -199,3 +199,175 @@ function emptyTotals() {
     total_emp: 0, total_co: 0,
   };
 }
+
+// ===== C02-HD/BB: Bảng thanh toán tiền lương (mẫu TT200) =====
+export const reportC02HD = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ month: z.string() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const period = data.month.slice(0, 7);
+    const periodDate = `${period}-01`;
+    const { supabase } = context;
+
+    const { data: run } = await supabase
+      .from("payroll_runs").select("id, period_month, status")
+      .eq("period_month", periodDate).maybeSingle();
+    if (!run) return { month: period, run: null, rows: [], totals: emptyC02() };
+
+    const { data: lines } = await supabase
+      .from("payroll_lines")
+      .select("*, employees(code, full_name, position, citizen_id, departments(name), branches(name))")
+      .eq("run_id", run.id);
+
+    const rows = (lines ?? []).map((l: any) => {
+      const e = l.employees ?? {};
+      const insEmp = Number(l.bhxh_emp || 0) + Number(l.bhyt_emp || 0) + Number(l.bhtn_emp || 0);
+      return {
+        code: e.code, full_name: e.full_name, position: e.position,
+        citizen_id: e.citizen_id,
+        department: e.departments?.name ?? "",
+        branch: e.branches?.name ?? "",
+        base_salary: Number(l.base_salary || 0),
+        allowance: Number(l.allowance || 0),
+        gross: Number(l.gross || 0),
+        insurance_emp: insEmp,
+        pit: Number(l.pit || 0),
+        net: Number(l.net || 0),
+      };
+    });
+
+    const totals = rows.reduce((a: any, r: any) => ({
+      headcount: a.headcount + 1,
+      base_salary: a.base_salary + r.base_salary,
+      allowance: a.allowance + r.allowance,
+      gross: a.gross + r.gross,
+      insurance_emp: a.insurance_emp + r.insurance_emp,
+      pit: a.pit + r.pit,
+      net: a.net + r.net,
+    }), emptyC02());
+
+    return { month: period, run, rows, totals };
+  });
+
+function emptyC02() {
+  return { headcount: 0, base_salary: 0, allowance: 0, gross: 0, insurance_emp: 0, pit: 0, net: 0 };
+}
+
+// ===== Bảng phân bổ tiền lương & BHXH theo TK × phòng ban × dự án =====
+export const reportPayrollAllocation = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ month: z.string() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const period = data.month.slice(0, 7);
+    const periodDate = `${period}-01`;
+    const { supabase } = context;
+
+    const { data: run } = await supabase
+      .from("payroll_runs").select("id, status").eq("period_month", periodDate).maybeSingle();
+    if (!run) return { month: period, rows: [], totals: { amount: 0, insurance_co: 0 } };
+
+    const detailsRes = await supabase
+      .from("payroll_run_lines")
+      .select("amount, kind, component_code, component_name, salary_components(expense_account, is_insurable), employees(department_id, project_id, departments(name), projects(name))")
+      .eq("run_id", run.id);
+    const details: any[] = (detailsRes.data as any[]) ?? [];
+
+    const linesRes = await supabase
+      .from("payroll_lines")
+      .select("bhxh_co, bhyt_co, bhtn_co, employees(department_id, project_id, departments(name), projects(name))")
+      .eq("run_id", run.id);
+    const lines: any[] = (linesRes.data as any[]) ?? [];
+
+    // Aggregate earnings/OT by account × dept × project
+    const map = new Map<string, any>();
+    const key = (acc: string, dept: string, prj: string) => `${acc}|${dept}|${prj}`;
+
+    for (const d of details) {
+      if (d.kind === "deduction") continue;
+      const acc = (d.salary_components?.expense_account as string) || "6421";
+      const dept = (d.employees?.departments?.name as string) || "—";
+      const prj = (d.employees?.projects?.name as string) || "—";
+      const k = key(acc, dept, prj);
+      const row = map.get(k) ?? { account: acc, department: dept, project: prj, salary: 0, insurance_co: 0 };
+      row.salary += Number(d.amount || 0);
+      map.set(k, row);
+    }
+
+    for (const l of lines) {
+      const insCo = Number(l.bhxh_co || 0) + Number(l.bhyt_co || 0) + Number(l.bhtn_co || 0);
+      if (insCo <= 0) continue;
+      const dept = (l.employees?.departments?.name as string) || "—";
+      const prj = (l.employees?.projects?.name as string) || "—";
+      let acc = "6421";
+      for (const v of map.values()) {
+        if (v.department === dept && v.project === prj) { acc = v.account; break; }
+      }
+      const k = key(acc, dept, prj);
+      const row = map.get(k) ?? { account: acc, department: dept, project: prj, salary: 0, insurance_co: 0 };
+      row.insurance_co += insCo;
+      map.set(k, row);
+    }
+
+    const rows = Array.from(map.values()).sort((a, b) =>
+      a.account.localeCompare(b.account) || a.department.localeCompare(b.department));
+    const totals = rows.reduce((a, r) => ({
+      salary: a.salary + r.salary, insurance_co: a.insurance_co + r.insurance_co,
+      total: a.total + r.salary + r.insurance_co,
+    }), { salary: 0, insurance_co: 0, total: 0 });
+
+    return { month: period, rows, totals };
+  });
+
+// ===== Bulk import timesheets =====
+const TimesheetImportRow = z.object({
+  employee_code: z.string().min(1),
+  standard_days: z.number().nonnegative().optional(),
+  actual_days: z.number().nonnegative().optional(),
+  paid_leave_days: z.number().nonnegative().optional(),
+  unpaid_leave_days: z.number().nonnegative().optional(),
+  ot_150_hours: z.number().nonnegative().optional(),
+  ot_200_hours: z.number().nonnegative().optional(),
+  ot_300_hours: z.number().nonnegative().optional(),
+  night_hours: z.number().nonnegative().optional(),
+});
+
+export const importTimesheetsBulk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({
+    period_month: z.string(),
+    rows: z.array(TimesheetImportRow).min(1).max(1000),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const periodDate = `${data.period_month.slice(0, 7)}-01`;
+
+    const codes = Array.from(new Set(data.rows.map(r => r.employee_code)));
+    const { data: emps } = await supabase
+      .from("employees").select("id, code").in("code", codes);
+    const byCode = new Map<string, string>((emps ?? []).map((e: any) => [e.code, e.id]));
+
+    let updated = 0, skipped = 0;
+    const errors: string[] = [];
+
+    for (const r of data.rows) {
+      const empId = byCode.get(r.employee_code);
+      if (!empId) { skipped++; errors.push(`Không tìm thấy mã NV: ${r.employee_code}`); continue; }
+      const payload: any = {
+        employee_id: empId, period_month: periodDate,
+        standard_days: r.standard_days ?? 22,
+        actual_days: r.actual_days ?? r.standard_days ?? 22,
+        paid_leave_days: r.paid_leave_days ?? 0,
+        unpaid_leave_days: r.unpaid_leave_days ?? 0,
+        ot_150_hours: r.ot_150_hours ?? 0,
+        ot_200_hours: r.ot_200_hours ?? 0,
+        ot_300_hours: r.ot_300_hours ?? 0,
+        night_hours: r.night_hours ?? 0,
+      };
+      const { error } = await supabase
+        .from("timesheets").upsert(payload, { onConflict: "employee_id,period_month" });
+      if (error) { skipped++; errors.push(`${r.employee_code}: ${error.message}`); }
+      else updated++;
+    }
+
+    return { updated, skipped, errors: errors.slice(0, 20) };
+  });

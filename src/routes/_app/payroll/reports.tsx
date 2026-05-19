@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { reportPit05KK, reportPit05QTT, reportBhxhC70a } from "@/lib/payroll-reports.functions";
+import { reportPit05KK, reportPit05QTT, reportBhxhC70a, reportC02HD, reportPayrollAllocation } from "@/lib/payroll-reports.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,12 +37,16 @@ function ReportsPage() {
         </div>
         <Link to="/payroll" className="text-primary text-sm underline">← Tiền lương</Link>
       </div>
-      <Tabs defaultValue="kk">
+      <Tabs defaultValue="c02">
         <TabsList>
+          <TabsTrigger value="c02">C02-HD (Bảng lương)</TabsTrigger>
+          <TabsTrigger value="alloc">Phân bổ chi phí</TabsTrigger>
           <TabsTrigger value="kk">05/KK-TNCN (Quý)</TabsTrigger>
           <TabsTrigger value="qtt">05/QTT-TNCN (Năm)</TabsTrigger>
           <TabsTrigger value="c70a">C70a-HD / D02-LT</TabsTrigger>
         </TabsList>
+        <TabsContent value="c02"><C02HDTab /></TabsContent>
+        <TabsContent value="alloc"><AllocationTab /></TabsContent>
         <TabsContent value="kk"><PitQuarterTab /></TabsContent>
         <TabsContent value="qtt"><PitAnnualTab /></TabsContent>
         <TabsContent value="c70a"><BhxhMonthTab /></TabsContent>
@@ -268,6 +272,163 @@ function BhxhMonthTab() {
                 <TableCell className="text-right">{fmt(data.totals.bhtn_emp)}</TableCell>
                 <TableCell className="text-right">{fmt(data.totals.total_emp)}</TableCell>
                 <TableCell className="text-right">{fmt(data.totals.total_co)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function C02HDTab() {
+  const [month, setMonth] = React.useState(new Date().toISOString().slice(0, 7));
+  const fn = useServerFn(reportC02HD);
+  const { data, isLoading } = useQuery({
+    queryKey: ["rpt-c02", month],
+    queryFn: () => fn({ data: { month } }),
+  });
+
+  const exportCsv = () => {
+    if (!data?.rows.length) return;
+    const head = ["STT", "Mã NV", "Họ tên", "Chức vụ", "Bộ phận", "CCCD",
+      "Lương cơ bản", "Phụ cấp", "Tổng thu nhập", "BH khấu trừ", "TNCN", "Thực lĩnh", "Ký nhận"];
+    const rows: (string | number)[][] = [
+      [`MẪU C02-HD/BB — BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${month}`], [], head,
+    ];
+    data.rows.forEach((r: any, i: number) => rows.push([
+      i + 1, r.code, r.full_name, r.position ?? "", r.department ?? "", r.citizen_id ?? "",
+      r.base_salary, r.allowance, r.gross, r.insurance_emp, r.pit, r.net, "",
+    ]));
+    rows.push(["", "", `TỔNG (${data.totals.headcount} LĐ)`, "", "", "",
+      data.totals.base_salary, data.totals.allowance, data.totals.gross,
+      data.totals.insurance_emp, data.totals.pit, data.totals.net, ""]);
+    downloadCsv(`C02-HD_${month}.csv`, rows);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-end justify-between gap-2 print:hidden">
+        <div><Label>Tháng</Label><Input type="month" className="w-44" value={month} onChange={e => setMonth(e.target.value)} /></div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()} disabled={!data?.rows.length}>In</Button>
+          <Button variant="outline" onClick={exportCsv} disabled={!data?.rows.length}>Xuất CSV</Button>
+        </div>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <div className="hidden print:block mb-4 text-center">
+          <h2 className="text-lg font-bold">BẢNG THANH TOÁN TIỀN LƯƠNG</h2>
+          <p className="text-sm">Mẫu C02-HD/BB · Tháng {month}</p>
+        </div>
+        {isLoading ? <p className="text-sm text-muted-foreground">Đang tải…</p> :
+          !data?.rows.length ? <p className="text-sm text-muted-foreground">Chưa có bảng lương tháng này.</p> : (
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead className="w-10">STT</TableHead>
+              <TableHead>Mã</TableHead><TableHead>Họ tên</TableHead>
+              <TableHead>Chức vụ</TableHead><TableHead>Bộ phận</TableHead>
+              <TableHead className="text-right">Lương CB</TableHead>
+              <TableHead className="text-right">Phụ cấp</TableHead>
+              <TableHead className="text-right">Tổng TN</TableHead>
+              <TableHead className="text-right">BH</TableHead>
+              <TableHead className="text-right">TNCN</TableHead>
+              <TableHead className="text-right">Thực lĩnh</TableHead>
+              <TableHead className="text-center w-32">Ký nhận</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {data.rows.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell className="font-mono">{r.code}</TableCell>
+                  <TableCell>{r.full_name}</TableCell>
+                  <TableCell>{r.position ?? "—"}</TableCell>
+                  <TableCell>{r.department ?? "—"}</TableCell>
+                  <TableCell className="text-right">{fmt(r.base_salary)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.allowance)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.gross)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.insurance_emp)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.pit)}</TableCell>
+                  <TableCell className="text-right font-semibold">{fmt(r.net)}</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="font-semibold bg-muted/30">
+                <TableCell colSpan={5}>TỔNG ({data.totals.headcount} LĐ)</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.base_salary)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.allowance)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.gross)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.insurance_emp)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.pit)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.net)}</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+        <div className="hidden print:grid grid-cols-3 gap-4 mt-12 text-center text-sm">
+          <div><p className="font-semibold">Người lập</p><p className="mt-16">(Ký, họ tên)</p></div>
+          <div><p className="font-semibold">Kế toán trưởng</p><p className="mt-16">(Ký, họ tên)</p></div>
+          <div><p className="font-semibold">Giám đốc</p><p className="mt-16">(Ký, họ tên)</p></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AllocationTab() {
+  const [month, setMonth] = React.useState(new Date().toISOString().slice(0, 7));
+  const fn = useServerFn(reportPayrollAllocation);
+  const { data, isLoading } = useQuery({
+    queryKey: ["rpt-alloc", month],
+    queryFn: () => fn({ data: { month } }),
+  });
+
+  const exportCsv = () => {
+    if (!data?.rows.length) return;
+    const head = ["TK chi phí", "Bộ phận", "Dự án", "Tiền lương", "BH DN", "Tổng"];
+    const rows: (string | number)[][] = [[`PHÂN BỔ TIỀN LƯƠNG & BHXH — ${month}`], [], head];
+    data.rows.forEach((r: any) => rows.push([
+      r.account, r.department, r.project,
+      r.salary, r.insurance_co, r.salary + r.insurance_co,
+    ]));
+    rows.push(["", "", "TỔNG", data.totals.salary, data.totals.insurance_co, data.totals.total]);
+    downloadCsv(`PhanBoLuong_${month}.csv`, rows);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-end justify-between">
+        <div><Label>Tháng</Label><Input type="month" className="w-44" value={month} onChange={e => setMonth(e.target.value)} /></div>
+        <Button variant="outline" onClick={exportCsv} disabled={!data?.rows.length}>Xuất CSV</Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? <p className="text-sm text-muted-foreground">Đang tải…</p> :
+          !data?.rows.length ? <p className="text-sm text-muted-foreground">Chưa có bảng lương tháng này.</p> : (
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>TK chi phí</TableHead>
+              <TableHead>Bộ phận</TableHead>
+              <TableHead>Dự án</TableHead>
+              <TableHead className="text-right">Tiền lương (334)</TableHead>
+              <TableHead className="text-right">BH DN (3383/4/6)</TableHead>
+              <TableHead className="text-right">Tổng phân bổ</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {data.rows.map((r: any, i: number) => (
+                <TableRow key={i}>
+                  <TableCell className="font-mono font-semibold">{r.account}</TableCell>
+                  <TableCell>{r.department}</TableCell>
+                  <TableCell>{r.project}</TableCell>
+                  <TableCell className="text-right">{fmt(r.salary)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.insurance_co)}</TableCell>
+                  <TableCell className="text-right font-medium">{fmt(r.salary + r.insurance_co)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="font-semibold bg-muted/30">
+                <TableCell colSpan={3}>TỔNG</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.salary)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.insurance_co)}</TableCell>
+                <TableCell className="text-right">{fmt(data.totals.total)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
