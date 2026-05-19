@@ -732,10 +732,9 @@ function InboxAiPage() {
                 </ul>
               )}
             </div>
-          </div>
-          <div className="flex-1 bg-background/60" onClick={() => setInboxOpenMobile(false)} />
-        </div>
+        </MobileInboxOverlay>
       )}
+
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
     </div>
