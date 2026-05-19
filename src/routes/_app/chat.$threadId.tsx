@@ -32,6 +32,7 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const { autostart, from } = Route.useSearch();
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
