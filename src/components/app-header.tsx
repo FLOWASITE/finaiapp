@@ -152,6 +152,18 @@ export function AppHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={accountingMode}
+                onCheckedChange={(v) => setAccountingMode(!!v)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <BookOpenCheck className="mr-2 h-4 w-4" />
+                Chế độ kế toán
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Hiện mã TK
+                </span>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ cá nhân</Link>
               </DropdownMenuItem>
