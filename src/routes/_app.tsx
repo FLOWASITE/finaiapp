@@ -25,10 +25,11 @@ function AppLayout() {
   const { workspace } = useWorkspace();
   const location = useLocation();
   const onChatRoute = location.pathname.startsWith("/chat");
+  const chatHistoryCollapsed = useChatSidebarCollapsed();
   const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
   const chromeless = location.pathname === "/inbox";
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
-  const hideHeader = onChatRoute;
+  const hideHeader = onChatRoute && chatHistoryCollapsed;
 
   if (chromeless) {
     return (
