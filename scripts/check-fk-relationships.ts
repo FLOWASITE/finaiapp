@@ -97,20 +97,22 @@ async function main() {
 
   const fks = (await sql`
     SELECT
-      tc.table_name,
-      kcu.column_name,
-      ccu.table_name  AS foreign_table_name,
-      ccu.column_name AS foreign_column_name
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON tc.constraint_name = kcu.constraint_name
-     AND tc.table_schema    = kcu.table_schema
-    JOIN information_schema.constraint_column_usage ccu
-      ON ccu.constraint_name = tc.constraint_name
-     AND ccu.table_schema    = tc.table_schema
-    WHERE tc.constraint_type = 'FOREIGN KEY'
-      AND tc.table_schema    = 'public'
-    ORDER BY tc.table_name, kcu.column_name;
+      cl.relname              AS table_name,
+      att.attname             AS column_name,
+      fcl.relname             AS foreign_table_name,
+      fatt.attname            AS foreign_column_name
+    FROM pg_constraint c
+    JOIN pg_class cl   ON cl.oid  = c.conrelid
+    JOIN pg_namespace n ON n.oid  = cl.relnamespace
+    JOIN pg_class fcl  ON fcl.oid = c.confrelid
+    JOIN pg_namespace fn ON fn.oid = fcl.relnamespace
+    JOIN unnest(c.conkey)  WITH ORDINALITY AS ck(attnum, ord)  ON true
+    JOIN unnest(c.confkey) WITH ORDINALITY AS fck(attnum, ord) ON fck.ord = ck.ord
+    JOIN pg_attribute att  ON att.attrelid  = cl.oid  AND att.attnum  = ck.attnum
+    JOIN pg_attribute fatt ON fatt.attrelid = fcl.oid AND fatt.attnum = fck.attnum
+    WHERE c.contype = 'f'
+      AND n.nspname = 'public'
+    ORDER BY cl.relname, att.attname;
   `) as FkRow[];
 
   const fkSet = new Set(fks.map((f) => `${f.table_name}.${f.column_name}`));
