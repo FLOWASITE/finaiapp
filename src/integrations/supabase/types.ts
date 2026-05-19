@@ -4283,6 +4283,109 @@ export type Database = {
           },
         ]
       }
+      sales_order_deposits: {
+        Row: {
+          advance_account: string
+          amount: number
+          applied_to_invoice_id: string | null
+          branch_id: string | null
+          cash_account: string | null
+          cost_center_id: string | null
+          created_at: string
+          department_id: string | null
+          deposit_no: string
+          id: string
+          journal_entry_id: string | null
+          method: string
+          notes: string | null
+          order_id: string
+          pay_date: string
+          posted_at: string | null
+          project_id: string | null
+          reference: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          advance_account?: string
+          amount: number
+          applied_to_invoice_id?: string | null
+          branch_id?: string | null
+          cash_account?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          deposit_no: string
+          id?: string
+          journal_entry_id?: string | null
+          method?: string
+          notes?: string | null
+          order_id: string
+          pay_date?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          advance_account?: string
+          amount?: number
+          applied_to_invoice_id?: string | null
+          branch_id?: string | null
+          cash_account?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          deposit_no?: string
+          id?: string
+          journal_entry_id?: string | null
+          method?: string
+          notes?: string | null
+          order_id?: string
+          pay_date?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_deposits_applied_to_invoice_id_fkey"
+            columns: ["applied_to_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_deposits_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_deposits_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_lines: {
         Row: {
           amount: number
@@ -4380,6 +4483,12 @@ export type Database = {
           customer_name: string | null
           customer_tax_id: string | null
           department_id: string | null
+          deposit_due_date: string | null
+          deposit_enabled: boolean
+          deposit_percent: number | null
+          deposit_received: number
+          deposit_required: number
+          deposit_status: string
           discount_amount: number
           expected_delivery_date: string | null
           fx_rate: number
@@ -4390,6 +4499,7 @@ export type Database = {
           order_no: string
           payment_terms_days: number | null
           project_id: string | null
+          reserve_enabled: boolean
           salesperson_id: string | null
           ship_address: string | null
           status: string
@@ -4415,6 +4525,12 @@ export type Database = {
           customer_name?: string | null
           customer_tax_id?: string | null
           department_id?: string | null
+          deposit_due_date?: string | null
+          deposit_enabled?: boolean
+          deposit_percent?: number | null
+          deposit_received?: number
+          deposit_required?: number
+          deposit_status?: string
           discount_amount?: number
           expected_delivery_date?: string | null
           fx_rate?: number
@@ -4425,6 +4541,7 @@ export type Database = {
           order_no: string
           payment_terms_days?: number | null
           project_id?: string | null
+          reserve_enabled?: boolean
           salesperson_id?: string | null
           ship_address?: string | null
           status?: string
@@ -4450,6 +4567,12 @@ export type Database = {
           customer_name?: string | null
           customer_tax_id?: string | null
           department_id?: string | null
+          deposit_due_date?: string | null
+          deposit_enabled?: boolean
+          deposit_percent?: number | null
+          deposit_received?: number
+          deposit_required?: number
+          deposit_status?: string
           discount_amount?: number
           expected_delivery_date?: string | null
           fx_rate?: number
@@ -4460,6 +4583,7 @@ export type Database = {
           order_no?: string
           payment_terms_days?: number | null
           project_id?: string | null
+          reserve_enabled?: boolean
           salesperson_id?: string | null
           ship_address?: string | null
           status?: string
@@ -4587,6 +4711,78 @@ export type Database = {
           },
           {
             foreignKeyName: "stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_reservations: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          qty_released: number
+          qty_reserved: number
+          ref_id: string
+          ref_type: string
+          released_at: string | null
+          reserved_at: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          qty_released?: number
+          qty_reserved: number
+          ref_id: string
+          ref_type?: string
+          released_at?: string | null
+          reserved_at?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          qty_released?: number
+          qty_reserved?: number
+          ref_id?: string
+          ref_type?: string
+          released_at?: string | null
+          reserved_at?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_reservations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
@@ -5485,6 +5681,22 @@ export type Database = {
         Returns: undefined
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_product_available_qty: {
+        Args: { p_product: string; p_warehouse: string }
+        Returns: number
+      }
+      fn_product_on_hand: {
+        Args: { p_product: string; p_warehouse: string }
+        Returns: number
+      }
+      fn_product_reserved_qty: {
+        Args: { p_product: string; p_warehouse: string }
+        Returns: number
+      }
+      fn_release_reservation_for_so_line: {
+        Args: { p_line_id: string }
+        Returns: undefined
+      }
       generate_fiscal_year: { Args: { p_year: number }; Returns: string }
       get_account_period_summary: {
         Args: { p_year?: number }
