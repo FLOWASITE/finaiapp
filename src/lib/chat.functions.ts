@@ -57,8 +57,61 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       return;
     }
 
+    // Personalization: load profile + active tenant + roles to give the AI
+    // who-it-is-talking-to context.
+    let userContextBlock = "";
+    try {
+      const [profileRes, rolesRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "display_name, email, job_title, language, timezone, date_format, number_format, accounting_standard, base_currency, active_tenant_id"
+          )
+          .eq("id", userId)
+          .maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+      ]);
+      const p: any = profileRes.data ?? {};
+      const roles = (rolesRes.data ?? []).map((r: any) => r.role).join(", ") || "user";
+      let tenantLine = "";
+      if (p.active_tenant_id) {
+        const { data: t } = await supabase
+          .from("tenants")
+          .select(
+            "name, company_name, tax_id, address, industry_name, accounting_standard, base_currency, fiscal_year_start"
+          )
+          .eq("id", p.active_tenant_id)
+          .maybeSingle();
+        if (t) {
+          tenantLine = [
+            `- Doanh nghiệp: ${t.company_name || t.name}${t.tax_id ? ` (MST ${t.tax_id})` : ""}`,
+            t.industry_name ? `- Ngành: ${t.industry_name}` : "",
+            t.address ? `- Địa chỉ: ${t.address}` : "",
+            `- Chế độ KT: ${t.accounting_standard} · Tiền tệ gốc: ${t.base_currency} · Năm tài chính bắt đầu tháng ${t.fiscal_year_start}`,
+          ].filter(Boolean).join("\n");
+        }
+      }
+      const today = new Date().toLocaleDateString("vi-VN", {
+        timeZone: p.timezone || "Asia/Ho_Chi_Minh",
+      });
+      userContextBlock = [
+        "## Hồ sơ người dùng (cá nhân hóa)",
+        `- Tên: ${p.display_name || p.email || "Người dùng"}${p.job_title ? ` — ${p.job_title}` : ""}`,
+        `- Email: ${p.email || "n/a"}`,
+        `- Vai trò: ${roles}`,
+        `- Ngôn ngữ: ${p.language || "vi"} · Múi giờ: ${p.timezone || "Asia/Ho_Chi_Minh"} · Hôm nay: ${today}`,
+        `- Định dạng ngày: ${p.date_format || "dd/MM/yyyy"} · Số: ${p.number_format || "vi-VN"}`,
+        tenantLine,
+        "",
+        "Hãy xưng hô thân thiện bằng tên người dùng khi phù hợp. Trả lời theo ngôn ngữ/múi giờ/định dạng trên. Mọi số liệu phải scope theo doanh nghiệp đang hoạt động ở trên.",
+      ].filter(Boolean).join("\n");
+    } catch {
+      // Best-effort — không chặn chat nếu lookup lỗi.
+    }
+
     const systemParts = [
       SYSTEM_PROMPT,
+      userContextBlock,
       SCHEMA_HINT,
       data.pageContext ? `\n## Ngữ cảnh trang hiện tại\n${data.pageContext}` : "",
     ].filter(Boolean);
