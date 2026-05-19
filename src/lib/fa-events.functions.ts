@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { assertPeriodOpen } from "@/lib/period-lock";
 import { z } from "zod";
+
 
 // ============== Payload schemas per event type ==============
 const TransferPayload = z.object({
