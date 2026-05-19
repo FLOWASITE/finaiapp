@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  */
 export function Markdown({ children, className }: { children: string; className?: string }) {
   return (
-    <div className={cn("text-sm leading-relaxed text-foreground", className)}>
+    <div className={cn("min-w-0 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere] break-words", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
