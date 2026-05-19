@@ -195,6 +195,14 @@ export function ChatDock() {
         try {
           sessionStorage.setItem(`__attach:${res.thread.id}`, JSON.stringify(payloads));
         } catch {}
+        qc.setQueryData(["chat", "thread", res.thread.id], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
+        );
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
