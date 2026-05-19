@@ -39,6 +39,11 @@ const OrderSchema = z.object({
   cost_center_id: z.string().uuid().nullable().optional(),
   salesperson_id: z.string().uuid().nullable().optional(),
   status: z.enum(["draft", "confirmed"]).default("draft"),
+  deposit_enabled: z.boolean().default(false),
+  reserve_enabled: z.boolean().default(false),
+  deposit_required: z.number().min(0).default(0),
+  deposit_percent: z.number().min(0).max(100).nullable().optional(),
+  deposit_due_date: z.string().nullable().optional(),
   lines: z.array(LineSchema).min(1).max(200),
 });
 
