@@ -67,6 +67,7 @@ const InputSchema = z.object({
     "sale_invoice", "purchase_invoice", "customer", "supplier",
     "product_goods", "product_service", "product_combo", "warehouse",
     "bank_receipt", "bank_payment", "bank_transfer",
+    "fixed_asset", "fa_category", "allocated_asset",
   ]),
   date: z.string().optional(),
 });
