@@ -284,17 +284,44 @@ export function AppSidebar() {
 
   const isActive = React.useCallback(
     (to: string) => {
-      const match = pathname === to || pathname.startsWith(to + "/");
+      const [toPath, toQuery] = to.split("?");
+      const match = pathname === toPath || pathname.startsWith(toPath + "/");
       if (!match) return false;
+      // If the entry pins a search param (e.g. /reports?tab=b01), require it to match.
+      if (toQuery) {
+        const expected = new URLSearchParams(toQuery);
+        const current = new URLSearchParams((searchStr ?? "").replace(/^\?/, ""));
+        for (const [k, v] of expected.entries()) {
+          if (current.get(k) !== v) return false;
+        }
+        return true;
+      }
+      // Otherwise, don't activate a parent when a more-specific sibling matches.
+      // Also: if any sibling pins this same pathname with a search param that matches current URL,
+      // prefer that sibling and don't light up the bare pathname entry.
+      const current = new URLSearchParams((searchStr ?? "").replace(/^\?/, ""));
+      const pinnedSiblingActive = allTos.some((other) => {
+        if (other === to) return false;
+        const [op, oq] = other.split("?");
+        if (op !== toPath || !oq) return false;
+        const exp = new URLSearchParams(oq);
+        for (const [k, v] of exp.entries()) {
+          if (current.get(k) !== v) return false;
+        }
+        return true;
+      });
+      if (pinnedSiblingActive) return false;
       return !allTos.some(
         (other) =>
           other !== to &&
-          other.startsWith(to + "/") &&
+          !other.includes("?") &&
+          other.startsWith(toPath + "/") &&
           (pathname === other || pathname.startsWith(other + "/")),
       );
     },
-    [pathname, allTos],
+    [pathname, searchStr, allTos],
   );
+
 
   // Initial open = groups containing active route
   const initialOpen = React.useMemo(() => {
