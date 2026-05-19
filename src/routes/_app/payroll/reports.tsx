@@ -37,12 +37,16 @@ function ReportsPage() {
         </div>
         <Link to="/payroll" className="text-primary text-sm underline">← Tiền lương</Link>
       </div>
-      <Tabs defaultValue="kk">
+      <Tabs defaultValue="c02">
         <TabsList>
+          <TabsTrigger value="c02">C02-HD (Bảng lương)</TabsTrigger>
+          <TabsTrigger value="alloc">Phân bổ chi phí</TabsTrigger>
           <TabsTrigger value="kk">05/KK-TNCN (Quý)</TabsTrigger>
           <TabsTrigger value="qtt">05/QTT-TNCN (Năm)</TabsTrigger>
           <TabsTrigger value="c70a">C70a-HD / D02-LT</TabsTrigger>
         </TabsList>
+        <TabsContent value="c02"><C02HDTab /></TabsContent>
+        <TabsContent value="alloc"><AllocationTab /></TabsContent>
         <TabsContent value="kk"><PitQuarterTab /></TabsContent>
         <TabsContent value="qtt"><PitAnnualTab /></TabsContent>
         <TabsContent value="c70a"><BhxhMonthTab /></TabsContent>
