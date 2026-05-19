@@ -99,6 +99,27 @@ const OPENROUTER_PRESET = {
   ),
 };
 
+const ALIBABA_PRESETS = {
+  intl: {
+    provider_label: "Alibaba Qwen (Intl)",
+    base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    model_default: "qwen-plus",
+    model_chat: "qwen-plus",
+    model_parse: "qwen-vl-max",
+    model_reasoning: "qwq-plus",
+    extra_headers_json: "",
+  },
+  cn: {
+    provider_label: "Alibaba Qwen (CN)",
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model_default: "qwen-plus",
+    model_chat: "qwen-plus",
+    model_parse: "qwen-vl-max",
+    model_reasoning: "qwq-plus",
+    extra_headers_json: "",
+  },
+} as const;
+
 function AiModelPage() {
   const getCfg = useServerFn(getAiModelConfig);
   const saveCfg = useServerFn(saveAiModelConfig);
