@@ -293,6 +293,46 @@ const REPORTS_SECTIONS: NavSection[] = [
   },
 ];
 
+const SUPERADMIN_SECTIONS: NavSection[] = [
+  {
+    entries: [
+      { to: "/dashboard", label: "← Về ứng dụng", icon: ArrowLeft },
+    ],
+  },
+  {
+    label: "Hệ thống",
+    entries: [
+      { to: "/superadmin", label: "Tổng quan tenants", icon: LayoutDashboard },
+      { to: "/superadmin/organizations", label: "Tổ chức", icon: Building2 },
+      { to: "/superadmin/accounts", label: "Tài khoản", icon: Users },
+    ],
+  },
+  {
+    label: "Người dùng & bảo mật",
+    entries: [
+      { to: "/superadmin/security", label: "Bảo mật", icon: Lock },
+    ],
+  },
+  {
+    label: "Nhật ký & sao lưu",
+    entries: [
+      { to: "/superadmin/audit", label: "Nhật ký", icon: ScrollText },
+      { to: "/superadmin/backups", label: "Sao lưu", icon: DatabaseBackup },
+      { to: "/superadmin/jobs", label: "Tác vụ", icon: ListChecks },
+    ],
+  },
+  {
+    label: "Cài đặt & Billing",
+    entries: [
+      { to: "/superadmin/billing", label: "Billing", icon: CreditCard },
+      { to: "/superadmin/settings", label: "Cài đặt", icon: Settings },
+      { to: "/superadmin/ai-model", label: "AI Model", icon: Sparkles },
+    ],
+  },
+];
+
+
+
 
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
