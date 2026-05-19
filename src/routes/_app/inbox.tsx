@@ -80,6 +80,8 @@ function InboxAiPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [bandFilter, setBandFilter] = useState<"all" | ConfidenceBand>("all");
+
 
   const listFn = useServerFn(listInboxAi);
   const approveFn = useServerFn(approveInboxItem);
