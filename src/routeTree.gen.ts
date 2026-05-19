@@ -114,6 +114,7 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppSalesOrdersIdPrintRouteImport } from './routes/_app/sales/orders.$id.print'
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
 import { Route as AppAssetsEventIdPrintRouteImport } from './routes/_app/assets/event.$id.print'
 
@@ -644,6 +645,11 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesOrdersIdPrintRoute = AppSalesOrdersIdPrintRouteImport.update({
+  id: '/print',
+  path: '/print',
+  getParentRoute: () => AppSalesOrdersIdRoute,
+} as any)
 const AppAssetsInventoryIdPrintRoute =
   AppAssetsInventoryIdPrintRouteImport.update({
     id: '/print',
@@ -759,10 +765,11 @@ export interface FileRoutesByFullPath {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
-  '/sales/orders/$id': typeof AppSalesOrdersIdRoute
+  '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
+  '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -862,10 +869,11 @@ export interface FileRoutesByTo {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
-  '/sales/orders/$id': typeof AppSalesOrdersIdRoute
+  '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
+  '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -972,10 +980,11 @@ export interface FileRoutesById {
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
-  '/_app/sales/orders/$id': typeof AppSalesOrdersIdRoute
+  '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
+  '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1086,6 +1095,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
+    | '/sales/orders/$id/print'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1189,6 +1199,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
+    | '/sales/orders/$id/print'
   id:
     | '__root__'
     | '/'
@@ -1298,6 +1309,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/tenant/$id'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
+    | '/_app/sales/orders/$id/print'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -2044,6 +2056,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales/orders/$id/print': {
+      id: '/_app/sales/orders/$id/print'
+      path: '/print'
+      fullPath: '/sales/orders/$id/print'
+      preLoaderRoute: typeof AppSalesOrdersIdPrintRouteImport
+      parentRoute: typeof AppSalesOrdersIdRoute
+    }
     '/_app/assets/inventory/$id/print': {
       id: '/_app/assets/inventory/$id/print'
       path: '/print'
@@ -2204,12 +2223,23 @@ const AppAssetsInventoryRouteChildren: AppAssetsInventoryRouteChildren = {
 const AppAssetsInventoryRouteWithChildren =
   AppAssetsInventoryRoute._addFileChildren(AppAssetsInventoryRouteChildren)
 
+interface AppSalesOrdersIdRouteChildren {
+  AppSalesOrdersIdPrintRoute: typeof AppSalesOrdersIdPrintRoute
+}
+
+const AppSalesOrdersIdRouteChildren: AppSalesOrdersIdRouteChildren = {
+  AppSalesOrdersIdPrintRoute: AppSalesOrdersIdPrintRoute,
+}
+
+const AppSalesOrdersIdRouteWithChildren =
+  AppSalesOrdersIdRoute._addFileChildren(AppSalesOrdersIdRouteChildren)
+
 interface AppSalesOrdersRouteChildren {
-  AppSalesOrdersIdRoute: typeof AppSalesOrdersIdRoute
+  AppSalesOrdersIdRoute: typeof AppSalesOrdersIdRouteWithChildren
 }
 
 const AppSalesOrdersRouteChildren: AppSalesOrdersRouteChildren = {
-  AppSalesOrdersIdRoute: AppSalesOrdersIdRoute,
+  AppSalesOrdersIdRoute: AppSalesOrdersIdRouteWithChildren,
 }
 
 const AppSalesOrdersRouteWithChildren = AppSalesOrdersRoute._addFileChildren(
