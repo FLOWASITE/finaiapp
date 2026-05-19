@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
+import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, ShieldAlert, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { openCommandPalette } from "@/components/command-palette";
@@ -170,6 +170,17 @@ export function AppHeader() {
               <DropdownMenuItem asChild>
                 <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Cài đặt</Link>
               </DropdownMenuItem>
+              {cu?.isSuperadmin ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/superadmin">
+                      <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
+                      <span className="text-destructive">Super Admin</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/login"))}
