@@ -1,16 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { askAccountingStream } from "@/lib/chat.functions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { ThreadList } from "@/components/chat/thread-list";
+import { Composer } from "@/components/chat/composer";
+import { createThread, appendMessage } from "@/lib/chat-threads.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/chat")({
-  component: Chat,
+  component: ChatLayout,
 });
-
-type Msg = { role: "user" | "assistant"; content: string };
 
 const SUGGESTIONS = [
   "Tháng này tổng chi phí là bao nhiêu?",
@@ -19,102 +19,99 @@ const SUGGESTIONS = [
   "Công nợ phải trả (TK 331) hiện tại?",
 ];
 
-function Chat() {
-  const askFn = useServerFn(askAccountingStream);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+function ChatLayout() {
+  const navigate = useNavigate();
+  const createFn = useServerFn(createThread);
+  const appendFn = useServerFn(appendMessage);
+  const qc = useQueryClient();
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  const handleNew = () => navigate({ to: "/chat" });
 
-  const send = async (q?: string) => {
-    const question = (q ?? input).trim();
-    if (!question || loading) return;
-    setInput("");
-    const history = messages;
-    setMessages([...history, { role: "user", content: question }, { role: "assistant", content: "" }]);
-    setLoading(true);
+  const handleStart = async (text: string) => {
+    const q = text.trim();
+    if (!q) return;
     try {
-      const stream = await askFn({ data: { question, history } });
-      for await (const chunk of stream as AsyncIterable<{ delta: string }>) {
-        setMessages((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = { role: "assistant", content: copy[copy.length - 1].content + chunk.delta };
-          return copy;
-        });
-      }
-    } catch (e: any) {
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: `Lỗi: ${e.message}` };
-        return copy;
+      const t = await createFn({ data: { title: q.slice(0, 60) } });
+      await appendFn({
+        data: { threadId: t.id, role: "user", content: q, updateTitleIfBlank: false },
       });
-    } finally {
-      setLoading(false);
+      qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      navigate({
+        to: "/chat/$threadId",
+        params: { threadId: t.id },
+        search: { autostart: "1" },
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Không tạo được cuộc trò chuyện");
     }
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col">
-      <div className="border-b border-border bg-card px-8 py-4">
-        <h1 className="text-xl font-bold tracking-tight">Trợ lý kế toán AI</h1>
-        <p className="text-xs text-muted-foreground">Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời stream theo thời gian thực</p>
+    <div className="flex h-[calc(100vh-7rem)] overflow-hidden">
+      <ThreadList onNew={handleNew} />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Outlet />
+        {/* Empty-state index: only rendered when no child route */}
+        <EmptyOrChild onStart={handleStart} />
       </div>
+    </div>
+  );
+}
 
-      <div ref={scrollRef} className="flex-1 overflow-auto p-8">
-        {messages.length === 0 ? (
-          <div className="mx-auto max-w-2xl">
-            <div className="mb-4 text-center text-sm text-muted-foreground">Một số câu hỏi mẫu:</div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} onClick={() => send(s)}
-                  className="rounded-lg border border-border bg-card p-4 text-left text-sm hover:border-primary hover:bg-accent/5">
-                  {s}
-                </button>
-              ))}
+/**
+ * Renders the empty-state composer only when there's no active thread.
+ * Detected by checking if the Outlet rendered any children — we rely on a
+ * client-side route match instead. Simpler: when /chat exact, show empty.
+ */
+function EmptyOrChild({ onStart }: { onStart: (q: string) => void }) {
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  // Show empty state only on exact /chat (no threadId)
+  if (path !== "/chat" && path !== "/chat/") return null;
+  return <ChatIndex onStart={onStart} />;
+}
+
+function ChatIndex({ onStart }: { onStart: (q: string) => void }) {
+  const [input, setInput] = useState("");
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="mx-auto w-full max-w-2xl text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Sparkles className="h-7 w-7" />
             </div>
           </div>
-        ) : (
-          <div className="mx-auto max-w-3xl space-y-4">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
-                {m.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                )}
-                <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
-                  m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"
-                }`}>
-                  {m.content || (loading && i === messages.length - 1 ? <span className="text-muted-foreground">Đang truy vấn dữ liệu…</span> : null)}
-                </div>
-                {m.role === "user" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                    <User className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight">Trợ lý kế toán AI</h1>
+          <p className="mb-8 text-sm text-muted-foreground">
+            Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời stream theo thời gian thực.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => onStart(s)}
+                className="rounded-xl border border-white/10 bg-card/50 p-3 text-left text-sm transition hover:border-primary/40 hover:bg-card"
+              >
+                {s}
+              </button>
             ))}
           </div>
-        )}
+        </div>
       </div>
-
-      <div className="border-t border-border bg-card p-4">
-        <div className="mx-auto flex max-w-3xl gap-2">
-          <Input
-            placeholder="Hỏi gì đó về dữ liệu kế toán..."
+      <div className="border-t border-white/5 bg-background/50 px-4 py-3">
+        <div className="mx-auto max-w-3xl">
+          <Composer
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            disabled={loading}
+            onChange={setInput}
+            onSubmit={() => {
+              const v = input.trim();
+              if (!v) return;
+              setInput("");
+              onStart(v);
+            }}
             autoFocus
+            placeholder="Hỏi gì đó để bắt đầu cuộc trò chuyện…"
           />
-          <Button onClick={() => send()} disabled={loading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>
