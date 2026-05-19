@@ -33,7 +33,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { openAskAi } from "@/components/ai/AskAiSheet";
+import { openAskAi } from "@/lib/open-ask-ai";
 
 type GoItem = {
   label: string;
