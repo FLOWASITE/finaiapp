@@ -13,9 +13,10 @@ function read(): boolean {
 }
 
 export function useChatSidebarCollapsed(): boolean {
-  const [collapsed, setCollapsed] = useState<boolean>(read);
+  const [collapsed, setCollapsed] = useState<boolean>(false);
 
   useEffect(() => {
+    setCollapsed(read());
     const sync = () => setCollapsed(read());
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
