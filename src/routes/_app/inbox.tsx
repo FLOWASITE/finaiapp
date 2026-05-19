@@ -109,7 +109,8 @@ function InboxAiPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [chatOpenMobile, setChatOpenMobile] = useState(false);
+  const [inboxOpenMobile, setInboxOpenMobile] = useState(false);
+  const [paneMode, setPaneMode] = useState<PaneMode>("split");
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [showScrollDown, setShowScrollDown] = useState(false);
