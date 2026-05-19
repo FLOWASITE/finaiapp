@@ -1,94 +1,68 @@
-# Chat panel hai chiều cho Sổ AI
+# Pane mode ⌘1/⌘2 + Mobile-first Chat
 
-## Mục tiêu
-Biến `/inbox` thành layout 2 cột: **Inbox list (trái) | Chat panel (phải)**. Bỏ hoàn toàn Reasoning panel ở giữa — mọi lập luận, bút toán đề xuất và nút duyệt chuyển vào trong bubble chat. Inbox và Chat đồng bộ qua một "ngữ cảnh" (context item) duy nhất.
+## 1. Desktop: 3 chế độ pane
 
-## Layout
-
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│ Header: [S] Sổ AI · ● AI online · vừa đọc 4 hoá đơn mới   ⌘K  T11   │
-├──────────────────────────────────────────────────────────────────────┤
-│ Stats strip · [Duyệt tất cả tin cậy cao (32)]                        │
-├──────────────────────────────────────────────────────────────────────┤
-│ Tabs: Inbox AI 47 · Đã hạch toán · Cần review · Tài liệu · Báo cáo  │
-├──────────────────────────────────┬───────────────────────────────────┤
-│ Inbox cards                      │ Chat panel                        │
-│ (border-l-4 band)                │ ┌───────────────────────────────┐ │
-│ • selected → viền xanh           │ │ chip: Đang xem: CTY XYZ +55tr ×│ │
-│   + badge "● Đang chat"          │ └───────────────────────────────┘ │
-│                                  │ Sổ AI 7:02                        │
-│                                  │ Chào sếp. Đêm qua đã hạch toán    │
-│                                  │ 132 mục… 47 mục cần duyệt …       │
-│                                  │ [Duyệt 32 mục] [Xem 3 cần review] │
-│                                  │                                   │
-│                                  │ ─ bubble với BÚT TOÁN inline ─    │
-│                                  │ ✓ Duyệt & ghi sổ  · Sửa           │
-│                                  │ ──────────────────────────────    │
-│                                  │ Input: Hỏi gì đó hoặc kéo HĐ…  ↑  │
-└──────────────────────────────────┴───────────────────────────────────┘
+State mới trong `src/routes/_app/inbox.tsx`:
+```ts
+type PaneMode = "split" | "inbox" | "chat";
+const [paneMode, setPaneMode] = useState<PaneMode>("split");
 ```
 
-Width: Inbox ~55%, Chat ~45% (min 420px). Trên màn <1100px, Chat collapse thành sheet, có nút mở ở header.
+Đổi grid (line 549):
+- `split` → `lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]` (60/40 hiện tại)
+- `inbox` → `lg:grid-cols-[1fr]`, ẩn cột Chat
+- `chat`  → `lg:grid-cols-[1fr]`, ẩn cột Inbox
 
-## Card Inbox (gọn hơn vì không còn panel giữa)
+Khi `paneMode==="chat"` → render `<InboxChat>` full-width thay vì list. Khi `inbox` → chỉ list.
 
-Giữ nguyên layout card hiện tại (border-l-4 band, source pill, title, amount, inline lines, blocker banner) — đây là "preview". Khi click:
-- Card nhận `border-l-4 border-primary` + badge `● Đang chat` góc phải.
-- Set `contextItemId` → Chat phản hồi.
-- **Không** mở reasoning panel nữa. Toàn bộ lập luận + nút Duyệt sống trong chat bubble.
+## 2. Keyboard shortcuts
 
-## Ngữ cảnh hai chiều
+Thêm useEffect bắt phím (chỉ desktop, bỏ qua khi đang gõ input/textarea):
+- `⌘1` / `Ctrl+1` → `setPaneMode(m => m === "inbox" ? "split" : "inbox")`
+- `⌘2` / `Ctrl+2` → `setPaneMode(m => m === "chat" ? "split" : "chat")`
+- `Esc` khi đang ở `inbox`/`chat` → về `split`
 
-State trong `inbox.tsx`:
-- `contextItemId: string | null` — mục được "ghim" vào chat.
+## 3. Pane toggle UI (desktop)
 
-Luồng:
-1. **Click card** → set `contextItemId` → card highlight + badge → Chat hiện chip `Đang xem: {title} {±amount}` và push một bubble AI mới chứa: lập luận (`reasoning.summary`), bút toán mono (`proposal.lines`), signal pills, nút `✓ Duyệt & ghi sổ` / `Sửa` / `Áp dụng quy tắc`.
-2. **AI nhắc tên mục** (`HĐ 00125`, `131`, `511`, `112`) → render thành chip button. Click → cuộn Inbox tới mục tương ứng + set context.
-3. **Đóng chip ×** → `contextItemId = null` → Chat trở về chế độ chung.
-4. **Duyệt từ bubble** → gọi handler `onApprove` đã có → card biến mất khỏi Inbox → chat push system `✓ Đã ghi sổ: {title}` → tự đóng context.
+Thêm cụm 3 nút segmented control ở header cạnh nút `MoreHorizontal` (line 488), `hidden lg:flex`:
+```
+[ Inbox ⌘1 ] [ Split ] [ Chat ⌘2 ]
+```
+Active state = highlight. Tooltip hiển thị shortcut.
 
-## Sự kiện hệ thống đồng bộ
+## 4. Mobile: đảo logic (Chat-first)
 
-`chatLog` quản lý bằng `useReducer`:
-- `approveAllHigh()` → push 2 events:
-  - `{ kind: "system", text: "↑ Sếp vừa nhấn Duyệt 32 mục tin cậy cao ở thanh trên" }`
-  - `{ kind: "ai_progress", current: 0, total: 32 }` → bubble live-update `Đang duyệt ⟳ {n}/{total}…`. Mỗi mock item dismiss tăng counter. Xong: `✓ Đã duyệt 32/32 mục`.
-- Approve đơn lẻ từ bubng chat → system line `✓ Đã ghi sổ: {title}`.
+Hiện tại mobile mặc định Inbox, nút mở Chat overlay. Đổi:
 
-## Header pill "AI online"
+- **Mặc định mở Chat full-screen** trên mobile (`<lg`).
+- Header mobile: nút `Inbox (47)` (badge = `stats.pending`) thay nút `MessageSquare` hiện tại (line 481–487). Tap → mở overlay Inbox trượt từ trái (`fixed inset-0 z-40 flex`, panel `w-[92vw] max-w-md` ở bên trái, backdrop bên phải).
+- Click 1 item trong overlay → `handleCardClick(id)` + `setInboxOpenMobile(false)` → Chat đã có `contextItem`.
 
-Bên cạnh "AI đang xử lý":
-- `● AI online · vừa đọc {n} hoá đơn mới` (n = delta `data.stats.pending` so với render trước, fallback `đang theo dõi`).
-- Pulse dot xanh. Tooltip hover: "Cập nhật cuối: 2 phút trước".
+Mobile rendering (thay block 600–638):
+```tsx
+{/* Mobile: Chat full-screen, Inbox overlay */}
+<div className="block lg:hidden h-full">
+  <InboxChat ... />
+</div>
+{inboxOpenMobile && (
+  <div className="fixed inset-0 z-40 flex lg:hidden">
+    <div className="h-full w-[92vw] max-w-md bg-background shadow-2xl overflow-y-auto">
+      {/* danh sách ItemCard, click → pickItem + đóng overlay */}
+    </div>
+    <div className="flex-1 bg-background/60" onClick={()=>setInboxOpenMobile(false)} />
+  </div>
+)}
+```
 
-## Chat panel chi tiết
+Desktop (`hidden lg:grid`) giữ logic split/inbox/chat ở phần 1.
 
-Component mới `src/components/inbox/inbox-chat.tsx`. Không nối backend — mock responder dựa trên `contextItemId`:
+## 5. Dọn dẹp
 
-- Seed ban đầu: bubble AI "Chào sếp. Đêm qua tôi đã hạch toán **132 mục** tự động. Còn **47 mục** cần sếp duyệt — trong đó **32 mục tin cậy cao** có thể duyệt hàng loạt." + quick actions `Duyệt 32 mục tin cậy cao`, `Xem 3 mục cần review`.
-- Khi set context → push bubble AI với:
-  - `reasoning.summary` (markdown bold cho từ khoá).
-  - Khối `BÚT TOÁN` mono (giống screenshot).
-  - Signal pills (`✓ Khớp HĐ`, `✓ Pattern x17`, `Tin cậy 99%`).
-  - Action row: `✓ Duyệt & ghi sổ` (primary, gọi `onApprove`), `Sửa` (toast tạm), `Áp dụng quy tắc cho tương lai`.
-- User gõ "131" hoặc "511" khi context = mock-2 → trả lời canned giải thích 131 vs 511 với bút toán mono.
-- Không có context + user hỏi → "Em chưa có ngữ cảnh, sếp chọn 1 mục bên trái hoặc hỏi tự do".
-- Hậu xử lý regex: `HĐ \d+`, mã TK 3 chữ số (`131`, `511`, `112`, `642`, `133`, `331`, `138`) → chip clickable.
-- Footer composer: textarea + nút mic (icon, no-op), nút gửi (mũi tên xanh).
+- Bỏ state `chatOpenMobile` cũ, thay bằng `inboxOpenMobile`.
+- Import icon `Inbox` từ lucide-react cho nút mobile.
+- Không đổi business logic, chỉ layout + shortcuts.
 
-## Files thay đổi
+## Files
+- `src/routes/_app/inbox.tsx` — state `paneMode`, `inboxOpenMobile`, useEffect shortcuts, segmented toggle, đảo mobile rendering, đổi grid theo paneMode.
 
-1. **`src/routes/_app/inbox.tsx`** — xoá cột Reasoning, layout 2 cột, state `contextItemId` + `chatLog` reducer, wire `approveAllHigh` để emit chat events, header pill "AI online".
-2. **`src/components/inbox/inbox-chat.tsx`** (mới) — UI chat panel, mock responder, chip parser, bubble bút toán.
-3. **`src/data/mockInbox.ts`** — thêm `mockChatSeed` (tin nhắn AI đầu tiên).
-
-Không đụng backend, không sửa `inbox-ai.functions.ts`, không sửa sidebar/header global.
-
-## Edge cases
-
-- Màn <1100px: Chat collapse → nút "Mở chat" trên header mở sheet phải.
-- `mockInboxItems` rỗng: Chat vẫn render với seed message; click card không khả thi → chip context ẩn.
-- User gửi tin trong lúc `ai_progress` chạy: cho phép, không khoá input.
-- Mục context bị duyệt/biến mất: tự đóng chip + system line "Mục đã ghi sổ, đóng ngữ cảnh".
+Không tạo file mới. Không đụng `inbox-chat.tsx`, `mockInbox.ts`, hay backend.
