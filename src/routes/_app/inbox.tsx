@@ -27,6 +27,7 @@ import {
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
 import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
+import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
@@ -102,8 +103,16 @@ function InboxAiPage() {
     refetchOnWindowFocus: false,
   });
 
-  const items = data?.items ?? [];
-  const stats = data?.stats;
+  const serverItems = data?.items ?? [];
+  const usingMock = serverItems.length === 0;
+  const [dismissedMock, setDismissedMock] = useState<Set<string>>(new Set());
+  const items = useMemo(
+    () => (usingMock ? mockInboxItems.filter((i) => !dismissedMock.has(i.id)) : serverItems),
+    [usingMock, serverItems, dismissedMock],
+  );
+  const stats = usingMock
+    ? { ...mockInboxStats, pending: Math.max(0, mockInboxStats.pending - dismissedMock.size) }
+    : data?.stats;
   const highCount = items.filter((i) => i.confidence_band === "high" && !i.blocker).length;
 
   const activeItem = useMemo(
@@ -192,6 +201,14 @@ function InboxAiPage() {
     onError: (e: any) => toast.error(e?.message || "Lưu quy tắc thất bại"),
   });
 
+  const isMock = (it: InboxItem) => it.id.startsWith("mock-");
+  const dismissMock = (id: string) =>
+    setDismissedMock((s) => {
+      const n = new Set(s);
+      n.add(id);
+      return n;
+    });
+
   const approveAllHigh = async () => {
     const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
     if (!targets.length) {
@@ -201,8 +218,13 @@ function InboxAiPage() {
     let ok = 0;
     for (const it of targets) {
       try {
-        await approveM.mutateAsync(it);
-        ok++;
+        if (isMock(it)) {
+          dismissMock(it.id);
+          ok++;
+        } else {
+          await approveM.mutateAsync(it);
+          ok++;
+        }
       } catch {}
     }
     toast.success(`Đã ghi sổ ${ok}/${targets.length} mục`);
@@ -358,15 +380,35 @@ function InboxAiPage() {
         {/* REASONING PANEL */}
         <ReasoningPanel
           item={activeItem}
-          onApprove={() =>
-            activeItem &&
+          onApprove={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              dismissMock(activeItem.id);
+              toast.success("Đã ghi sổ");
+              return;
+            }
             approveM.mutate(activeItem, {
               onSuccess: () => toast.success("Đã ghi sổ"),
               onError: (e: any) => toast.error(e?.message || "Không ghi sổ được"),
-            })
-          }
-          onSkip={() => activeItem && skipM.mutate(activeItem)}
-          onRule={() => activeItem && ruleM.mutate(activeItem)}
+            });
+          }}
+          onSkip={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              dismissMock(activeItem.id);
+              toast.success("Đã bỏ qua");
+              return;
+            }
+            skipM.mutate(activeItem);
+          }}
+          onRule={() => {
+            if (!activeItem) return;
+            if (isMock(activeItem)) {
+              toast.success("AI sẽ nhớ quy tắc này cho tương lai");
+              return;
+            }
+            ruleM.mutate(activeItem);
+          }}
           onEdit={() =>
             activeItem && openAskAi(`Sửa đề xuất "${activeItem.title}": `)
           }
