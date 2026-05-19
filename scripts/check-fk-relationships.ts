@@ -91,7 +91,7 @@ async function main() {
     process.exit(2);
   }
 
-  const sql = new SQL(url);
+  const sql = new SQL({ url, prepare: false });
 
   console.log(`${C.bold}Đang kiểm tra FK trong schema public...${C.reset}\n`);
 
