@@ -38,12 +38,19 @@ function OrderDetail() {
     queryKey: ["sales-order", id],
     queryFn: () => getFn({ data: { id } }),
   });
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   if (isLoading) return <div className="p-6">Đang tải...</div>;
   if (!data) return <div className="p-6">Không tìm thấy đơn</div>;
 
   const lines = data.sales_order_lines ?? [];
   const invoices = data.invoices ?? [];
+  const remainingTotal = lines.reduce(
+    (s: number, l: any) => s + Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_delivered || 0)),
+    0,
+  );
+  const canInvoice =
+    !["draft", "cancelled", "closed"].includes(data.status) && remainingTotal > 0.0001;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -53,7 +60,15 @@ function OrderDetail() {
         </Button>
         <h1 className="text-2xl font-semibold font-mono">{data.order_no}</h1>
         <Badge variant="secondary">{STATUS_LABEL[data.status] ?? data.status}</Badge>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <Button
+            size="sm"
+            disabled={!canInvoice}
+            onClick={() => setInvoiceOpen(true)}
+            title={canInvoice ? "Tạo hoá đơn từ đơn này" : "Không còn số lượng để xuất hoặc đơn không hợp lệ"}
+          >
+            <Receipt className="h-4 w-4 mr-1" /> Xuất hoá đơn
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/sales/orders/$id/print" params={{ id }} target="_blank">
               <Printer className="h-4 w-4 mr-1" /> In
@@ -61,6 +76,16 @@ function OrderDetail() {
           </Button>
         </div>
       </div>
+
+      <CreateInvoiceDialog
+        open={invoiceOpen}
+        onOpenChange={setInvoiceOpen}
+        orderId={id}
+        lines={lines}
+        depositEnabled={!!data.deposit_enabled}
+        depositStatus={data.deposit_status}
+      />
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card><CardContent className="p-4 space-y-1 text-sm">
