@@ -968,51 +968,50 @@ function ModelField({
         />
       ) : (
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2.5 py-2 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors"
-            >
-              <div className="flex flex-1 min-w-0 items-center gap-2">
-                {value ? (
-                  <>
-                    {triggerProvider && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground shrink-0">
-                        {triggerProvider}
-                      </span>
-                    )}
-                    <span className="font-mono text-xs truncate">{triggerName}</span>
-                    {selected?.isFree && (
-                      <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
-                        free
-                      </Badge>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-sm text-muted-foreground italic">
-                    {placeholder || "Chọn model…"}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {value && (
-                  <span
-                    role="button"
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange("");
-                    }}
-                    className="text-muted-foreground hover:text-destructive p-0.5"
-                    title="Bỏ chọn"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </span>
-                )}
-                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-            </button>
-          </PopoverTrigger>
+          <div className="relative flex w-full items-center">
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2.5 py-2 pr-9 text-left hover:border-primary/50 hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex flex-1 min-w-0 items-center gap-2">
+                  {value ? (
+                    <>
+                      {triggerProvider && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground shrink-0">
+                          {triggerProvider}
+                        </span>
+                      )}
+                      <span className="font-mono text-xs truncate">{triggerName}</span>
+                      {selected?.isFree && (
+                        <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
+                          free
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">
+                      {placeholder || "Chọn model…"}
+                    </span>
+                  )}
+                </div>
+                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </button>
+            </PopoverTrigger>
+            {value && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange("");
+                }}
+                className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive p-0.5"
+                title="Bỏ chọn"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
           <PopoverContent className="w-[460px] p-0" align="start">
             <Command>
               <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
@@ -1050,13 +1049,20 @@ function ModelField({
                       return (
                         <CommandItem
                           key={m.id}
-                          value={m.id + " " + m.name}
+                          value={m.id}
                           onSelect={() => {
                             onChange(m.id);
                             setOpen(false);
                           }}
+                          onMouseDown={(e) => {
+                            // Fallback: cmdk's onSelect can miss inside Radix Popover + <details>.
+                            // Use mousedown so we fire before the popover's focus-out close logic.
+                            e.preventDefault();
+                            onChange(m.id);
+                            setOpen(false);
+                          }}
                           className={cn(
-                            "flex items-start gap-2 py-2",
+                            "flex items-start gap-2 py-2 cursor-pointer",
                             isSel && "bg-primary/5",
                           )}
                         >
