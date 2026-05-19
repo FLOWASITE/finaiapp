@@ -42,7 +42,7 @@ function ChatLayout() {
   }, []);
 
   return (
-    <div className={`chat-surface flex overflow-hidden border border-border/40 bg-background/30 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] backdrop-blur-sm ${collapsed ? "h-screen rounded-none border-0" : "h-[calc(100vh-7rem)] rounded-2xl"}`}>
+    <div className="chat-surface flex h-full overflow-hidden">
       <ThreadList
         onNew={() => navigate({ to: "/chat" })}
         collapsed={collapsed}
