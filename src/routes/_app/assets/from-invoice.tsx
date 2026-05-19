@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { QUERY_PRESETS } from "@/lib/query-presets";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import {
   listInvoicesForAllocation,
   getInvoiceLinesForAllocation,
