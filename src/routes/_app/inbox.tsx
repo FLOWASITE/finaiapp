@@ -80,6 +80,8 @@ function InboxAiPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [bandFilter, setBandFilter] = useState<"all" | ConfidenceBand>("all");
+
 
   const listFn = useServerFn(listInboxAi);
   const approveFn = useServerFn(approveInboxItem);
@@ -93,12 +95,22 @@ function InboxAiPage() {
     refetchOnWindowFocus: false,
   });
 
-  const items = data?.items ?? [];
+  const allItems = data?.items ?? [];
   const stats = data?.stats;
+  const items = useMemo(
+    () => (bandFilter === "all" ? allItems : allItems.filter((i) => i.confidence_band === bandFilter)),
+    [allItems, bandFilter],
+  );
+  const bandCounts = useMemo(() => {
+    const c = { high: 0, medium: 0, low: 0 } as Record<ConfidenceBand, number>;
+    for (const i of allItems) c[i.confidence_band]++;
+    return c;
+  }, [allItems]);
   const activeItem = useMemo(
     () => items.find((i) => i.id === activeId) ?? items[0] ?? null,
     [items, activeId],
   );
+
 
   useEffect(() => {
     if (!activeId && items[0]) setActiveId(items[0].id);
@@ -238,6 +250,33 @@ function InboxAiPage() {
               </button>
             ))}
           </div>
+
+          {tab === "inbox" && (
+            <div className="flex items-center gap-1 rounded-lg border border-border/40 bg-card/40 p-0.5">
+              {([
+                { k: "all", label: "Tất cả", dot: "bg-muted-foreground/50", n: allItems.length },
+                { k: "high", label: "Tự tin", dot: "bg-emerald-500", n: bandCounts.high },
+                { k: "medium", label: "Cần xem", dot: "bg-amber-500", n: bandCounts.medium },
+                { k: "low", label: "Rủi ro", dot: "bg-rose-500", n: bandCounts.low },
+              ] as const).map((b) => (
+                <button
+                  key={b.k}
+                  onClick={() => setBandFilter(b.k as any)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition",
+                    bandFilter === b.k
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", b.dot)} />
+                  {b.label}
+                  <span className="tabular-nums opacity-60">{b.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
 
           <div className="relative w-72">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
