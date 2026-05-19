@@ -388,19 +388,6 @@ export const undoRuleApplication = createServerFn({ method: "POST" })
       .eq("tenant_id", tenantId);
     if (updErr) throw new Error(updErr.message);
 
-    // Trừ applied_count để stats khớp lại.
-    const ruleId = (app as any).rule_id as string;
-    const { data: rule } = await supabase
-      .from("ai_memory_rules")
-      .select("applied_count")
-      .eq("id", ruleId)
-      .maybeSingle();
-    const nextCount = Math.max(0, ((rule as any)?.applied_count ?? 1) - 1);
-    await supabase
-      .from("ai_memory_rules")
-      .update({ applied_count: nextCount })
-      .eq("id", ruleId)
-      .eq("tenant_id", tenantId);
-
+    // Trigger ai_rule_applications_stats_trg sẽ tự trừ applied_count + accuracy.
     return { ok: true };
   });

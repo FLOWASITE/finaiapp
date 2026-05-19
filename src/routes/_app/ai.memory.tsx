@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Brain,
   Sparkles,
@@ -100,10 +101,33 @@ type TabKey = "rules" | "partners" | "context" | "limits" | "learning";
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
   const list = useServerFn(listAiMemory);
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["ai-memory"],
     queryFn: () => list(),
+    refetchOnWindowFocus: true,
   });
+
+  // Realtime: lắng nghe thay đổi quy tắc và lịch sử áp dụng để cập nhật tức thì.
+  useEffect(() => {
+    const channel = supabase
+      .channel("ai-memory-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "ai_memory_rules" }, () => {
+        qc.invalidateQueries({ queryKey: ["ai-memory"] });
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "ai_rule_applications" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["ai-memory"] });
+          qc.invalidateQueries({ queryKey: ["ai-memory", "applications"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const rules = data?.rules ?? [];
   const watch = data?.watch ?? [];
