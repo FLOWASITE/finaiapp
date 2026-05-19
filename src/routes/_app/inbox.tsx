@@ -1114,8 +1114,6 @@ const ListSkeleton = memo(function ListSkeleton() {
   return LIST_SKELETON_ELEMENT;
 });
 
-  );
-});
 
 
 
