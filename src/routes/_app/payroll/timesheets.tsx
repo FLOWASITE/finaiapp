@@ -6,6 +6,8 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import {
   listTimesheets, upsertTimesheet, bulkInitTimesheets,
 } from "@/lib/payroll-phaseb.functions";
+import { importTimesheetsBulk } from "@/lib/payroll-reports.functions";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
