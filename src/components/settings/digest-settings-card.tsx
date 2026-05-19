@@ -30,8 +30,11 @@ export function DigestSettingsCard() {
   const [sending, setSending] = useState(false);
 
   const updateMut = useMutation({
-    mutationFn: (payload: { enabled?: boolean; send_hour?: number }) =>
-      updateFn({ data: payload }),
+    mutationFn: (payload: {
+      enabled?: boolean;
+      send_hour?: number;
+      template?: "short" | "standard" | "detailed";
+    }) => updateFn({ data: payload }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["digest-prefs"] });
       toast.success("Đã lưu cài đặt");

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/public/hooks/daily-digest")({
         // Find due users
         const { data: prefs, error } = await supabaseAdmin
           .from("user_digest_prefs")
-          .select("user_id,tenant_id,send_hour,last_sent_date")
+          .select("user_id,tenant_id,send_hour,last_sent_date,template")
           .eq("enabled", true)
           .lte("send_hour", hour)
           .limit(500);
@@ -48,14 +48,18 @@ export const Route = createFileRoute("/api/public/hooks/daily-digest")({
         for (const p of due) {
           try {
             await generateAndPostDigest({
-              userId: p.user_id,
-              tenantId: p.tenant_id,
+              userId: (p as any).user_id,
+              tenantId: (p as any).tenant_id,
               supabase: supabaseAdmin,
+              template: ((p as any).template ?? "standard") as
+                | "short"
+                | "standard"
+                | "detailed",
             });
             ok++;
           } catch (e: any) {
             failed++;
-            errors.push(`${p.user_id}: ${e?.message ?? "err"}`);
+            errors.push(`${(p as any).user_id}: ${e?.message ?? "err"}`);
           }
         }
 
