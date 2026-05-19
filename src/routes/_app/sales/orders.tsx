@@ -356,6 +356,11 @@ function OrderFormDialog({
   const [shipAddress, setShipAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineForm[]>([emptyLine()]);
+  const [depositEnabled, setDepositEnabled] = useState(false);
+  const [reserveEnabled, setReserveEnabled] = useState(false);
+  const [depositRequired, setDepositRequired] = useState<number>(0);
+  const [depositPercent, setDepositPercent] = useState<number | "">("");
+  const [depositDueDate, setDepositDueDate] = useState("");
 
   const products = useServerFn(listProducts);
   const { data: productList } = useQuery({
@@ -379,6 +384,11 @@ function OrderFormDialog({
       setExpectedDate(existing.expected_delivery_date ?? "");
       setShipAddress(existing.ship_address ?? "");
       setNotes(existing.notes ?? "");
+      setDepositEnabled(!!existing.deposit_enabled);
+      setReserveEnabled(!!existing.reserve_enabled);
+      setDepositRequired(Number(existing.deposit_required ?? 0));
+      setDepositPercent(existing.deposit_percent != null ? Number(existing.deposit_percent) : "");
+      setDepositDueDate(existing.deposit_due_date ?? "");
       if (existing.customer_id) {
         setCustomer({
           id: existing.customer_id,
@@ -409,6 +419,11 @@ function OrderFormDialog({
       setShipAddress("");
       setNotes("");
       setLines([emptyLine()]);
+      setDepositEnabled(false);
+      setReserveEnabled(false);
+      setDepositRequired(0);
+      setDepositPercent("");
+      setDepositDueDate("");
     }
   }, [existing, editingId, open]);
 
@@ -451,6 +466,11 @@ function OrderFormDialog({
       payment_terms_days: customer.payment_terms_days ?? null,
       notes: notes || null,
       status,
+      deposit_enabled: depositEnabled,
+      reserve_enabled: reserveEnabled,
+      deposit_required: depositEnabled ? Number(depositRequired || 0) : 0,
+      deposit_percent: depositEnabled && depositPercent !== "" ? Number(depositPercent) : null,
+      deposit_due_date: depositEnabled ? (depositDueDate || null) : null,
       lines: validLines.map((l, idx) => ({
         line_no: idx + 1,
         product_id: l.product_id || null,
@@ -491,6 +511,42 @@ function OrderFormDialog({
               <Input value={shipAddress} onChange={(e) => setShipAddress(e.target.value)} placeholder="Địa chỉ giao..." />
             </div>
           </div>
+
+          {/* Tuỳ chọn: đặt cọc & giữ kho */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={depositEnabled} onChange={(e) => setDepositEnabled(e.target.checked)} />
+                  Yêu cầu đặt cọc
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={reserveEnabled} onChange={(e) => setReserveEnabled(e.target.checked)} />
+                  Giữ tồn kho khi xác nhận
+                </label>
+              </div>
+              {depositEnabled && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">Tỉ lệ cọc (%)</Label>
+                    <Input type="number" value={depositPercent} onChange={(e) => {
+                      const v = e.target.value === "" ? "" : Number(e.target.value);
+                      setDepositPercent(v);
+                      if (v !== "") setDepositRequired(Math.round(totals.total * (Number(v) / 100)));
+                    }} placeholder="VD: 30" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Số tiền cọc</Label>
+                    <Input type="number" value={depositRequired} onChange={(e) => setDepositRequired(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hạn nộp cọc</Label>
+                    <Input type="date" value={depositDueDate} onChange={(e) => setDepositDueDate(e.target.value)} />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Lines - desktop table */}
           <div className="hidden md:block border rounded-md overflow-x-auto">

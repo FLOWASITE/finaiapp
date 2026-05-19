@@ -1,97 +1,122 @@
 
-# Đơn đặt hàng bán (Sales Orders) — Kế hoạch triển khai
+# Đặt cọc (Deposit) & Reserve tồn kho cho Đơn đặt hàng — tuỳ chọn
 
-Hiện trạng: route `/_app/sales/orders` mới là placeholder. Bảng `sales_invoices` đã có cột `sales_order_id` (sẵn sàng liên kết), nhưng **chưa có bảng `sales_orders`**. Cần dựng module chuẩn: nhập đơn → duyệt → giao hàng/xuất hoá đơn → đóng đơn.
+Hai nghiệp vụ độc lập, có thể bật/tắt theo từng đơn. Không bắt buộc, không phá vỡ luồng SO hiện tại.
 
-## 1. Phạm vi nghiệp vụ
+## 1. Cấu hình bật/tắt
 
-- Một **Đơn đặt hàng (SO)** = cam kết bán hàng với khách trước khi xuất hoá đơn / phiếu xuất kho.
-- **Không sinh bút toán** (off-balance) — chỉ là chứng từ thương mại. Đúng chuẩn VN: SO không vào sổ kế toán, chỉ là cơ sở để xuất HĐ bán.
-- Vòng đời: `draft` → `confirmed` → `partial` / `fulfilled` → `closed` (hoặc `cancelled`).
-- Cho phép **xuất 1 SO thành nhiều HĐ bán** (giao nhiều đợt). Theo dõi % đã giao theo dòng.
+Thêm 2 cờ vào `sales_orders`:
+- `deposit_enabled boolean default false` — bật quản lý đặt cọc cho SO
+- `reserve_enabled boolean default false` — bật giữ kho khi confirm
 
-## 2. Cấu trúc dữ liệu
+Trên form Đơn đặt hàng: 2 toggle "Yêu cầu đặt cọc" và "Giữ tồn kho khi xác nhận". Mặc định tắt — toàn bộ SO cũ và đơn không cần 2 nghiệp vụ này hoạt động y nguyên.
 
-### Bảng `sales_orders` (header)
-- `order_no` (auto, prefix `DH{YYYYMM}/00001` — thêm `sale_order` vào `codegen.functions.ts`)
-- `customer_id`, `customer_name`, `customer_tax_id`, `ship_address`
-- `order_date`, `expected_delivery_date`, `valid_until`
-- `currency` (mặc định VND), `exchange_rate`
-- `subtotal`, `discount_amount`, `vat_amount`, `total`
-- `status`: `draft | confirmed | partial | fulfilled | closed | cancelled`
-- `payment_terms_days`, `notes`, `internal_notes`
-- Chiều phân tích: `branch_id`, `department_id`, `project_id`, `cost_center_id`, `salesperson_id`
-- Audit: `user_id`, `tenant_id`, `created_at`, `updated_at`, `confirmed_at`, `confirmed_by`, `closed_at`
+## 2. Nghiệp vụ Đặt cọc (Deposit)
 
-### Bảng `sales_order_lines`
-- `order_id`, `line_no`, `product_id`, `description`
-- `qty_ordered`, `qty_delivered` (tự tăng khi HĐ liên kết), `qty_remaining` (computed)
-- `unit`, `unit_price`, `discount_pct`, `discount_amount`
-- `vat_rate`, `vat_amount`, `amount`, `line_total`
-- `warehouse_id` (gợi ý kho xuất), `notes`
+### Trường mới trên `sales_orders`
+- `deposit_required numeric default 0` — số tiền cọc yêu cầu
+- `deposit_percent numeric` — % theo tổng đơn (tuỳ chọn, dùng để gợi ý số tiền)
+- `deposit_due_date date` — hạn nộp cọc
+- `deposit_received numeric default 0` — tổng đã thu (auto từ trigger)
+- `deposit_status text` — `none | pending | partial | received | refunded` (auto)
 
-### Liên kết HĐ bán
-- Đã có `sales_invoices.sales_order_id`. Thêm `sales_invoice_lines.sales_order_line_id` để cộng dồn `qty_delivered`.
-- Trigger: khi insert/update/delete `sales_invoice_lines` có `sales_order_line_id` → tính lại `qty_delivered` của line và đẩy status header (`partial` nếu một phần, `fulfilled` nếu đủ tất cả lines).
+### Bảng mới `sales_order_deposits`
+Lưu các phiếu thu cọc gắn với SO (tách biệt với `customer_receipts` thu tiền hóa đơn):
+- `order_id`, `tenant_id`, `user_id`
+- `deposit_no` (auto, prefix `DC{YYYYMM}/`)
+- `pay_date`, `amount`, `method` (cash/bank), `reference`
+- `cash_account` / `bank_account` (dùng `AccountCombobox`)
+- `customer_advance_account` mặc định `131` hoặc `3387` (Doanh thu chưa thực hiện) — cho user chọn, lưu mặc định ở tenant
+- `status` (`uploaded|posted|void`), `journal_entry_id`, `notes`
+- `applied_to_invoice_id` — khi cọc được cấn trừ vào hóa đơn
 
-### RLS
-- Theo pattern hiện có: tenant-aware (`tenant_id = active_tenant_id` của user), hoặc `user_id = auth.uid()` khi chưa có tenant. Đầy đủ SELECT/INSERT/UPDATE/DELETE policies.
+### Hạch toán
+- Khi POST phiếu cọc → tạo `journal_entry`:
+  - Nợ 111/112 (tài khoản tiền)
+  - Có 131 hoặc 3387 (tuỳ chọn) — kê chi tiết theo `customer_id`
+- Khi cấn vào hoá đơn (action "Cấn cọc vào HĐ"):
+  - Nợ 131 (công nợ KH HĐ) / Có 131 (theo dõi cọc)
+  - Hoặc dùng `customer_receipts` chuyên biệt liên kết invoice_id, mark `source='deposit_apply'`
 
-## 3. Server functions (`src/lib/sales-orders.functions.ts`)
+### Trigger & quy tắc
+- Trigger `tg_so_deposits_refresh` → tính `deposit_received` + `deposit_status` cho SO
+- Khi `confirm` SO mà `deposit_enabled=true` và `deposit_required>0` và `deposit_received < deposit_required` → cảnh báo (không chặn cứng, owner có thể override với lý do)
+- Khi `cancel` SO mà còn cọc chưa cấn → yêu cầu chọn: hoàn cọc (tạo phiếu chi đối ứng) hoặc giữ cọc (ghi nhận khoản phạt — hạch toán thu nhập khác)
 
-- `listSalesOrders({ customerId?, status?, fromDate?, toDate?, search? })` — kèm tổng & % giao hàng.
-- `getSalesOrder({ id })` — header + lines + danh sách HĐ đã xuất từ SO.
-- `upsertSalesOrder(input)` — Zod validate; auto code khi tạo mới qua `nextEntityCode("sale_order")`.
-- `confirmSalesOrder({ id })` — chuyển `draft → confirmed`, chặn sửa lines.
-- `cancelSalesOrder({ id, reason })` — chỉ cho phép khi chưa có HĐ liên kết.
-- `closeSalesOrder({ id })` — đóng thủ công kể cả chưa giao đủ.
-- `createInvoiceFromOrder({ orderId, lineSelections: [{lineId, qty}] })` — tạo HĐ bán nháp từ SO (gọi lại `upsertSalesInvoice`), set `sales_order_id` + `sales_order_line_id` từng dòng.
-- `salesOrderStats({ fromDate, toDate })` — KPI cho dashboard nhỏ trên trang Orders.
+## 3. Nghiệp vụ Reserve tồn kho
 
-Tất cả dùng `requireSupabaseAuth`. Không tạo voucher / journal lines.
+Reserve là **giữ chỗ logic**, KHÔNG tạo `stock_movements` thật (tồn vật lý không đổi, chỉ giảm tồn khả dụng).
 
-## 4. UI — `src/routes/_app/sales/orders.tsx`
+### Bảng mới `stock_reservations`
+- `tenant_id`, `product_id`, `warehouse_id`
+- `ref_type` text default `'sales_order'`, `ref_id uuid` (= sales_order_line.id)
+- `qty_reserved numeric` — số lượng đang giữ
+- `qty_released numeric default 0` — đã giải phóng (do giao hàng / cancel)
+- `status` (`active|released|cancelled`)
+- `reserved_at`, `released_at`, `expires_at` (= `valid_until` của SO, nếu có)
+- Unique `(ref_type, ref_id)`
 
-Layout tương tự `/sales` index nhưng gọn hơn:
+### Quy ước "Tồn khả dụng"
+```
+available_qty = on_hand - SUM(stock_reservations.qty_reserved - qty_released WHERE active)
+```
+Thêm helper view/RPC `product_stock_availability(product_id, warehouse_id)`.
 
-- **KPI strip**: Tổng SO trong kỳ, Giá trị cam kết, Đã giao, Còn lại, Tỷ lệ hoàn thành.
-- **Toolbar**: tìm theo số/khách, lọc trạng thái + khoảng ngày, nút "Đơn mới".
-- **Bảng SO**: số DH, ngày, khách, giá trị, % đã giao (progress bar), trạng thái (`DocStatusBadge`), action menu (Xem / Duyệt / Tạo HĐ / Huỷ / In).
-- **Dialog Đơn mới / sửa** (responsive như `/sales` invoice):
-  - Header: `CustomerCombobox`, ngày đặt, ngày giao dự kiến, hiệu lực, NV bán hàng, chi nhánh/phòng ban/dự án (dùng `dimension-pickers`).
-  - Lines: bảng desktop + card mobile (`md:hidden`), mỗi dòng: sản phẩm, SL, ĐVT, đơn giá, % CK, % VAT, thành tiền. Auto tính.
-  - Footer: tổng tiền hàng / CK / VAT / Tổng.
-  - Nút: Lưu nháp / Lưu & Duyệt.
-- **Trang chi tiết `/sales/orders/$id`**: thông tin SO + tab "Hoá đơn đã xuất" + nút **"Tạo hoá đơn từ đơn"** (mở dialog chọn dòng + số lượng còn lại).
-- **In phiếu**: `/sales/orders/$id/print` — A4 đơn giản, có logo tenant, chữ ký 2 bên.
+### Vòng đời reservation
+- **Confirm SO** (`status: draft → confirmed`) với `reserve_enabled=true`:
+  - Với mỗi line có `product_id` + `warehouse_id`: kiểm tra `available_qty >= qty_ordered`.
+    - Đủ → tạo `stock_reservations` (qty=qty_ordered)
+    - Không đủ → trả lỗi liệt kê SP thiếu; cho phép "Confirm + giữ phần có" (partial reserve) qua flag.
+- **Tạo Hoá đơn từ SO** (giao hàng): khi `sales_invoice_lines` gắn `sales_order_line_id` và HĐ post → tự release tương ứng (`qty_released += delivered_qty`) qua mở rộng trigger `tg_sil_refresh_so_progress`.
+- **Cancel/Close SO** → release toàn bộ reservation còn active.
+- **Sửa qty_ordered** ở SO confirmed → điều chỉnh `qty_reserved` (tăng cần check availability, giảm thì release).
+- **Expire** (nếu `expires_at < today` và còn active) → job/manual: chuyển status `expired`, release.
 
-Mọi ô **tài khoản** (nếu có ở dòng, ví dụ TK doanh thu mặc định) dùng `AccountCombobox` chuẩn hệ thống. Mọi field code dùng `nextEntityCode` server-side, không cho user gõ tay (theo memory ngầm từ các phân hệ khác).
+### UI hiển thị
+- Trang chi tiết SO: thêm card "Giữ kho" — bảng line × (đặt / đã giao / đang giữ / khả dụng kho), badge ⚠ nếu reserve thiếu.
+- Form Hoá đơn bán hàng: khi chọn SP có reservation từ SO khác → cảnh báo "Đang giữ X cho SO …".
+- Báo cáo: thêm `/inventory/availability` (Tồn vật lý / Đang giữ / Khả dụng) — tuỳ chọn (giai đoạn 2).
 
-## 5. Tích hợp với hoá đơn bán hiện có
+## 4. Server functions mới (`src/lib/sales-orders.functions.ts` + `deposits.functions.ts` mới)
 
-- Trong form `Hoá đơn bán` (`/sales`): thêm ô chọn **Đơn đặt hàng nguồn** (optional). Khi chọn → tự fill khách + lines còn lại; user điều chỉnh SL giao đợt này.
-- Trang `/sales/$id`: hiển thị link ngược về SO nếu có.
-- Khi HĐ bán bị huỷ/xoá → trigger giảm `qty_delivered` tương ứng.
+- `listSalesOrderDeposits(orderId)`
+- `upsertSalesOrderDeposit(input)` — tạo/sửa phiếu cọc (draft)
+- `postSalesOrderDeposit(id)` — sinh journal entry
+- `voidSalesOrderDeposit(id, reason)`
+- `applyDepositToInvoice({ depositId, invoiceId, amount })`
+- `refundDeposit({ orderId, amount, method, ... })`
+- Mở rộng `confirmSalesOrder({ id, allowPartialReserve? })` — chạy reserve khi flag bật
+- `releaseReservations(orderId)` — dùng nội bộ + action thủ công
+- `getStockAvailability({ productId, warehouseId })`
 
-## 6. Cập nhật điều hướng
+## 5. Codegen
 
-- Sidebar mục "Bán hàng" đã có "Đơn đặt hàng" → trỏ tới route mới (giữ nguyên path `/sales/orders`).
-- Thêm 2 route con: `sales/orders.$id.tsx`, `sales/orders.$id.print.tsx`.
+`src/lib/codegen.functions.ts`: thêm `deposit` → prefix `DC{YYYYMM}/00001`.
 
-## 7. Thứ tự thi hành
+## 6. Migration order
 
-1. **Migration**: tạo `sales_orders`, `sales_order_lines`, RLS, trigger cập nhật `qty_delivered`, thêm `sales_invoice_lines.sales_order_line_id`.
-2. Bổ sung `sale_order` vào `codegen.functions.ts` (prefix `DH`, date-scoped, padLen 5).
-3. Viết `sales-orders.functions.ts` đầy đủ + Zod schema.
-4. Thay placeholder `orders.tsx` bằng UI đầy đủ; tạo route chi tiết + in.
-5. Patch form hoá đơn bán: chọn SO nguồn, gửi kèm `sales_order_line_id` cho từng dòng.
-6. Smoke test: tạo SO → duyệt → xuất 1 phần → kiểm tra `qty_delivered`, status `partial` → xuất nốt → `fulfilled`.
+1. ALTER `sales_orders` thêm các cờ + trường deposit
+2. CREATE `sales_order_deposits` + RLS (tenant scope, role `owner/admin/accountant/sales`)
+3. CREATE `stock_reservations` + RLS + index `(product_id, warehouse_id, status)`
+4. Trigger: `tg_so_deposits_refresh`, mở rộng `tg_sil_refresh_so_progress` để release reservation, `tg_so_status_release_reservations` (khi cancel/close)
+5. Helper SQL: `fn_product_available_qty(...)`
 
-## 8. Câu hỏi xác nhận
+## 7. Câu hỏi cần xác nhận trước khi code
 
-1. **Phê duyệt nhiều cấp** cho SO (vd: SO > X tỷ cần cấp trên duyệt) — có cần ngay đợt này hay để sau?
-2. **Đặt cọc / tạm ứng** theo SO (gắn phiếu thu tạm ứng vào SO) — làm ngay hay tách module riêng?
-3. **Giữ tồn kho** (reserve stock) khi `confirmed` — có muốn không? Nếu có sẽ cần thêm bảng `stock_reservations`.
-4. **Đơn vị tiền tệ ngoại tệ** + tỉ giá — chỉ VND trước hay multi-currency luôn?
+1. **TK cọc mặc định**: dùng `131 - Phải thu KH` (theo dõi như công nợ âm) hay `3387 - Doanh thu chưa thực hiện` / `131x` chi tiết? Đề xuất: cho cấu hình ở tenant, mặc định `131` chi tiết "cọc KH".
+2. **Reserve partial**: cho phép confirm SO khi tồn không đủ (giữ phần có, phần còn lại = backorder) hay chặn cứng? Đề xuất: cho phép, có cảnh báo.
+3. **Reserve theo kho**: bắt buộc line phải có `warehouse_id` mới reserve được — line không có kho bỏ qua. OK?
+4. **Phạm vi hiển thị**: chỉ làm trong module SO + form HĐ bán, hay làm luôn báo cáo "Tồn khả dụng" (giai đoạn sau)?
 
-Mặc định nếu không trả lời: **(1) 1 cấp duyệt, (2) chưa làm tạm ứng, (3) không reserve stock, (4) VND only** — đủ chuẩn cho phần lớn DN VN, mở rộng sau dễ.
+## Phạm vi file dự kiến
+
+- Migration mới (1 file)
+- `src/lib/codegen.functions.ts` (+ deposit)
+- `src/lib/sales-orders.functions.ts` (mở rộng confirm/cancel)
+- `src/lib/deposits.functions.ts` (mới)
+- `src/lib/inventory.functions.ts` (thêm availability)
+- `src/routes/_app/sales/orders.$id.tsx` (UI card cọc + reserve)
+- `src/routes/_app/sales/orders.tsx` (toggle trong form)
+- `src/integrations/supabase/types.ts` (auto-regenerate)
+
+Sau khi bạn duyệt và trả lời 4 câu hỏi trên, tôi sẽ chạy migration + code theo thứ tự.

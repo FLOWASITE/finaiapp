@@ -39,6 +39,11 @@ const OrderSchema = z.object({
   cost_center_id: z.string().uuid().nullable().optional(),
   salesperson_id: z.string().uuid().nullable().optional(),
   status: z.enum(["draft", "confirmed"]).default("draft"),
+  deposit_enabled: z.boolean().default(false),
+  reserve_enabled: z.boolean().default(false),
+  deposit_required: z.number().min(0).default(0),
+  deposit_percent: z.number().min(0).max(100).nullable().optional(),
+  deposit_due_date: z.string().nullable().optional(),
   lines: z.array(LineSchema).min(1).max(200),
 });
 
@@ -189,6 +194,11 @@ export const upsertSalesOrder = createServerFn({ method: "POST" })
       vat_amount,
       total,
       status: data.status,
+      deposit_enabled: data.deposit_enabled,
+      reserve_enabled: data.reserve_enabled,
+      deposit_required: data.deposit_required ?? 0,
+      deposit_percent: data.deposit_percent ?? null,
+      deposit_due_date: data.deposit_due_date || null,
       confirmed_at: data.status === "confirmed" ? new Date().toISOString() : null,
       confirmed_by: data.status === "confirmed" ? userId : null,
     };
@@ -229,16 +239,64 @@ export const upsertSalesOrder = createServerFn({ method: "POST" })
 
 export const confirmSalesOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { id: string }) => z.object({ id: z.string().uuid() }).parse(i))
+  .inputValidator((i: { id: string; allowPartialReserve?: boolean }) =>
+    z.object({ id: z.string().uuid(), allowPartialReserve: z.boolean().optional() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { data: order, error: oErr } = await supabase
+      .from("sales_orders")
+      .select("*, sales_order_lines(*)")
+      .eq("id", data.id).single();
+    if (oErr) throw new Error(oErr.message);
+    const o = order as any;
+    if (o.status !== "draft") throw new Error("Chỉ duyệt được đơn đang ở trạng thái nháp");
+
+    // Reserve stock (logic only, no movements)
+    const shortages: { description: string; need: number; available: number }[] = [];
+    if (o.reserve_enabled) {
+      const lines = (o.sales_order_lines ?? []).filter((l: any) => l.product_id && l.warehouse_id && Number(l.qty_ordered) > 0);
+      for (const l of lines) {
+        const { data: oh } = await supabase.rpc("fn_product_on_hand", { p_product: l.product_id, p_warehouse: l.warehouse_id });
+        const { data: rv } = await supabase.rpc("fn_product_reserved_qty", { p_product: l.product_id, p_warehouse: l.warehouse_id });
+        const avail = Number(oh ?? 0) - Number(rv ?? 0);
+        const need = Number(l.qty_ordered);
+        if (avail + 1e-6 < need) {
+          shortages.push({ description: l.description, need, available: Math.max(0, avail) });
+        }
+      }
+      if (shortages.length > 0 && !data.allowPartialReserve) {
+        const msg = shortages.map((s) => `• ${s.description}: cần ${s.need}, khả dụng ${s.available}`).join("\n");
+        throw new Error(`Không đủ tồn kho để giữ:\n${msg}`);
+      }
+      // Create reservations
+      const payload = lines.map((l: any) => {
+        const need = Number(l.qty_ordered);
+        return {
+          tenant_id: o.tenant_id,
+          user_id: userId,
+          product_id: l.product_id,
+          warehouse_id: l.warehouse_id,
+          ref_type: "sales_order",
+          ref_id: l.id,
+          qty_reserved: need, // reserve full want; shortage = backorder tracked separately
+          expires_at: o.valid_until || null,
+        };
+      });
+      if (payload.length > 0) {
+        const { error: rErr } = await supabase
+          .from("stock_reservations")
+          .upsert(payload, { onConflict: "ref_type,ref_id" });
+        if (rErr) throw new Error(rErr.message);
+      }
+    }
+
     const { error } = await supabase
       .from("sales_orders")
       .update({ status: "confirmed", confirmed_at: new Date().toISOString(), confirmed_by: userId })
-      .eq("id", data.id)
-      .eq("status", "draft");
+      .eq("id", data.id).eq("status", "draft");
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, shortages };
   });
 
 export const cancelSalesOrder = createServerFn({ method: "POST" })
@@ -259,6 +317,14 @@ export const cancelSalesOrder = createServerFn({ method: "POST" })
       .update({ status: "cancelled", cancel_reason: data.reason || null, closed_at: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    // Release active reservations
+    const { data: lns } = await supabase.from("sales_order_lines").select("id").eq("order_id", data.id);
+    const ids = (lns ?? []).map((l: any) => l.id);
+    if (ids.length > 0) {
+      await supabase.from("stock_reservations")
+        .update({ status: "cancelled", released_at: new Date().toISOString() })
+        .in("ref_id", ids).eq("ref_type", "sales_order").eq("status", "active");
+    }
     return { ok: true };
   });
 
