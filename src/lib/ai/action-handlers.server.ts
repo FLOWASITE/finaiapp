@@ -106,9 +106,124 @@ const recordCustomerReceipt: ActionHandler = {
   },
 };
 
+// ============= Handler: recordSupplierPayment =============
+const RecordSupplierPaymentInput = z.object({
+  invoice_id: z.string().uuid().optional(),
+  supplier_id: z.string().uuid().optional(),
+  supplier_name: z.string().optional(),
+  pay_date: z.string(),
+  method: z.enum(["cash", "bank", "other"]),
+  amount: z.number().positive(),
+  reference: z.string().optional(),
+});
+
+const recordSupplierPayment: ActionHandler = {
+  schema: RecordSupplierPaymentInput,
+  preview: async (input, { supabase }) => {
+    let invLabel = "";
+    if (input.invoice_id) {
+      const { data: inv } = await supabase
+        .from("invoices")
+        .select("invoice_no, supplier_name, total, payment_status")
+        .eq("id", input.invoice_id)
+        .single();
+      if (inv) invLabel = `HĐ mua **${inv.invoice_no}** — ${inv.supplier_name} (tổng ${Number(inv.total).toLocaleString("vi-VN")} ₫)`;
+    }
+    const methodLabel: Record<string, string> = { cash: "Tiền mặt", bank: "Chuyển khoản", other: "Khác" };
+    return [
+      `Chi trả NCC ${input.supplier_name ? `**${input.supplier_name}**` : ""}`,
+      invLabel,
+      `Hình thức: ${methodLabel[input.method]} | Ngày: ${input.pay_date}`,
+      `Số tiền: **${input.amount.toLocaleString("vi-VN")} ₫**`,
+      input.reference ? `Tham chiếu: ${input.reference}` : "",
+    ].filter(Boolean).join("\n");
+  },
+  execute: async (input) => {
+    const { recordPayment } = await import("@/lib/payables.functions");
+    await (recordPayment as any)({ data: input });
+    return { ref_table: "supplier_payments", message: "Đã ghi nhận khoản chi NCC" };
+  },
+};
+
+// ============= Handler: createBankVoucher =============
+const BankVoucherInput = z.object({
+  voucher_no: z.string().min(1),
+  voucher_type: z.enum(["receipt", "payment"]),
+  voucher_date: z.string(),
+  bank_account_id: z.string().uuid(),
+  amount: z.number().positive(),
+  counter_account: z.string().min(3),
+  party_name: z.string().optional(),
+  reason: z.string().optional(),
+  reference: z.string().optional(),
+});
+
+const createBankVoucherAction: ActionHandler = {
+  schema: BankVoucherInput,
+  preview: async (input, { supabase }) => {
+    const { data: acc } = await supabase
+      .from("bank_accounts")
+      .select("name, bank_name, account_no")
+      .eq("id", input.bank_account_id)
+      .single();
+    const accLabel = acc ? `${acc.name} (${acc.bank_name || ""} ${acc.account_no || ""})` : "TK ngân hàng";
+    const typeLabel = input.voucher_type === "receipt" ? "**Báo có** (thu)" : "**Báo nợ** (chi)";
+    return [
+      `${typeLabel} ${input.voucher_no} — ${input.voucher_date}`,
+      `TK ngân hàng: ${accLabel}`,
+      `Đối ứng: ${input.counter_account}${input.party_name ? ` | ${input.party_name}` : ""}`,
+      `Số tiền: **${input.amount.toLocaleString("vi-VN")} ₫**`,
+      input.reason ? `Diễn giải: ${input.reason}` : "",
+    ].filter(Boolean).join("\n");
+  },
+  execute: async (input) => {
+    const { createBankVoucher } = await import("@/lib/bank.functions");
+    const result: any = await (createBankVoucher as any)({ data: input });
+    return { ref_table: "bank_vouchers", ref_id: result?.id, message: `Đã tạo phiếu ${input.voucher_no}` };
+  },
+};
+
+// ============= Handler: createBankTransfer =============
+const BankTransferInput = z.object({
+  voucher_no: z.string().min(1),
+  voucher_date: z.string(),
+  from_account_id: z.string().uuid(),
+  to_account_id: z.string().uuid(),
+  amount: z.number().positive(),
+  reason: z.string().optional(),
+});
+
+const createBankTransferAction: ActionHandler = {
+  schema: BankTransferInput,
+  preview: async (input, { supabase }) => {
+    const { data: accs } = await supabase
+      .from("bank_accounts")
+      .select("id, name, bank_name")
+      .in("id", [input.from_account_id, input.to_account_id]);
+    const map = new Map((accs ?? []).map((a: any) => [a.id, a]));
+    const from: any = map.get(input.from_account_id);
+    const to: any = map.get(input.to_account_id);
+    return [
+      `**Chuyển khoản nội bộ** ${input.voucher_no} — ${input.voucher_date}`,
+      `Từ: ${from?.name || "?"} (${from?.bank_name || ""})`,
+      `Đến: ${to?.name || "?"} (${to?.bank_name || ""})`,
+      `Số tiền: **${input.amount.toLocaleString("vi-VN")} ₫**`,
+      input.reason ? `Diễn giải: ${input.reason}` : "",
+    ].filter(Boolean).join("\n");
+  },
+  execute: async (input) => {
+    const { createBankTransfer } = await import("@/lib/bank.functions");
+    await (createBankTransfer as any)({ data: input });
+    return { ref_table: "bank_vouchers", message: `Đã tạo phiếu chuyển khoản ${input.voucher_no}` };
+  },
+};
+
 export const ACTION_HANDLERS: Record<string, ActionHandler> = {
   createInvoiceFromSO,
   recordCustomerReceipt,
+  recordSupplierPayment,
+  createBankVoucher: createBankVoucherAction,
+  createBankTransfer: createBankTransferAction,
 };
 
 export const ACTION_CATALOG = Object.keys(ACTION_HANDLERS);
