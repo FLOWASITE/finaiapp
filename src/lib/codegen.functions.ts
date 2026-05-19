@@ -57,6 +57,9 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
     table: "bank_vouchers", column: "voucher_no", prefix: "BT", dateScoped: true, padLen: 5,
     extraFilter: { column: "voucher_type", value: "transfer_out" },
   },
+  fixed_asset: { table: "fixed_assets", column: "code", prefix: "TS", dateScoped: false, padLen: 4 },
+  fa_category: { table: "fa_categories", column: "code", prefix: "DM-TS", dateScoped: false, padLen: 3 },
+  allocated_asset: { table: "allocated_assets", column: "code", prefix: "CCDC", dateScoped: false, padLen: 4 },
 };
 
 const InputSchema = z.object({
