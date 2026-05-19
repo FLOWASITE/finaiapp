@@ -7,6 +7,7 @@ import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMsg } from "@/components/chat/message-list";
+import { ChatSkeleton } from "@/components/chat/chat-skeleton";
 import { Button } from "@/components/ui/button";
 import { PendingActions } from "@/components/ai/PendingActions";
 import {
