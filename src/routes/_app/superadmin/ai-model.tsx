@@ -411,7 +411,7 @@ function AiModelPage() {
             logoBg="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
             title="OpenRouter"
             description="Gateway 300+ model OpenAI-compatible."
-            meta={["Cần HTTP-Referer / X-Title", "openrouter.ai"]}
+            meta={[]}
             keyHref="https://openrouter.ai/keys"
             action={
               <Button size="sm" variant="outline" onClick={applyOpenRouterPreset} className="w-full">
