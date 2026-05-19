@@ -1,80 +1,68 @@
-# Trang "Trí nhớ AI" + nhóm sidebar mới
+## Mục tiêu
 
-## Phạm vi
+Thay dữ liệu mock trên trang **Trí nhớ AI** bằng dữ liệu thật trong database, với đầy đủ API tạo / sửa / tắt / bật lại / xoá quy tắc và quản lý mẫu "Đang học" (watch list).
 
-UI-first: dùng dữ liệu mẫu (mock) trong file để dựng đủ trải nghiệm. Backend (lưu rules, log lần áp dụng, watch list) chưa có schema — sẽ làm ở turn sau khi user xác nhận data model. Không thay đổi business logic hiện có.
+## 1. Database (migration)
 
-## Sidebar
+Tạo 2 bảng mới, scope theo `tenant_id` + `user_id`, RLS dùng `is_tenant_member(auth.uid(), tenant_id)`:
 
-`src/components/app-sidebar.tsx`:
-- Thêm nhóm `{ label: "AI", entries: [...] }` ngay sau "Tổng quan" trong `SECTIONS` (và bản FRONT_SECTIONS cũng có entry tương ứng).
-- Entry: `{ to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: { text: "MỚI", color: "#4F46C7" } }`.
-- Mở rộng `NavEntry` type để chấp nhận field `badge` optional; renderer trong `EntryButton`/`GroupButton` hiển thị pill bo tròn 9px, padding 0 6px, bg `#4F46C7` text trắng, kích thước 9px, ml-auto.
+**`ai_memory_rules`**
+- `id uuid pk`, `tenant_id uuid`, `created_by uuid` (user tạo)
+- `type text check in ('suggestion','active','disabled')`
+- `source text check in ('ai-learned','user-taught')` nullable
+- `title text`, `when_text text`, `then_text text`
+- `origin text` (mô tả nguồn gốc, vd "Học từ 5 lần duyệt liên tiếp")
+- `applied_count int default 0`, `accuracy_correct int default 0`, `accuracy_total int default 0`
+- `last_used_at timestamptz`, `disable_reason text`
+- `created_at`, `updated_at` + trigger `set_updated_at`
 
-## Route
+**`ai_memory_watch`** (mẫu AI đang theo dõi)
+- `id uuid pk`, `tenant_id uuid`, `created_by uuid`
+- `text text`, `seen_count int default 0`, `target_count int default 5`
+- `created_at`, `updated_at`
 
-`src/routes/_app/ai/memory.tsx` (file mới, dùng dot-flat: `ai.memory.tsx`).
-- Layout: 1 cột flex-col, full-height container; main area scroll dọc trong vùng giữa, footer sticky.
+RLS: SELECT/INSERT/UPDATE/DELETE chỉ cho thành viên active của tenant.
 
-### Cấu trúc component (cùng file, tách function nhỏ)
+## 2. Server functions
 
-```text
-<AIMemoryPage>
-  <MemoryHeader />            -- icon + tiêu đề + pill + tagline + StatsGrid 4 ô
-  <SubTabs value/onChange />  -- 5 tabs underline-style, badge "3" cho "Đang học"
-  <ScrollArea>
-    {tab === 'rules'    && <RuleList items={mockRules} />}
-    {tab === 'partners' && <ComingSoon label="Đối tác" />}
-    {tab === 'context'  && <ComingSoon label="Bối cảnh DN" />}
-    {tab === 'limits'   && <ComingSoon label="Giới hạn" />}
-    {tab === 'learning' && <WatchList items={mockWatch} />}
-  </ScrollArea>
-  <WatchFooter count={12} />  -- sticky, chấm tím pulse
-</AIMemoryPage>
-```
+File mới `src/lib/ai-memory.functions.ts` (dùng middleware `withTenant` giống `digest-prefs.functions.ts`):
 
-### RuleCard — 4 variants (A/B/C/D)
+- `listAiMemory()` → `{ rules: Rule[]; watch: Watch[] }` — đọc cả 2 bảng cho tenant hiện tại.
+- `createRule(input)` — tạo quy tắc mới (mặc định `type='active'`, `source='user-taught'`).
+- `promoteSuggestion({ id })` — chuyển 1 quy tắc từ `suggestion` → `active` + `source='user-taught'`.
+- `updateRule({ id, when_text?, then_text?, title? })`.
+- `disableRule({ id, reason })` — `type='disabled'` + lưu `disable_reason`.
+- `enableRule({ id })` — `type='active'`, xoá `disable_reason`.
+- `deleteRule({ id })` — DELETE (dùng cho "Bỏ qua" đề xuất).
+- `promoteWatchToRule({ watch_id, when_text, then_text, title })` — INSERT rule + DELETE watch trong cùng handler.
+- `dismissWatch({ id })` — DELETE watch.
 
-Single component `<RuleCard rule={...} />` chuyển style theo `rule.type + rule.source`:
+Validation bằng `zod`, tất cả `.eq("tenant_id", tenantId)` trước khi UPDATE/DELETE.
 
-- **A — Suggestion**: bg `#F5F4FE`, border 1px `#4F46C7`, badge "ĐỀ XUẤT QUY TẮC MỚI" với `Sparkles`, actions: `[Tạo quy tắc(primary), Tinh chỉnh, Bỏ qua, "Xem 5 lần →"(muted, ml-auto)]`.
-- **B — AI tự học**: badge "AI TỰ HỌC" với `Bot`, status dot xanh.
-- **C — Bạn dạy**: badge "BẠN DẠY" với `User`, màu `#0F6E56`.
-- **D — Tạm tắt**: opacity 0.65, badge "TẠM TẮT" với `PauseCircle`, title strikethrough, dot xám, hiện `disableReason` thay cho block KHI/THÌ + stats.
+## 3. Seed dữ liệu mẫu
 
-Chip KHI/THÌ là 2 sub-component:
-- `<ChipWhen>`: bg `#26215C`, text white, font-size 10, font-weight 500, padding `1px 6px`, rounded `3px`.
-- `<ChipThen>`: bg `#0F6E56`, cùng style.
-- Đặt trong block `rounded-md bg-muted/40 p-3` 2 dòng (KHI ở dòng 1, THÌ ở dòng 2).
+Sau migration, dùng tool `insert` chèn 6 quy tắc + 12 watch (tương ứng `INITIAL_RULES` và `INITIAL_WATCH` hiện có) cho mọi tenant đang có trong `tenants` để demo không trống.
 
-Stats row: 3 cluster icon + text (Zap "Áp dụng N lần", Target "Đúng %", Clock "Cuối: …"). Actions row dùng `<Button variant="ghost" size="sm">`.
+## 4. UI — `src/routes/_app/ai.memory.tsx`
 
-### Tương tác (UI-only, state local trong page)
+Refactor để dùng **TanStack Query**:
 
-1. **Tạo quy tắc** (thẻ A): mở `<Dialog>` preview hiển thị KHI/THÌ + nút "Xác nhận". Confirm → `setRules(r => r.map(...))` chuyển type='active', source='user-taught'; thẻ animate `animate-fade-in`.
-2. **Xem N lần áp dụng**: mở `<Sheet side="right">` với danh sách mock 5–10 mục, mỗi mục có "Xem chi tiết" (no-op stub) và "Báo cáo sai" (toast "Đã gửi phản hồi cho AI").
-3. **Sửa**: `<Dialog>` 2 `<Textarea>` cho điều kiện KHI và hành động THÌ, kèm dòng "Sẽ áp dụng cho **X** mục trong 30 ngày qua" (X = stats.appliedCount stub). Save → cập nhật rule local.
-4. **Tắt**: `<AlertDialog>` với `<Textarea>` "Lý do tắt" required → confirm → rule chuyển type='disabled', lưu `disableReason`, ngày = hôm nay.
-5. **Tab "Đang học"**: render 12 mẫu mock (`{ vendor, account, current, target }`). Mỗi item card có "Tạo quy tắc luôn" → thêm vào rules list dạng C; "Bỏ theo dõi" → remove local.
+- `useQuery(['ai-memory'], listAiMemory)` cho rules + watch.
+- `useMutation` cho từng action (create/promote/update/disable/enable/delete/promoteWatch/dismissWatch), `onSuccess` → `queryClient.invalidateQueries(['ai-memory'])` + `toast`.
+- Bỏ `INITIAL_RULES`, `INITIAL_WATCH`, các `setRules/setWatch` local state.
+- `RuleCard` nhận thêm các mutation handlers thay vì cập nhật `setRules` cục bộ.
+- Loading skeleton + empty state khi chưa có rule/watch.
+- Stat cards: `Quy tắc hoạt động` đếm từ rules, `Đề xuất mới` đếm `type='suggestion'`. Hai số tĩnh ("1,284", "98.4%") tạm tính từ `SUM(applied_count)` và `SUM(accuracy_correct)/SUM(accuracy_total)` của tenant.
 
-### Footer "AI đang theo dõi"
+## 5. Không thay đổi
 
-Sticky bottom, `bg-muted/50 border-t`, 1 dòng:
-- Chấm `h-2 w-2 rounded-full bg-[#4F46C7]` + class `animate-pulse`.
-- Text "AI đang theo dõi 12 mẫu chưa đủ tin cậy để tạo quy tắc · cần ~3-5 lần lặp lại nữa".
-- Nút phải "Xem chi tiết" → set tab = 'learning'.
+- Giữ nguyên layout, màu sắc, chip KHI/THÌ, dialog/sheet.
+- Không đụng sidebar, không tạo edge function.
+- Sheet "Xem N lần áp dụng" tạm vẫn render mock (chưa có bảng lịch sử áp dụng) — sẽ ghi chú là follow-up.
 
-## Files
+## Thứ tự thực hiện
 
-- **Edit** `src/components/app-sidebar.tsx`: thêm nhóm "AI", import `Brain`, mở rộng `NavEntry` + renderer cho `badge`.
-- **New** `src/routes/_app/ai.memory.tsx`: toàn bộ page + 4 sub-component + mock data + dialogs/sheet.
-- (Optional refactor nếu file phình to: tách `src/components/ai-memory/rule-card.tsx`, `watch-list.tsx`, `mock.ts`.)
-
-## Kiểm thử thủ công
-
-1. Sidebar hiện nhóm "AI" với badge tím "MỚI" cạnh "Trí nhớ AI".
-2. Click vào → trang load, 4 stats hiển thị, sub-tab "Quy tắc hạch toán (47)" active.
-3. Cuộn xem 4 loại thẻ A/B/C/D đúng style.
-4. Bấm "Tạo quy tắc" trên thẻ A → dialog → confirm → thẻ A biến thành thẻ C ở vị trí mới.
-5. Bấm "Tắt" trên thẻ B → nhập lý do → thẻ B fade thành thẻ D.
-6. Footer luôn dính đáy với chấm pulse; bấm "Xem chi tiết" chuyển sang tab "Đang học".
+1. Gọi `supabase--migration` tạo 2 bảng + RLS + triggers.
+2. Gọi `supabase--insert` seed dữ liệu mẫu.
+3. Tạo `src/lib/ai-memory.functions.ts`.
+4. Refactor `src/routes/_app/ai.memory.tsx` sang React Query + mutations.

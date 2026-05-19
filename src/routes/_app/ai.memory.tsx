@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Brain,
   Sparkles,
@@ -45,7 +47,20 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import {
+  listAiMemory,
+  promoteSuggestion,
+  updateRule,
+  disableRule,
+  enableRule,
+  deleteRule,
+  promoteWatchToRule,
+  dismissWatch,
+  type MemoryRule,
+  type MemoryWatch,
+} from "@/lib/ai-memory.functions";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -61,172 +76,50 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-// ====== Types & mock data ======
-
-type RuleSource = "ai-learned" | "user-taught";
-type RuleType = "suggestion" | "active" | "disabled";
-
-type Rule = {
-  id: string;
-  type: RuleType;
-  source?: RuleSource;
-  origin: string;
-  title: string;
-  when: string;
-  then: string;
-  appliedCount: number;
-  accuracy: string;
-  lastUsed: string;
-  disableReason?: string;
-  timestamp?: string;
-};
-
-const INITIAL_RULES: Rule[] = [
-  {
-    id: "s1",
-    type: "suggestion",
-    timestamp: "vừa rồi",
-    origin:
-      "Tôi thấy 5 hoá đơn Highlands Coffee gần đây bạn đều book vào TK 642 - Chi phí tiếp khách. Tạo quy tắc tự động cho lần sau?",
-    title: "Hoá đơn Highlands Coffee → Chi phí tiếp khách (642)",
-    when: "Hoá đơn từ Highlands Coffee (MST 0301...XX9)",
-    then: 'Nợ 642 · Có 331 · ghi chú "Chi phí tiếp khách"',
-    appliedCount: 5,
-    accuracy: "5/5 (100%)",
-    lastUsed: "—",
-  },
-  {
-    id: "b1",
-    type: "active",
-    source: "ai-learned",
-    origin: "Học từ 5 lần bạn duyệt liên tiếp ngày 12/9",
-    title: 'Sao kê "TT HD" + khớp công nợ → đóng phải thu',
-    when:
-      'Sao kê có "TT HD" / "thanh toan HD" + số tiền khớp công nợ phải thu của 1 đối tác',
-    then: "Nợ 112 (theo NH) · Có 131 (theo đối tác đã khớp)",
-    appliedCount: 217,
-    accuracy: "215/217 (99.1%)",
-    lastUsed: "hôm nay 15:42",
-  },
-  {
-    id: "c1",
-    type: "active",
-    source: "user-taught",
-    origin: "Tạo từ Cần xem lại ngày 2/11",
-    title: "Grab Business của nhân viên Marketing → Chi phí bán hàng",
-    when:
-      "HĐ Grab Business + người đi thuộc phòng Marketing (5 NV: Linh, Tú, An, Hương, Quang)",
-    then: 'Nợ 641 · Có 331 · gán phòng ban "Marketing"',
-    appliedCount: 18,
-    accuracy: "18/18 (100%)",
-    lastUsed: "3 ngày trước",
-  },
-  {
-    id: "b2",
-    type: "active",
-    source: "ai-learned",
-    origin: "Học từ 8 lần duyệt liên tiếp ngày 28/8 – 5/9",
-    title: "Hoá đơn điện EVN HCM → Chi phí điện văn phòng (642)",
-    when: 'Hoá đơn EVN HCMC + diễn giải chứa "tiền điện"',
-    then: 'Nợ 642 · Có 331 · ghi chú "Tiền điện văn phòng"',
-    appliedCount: 84,
-    accuracy: "84/84 (100%)",
-    lastUsed: "2 ngày trước",
-  },
-  {
-    id: "c2",
-    type: "active",
-    source: "user-taught",
-    origin: "Bạn tạo ngày 14/10",
-    title: "Phí ngân hàng Vietcombank → 6427",
-    when: 'Sao kê VCB + diễn giải chứa "Phí" / "Phi"',
-    then: "Nợ 6427 · Có 112 (VCB)",
-    appliedCount: 42,
-    accuracy: "42/42 (100%)",
-    lastUsed: "hôm nay 09:12",
-  },
-  {
-    id: "d1",
-    type: "disabled",
-    origin: "Bạn tắt ngày 18/10",
-    title: "Mọi quán cà phê → TK 642 (Tiếp khách)",
-    when: 'Hoá đơn có "cafe" / "coffee" trong tên NCC',
-    then: "Nợ 642 · Có 331",
-    appliedCount: 12,
-    accuracy: "9/12 (75%)",
-    lastUsed: "18/10",
-    disableReason:
-      "Cà phê họp nội bộ phải vào 641, không phải tiếp khách. Quy tắc quá rộng.",
-  },
-];
-
-type Watch = { id: string; text: string; progress: string };
-const INITIAL_WATCH: Watch[] = [
-  { id: "w1", text: "Hoá đơn từ Tiki Trading đều book vào 156", progress: "3/5 lần" },
-  { id: "w2", text: 'Chuyển khoản cho "BHXH" đều book vào 338', progress: "2/5 lần" },
-  { id: "w3", text: "Hoá đơn Viettel cố định kỳ tháng → 6427", progress: "4/5 lần" },
-  { id: "w4", text: 'Sao kê có "luong T" + cuối tháng → 334', progress: "3/5 lần" },
-  { id: "w5", text: "Hoá đơn Be Group người đi sales → 641", progress: "2/5 lần" },
-  { id: "w6", text: 'Khoản chi "tiếp khách Phú Mỹ Hưng" → 642', progress: "1/5 lần" },
-  { id: "w7", text: "Hoá đơn FPT Telecom → 6427", progress: "3/5 lần" },
-  { id: "w8", text: 'Phiếu chi "VPP" → 6423', progress: "4/5 lần" },
-  { id: "w9", text: "Hoá đơn xăng PVOil + xe công ty → 6422", progress: "2/5 lần" },
-  { id: "w10", text: 'Sao kê "phi sms" Techcombank → 6427', progress: "3/5 lần" },
-  { id: "w11", text: 'Khoản thu "hoan ung" từ NV → 141', progress: "2/5 lần" },
-  { id: "w12", text: "Hoá đơn nhà mạng Vinaphone → 6427", progress: "1/5 lần" },
-];
-
-// ====== Page ======
-
 type TabKey = "rules" | "partners" | "context" | "limits" | "learning";
 
 function AIMemoryPage() {
-  const [rules, setRules] = useState<Rule[]>(INITIAL_RULES);
-  const [watch, setWatch] = useState<Watch[]>(INITIAL_WATCH);
   const [tab, setTab] = useState<TabKey>("rules");
+  const list = useServerFn(listAiMemory);
+  const { data, isLoading } = useQuery({
+    queryKey: ["ai-memory"],
+    queryFn: () => list(),
+  });
+
+  const rules = data?.rules ?? [];
+  const watch = data?.watch ?? [];
 
   const suggestionCount = rules.filter((r) => r.type === "suggestion").length;
   const activeCount = rules.filter((r) => r.type === "active").length;
+  const totalApplied = rules.reduce((s, r) => s + (r.applied_count || 0), 0);
+  const accNum = rules.reduce((s, r) => s + (r.accuracy_correct || 0), 0);
+  const accDen = rules.reduce((s, r) => s + (r.accuracy_total || 0), 0);
+  const accPct = accDen > 0 ? ((accNum / accDen) * 100).toFixed(1) + "%" : "—";
 
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
       <MemoryHeader
         ruleCount={activeCount}
         suggestionCount={suggestionCount}
+        totalApplied={totalApplied}
+        accuracy={accPct}
       />
       <SubTabs value={tab} onChange={setTab} learningCount={watch.length} ruleCount={activeCount} />
 
       <ScrollArea className="flex-1">
         <div className="mx-auto max-w-4xl space-y-3 px-5 py-4">
-          {tab === "rules" && (
-            <RuleList rules={rules} setRules={setRules} />
-          )}
-          {tab === "partners" && <ComingSoon label="Đối tác (128)" />}
-          {tab === "context" && <ComingSoon label="Bối cảnh doanh nghiệp (12)" />}
-          {tab === "limits" && <ComingSoon label="Giới hạn (8)" />}
-          {tab === "learning" && (
-            <WatchListView
-              items={watch}
-              onPromote={(w) => {
-                const newRule: Rule = {
-                  id: `c-${Date.now()}`,
-                  type: "active",
-                  source: "user-taught",
-                  origin: `Tạo từ watch list hôm nay (${w.progress})`,
-                  title: w.text,
-                  when: w.text,
-                  then: "(điền hành động hạch toán)",
-                  appliedCount: 0,
-                  accuracy: "—",
-                  lastUsed: "—",
-                };
-                setRules((r) => [newRule, ...r]);
-                setWatch((ws) => ws.filter((x) => x.id !== w.id));
-                toast.success("Đã tạo quy tắc & chuyển sang tab Quy tắc");
-                setTab("rules");
-              }}
-              onUnwatch={(id) => setWatch((ws) => ws.filter((x) => x.id !== id))}
-            />
+          {isLoading ? (
+            <LoadingSkeleton />
+          ) : (
+            <>
+              {tab === "rules" && <RuleList rules={rules} />}
+              {tab === "partners" && <ComingSoon label="Đối tác (128)" />}
+              {tab === "context" && <ComingSoon label="Bối cảnh doanh nghiệp (12)" />}
+              {tab === "limits" && <ComingSoon label="Giới hạn (8)" />}
+              {tab === "learning" && (
+                <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
+              )}
+            </>
           )}
         </div>
       </ScrollArea>
@@ -236,14 +129,32 @@ function AIMemoryPage() {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-lg border bg-card p-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-2 h-4 w-3/4" />
+          <Skeleton className="mt-3 h-16 w-full" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ====== Header ======
 
 function MemoryHeader({
   ruleCount,
   suggestionCount,
+  totalApplied,
+  accuracy,
 }: {
   ruleCount: number;
   suggestionCount: number;
+  totalApplied: number;
+  accuracy: string;
 }) {
   return (
     <div className="border-b px-[18px] py-4">
@@ -261,13 +172,9 @@ function MemoryHeader({
 
       <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
         <StatCard label="Quy tắc hoạt động" value={String(ruleCount)} />
-        <StatCard label="Áp dụng / tháng" value="1,284" />
-        <StatCard label="Chính xác TB" value="98.4%" />
-        <StatCard
-          label="Đề xuất mới"
-          value={String(suggestionCount)}
-          accent
-        />
+        <StatCard label="Tổng lần áp dụng" value={totalApplied.toLocaleString("vi-VN")} />
+        <StatCard label="Chính xác TB" value={accuracy} />
+        <StatCard label="Đề xuất mới" value={String(suggestionCount)} accent />
       </div>
     </div>
   );
@@ -365,48 +272,100 @@ function SubTabs({
 
 // ====== Rule list & card ======
 
-function RuleList({
-  rules,
-  setRules,
-}: {
-  rules: Rule[];
-  setRules: React.Dispatch<React.SetStateAction<Rule[]>>;
-}) {
+function RuleList({ rules }: { rules: MemoryRule[] }) {
   const ordered = useMemo(() => {
     const order = { suggestion: 0, active: 1, disabled: 2 } as const;
     return [...rules].sort((a, b) => order[a.type] - order[b.type]);
   }, [rules]);
 
+  if (ordered.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        Chưa có quy tắc nào. AI sẽ tự đề xuất khi phát hiện mẫu hành vi lặp lại.
+      </div>
+    );
+  }
+
   return (
     <>
       {ordered.map((r) => (
-        <RuleCard key={r.id} rule={r} setRules={setRules} />
+        <RuleCard key={r.id} rule={r} />
       ))}
     </>
   );
 }
 
-function RuleCard({
-  rule,
-  setRules,
-}: {
-  rule: Rule;
-  setRules: React.Dispatch<React.SetStateAction<Rule[]>>;
-}) {
+function useInvalidate() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: ["ai-memory"] });
+}
+
+function RuleCard({ rule }: { rule: MemoryRule }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
   const [appliedOpen, setAppliedOpen] = useState(false);
-  const [editWhen, setEditWhen] = useState(rule.when);
-  const [editThen, setEditThen] = useState(rule.then);
+  const [editWhen, setEditWhen] = useState(rule.when_text);
+  const [editThen, setEditThen] = useState(rule.then_text);
   const [disableReason, setDisableReason] = useState("");
+  const invalidate = useInvalidate();
+
+  const promoteFn = useServerFn(promoteSuggestion);
+  const updateFn = useServerFn(updateRule);
+  const disableFn = useServerFn(disableRule);
+  const enableFn = useServerFn(enableRule);
+  const deleteFn = useServerFn(deleteRule);
+
+  const promoteM = useMutation({
+    mutationFn: promoteFn,
+    onSuccess: () => {
+      invalidate();
+      setCreateOpen(false);
+      toast.success("Đã tạo quy tắc — AI sẽ áp dụng tự động");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const updateM = useMutation({
+    mutationFn: updateFn,
+    onSuccess: () => {
+      invalidate();
+      setEditOpen(false);
+      toast.success("Đã lưu thay đổi");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const disableM = useMutation({
+    mutationFn: disableFn,
+    onSuccess: () => {
+      invalidate();
+      setDisableOpen(false);
+      setDisableReason("");
+      toast.success("Đã tắt quy tắc");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const enableM = useMutation({
+    mutationFn: enableFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã bật lại quy tắc");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteM = useMutation({
+    mutationFn: deleteFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã bỏ qua đề xuất");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const isA = rule.type === "suggestion";
   const isB = rule.type === "active" && rule.source === "ai-learned";
   const isC = rule.type === "active" && rule.source === "user-taught";
   const isD = rule.type === "disabled";
 
-  // === Badge config
   const badge = isA
     ? { label: "ĐỀ XUẤT QUY TẮC MỚI", Icon: Sparkles, color: "#26215C" }
     : isB
@@ -415,60 +374,25 @@ function RuleCard({
     ? { label: "BẠN DẠY", Icon: UserIcon, color: "#0F6E56" }
     : { label: "TẠM TẮT", Icon: PauseCircle, color: "#737373" };
 
-  const handleCreate = () => {
-    setRules((rs) =>
-      rs.map((x) =>
-        x.id === rule.id
-          ? {
-              ...x,
-              type: "active",
-              source: "user-taught",
-              origin: `Tạo từ đề xuất hôm nay (${x.appliedCount} lần đã làm tay)`,
-              timestamp: undefined,
-            }
-          : x,
-      ),
-    );
-    setCreateOpen(false);
-    toast.success("Đã tạo quy tắc — AI sẽ áp dụng tự động");
-  };
-
   const handleSaveEdit = () => {
-    setRules((rs) =>
-      rs.map((x) =>
-        x.id === rule.id ? { ...x, when: editWhen.trim(), then: editThen.trim() } : x,
-      ),
-    );
-    setEditOpen(false);
-    toast.success("Đã lưu thay đổi");
+    updateM.mutate({ data: { id: rule.id, when_text: editWhen.trim(), then_text: editThen.trim() } });
   };
-
   const handleDisable = () => {
     if (!disableReason.trim()) {
       toast.error("Vui lòng nhập lý do tắt");
       return;
     }
-    setRules((rs) =>
-      rs.map((x) =>
-        x.id === rule.id
-          ? {
-              ...x,
-              type: "disabled",
-              disableReason: disableReason.trim(),
-              origin: `Bạn tắt ngày ${new Date().toLocaleDateString("vi-VN")}`,
-            }
-          : x,
-      ),
-    );
-    setDisableOpen(false);
-    setDisableReason("");
-    toast.success("Đã tắt quy tắc");
+    disableM.mutate({ data: { id: rule.id, reason: disableReason.trim() } });
   };
 
-  const handleDismissSuggestion = () => {
-    setRules((rs) => rs.filter((x) => x.id !== rule.id));
-    toast.success("Đã bỏ qua đề xuất");
-  };
+  const accuracyDisplay =
+    rule.accuracy_total > 0
+      ? `${rule.accuracy_correct}/${rule.accuracy_total} (${((rule.accuracy_correct / rule.accuracy_total) * 100).toFixed(1)}%)`
+      : "—";
+
+  const lastUsedDisplay = rule.last_used_at
+    ? new Date(rule.last_used_at).toLocaleDateString("vi-VN")
+    : "—";
 
   return (
     <div
@@ -488,9 +412,7 @@ function RuleCard({
           {badge.label}
         </span>
         <span className="text-muted-foreground">·</span>
-        <span className="text-muted-foreground">
-          {isA ? rule.origin : rule.origin}
-        </span>
+        <span className="text-muted-foreground">{rule.origin}</span>
         {!isA && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span
@@ -502,14 +424,8 @@ function RuleCard({
             {isD ? "Không hoạt động" : "Đang dùng"}
           </span>
         )}
-        {isA && rule.timestamp && (
-          <span className="ml-auto text-[11px] text-muted-foreground">
-            {rule.timestamp}
-          </span>
-        )}
       </div>
 
-      {/* Title */}
       <h3
         className={cn(
           "mt-2 text-[13px] font-medium leading-snug",
@@ -519,41 +435,38 @@ function RuleCard({
         {rule.title}
       </h3>
 
-      {/* When / Then OR disable reason */}
       {isD ? (
         <div className="mt-2.5 rounded-md border-l-2 border-muted-foreground/30 bg-muted/40 px-3 py-2 text-[12.5px] text-muted-foreground">
           <span className="font-semibold text-foreground/80">Lý do tắt: </span>
-          {rule.disableReason}
+          {rule.disable_reason}
         </div>
       ) : (
         <div className="mt-2.5 space-y-1.5 rounded-md bg-muted/40 p-3 text-[12.5px]">
           <div className="flex items-start gap-2">
             <ChipWhen />
-            <span className="flex-1 leading-relaxed">{rule.when}</span>
+            <span className="flex-1 leading-relaxed">{rule.when_text}</span>
           </div>
           <div className="flex items-start gap-2">
             <ChipThen />
-            <span className="flex-1 leading-relaxed">{rule.then}</span>
+            <span className="flex-1 leading-relaxed">{rule.then_text}</span>
           </div>
         </div>
       )}
 
-      {/* Stats (only for B/C) */}
       {(isB || isC) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <Zap className="h-3 w-3" /> Áp dụng {rule.appliedCount} lần
+            <Zap className="h-3 w-3" /> Áp dụng {rule.applied_count} lần
           </span>
           <span className="inline-flex items-center gap-1">
-            <Target className="h-3 w-3" /> Đúng {rule.accuracy}
+            <Target className="h-3 w-3" /> Đúng {accuracyDisplay}
           </span>
           <span className="inline-flex items-center gap-1">
-            <Clock className="h-3 w-3" /> Cuối: {rule.lastUsed}
+            <Clock className="h-3 w-3" /> Cuối: {lastUsedDisplay}
           </span>
         </div>
       )}
 
-      {/* Actions */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {isA && (
           <>
@@ -567,7 +480,13 @@ function RuleCard({
             <Button size="sm" variant="outline" className="h-7" onClick={() => setEditOpen(true)}>
               Tinh chỉnh
             </Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={handleDismissSuggestion}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7"
+              onClick={() => deleteM.mutate({ data: { id: rule.id } })}
+              disabled={deleteM.isPending}
+            >
               Bỏ qua
             </Button>
             <Button
@@ -576,21 +495,16 @@ function RuleCard({
               className="ml-auto h-7 text-muted-foreground"
               onClick={() => setAppliedOpen(true)}
             >
-              Xem {rule.appliedCount} lần áp dụng
+              Xem {rule.applied_count} lần áp dụng
               <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </>
         )}
         {(isB || isC) && (
           <>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7"
-              onClick={() => setAppliedOpen(true)}
-            >
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setAppliedOpen(true)}>
               <Eye className="mr-1 h-3.5 w-3.5" />
-              Xem {rule.appliedCount} lần áp dụng
+              Xem {rule.applied_count} lần áp dụng
             </Button>
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1 h-3.5 w-3.5" />
@@ -608,26 +522,30 @@ function RuleCard({
           </>
         )}
         {isD && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7"
-            onClick={() =>
-              setRules((rs) =>
-                rs.map((x) =>
-                  x.id === rule.id
-                    ? { ...x, type: "active", source: "user-taught", disableReason: undefined }
-                    : x,
-                ),
-              )
-            }
-          >
-            Bật lại
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7"
+              onClick={() => enableM.mutate({ data: { id: rule.id } })}
+              disabled={enableM.isPending}
+            >
+              Bật lại
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-muted-foreground hover:text-destructive"
+              onClick={() => deleteM.mutate({ data: { id: rule.id } })}
+              disabled={deleteM.isPending}
+            >
+              Xoá hẳn
+            </Button>
+          </>
         )}
       </div>
 
-      {/* Create preview dialog */}
+      {/* Create (promote suggestion) dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
@@ -639,18 +557,22 @@ function RuleCard({
           <div className="space-y-2 rounded-md bg-muted/40 p-3 text-[13px]">
             <div className="flex items-start gap-2">
               <ChipWhen />
-              <span>{rule.when}</span>
+              <span>{rule.when_text}</span>
             </div>
             <div className="flex items-start gap-2">
               <ChipThen />
-              <span>{rule.then}</span>
+              <span>{rule.then_text}</span>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Huỷ
             </Button>
-            <Button className="bg-[#4F46C7] text-white hover:bg-[#4338A8]" onClick={handleCreate}>
+            <Button
+              className="bg-[#4F46C7] text-white hover:bg-[#4338A8]"
+              onClick={() => promoteM.mutate({ data: { id: rule.id } })}
+              disabled={promoteM.isPending}
+            >
               Xác nhận tạo
             </Button>
           </DialogFooter>
@@ -672,24 +594,16 @@ function RuleCard({
               <Label className="mb-1 inline-flex items-center gap-2">
                 <ChipWhen /> Điều kiện
               </Label>
-              <Textarea
-                value={editWhen}
-                onChange={(e) => setEditWhen(e.target.value)}
-                rows={3}
-              />
+              <Textarea value={editWhen} onChange={(e) => setEditWhen(e.target.value)} rows={3} />
             </div>
             <div>
               <Label className="mb-1 inline-flex items-center gap-2">
                 <ChipThen /> Hành động hạch toán
               </Label>
-              <Textarea
-                value={editThen}
-                onChange={(e) => setEditThen(e.target.value)}
-                rows={3}
-              />
+              <Textarea value={editThen} onChange={(e) => setEditThen(e.target.value)} rows={3} />
             </div>
             <div className="rounded-md bg-muted/40 px-3 py-2 text-[12px] text-muted-foreground">
-              Sẽ áp dụng cho <b>{rule.appliedCount}</b> mục trong 30 ngày qua nếu quy tắc
+              Sẽ áp dụng cho <b>{rule.applied_count}</b> mục trong 30 ngày qua nếu quy tắc
               này tồn tại.
             </div>
           </div>
@@ -697,7 +611,9 @@ function RuleCard({
             <Button variant="outline" onClick={() => setEditOpen(false)}>
               Huỷ
             </Button>
-            <Button onClick={handleSaveEdit}>Lưu</Button>
+            <Button onClick={handleSaveEdit} disabled={updateM.isPending}>
+              Lưu
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -729,17 +645,17 @@ function RuleCard({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Applied list sheet */}
+      {/* Applied list sheet (still mock — lịch sử áp dụng sẽ có sau) */}
       <Sheet open={appliedOpen} onOpenChange={setAppliedOpen}>
         <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>{rule.appliedCount} lần áp dụng</SheetTitle>
+            <SheetTitle>{rule.applied_count} lần áp dụng</SheetTitle>
             <SheetDescription>
               Danh sách bút toán đã được AI tạo từ quy tắc này.
             </SheetDescription>
           </SheetHeader>
           <div className="mt-4 space-y-2">
-            {Array.from({ length: Math.min(10, rule.appliedCount || 5) }).map((_, i) => (
+            {Array.from({ length: Math.min(10, rule.applied_count || 5) }).map((_, i) => (
               <div key={i} className="rounded-md border p-2.5 text-[12.5px]">
                 <div className="flex items-center justify-between">
                   <div className="font-medium">BT-{String(20240 + i).padStart(5, "0")}</div>
@@ -747,7 +663,7 @@ function RuleCard({
                     {new Date(Date.now() - i * 86400_000).toLocaleDateString("vi-VN")}
                   </div>
                 </div>
-                <div className="mt-1 text-muted-foreground">{rule.then}</div>
+                <div className="mt-1 text-muted-foreground">{rule.then_text}</div>
                 <div className="mt-2 flex gap-1.5">
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-[11.5px]">
                     Xem chi tiết
@@ -795,13 +711,33 @@ function ChipThen() {
 
 function WatchListView({
   items,
-  onPromote,
-  onUnwatch,
+  onSwitchToRules,
 }: {
-  items: Watch[];
-  onPromote: (w: Watch) => void;
-  onUnwatch: (id: string) => void;
+  items: MemoryWatch[];
+  onSwitchToRules: () => void;
 }) {
+  const invalidate = useInvalidate();
+  const promoteFn = useServerFn(promoteWatchToRule);
+  const dismissFn = useServerFn(dismissWatch);
+
+  const promoteM = useMutation({
+    mutationFn: promoteFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã tạo quy tắc & chuyển sang tab Quy tắc");
+      onSwitchToRules();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const dismissM = useMutation({
+    mutationFn: dismissFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã bỏ theo dõi");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (items.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -823,12 +759,24 @@ function WatchListView({
           <span className="h-2 w-2 rounded-full bg-[#4F46C7] animate-pulse" />
           <div className="min-w-0 flex-1">
             <div className="text-[13px] leading-snug">{w.text}</div>
-            <div className="text-[11px] text-muted-foreground">đã {w.progress}</div>
+            <div className="text-[11px] text-muted-foreground">
+              đã {w.seen_count}/{w.target_count} lần
+            </div>
           </div>
           <Button
             size="sm"
             className="h-7 bg-[#4F46C7] text-white hover:bg-[#4338A8]"
-            onClick={() => onPromote(w)}
+            disabled={promoteM.isPending}
+            onClick={() =>
+              promoteM.mutate({
+                data: {
+                  watch_id: w.id,
+                  title: w.text,
+                  when_text: w.text,
+                  then_text: "(điền hành động hạch toán)",
+                },
+              })
+            }
           >
             Tạo quy tắc luôn
           </Button>
@@ -836,7 +784,8 @@ function WatchListView({
             size="sm"
             variant="ghost"
             className="h-7 text-muted-foreground"
-            onClick={() => onUnwatch(w.id)}
+            disabled={dismissM.isPending}
+            onClick={() => dismissM.mutate({ data: { id: w.id } })}
           >
             Bỏ theo dõi
           </Button>
