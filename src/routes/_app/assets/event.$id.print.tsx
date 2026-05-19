@@ -37,7 +37,7 @@ function EventPrintPage() {
     ? "BIÊN BẢN ĐIỀU CHUYỂN TSCĐ"
     : "BIÊN BẢN GHI GIẢM 1 PHẦN TSCĐ";
 
-  const p = ev.payload ?? {};
+  const p: any = ev.payload ?? {};
 
   return (
     <div className="container mx-auto py-8 space-y-4 print:py-0 print:max-w-none">
