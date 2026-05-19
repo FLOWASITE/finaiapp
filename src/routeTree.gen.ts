@@ -18,6 +18,7 @@ import { Route as AppSetupRouteImport } from './routes/_app/setup'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppItemsRouteImport } from './routes/_app/items'
 import { Route as AppInventoryRouteImport } from './routes/_app/inventory'
+import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
@@ -173,6 +174,11 @@ const AppItemsRoute = AppItemsRouteImport.update({
 const AppInventoryRoute = AppInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -756,6 +762,7 @@ export interface FileRoutesByFullPath {
   '/bank': typeof AppBankRouteWithChildren
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
   '/inventory': typeof AppInventoryRouteWithChildren
   '/items': typeof AppItemsRouteWithChildren
   '/journal': typeof AppJournalRoute
@@ -876,6 +883,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
   '/journal': typeof AppJournalRoute
   '/setup': typeof AppSetupRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -997,6 +1005,7 @@ export interface FileRoutesById {
   '/_app/bank': typeof AppBankRouteWithChildren
   '/_app/chat': typeof AppChatRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/inbox': typeof AppInboxRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
   '/_app/items': typeof AppItemsRouteWithChildren
   '/_app/journal': typeof AppJournalRoute
@@ -1121,6 +1130,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/chat'
     | '/dashboard'
+    | '/inbox'
     | '/inventory'
     | '/items'
     | '/journal'
@@ -1241,6 +1251,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/chat'
     | '/dashboard'
+    | '/inbox'
     | '/journal'
     | '/setup'
     | '/invite/$token'
@@ -1361,6 +1372,7 @@ export interface FileRouteTypes {
     | '/_app/bank'
     | '/_app/chat'
     | '/_app/dashboard'
+    | '/_app/inbox'
     | '/_app/inventory'
     | '/_app/items'
     | '/_app/journal'
@@ -1548,6 +1560,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof AppInventoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -2512,6 +2531,7 @@ interface AppRouteChildren {
   AppBankRoute: typeof AppBankRouteWithChildren
   AppChatRoute: typeof AppChatRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppInboxRoute: typeof AppInboxRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
   AppItemsRoute: typeof AppItemsRouteWithChildren
   AppJournalRoute: typeof AppJournalRoute
@@ -2598,6 +2618,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBankRoute: AppBankRouteWithChildren,
   AppChatRoute: AppChatRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppInboxRoute: AppInboxRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,
   AppItemsRoute: AppItemsRouteWithChildren,
   AppJournalRoute: AppJournalRoute,

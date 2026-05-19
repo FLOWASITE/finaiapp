@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
+import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { openCommandPalette } from "@/components/command-palette";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,14 +14,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useAccountingMode } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppHeader() {
   const { data: cu, isLoading } = useCurrentUser();
   const email = cu?.email ?? null;
   const profile = cu?.profile ?? null;
+  const { enabled: accountingMode, setAccountingMode } = useAccountingMode();
 
   const displayName =
     profile?.display_name?.trim() || email?.split("@")[0] || "Tài khoản";
@@ -33,8 +37,13 @@ export function AppHeader() {
 
   return (
     <div className="flex flex-1 items-center justify-end gap-3">
+        {/* Workspace switcher (Front-Office ↔ Back-Office) */}
+        <WorkspaceSwitcher />
+
         {/* Accounting period switcher */}
         <PeriodSwitcher />
+
+
 
 
         {/* Quick links grouped pill */}
@@ -142,6 +151,18 @@ export function AppHeader() {
                   </div>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={accountingMode}
+                onCheckedChange={(v) => setAccountingMode(!!v)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <BookOpenCheck className="mr-2 h-4 w-4" />
+                Chế độ kế toán
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Hiện mã TK
+                </span>
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/settings"><User className="mr-2 h-4 w-4" />Hồ sơ cá nhân</Link>

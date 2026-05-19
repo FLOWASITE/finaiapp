@@ -1,139 +1,144 @@
-# Lộ trình AI-first cho hệ thống kế toán
 
-Dựa trên lựa chọn của bạn:
-- **Phạm vi**: AI tự ghi có xác nhận (mọi mutation đi qua bước duyệt)
-- **Tone**: Cân bằng (chuyên nghiệp + dễ hiểu)
-- **Module**: Bán hàng + Mua hàng + Kế toán/Báo cáo + Kho + **Tiền gửi ngân hàng**
-- **Input**: Mobile-first + Upload PDF/ảnh + Voice
+# UI-First Architecture — Kế toán làm Backend
 
-Phase 1 (chat) + Phase 2 (write tools với approval) + Phase 3.1 (upload PDF/ảnh — hoá đơn mua + sao kê + phiếu thu/chi qua prompt `auto`) + Phase 3.2 (voice Web Speech) + Phase 4.1 (mobile-first AskAiSheet, quick chips) + Phase 4.2 (proactive insights — `ai_insights`, cron `ai-daily-digest` 7h, `InsightWidget` dashboard) + **Phase 4.3 (Conversational Reports — AI emit ```chart fenced block, `ChartBlock` render Recharts inline trong chat)** đã hoàn tất.
+Dựa trên 4 lựa chọn của bạn: **Hybrid workspace · Command-first · Ẩn lớp kế toán mặc định · AI sheet làm composer chính**.
 
-Hệ thống AI-first MVP đã đủ: chat ngữ cảnh, đề xuất hành động có duyệt cho 6 loại nghiệp vụ (Bán/Mua/Ngân hàng), upload chứng từ → trích xuất, voice tiếng Việt, insight chủ động, biểu đồ trong chat.
+## 1. Hai workspace song song
 
----
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Topbar:  [Logo]  [⌘K Command]  [Workspace ▾]  [User] │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  /  → FRONT-OFFICE  (mặc định cho mọi user)            │
+│        Inbox · Tiền · Đối tác · Hàng hoá · Hỏi AI      │
+│                                                         │
+│  /accounting → BACK-OFFICE  (chỉ role accountant)      │
+│        Journal · COA · Sổ cái · BCTC · Đối soát · Kỳ   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Phase 2 — Write Tools với Approval Workflow
+- **Workspace switcher** ở topbar (giống Linear "Workspaces"): 1 click chuyển giữa Front/Back.
+- URL prefix rõ ràng: route hiện tại nằm dưới `_app/` sẽ được chia thành `_app/(front)/...` và `_app/(back)/...`. Tất cả module kế toán hiện có (`coa`, `journal`, `bank.book`, `reports`, `tax`…) chuyển vào back-office, không xoá.
+- Role-based: non-accountant chỉ thấy switcher khi được cấp quyền; mặc định landing = Front.
 
-**Mục tiêu**: AI có thể đề xuất hành động ghi dữ liệu; user xem preview JSON + Diff rồi bấm "Xác nhận" mới chạy.
+## 2. Front-Office — 5 không gian, không phải 30 module
 
-### 2.1 Cấu trúc tool
+Thay vì sidebar 30 mục như hiện tại, gom thành 5 trục mà non-accountant hiểu ngay:
 
-`src/lib/ai/tools/` chia theo module:
-- `sales.tool.ts` — `createSalesOrder`, `createInvoiceFromSO`, `recordCustomerPayment`
-- `purchase.tool.ts` — `createPurchaseOrder`, `createPurchaseInvoice`, `recordVendorPayment`
-- `inventory.tool.ts` — `createGoodsReceipt`, `createGoodsIssue`, `adjustStock`
-- `accounting.tool.ts` — `createJournalEntry`, `closeMonth`
-- `bank.tool.ts` — `createBankTransaction`, `matchBankTransaction`, `transferBetweenAccounts`
-- `reports.tool.ts` — `runReport` (P&L, BS, AR/AP aging, cash flow)
+| Không gian | Thay thế cho module hiện tại | Câu hỏi nó trả lời |
+|---|---|---|
+| **Inbox** (mặc định) | Pending actions, ePending, duyệt nháp | "Hôm nay tôi cần làm gì?" |
+| **Tiền** | bank, cash, receipts, payments, reconcile | "Tiền vào/ra/tồn thế nào?" |
+| **Đối tác** | customers, suppliers, receivables, payables | "Ai nợ tôi? Tôi nợ ai?" |
+| **Hàng hoá** | items, inventory, assets | "Bán gì, tồn bao nhiêu?" |
+| **Hồ sơ** | invoices, einvoices, documents | "Hoá đơn, file đã có gì?" |
 
-Mỗi tool có `needsApproval: true`, schema Zod, và `dryRun` trả về preview (số tiền, số chứng từ dự kiến, ảnh hưởng tồn kho/công nợ).
+Sidebar trái chỉ 5 icon + Hỏi AI ở dưới. Mọi route con (vd `/bank/reconcile`) vẫn giữ URL cũ, chỉ đổi cách user *vào* chúng.
 
-### 2.2 UI duyệt
+## 3. Command-first navigation (Cmd+K là trung tâm)
 
-- `ToolCallCard.tsx`: hiển thị tool name + icon module + summary + accordion JSON.
-- 3 trạng thái: `pending-approval` (nút Duyệt/Huỷ), `executing` (spinner), `done` (link tới chứng từ vừa tạo).
-- Lưu vào bảng `ai_actions` để audit (ai duyệt, lúc nào, payload gì).
+Nâng cấp `command-palette.tsx` hiện có thành **trung tâm thao tác** thay vì chỉ tìm trang:
 
-### 2.3 Bảng mới
+```text
+⌘K mở →
 
-`ai_conversations`, `ai_messages`, `ai_actions` với RLS theo `user_id`.
+┌──────────────────────────────────────────────────┐
+│ 🔍 Gõ tự nhiên hoặc tìm…                         │
+├──────────────────────────────────────────────────┤
+│ HÀNH ĐỘNG                                        │
+│  + Thu tiền từ khách A 5 triệu                   │
+│  + Ghi chi phí điện tháng 11                     │
+│  + Nhập file PDF / sao kê                        │
+│  + Đối soát ngân hàng                            │
+├──────────────────────────────────────────────────┤
+│ ĐI ĐẾN                                           │
+│  → Khách hàng / Acme Corp                        │
+│  → Sao kê Vietcombank tháng 11                   │
+├──────────────────────────────────────────────────┤
+│ HỎI                                              │
+│  ? Tháng này lãi bao nhiêu?                      │
+│  ? Ai nợ tôi quá 30 ngày?                        │
+└──────────────────────────────────────────────────┘
+```
 
----
+Parser nhẹ ở client phân loại input:
+- Bắt đầu bằng `+` hoặc động từ ("thu", "chi", "mua") → mở **AskAiSheet** với prompt prefilled (composer).
+- Bắt đầu bằng `?` hoặc câu hỏi → mở AskAiSheet ở mode **Q&A** với insight widget.
+- Còn lại → fuzzy search trang/đối tác/chứng từ.
 
-## Phase 3 — Ingestion đa kênh (Upload + Voice)
+Phím tắt phụ giữ chuẩn Linear: `C` = create, `G` then `I` = go to Inbox, `G` then `T` = Tiền, `?` = help.
 
-### 3.1 Upload PDF/ảnh
+## 4. AskAiSheet trở thành composer chính
 
-- `DocumentDropzone` trong AskAiSheet + dropzone toàn cục (drag vào bất kỳ trang nào).
-- Server fn `parseDocument`: gọi Gemini Vision (`google/gemini-2.5-pro`) với prompt theo loại:
-  - **Hoá đơn mua**: trả `{ vendor, invoice_no, date, lines[], vat, total }` → tự fill form Purchase Invoice (chờ duyệt).
-  - **Sao kê ngân hàng**: trả mảng giao dịch → preview bảng → user chọn dòng nào import vào `bank_transactions`.
-  - **Phiếu thu/chi viết tay**: OCR rồi tạo draft cash voucher.
-- Bảng `ai_uploads` lưu file gốc + kết quả parse.
+Sheet hiện tại (`Cmd+J`) đã có upload + extract. Mở rộng thành **một entry point duy nhất** cho mọi nghiệp vụ:
 
-### 3.2 Voice
+- **Bỏ** các nút "Tạo mới" rải rác trên từng module. Chỉ còn 1 nút `+ Thêm` ở topbar → mở AskAiSheet.
+- Sheet có 3 tab ngang: **Gõ** (natural language) · **Tải file** (đa file batch hiện có) · **Mẫu nhanh** (6 card: Thu, Chi, Bán, Mua, Nhập kho, Chuyển khoản).
+- Mọi đường dẫn tạo nháp hiện tại (`createPurchaseInvoice`, `createBankVoucher`, …) vẫn dùng `proposeActionFn` — không đổi backend.
+- Sau khi AI trả về nháp → preview ở `/import/preview` (đã có) → confirm → vào duyệt.
 
-- Web Speech API (miễn phí, có sẵn trên Chrome/Safari mobile) làm mặc định.
-- Nút mic trong AskAiSheet → record → transcript → đẩy vào chat như text thường.
-- Tuỳ chọn nâng cấp Whisper sau nếu cần độ chính xác cao.
+## 5. Ẩn lớp kế toán mặc định, mở khi cần
 
----
+Mọi card chứng từ ở Front-office hiển thị **ngôn ngữ kinh doanh**:
 
-## Phase 4 — Mobile-first & Proactive AI
+```text
+┌────────────────────────────────────────────────┐
+│ Acme Corp đã thanh toán                        │
+│ +5.000.000₫        15/11/2025 · Vietcombank    │
+│                                                │
+│ Ghi vào: Doanh thu • Phải thu khách hàng       │
+│         [Xem bút toán ▾]                       │
+└────────────────────────────────────────────────┘
+```
 
-### 4.1 Mobile-first UI
+- Mặc định: tên TK thân thiện ("Doanh thu", "Phải thu KH"), không hiện 511/131.
+- Toggle "Chế độ kế toán" ở User menu → bật lên thì mọi card hiện thêm dòng `Nợ 112 / Có 131 — 5.000.000` và mã TK.
+- Map mã ↔ tên: tạo `src/lib/accounting/account-labels.ts` (lookup `COA.name` + fallback dictionary cho mã chuẩn VAS).
 
-- AskAiSheet chuyển thành **bottom sheet full-screen** trên mobile (`< md`).
-- Floating Action Button luôn nổi góc phải dưới cùng (đè lên nội dung trang).
-- Quick actions chips phía trên ô input: "Tạo hoá đơn", "Xem công nợ", "Báo cáo tháng".
-- Layout chat tối ưu cho ngón tay: input lớn, nút mic + nút gửi to, mic giữ-để-nói.
+## 6. Inbox — landing page mới
 
-### 4.2 Proactive Insights
+Thay `dashboard.tsx` 628 dòng bằng Inbox theo phong cách Linear/Superhuman:
 
-- pg_cron job hằng ngày 7h sáng → server route `/api/public/ai-daily-digest`:
-  - Phát hiện: hoá đơn quá hạn, tồn kho âm, chênh lệch tiền mặt vs sổ, giao dịch ngân hàng chưa đối chiếu.
-  - Ghi vào bảng `ai_insights` + push lên dashboard widget.
-- Trang chủ thêm `InsightWidget` (3 insight quan trọng nhất + nút "Hỏi AI thêm").
+- Các "lane" gom việc: **Cần duyệt** (nháp AI) · **Quá hạn** (AR/AP) · **Chưa đối soát** (sao kê) · **Sắp đến hạn** (thuế, lương) · **Bất thường** (insight AI).
+- Mỗi dòng = 1 hành động, phím `E` archive, `Enter` mở chi tiết, `A` approve.
+- Widget AI nhỏ ở phải hiển thị 3 câu hỏi gợi ý kiểu "Tháng này so với tháng trước?".
 
-### 4.3 Conversational Reports
+Dashboard số liệu cũ chuyển thành route `/insights` (vẫn truy cập được, không phải landing).
 
-- Mỗi trang báo cáo thêm nút "Hỏi AI" → output có structured schema `{ summary, insights[], chartConfig }` → render Recharts inline trong chat.
+## 7. Back-Office giữ nguyên kế toán đầy đủ
 
----
+Tất cả module hiện có (journal, COA, BCTC, sổ cái, đối soát, tax, kỳ kế toán, audit) **không đổi**, chỉ:
+- Chuyển vào prefix `/accounting/...`.
+- Sidebar back-office là dạng dày như hiện tại — kế toán quen rồi.
+- Có nút "← Front-office" trên topbar để chuyển nhanh.
+
+## 8. Việc cần làm (theo thứ tự)
+
+1. **Routing skeleton**: tạo `src/routes/_app/(front)/` và `src/routes/_app/(back)/`, di chuyển file (file-based routing tự cập nhật routeTree). Không xoá file, chỉ move.
+2. **Workspace switcher + role**: thêm context `useWorkspace()` lưu Front/Back, thêm toggle ở `app-header.tsx`.
+3. **Sidebar mới**: tạo `front-sidebar.tsx` (5 icon) bên cạnh `app-sidebar.tsx` (giữ làm back-sidebar).
+4. **Inbox route** `/` hoặc `/inbox`: gom dữ liệu từ pending actions, AR/AP overdue, unmatched bank txns.
+5. **Command palette nâng cấp**: thêm 3 section (Hành động / Đi đến / Hỏi) + parser intent + tích hợp mở AskAiSheet với prefill.
+6. **AskAiSheet 3 tab**: thêm tab "Mẫu nhanh" với 6 card, tab "Gõ" cho natural language composer.
+7. **Friendly account labels**: `account-labels.ts` + component `<AccountTag code="511" />` dùng chung; toggle "Chế độ kế toán" trong User menu (persist localStorage).
+8. **Document card**: component `<DocumentCard>` chung cho front-office, render theo ngôn ngữ kinh doanh + accordion "Xem bút toán".
+9. **Back-office shell**: `_app/(back)/layout.tsx` giữ sidebar dày, header có breadcrumb "Back-office · …".
+10. **Migration của dashboard**: chuyển dashboard hiện tại → `/insights`, thay home thành Inbox.
 
 ## Chi tiết kỹ thuật
 
-**Cấu trúc file**:
-```text
-src/lib/ai/
-├── tools/
-│   ├── index.ts           # gom tất cả tool, lọc theo route hiện tại
-│   ├── sales.tool.ts
-│   ├── purchase.tool.ts
-│   ├── inventory.tool.ts
-│   ├── accounting.tool.ts
-│   ├── bank.tool.ts
-│   └── reports.tool.ts
-├── ingestion/
-│   ├── parseInvoice.ts
-│   ├── parseBankStatement.ts
-│   └── parseCashVoucher.ts
-├── proactive/
-│   └── dailyDigest.ts
-└── system-prompt.ts       # cập nhật tone "cân bằng"
-src/components/ai/
-├── AskAiSheet.tsx         # cải tiến mobile-first
-├── ToolCallCard.tsx
-├── DocumentDropzone.tsx
-├── VoiceInput.tsx
-└── InsightWidget.tsx
-```
+- **Không đụng backend**: tất cả serverFn (`createPurchaseInvoice`, `importAndPostStatement`, `proposeActionFn`…) giữ nguyên. UI chỉ là lớp trình bày mới.
+- **Route grouping** trong TanStack: thư mục dạng `(front)` không xuất hiện trong URL, chỉ để gom layout — đúng pattern hiện có cho `_app`.
+- **Role check**: dùng `useUserRole()` hiện có, gate workspace switcher bằng role `accountant` hoặc `admin`.
+- **Persistence**: workspace hiện tại + "Chế độ kế toán" lưu `localStorage`; route active vẫn là source of truth.
+- **Không phá link**: mọi URL hiện tại (`/bank/reconcile`, `/invoices`, …) tiếp tục resolve — chỉ chuyển vị trí file trong cây, không đổi path.
+- **i18n**: account label map đặt riêng để sau này dễ swap sang tiếng Anh.
 
-**Approval flow**:
-```text
-User prompt → streamText với tools → tool call (needsApproval) →
-ToolCallCard hiện preview → User bấm Duyệt →
-useChat.addToolResult(toolCallId, { approved: true, ...result })
-→ server thực thi server fn → trả kết quả → AI tiếp tục giải thích
-```
+## Phạm vi của plan này
 
-**Bảng DB Phase 2**:
-- `ai_conversations(id, user_id, title, created_at)`
-- `ai_messages(id, conversation_id, role, parts jsonb, created_at)`
-- `ai_actions(id, message_id, user_id, tool_name, input jsonb, output jsonb, status, approved_at)`
-- `ai_uploads(id, user_id, file_url, kind, parsed jsonb, created_at)`
-- `ai_insights(id, user_id, severity, category, title, body, action_url, dismissed_at, created_at)`
+- ✅ Bao gồm: routing reshape, workspace switcher, sidebar front mới, command palette, AskAiSheet composer, friendly labels, Inbox landing.
+- ❌ Không bao gồm (làm sau): redesign visual từng module back-office, mobile layout, chỉnh sửa nghiệp vụ kế toán, thay đổi data model.
 
-Tất cả RLS theo `auth.uid() = user_id`.
-
----
-
-## Thứ tự triển khai đề xuất
-
-1. **Phase 2.1** — Bảng DB + approval UI + 2 tool đầu tiên: `createInvoiceFromSO`, `recordCustomerPayment` (vì Bán hàng đã sẵn sàng từ tuần trước).
-2. **Phase 2.2** — Mở rộng sang Mua hàng + Ngân hàng.
-3. **Phase 3** — Upload hoá đơn mua (impact cao, dễ thấy giá trị) trước; sao kê ngân hàng sau.
-4. **Phase 4.1** — Mobile-first refactor (chạy song song lúc nào cũng được).
-5. **Phase 3.2 + 4.2** — Voice + Proactive insights.
-
-Mỗi bước đều ship được độc lập và dùng được ngay. Bắt đầu từ Phase 2.1?
+Bạn có thể bấm "Thực hiện kế hoạch" để mình bắt đầu từ bước 1 (routing skeleton + workspace switcher), hoặc cho biết muốn ưu tiên bước nào trước.
