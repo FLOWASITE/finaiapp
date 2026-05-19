@@ -241,6 +241,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             <ul className="space-y-0.5">
               {b.items.map((t) => {
                 const isActive = t.id === activeId;
+                const isPinned = !!t.pinned_at;
+                const isStarred = !!t.starred;
                 return (
                   <li key={t.id} className="group relative">
                     <Link
@@ -264,6 +266,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                           )}
                         />
                         <span className="truncate text-xs font-medium">{t.title}</span>
+                        {isStarred && (
+                          <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />
+                        )}
+                        {isPinned && (
+                          <Pin className="h-3 w-3 shrink-0 text-primary/70" />
+                        )}
                       </div>
                       <span className="ml-[22px] text-[10px] text-muted-foreground/60">
                         {relativeTime(t.last_message_at)}
@@ -279,7 +287,29 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          onClick={() => pinMut.mutate({ threadId: t.id, pinned: !isPinned })}
+                        >
+                          {isPinned ? (
+                            <>
+                              <PinOff className="mr-2 h-3.5 w-3.5" />
+                              Bỏ ghim
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="mr-2 h-3.5 w-3.5" />
+                              Ghim lên đầu
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => starMut.mutate({ threadId: t.id, starred: !isStarred })}
+                        >
+                          <Star className={cn("mr-2 h-3.5 w-3.5", isStarred && "fill-amber-500 text-amber-500")} />
+                          {isStarred ? "Bỏ đánh dấu sao" : "Đánh dấu sao"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => {
                             setRenameValue(t.title);
