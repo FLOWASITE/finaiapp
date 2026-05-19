@@ -33,11 +33,17 @@ export const getDisposalPrint = createServerFn({ method: "GET" })
     const { supabase, tenantId } = context;
     const { data: d, error } = await supabase
       .from("fa_disposals")
-      .select("*, asset:fixed_assets(*, fa_categories(name), departments(name), branches(name)), buyer:customers!buyer_party_id(name, address, tax_id)")
+      .select("*, asset:fixed_assets(*, fa_categories(name), departments(name), branches(name))")
       .eq("id", data.disposal_id).eq("tenant_id", tenantId).single();
     if (error || !d) throw new Error("Không tìm thấy chứng từ thanh lý");
+    let buyer: any = null;
+    if (d.buyer_party_id) {
+      const { data: b } = await supabase.from("customers")
+        .select("name, address, tax_id").eq("id", d.buyer_party_id).maybeSingle();
+      buyer = b;
+    }
     const tenant = await getTenantInfo(supabase, tenantId);
-    return { disposal: d, tenant };
+    return { disposal: d, buyer, tenant };
   });
 
 // ============ 05-TSCĐ — Biên bản kiểm kê TSCĐ ============
