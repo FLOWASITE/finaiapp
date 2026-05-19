@@ -45,7 +45,7 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Vận hành",
+    label: "AI",
     entries: [
       {
         label: "Tiền & Ngân hàng",

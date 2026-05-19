@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
@@ -8,6 +8,8 @@ import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { ChatDock } from "@/components/chat/chat-dock";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -19,6 +21,11 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
+  const { workspace } = useWorkspace();
+  const location = useLocation();
+  const onChatRoute = location.pathname.startsWith("/chat");
+  const showDock = workspace === "front" && !onChatRoute;
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-background via-background to-secondary/30">
@@ -33,10 +40,11 @@ function AppLayout() {
               <AppHeader />
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className={`flex-1 overflow-auto ${showDock ? "pb-4" : ""}`}>
             <PageBreadcrumbs />
             <Outlet />
           </main>
+          {showDock ? <ChatDock /> : null}
           <CommandPalette />
           <AskAiSheet />
         </SidebarInset>
