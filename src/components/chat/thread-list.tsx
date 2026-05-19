@@ -146,7 +146,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
-      <div className="border-b border-border/40 px-3 py-4">
+      <div className="px-3 py-4">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
