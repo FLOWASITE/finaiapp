@@ -62,9 +62,9 @@ function ChatIndex() {
   };
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex flex-1 items-center justify-center px-4">
-        <div className="mx-auto w-full max-w-2xl text-center">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-8">
+        <div className="mx-auto w-full max-w-3xl text-center">
           <div className="mb-6 flex justify-center">
             <div className="relative">
               <div
@@ -85,7 +85,7 @@ function ChatIndex() {
             <br />
             câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {SUGGESTIONS.map((s) => {
               const Icon = s.icon;
               return (
@@ -93,14 +93,14 @@ function ChatIndex() {
                   key={s.text}
                   onClick={() => start(s.text)}
                   disabled={loading}
-                  className="group flex items-start gap-3 rounded-2xl border border-border/50 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/80 hover:shadow-lg hover:shadow-primary/5 disabled:opacity-50 disabled:hover:translate-y-0"
+                  className="group flex min-w-0 items-start gap-3 rounded-2xl border border-border/50 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/80 hover:shadow-lg hover:shadow-primary/5 disabled:opacity-50 disabled:hover:translate-y-0"
                 >
                   <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold text-foreground">{s.label}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">{s.text}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground break-words [overflow-wrap:anywhere]">{s.text}</span>
                   </span>
                 </button>
               );
