@@ -58,7 +58,8 @@ export function TenantSwitcher() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const cached = React.useMemo(readCache, []);
+  const [cached, setCached] = React.useState<CachedTenant | null>(null);
+  React.useEffect(() => { setCached(readCache()); }, []);
 
   const { data, isPending, isFetching } = useQuery({
     queryKey: ["my-tenants"],

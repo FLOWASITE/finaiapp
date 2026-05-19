@@ -3,6 +3,7 @@ import { useLocation, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2, Mic, MicOff } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
@@ -105,7 +106,7 @@ export function AskAiSheet() {
     }
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, kind: "purchase_invoice" | "bank_statement" | "cash_voucher" = "purchase_invoice") => {
     if (!file || uploading) return;
     if (file.size > 12 * 1024 * 1024) {
       toast.error("File quá lớn (tối đa 12MB)");
@@ -122,7 +123,6 @@ export function AskAiSheet() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      // Choose kind from mime: pdf/image → purchase_invoice by default
       const isImg = file.type.startsWith("image/");
       const isPdf = file.type === "application/pdf";
       if (!isImg && !isPdf) {
@@ -130,32 +130,41 @@ export function AskAiSheet() {
         setUploading(false);
         return;
       }
+      const kindLabel = kind === "bank_statement" ? "sao kê ngân hàng" : kind === "cash_voucher" ? "phiếu thu/chi" : "hoá đơn mua";
       setMessages((m) => [
         ...m,
-        { role: "user", content: `📎 Đã upload: **${file.name}** — đang trích xuất dữ liệu…` },
+        { role: "user", content: `📎 Upload ${kindLabel}: **${file.name}** — đang trích xuất…` },
         { role: "assistant", content: "" },
       ]);
       const res: any = await parseFn({
-        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind: "purchase_invoice" },
+        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
       });
       const parsed = res?.parsed ?? {};
-      const summary = [
-        `**Đã trích xuất hoá đơn mua:**`,
-        parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
-        parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
-        parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
-        parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
-        parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
-        ``,
-        `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
-      ].filter(Boolean).join("\n");
+      let summary = "";
+      if (kind === "purchase_invoice") {
+        summary = [
+          `**Đã trích xuất hoá đơn mua:**`,
+          parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
+          parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
+          parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
+          parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
+          parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
+          ``,
+          `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
+        ].filter(Boolean).join("\n");
+      } else if (kind === "bank_statement") {
+        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+        summary = `**Đã trích xuất sao kê:**\n\n\`\`\`\n${raw.slice(0, 1500)}${raw.length > 1500 ? "\n…" : ""}\n\`\`\`\n\nMuốn tôi nhập vào hệ thống? Hãy nói "nhập tất cả" hoặc liệt kê các dòng cụ thể.`;
+      } else {
+        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+        summary = `**Đã trích xuất phiếu thu/chi:**\n\n\`\`\`\n${raw.slice(0, 1200)}\n\`\`\`\n\nMuốn tôi tạo phiếu nháp?`;
+      }
       setMessages((prev) => {
         const copy = [...prev];
         copy[copy.length - 1] = { role: "assistant", content: summary };
         return copy;
       });
-      // Stash parsed data into next prompt context
-      (window as any).__lastParsedDoc = parsed;
+      (window as any).__lastParsedDoc = { kind, parsed };
     } catch (e: any) {
       toast.error(`Lỗi parse: ${e.message}`);
       setMessages((prev) => prev.slice(0, -1));
@@ -316,22 +325,32 @@ export function AskAiSheet() {
               type="file"
               accept="application/pdf,image/*"
               className="hidden"
+              data-kind="purchase_invoice"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) handleUpload(f);
+                const k = (e.target.dataset.kind as any) || "purchase_invoice";
+                if (f) handleUpload(f, k);
               }}
             />
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading || loading}
-                title="Upload PDF/ảnh hoá đơn"
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="icon" disabled={uploading || loading} title="Upload chứng từ">
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "purchase_invoice"; fileRef.current.click(); } }}>
+                    Hoá đơn mua (PDF/ảnh)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "bank_statement"; fileRef.current.click(); } }}>
+                    Sao kê ngân hàng
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "cash_voucher"; fileRef.current.click(); } }}>
+                    Phiếu thu/chi viết tay
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 type="button"
                 variant={recording ? "destructive" : "outline"}
