@@ -1,6 +1,15 @@
 import { useState } from "react";
-import { ChevronRight, Database, Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  ChevronRight,
+  Database,
+  Loader2,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  BarChart3,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChartBlock, type ChartSpec } from "@/components/ai/ChartBlock";
 
 export type ToolEvent =
   | { type: "tool-call"; toolCallId: string; toolName: string; input: any }
@@ -9,6 +18,7 @@ export type ToolEvent =
 const TOOL_META: Record<string, { label: string; Icon: any }> = {
   runQuery: { label: "Truy vấn dữ liệu", Icon: Database },
   proposeAction: { label: "Đề xuất hành động", Icon: Sparkles },
+  renderChart: { label: "Biểu đồ", Icon: BarChart3 },
 };
 
 type Call = {
@@ -123,6 +133,15 @@ function ToolCallRow({ call }: { call: Call }) {
           )}
         </span>
       </button>
+      {call.toolName === "renderChart" && call.done && !call.isError && (
+        <div className="border-t border-primary/10 bg-background/40 px-2.5 pt-2 backdrop-blur">
+          <ChartBlock
+            spec={
+              (call.output?.spec ?? call.input) as ChartSpec
+            }
+          />
+        </div>
+      )}
       {open && (
         <div className="space-y-2 border-t border-primary/10 bg-background/40 p-2.5 backdrop-blur">
           {call.input != null && (

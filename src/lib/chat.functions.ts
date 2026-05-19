@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
+import { makeRenderChartTool } from "@/lib/ai/tools/chart.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { parseFileCore } from "@/lib/ai/parse-document.functions";
 
@@ -180,6 +181,7 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       tools: {
         runQuery: makeRunQueryTool(supabase, userId),
         proposeAction: makeProposeActionTool(supabase, userId),
+        renderChart: makeRenderChartTool(),
       },
       stopWhen: stepCountIs(50),
       system: systemParts.join("\n\n"),
@@ -211,10 +213,12 @@ export const askAccountingStream = createServerFn({ method: "POST" })
             const output = (part as any).output ?? (part as any).result;
             const isError =
               output && typeof output === "object" && "error" in output ? true : false;
+            const toolName = (part as any).toolName as string | undefined;
+            const cap = toolName === "renderChart" ? 64000 : 4000;
             yield {
               type: "tool-result",
               toolCallId: (part as any).toolCallId,
-              output: truncateOutput(output),
+              output: truncateOutput(output, cap),
               isError,
             } as AskStreamEvent;
             break;
