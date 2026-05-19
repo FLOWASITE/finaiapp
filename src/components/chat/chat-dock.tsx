@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { History, Paperclip, Mic, MicOff, Loader2 } from "lucide-react";
+import { History, Paperclip, Mic, MicOff, Loader2, Sparkles } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import {
