@@ -1,4 +1,5 @@
 import { LayoutGrid, BookOpenCheck } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { cn } from "@/lib/utils";
 
@@ -9,11 +10,17 @@ import { cn } from "@/lib/utils";
  */
 export function WorkspaceSwitcher() {
   const { workspace, setWorkspace } = useWorkspace();
+  const navigate = useNavigate();
+  const switchTo = (next: "front" | "back") => {
+    if (workspace === next) return;
+    setWorkspace(next);
+    navigate({ to: next === "front" ? "/chat" : "/dashboard" });
+  };
   return (
     <div className="flex items-center gap-0.5 rounded-xl border border-white/5 bg-white/[0.03] p-0.5">
       <button
         type="button"
-        onClick={() => setWorkspace("front")}
+        onClick={() => switchTo("front")}
         aria-label="Mode AI"
         className={cn(
           "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5",
@@ -28,7 +35,7 @@ export function WorkspaceSwitcher() {
       </button>
       <button
         type="button"
-        onClick={() => setWorkspace("back")}
+        onClick={() => switchTo("back")}
         aria-label="Mode Kế toán"
         className={cn(
           "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-all sm:px-2.5",
