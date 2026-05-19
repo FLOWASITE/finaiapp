@@ -478,88 +478,100 @@ function AiModelPage() {
       {/* Provider + Models (merged) */}
       <Card className="p-4 md:p-5 space-y-5">
         {/* Provider section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-primary" />
-            <div className="text-sm font-medium">Provider & API key</div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Tên provider</Label>
-              <Input
-                value={form.provider_label}
-                onChange={(e) => update("provider_label", e.target.value)}
-                placeholder="OpenRouter / OpenAI / Groq…"
-              />
+        <div className="space-y-3">
+          {(isOpenRouter || isAlibaba) ? (
+            // Known preset → compact read-only summary
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-semibold text-xs",
+                    isOpenRouter
+                      ? "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+                      : "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+                  )}
+                >
+                  {isOpenRouter ? "OR" : "通义"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{form.provider_label}</div>
+                  <div className="text-[11px] text-muted-foreground font-mono truncate">
+                    {host}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Base URL</Label>
-              <Input
-                value={form.base_url}
-                onChange={(e) => update("base_url", e.target.value)}
-                placeholder="https://openrouter.ai/api/v1"
-                className="font-mono text-sm"
-              />
-              {host && (
-                <p className="text-[11px] text-muted-foreground">
-                  → <span className="font-mono">{host}</span>
-                </p>
+          ) : (
+            // Custom provider → show editable inputs
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tên provider</Label>
+                <Input
+                  value={form.provider_label}
+                  onChange={(e) => update("provider_label", e.target.value)}
+                  placeholder="OpenAI / Groq / Together…"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Base URL</Label>
+                <Input
+                  value={form.base_url}
+                  onChange={(e) => update("base_url", e.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* API key */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="flex items-center gap-1.5 text-xs">
+                <KeyRound className="h-3.5 w-3.5" /> API Key
+              </Label>
+              {hasKey && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="gap-1 text-[10px]">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Đã lưu
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={form.clearKey ? "destructive" : "ghost"}
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() => update("clearKey", !form.clearKey)}
+                  >
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    {form.clearKey ? "Sẽ xoá" : "Xoá"}
+                  </Button>
+                </div>
               )}
             </div>
-          </div>
-
-          {/* API key block */}
-          <div className="flex gap-3 rounded-lg border bg-muted/30 p-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
-              <KeyRound className="h-4 w-4" />
-            </div>
-            <div className="flex-1 space-y-2 min-w-0">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Label className="text-sm">API Key</Label>
-                {hasKey && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="gap-1 text-[10px]">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                      Đã lưu · AES-GCM
-                    </Badge>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={form.clearKey ? "destructive" : "ghost"}
-                      className="h-6 px-2 text-[11px]"
-                      onClick={() => update("clearKey", !form.clearKey)}
-                    >
-                      <Trash2 className="mr-1 h-3 w-3" />
-                      {form.clearKey ? "Sẽ xoá khi lưu" : "Xoá key"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  type={showKey ? "text" : "password"}
-                  value={form.api_key}
-                  disabled={form.clearKey}
-                  onChange={(e) => update("api_key", e.target.value)}
-                  placeholder={
-                    hasKey
-                      ? "••••••••• (nhập mới để thay)"
-                      : isOpenRouter
-                        ? "sk-or-v1-..."
-                        : "sk-..."
-                  }
-                  className="pr-10 font-mono text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Input
+                type={showKey ? "text" : "password"}
+                value={form.api_key}
+                disabled={form.clearKey}
+                onChange={(e) => update("api_key", e.target.value)}
+                placeholder={
+                  hasKey
+                    ? "••••••••• (nhập mới để thay)"
+                    : isOpenRouter
+                      ? "sk-or-v1-..."
+                      : "sk-..."
+                }
+                className="pr-10 font-mono text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
         </div>
