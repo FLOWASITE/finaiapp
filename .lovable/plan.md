@@ -1,68 +1,30 @@
-# Pane mode ⌘1/⌘2 + Mobile-first Chat
+# Fix mobile UI — Inbox button bị đẩy khỏi màn hình + chat trống
 
-## 1. Desktop: 3 chế độ pane
+## Vấn đề hiện tại (390px)
 
-State mới trong `src/routes/_app/inbox.tsx`:
-```ts
-type PaneMode = "split" | "inbox" | "chat";
-const [paneMode, setPaneMode] = useState<PaneMode>("split");
-```
+Mở `/inbox` ở mobile, đã thấy:
+1. **Header overflow ngang**: back arrow + logo + "Sổ AI" + AI-online pill + thanh search `flex-1` chiếm toàn bộ không gian, đẩy nút **Inbox (47)** và `MoreHorizontal` **ra ngoài viewport** → user không thể mở Inbox overlay.
+2. **Stats strip + Tabs vẫn render trên mobile**: chiếm gần nửa màn hình, ép Chat xuống dưới (chỉ còn 1 input ở đáy, không thấy bubble nào).
+3. **"Duyệt tất cả tin cậy cao"** button cũng nằm trong stats strip — không phù hợp khi user đang ở Chat mode trên mobile (đã có quick action trong chat seed rồi).
 
-Đổi grid (line 549):
-- `split` → `lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]` (60/40 hiện tại)
-- `inbox` → `lg:grid-cols-[1fr]`, ẩn cột Chat
-- `chat`  → `lg:grid-cols-[1fr]`, ẩn cột Inbox
+## Sửa
 
-Khi `paneMode==="chat"` → render `<InboxChat>` full-width thay vì list. Khi `inbox` → chỉ list.
+Áp dụng trên `<lg` (mobile/tablet hẹp):
 
-## 2. Keyboard shortcuts
+### A. Header gọn lại
+- **Ẩn** thanh search "Hỏi AI…" trên mobile (`hidden md:flex` hoặc `lg:flex`). User tap nút Inbox để duyệt batch, gõ thẳng vào ô chat ở dưới để hỏi.
+- **Ẩn** chip ngày `periodLabel()` trên mobile.
+- **Rút gọn** "AI online · vừa đọc N hoá đơn mới": trên mobile chỉ hiện chấm xanh + "AI online" (ẩn phần "vừa đọc…" bằng `hidden sm:inline`).
+- Đảm bảo cụm phải (Inbox button + More) `ml-auto` để luôn dính mép phải.
 
-Thêm useEffect bắt phím (chỉ desktop, bỏ qua khi đang gõ input/textarea):
-- `⌘1` / `Ctrl+1` → `setPaneMode(m => m === "inbox" ? "split" : "inbox")`
-- `⌘2` / `Ctrl+2` → `setPaneMode(m => m === "chat" ? "split" : "chat")`
-- `Esc` khi đang ở `inbox`/`chat` → về `split`
+### B. Ẩn Stats strip + Tabs trên mobile
+- Stats strip (`<div className="flex shrink-0 items-center gap-8…">` line ~512): thêm `hidden lg:flex`.
+- Tabs strip (line ~540): thêm `hidden lg:flex`. Mobile chỉ có Chat fullscreen, không cần tab switcher (Inbox AI là default; các tab khác user hiếm dùng trên phone).
+- Nút "Duyệt tất cả tin cậy cao" → đã có quick-action trong chat seed bubble, đủ.
 
-## 3. Pane toggle UI (desktop)
-
-Thêm cụm 3 nút segmented control ở header cạnh nút `MoreHorizontal` (line 488), `hidden lg:flex`:
-```
-[ Inbox ⌘1 ] [ Split ] [ Chat ⌘2 ]
-```
-Active state = highlight. Tooltip hiển thị shortcut.
-
-## 4. Mobile: đảo logic (Chat-first)
-
-Hiện tại mobile mặc định Inbox, nút mở Chat overlay. Đổi:
-
-- **Mặc định mở Chat full-screen** trên mobile (`<lg`).
-- Header mobile: nút `Inbox (47)` (badge = `stats.pending`) thay nút `MessageSquare` hiện tại (line 481–487). Tap → mở overlay Inbox trượt từ trái (`fixed inset-0 z-40 flex`, panel `w-[92vw] max-w-md` ở bên trái, backdrop bên phải).
-- Click 1 item trong overlay → `handleCardClick(id)` + `setInboxOpenMobile(false)` → Chat đã có `contextItem`.
-
-Mobile rendering (thay block 600–638):
-```tsx
-{/* Mobile: Chat full-screen, Inbox overlay */}
-<div className="block lg:hidden h-full">
-  <InboxChat ... />
-</div>
-{inboxOpenMobile && (
-  <div className="fixed inset-0 z-40 flex lg:hidden">
-    <div className="h-full w-[92vw] max-w-md bg-background shadow-2xl overflow-y-auto">
-      {/* danh sách ItemCard, click → pickItem + đóng overlay */}
-    </div>
-    <div className="flex-1 bg-background/60" onClick={()=>setInboxOpenMobile(false)} />
-  </div>
-)}
-```
-
-Desktop (`hidden lg:grid`) giữ logic split/inbox/chat ở phần 1.
-
-## 5. Dọn dẹp
-
-- Bỏ state `chatOpenMobile` cũ, thay bằng `inboxOpenMobile`.
-- Import icon `Inbox` từ lucide-react cho nút mobile.
-- Không đổi business logic, chỉ layout + shortcuts.
+### C. Inbox overlay (đã có) — chỉ cần đảm bảo nó hoạt động sau khi nút Inbox hiện ra.
 
 ## Files
-- `src/routes/_app/inbox.tsx` — state `paneMode`, `inboxOpenMobile`, useEffect shortcuts, segmented toggle, đảo mobile rendering, đổi grid theo paneMode.
+- `src/routes/_app/inbox.tsx` — thêm `hidden lg:flex` / `hidden md:flex` / `hidden sm:inline` ở các node nêu trên. Không sửa logic, chỉ ẩn/hiện theo breakpoint.
 
-Không tạo file mới. Không đụng `inbox-chat.tsx`, `mockInbox.ts`, hay backend.
+Không đụng `inbox-chat.tsx`, mockInbox, hay backend.
