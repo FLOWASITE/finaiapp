@@ -1,74 +1,94 @@
-# Sổ AI — Fullscreen + Redesign theo mockup
+# Chat panel hai chiều cho Sổ AI
 
-## 1. Bỏ chrome (sidebar + header) cho /inbox
+## Mục tiêu
+Biến `/inbox` thành layout 2 cột: **Inbox list (trái) | Chat panel (phải)**. Bỏ hoàn toàn Reasoning panel ở giữa — mọi lập luận, bút toán đề xuất và nút duyệt chuyển vào trong bubble chat. Inbox và Chat đồng bộ qua một "ngữ cảnh" (context item) duy nhất.
 
-Trong `src/routes/_app.tsx`:
-- Nhận diện route `/inbox` → render `<Outlet />` full-bleed, không bọc `SidebarProvider`/`AppSidebar`/`<header>`/`PageBreadcrumbs`.
-- Vẫn giữ guard `beforeLoad` (auth redirect) và `ChatDock`/`CommandPalette` nếu cần (theo mockup không có dock — sẽ tắt luôn).
-- Các route khác giữ nguyên layout cũ.
+## Layout
 
-Cách triển khai gọn: tách `AppLayout` thành 2 nhánh `chromeless` vs `chrome`, quyết định bằng `location.pathname === "/inbox"`. Khi chromeless: chỉ `<main className="h-screen w-full overflow-hidden"><Outlet/></main>`.
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ Header: [S] Sổ AI · ● AI online · vừa đọc 4 hoá đơn mới   ⌘K  T11   │
+├──────────────────────────────────────────────────────────────────────┤
+│ Stats strip · [Duyệt tất cả tin cậy cao (32)]                        │
+├──────────────────────────────────────────────────────────────────────┤
+│ Tabs: Inbox AI 47 · Đã hạch toán · Cần review · Tài liệu · Báo cáo  │
+├──────────────────────────────────┬───────────────────────────────────┤
+│ Inbox cards                      │ Chat panel                        │
+│ (border-l-4 band)                │ ┌───────────────────────────────┐ │
+│ • selected → viền xanh           │ │ chip: Đang xem: CTY XYZ +55tr ×│ │
+│   + badge "● Đang chat"          │ └───────────────────────────────┘ │
+│                                  │ Sổ AI 7:02                        │
+│                                  │ Chào sếp. Đêm qua đã hạch toán    │
+│                                  │ 132 mục… 47 mục cần duyệt …       │
+│                                  │ [Duyệt 32 mục] [Xem 3 cần review] │
+│                                  │                                   │
+│                                  │ ─ bubble với BÚT TOÁN inline ─    │
+│                                  │ ✓ Duyệt & ghi sổ  · Sửa           │
+│                                  │ ──────────────────────────────    │
+│                                  │ Input: Hỏi gì đó hoặc kéo HĐ…  ↑  │
+└──────────────────────────────────┴───────────────────────────────────┘
+```
 
-## 2. Dựng lại `src/routes/_app/inbox.tsx` theo mockup
+Width: Inbox ~55%, Chat ~45% (min 420px). Trên màn <1100px, Chat collapse thành sheet, có nút mở ở header.
 
-### 2.1 Header riêng của trang (thay app header)
-- Trái: icon vuông "S" + tiêu đề "Sổ AI" + pill xanh nhạt "● AI đang xử lý".
-- Giữa: ô command ⌘K hiển thị gợi ý: `Hỏi AI: "Chi phí marketing tháng này?", "Đối chiếu HĐ với sao kê"…`
-- Phải: pill "📅 T11/2025" + nút ⋯.
+## Card Inbox (gọn hơn vì không còn panel giữa)
 
-### 2.2 Stats strip
-3 cụm số liệu + 1 CTA, cách nhau bằng vạch dọc mờ:
-- **Chờ duyệt** — `47` (số lớn).
-- **AI đã hạch toán hôm nay** — `132` + chip xanh `↑ tiết kiệm ~4h`.
-- **Độ chính xác** — `98.4%`.
-- Bên phải: nút outline **`✓ Duyệt tất cả tin cậy cao (32)`** (đếm theo band `high`).
+Giữ nguyên layout card hiện tại (border-l-4 band, source pill, title, amount, inline lines, blocker banner) — đây là "preview". Khi click:
+- Card nhận `border-l-4 border-primary` + badge `● Đang chat` góc phải.
+- Set `contextItemId` → Chat phản hồi.
+- **Không** mở reasoning panel nữa. Toàn bộ lập luận + nút Duyệt sống trong chat bubble.
 
-### 2.3 Tabs
-`Inbox AI 47 · Đã hạch toán · Cần xem lại · Tài liệu · Báo cáo` — đổi thứ tự theo mockup, badge số chỉ ở tab đang hoạt động (underline thay vì pill đen như hiện tại). Bỏ filter band riêng — nút "Duyệt tất cả tin cậy cao" thay thế nó.
+## Ngữ cảnh hai chiều
 
-### 2.4 Card mỗi item (left rail màu theo confidence band)
-Mỗi card có dải màu mỏng bên trái (`border-l-4`):
-- 🟢 high → emerald, 🟡 medium → amber, 🔴 low → rose.
+State trong `inbox.tsx`:
+- `contextItemId: string | null` — mục được "ghim" vào chat.
 
-Bố cục bên trong card:
-- **Hàng 1 (chips nhỏ):** pill nguồn `📄 Hóa đơn vào` / `🏦 Sao kê Vietcombank` / `🏦 Sao kê Techcombank` + dòng phụ `Tải từ Tổng cục Thuế · 2 phút trước`. Bên phải: badge `↔ Khớp HĐ 00125` (nếu có) + chấm tròn confidence (xanh/vàng/đỏ).
-- **Hàng 2 (title + amount):** tiêu đề đậm trái (`FPT Telecom`, `CTY TNHH XYZ chuyển khoản`, …) + amount phải, dấu `+` cho tiền vào, `−` cho tiền ra, màu trung tính (không đổi màu theo dấu).
-- **Hàng 3 (memo/subtitle):** ví dụ `Cước Internet T11 · HĐ 00128456` hoặc trích dẫn `"TT HD 125 thang 10 CTY XYZ"`.
-- **Hàng 4 (proposed entry inline):** các pill `Nợ 642 2,450,000` `Nợ 133 245,000` `Có 331 2,695,000` — TK in đậm, số tabular. Pill nền `bg-muted/60`, font mono cho số.
-- **Hàng 5 (blocker/warn — nếu có):** banner amber/rose: `💡 AI chưa rõ: chi phí bán hàng (641) hay quản lý (642)? Phân theo phòng ban?` hoặc `⚠ Cần cung cấp chứng từ. AI đã gửi tin cho Kế toán trưởng.`
+Luồng:
+1. **Click card** → set `contextItemId` → card highlight + badge → Chat hiện chip `Đang xem: {title} {±amount}` và push một bubble AI mới chứa: lập luận (`reasoning.summary`), bút toán mono (`proposal.lines`), signal pills, nút `✓ Duyệt & ghi sổ` / `Sửa` / `Áp dụng quy tắc`.
+2. **AI nhắc tên mục** (`HĐ 00125`, `131`, `511`, `112`) → render thành chip button. Click → cuộn Inbox tới mục tương ứng + set context.
+3. **Đóng chip ×** → `contextItemId = null` → Chat trở về chế độ chung.
+4. **Duyệt từ bubble** → gọi handler `onApprove` đã có → card biến mất khỏi Inbox → chat push system `✓ Đã ghi sổ: {title}` → tự đóng context.
 
-Card đang chọn: dải trái dày hơn + nền `bg-accent/30`.
+## Sự kiện hệ thống đồng bộ
 
-### 2.5 Footer danh sách
-- Pill nhỏ `+ 43 mục khác` ở dưới (đếm = total − rendered).
-- Floating button tròn ↓ ở góc phải dưới của cột danh sách (đã có sẵn — giữ lại, đổi vị trí cho khớp).
+`chatLog` quản lý bằng `useReducer`:
+- `approveAllHigh()` → push 2 events:
+  - `{ kind: "system", text: "↑ Sếp vừa nhấn Duyệt 32 mục tin cậy cao ở thanh trên" }`
+  - `{ kind: "ai_progress", current: 0, total: 32 }` → bubble live-update `Đang duyệt ⟳ {n}/{total}…`. Mỗi mock item dismiss tăng counter. Xong: `✓ Đã duyệt 32/32 mục`.
+- Approve đơn lẻ từ bubng chat → system line `✓ Đã ghi sổ: {title}`.
 
-### 2.6 Reasoning panel (cột phải)
-- Tiêu đề: `✨ AI LẬP LUẬN` chữ nhỏ uppercase.
-- Đoạn lập luận tự nhiên với highlight in đậm các con số/đối tác/HĐ: `Khoản tiền vào **55tr ₫** từ **CTY XYZ** khớp với hóa đơn bán hàng **HĐ 00125** ngày 28/10 (cùng số tiền, đúng đối tác, ghi chú có mã HĐ).`
-- Block `Bút toán đề xuất` nền xám nhạt, hiển thị dạng `Nợ 112 — TG Vietcombank          55,000,000` thay vì bảng (chỉ là 2-3 dòng text căn lề).
-- Hàng signal pills bo tròn xanh: `✓ Khớp hóa đơn` `✓ Đối tác đã có` `✓ Pattern tương tự ×17` + pill cuối `Tin cậy 99%`.
-- Bộ nút: **`✓ Duyệt & ghi sổ`** (lớn, nền emerald đậm, full width chính), `📝 Sửa` (outline), `×` (icon button, outline) — căn hàng ngang.
-- Section `HỎI AI VỀ MỤC NÀY` — 3 nút ghost full-width:
-  - `Tại sao lại là TK 131 mà không phải 511?`
-  - `Tổng đã thu của XYZ là bao nhiêu?`
-  - `Áp dụng quy tắc này cho mục tương lai` (giữ nguyên hành động `saveInboxRule`).
+## Header pill "AI online"
 
-### 2.7 Bỏ
-- `bandFilter` pills (thay bằng nút "Duyệt tất cả tin cậy cao").
-- Checkbox chọn từng dòng + bulk bar (chỉ 1 nút duy nhất ở stats strip).
-- `ScrollArea` hai cột → dùng `overflow-y-auto` thường để có scroll-shadow tự nhiên hơn.
+Bên cạnh "AI đang xử lý":
+- `● AI online · vừa đọc {n} hoá đơn mới` (n = delta `data.stats.pending` so với render trước, fallback `đang theo dõi`).
+- Pulse dot xanh. Tooltip hover: "Cập nhật cuối: 2 phút trước".
 
-## 3. Hành vi
-- `Duyệt tất cả tin cậy cao (N)`: lặp `approveInboxItem` cho mọi item `confidence_band === "high"` và không có `blocker`.
-- 3 câu "Hỏi AI" đầu: 2 câu đầu prefill `openAskAi("Giải thích vì sao …")` cho item đang chọn, câu thứ 3 gọi `saveInboxRule`.
-- Số liệu stats (`47`, `132`, `98.4%`) lấy từ `data.stats` (đã có `pending`, `posted_today`; thêm `accuracy` tạm hiển thị `—` nếu null, không thêm backend mới).
+## Chat panel chi tiết
 
-## 4. Phạm vi không động tới
-- Backend (`inbox-ai.functions.ts`, `inbox-reason.server.ts`) giữ nguyên.
-- Sidebar/header ở các route khác giữ nguyên.
-- Route cũ `inbox_.$lane.tsx` giữ — không link tới nữa nhưng không xoá để tránh vỡ deep-link cũ.
+Component mới `src/components/inbox/inbox-chat.tsx`. Không nối backend — mock responder dựa trên `contextItemId`:
 
-## 5. File chạm
-- `src/routes/_app.tsx` — nhánh chromeless cho `/inbox`.
-- `src/routes/_app/inbox.tsx` — viết lại UI (giữ logic query/mutate).
+- Seed ban đầu: bubble AI "Chào sếp. Đêm qua tôi đã hạch toán **132 mục** tự động. Còn **47 mục** cần sếp duyệt — trong đó **32 mục tin cậy cao** có thể duyệt hàng loạt." + quick actions `Duyệt 32 mục tin cậy cao`, `Xem 3 mục cần review`.
+- Khi set context → push bubble AI với:
+  - `reasoning.summary` (markdown bold cho từ khoá).
+  - Khối `BÚT TOÁN` mono (giống screenshot).
+  - Signal pills (`✓ Khớp HĐ`, `✓ Pattern x17`, `Tin cậy 99%`).
+  - Action row: `✓ Duyệt & ghi sổ` (primary, gọi `onApprove`), `Sửa` (toast tạm), `Áp dụng quy tắc cho tương lai`.
+- User gõ "131" hoặc "511" khi context = mock-2 → trả lời canned giải thích 131 vs 511 với bút toán mono.
+- Không có context + user hỏi → "Em chưa có ngữ cảnh, sếp chọn 1 mục bên trái hoặc hỏi tự do".
+- Hậu xử lý regex: `HĐ \d+`, mã TK 3 chữ số (`131`, `511`, `112`, `642`, `133`, `331`, `138`) → chip clickable.
+- Footer composer: textarea + nút mic (icon, no-op), nút gửi (mũi tên xanh).
+
+## Files thay đổi
+
+1. **`src/routes/_app/inbox.tsx`** — xoá cột Reasoning, layout 2 cột, state `contextItemId` + `chatLog` reducer, wire `approveAllHigh` để emit chat events, header pill "AI online".
+2. **`src/components/inbox/inbox-chat.tsx`** (mới) — UI chat panel, mock responder, chip parser, bubble bút toán.
+3. **`src/data/mockInbox.ts`** — thêm `mockChatSeed` (tin nhắn AI đầu tiên).
+
+Không đụng backend, không sửa `inbox-ai.functions.ts`, không sửa sidebar/header global.
+
+## Edge cases
+
+- Màn <1100px: Chat collapse → nút "Mở chat" trên header mở sheet phải.
+- `mockInboxItems` rỗng: Chat vẫn render với seed message; click card không khả thi → chip context ẩn.
+- User gửi tin trong lúc `ai_progress` chạy: cho phép, không khoá input.
+- Mục context bị duyệt/biến mất: tự đóng chip + system line "Mục đã ghi sổ, đóng ngữ cảnh".
