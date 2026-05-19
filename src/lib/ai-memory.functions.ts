@@ -122,7 +122,7 @@ export const updateRule = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, tenantId } = context;
-    const patch: Record<string, unknown> = {};
+    const patch: { title?: string; when_text?: string; then_text?: string } = {};
     if (data.title !== undefined) patch.title = data.title;
     if (data.when_text !== undefined) patch.when_text = data.when_text;
     if (data.then_text !== undefined) patch.then_text = data.then_text;
