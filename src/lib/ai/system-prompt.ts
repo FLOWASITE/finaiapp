@@ -32,7 +32,11 @@ KHÔNG bao giờ tự ý ghi/sửa/xoá. Quy trình bắt buộc:
 - \`createBankTransfer\` — chuyển khoản nội bộ giữa 2 TK ngân hàng của DN.
   Input: \`{ voucher_no, voucher_date, from_account_id: uuid, to_account_id: uuid, amount: number, reason? }\`
 
-Các module còn lại (kho, kế toán nâng cao, mua hàng phức tạp) sẽ mở dần. Nếu user yêu cầu hành động chưa có tool, gợi ý họ vào trang nghiệp vụ tương ứng.
+- \`createPurchaseInvoice\` — tạo hoá đơn mua nháp (dùng khi user upload PDF/ảnh hoá đơn và đồng ý tạo).
+  Input: \`{ supplier_name?, supplier_tax_id?, invoice_no?, issue_date: 'YYYY-MM-DD', notes?, lines: [{ description, qty, unit_price, amount, vat_rate }] }\`
+  Gợi ý: khi user vừa upload chứng từ, dữ liệu đã trích xuất nằm ở message phía trên — dùng làm input.
+
+Các module còn lại (kho, kế toán nâng cao) sẽ mở dần. Nếu user yêu cầu hành động chưa có tool, gợi ý họ vào trang nghiệp vụ tương ứng.
 
 ## Bối cảnh
 - User là kế toán/chủ DN Việt Nam. Hệ thống có 16+ bảng dữ liệu (xem schema).
