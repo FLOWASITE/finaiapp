@@ -102,6 +102,7 @@ function ThreadPage() {
             role: m.role === "assistant" ? "assistant" : "user",
             content: m.content,
           })),
+          ...(attachments && attachments.length ? { attachments } : {}),
         },
         signal: controller.signal,
       } as any);
