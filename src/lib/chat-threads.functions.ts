@@ -14,6 +14,7 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   created_at: string;
+  metadata?: any;
 };
 
 const Uuid = z.string().uuid();
@@ -49,7 +50,7 @@ export const getThread = createServerFn({ method: "POST" })
     if (!thread) throw new Error("Không tìm thấy cuộc trò chuyện");
     const { data: messages, error: e2 } = await supabase
       .from("chat_messages")
-      .select("id,role,content,created_at")
+      .select("id,role,content,created_at,metadata")
       .eq("thread_id", data.threadId)
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
@@ -121,6 +122,7 @@ export const appendMessage = createServerFn({ method: "POST" })
         role: z.enum(["user", "assistant", "system"]),
         content: z.string().max(50_000),
         updateTitleIfBlank: z.boolean().optional(),
+        metadata: z.any().optional(),
       })
       .parse(i),
   )
@@ -134,12 +136,12 @@ export const appendMessage = createServerFn({ method: "POST" })
         user_id: userId,
         role: data.role,
         content: data.content,
+        metadata: data.metadata ?? null,
       })
-      .select("id,role,content,created_at")
+      .select("id,role,content,created_at,metadata")
       .single();
     if (error) throw new Error(error.message);
 
-    // bump last_message_at, and auto-title from first user message if needed
     let nextTitle: string | undefined;
     if (data.updateTitleIfBlank && data.role === "user") {
       const { data: t } = await supabase
@@ -162,4 +164,24 @@ export const appendMessage = createServerFn({ method: "POST" })
       .eq("tenant_id", tenantId);
 
     return row as ChatMessage;
+  });
+
+export const deleteLastAssistantMessage = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) => z.object({ threadId: Uuid }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { data: rows } = await supabase
+      .from("chat_messages")
+      .select("id,role")
+      .eq("thread_id", data.threadId)
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const last = rows?.[0];
+    if (!last || last.role !== "assistant") return { ok: false };
+    const { error } = await supabase.from("chat_messages").delete().eq("id", last.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

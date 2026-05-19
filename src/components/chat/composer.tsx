@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { Send, Square, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,7 @@ export type ComposerProps = {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
   disabled?: boolean;
   loading?: boolean;
   placeholder?: string;
@@ -23,6 +24,7 @@ export function Composer({
   value,
   onChange,
   onSubmit,
+  onStop,
   disabled,
   loading,
   placeholder = "Nhắn cho trợ lý AI…",
@@ -70,16 +72,30 @@ export function Composer({
         rows={1}
         className="flex-1 resize-none bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground/70"
       />
-      <Button
-        type="button"
-        size="icon"
-        onClick={onSubmit}
-        disabled={disabled || loading || !value.trim()}
-        className="h-9 w-9 shrink-0 rounded-xl"
-        aria-label="Gửi"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-      </Button>
+      {loading && onStop ? (
+        <Button
+          type="button"
+          size="icon"
+          variant="destructive"
+          onClick={onStop}
+          className="h-9 w-9 shrink-0 rounded-xl"
+          aria-label="Dừng"
+          title="Dừng"
+        >
+          <Square className="h-3.5 w-3.5 fill-current" />
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="icon"
+          onClick={onSubmit}
+          disabled={disabled || loading || !value.trim()}
+          className="h-9 w-9 shrink-0 rounded-xl"
+          aria-label="Gửi"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
