@@ -210,7 +210,6 @@ function AiModelPage() {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [onlyFree, setOnlyFree] = useState(false);
-  const [modelSearch, setModelSearch] = useState("");
 
   useEffect(() => {
     if (!data) return;
@@ -290,7 +289,7 @@ function AiModelPage() {
     setLoadingModels(true);
     try {
       const r: any = await listModels({ data: { base_url: form.base_url } });
-      setModels(r.models as ModelOption[]);
+      setModels(mergeModelOptions((r.models as ModelOption[]) ?? [], SUGGESTED_MODELS));
       toast.success(`Đã tải ${r.count} model.`);
     } catch (e: any) {
       toast.error("Không tải được danh sách model: " + e.message);
@@ -367,6 +366,7 @@ function AiModelPage() {
   const isCustomActive = form.enabled && hasKey && !!form.base_url;
   const missingSetup = form.enabled && (!form.base_url || (!hasKey && !form.api_key));
   const host = hostFromUrl(form.base_url);
+  const modelOptions = models.length > 0 ? models : SUGGESTED_MODELS;
 
   // status: active | warning | muted
   const status: "active" | "warning" | "muted" = missingSetup
@@ -655,9 +655,8 @@ function AiModelPage() {
             required
             value={form.model_default}
             onChange={(v) => update("model_default", v)}
-            models={models}
+              models={modelOptions}
             onlyFree={onlyFree}
-            search={modelSearch}
             placeholder="openai/gpt-4o-mini"
           />
 
@@ -680,9 +679,8 @@ function AiModelPage() {
                 hint="Ưu tiên model nhanh & rẻ (gpt-4o-mini, gemini-flash) — phản hồi realtime."
                 value={form.model_chat}
                 onChange={(v) => update("model_chat", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: openai/gpt-4o-mini"
               />
               <ModelField
@@ -691,9 +689,8 @@ function AiModelPage() {
                 hint="BẮT BUỘC có vision + context lớn (gemini-2.5-pro, gpt-4o, qwen-vl-max)."
                 value={form.model_parse}
                 onChange={(v) => update("model_parse", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: google/gemini-2.5-pro"
               />
               <ModelField
@@ -702,9 +699,8 @@ function AiModelPage() {
                 hint="Cần reasoning tốt (gpt-4o, deepseek-r1, qwq). Tác vụ batch — cân nhắc giá."
                 value={form.model_reasoning}
                 onChange={(v) => update("model_reasoning", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: deepseek/deepseek-r1"
               />
             </div>
