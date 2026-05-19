@@ -7,6 +7,14 @@ import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { parseFileCore } from "@/lib/ai/parse-document.functions";
+
+const AttachmentSchema = z.object({
+  name: z.string(),
+  mime: z.string(),
+  base64: z.string(),
+  kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
+});
 
 const askInput = z.object({
   question: z.string().min(1),
@@ -15,6 +23,8 @@ const askInput = z.object({
     .optional(),
   /** Optional page context — route path + a short JSON snapshot of relevant ids. */
   pageContext: z.string().optional(),
+  /** Files attached to the user message — parsed inline before the LLM runs. */
+  attachments: z.array(AttachmentSchema).optional(),
 });
 
 export type AskStreamEvent =
@@ -109,6 +119,55 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       // Best-effort — không chặn chat nếu lookup lỗi.
     }
 
+    // ----- Parse attachments INLINE before LLM, surfacing as tool-call events -----
+    const parsedAttachments: Array<{ name: string; kind: string; parsed: any }> = [];
+    if (data.attachments && data.attachments.length > 0) {
+      for (const att of data.attachments) {
+        const callId = `parse_${Math.random().toString(36).slice(2, 10)}`;
+        yield {
+          type: "tool-call",
+          toolCallId: callId,
+          toolName: "parseDocument",
+          input: { filename: att.name, kind: att.kind, mime: att.mime },
+        } as AskStreamEvent;
+        try {
+          const r = await parseFileCore({
+            fileBase64: att.base64,
+            mimeType: att.mime,
+            filename: att.name,
+            kind: att.kind,
+            supabase,
+            userId,
+          });
+          parsedAttachments.push({ name: att.name, kind: att.kind, parsed: r.parsed });
+          yield {
+            type: "tool-result",
+            toolCallId: callId,
+            output: truncateOutput({ filename: att.name, kind: att.kind, parsed: r.parsed }),
+          } as AskStreamEvent;
+        } catch (e: any) {
+          yield {
+            type: "tool-result",
+            toolCallId: callId,
+            output: { error: e?.message || "parse error", filename: att.name },
+            isError: true,
+          } as AskStreamEvent;
+        }
+        if (abortSignal?.aborted) return;
+      }
+    }
+
+    const attachmentBlock = parsedAttachments.length
+      ? "\n\n## Chứng từ vừa đính kèm (đã trích xuất)\n" +
+        parsedAttachments
+          .map(
+            (a, i) =>
+              `### ${i + 1}. ${a.name} (${a.kind})\n\`\`\`json\n${JSON.stringify(a.parsed, null, 2)}\n\`\`\``,
+          )
+          .join("\n\n") +
+        "\n\nNếu là **purchase_invoice** và dữ liệu trông hợp lý: hãy tóm tắt ngắn (NCC, số HĐ, ngày, tổng) rồi gọi ngay `proposeAction` với `tool_name='createPurchaseInvoice'` và `input` đã map sẵn (lines: description/qty/unit_price/amount/vat_rate). Nếu là **bank_statement**: tóm tắt số giao dịch + tổng thu/chi và đề nghị user chọn TK để import. Nếu là **cash_voucher**: gọi `proposeAction` createBankVoucher hoặc thông báo cần thêm thông tin."
+      : "";
+
     const systemParts = [
       SYSTEM_PROMPT,
       userContextBlock,
@@ -126,7 +185,7 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       system: systemParts.join("\n\n"),
       messages: [
         ...((data.history ?? []).map((m) => ({ role: m.role, content: m.content }))),
-        { role: "user" as const, content: data.question },
+        { role: "user" as const, content: data.question + attachmentBlock },
       ],
       abortSignal,
     });

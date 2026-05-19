@@ -15,6 +15,14 @@ import { cn } from "@/lib/utils";
 
 type ImportKind = "purchase_invoice" | "bank_statement" | "cash_voucher";
 
+export type AttachmentPayload = {
+  name: string;
+  mime: string;
+  size: number;
+  base64: string;
+  kind: ImportKind;
+};
+
 export type ComposerProps = {
   value: string;
   onChange: (v: string) => void;
@@ -35,6 +43,12 @@ export type ComposerProps = {
    * nếu không, transcript được điền vào ô input.
    */
   onTranscript?: (text: string) => void;
+  /**
+   * Nếu cung cấp, Composer sẽ ĐỌC file → base64 rồi gọi callback này
+   * thay vì tự parse + điều hướng /import/preview.
+   * Dùng để xử lý chứng từ NGAY TRONG phòng hội thoại.
+   */
+  onAttach?: (files: AttachmentPayload[]) => void;
 };
 
 export function Composer({
@@ -51,6 +65,7 @@ export function Composer({
   enableAttach = true,
   enableVoice = true,
   onTranscript,
+  onAttach,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -130,9 +145,19 @@ export function Composer({
     fileRef.current.click();
   };
 
-  const handleUploadBatch = async (files: File[], kind: ImportKind) => {
-    if (!files.length || uploading) return;
-    const valid = files.filter((f) => {
+  const readBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const s = String(reader.result || "");
+        resolve(s.split(",")[1] || s);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const validateFiles = (files: File[]) =>
+    files.filter((f) => {
       if (f.size > 12 * 1024 * 1024) {
         toast.error(`${f.name}: quá 12MB, bỏ qua`);
         return false;
@@ -143,24 +168,42 @@ export function Composer({
       }
       return true;
     });
+
+  const handleUploadBatch = async (files: File[], kind: ImportKind) => {
+    if (!files.length || uploading) return;
+    const valid = validateFiles(files);
     if (!valid.length) return;
+
+    // --- New path: hand off to parent (xử lý ngay trong phòng chat) ---
+    if (onAttach) {
+      setUploading(true);
+      const toastId = toast.loading(`Đang đọc ${valid.length} file…`);
+      try {
+        const payloads: AttachmentPayload[] = [];
+        for (const f of valid) {
+          const base64 = await readBase64(f);
+          payloads.push({ name: f.name, mime: f.type, size: f.size, base64, kind });
+        }
+        toast.success(`Đã đính kèm ${payloads.length} file`, { id: toastId });
+        onAttach(payloads);
+      } catch (e: any) {
+        toast.error(e?.message || "Không đọc được file", { id: toastId });
+      } finally {
+        setUploading(false);
+        if (fileRef.current) fileRef.current.value = "";
+      }
+      return;
+    }
+
+    // --- Legacy path: parse client-side + navigate to /import/preview ---
     setUploading(true);
     const toastId = toast.loading(`Đang xử lý ${valid.length} file…`);
-
     const items: Array<{ filename: string; kind: ImportKind; parsed: any; error?: string }> = [];
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
       try {
         toast.loading(`(${i + 1}/${valid.length}) ${file.name}`, { id: toastId });
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const s = String(reader.result || "");
-            resolve(s.split(",")[1] || s);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        const base64 = await readBase64(file);
         const res: any = await parseFn({
           data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
         });
@@ -169,7 +212,6 @@ export function Composer({
         items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
       }
     }
-
     const ok = items.filter((i) => !i.error);
     const failed = items.filter((i) => i.error);
     const batchPayload = { kind, items: ok, failed, createdAt: Date.now() };
@@ -178,10 +220,8 @@ export function Composer({
     try {
       sessionStorage.setItem("lastBatchImport", JSON.stringify(batchPayload));
     } catch {}
-
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
-
     if (!ok.length) {
       toast.error(`Không xử lý được file nào (${failed.length} lỗi)`, { id: toastId });
       return;

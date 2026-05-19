@@ -73,7 +73,7 @@ function ThreadPage() {
     });
   }, [messages, streaming]);
 
-  const runAssistant = async (history: ChatMsg[]) => {
+  const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
     setStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -102,6 +102,7 @@ function ThreadPage() {
             role: m.role === "assistant" ? "assistant" : "user",
             content: m.content,
           })),
+          ...(attachments && attachments.length ? { attachments } : {}),
         },
         signal: controller.signal,
       } as any);
@@ -157,7 +158,15 @@ function ThreadPage() {
     if (msgs.length === 1 && msgs[0].role === "user") {
       startedRef.current = threadId;
       const hist: ChatMsg[] = msgs.map((m) => ({ id: m.id, role: m.role, content: m.content }));
-      runAssistant(hist);
+      let pendingAttachments: any[] | undefined;
+      try {
+        const raw = sessionStorage.getItem(`__attach:${threadId}`);
+        if (raw) {
+          pendingAttachments = JSON.parse(raw);
+          sessionStorage.removeItem(`__attach:${threadId}`);
+        }
+      } catch {}
+      runAssistant(hist, pendingAttachments);
       navigate({
         to: "/chat/$threadId",
         params: { threadId },

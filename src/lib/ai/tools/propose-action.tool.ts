@@ -10,18 +10,23 @@ import { ACTION_HANDLERS } from "@/lib/ai/action-handlers.server";
 export function makeProposeActionTool(supabase: any, userId: string) {
   return tool({
     description: [
-      "Đề xuất một hành động ghi dữ liệu (tạo hoá đơn, thu tiền...) để user xác nhận.",
+      "Đề xuất một hành động ghi dữ liệu (tạo hoá đơn, thu/chi tiền, phiếu NH...) để user xác nhận.",
       "Tool này KHÔNG thực thi ngay — chỉ ghi vào hàng chờ duyệt.",
       "Sau khi gọi, hãy thông báo cho user biết đã tạo đề xuất và yêu cầu họ bấm Duyệt.",
-      "Tool name hợp lệ: createInvoiceFromSO, recordCustomerReceipt.",
+      "Tool name hợp lệ: createInvoiceFromSO, recordCustomerReceipt, recordSupplierPayment, createBankVoucher, createBankTransfer, createPurchaseInvoice.",
     ].join(" "),
     inputSchema: z.object({
-      tool_name: z.enum(["createInvoiceFromSO", "recordCustomerReceipt"]),
+      tool_name: z.enum([
+        "createInvoiceFromSO",
+        "recordCustomerReceipt",
+        "recordSupplierPayment",
+        "createBankVoucher",
+        "createBankTransfer",
+        "createPurchaseInvoice",
+      ]),
       input: z
         .record(z.string(), z.any())
-        .describe(
-          "Tham số tool. createInvoiceFromSO: {orderId, issueDate?, lines:[{soLineId, qty}]}. recordCustomerReceipt: {invoice_id, pay_date, method:'cash'|'bank'|'card'|'other', amount, reference?, notes?}",
-        ),
+        .describe("Tham số tool — xem system prompt để biết schema từng tool."),
     }),
     execute: async (data) => {
       const handler = ACTION_HANDLERS[data.tool_name];
