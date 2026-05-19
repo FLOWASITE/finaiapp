@@ -597,7 +597,7 @@ function InboxHeader({
 }: {
   onOpenCmd: () => void;
   periodLabel: string;
-  recentlyReadDelta: number;
+  recentlyReadDelta: number | null;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
