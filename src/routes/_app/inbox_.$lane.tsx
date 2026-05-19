@@ -196,9 +196,9 @@ function LaneDetailPage() {
             Làm mới
           </Button>
           <Button variant="outline" asChild className="gap-2">
-            <Link to={config.sourceLink.to}>
+            <a href={config.sourceLink.to}>
               <ExternalLink className="h-4 w-4" /> {config.sourceLink.label}
-            </Link>
+            </a>
           </Button>
           <Button onClick={() => openAskAi(config.composerIntent)} className="gap-2">
             <Plus className="h-4 w-4" /> {config.composerLabel}
