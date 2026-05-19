@@ -239,7 +239,25 @@ export function ChatDock() {
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-          <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+          {unreadCount > 0 && latestDigestThreadId && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                markSeen();
+                navigate({ to: "/chat/$threadId", params: { threadId: latestDigestThreadId } });
+              }}
+              className="relative h-11 w-11 shrink-0 rounded-xl border-primary/40 bg-primary/10 text-primary backdrop-blur-xl"
+              title={`Có ${unreadCount} tóm tắt chưa đọc`}
+              aria-label="Tóm tắt hàng ngày"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            </Button>
+          )}
+          <Popover open={historyOpen} onOpenChange={(o) => { setHistoryOpen(o); if (o) markSeen(); }}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
