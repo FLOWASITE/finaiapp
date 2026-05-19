@@ -153,15 +153,11 @@ function ReclassPage() {
               <div>
                 <Label>TK đích</Label>
                 {form.direction === "fa_to_tool" ? (
-                  <Select value={form.target_account} onValueChange={v => setForm(f => ({ ...f, target_account: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="153">153 — Công cụ dụng cụ</SelectItem>
-                      <SelectItem value="242">242 — Chi phí trả trước</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <AccountCombobox value={form.target_account} onChange={v => setForm(f => ({ ...f, target_account: v }))}
+                    suggestions={[{code:"153",name:"Công cụ dụng cụ"},{code:"242",name:"Chi phí trả trước"}]} />
                 ) : (
-                  <Input value={form.target_account} onChange={e => setForm(f => ({ ...f, target_account: e.target.value }))} />
+                  <AccountCombobox value={form.target_account} onChange={v => setForm(f => ({ ...f, target_account: v }))}
+                    suggestions={[{code:"211",name:"TSCĐ hữu hình"},{code:"2111",name:"Nhà cửa, vật kiến trúc"},{code:"2112",name:"Máy móc, thiết bị"},{code:"2113",name:"Phương tiện vận tải"},{code:"2114",name:"Thiết bị, dụng cụ QL"},{code:"213",name:"TSCĐ vô hình"}]} />
                 )}
               </div>
               {form.direction === "fa_to_tool" && form.target_account === "242" && (
