@@ -388,6 +388,7 @@ function InboxAiPage() {
       </div>
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
+      </div>
     </div>
   );
 }
