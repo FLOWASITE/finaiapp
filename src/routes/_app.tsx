@@ -53,7 +53,7 @@ function AppLayout() {
             </div>
           </header>
           <main className={`flex-1 overflow-auto ${showDock ? "pb-4" : ""}`}>
-            <PageBreadcrumbs />
+            {!onChatRoute && <PageBreadcrumbs />}
             <Outlet />
           </main>
           {showDock ? <ChatDock /> : null}

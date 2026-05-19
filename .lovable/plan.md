@@ -1,37 +1,20 @@
-# Tách độc lập 2 sidebar trong AI mode
+# Ẩn PageBreadcrumbs trong /chat
 
-## Mục tiêu
-Trong trang `/chat` (AI mode), người dùng có thể đóng/mở **AppSidebar** (nav trái) và **ThreadList** (lịch sử chat) một cách độc lập, không bị gộp chung.
-
-## Hiện trạng (vấn đề)
-- File `src/routes/_app.tsx`: biến `hideChrome = onChatRoute && chatSidebarCollapsed` → khi đóng ThreadList thì **ẩn luôn AppSidebar + header** (full-screen chat).
-- File `src/routes/_app/chat.tsx`: khi `collapsed` cũng bỏ luôn padding/border của khung chat (`h-screen rounded-none border-0`).
-- Kết quả: 1 nút Cmd+\ điều khiển cả 2 thứ → không linh hoạt.
+## Vấn đề
+Sau khi tách 2 sidebar độc lập, `PageBreadcrumbs` luôn render trong `<main>` ở mọi route — bao gồm cả `/chat`. Trên trang chat, breadcrumb chiếm thêm chiều cao phía trên khung chat, làm vướng và đẩy khung `h-[calc(100vh-7rem)]` không khớp.
 
 ## Thay đổi
 
-### 1. `src/routes/_app.tsx`
-- **Xoá** logic `hideChrome` cũ. Header và AppSidebar **luôn hiển thị** trong `/chat` (giống các route khác).
-- Vẫn giữ `ChatDock` chỉ hiện ngoài `/chat`.
+### `src/routes/_app.tsx`
+- Tính `onChatRoute = location.pathname.startsWith("/chat")` (đã có).
+- Chỉ render `<PageBreadcrumbs />` khi **không** ở `/chat`:
+  ```tsx
+  {!onChatRoute && <PageBreadcrumbs />}
+  ```
+- Header + AppSidebar vẫn giữ nguyên (đã hoạt động độc lập).
 
-### 2. `src/routes/_app/chat.tsx`
-- Bỏ biến thể `h-screen rounded-none border-0` khi collapsed. Khung chat luôn dùng `h-[calc(100vh-7rem)] rounded-2xl` vì giờ header luôn hiển thị.
-- Vẫn truyền `collapsed` + `onToggle` xuống `ThreadList` để nút đóng/mở ThreadList hoạt động độc lập.
-- Có thể xoá phần `useEffect` đăng ký phím tắt Cmd+\ (theo yêu cầu không cần phím tắt) — hoặc giữ lại cũng được. Sẽ **xoá** cho gọn.
-
-### 3. `src/components/app-sidebar.tsx` / sử dụng `SidebarTrigger`
-- AppSidebar đã hỗ trợ `collapsible` qua `SidebarProvider`. Nút `SidebarTrigger` sẵn có trong header (`src/routes/_app.tsx` đã render `<SidebarTrigger />`).
-- Không cần đổi gì — chỉ cần header luôn hiển thị (đã làm ở bước 1) là người dùng có nút độc lập để đóng/mở AppSidebar.
-
-### 4. Dọn dẹp
-- Hook `useChatSidebarCollapsed` và file `src/hooks/use-chat-sidebar-collapsed.ts` vẫn dùng cho ThreadList state — giữ nguyên.
-- Import `useChatSidebarCollapsed` trong `_app.tsx` không còn cần — xoá.
-
-## Kết quả UX
-- Ở `/chat`: header + AppSidebar luôn hiện (giống các trang khác). Có 2 nút độc lập:
-  - `SidebarTrigger` trong header → đóng/mở AppSidebar (nav trái).
-  - Nút PanelLeftClose/Open trong ThreadList → đóng/mở lịch sử chat.
-- 4 tổ hợp trạng thái đều khả dĩ.
+### `src/routes/_app/chat.tsx`
+- Khung chat hiện dùng `h-[calc(100vh-7rem)]` — chiều cao này được tính giả định có header (~5rem) + padding. Sau khi ẩn breadcrumb, không cần đổi vì breadcrumb trước đó nằm trong `<main>` (đã scroll cùng main), nhưng để chắc khung chat không bị tràn/scroll thừa, vẫn giữ `h-[calc(100vh-7rem)]` — kiểm tra trực quan sau khi triển khai. Nếu cần điều chỉnh, đổi thành `h-full` và để `<main>` lo chiều cao.
 
 ## Phạm vi
-Chỉ chỉnh layout/route files, không động vào logic chat/business.
+Chỉ thay đổi điều kiện render `PageBreadcrumbs` trong `_app.tsx`. Không động vào logic nào khác.
