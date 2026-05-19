@@ -45,10 +45,11 @@ export function ChatDock() {
   const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
 
   const threadsQuery = useQuery({
-    queryKey: ["chat", "threads", "recent"],
-    queryFn: () => listFn(),
+    queryKey: ["chat", "threads", "recent", "all"],
+    queryFn: () => listFn({ data: { kind: "all" } }),
     staleTime: 15_000,
     enabled: historyOpen,
   });
