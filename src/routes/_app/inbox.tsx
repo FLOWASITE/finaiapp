@@ -367,20 +367,6 @@ function InboxAiPage() {
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel()}
         </div>
-        {/* Mobile: open Inbox overlay */}
-        <button
-          onClick={() => setInboxOpenMobile((v) => !v)}
-          className="relative flex h-9 items-center gap-1.5 rounded-md border border-border/40 px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground lg:hidden"
-          aria-label="Mở Inbox"
-        >
-          <InboxIcon className="h-4 w-4" />
-          <span>Inbox</span>
-          {stats?.pending ? (
-            <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background tabular-nums">
-              {stats.pending}
-            </span>
-          ) : null}
-        </button>
 
         <button className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
           <MoreHorizontal className="h-4 w-4" />
