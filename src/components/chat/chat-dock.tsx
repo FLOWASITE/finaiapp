@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { History } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
+import { Button } from "@/components/ui/button";
 import { createThread, appendMessage } from "@/lib/chat-threads.functions";
 
 /**
@@ -46,15 +48,28 @@ export function ChatDock() {
 
   return (
     <div className="pointer-events-none sticky bottom-0 z-30 px-4 pb-4">
-      <div className="pointer-events-auto mx-auto max-w-3xl">
-        <Composer
-          value={input}
-          onChange={setInput}
-          onSubmit={submit}
-          loading={loading}
-          placeholder="Hỏi trợ lý AI bất cứ điều gì…"
-          compact
-        />
+      <div className="pointer-events-auto mx-auto flex max-w-3xl items-end gap-2">
+        <div className="flex-1">
+          <Composer
+            value={input}
+            onChange={setInput}
+            onSubmit={submit}
+            loading={loading}
+            placeholder="Hỏi trợ lý AI bất cứ điều gì…"
+            compact
+          />
+        </div>
+        <Button
+          asChild
+          variant="outline"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-xl border-white/10 bg-background/70 backdrop-blur-xl"
+          title="Lịch sử hội thoại"
+        >
+          <Link to="/chat" aria-label="Lịch sử hội thoại">
+            <History className="h-4 w-4" />
+          </Link>
+        </Button>
       </div>
     </div>
   );
