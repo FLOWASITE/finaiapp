@@ -3087,6 +3087,113 @@ export type Database = {
           },
         ]
       }
+      inbox_decisions: {
+        Row: {
+          action: string
+          confidence_at_decision: number | null
+          decided_at: string
+          final_entry: Json | null
+          id: string
+          item_external_id: string
+          item_source: string
+          journal_entry_id: string | null
+          note: string | null
+          original_entry: Json | null
+          rule_id: string | null
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          confidence_at_decision?: number | null
+          decided_at?: string
+          final_entry?: Json | null
+          id?: string
+          item_external_id: string
+          item_source: string
+          journal_entry_id?: string | null
+          note?: string | null
+          original_entry?: Json | null
+          rule_id?: string | null
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          confidence_at_decision?: number | null
+          decided_at?: string
+          final_entry?: Json | null
+          id?: string
+          item_external_id?: string
+          item_source?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          original_entry?: Json | null
+          rule_id?: string | null
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_decisions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_rules: {
+        Row: {
+          apply_account: string | null
+          apply_dimension: Json
+          confidence_boost: number
+          created_at: string
+          enabled: boolean
+          hit_count: number
+          id: string
+          last_hit_at: string | null
+          note: string | null
+          pattern_kind: string
+          pattern_value: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apply_account?: string | null
+          apply_dimension?: Json
+          confidence_boost?: number
+          created_at?: string
+          enabled?: boolean
+          hit_count?: number
+          id?: string
+          last_hit_at?: string | null
+          note?: string | null
+          pattern_kind: string
+          pattern_value: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apply_account?: string | null
+          apply_dimension?: Json
+          confidence_boost?: number
+          created_at?: string
+          enabled?: boolean
+          hit_count?: number
+          id?: string
+          last_hit_at?: string | null
+          note?: string | null
+          pattern_kind?: string
+          pattern_value?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_lines: {
         Row: {
           amount: number | null
