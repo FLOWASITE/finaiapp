@@ -42,6 +42,7 @@ import { Route as AppEinvoicesIndexRouteImport } from './routes/_app/einvoices/i
 import { Route as AppDocumentsIndexRouteImport } from './routes/_app/documents/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCoaIndexRouteImport } from './routes/_app/coa/index'
+import { Route as AppChatIndexRouteImport } from './routes/_app/chat.index'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppBankIndexRouteImport } from './routes/_app/bank.index'
 import { Route as AppAssetsIndexRouteImport } from './routes/_app/assets/index'
@@ -90,6 +91,7 @@ import { Route as AppImportPreviewRouteImport } from './routes/_app/import.previ
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
+import { Route as AppChatThreadIdRouteImport } from './routes/_app/chat.$threadId'
 import { Route as AppBankVouchersRouteImport } from './routes/_app/bank.vouchers'
 import { Route as AppBankReconcileRouteImport } from './routes/_app/bank.reconcile'
 import { Route as AppBankImportStatementRouteImport } from './routes/_app/bank.import-statement'
@@ -296,6 +298,11 @@ const AppCoaIndexRoute = AppCoaIndexRouteImport.update({
   id: '/coa/',
   path: '/coa/',
   getParentRoute: () => AppRoute,
+} as any)
+const AppChatIndexRoute = AppChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppChatRoute,
 } as any)
 const AppCashIndexRoute = AppCashIndexRouteImport.update({
   id: '/cash/',
@@ -540,6 +547,11 @@ const AppCustomersGroupsRoute = AppCustomersGroupsRouteImport.update({
   path: '/customers/groups',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChatThreadIdRoute = AppChatThreadIdRouteImport.update({
+  id: '/$threadId',
+  path: '/$threadId',
+  getParentRoute: () => AppChatRoute,
+} as any)
 const AppBankVouchersRoute = AppBankVouchersRouteImport.update({
   id: '/vouchers',
   path: '/vouchers',
@@ -766,7 +778,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/bank': typeof AppBankRouteWithChildren
-  '/chat': typeof AppChatRoute
+  '/chat': typeof AppChatRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/inbox': typeof AppInboxRoute
   '/inventory': typeof AppInventoryRouteWithChildren
@@ -796,6 +808,7 @@ export interface FileRoutesByFullPath {
   '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/chat/$threadId': typeof AppChatThreadIdRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -844,6 +857,7 @@ export interface FileRoutesByFullPath {
   '/assets/': typeof AppAssetsIndexRoute
   '/bank/': typeof AppBankIndexRoute
   '/cash/': typeof AppCashIndexRoute
+  '/chat/': typeof AppChatIndexRoute
   '/coa/': typeof AppCoaIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
   '/documents/': typeof AppDocumentsIndexRoute
@@ -888,7 +902,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/chat': typeof AppChatRoute
   '/dashboard': typeof AppDashboardRoute
   '/inbox': typeof AppInboxRoute
   '/journal': typeof AppJournalRoute
@@ -915,6 +928,7 @@ export interface FileRoutesByTo {
   '/bank/import-statement': typeof AppBankImportStatementRoute
   '/bank/reconcile': typeof AppBankReconcileRoute
   '/bank/vouchers': typeof AppBankVouchersRoute
+  '/chat/$threadId': typeof AppChatThreadIdRoute
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -963,6 +977,7 @@ export interface FileRoutesByTo {
   '/assets': typeof AppAssetsIndexRoute
   '/bank': typeof AppBankIndexRoute
   '/cash': typeof AppCashIndexRoute
+  '/chat': typeof AppChatIndexRoute
   '/coa': typeof AppCoaIndexRoute
   '/customers': typeof AppCustomersIndexRoute
   '/documents': typeof AppDocumentsIndexRoute
@@ -1011,7 +1026,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/bank': typeof AppBankRouteWithChildren
-  '/_app/chat': typeof AppChatRoute
+  '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
@@ -1041,6 +1056,7 @@ export interface FileRoutesById {
   '/_app/bank/import-statement': typeof AppBankImportStatementRoute
   '/_app/bank/reconcile': typeof AppBankReconcileRoute
   '/_app/bank/vouchers': typeof AppBankVouchersRoute
+  '/_app/chat/$threadId': typeof AppChatThreadIdRoute
   '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
@@ -1089,6 +1105,7 @@ export interface FileRoutesById {
   '/_app/assets/': typeof AppAssetsIndexRoute
   '/_app/bank/': typeof AppBankIndexRoute
   '/_app/cash/': typeof AppCashIndexRoute
+  '/_app/chat/': typeof AppChatIndexRoute
   '/_app/coa/': typeof AppCoaIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/documents/': typeof AppDocumentsIndexRoute
@@ -1167,6 +1184,7 @@ export interface FileRouteTypes {
     | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
+    | '/chat/$threadId'
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
@@ -1215,6 +1233,7 @@ export interface FileRouteTypes {
     | '/assets/'
     | '/bank/'
     | '/cash/'
+    | '/chat/'
     | '/coa/'
     | '/customers/'
     | '/documents/'
@@ -1259,7 +1278,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/chat'
     | '/dashboard'
     | '/inbox'
     | '/journal'
@@ -1286,6 +1304,7 @@ export interface FileRouteTypes {
     | '/bank/import-statement'
     | '/bank/reconcile'
     | '/bank/vouchers'
+    | '/chat/$threadId'
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
@@ -1334,6 +1353,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/bank'
     | '/cash'
+    | '/chat'
     | '/coa'
     | '/customers'
     | '/documents'
@@ -1411,6 +1431,7 @@ export interface FileRouteTypes {
     | '/_app/bank/import-statement'
     | '/_app/bank/reconcile'
     | '/_app/bank/vouchers'
+    | '/_app/chat/$threadId'
     | '/_app/customers/groups'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
@@ -1459,6 +1480,7 @@ export interface FileRouteTypes {
     | '/_app/assets/'
     | '/_app/bank/'
     | '/_app/cash/'
+    | '/_app/chat/'
     | '/_app/coa/'
     | '/_app/customers/'
     | '/_app/documents/'
@@ -1741,6 +1763,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/coa/'
       preLoaderRoute: typeof AppCoaIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/chat/': {
+      id: '/_app/chat/'
+      path: '/'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof AppChatIndexRouteImport
+      parentRoute: typeof AppChatRoute
     }
     '/_app/cash/': {
       id: '/_app/cash/'
@@ -2077,6 +2106,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/customers/groups'
       preLoaderRoute: typeof AppCustomersGroupsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/chat/$threadId': {
+      id: '/_app/chat/$threadId'
+      path: '/$threadId'
+      fullPath: '/chat/$threadId'
+      preLoaderRoute: typeof AppChatThreadIdRouteImport
+      parentRoute: typeof AppChatRoute
     }
     '/_app/bank/vouchers': {
       id: '/_app/bank/vouchers'
@@ -2416,6 +2452,19 @@ const AppBankRouteChildren: AppBankRouteChildren = {
 const AppBankRouteWithChildren =
   AppBankRoute._addFileChildren(AppBankRouteChildren)
 
+interface AppChatRouteChildren {
+  AppChatThreadIdRoute: typeof AppChatThreadIdRoute
+  AppChatIndexRoute: typeof AppChatIndexRoute
+}
+
+const AppChatRouteChildren: AppChatRouteChildren = {
+  AppChatThreadIdRoute: AppChatThreadIdRoute,
+  AppChatIndexRoute: AppChatIndexRoute,
+}
+
+const AppChatRouteWithChildren =
+  AppChatRoute._addFileChildren(AppChatRouteChildren)
+
 interface AppInventoryRouteChildren {
   AppInventoryIdRoute: typeof AppInventoryIdRoute
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
@@ -2548,7 +2597,7 @@ const AppSalesOrdersRouteWithChildren = AppSalesOrdersRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppBankRoute: typeof AppBankRouteWithChildren
-  AppChatRoute: typeof AppChatRoute
+  AppChatRoute: typeof AppChatRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppInboxRoute: typeof AppInboxRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
@@ -2636,7 +2685,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppBankRoute: AppBankRouteWithChildren,
-  AppChatRoute: AppChatRoute,
+  AppChatRoute: AppChatRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppInboxRoute: AppInboxRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,
