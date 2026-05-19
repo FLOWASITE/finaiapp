@@ -53,7 +53,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               className={cn(
                 "min-w-0 text-sm leading-relaxed",
                 isUser
-                  ? "max-w-[78%] whitespace-pre-wrap rounded-2xl bg-primary px-5 py-3 text-primary-foreground shadow-lg shadow-primary/15"
+                  ? "max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl bg-primary px-5 py-3 text-primary-foreground shadow-lg shadow-primary/15"
                   : "flex-1 text-foreground",
               )}
             >
