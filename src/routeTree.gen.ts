@@ -99,6 +99,7 @@ import { Route as AppAssetsDisposalRouteImport } from './routes/_app/assets/disp
 import { Route as AppAssetsDepreciationRouteImport } from './routes/_app/assets/depreciation'
 import { Route as AppAssetsCategoriesRouteImport } from './routes/_app/assets/categories'
 import { Route as AppAssetsBooksRouteImport } from './routes/_app/assets/books'
+import { Route as AppAssetsAuditRouteImport } from './routes/_app/assets/audit'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
@@ -567,6 +568,11 @@ const AppAssetsBooksRoute = AppAssetsBooksRouteImport.update({
   path: '/assets/books',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssetsAuditRoute = AppAssetsAuditRouteImport.update({
+  id: '/assets/audit',
+  path: '/assets/audit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   id: '/assets/allocations',
   path: '/assets/allocations',
@@ -662,6 +668,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/audit': typeof AppAssetsAuditRoute
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
@@ -763,6 +770,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/assets/audit': typeof AppAssetsAuditRoute
   '/assets/books': typeof AppAssetsBooksRoute
   '/assets/categories': typeof AppAssetsCategoriesRoute
   '/assets/depreciation': typeof AppAssetsDepreciationRoute
@@ -871,6 +879,7 @@ export interface FileRoutesById {
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
+  '/_app/assets/audit': typeof AppAssetsAuditRoute
   '/_app/assets/books': typeof AppAssetsBooksRoute
   '/_app/assets/categories': typeof AppAssetsCategoriesRoute
   '/_app/assets/depreciation': typeof AppAssetsDepreciationRoute
@@ -979,6 +988,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/audit'
     | '/assets/books'
     | '/assets/categories'
     | '/assets/depreciation'
@@ -1080,6 +1090,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/periods'
     | '/assets/allocations'
+    | '/assets/audit'
     | '/assets/books'
     | '/assets/categories'
     | '/assets/depreciation'
@@ -1187,6 +1198,7 @@ export interface FileRouteTypes {
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/assets/allocations'
+    | '/_app/assets/audit'
     | '/_app/assets/books'
     | '/_app/assets/categories'
     | '/_app/assets/depreciation'
@@ -1915,6 +1927,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsBooksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assets/audit': {
+      id: '/_app/assets/audit'
+      path: '/assets/audit'
+      fullPath: '/assets/audit'
+      preLoaderRoute: typeof AppAssetsAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assets/allocations': {
       id: '/_app/assets/allocations'
       path: '/assets/allocations'
@@ -2177,6 +2196,7 @@ interface AppRouteChildren {
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
   AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
+  AppAssetsAuditRoute: typeof AppAssetsAuditRoute
   AppAssetsBooksRoute: typeof AppAssetsBooksRoute
   AppAssetsCategoriesRoute: typeof AppAssetsCategoriesRoute
   AppAssetsDepreciationRoute: typeof AppAssetsDepreciationRoute
@@ -2252,6 +2272,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
   AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
+  AppAssetsAuditRoute: AppAssetsAuditRoute,
   AppAssetsBooksRoute: AppAssetsBooksRoute,
   AppAssetsCategoriesRoute: AppAssetsCategoriesRoute,
   AppAssetsDepreciationRoute: AppAssetsDepreciationRoute,
