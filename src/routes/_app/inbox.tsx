@@ -569,7 +569,7 @@ function InboxAiPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0 items-center gap-1 border-b border-border/40 px-5">
+      <div className="hidden shrink-0 items-center gap-1 border-b border-border/40 px-5 lg:flex">
         {TABS.map((t) => (
           <button
             key={t.key}
