@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Loader2, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Loader2,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink,
+  Wand2,
+  ChevronsUpDown,
+  Check,
+  RefreshCw,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +20,27 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import {
   getAiModelConfig,
   saveAiModelConfig,
   testAiModelConfig,
+  listAiModels,
 } from "@/lib/ai-config.functions";
 
 export const Route = createFileRoute("/_app/superadmin/ai-model")({
@@ -33,14 +58,42 @@ type FormState = {
   model_reasoning: string;
   extra_headers_json: string;
   notes: string;
-  api_key: string; // empty = keep, "__CLEAR__" sentinel handled below
+  api_key: string;
   clearKey: boolean;
+};
+
+type ModelOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  context_length: number | null;
+  pricing: { prompt: string | null; completion: string | null } | null;
+  isFree: boolean;
+};
+
+const OPENROUTER_PRESET = {
+  provider_label: "OpenRouter",
+  base_url: "https://openrouter.ai/api/v1",
+  model_default: "openai/gpt-4o-mini",
+  model_chat: "openai/gpt-4o-mini",
+  model_parse: "google/gemini-2.5-flash",
+  model_reasoning: "deepseek/deepseek-r1",
+  extra_headers_json: JSON.stringify(
+    {
+      "HTTP-Referer": "https://app.finai.one",
+      "X-Title": "FinAI",
+    },
+    null,
+    2,
+  ),
 };
 
 function AiModelPage() {
   const getCfg = useServerFn(getAiModelConfig);
   const saveCfg = useServerFn(saveAiModelConfig);
   const testCfg = useServerFn(testAiModelConfig);
+  const listModels = useServerFn(listAiModels);
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["ai-model-config"],
     queryFn: () => getCfg(),
@@ -49,10 +102,11 @@ function AiModelPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    ok: boolean;
-    msg: string;
-  } | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [onlyFree, setOnlyFree] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -76,9 +130,34 @@ function AiModelPage() {
   }, [data]);
 
   const hasKey = !!data?.hasApiKey;
+  const isOpenRouter = !!form && /openrouter\.ai/i.test(form.base_url);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => (f ? { ...f, [k]: v } : f));
+
+  const applyOpenRouterPreset = () => {
+    if (!form) return;
+    setForm({
+      ...form,
+      ...OPENROUTER_PRESET,
+      enabled: true,
+    });
+    toast.success("Đã áp preset OpenRouter — nhớ nhập API key và lưu.");
+  };
+
+  const onLoadModels = async () => {
+    if (!form) return;
+    setLoadingModels(true);
+    try {
+      const r: any = await listModels({ data: { base_url: form.base_url } });
+      setModels(r.models as ModelOption[]);
+      toast.success(`Đã tải ${r.count} model.`);
+    } catch (e: any) {
+      toast.error("Không tải được danh sách model: " + e.message);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const onSave = async () => {
     if (!form) return;
@@ -131,10 +210,7 @@ function AiModelPage() {
           msg: `OK (${r.latencyMs}ms) — phản hồi: "${r.reply || "(rỗng)"}"`,
         });
       } else {
-        setTestResult({
-          ok: false,
-          msg: `HTTP ${r.status} (${r.latencyMs}ms) — ${r.body}`,
-        });
+        setTestResult({ ok: false, msg: `HTTP ${r.status} (${r.latencyMs}ms) — ${r.body}` });
       }
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message });
@@ -162,14 +238,42 @@ function AiModelPage() {
           <div className="flex-1">
             <div className="font-medium">Nhà cung cấp AI đang dùng</div>
             <div className="text-xs text-muted-foreground">
-              Nguồn này sẽ phục vụ Chat, AI Parse hoá đơn/sao kê, đề xuất định khoản…
+              Nguồn này phục vụ Chat, AI Parse hoá đơn/sao kê, đề xuất định khoản…
             </div>
           </div>
           {isCustomActive ? (
-            <Badge variant="default">Custom: {form.provider_label}</Badge>
+            <Badge variant="default">
+              {isOpenRouter ? "OpenRouter" : "Custom"}: {form.provider_label}
+            </Badge>
           ) : (
             <Badge variant="outline">Mặc định: Lovable AI</Badge>
           )}
+        </div>
+      </Card>
+
+      {/* OpenRouter quick setup */}
+      <Card className="p-4 space-y-3 border-primary/30 bg-primary/5">
+        <div className="flex items-start gap-3">
+          <Wand2 className="h-5 w-5 text-primary mt-0.5" />
+          <div className="flex-1 space-y-1">
+            <div className="font-medium">Thiết lập nhanh OpenRouter</div>
+            <p className="text-xs text-muted-foreground">
+              OpenRouter là một gateway thống nhất truy cập 300+ model (OpenAI, Anthropic, Google,
+              Meta, DeepSeek…) qua API tương thích OpenAI. Tạo API key tại{" "}
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-0.5 text-primary underline"
+              >
+                openrouter.ai/keys <ExternalLink className="h-3 w-3" />
+              </a>
+              .
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={applyOpenRouterPreset}>
+            <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Áp preset
+          </Button>
         </div>
       </Card>
 
@@ -190,7 +294,7 @@ function AiModelPage() {
             <Input
               value={form.provider_label}
               onChange={(e) => update("provider_label", e.target.value)}
-              placeholder="OpenAI / Groq / OpenRouter…"
+              placeholder="OpenRouter / OpenAI / Groq…"
             />
           </div>
           <div className="space-y-1">
@@ -198,7 +302,7 @@ function AiModelPage() {
             <Input
               value={form.base_url}
               onChange={(e) => update("base_url", e.target.value)}
-              placeholder="https://api.openai.com/v1"
+              placeholder="https://openrouter.ai/api/v1"
             />
           </div>
         </div>
@@ -210,7 +314,7 @@ function AiModelPage() {
             value={form.api_key}
             disabled={form.clearKey}
             onChange={(e) => update("api_key", e.target.value)}
-            placeholder={hasKey ? "••••••••• (đã lưu — nhập mới để thay)" : "sk-..."}
+            placeholder={hasKey ? "••••••••• (đã lưu — nhập mới để thay)" : isOpenRouter ? "sk-or-v1-..." : "sk-..."}
           />
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
@@ -229,39 +333,63 @@ function AiModelPage() {
           </div>
         </div>
 
+        <div className="flex items-center justify-between gap-2 pt-2 border-t">
+          <div className="text-sm font-medium">Chọn model</div>
+          <div className="flex items-center gap-2">
+            {models.length > 0 && (
+              <label className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={onlyFree}
+                  onChange={(e) => setOnlyFree(e.target.checked)}
+                />
+                Chỉ model miễn phí
+              </label>
+            )}
+            <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+              {loadingModels ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách model"}
+            </Button>
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <Label>Model mặc định *</Label>
-            <Input
-              value={form.model_default}
-              onChange={(e) => update("model_default", e.target.value)}
-              placeholder="gpt-4o-mini"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Model cho Chat</Label>
-            <Input
-              value={form.model_chat}
-              onChange={(e) => update("model_chat", e.target.value)}
-              placeholder="(để trống = dùng mặc định)"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Model cho Parse hoá đơn</Label>
-            <Input
-              value={form.model_parse}
-              onChange={(e) => update("model_parse", e.target.value)}
-              placeholder="gpt-4o"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Model cho Reasoning</Label>
-            <Input
-              value={form.model_reasoning}
-              onChange={(e) => update("model_reasoning", e.target.value)}
-              placeholder="o1-mini"
-            />
-          </div>
+          <ModelField
+            label="Model mặc định *"
+            value={form.model_default}
+            onChange={(v) => update("model_default", v)}
+            models={models}
+            onlyFree={onlyFree}
+            placeholder="openai/gpt-4o-mini"
+          />
+          <ModelField
+            label="Model cho Chat"
+            value={form.model_chat}
+            onChange={(v) => update("model_chat", v)}
+            models={models}
+            onlyFree={onlyFree}
+            placeholder="(trống = dùng mặc định)"
+          />
+          <ModelField
+            label="Model cho Parse hoá đơn"
+            value={form.model_parse}
+            onChange={(v) => update("model_parse", v)}
+            models={models}
+            onlyFree={onlyFree}
+            placeholder="google/gemini-2.5-flash"
+          />
+          <ModelField
+            label="Model cho Reasoning"
+            value={form.model_reasoning}
+            onChange={(v) => update("model_reasoning", v)}
+            models={models}
+            onlyFree={onlyFree}
+            placeholder="deepseek/deepseek-r1"
+          />
         </div>
 
         <div className="space-y-1">
@@ -270,9 +398,15 @@ function AiModelPage() {
             rows={3}
             value={form.extra_headers_json}
             onChange={(e) => update("extra_headers_json", e.target.value)}
-            placeholder={`{\n  "HTTP-Referer": "https://app.finai.one"\n}`}
+            placeholder={`{\n  "HTTP-Referer": "https://app.finai.one",\n  "X-Title": "FinAI"\n}`}
             className="font-mono text-xs"
           />
+          {isOpenRouter && (
+            <p className="text-[11px] text-muted-foreground">
+              OpenRouter khuyến nghị gửi <code>HTTP-Referer</code> và <code>X-Title</code> để app
+              được liệt kê trong bảng xếp hạng.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -289,7 +423,8 @@ function AiModelPage() {
           <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-4 w-4 mt-0.5" />
             <div>
-              Đã bật nhưng còn thiếu base URL / API key. Hệ thống sẽ vẫn fallback Lovable AI cho tới khi cấu hình đủ.
+              Đã bật nhưng còn thiếu base URL / API key. Hệ thống sẽ fallback Lovable AI cho tới khi
+              cấu hình đủ.
             </div>
           </div>
         )}
@@ -319,6 +454,105 @@ function AiModelPage() {
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function ModelField({
+  label,
+  value,
+  onChange,
+  models,
+  onlyFree,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  models: ModelOption[];
+  onlyFree: boolean;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const filtered = useMemo(() => {
+    return onlyFree ? models.filter((m) => m.isFree) : models;
+  }, [models, onlyFree]);
+  const selected = models.find((m) => m.id === value);
+
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <div className="flex gap-1">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1"
+        />
+        {models.length > 0 && (
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" type="button" title="Chọn từ danh sách">
+                <ChevronsUpDown className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[420px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Tìm model…" />
+                <CommandList>
+                  <CommandEmpty>Không có model phù hợp.</CommandEmpty>
+                  <CommandGroup>
+                    {filtered.map((m) => (
+                      <CommandItem
+                        key={m.id}
+                        value={m.id + " " + m.name}
+                        onSelect={() => {
+                          onChange(m.id);
+                          setOpen(false);
+                        }}
+                        className="flex items-start gap-2"
+                      >
+                        <Check
+                          className={cn(
+                            "h-4 w-4 mt-0.5",
+                            value === m.id ? "opacity-100" : "opacity-0",
+                          )}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs truncate">{m.id}</span>
+                            {m.isFree && (
+                              <Badge variant="secondary" className="text-[10px] h-4">
+                                free
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {m.name}
+                            {m.context_length
+                              ? ` · ${(m.context_length / 1000).toFixed(0)}k ctx`
+                              : ""}
+                          </div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+      {selected && (
+        <div className="text-[11px] text-muted-foreground">
+          {selected.context_length
+            ? `${(selected.context_length / 1000).toFixed(0)}k context`
+            : ""}
+          {selected.pricing?.prompt
+            ? ` · in $${selected.pricing.prompt} / out $${selected.pricing.completion}`
+            : ""}
+        </div>
+      )}
     </div>
   );
 }
