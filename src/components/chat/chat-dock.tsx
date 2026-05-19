@@ -296,5 +296,6 @@ export function ChatDock() {
         </Button>
       </div>
     </div>
+    </>
   );
 }
