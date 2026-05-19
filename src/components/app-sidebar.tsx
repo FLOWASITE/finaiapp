@@ -7,7 +7,7 @@ import {
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
   ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown, ArrowRightLeft, ArrowLeftRight, ScanBarcode, FileBarChart,
-  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2,
+  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2, Brain,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number };
+type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: "new" };
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
 type NavEntry = NavLeaf | NavGroup;
 type NavSection = { label?: string; entries: NavEntry[] };
@@ -42,6 +42,12 @@ const SECTIONS: NavSection[] = [
   {
     entries: [
       { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "AI",
+    entries: [
+      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
     ],
   },
   {
