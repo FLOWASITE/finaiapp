@@ -198,9 +198,22 @@ function InboxAiPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement | null)?.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setCmdOpen(true);
+        return;
+      }
+      if (typing) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
+        e.preventDefault();
+        setPaneMode((m) => (m === "inbox" ? "split" : "inbox"));
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+        e.preventDefault();
+        setPaneMode((m) => (m === "chat" ? "split" : "chat"));
+      } else if (e.key === "Escape") {
+        setPaneMode((m) => (m === "split" ? m : "split"));
       }
     };
     window.addEventListener("keydown", onKey);
