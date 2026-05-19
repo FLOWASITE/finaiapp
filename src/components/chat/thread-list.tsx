@@ -249,6 +249,9 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
           </div>
         ))}
       </div>
+      )}
+
+
 
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-md">
