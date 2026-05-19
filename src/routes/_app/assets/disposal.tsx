@@ -123,7 +123,10 @@ function DisposalPage() {
                     {r.status === "void" ? <Badge variant="destructive">Đã huỷ</Badge> : <Badge>Đã ghi</Badge>}
                     {r.journal_entry_id && <Badge variant="outline" className="ml-1"><FileText className="h-3 w-3 mr-1" />JE</Badge>}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Button asChild variant="ghost" size="icon" title="In biên bản (02-TSCĐ)">
+                      <Link to="/assets/disposal/$id" params={{ id: r.id }}><FileText className="h-4 w-4" /></Link>
+                    </Button>
                     {r.status !== "void" && (
                       <Button variant="ghost" size="icon" onClick={() => {
                         const reason = prompt("Lý do huỷ?");
