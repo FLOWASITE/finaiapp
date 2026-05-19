@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AutoCodeInput } from "@/components/ui/auto-code-input";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import {
   Plus,
   Search,
@@ -527,16 +528,17 @@ function UpsertDialog({ asset }: { asset?: any }) {
           </Field>
 
           <Field label="TK trả trước">
-            <Input
+            <AccountCombobox
               value={form.prepaid_account}
-              onChange={(e) => setForm({ ...form, prepaid_account: e.target.value })}
+              onChange={(v) => setForm({ ...form, prepaid_account: v })}
+              suggestions={[{code:"242",name:"CP trả trước"},{code:"142",name:"CP trả trước ngắn hạn"},{code:"153",name:"Công cụ dụng cụ"}]}
             />
           </Field>
           <Field label="TK chi phí">
-            <Input
+            <AccountCombobox
               value={form.expense_account}
-              onChange={(e) => setForm({ ...form, expense_account: e.target.value })}
-              placeholder="6423, 6273, 6413…"
+              onChange={(v) => setForm({ ...form, expense_account: v })}
+              suggestions={[{code:"6423",name:"CP đồ dùng văn phòng"},{code:"6273",name:"CP CCDC sản xuất"},{code:"6413",name:"CP CCDC bán hàng"},{code:"627",name:"CP sản xuất chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"},{code:"154",name:"CP SXKD dở dang"}]}
             />
           </Field>
 

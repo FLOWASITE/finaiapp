@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import {
   Dialog,
   DialogContent,
@@ -236,11 +237,13 @@ function ConvertDialog({ asset, onClose }: { asset: FA; onClose: () => void }) {
             </div>
             <div>
               <Label>TK 242 (trả trước)</Label>
-              <Input value={form.prepaid_account} onChange={(e) => setForm({ ...form, prepaid_account: e.target.value })} />
+              <AccountCombobox value={form.prepaid_account} onChange={(v) => setForm({ ...form, prepaid_account: v })}
+                suggestions={[{code:"242",name:"CP trả trước"},{code:"142",name:"CP trả trước ngắn hạn"},{code:"153",name:"Công cụ dụng cụ"}]} />
             </div>
             <div>
               <Label>TK chi phí</Label>
-              <Input value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} />
+              <AccountCombobox value={form.expense_account} onChange={(v) => setForm({ ...form, expense_account: v })}
+                suggestions={[{code:"6423",name:"CP đồ dùng văn phòng"},{code:"6273",name:"CP CCDC sản xuất"},{code:"6413",name:"CP CCDC bán hàng"},{code:"627",name:"CP sản xuất chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"}]} />
             </div>
           </div>
           <div>

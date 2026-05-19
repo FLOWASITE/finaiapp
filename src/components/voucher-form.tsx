@@ -25,7 +25,7 @@ import { DocumentLinksManager } from "@/components/document-links-manager";
 import { createCashVoucher, nextVoucherNo } from "@/lib/cash.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
-import { listChartOfAccounts } from "@/lib/coa.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { numberToVietnameseWords } from "@/lib/number-to-words-vi";
 
 type VoucherType = "receipt" | "payment";
@@ -77,17 +77,10 @@ export function VoucherFormDialog({
   const create = useServerFn(createCashVoucher);
   const fetchCustomers = useServerFn(listCustomers);
   const fetchSuppliers = useServerFn(listSuppliers);
-  const fetchCoa = useServerFn(listChartOfAccounts);
 
   const { data: parties } = useQuery<any[]>({
     queryKey: [type === "receipt" ? "customers" : "suppliers"],
     queryFn: async () => (type === "receipt" ? await fetchCustomers({}) : await fetchSuppliers({})) as any[],
-    enabled: open,
-    ...QUERY_PRESETS.TRANSACTIONAL,
-  });
-  const { data: coa } = useQuery({
-    queryKey: ["coa"],
-    queryFn: () => fetchCoa({}),
     enabled: open,
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
@@ -310,7 +303,6 @@ export function VoucherFormDialog({
                 <AccountCombobox
                   value={counterAccount}
                   onChange={setCounterAccount}
-                  coa={coa ?? []}
                   suggestions={isReceipt ? COMMON_RECEIPT_ACCOUNTS : COMMON_PAYMENT_ACCOUNTS}
                 />
               </Field>
@@ -473,86 +465,6 @@ function PartyCombobox({
                     </div>
                   </CommandItem>
                 ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function AccountCombobox({
-  value,
-  onChange,
-  coa,
-  suggestions,
-}: {
-  value: string;
-  onChange: (code: string) => void;
-  coa: { code: string; name: string; is_active: boolean }[];
-  suggestions: { code: string; name: string }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const all = useMemo(() => {
-    const map = new Map<string, { code: string; name: string }>();
-    suggestions.forEach((s) => map.set(s.code, s));
-    coa.filter((c) => c.is_active).forEach((c) => map.set(c.code, { code: c.code, name: c.name }));
-    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [coa, suggestions]);
-  const active = all.find((a) => a.code === value);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-          {active ? (
-            <span className="truncate">
-              <span className="font-mono mr-2">{active.code}</span>
-              <span className="text-muted-foreground">{active.name}</span>
-            </span>
-          ) : value ? (
-            <span className="font-mono">{value}</span>
-          ) : (
-            <span className="text-muted-foreground">Chọn tài khoản…</span>
-          )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Tìm mã hoặc tên TK…" />
-          <CommandList className="max-h-[300px]">
-            <CommandEmpty>Không có TK phù hợp</CommandEmpty>
-            <CommandGroup heading="Gợi ý thường dùng">
-              {suggestions.map((s) => (
-                <CommandItem
-                  key={`s-${s.code}`}
-                  value={`${s.code} ${s.name}`}
-                  onSelect={() => {
-                    onChange(s.code);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", value === s.code ? "opacity-100" : "opacity-0")} />
-                  <span className="font-mono mr-2">{s.code}</span>
-                  <span className="text-muted-foreground text-sm">{s.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Toàn bộ hệ thống tài khoản">
-              {all.map((a) => (
-                <CommandItem
-                  key={a.code}
-                  value={`${a.code} ${a.name}`}
-                  onSelect={() => {
-                    onChange(a.code);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", value === a.code ? "opacity-100" : "opacity-0")} />
-                  <span className="font-mono mr-2">{a.code}</span>
-                  <span className="text-muted-foreground text-sm">{a.name}</span>
-                </CommandItem>
-              ))}
             </CommandGroup>
           </CommandList>
         </Command>

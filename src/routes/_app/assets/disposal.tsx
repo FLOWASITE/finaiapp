@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { listFixedAssets } from "@/lib/assets.functions";
 import { listDisposals, createDisposal, voidDisposal, previewDisposal } from "@/lib/fa-disposals.functions";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 
 export const Route = createFileRoute("/_app/assets/disposal")({ component: DisposalPage });
 
@@ -218,11 +219,26 @@ function DisposalPage() {
 
           {step === 3 && (
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>TK thu tiền</Label><Input value={form.proceeds_account} onChange={e => setForm(f => ({ ...f, proceeds_account: e.target.value }))} /></div>
-              <div><Label>TK VAT đầu ra</Label><Input value={form.vat_output_account} onChange={e => setForm(f => ({ ...f, vat_output_account: e.target.value }))} /></div>
-              <div><Label>TK thu nhập khác (711)</Label><Input value={form.other_income_account} onChange={e => setForm(f => ({ ...f, other_income_account: e.target.value }))} /></div>
-              <div><Label>TK chi phí khác (811)</Label><Input value={form.other_expense_account} onChange={e => setForm(f => ({ ...f, other_expense_account: e.target.value }))} /></div>
-              <div><Label>TK trả chi phí thanh lý</Label><Input value={form.disposal_cost_account} onChange={e => setForm(f => ({ ...f, disposal_cost_account: e.target.value }))} /></div>
+              <div><Label>TK thu tiền</Label>
+                <AccountCombobox value={form.proceeds_account} onChange={v => setForm(f => ({ ...f, proceeds_account: v }))}
+                  suggestions={[{code:"1111",name:"Tiền mặt VND"},{code:"1121",name:"TGNH VND"},{code:"131",name:"Phải thu khách hàng"},{code:"1388",name:"Phải thu khác"}]} />
+              </div>
+              <div><Label>TK VAT đầu ra</Label>
+                <AccountCombobox value={form.vat_output_account} onChange={v => setForm(f => ({ ...f, vat_output_account: v }))}
+                  suggestions={[{code:"33311",name:"Thuế GTGT đầu ra"},{code:"3331",name:"Thuế GTGT phải nộp"}]} />
+              </div>
+              <div><Label>TK thu nhập khác (711)</Label>
+                <AccountCombobox value={form.other_income_account} onChange={v => setForm(f => ({ ...f, other_income_account: v }))}
+                  suggestions={[{code:"711",name:"Thu nhập khác"},{code:"515",name:"DT hoạt động tài chính"}]} />
+              </div>
+              <div><Label>TK chi phí khác (811)</Label>
+                <AccountCombobox value={form.other_expense_account} onChange={v => setForm(f => ({ ...f, other_expense_account: v }))}
+                  suggestions={[{code:"811",name:"Chi phí khác"},{code:"635",name:"Chi phí tài chính"}]} />
+              </div>
+              <div><Label>TK trả chi phí thanh lý</Label>
+                <AccountCombobox value={form.disposal_cost_account} onChange={v => setForm(f => ({ ...f, disposal_cost_account: v }))}
+                  suggestions={[{code:"1111",name:"Tiền mặt VND"},{code:"1121",name:"TGNH VND"},{code:"331",name:"Phải trả NCC"}]} />
+              </div>
             </div>
           )}
 

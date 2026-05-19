@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Sparkles, Pencil, Trash2, Layers } from "lucide-react";
 import { AutoCodeInput } from "@/components/ui/auto-code-input";
+import { AccountCombobox } from "@/components/ui/account-combobox";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/assets/categories")({
@@ -166,15 +167,18 @@ function Categories() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">TK Tài sản (211)</label>
-              <Input value={form.default_asset_account} onChange={(e) => setForm({ ...form, default_asset_account: e.target.value })} />
+              <AccountCombobox value={form.default_asset_account} onChange={(v) => setForm({ ...form, default_asset_account: v })}
+                suggestions={[{code:"211",name:"TSCĐ hữu hình"},{code:"2111",name:"Nhà cửa, vật kiến trúc"},{code:"2112",name:"Máy móc, thiết bị"},{code:"2113",name:"Phương tiện vận tải"},{code:"2114",name:"Thiết bị, dụng cụ QL"},{code:"213",name:"TSCĐ vô hình"},{code:"2131",name:"Quyền sử dụng đất"},{code:"2135",name:"Phần mềm máy tính"}]} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">TK Hao mòn (214)</label>
-              <Input value={form.default_accumulated_account} onChange={(e) => setForm({ ...form, default_accumulated_account: e.target.value })} />
+              <AccountCombobox value={form.default_accumulated_account} onChange={(v) => setForm({ ...form, default_accumulated_account: v })}
+                suggestions={[{code:"214",name:"Hao mòn TSCĐ"},{code:"2141",name:"Hao mòn TSCĐ hữu hình"},{code:"2147",name:"Hao mòn TSCĐ vô hình"}]} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">TK Chi phí</label>
-              <Input value={form.default_expense_account} onChange={(e) => setForm({ ...form, default_expense_account: e.target.value })} />
+              <AccountCombobox value={form.default_expense_account} onChange={(v) => setForm({ ...form, default_expense_account: v })}
+                suggestions={[{code:"6421",name:"CP nhân viên BH"},{code:"6422",name:"CP QLDN"},{code:"6424",name:"CP khấu hao TSCĐ"},{code:"627",name:"CP sản xuất chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"},{code:"154",name:"CP SXKD dở dang"}]} />
             </div>
           </div>
           <DialogFooter>
