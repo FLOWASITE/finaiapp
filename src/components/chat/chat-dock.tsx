@@ -85,7 +85,7 @@ export function ChatDock() {
       navigate({
         to: "/chat/$threadId",
         params: { threadId: thread.id },
-        search: { autostart: "1" },
+        search: { autostart: "1", from: location.pathname },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");
@@ -145,7 +145,7 @@ export function ChatDock() {
       navigate({
         to: "/chat/$threadId",
         params: { threadId: thread.id },
-        search: { autostart: "1" },
+        search: { autostart: "1", from: location.pathname },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");

@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -18,7 +18,10 @@ import { askAccountingStream } from "@/lib/chat.functions";
 import type { ToolEvent } from "@/components/chat/tool-calls";
 import { toast } from "sonner";
 
-const searchSchema = z.object({ autostart: z.string().optional() });
+const searchSchema = z.object({
+  autostart: z.string().optional(),
+  from: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_app/chat/$threadId")({
   validateSearch: zodValidator(searchSchema),
@@ -27,8 +30,9 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart } = Route.useSearch();
+  const { autostart, from } = Route.useSearch();
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
@@ -170,7 +174,7 @@ function ThreadPage() {
       navigate({
         to: "/chat/$threadId",
         params: { threadId },
-        search: {},
+        search: from ? { from } : {},
         replace: true,
       });
     }
@@ -289,6 +293,21 @@ function ThreadPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {from && (
+        <div className="border-b border-border/40 bg-background/60 px-4 py-2 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-3xl items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => router.history.push(from)}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Quay lại trang trước
+            </Button>
+          </div>
+        </div>
+      )}
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
         <MessageList
           messages={messages}
