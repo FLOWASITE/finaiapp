@@ -24,6 +24,7 @@ export function Composer({
   value,
   onChange,
   onSubmit,
+  onStop,
   disabled,
   loading,
   placeholder = "Nhắn cho trợ lý AI…",
