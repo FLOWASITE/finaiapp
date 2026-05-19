@@ -137,7 +137,10 @@ function Page() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>TK chi phí</Label><Input value={form.expense_account ?? ""} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} /></div>
+            <div><Label>TK chi phí</Label>
+              <AccountCombobox value={form.expense_account ?? ""} onChange={(v) => setForm({ ...form, expense_account: v })}
+                suggestions={[{code:"6421",name:"CP nhân viên bán hàng"},{code:"6422",name:"CP NV QLDN"},{code:"6271",name:"CP nhân viên SX"},{code:"622",name:"CP nhân công trực tiếp"},{code:"627",name:"CP SX chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"},{code:"154",name:"CP SXKD dở dang"}]} />
+            </div>
             <div><Label>Mức miễn thuế (VND)</Label><Input type="number" value={form.taxable_threshold} onChange={(e) => setForm({ ...form, taxable_threshold: Number(e.target.value) })} /></div>
             <div><Label>Hệ số OT</Label><Input type="number" step="0.1" value={form.ot_multiplier} onChange={(e) => setForm({ ...form, ot_multiplier: Number(e.target.value) })} /></div>
             <div className="flex items-center gap-2"><Switch checked={form.is_taxable} onCheckedChange={(v) => setForm({ ...form, is_taxable: v })} /><Label>Chịu thuế TNCN</Label></div>
