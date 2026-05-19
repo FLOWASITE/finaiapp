@@ -1095,7 +1095,8 @@ function ModelField({
                       );
                     })}
                   </CommandGroup>
-                ))}
+                  );
+                })}
               </CommandList>
             </Command>
           </PopoverContent>
