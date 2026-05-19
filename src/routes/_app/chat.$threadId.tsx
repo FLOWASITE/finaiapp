@@ -70,12 +70,59 @@ function ThreadPage() {
           toolEvents: (m.metadata?.toolEvents as ToolEvent[] | undefined) ?? undefined,
         }));
 
+  const restoredRef = useRef(false);
+  const SCROLL_KEY = `__chatScroll:${threadId}`;
+
+  // Save scroll position as user scrolls.
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, streaming]);
+    const el = scrollRef.current;
+    if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        try {
+          sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
+        } catch {}
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [SCROLL_KEY]);
+
+  // Reset restore flag when switching threads.
+  useEffect(() => {
+    restoredRef.current = false;
+  }, [threadId]);
+
+  // Restore saved scroll on first render with data; otherwise auto-stick to bottom
+  // when user is already near bottom.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!restoredRef.current && messages.length > 0) {
+      restoredRef.current = true;
+      let saved: number | null = null;
+      try {
+        const raw = sessionStorage.getItem(SCROLL_KEY);
+        if (raw != null) saved = Number(raw);
+      } catch {}
+      if (saved != null && Number.isFinite(saved)) {
+        el.scrollTop = saved;
+        return;
+      }
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    // Subsequent updates: only stick to bottom if user is already near it.
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 120) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, streaming, SCROLL_KEY]);
 
   const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
     setStreaming(true);
