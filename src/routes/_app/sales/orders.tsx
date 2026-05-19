@@ -466,6 +466,11 @@ function OrderFormDialog({
       payment_terms_days: customer.payment_terms_days ?? null,
       notes: notes || null,
       status,
+      deposit_enabled: depositEnabled,
+      reserve_enabled: reserveEnabled,
+      deposit_required: depositEnabled ? Number(depositRequired || 0) : 0,
+      deposit_percent: depositEnabled && depositPercent !== "" ? Number(depositPercent) : null,
+      deposit_due_date: depositEnabled ? (depositDueDate || null) : null,
       lines: validLines.map((l, idx) => ({
         line_no: idx + 1,
         product_id: l.product_id || null,
