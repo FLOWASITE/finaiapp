@@ -18,7 +18,10 @@ import { askAccountingStream } from "@/lib/chat.functions";
 import type { ToolEvent } from "@/components/chat/tool-calls";
 import { toast } from "sonner";
 
-const searchSchema = z.object({ autostart: z.string().optional() });
+const searchSchema = z.object({
+  autostart: z.string().optional(),
+  from: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_app/chat/$threadId")({
   validateSearch: zodValidator(searchSchema),
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart } = Route.useSearch();
+  const { autostart, from } = Route.useSearch();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
