@@ -7,6 +7,7 @@ import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMsg } from "@/components/chat/message-list";
+import { ChatSkeleton } from "@/components/chat/chat-skeleton";
 import { Button } from "@/components/ui/button";
 import { PendingActions } from "@/components/ai/PendingActions";
 import {
@@ -387,11 +388,15 @@ function ThreadPage() {
         </div>
       </div>
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
-        <MessageList
-          messages={messages}
-          streaming={streaming}
-          onRegenerate={!streaming ? regenerate : undefined}
-        />
+        {query.isLoading && messages.length === 0 ? (
+          <ChatSkeleton />
+        ) : (
+          <MessageList
+            messages={messages}
+            streaming={streaming}
+            onRegenerate={!streaming ? regenerate : undefined}
+          />
+        )}
       </div>
       <div className="relative px-4 pb-5 pt-4">
         {!atBottom && (
