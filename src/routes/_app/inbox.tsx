@@ -569,13 +569,13 @@ function InboxAiPage() {
       </div>
 
       {/* Tabs */}
-      <div className="hidden shrink-0 items-center gap-1 border-b border-border/40 px-5 lg:flex">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border/40 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:px-5">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition",
+              "relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition lg:px-4 lg:py-3",
               tab === t.key
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -675,21 +675,27 @@ function InboxAiPage() {
         )}
       </div>
 
-      {/* Mobile: Chat full-screen */}
+      {/* Mobile: nội dung theo tab */}
       <div className="block min-h-0 flex-1 overflow-hidden lg:hidden">
-        <InboxChat
-          contextItem={contextItem}
-          items={items}
-          log={chatLog}
-          onUserSend={handleUserSend}
-          onCloseContext={closeContext}
-          onPickItem={pickItem}
-          onApprove={handleApproveItem}
-          onSkip={handleSkipItem}
-          onRule={handleRuleItem}
-          onEdit={handleEditItem}
-          approving={approveM.isPending}
-        />
+        {tab === "inbox" ? (
+          <InboxChat
+            contextItem={contextItem}
+            items={items}
+            log={chatLog}
+            onUserSend={handleUserSend}
+            onCloseContext={closeContext}
+            onPickItem={pickItem}
+            onApprove={handleApproveItem}
+            onSkip={handleSkipItem}
+            onRule={handleRuleItem}
+            onEdit={handleEditItem}
+            approving={approveM.isPending}
+          />
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
+          </div>
+        )}
       </div>
 
       {/* Mobile: Inbox overlay (slide from left) */}

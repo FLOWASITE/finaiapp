@@ -1,30 +1,28 @@
-# Fix mobile UI — Inbox button bị đẩy khỏi màn hình + chat trống
+# Hiển thị tabs trên mobile (Inbox)
 
-## Vấn đề hiện tại (390px)
+## Vấn đề
+Trên mobile, dải tabs ("Inbox AI", "Đã hạch toán", "Cần xem lại", "Tài liệu", "Báo cáo") đang bị ẩn vì có class `hidden lg:flex` (line 572 của `src/routes/_app/inbox.tsx`). Mobile chỉ thấy khu chat fullscreen, không có cách chuyển tab.
 
-Mở `/inbox` ở mobile, đã thấy:
-1. **Header overflow ngang**: back arrow + logo + "Sổ AI" + AI-online pill + thanh search `flex-1` chiếm toàn bộ không gian, đẩy nút **Inbox (47)** và `MoreHorizontal` **ra ngoài viewport** → user không thể mở Inbox overlay.
-2. **Stats strip + Tabs vẫn render trên mobile**: chiếm gần nửa màn hình, ép Chat xuống dưới (chỉ còn 1 input ở đáy, không thấy bubble nào).
-3. **"Duyệt tất cả tin cậy cao"** button cũng nằm trong stats strip — không phù hợp khi user đang ở Chat mode trên mobile (đã có quick action trong chat seed rồi).
+## Thay đổi (chỉ UI, không đụng logic)
 
-## Sửa
+File: `src/routes/_app/inbox.tsx`
 
-Áp dụng trên `<lg` (mobile/tablet hẹp):
+1. **Bỏ ẩn dải tabs trên mobile** (line 572):
+   - Đổi `hidden ... lg:flex` → luôn `flex`.
+   - Thêm `overflow-x-auto` + `whitespace-nowrap` + ẩn scrollbar để tabs cuộn ngang gọn trên màn hình hẹp.
+   - Giảm padding ngang trên mobile (`px-3 lg:px-5`), giảm chiều cao tab (`py-2.5 lg:py-3`) để không chiếm quá nhiều không gian.
 
-### A. Header gọn lại
-- **Ẩn** thanh search "Hỏi AI…" trên mobile (`hidden md:flex` hoặc `lg:flex`). User tap nút Inbox để duyệt batch, gõ thẳng vào ô chat ở dưới để hỏi.
-- **Ẩn** chip ngày `periodLabel()` trên mobile.
-- **Rút gọn** "AI online · vừa đọc N hoá đơn mới": trên mobile chỉ hiện chấm xanh + "AI online" (ẩn phần "vừa đọc…" bằng `hidden sm:inline`).
-- Đảm bảo cụm phải (Inbox button + More) `ml-auto` để luôn dính mép phải.
+2. **Mobile body nghe theo `tab`** (line 679):
+   - Khi `tab === "inbox"` → giữ nguyên `<InboxChat …>` fullscreen như hiện tại.
+   - Khi `tab` thuộc `posted | review | documents | reports` → render `<EmptyTab label={…} />` (component đã có sẵn cho desktop) để mobile cũng thấy được nội dung tương ứng (placeholder "đang xây dựng" giống desktop), thay vì luôn cố định chat.
 
-### B. Ẩn Stats strip + Tabs trên mobile
-- Stats strip (`<div className="flex shrink-0 items-center gap-8…">` line ~512): thêm `hidden lg:flex`.
-- Tabs strip (line ~540): thêm `hidden lg:flex`. Mobile chỉ có Chat fullscreen, không cần tab switcher (Inbox AI là default; các tab khác user hiếm dùng trên phone).
-- Nút "Duyệt tất cả tin cậy cao" → đã có quick-action trong chat seed bubble, đủ.
+3. Không đổi:
+   - Logic state `tab`, badge số `stats.pending`, mock data, server functions.
+   - Overlay Inbox trượt từ trái (nút "Inbox (47)"), loading/empty state vừa thêm ở turn trước.
+   - Desktop layout giữ y nguyên.
 
-### C. Inbox overlay (đã có) — chỉ cần đảm bảo nó hoạt động sau khi nút Inbox hiện ra.
-
-## Files
-- `src/routes/_app/inbox.tsx` — thêm `hidden lg:flex` / `hidden md:flex` / `hidden sm:inline` ở các node nêu trên. Không sửa logic, chỉ ẩn/hiện theo breakpoint.
-
-Không đụng `inbox-chat.tsx`, mockInbox, hay backend.
+## Kiểm thử
+- Mở `/inbox` ở 360px / 390px / 414px: thấy 5 tab có thể cuộn ngang, bấm chuyển tab thấy nội dung đổi.
+- Tab "Inbox AI" vẫn hiện chat + badge số `pending`.
+- Tab khác hiển thị `EmptyTab` placeholder.
+- Desktop ≥ lg: không thay đổi gì.
