@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
