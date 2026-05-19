@@ -87,7 +87,8 @@ const recordCustomerReceipt: ActionHandler = {
       .single();
     if (!inv) throw new Error("Không tìm thấy hoá đơn");
     const remaining = Number(inv.total) - Number(inv.paid_amount || 0);
-    const methodLabel = { cash: "Tiền mặt", bank: "Chuyển khoản", card: "Thẻ", other: "Khác" }[input.method];
+    const methodLabel: Record<string, string> = { cash: "Tiền mặt", bank: "Chuyển khoản", card: "Thẻ", other: "Khác" };
+    const ml = methodLabel[input.method];
     return [
       `Thu tiền HĐ **${inv.invoice_no}** — ${inv.customer_name}`,
       `Hình thức: ${methodLabel} | Ngày: ${input.pay_date}`,
