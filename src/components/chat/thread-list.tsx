@@ -142,11 +142,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-border/40 bg-transparent transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col bg-transparent transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
-      <div className="border-b border-border/40 px-3 py-4">
+      <div className="px-3 py-4">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
