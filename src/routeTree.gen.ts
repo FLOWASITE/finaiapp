@@ -115,6 +115,7 @@ import { Route as AppAssetsCategoriesRouteImport } from './routes/_app/assets/ca
 import { Route as AppAssetsBooksRouteImport } from './routes/_app/assets/books'
 import { Route as AppAssetsAuditRouteImport } from './routes/_app/assets/audit'
 import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/allocations'
+import { Route as AppAiMemoryRouteImport } from './routes/_app/ai.memory'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
@@ -674,6 +675,11 @@ const AppAssetsAllocationsRoute = AppAssetsAllocationsRouteImport.update({
   path: '/assets/allocations',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAiMemoryRoute = AppAiMemoryRouteImport.update({
+  id: '/ai/memory',
+  path: '/ai/memory',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminPeriodsRoute = AppAdminPeriodsRouteImport.update({
   id: '/periods',
   path: '/periods',
@@ -834,6 +840,7 @@ export interface FileRoutesByFullPath {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
+  '/ai/memory': typeof AppAiMemoryRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/assets/audit': typeof AppAssetsAuditRoute
   '/assets/books': typeof AppAssetsBooksRoute
@@ -961,6 +968,7 @@ export interface FileRoutesByTo {
   '/admin/backup': typeof AppAdminBackupRoute
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
+  '/ai/memory': typeof AppAiMemoryRoute
   '/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/assets/audit': typeof AppAssetsAuditRoute
   '/assets/books': typeof AppAssetsBooksRoute
@@ -1096,6 +1104,7 @@ export interface FileRoutesById {
   '/_app/admin/backup': typeof AppAdminBackupRoute
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
+  '/_app/ai/memory': typeof AppAiMemoryRoute
   '/_app/assets/allocations': typeof AppAssetsAllocationsRouteWithChildren
   '/_app/assets/audit': typeof AppAssetsAuditRoute
   '/_app/assets/books': typeof AppAssetsBooksRoute
@@ -1231,6 +1240,7 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/members'
     | '/admin/periods'
+    | '/ai/memory'
     | '/assets/allocations'
     | '/assets/audit'
     | '/assets/books'
@@ -1358,6 +1368,7 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/members'
     | '/admin/periods'
+    | '/ai/memory'
     | '/assets/allocations'
     | '/assets/audit'
     | '/assets/books'
@@ -1492,6 +1503,7 @@ export interface FileRouteTypes {
     | '/_app/admin/backup'
     | '/_app/admin/members'
     | '/_app/admin/periods'
+    | '/_app/ai/memory'
     | '/_app/assets/allocations'
     | '/_app/assets/audit'
     | '/_app/assets/books'
@@ -2361,6 +2373,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsAllocationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ai/memory': {
+      id: '/_app/ai/memory'
+      path: '/ai/memory'
+      fullPath: '/ai/memory'
+      preLoaderRoute: typeof AppAiMemoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/periods': {
       id: '/_app/admin/periods'
       path: '/periods'
@@ -2752,6 +2771,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppSetupRoute: typeof AppSetupRoute
   AppSuperadminRoute: typeof AppSuperadminRouteWithChildren
+  AppAiMemoryRoute: typeof AppAiMemoryRoute
   AppAssetsAllocationsRoute: typeof AppAssetsAllocationsRouteWithChildren
   AppAssetsAuditRoute: typeof AppAssetsAuditRoute
   AppAssetsBooksRoute: typeof AppAssetsBooksRoute
@@ -2840,6 +2860,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppSetupRoute: AppSetupRoute,
   AppSuperadminRoute: AppSuperadminRouteWithChildren,
+  AppAiMemoryRoute: AppAiMemoryRoute,
   AppAssetsAllocationsRoute: AppAssetsAllocationsRouteWithChildren,
   AppAssetsAuditRoute: AppAssetsAuditRoute,
   AppAssetsBooksRoute: AppAssetsBooksRoute,
