@@ -247,6 +247,12 @@ function ThreadPage() {
     if (!q || streaming) return;
     const next: ChatMsg[] = [...messages, { role: "user", content: q }];
     setLocalMsgs(next);
+    const metaAttachments = attachments?.map((a) => ({
+      name: a.name,
+      mime: a.mime,
+      size: a.size,
+      kind: a.kind,
+    }));
     try {
       await appendFn({
         data: {
@@ -254,14 +260,16 @@ function ThreadPage() {
           role: "user",
           content: q,
           updateTitleIfBlank: true,
-          metadata: attachments ? { attachments } : undefined,
+          metadata: metaAttachments ? { attachments: metaAttachments } : undefined,
         },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");
       return;
     }
-    runAssistant(next, attachments);
+    // Only forward attachments with base64 to the LLM stream.
+    const withBase64 = attachments?.filter((a) => typeof a.base64 === "string" && a.base64);
+    runAssistant(next, withBase64 && withBase64.length ? withBase64 : undefined);
   };
 
   const send = async () => {
@@ -300,7 +308,16 @@ function ThreadPage() {
         toast.error("Đang xử lý câu hỏi trước, vui lòng đợi.");
         return;
       }
-      void sendUserMessage(detail.content, detail.attachments);
+      // Prefer full payloads (with base64) stashed by the dock before dispatch.
+      let fullAttachments: any[] | undefined;
+      try {
+        const raw = sessionStorage.getItem(`__attach:${threadId}`);
+        if (raw) {
+          fullAttachments = JSON.parse(raw);
+          sessionStorage.removeItem(`__attach:${threadId}`);
+        }
+      } catch {}
+      void sendUserMessage(detail.content, fullAttachments ?? detail.attachments);
     };
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
     return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
