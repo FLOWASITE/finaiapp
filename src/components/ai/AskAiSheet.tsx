@@ -106,72 +106,107 @@ export function AskAiSheet() {
     }
   };
 
-  const handleUpload = async (file: File, kind: "purchase_invoice" | "bank_statement" | "cash_voucher" = "purchase_invoice") => {
-    if (!file || uploading) return;
-    if (file.size > 12 * 1024 * 1024) {
-      toast.error("File quá lớn (tối đa 12MB)");
-      return;
+  const summarize = (kind: string, parsed: any, filename: string) => {
+    if (kind === "purchase_invoice") {
+      return [
+        `**${filename}** — Hoá đơn mua`,
+        parsed.vendor_name ? `  • NCC: ${parsed.vendor_name}` : "",
+        parsed.invoice_no ? `  • Số HĐ: ${parsed.invoice_no}` : "",
+        parsed.issue_date ? `  • Ngày: ${parsed.issue_date}` : "",
+        parsed.total != null ? `  • Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
+        parsed.lines?.length ? `  • ${parsed.lines.length} dòng` : "",
+      ].filter(Boolean).join("\n");
     }
+    if (kind === "bank_statement") {
+      const txns = Array.isArray(parsed?.transactions) ? parsed.transactions : [];
+      return `**${filename}** — Sao kê${txns.length ? ` (${txns.length} giao dịch)` : ""}${parsed?.account_no ? ` • TK ${parsed.account_no}` : ""}`;
+    }
+    return `**${filename}** — Phiếu thu/chi${parsed?.amount ? ` • ${Number(parsed.amount).toLocaleString("vi-VN")} ₫` : ""}`;
+  };
+
+  const handleUploadBatch = async (
+    files: File[],
+    kind: "purchase_invoice" | "bank_statement" | "cash_voucher" = "purchase_invoice",
+  ) => {
+    if (!files.length || uploading) return;
+    const valid = files.filter((f) => {
+      if (f.size > 12 * 1024 * 1024) {
+        toast.error(`${f.name}: quá 12MB, bỏ qua`);
+        return false;
+      }
+      if (!f.type.startsWith("image/") && f.type !== "application/pdf") {
+        toast.error(`${f.name}: chỉ PDF/ảnh`);
+        return false;
+      }
+      return true;
+    });
+    if (!valid.length) return;
     setUploading(true);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const s = String(reader.result || "");
-          resolve(s.split(",")[1] || s);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const isImg = file.type.startsWith("image/");
-      const isPdf = file.type === "application/pdf";
-      if (!isImg && !isPdf) {
-        toast.error("Chỉ hỗ trợ PDF hoặc ảnh");
-        setUploading(false);
-        return;
+    const kindLabel = kind === "bank_statement" ? "sao kê" : kind === "cash_voucher" ? "phiếu thu/chi" : "hoá đơn mua";
+    setMessages((m) => [
+      ...m,
+      { role: "user", content: `📎 Nhập hàng loạt ${valid.length} ${kindLabel}:\n${valid.map((f) => `• ${f.name}`).join("\n")}` },
+      { role: "assistant", content: `Đang trích xuất 0/${valid.length}…` },
+    ]);
+
+    const items: Array<{ filename: string; kind: string; parsed: any; error?: string }> = [];
+    let done = 0;
+    for (const file of valid) {
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const s = String(reader.result || "");
+            resolve(s.split(",")[1] || s);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const res: any = await parseFn({
+          data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
+        });
+        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {} });
+      } catch (e: any) {
+        items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
       }
-      const kindLabel = kind === "bank_statement" ? "sao kê ngân hàng" : kind === "cash_voucher" ? "phiếu thu/chi" : "hoá đơn mua";
-      setMessages((m) => [
-        ...m,
-        { role: "user", content: `📎 Upload ${kindLabel}: **${file.name}** — đang trích xuất…` },
-        { role: "assistant", content: "" },
-      ]);
-      const res: any = await parseFn({
-        data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
-      });
-      const parsed = res?.parsed ?? {};
-      let summary = "";
-      if (kind === "purchase_invoice") {
-        summary = [
-          `**Đã trích xuất hoá đơn mua:**`,
-          parsed.vendor_name ? `• NCC: ${parsed.vendor_name}` : "",
-          parsed.invoice_no ? `• Số HĐ: ${parsed.invoice_no}` : "",
-          parsed.issue_date ? `• Ngày: ${parsed.issue_date}` : "",
-          parsed.total != null ? `• Tổng: ${Number(parsed.total).toLocaleString("vi-VN")} ₫` : "",
-          parsed.lines?.length ? `• Số dòng: ${parsed.lines.length}` : "",
-          ``,
-          `Bạn muốn tôi tạo hoá đơn mua nháp từ dữ liệu này? Trả lời "Có" để tôi đề xuất.`,
-        ].filter(Boolean).join("\n");
-      } else if (kind === "bank_statement") {
-        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
-        summary = `**Đã trích xuất sao kê:**\n\n\`\`\`\n${raw.slice(0, 1500)}${raw.length > 1500 ? "\n…" : ""}\n\`\`\`\n\nMuốn tôi nhập vào hệ thống? Hãy nói "nhập tất cả" hoặc liệt kê các dòng cụ thể.`;
-      } else {
-        const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
-        summary = `**Đã trích xuất phiếu thu/chi:**\n\n\`\`\`\n${raw.slice(0, 1200)}\n\`\`\`\n\nMuốn tôi tạo phiếu nháp?`;
-      }
+      done++;
       setMessages((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: summary };
+        copy[copy.length - 1] = { role: "assistant", content: `Đang trích xuất ${done}/${valid.length}…` };
         return copy;
       });
-      (window as any).__lastParsedDoc = { kind, parsed };
-    } catch (e: any) {
-      toast.error(`Lỗi parse: ${e.message}`);
-      setMessages((prev) => prev.slice(0, -1));
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
+
+    const ok = items.filter((i) => !i.error);
+    const failed = items.filter((i) => i.error);
+    const lines: string[] = [
+      `**Phiên nhập #${Date.now().toString(36).slice(-5).toUpperCase()}** — ${ok.length}/${items.length} file thành công`,
+      ``,
+      ...ok.map((i) => summarize(i.kind, i.parsed, i.filename)),
+    ];
+    if (failed.length) {
+      lines.push(``, `**Lỗi (${failed.length}):**`, ...failed.map((i) => `• ${i.filename}: ${i.error}`));
+    }
+    if (kind === "purchase_invoice") {
+      const totalSum = ok.reduce((s, i) => s + (Number(i.parsed?.total) || 0), 0);
+      lines.push(``, `**Tổng cộng: ${totalSum.toLocaleString("vi-VN")} ₫**`);
+      lines.push(``, `Trả lời "tạo tất cả" để tôi tạo hoá đơn nháp cho ${ok.length} file, hoặc "tạo #1, #3" để chọn.`);
+    } else if (kind === "bank_statement") {
+      const totalTxns = ok.reduce((s, i) => s + (Array.isArray(i.parsed?.transactions) ? i.parsed.transactions.length : 0), 0);
+      lines.push(``, `**Tổng giao dịch: ${totalTxns}**`, `Nói "nhập tất cả" để gộp vào sổ đối soát ngân hàng.`);
+    } else {
+      lines.push(``, `Nói "tạo phiếu tất cả" để tạo phiếu thu/chi nháp.`);
+    }
+
+    setMessages((prev) => {
+      const copy = [...prev];
+      copy[copy.length - 1] = { role: "assistant", content: lines.join("\n") };
+      return copy;
+    });
+    (window as any).__lastBatchImport = { kind, items: ok, failed, createdAt: Date.now() };
+    if (ok.length) (window as any).__lastParsedDoc = { kind, parsed: ok[0].parsed };
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const toggleVoice = () => {
@@ -324,12 +359,13 @@ export function AskAiSheet() {
               ref={fileRef}
               type="file"
               accept="application/pdf,image/*"
+              multiple
               className="hidden"
               data-kind="purchase_invoice"
               onChange={(e) => {
-                const f = e.target.files?.[0];
+                const files = Array.from(e.target.files || []);
                 const k = (e.target.dataset.kind as any) || "purchase_invoice";
-                if (f) handleUpload(f, k);
+                if (files.length) handleUploadBatch(files, k);
               }}
             />
             <div className="flex gap-2">
