@@ -24,6 +24,7 @@ const InputSchema = z
     statusFilter: z.string().max(80).optional().default(""),
     rangeFilter: z.string().max(40).optional().default(""),
     limit: z.number().int().min(1).max(200).optional().default(50),
+    offset: z.number().int().min(0).max(10_000).optional().default(0),
   })
   .strict();
 
@@ -55,11 +56,13 @@ export const getInboxLane = createServerFn({ method: "POST" })
 
     // ============ APPROVE — Tài liệu/nháp do AI tạo ============
     if (data.lane === "approve") {
+      const from = data.offset;
+      const to = data.offset + data.limit - 1;
       let qb = supabase
         .from("documents")
         .select("id, original_filename, doc_kind, ocr_status, created_at, ocr_extracted")
         .order("created_at", { ascending: false })
-        .limit(data.limit);
+        .range(from, to);
       // status chip → ocr_status hoặc trạng thái nháp
       if (wantStatus.includes("ai")) qb = qb.eq("ocr_status", "done");
       else if (wantStatus.includes("chờ")) qb = qb.eq("ocr_status", "processing");
@@ -97,7 +100,9 @@ export const getInboxLane = createServerFn({ method: "POST" })
           meta: { doc_kind: d.doc_kind ?? null },
         };
       });
-      return { rows: rows.filter(matchSearch), source: "documents" as const };
+      const filtered = rows.filter(matchSearch);
+      const nextOffset = (docs?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: filtered, source: "documents" as const, nextOffset };
     }
 
     // ============ OVERDUE — Phải thu/phải trả quá hạn ============
@@ -173,7 +178,10 @@ export const getInboxLane = createServerFn({ method: "POST" })
         }
       }
       parts.sort((a, b) => b.amount - a.amount);
-      return { rows: parts.filter(matchSearch).slice(0, data.limit), source: "ledger" as const };
+      const filtered = parts.filter(matchSearch);
+      const slice = filtered.slice(data.offset, data.offset + data.limit);
+      const nextOffset = data.offset + slice.length < filtered.length ? data.offset + data.limit : null;
+      return { rows: slice, source: "ledger" as const, nextOffset };
     }
 
     // ============ RECONCILE — Giao dịch ngân hàng chưa khớp ============
@@ -187,7 +195,7 @@ export const getInboxLane = createServerFn({ method: "POST" })
         .from("bank_transactions")
         .select("id, bank_account_id, txn_date, description, amount, counterparty, status")
         .order("txn_date", { ascending: false })
-        .limit(data.limit);
+        .range(data.offset, data.offset + data.limit - 1);
       // mặc định: status = unmatched. Chip "Có gợi ý AI"/"Chưa có gợi ý" — coi như đều unmatched
       qb = qb.eq("status", "unmatched");
       if (data.rangeFilter) {
@@ -217,7 +225,8 @@ export const getInboxLane = createServerFn({ method: "POST" })
           meta: { bank_account_id: t.bank_account_id },
         };
       });
-      return { rows: rows.filter(matchSearch), source: "bank_transactions" as const };
+      const nextOffset = (txns?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: rows.filter(matchSearch), source: "bank_transactions" as const, nextOffset };
     }
 
     // ============ DEADLINE — Công nợ/HĐ sắp đến hạn ============
@@ -289,7 +298,10 @@ export const getInboxLane = createServerFn({ method: "POST" })
       }
 
       rows.sort((a, b) => a.date.localeCompare(b.date));
-      return { rows: rows.filter(matchSearch).slice(0, data.limit), source: "deadlines" as const };
+      const filtered = rows.filter(matchSearch);
+      const slice = filtered.slice(data.offset, data.offset + data.limit);
+      const nextOffset = data.offset + slice.length < filtered.length ? data.offset + data.limit : null;
+      return { rows: slice, source: "deadlines" as const, nextOffset };
     }
 
     // ============ ANOMALY — AI insights ============
@@ -299,7 +311,7 @@ export const getInboxLane = createServerFn({ method: "POST" })
         .select("id, title, body, severity, created_at, metadata, category, action_url")
         .is("dismissed_at", null)
         .order("created_at", { ascending: false })
-        .limit(data.limit);
+        .range(data.offset, data.offset + data.limit - 1);
       if (error) throw new Error(error.message);
       const sevMap = (s: string): "low" | "medium" | "high" =>
         s === "critical" ? "high" : s === "warn" ? "medium" : "low";
@@ -322,8 +334,9 @@ export const getInboxLane = createServerFn({ method: "POST" })
         if (!wantStatus) return true;
         return r.status.toLowerCase().includes(wantStatus) || r.ref.toLowerCase().includes(wantStatus);
       });
-      return { rows: filtered, source: "ai_insights" as const };
+      const nextOffset = (insights?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: filtered, source: "ai_insights" as const, nextOffset };
     }
 
-    return { rows: [], source: "none" as const };
+    return { rows: [], source: "none" as const, nextOffset: null };
   });

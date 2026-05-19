@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
@@ -147,14 +147,42 @@ function LaneDetailPage() {
   const [statusFilter, setStatusFilter] = useState<string>(config.filters.status[0] ?? "Tất cả");
   const [rangeFilter, setRangeFilter] = useState<string>(config.filters.ranges[0] ?? "");
 
+  const PAGE_SIZE = 30;
   const fn = useServerFn(getInboxLane);
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: ["inbox-lane", lane, statusFilter, rangeFilter, search],
-    queryFn: () => fn({ data: { lane: config.key, search, statusFilter, rangeFilter, limit: 100 } }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      fn({
+        data: {
+          lane: config.key,
+          search,
+          statusFilter,
+          rangeFilter,
+          limit: PAGE_SIZE,
+          offset: pageParam as number,
+        },
+      }),
+    getNextPageParam: (last) => (last as any).nextOffset ?? undefined,
     staleTime: 30_000,
   });
 
-  const rows: InboxRow[] = query.data?.rows ?? [];
+  const rows: InboxRow[] = query.data?.pages.flatMap((p) => p.rows) ?? [];
+  const source = query.data?.pages[0]?.source ?? "—";
+
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && query.hasNextPage && !query.isFetchingNextPage) {
+        query.fetchNextPage();
+      }
+    }, { rootMargin: "300px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
@@ -332,10 +360,21 @@ function LaneDetailPage() {
             </tbody>
           </table>
         )}
+        {rows.length > 0 && (
+          <div ref={sentinelRef} className="flex items-center justify-center px-6 py-4 text-xs text-muted-foreground">
+            {query.isFetchingNextPage ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tải thêm…</span>
+            ) : query.hasNextPage ? (
+              <Button size="sm" variant="ghost" onClick={() => query.fetchNextPage()}>Tải thêm</Button>
+            ) : (
+              <span>Đã tải hết {rows.length} mục</span>
+            )}
+          </div>
+        )}
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Nguồn dữ liệu: <span className="font-mono">{query.data?.source ?? "—"}</span> · cập nhật trực tiếp từ hệ thống kế toán của bạn.
+        Nguồn dữ liệu: <span className="font-mono">{source}</span> · cập nhật trực tiếp từ hệ thống kế toán của bạn.
       </p>
     </div>
   );
