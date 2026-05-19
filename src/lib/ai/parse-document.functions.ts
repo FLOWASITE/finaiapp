@@ -46,6 +46,21 @@ const PROMPTS: Record<string, string> = {
     "Nhận diện loại chứng từ (hoá đơn mua, sao kê, phiếu thu/chi) rồi trả JSON phù hợp. Tự đặt khóa 'kind' = 'purchase_invoice' | 'bank_statement' | 'cash_voucher' và lồng dữ liệu vào khóa 'data'.",
 };
 
+function extractJSON(raw: string): any | null {
+  if (!raw) return null;
+  let s = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  if (!s.startsWith("{") && !s.startsWith("[")) {
+    const o = s.indexOf("{");
+    const a = s.indexOf("[");
+    const isArr = a !== -1 && (o === -1 || a < o);
+    const start = isArr ? a : o;
+    const end = isArr ? s.lastIndexOf("]") : s.lastIndexOf("}");
+    if (start === -1 || end <= start) return null;
+    s = s.slice(start, end + 1);
+  }
+  try { return JSON.parse(s); } catch { return null; }
+}
+
 export const parseDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => InputSchema.parse(i))
@@ -59,27 +74,43 @@ export const parseDocument = createServerFn({ method: "POST" })
 
     const fileBuf = Buffer.from(data.fileBase64, "base64");
 
-    const result = await generateText({
-      model,
-      ...(useStrict
-        ? { output: Output.object({ schema: PurchaseInvoiceSchema }) }
-        : {}),
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: PROMPTS[data.kind] || PROMPTS.auto },
-            {
-              type: "file",
-              data: fileBuf,
-              mediaType: data.mimeType,
-            } as any,
-          ],
-        },
-      ],
-    });
+    const messages = [
+      {
+        role: "user" as const,
+        content: [
+          {
+            type: "text" as const,
+            text:
+              (PROMPTS[data.kind] || PROMPTS.auto) +
+              "\n\nCHỈ trả về JSON hợp lệ, không giải thích, không markdown fences. Số tiền là số (không dấu phẩy/chấm phân cách hàng nghìn). Thiếu thông tin thì dùng null.",
+          },
+          {
+            type: "file" as const,
+            data: fileBuf,
+            mediaType: data.mimeType,
+          } as any,
+        ],
+      },
+    ];
 
-    const parsed = useStrict ? (result as any).output : result.text;
+    let parsed: any;
+    try {
+      if (useStrict) {
+        const r = await generateText({
+          model,
+          output: Output.object({ schema: PurchaseInvoiceSchema }),
+          messages,
+        });
+        parsed = (r as any).output;
+      } else {
+        const r = await generateText({ model, messages });
+        parsed = extractJSON(r.text) ?? { raw: r.text };
+      }
+    } catch (err: any) {
+      // Strict schema mismatch → fall back to free-form text + best-effort JSON extraction.
+      const r = await generateText({ model, messages });
+      parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
+    }
 
     // Persist upload metadata (best-effort).
     let uploadId: string | null = null;
