@@ -119,6 +119,32 @@ const ALIBABA_PRESETS = {
   },
 } as const;
 
+const PROVIDER_META: Record<string, { label: string; logo: string; color: string }> = {
+  openai: { label: "OpenAI", logo: "AI", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  anthropic: { label: "Anthropic (Claude)", logo: "AN", color: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
+  google: { label: "Google (Gemini)", logo: "G", color: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
+  "x-ai": { label: "xAI (Grok)", logo: "X", color: "bg-slate-700/15 text-slate-800 dark:text-slate-200" },
+  "meta-llama": { label: "Meta (Llama)", logo: "M", color: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+  mistralai: { label: "Mistral", logo: "MI", color: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  deepseek: { label: "DeepSeek", logo: "DS", color: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  qwen: { label: "Qwen", logo: "通", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  alibaba: { label: "Alibaba", logo: "阿", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  cohere: { label: "Cohere", logo: "CO", color: "bg-pink-500/15 text-pink-700 dark:text-pink-300" },
+  perplexity: { label: "Perplexity", logo: "PX", color: "bg-teal-500/15 text-teal-700 dark:text-teal-300" },
+  nvidia: { label: "NVIDIA", logo: "NV", color: "bg-green-500/15 text-green-700 dark:text-green-300" },
+  microsoft: { label: "Microsoft", logo: "MS", color: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" },
+};
+
+function providerMeta(p: string) {
+  return (
+    PROVIDER_META[p] ?? {
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      logo: p.slice(0, 2).toUpperCase(),
+      color: "bg-muted text-muted-foreground",
+    }
+  );
+}
+
 function hostFromUrl(u: string): string | null {
   try {
     return new URL(u).host;
