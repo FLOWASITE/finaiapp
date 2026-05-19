@@ -762,6 +762,7 @@ export function LimitsTab() {
     queryFn: () => fn(),
   });
   const [creating, setCreating] = useState(false);
+  const [usedWhere, setUsedWhere] = useState<MemoryLimit | null>(null);
 
   const toggleM = useMutation({
     mutationFn: toggleFn,
