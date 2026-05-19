@@ -258,7 +258,9 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         )}
         {query.data && query.data.length > 0 && buckets.length === 0 && (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-            Không có hội thoại đánh dấu sao
+            {q
+              ? `Không tìm thấy hội thoại nào cho “${searchQuery.trim()}”`
+              : "Không có hội thoại đánh dấu sao"}
           </div>
         )}
         {buckets.map((b) => (
