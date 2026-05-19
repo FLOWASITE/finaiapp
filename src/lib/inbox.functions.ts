@@ -57,11 +57,11 @@ export const getInboxLane = createServerFn({ method: "POST" })
     if (data.lane === "approve") {
       let qb = supabase
         .from("documents")
-        .select("id, original_filename, doc_kind, ocr_status, created_at, extracted_data")
+        .select("id, original_filename, doc_kind, ocr_status, created_at, ocr_extracted")
         .order("created_at", { ascending: false })
         .limit(data.limit);
       // status chip → ocr_status hoặc trạng thái nháp
-      if (wantStatus.includes("ai")) qb = qb.eq("ocr_status", "completed");
+      if (wantStatus.includes("ai")) qb = qb.eq("ocr_status", "done");
       else if (wantStatus.includes("chờ")) qb = qb.eq("ocr_status", "processing");
       else if (wantStatus.includes("bổ sung")) qb = qb.eq("ocr_status", "failed");
 
@@ -77,11 +77,11 @@ export const getInboxLane = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
 
       const rows: InboxRow[] = (docs ?? []).map((d: any) => {
-        const ext = d.extracted_data ?? {};
+        const ext = d.ocr_extracted ?? {};
         const amount = Number(ext.total ?? ext.amount ?? 0);
         const partner = String(ext.supplier_name ?? ext.customer_name ?? "—");
         const statusLabel =
-          d.ocr_status === "completed" ? "AI đề xuất"
+          d.ocr_status === "done" ? "AI đề xuất"
           : d.ocr_status === "processing" ? "Chờ duyệt"
           : d.ocr_status === "failed" ? "Cần bổ sung" : "Mới";
         return {
