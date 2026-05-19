@@ -391,10 +391,16 @@ function ThreadPage() {
                 el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
                 setHasNew(false);
               }}
-              className="pointer-events-auto h-8 gap-1.5 rounded-full border border-border/60 bg-background/90 px-3 text-xs shadow-lg backdrop-blur-xl"
+              className="pointer-events-auto relative h-8 gap-1.5 rounded-full border border-border/60 bg-background/90 px-3 text-xs shadow-lg backdrop-blur-xl"
             >
+              {hasNew && (
+                <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                </span>
+              )}
               <ArrowDown className="h-3.5 w-3.5" />
-              {hasNew ? "Tin nhắn mới" : "Về cuối"}
+              Đang xem tin cũ — về cuối
             </Button>
           </div>
         )}
