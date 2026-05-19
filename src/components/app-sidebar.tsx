@@ -128,6 +128,7 @@ const FRONT_SECTIONS: NavSection[] = [
     entries: [
       { to: "/inbox", label: "Hộp việc", icon: Inbox },
       { to: "/chat", label: "Hỏi AI", icon: Sparkles },
+      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
     ],
   },
   {
@@ -754,7 +755,14 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
           />
           <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
           {item.badge != null && (
-            <span className="ml-auto rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums text-sidebar-foreground/70">
+            <span
+              className={cn(
+                "ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide tabular-nums",
+                item.badgeTone === "new"
+                  ? "bg-[#4F46C7] text-white"
+                  : "bg-sidebar-accent/60 text-sidebar-foreground/70 text-[10px] font-semibold",
+              )}
+            >
               {item.badge}
             </span>
           )}
