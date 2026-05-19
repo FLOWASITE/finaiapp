@@ -347,13 +347,10 @@ function ThreadPage() {
     runAssistant(withoutLast);
   };
 
-  if (query.isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang tải hội thoại…
-      </div>
-    );
-  }
+  // Note: removed full-screen "Đang tải hội thoại…" spinner.
+  // When user comes from ChatDock the cache is primed so query.data is available
+  // immediately. On cold refresh, MessageList renders empty briefly while
+  // getThread loads in the background — much less jarring than a blank screen.
 
   if (query.isError) {
     return (
