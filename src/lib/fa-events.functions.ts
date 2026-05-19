@@ -101,6 +101,8 @@ export const createAssetEvent = createServerFn({ method: "POST" })
   .inputValidator((i) => EventInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId, tenantId } = context;
+    await assertPeriodOpen(supabase, userId, data.event_date, `ngày biến động ${data.event_date}`);
+
 
     const { data: asset } = await supabase
       .from("fixed_assets")
