@@ -246,6 +246,7 @@ export function AppSidebar() {
   const [openCmd, setOpenCmd] = React.useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const searchStr = useRouterState({ select: (r) => r.location.searchStr });
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { theme, toggleTheme } = useTheme();
