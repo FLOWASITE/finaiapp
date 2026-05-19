@@ -42,7 +42,10 @@ export const askAccountingStream = createServerFn({ method: "POST" })
 
     const result = streamText({
       model,
-      tools: { runQuery: makeRunQueryTool(supabase, userId) },
+      tools: {
+        runQuery: makeRunQueryTool(supabase, userId),
+        proposeAction: makeProposeActionTool(supabase, userId),
+      },
       stopWhen: stepCountIs(50),
       system: systemParts.join("\n\n"),
       messages: [
