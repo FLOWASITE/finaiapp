@@ -26,7 +26,7 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
-import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-reason.server";
+import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
