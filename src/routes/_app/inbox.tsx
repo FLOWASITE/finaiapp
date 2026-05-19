@@ -125,10 +125,7 @@ function InboxAiPage() {
     : data?.stats;
   const highCount = items.filter((i) => i.confidence_band === "high" && !i.blocker).length;
 
-  const contextItem = useMemo(
-    () => items.find((i) => i.id === activeId) ?? null,
-    [items, activeId],
-  );
+  const activeId = sheetItem?.id ?? null;
 
   // Track "AI online · vừa đọc N hoá đơn"
   useEffect(() => {
@@ -140,27 +137,6 @@ function InboxAiPage() {
     }
     prevPendingRef.current = p;
   }, [stats?.pending]);
-
-  // Chat log
-  const [chatLog, dispatch] = useReducer(chatReducer, [] as ChatEntry[]);
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    dispatch({
-      type: "push",
-      entry: {
-        id: uid(),
-        kind: "ai_text",
-        time: nowHM(),
-        text: `Chào sếp. Đêm qua tôi đã hạch toán **${stats?.posted_today ?? 132} mục** tự động. Còn **${stats?.pending ?? 47} mục** cần sếp duyệt — trong đó **${highCount || 32} mục tin cậy cao** có thể duyệt hàng loạt.`,
-        quickActions: [
-          { label: `Duyệt ${highCount || 32} mục tin cậy cao`, onClick: () => approveAllHighRef.current?.() },
-          { label: "Xem mục cần review", onClick: () => setTab("review") },
-        ],
-      },
-    });
-  }, [stats?.pending, stats?.posted_today, highCount]);
 
   useEffect(() => {
     if (showScrollDown) {
@@ -181,22 +157,9 @@ function InboxAiPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      const typing = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement | null)?.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setCmdOpen(true);
-        return;
-      }
-      if (typing) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
-        e.preventDefault();
-        setPaneMode((m) => (m === "inbox" ? "split" : "inbox"));
-      } else if ((e.metaKey || e.ctrlKey) && e.key === "2") {
-        e.preventDefault();
-        setPaneMode((m) => (m === "chat" ? "split" : "chat"));
-      } else if (e.key === "Escape") {
-        setPaneMode((m) => (m === "split" ? m : "split"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -260,49 +223,19 @@ function InboxAiPage() {
       return n;
     });
 
-  /* ───── Inbox ↔ Chat sync handlers ───── */
-
-  const pushAi = useCallback((text: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "ai_text", text, time: nowHM() } });
-  }, []);
-  const pushSystem = useCallback((text: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "system", text } });
-  }, []);
-  const pushProposal = useCallback((itemId: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "ai_proposal", itemId, time: nowHM() } });
-  }, []);
-
-  const pickItem = useCallback(
-    (id: string) => {
-      setActiveId(id);
-      const el = cardRefs.current.get(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Push a proposal bubble if last entry is not already this proposal
-      const last = chatLog[chatLog.length - 1];
-      if (!(last && last.kind === "ai_proposal" && last.itemId === id)) {
-        pushProposal(id);
-      }
-    },
-    [chatLog, pushProposal],
-  );
-
   const handleCardClick = useCallback(
     (id: string) => {
-      pickItem(id);
+      const it = items.find((x) => x.id === id);
+      if (it) setSheetItem(it);
     },
-    [pickItem],
+    [items],
   );
-
-  const closeContext = useCallback(() => {
-    setActiveId(null);
-    pushSystem("Đã đóng ngữ cảnh — chat trở về chế độ chung");
-  }, [pushSystem]);
 
   const handleApproveItem = useCallback(
     (it: InboxItem) => {
       const finish = () => {
-        pushSystem(`✓ Đã ghi sổ: ${it.title}`);
-        if (activeId === it.id) setActiveId(null);
+        toast.success(`Đã ghi sổ: ${it.title}`);
+        setSheetItem(null);
       };
       if (isMock(it)) {
         dismissMock(it.id);
@@ -314,98 +247,53 @@ function InboxAiPage() {
         onError: (e: any) => toast.error(e?.message || "Không ghi sổ được"),
       });
     },
-    [activeId, approveM, pushSystem],
+    [approveM],
   );
 
   const handleSkipItem = useCallback(
     (it: InboxItem) => {
       if (isMock(it)) {
         dismissMock(it.id);
-        pushSystem(`Đã bỏ qua: ${it.title}`);
-        if (activeId === it.id) setActiveId(null);
+        toast(`Đã bỏ qua: ${it.title}`);
+        setSheetItem(null);
         return;
       }
       skipM.mutate(it, {
         onSuccess: () => {
-          pushSystem(`Đã bỏ qua: ${it.title}`);
-          if (activeId === it.id) setActiveId(null);
+          toast(`Đã bỏ qua: ${it.title}`);
+          setSheetItem(null);
         },
       });
     },
-    [activeId, skipM, pushSystem],
+    [skipM],
   );
 
   const handleRuleItem = useCallback(
     (it: InboxItem) => {
       if (isMock(it)) {
-        pushSystem(`AI sẽ nhớ quy tắc cho các mục giống "${it.partner || it.title}"`);
+        toast.success(`AI sẽ nhớ quy tắc cho các mục giống "${it.partner || it.title}"`);
         return;
       }
       ruleM.mutate(it, {
-        onSuccess: () => pushSystem(`AI sẽ nhớ quy tắc cho "${it.partner || it.title}"`),
+        onSuccess: () =>
+          toast.success(`AI sẽ nhớ quy tắc cho "${it.partner || it.title}"`),
       });
     },
-    [ruleM, pushSystem],
+    [ruleM],
   );
 
-  const handleEditItem = useCallback(
-    (it: InboxItem) => {
-      openAskAi(`Sửa đề xuất "${it.title}": `);
-    },
-    [],
-  );
+  const handleEditItem = useCallback((it: InboxItem) => {
+    openAskAi(`Sửa đề xuất "${it.title}": `);
+  }, []);
 
-  /* ───── User message → mock AI response ───── */
-  const respondMock = useCallback(
-    (userText: string) => {
-      const lc = userText.toLowerCase();
-      const ci = contextItem;
-      // Canned: 131 vs 511 for context = mock-2
-      if (ci?.id === "mock-2" && (/131|511/.test(userText))) {
-        pushAi(
-          `Vì đây là **tiền vào** ghi nhận thanh toán cho HĐ 00125 đã xuất ngày 28/10 — doanh thu được ghi vào TK 511 lúc đó rồi, giờ chỉ đảo công nợ phải thu (131) sang tiền (112). Bút toán đề xuất: Nợ 112 / Có 131 cùng 55.000.000 ₫.`,
-        );
-        return;
-      }
-      if (ci && /tại sao|why|giải thích/.test(lc)) {
-        pushAi(
-          `Mục **${ci.title}** được đề xuất vì: ${ci.reasoning.summary}`,
-        );
-        return;
-      }
-      if (!ci) {
-        pushAi("Em chưa có ngữ cảnh. Sếp chọn một mục bên trái, hoặc cứ hỏi tự do em sẽ trả lời.");
-        return;
-      }
-      pushAi(
-        `Em ghi nhận. Liên quan đến mục **${ci.title}** — sếp muốn em đề xuất bút toán khác hay áp dụng quy tắc?`,
-      );
-    },
-    [contextItem, pushAi],
-  );
-
-  const handleUserSend = useCallback(
-    (text: string) => {
-      dispatch({ type: "push", entry: { id: uid(), kind: "user", text, time: nowHM() } });
-      setTimeout(() => respondMock(text), 400);
-    },
-    [respondMock],
-  );
-
-  /* ───── Bulk approve with chat progress ───── */
-  const approveAllHighRef = useRef<(() => Promise<void>) | null>(null);
+  /* ───── Bulk approve with toast progress ───── */
   const approveAllHigh = useCallback(async () => {
     const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
     if (!targets.length) {
-      pushSystem("Không có mục tin cậy cao nào để duyệt");
+      toast("Không có mục tin cậy cao nào để duyệt");
       return;
     }
-    pushSystem(`↑ Sếp vừa nhấn Duyệt ${targets.length} mục tin cậy cao ở thanh trên`);
-    const progressId = uid();
-    dispatch({
-      type: "push",
-      entry: { id: progressId, kind: "ai_progress", current: 0, total: targets.length },
-    });
+    const tId = toast.loading(`Đang duyệt 0/${targets.length} mục…`);
     let ok = 0;
     for (const it of targets) {
       try {
@@ -416,20 +304,20 @@ function InboxAiPage() {
           await approveM.mutateAsync(it);
           ok++;
         }
-        dispatch({ type: "patch", id: progressId, patch: { current: ok } as any });
-        await new Promise((r) => setTimeout(r, 120));
+        toast.loading(`Đang duyệt ${ok}/${targets.length} mục…`, { id: tId });
+        await new Promise((r) => setTimeout(r, 80));
       } catch {}
     }
-    dispatch({ type: "patch", id: progressId, patch: { current: ok, done: true } as any });
-  }, [items, approveM, pushSystem]);
-  approveAllHighRef.current = approveAllHigh;
+    toast.success(`Đã duyệt ${ok}/${targets.length} mục`, { id: tId });
+  }, [items, approveM]);
 
-  // If context item disappears (was approved/skipped externally), auto close
+  // If context item disappears (was approved/skipped externally), auto close sheet
   useEffect(() => {
     if (activeId && !items.find((i) => i.id === activeId)) {
-      setActiveId(null);
+      setSheetItem(null);
     }
   }, [items, activeId]);
+
 
   return (
     <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
