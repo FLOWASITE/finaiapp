@@ -365,56 +365,12 @@ function InboxAiPage() {
   return (
     <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
       {/* Top header */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3.5">
-        <Link
-          to="/dashboard"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
-          title="Quay lại"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 font-semibold text-white">
-          S
-        </div>
-        <div className="text-sm font-semibold tracking-tight">Sổ AI</div>
-        <div
-          className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-          title="Cập nhật cuối: vừa xong"
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          </span>
-          AI online
-          <span className="hidden text-emerald-700/70 sm:inline dark:text-emerald-300/70">
-            ·{" "}
-            {recentlyReadDelta
-              ? `vừa đọc ${recentlyReadDelta} hoá đơn mới`
-              : "đang theo dõi"}
-          </span>
-        </div>
+      <InboxHeader
+        onOpenCmd={() => setCmdOpen(true)}
+        periodLabel={periodLabel()}
+        recentlyReadDelta={recentlyReadDelta}
+      />
 
-        <button
-          type="button"
-          onClick={() => setCmdOpen(true)}
-          className="ml-2 hidden h-9 flex-1 items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card lg:flex"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span className="flex-1 truncate">
-            Hỏi AI: "Chi phí marketing tháng này?", "Đối chiếu HĐ với sao kê"…
-          </span>
-          <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
-        </button>
-
-        <div className="ml-auto hidden items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground lg:flex">
-          <Calendar className="h-3.5 w-3.5" />
-          {periodLabel()}
-        </div>
-
-        <button className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
-      </header>
 
       {/* Stats strip */}
       <div className="hidden shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4 lg:flex">
