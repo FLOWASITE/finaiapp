@@ -992,13 +992,69 @@ function EmptyTab({ label }: { label: string }) {
 }
 
 function ListSkeleton() {
+  // Khớp bố cục thật của ItemCard: rail trái + 5 hàng có thể có (pill/meta, title+amount, memo, proposal pills, blocker/followup)
+  const variants: Array<{
+    rail: string;
+    hasMemo?: boolean;
+    proposalCount?: number;
+    extra?: "blocker" | "followup" | null;
+  }> = [
+    { rail: "bg-emerald-500/40", proposalCount: 3, extra: null },        // invoice tin cậy cao
+    { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: "followup" }, // bank statement medium
+    { rail: "bg-emerald-500/40", proposalCount: 4, extra: null },        // einvoice high
+    { rail: "bg-rose-500/40", extra: "blocker" },                        // blocker (không có proposal)
+    { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: null }, // bank statement
+  ];
+
   return (
-    <ul className="space-y-3 p-4">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <li key={i} className="rounded-lg border border-border/40 bg-card/40 p-4">
-          <div className="h-3 w-1/3 animate-pulse rounded bg-muted/50" />
-          <div className="mt-3 h-4 w-2/3 animate-pulse rounded bg-muted/50" />
-          <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-muted/40" />
+    <ul className="space-y-3 p-4" aria-hidden="true">
+      {variants.map((v, i) => (
+        <li
+          key={i}
+          className="relative overflow-hidden rounded-lg border border-border/50 bg-card"
+        >
+          {/* rail */}
+          <span className={cn("absolute inset-y-0 left-0 w-1", v.rail)} />
+          <div className="pl-4 pr-4 py-3">
+            {/* Row 1: pill + thời gian + dot */}
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-20 animate-pulse rounded-md bg-muted/60" />
+              <div className="h-3 w-12 animate-pulse rounded bg-muted/40" />
+              <div className="h-3 w-24 animate-pulse rounded bg-muted/30 hidden sm:block" />
+              <div className="ml-auto h-2 w-2 animate-pulse rounded-full bg-muted/60" />
+            </div>
+
+            {/* Row 2: title + amount */}
+            <div className="mt-2 flex items-baseline justify-between gap-3">
+              <div className="h-4 w-2/3 animate-pulse rounded bg-muted/60" />
+              <div className="h-4 w-24 shrink-0 animate-pulse rounded bg-muted/60" />
+            </div>
+
+            {/* Row 3: memo */}
+            {v.hasMemo && (
+              <div className="mt-1.5 h-3 w-3/4 animate-pulse rounded bg-muted/30" />
+            )}
+
+            {/* Row 4: proposal pills */}
+            {v.proposalCount ? (
+              <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
+                {Array.from({ length: v.proposalCount }).map((_, j) => (
+                  <div
+                    key={j}
+                    className="h-3 w-20 animate-pulse rounded bg-muted/50"
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {/* Row 5: blocker / followup */}
+            {v.extra === "blocker" && (
+              <div className="mt-2 h-7 w-full animate-pulse rounded-md border border-rose-500/20 bg-rose-500/5" />
+            )}
+            {v.extra === "followup" && (
+              <div className="mt-2 h-7 w-5/6 animate-pulse rounded-md border border-amber-500/20 bg-amber-500/5" />
+            )}
+          </div>
         </li>
       ))}
     </ul>
