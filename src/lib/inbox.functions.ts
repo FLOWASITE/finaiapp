@@ -298,7 +298,10 @@ export const getInboxLane = createServerFn({ method: "POST" })
       }
 
       rows.sort((a, b) => a.date.localeCompare(b.date));
-      return { rows: rows.filter(matchSearch).slice(0, data.limit), source: "deadlines" as const };
+      const filtered = rows.filter(matchSearch);
+      const slice = filtered.slice(data.offset, data.offset + data.limit);
+      const nextOffset = data.offset + slice.length < filtered.length ? data.offset + data.limit : null;
+      return { rows: slice, source: "deadlines" as const, nextOffset };
     }
 
     // ============ ANOMALY — AI insights ============
@@ -308,7 +311,7 @@ export const getInboxLane = createServerFn({ method: "POST" })
         .select("id, title, body, severity, created_at, metadata, category, action_url")
         .is("dismissed_at", null)
         .order("created_at", { ascending: false })
-        .limit(data.limit);
+        .range(data.offset, data.offset + data.limit - 1);
       if (error) throw new Error(error.message);
       const sevMap = (s: string): "low" | "medium" | "high" =>
         s === "critical" ? "high" : s === "warn" ? "medium" : "low";
@@ -331,7 +334,8 @@ export const getInboxLane = createServerFn({ method: "POST" })
         if (!wantStatus) return true;
         return r.status.toLowerCase().includes(wantStatus) || r.ref.toLowerCase().includes(wantStatus);
       });
-      return { rows: filtered, source: "ai_insights" as const };
+      const nextOffset = (insights?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: filtered, source: "ai_insights" as const, nextOffset };
     }
 
     return { rows: [], source: "none" as const };
