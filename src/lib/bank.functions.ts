@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
+import { resolveActiveModel } from "@/lib/ai-gateway.server";
 
 // ===================== BANK ACCOUNTS =====================
 
@@ -505,8 +505,7 @@ export const aiMatchTransactions = createServerFn({ method: "POST" })
   .inputValidator((i: { bankAccountId: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Thiếu LOVABLE_API_KEY");
+    const { model } = await resolveActiveModel("reasoning", "google/gemini-3-flash-preview");
 
     const { data: txns } = await supabase
       .from("bank_transactions")
@@ -536,9 +535,6 @@ export const aiMatchTransactions = createServerFn({ method: "POST" })
       }).slice(0, 5);
       return { txn: t, candidates: cands };
     });
-
-    const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
     const { experimental_output } = await generateText({
       model,
       experimental_output: Output.object({ schema: MatchSchema }),

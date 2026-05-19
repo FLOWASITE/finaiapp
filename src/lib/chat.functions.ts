@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { streamText, stepCountIs } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
+import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
@@ -25,14 +25,14 @@ export const askAccountingStream = createServerFn({ method: "POST" })
   .inputValidator((i: z.infer<typeof askInput>) => askInput.parse(i))
   .handler(async function* ({ data, context }) {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
-      yield { delta: "Lỗi: Thiếu LOVABLE_API_KEY trên server." };
+    let model: any;
+    try {
+      const r = await resolveActiveModel("chat", "google/gemini-3-flash-preview");
+      model = r.model;
+    } catch (e: any) {
+      yield { delta: `Lỗi: ${e?.message || "Không khởi tạo được AI model"}` };
       return;
     }
-
-    const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
 
     const systemParts = [
       SYSTEM_PROMPT,

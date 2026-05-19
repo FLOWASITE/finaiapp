@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
+import { resolveActiveModel } from "@/lib/ai-gateway.server";
 
 const InputSchema = z.object({
   /** Base64-encoded file contents (without the data: prefix). */

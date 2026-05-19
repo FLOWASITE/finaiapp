@@ -143,6 +143,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_model_config: {
+        Row: {
+          api_key_encrypted: string | null
+          base_url: string
+          enabled: boolean
+          extra_headers: Json
+          id: number
+          model_chat: string | null
+          model_default: string
+          model_parse: string | null
+          model_reasoning: string | null
+          notes: string | null
+          provider_label: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          base_url?: string
+          enabled?: boolean
+          extra_headers?: Json
+          id?: number
+          model_chat?: string | null
+          model_default?: string
+          model_parse?: string | null
+          model_reasoning?: string | null
+          notes?: string | null
+          provider_label?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          base_url?: string
+          enabled?: boolean
+          extra_headers?: Json
+          id?: number
+          model_chat?: string | null
+          model_default?: string
+          model_parse?: string | null
+          model_reasoning?: string | null
+          notes?: string | null
+          provider_label?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ai_suggestions: {
         Row: {
           chosen_index: number | null
