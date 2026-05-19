@@ -213,10 +213,12 @@ export const askAccountingStream = createServerFn({ method: "POST" })
             const output = (part as any).output ?? (part as any).result;
             const isError =
               output && typeof output === "object" && "error" in output ? true : false;
+            const toolName = (part as any).toolName as string | undefined;
+            const cap = toolName === "renderChart" ? 64000 : 4000;
             yield {
               type: "tool-result",
               toolCallId: (part as any).toolCallId,
-              output: truncateOutput(output),
+              output: truncateOutput(output, cap),
               isError,
             } as AskStreamEvent;
             break;
