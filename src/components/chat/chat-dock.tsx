@@ -8,7 +8,7 @@ import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { createThread, appendMessage, listThreads } from "@/lib/chat-threads.functions";
+import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
@@ -40,8 +40,7 @@ export function ChatDock() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const createFn = useServerFn(createThread);
-  const appendFn = useServerFn(appendMessage);
+  const createWithMsgFn = useServerFn(createThreadWithFirstMessage);
   const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -90,70 +89,48 @@ export function ChatDock() {
     const q = (override ?? input).trim();
     if (!q || loading) return;
     const existingThreadId = currentThreadId(location.pathname);
-    setLoading(true);
-    try {
-      if (existingThreadId) {
-        setInput("");
-        window.dispatchEvent(
-          new CustomEvent("chat:dock-send", {
-            detail: { threadId: existingThreadId, content: q },
-          }),
-        );
-        return;
-      }
-      const thread = await createFn({ data: { title: q.slice(0, 60) } });
-      await appendFn({
-        data: { threadId: thread.id, role: "user", content: q, updateTitleIfBlank: true },
-      });
+    if (existingThreadId) {
       setInput("");
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId: thread.id },
-        search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
-      });
-    } catch (e: any) {
-      toast.error(e?.message || "Không gửi được");
-    } finally {
-      setLoading(false);
+      window.dispatchEvent(
+        new CustomEvent("chat:dock-send", {
+          detail: { threadId: existingThreadId, content: q },
+        }),
+      );
+      return;
     }
+    // No active thread: clear input + show loading IMMEDIATELY,
+    // then create thread in background and navigate when ready.
+    setInput("");
+    setLoading(true);
+    createWithMsgFn({ data: { title: q.slice(0, 60), content: q } })
+      .then((res) => {
+        navigate({
+          to: "/chat/$threadId",
+          params: { threadId: res.thread.id },
+          search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
+        });
+      })
+      .catch((e: any) => {
+        setInput(q); // rollback draft
+        toast.error(e?.message || "Không gửi được");
+      })
+      .finally(() => setLoading(false));
   };
 
   const handleAttach = async (payloads: any[]) => {
     if (!payloads.length || loading) return;
     const existingThreadId = currentThreadId(location.pathname);
-    setLoading(true);
-    try {
-      if (existingThreadId) {
-        try {
-          sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
-        } catch {}
-        window.dispatchEvent(
-          new CustomEvent("chat:dock-send", {
-            detail: {
-              threadId: existingThreadId,
-              content: `Xử lý ${payloads.length} chứng từ:\n${payloads
-                .map((p) => `📎 ${p.name}`)
-                .join("\n")}`,
-              attachments: payloads.map((p) => ({
-                name: p.name,
-                mime: p.mime,
-                size: p.size,
-                kind: p.kind,
-              })),
-            },
-          }),
-        );
-        return;
-      }
-      const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
-      const thread = await createFn({ data: { title: payloads[0].name.slice(0, 60) } });
-      await appendFn({
-        data: {
-          threadId: thread.id,
-          role: "user",
-          content: `Xử lý ${payloads.length} chứng từ:\n${summary}`,
-          updateTitleIfBlank: true,
-          metadata: {
+    if (existingThreadId) {
+      try {
+        sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent("chat:dock-send", {
+          detail: {
+            threadId: existingThreadId,
+            content: `Xử lý ${payloads.length} chứng từ:\n${payloads
+              .map((p) => `📎 ${p.name}`)
+              .join("\n")}`,
             attachments: payloads.map((p) => ({
               name: p.name,
               mime: p.mime,
@@ -161,21 +138,40 @@ export function ChatDock() {
               kind: p.kind,
             })),
           },
-        },
-      });
-      try {
-        sessionStorage.setItem(`__attach:${thread.id}`, JSON.stringify(payloads));
-      } catch {}
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId: thread.id },
-        search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
-      });
-    } catch (e: any) {
-      toast.error(e?.message || "Không gửi được");
-    } finally {
-      setLoading(false);
+        }),
+      );
+      return;
     }
+    setLoading(true);
+    const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
+    const content = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
+    const metaAttachments = payloads.map((p) => ({
+      name: p.name,
+      mime: p.mime,
+      size: p.size,
+      kind: p.kind,
+    }));
+    createWithMsgFn({
+      data: {
+        title: payloads[0].name.slice(0, 60),
+        content,
+        metadata: { attachments: metaAttachments },
+      },
+    })
+      .then((res) => {
+        try {
+          sessionStorage.setItem(`__attach:${res.thread.id}`, JSON.stringify(payloads));
+        } catch {}
+        navigate({
+          to: "/chat/$threadId",
+          params: { threadId: res.thread.id },
+          search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
+        });
+      })
+      .catch((e: any) => {
+        toast.error(e?.message || "Không gửi được");
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
