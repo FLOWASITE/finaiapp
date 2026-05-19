@@ -971,13 +971,26 @@ function CommandBar({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ───────── Empty / Skeleton ───────── */
+/* ───────── Empty / Skeleton ─────────
+ * Text chuẩn (dùng thống nhất toàn module Inbox):
+ *   - Loading : "Đang tải hộp đến…"
+ *   - Empty   : "Hộp đến đang trống" + "AI sẽ tự đưa hoá đơn, sao kê mới vào đây."
+ *   - Tab WIP : "Đang hoàn thiện" + "Tính năng sẽ sớm có mặt."
+ */
+export const INBOX_COPY = {
+  loading: "Đang tải hộp đến…",
+  emptyTitle: "Hộp đến đang trống",
+  emptyHint: "AI sẽ tự đưa hoá đơn, sao kê mới vào đây.",
+  wipTitle: "Đang hoàn thiện",
+  wipHint: "Tính năng sẽ sớm có mặt.",
+} as const;
+
 function EmptyInbox() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted-foreground">
       <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
-      <div className="font-medium text-foreground">Hộp đến trống</div>
-      <div className="text-xs">AI sẽ thả đề xuất vào đây khi có hoá đơn, sao kê mới.</div>
+      <div className="font-medium text-foreground">{INBOX_COPY.emptyTitle}</div>
+      <div className="text-xs">{INBOX_COPY.emptyHint}</div>
     </div>
   );
 }
@@ -986,10 +999,13 @@ function EmptyTab({ label }: { label: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1.5 p-10 text-center text-sm text-muted-foreground">
       <div className="font-medium text-foreground">{label}</div>
-      <div className="text-xs">Sắp có — đang dựng.</div>
+      <div className="text-xs">
+        {INBOX_COPY.wipTitle} — {INBOX_COPY.wipHint.toLowerCase()}
+      </div>
     </div>
   );
 }
+
 
 function ListSkeleton() {
   // Khớp bố cục thật của ItemCard: rail trái + 5 hàng có thể có (pill/meta, title+amount, memo, proposal pills, blocker/followup)
