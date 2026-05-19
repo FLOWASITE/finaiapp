@@ -137,3 +137,76 @@ export const testAiModelConfig = createServerFn({ method: "POST" })
     }
     return { ok: true, status: res.status, latencyMs: ms, reply: String(reply).slice(0, 200) };
   });
+
+/**
+ * Liệt kê danh sách model từ provider hiện tại (hoặc base_url được truyền vào).
+ * Dùng cho UI chọn nhanh model — đặc biệt hữu ích với OpenRouter.
+ */
+const ListModelsSchema = z.object({
+  base_url: z.string().url().max(500).optional(),
+});
+
+export const listAiModels = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => ListModelsSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertSuperadmin(supabase, userId);
+
+    let baseUrl = data.base_url;
+    let apiKey: string | null = null;
+    if (!baseUrl) {
+      const { data: cfg } = await supabaseAdmin
+        .from("ai_model_config")
+        .select("base_url, api_key_encrypted")
+        .eq("id", 1)
+        .maybeSingle();
+      baseUrl = (cfg?.base_url as string) || "https://openrouter.ai/api/v1";
+      if (cfg?.api_key_encrypted) apiKey = await decryptSecret(cfg.api_key_encrypted);
+    }
+    const url = String(baseUrl).replace(/\/+$/, "") + "/models";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+    const res = await fetch(url, { method: "GET", headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Không lấy được danh sách model (HTTP ${res.status}): ${body.slice(0, 200)}`);
+    }
+    const json: any = await res.json();
+    const raw: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+    const models = raw
+      .map((m: any) => {
+        const id = String(m?.id ?? m?.name ?? "");
+        if (!id) return null;
+        const ctx = Number(m?.context_length ?? m?.context_window ?? 0) || null;
+        const pricing = m?.pricing
+          ? {
+              prompt: m.pricing.prompt ? String(m.pricing.prompt) : null,
+              completion: m.pricing.completion ? String(m.pricing.completion) : null,
+            }
+          : null;
+        const isFree =
+          /:free\b/i.test(id) ||
+          (pricing?.prompt === "0" && pricing?.completion === "0");
+        return {
+          id,
+          name: String(m?.name ?? id),
+          description: m?.description ? String(m.description).slice(0, 300) : null,
+          context_length: ctx,
+          pricing,
+          isFree,
+        };
+      })
+      .filter(Boolean) as Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        context_length: number | null;
+        pricing: { prompt: string | null; completion: string | null } | null;
+        isFree: boolean;
+      }>;
+    models.sort((a, b) => a.id.localeCompare(b.id));
+    return { count: models.length, models };
+  });
+
