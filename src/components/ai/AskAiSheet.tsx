@@ -324,22 +324,32 @@ export function AskAiSheet() {
               type="file"
               accept="application/pdf,image/*"
               className="hidden"
+              data-kind="purchase_invoice"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) handleUpload(f);
+                const k = (e.target.dataset.kind as any) || "purchase_invoice";
+                if (f) handleUpload(f, k);
               }}
             />
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading || loading}
-                title="Upload PDF/ảnh hoá đơn"
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="icon" disabled={uploading || loading} title="Upload chứng từ">
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "purchase_invoice"; fileRef.current.click(); } }}>
+                    Hoá đơn mua (PDF/ảnh)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "bank_statement"; fileRef.current.click(); } }}>
+                    Sao kê ngân hàng
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { if (fileRef.current) { fileRef.current.dataset.kind = "cash_voucher"; fileRef.current.click(); } }}>
+                    Phiếu thu/chi viết tay
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 type="button"
                 variant={recording ? "destructive" : "outline"}
