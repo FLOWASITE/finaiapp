@@ -93,7 +93,7 @@ function InboxAiPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [inboxOpenMobile, setInboxOpenMobile] = useState(false);
+  
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [showScrollDown, setShowScrollDown] = useState(false);
