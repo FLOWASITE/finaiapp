@@ -9,6 +9,8 @@ export type ChatThread = {
   created_at: string;
   kind?: "general" | "inbox" | null;
   inbox_external_id?: string | null;
+  pinned_at?: string | null;
+  starred?: boolean | null;
 };
 
 export type ChatMessage = {
