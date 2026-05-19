@@ -66,7 +66,7 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
 
 const InputSchema = z.object({
   entity: z.enum([
-    "sale_invoice", "purchase_invoice", "customer", "supplier",
+    "sale_invoice", "sale_order", "purchase_invoice", "customer", "supplier",
     "product_goods", "product_service", "product_combo", "warehouse",
     "bank_receipt", "bank_payment", "bank_transfer",
     "fixed_asset", "fa_category", "allocated_asset",
