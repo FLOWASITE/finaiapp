@@ -104,8 +104,10 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
 
 function ThinkingIndicator() {
   return (
-    <div className="flex items-center gap-2">
-      <span className="chat-shimmer-text text-sm font-medium">Đang suy nghĩ…</span>
+    <div className="flex items-center gap-1.5 py-1.5" aria-label="Trợ lý đang trả lời">
+      <span className="chat-dot" style={{ animationDelay: "0ms" }} />
+      <span className="chat-dot" style={{ animationDelay: "160ms" }} />
+      <span className="chat-dot" style={{ animationDelay: "320ms" }} />
     </div>
   );
 }
