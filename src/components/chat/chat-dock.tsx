@@ -55,6 +55,18 @@ export function ChatDock() {
 
   const activeThreadId = currentThreadId(location.pathname);
 
+  // Full origin path (pathname + search + hash) so the back button restores
+  // filters/tabs of the page the user came from. Skip when already inside /chat.
+  const fromHref = (() => {
+    if (location.pathname.startsWith("/chat")) return undefined;
+    const search =
+      typeof location.searchStr === "string"
+        ? location.searchStr
+        : "";
+    const hash = location.hash ? `#${location.hash}` : "";
+    return `${location.pathname}${search}${hash}`;
+  })();
+
   useEffect(() => {
     const focusInput = () => {
       setTimeout(() => inputRef.current?.focus(), 50);
