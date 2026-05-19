@@ -77,17 +77,10 @@ export function VoucherFormDialog({
   const create = useServerFn(createCashVoucher);
   const fetchCustomers = useServerFn(listCustomers);
   const fetchSuppliers = useServerFn(listSuppliers);
-  const fetchCoa = useServerFn(listChartOfAccounts);
 
   const { data: parties } = useQuery<any[]>({
     queryKey: [type === "receipt" ? "customers" : "suppliers"],
     queryFn: async () => (type === "receipt" ? await fetchCustomers({}) : await fetchSuppliers({})) as any[],
-    enabled: open,
-    ...QUERY_PRESETS.TRANSACTIONAL,
-  });
-  const { data: coa } = useQuery({
-    queryKey: ["coa"],
-    queryFn: () => fetchCoa({}),
     enabled: open,
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
