@@ -72,16 +72,30 @@ export function Composer({
         rows={1}
         className="flex-1 resize-none bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground/70"
       />
-      <Button
-        type="button"
-        size="icon"
-        onClick={onSubmit}
-        disabled={disabled || loading || !value.trim()}
-        className="h-9 w-9 shrink-0 rounded-xl"
-        aria-label="Gửi"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-      </Button>
+      {loading && onStop ? (
+        <Button
+          type="button"
+          size="icon"
+          variant="destructive"
+          onClick={onStop}
+          className="h-9 w-9 shrink-0 rounded-xl"
+          aria-label="Dừng"
+          title="Dừng"
+        >
+          <Square className="h-3.5 w-3.5 fill-current" />
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="icon"
+          onClick={onSubmit}
+          disabled={disabled || loading || !value.trim()}
+          className="h-9 w-9 shrink-0 rounded-xl"
+          aria-label="Gửi"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
