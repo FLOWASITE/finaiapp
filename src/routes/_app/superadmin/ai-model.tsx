@@ -135,6 +135,41 @@ const PROVIDER_META: Record<string, { label: string; logo: string; color: string
   microsoft: { label: "Microsoft", logo: "MS", color: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" },
 };
 
+const suggestedModel = (id: string, name: string, context_length: number | null = null): ModelOption => ({
+  id,
+  name,
+  description: null,
+  context_length,
+  pricing: null,
+  isFree: /:free\b/i.test(id),
+});
+
+const SUGGESTED_MODELS: ModelOption[] = [
+  suggestedModel("openai/gpt-4o-mini", "GPT-4o Mini", 128_000),
+  suggestedModel("openai/gpt-4o", "GPT-4o", 128_000),
+  suggestedModel("openai/gpt-5-mini", "GPT-5 Mini", 400_000),
+  suggestedModel("openai/gpt-5", "GPT-5", 400_000),
+  suggestedModel("google/gemini-2.5-flash", "Gemini 2.5 Flash", 1_000_000),
+  suggestedModel("google/gemini-2.5-pro", "Gemini 2.5 Pro", 1_000_000),
+  suggestedModel("google/gemini-3-flash-preview", "Gemini 3 Flash Preview", 1_000_000),
+  suggestedModel("google/gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview", 1_000_000),
+  suggestedModel("anthropic/claude-sonnet-4.5", "Claude Sonnet 4.5", 200_000),
+  suggestedModel("anthropic/claude-haiku-4.5", "Claude Haiku 4.5", 200_000),
+  suggestedModel("deepseek/deepseek-r1", "DeepSeek R1", 128_000),
+  suggestedModel("deepseek/deepseek-chat", "DeepSeek Chat", 128_000),
+  suggestedModel("qwen/qwen-vl-max", "Qwen VL Max", 128_000),
+  suggestedModel("qwen/qwq-32b", "QwQ 32B", 128_000),
+  suggestedModel("x-ai/grok-4", "Grok 4", 256_000),
+  suggestedModel("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B Instruct", 128_000),
+];
+
+function mergeModelOptions(primary: ModelOption[], fallback: ModelOption[]) {
+  const map = new Map<string, ModelOption>();
+  fallback.forEach((m) => map.set(m.id, m));
+  primary.forEach((m) => map.set(m.id, m));
+  return Array.from(map.values());
+}
+
 function providerMeta(p: string) {
   return (
     PROVIDER_META[p] ?? {
