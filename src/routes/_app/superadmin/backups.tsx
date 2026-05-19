@@ -63,7 +63,7 @@ function BackupsPage() {
             <Select value={selectedTenant} onValueChange={setSelectedTenant}>
               <SelectTrigger><SelectValue placeholder="Chọn tenant…" /></SelectTrigger>
               <SelectContent>
-                {(tenants as any[] ?? []).map((t: any) => (
+                {(((tenants as any)?.tenants ?? []) as any[]).map((t: any) => (
                   <SelectItem key={t.id} value={t.id}>{t.company_name || t.email}</SelectItem>
                 ))}
               </SelectContent>

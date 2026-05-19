@@ -53,7 +53,12 @@ import { Route as AppTaxTncnRouteImport } from './routes/_app/tax/tncn'
 import { Route as AppTaxGtgtRouteImport } from './routes/_app/tax/gtgt'
 import { Route as AppSuppliersGroupsRouteImport } from './routes/_app/suppliers/groups'
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
+import { Route as AppSuperadminSettingsRouteImport } from './routes/_app/superadmin/settings'
+import { Route as AppSuperadminSecurityRouteImport } from './routes/_app/superadmin/security'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
+import { Route as AppSuperadminJobsRouteImport } from './routes/_app/superadmin/jobs'
+import { Route as AppSuperadminBillingRouteImport } from './routes/_app/superadmin/billing'
+import { Route as AppSuperadminBackupsRouteImport } from './routes/_app/superadmin/backups'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
 import { Route as AppSuperadminAiModelRouteImport } from './routes/_app/superadmin/ai-model'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
@@ -355,12 +360,37 @@ const AppSuppliersIdRoute = AppSuppliersIdRouteImport.update({
   path: '/suppliers/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSuperadminSettingsRoute = AppSuperadminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSuperadminSecurityRoute = AppSuperadminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
 const AppSuperadminOrganizationsRoute =
   AppSuperadminOrganizationsRouteImport.update({
     id: '/organizations',
     path: '/organizations',
     getParentRoute: () => AppSuperadminRoute,
   } as any)
+const AppSuperadminJobsRoute = AppSuperadminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSuperadminBillingRoute = AppSuperadminBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSuperadminBackupsRoute = AppSuperadminBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
 const AppSuperadminAuditRoute = AppSuperadminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -853,7 +883,12 @@ export interface FileRoutesByFullPath {
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
+  '/superadmin/backups': typeof AppSuperadminBackupsRoute
+  '/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
+  '/superadmin/security': typeof AppSuperadminSecurityRoute
+  '/superadmin/settings': typeof AppSuperadminSettingsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
@@ -974,7 +1009,12 @@ export interface FileRoutesByTo {
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
+  '/superadmin/backups': typeof AppSuperadminBackupsRoute
+  '/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
+  '/superadmin/security': typeof AppSuperadminSecurityRoute
+  '/superadmin/settings': typeof AppSuperadminSettingsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
   '/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/tax/gtgt': typeof AppTaxGtgtRoute
@@ -1103,7 +1143,12 @@ export interface FileRoutesById {
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/_app/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
+  '/_app/superadmin/backups': typeof AppSuperadminBackupsRoute
+  '/_app/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/_app/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
+  '/_app/superadmin/security': typeof AppSuperadminSecurityRoute
+  '/_app/superadmin/settings': typeof AppSuperadminSettingsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
   '/_app/suppliers/groups': typeof AppSuppliersGroupsRoute
   '/_app/tax/gtgt': typeof AppTaxGtgtRoute
@@ -1232,7 +1277,12 @@ export interface FileRouteTypes {
     | '/superadmin/accounts'
     | '/superadmin/ai-model'
     | '/superadmin/audit'
+    | '/superadmin/backups'
+    | '/superadmin/billing'
+    | '/superadmin/jobs'
     | '/superadmin/organizations'
+    | '/superadmin/security'
+    | '/superadmin/settings'
     | '/suppliers/$id'
     | '/suppliers/groups'
     | '/tax/gtgt'
@@ -1353,7 +1403,12 @@ export interface FileRouteTypes {
     | '/superadmin/accounts'
     | '/superadmin/ai-model'
     | '/superadmin/audit'
+    | '/superadmin/backups'
+    | '/superadmin/billing'
+    | '/superadmin/jobs'
     | '/superadmin/organizations'
+    | '/superadmin/security'
+    | '/superadmin/settings'
     | '/suppliers/$id'
     | '/suppliers/groups'
     | '/tax/gtgt'
@@ -1481,7 +1536,12 @@ export interface FileRouteTypes {
     | '/_app/superadmin/accounts'
     | '/_app/superadmin/ai-model'
     | '/_app/superadmin/audit'
+    | '/_app/superadmin/backups'
+    | '/_app/superadmin/billing'
+    | '/_app/superadmin/jobs'
     | '/_app/superadmin/organizations'
+    | '/_app/superadmin/security'
+    | '/_app/superadmin/settings'
     | '/_app/suppliers/$id'
     | '/_app/suppliers/groups'
     | '/_app/tax/gtgt'
@@ -1853,11 +1913,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuppliersIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/superadmin/settings': {
+      id: '/_app/superadmin/settings'
+      path: '/settings'
+      fullPath: '/superadmin/settings'
+      preLoaderRoute: typeof AppSuperadminSettingsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/security': {
+      id: '/_app/superadmin/security'
+      path: '/security'
+      fullPath: '/superadmin/security'
+      preLoaderRoute: typeof AppSuperadminSecurityRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
     '/_app/superadmin/organizations': {
       id: '/_app/superadmin/organizations'
       path: '/organizations'
       fullPath: '/superadmin/organizations'
       preLoaderRoute: typeof AppSuperadminOrganizationsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/jobs': {
+      id: '/_app/superadmin/jobs'
+      path: '/jobs'
+      fullPath: '/superadmin/jobs'
+      preLoaderRoute: typeof AppSuperadminJobsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/billing': {
+      id: '/_app/superadmin/billing'
+      path: '/billing'
+      fullPath: '/superadmin/billing'
+      preLoaderRoute: typeof AppSuperadminBillingRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/backups': {
+      id: '/_app/superadmin/backups'
+      path: '/backups'
+      fullPath: '/superadmin/backups'
+      preLoaderRoute: typeof AppSuperadminBackupsRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
     '/_app/superadmin/audit': {
@@ -2530,7 +2625,12 @@ interface AppSuperadminRouteChildren {
   AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
   AppSuperadminAiModelRoute: typeof AppSuperadminAiModelRoute
   AppSuperadminAuditRoute: typeof AppSuperadminAuditRoute
+  AppSuperadminBackupsRoute: typeof AppSuperadminBackupsRoute
+  AppSuperadminBillingRoute: typeof AppSuperadminBillingRoute
+  AppSuperadminJobsRoute: typeof AppSuperadminJobsRoute
   AppSuperadminOrganizationsRoute: typeof AppSuperadminOrganizationsRoute
+  AppSuperadminSecurityRoute: typeof AppSuperadminSecurityRoute
+  AppSuperadminSettingsRoute: typeof AppSuperadminSettingsRoute
   AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
   AppSuperadminTenantIdRoute: typeof AppSuperadminTenantIdRoute
 }
@@ -2539,7 +2639,12 @@ const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
   AppSuperadminAiModelRoute: AppSuperadminAiModelRoute,
   AppSuperadminAuditRoute: AppSuperadminAuditRoute,
+  AppSuperadminBackupsRoute: AppSuperadminBackupsRoute,
+  AppSuperadminBillingRoute: AppSuperadminBillingRoute,
+  AppSuperadminJobsRoute: AppSuperadminJobsRoute,
   AppSuperadminOrganizationsRoute: AppSuperadminOrganizationsRoute,
+  AppSuperadminSecurityRoute: AppSuperadminSecurityRoute,
+  AppSuperadminSettingsRoute: AppSuperadminSettingsRoute,
   AppSuperadminIndexRoute: AppSuperadminIndexRoute,
   AppSuperadminTenantIdRoute: AppSuperadminTenantIdRoute,
 }
