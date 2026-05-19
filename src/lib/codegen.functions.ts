@@ -20,8 +20,8 @@ export type CodeEntity =
   | "allocated_asset";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets";
-  column: "invoice_no" | "code" | "voucher_no";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets" | "sales_orders";
+  column: "invoice_no" | "code" | "voucher_no" | "order_no";
   prefix: string;
   dateScoped: boolean;
   padLen: number;
