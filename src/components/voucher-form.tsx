@@ -303,7 +303,6 @@ export function VoucherFormDialog({
                 <AccountCombobox
                   value={counterAccount}
                   onChange={setCounterAccount}
-                  coa={coa ?? []}
                   suggestions={isReceipt ? COMMON_RECEIPT_ACCOUNTS : COMMON_PAYMENT_ACCOUNTS}
                 />
               </Field>
