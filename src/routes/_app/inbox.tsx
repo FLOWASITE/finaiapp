@@ -1026,13 +1026,34 @@ const SKELETON_VARIANTS: ReadonlyArray<SkeletonVariant> = [
   { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: null },
 ];
 
+/**
+ * Cache mảng pills theo số lượng — tham chiếu ổn định, dùng chung cho mọi
+ * SkeletonRow có cùng `proposalCount` và xuyên suốt mọi lần render.
+ * Vì pill chỉ khác nhau ở key (index), ta cache luôn JSX đã build sẵn.
+ */
+const PILL_CACHE = new Map<number, React.ReactNode>();
+function getPills(count: number): React.ReactNode {
+  if (count <= 0) return null;
+  const cached = PILL_CACHE.get(count);
+  if (cached) return cached;
+  const node = (
+    <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
+      {Array.from({ length: count }, (_, j) => (
+        <div key={j} className="skeleton-block h-3 w-20" />
+      ))}
+    </div>
+  );
+  PILL_CACHE.set(count, node);
+  return node;
+}
+
 /** Một dòng skeleton — memo theo `variant` (object tham chiếu ổn định ở module scope). */
 const SkeletonRow = memo(function SkeletonRow({
   variant,
 }: {
   variant: SkeletonVariant;
 }) {
-  const pills = variant.proposalCount ?? 0;
+  const pills = getPills(variant.proposalCount ?? 0);
   return (
     <li className="skeleton-card rounded-lg border border-border/50 bg-card">
       <span className={cn("absolute inset-y-0 left-0 w-1", variant.rail)} />
@@ -1051,14 +1072,8 @@ const SkeletonRow = memo(function SkeletonRow({
         </div>
         {/* Row 3: memo */}
         {variant.hasMemo && <div className="skeleton-block mt-1.5 h-3 w-3/4" />}
-        {/* Row 4: proposal pills */}
-        {pills > 0 && (
-          <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
-            {Array.from({ length: pills }).map((_, j) => (
-              <div key={j} className="skeleton-block h-3 w-20" />
-            ))}
-          </div>
-        )}
+        {/* Row 4: proposal pills (cache theo count) */}
+        {pills}
         {/* Row 5: blocker / followup */}
         {variant.extra === "blocker" && (
           <div className="skeleton-block mt-2 h-7 w-full border border-rose-500/20 bg-rose-500/5" />
@@ -1070,6 +1085,7 @@ const SkeletonRow = memo(function SkeletonRow({
     </li>
   );
 });
+
 
 /** Khung danh sách skeleton — memo hoá vì props rỗng, không re-render khi parent đổi tab. */
 const ListSkeleton = memo(function ListSkeleton() {
