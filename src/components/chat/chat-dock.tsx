@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { History, Sparkles } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { createThread, appendMessage } from "@/lib/chat-threads.functions";
+
+function currentThreadId(pathname: string): string | null {
+  const m = pathname.match(/^\/chat\/([^/]+)$/);
+  return m ? m[1] : null;
+}
 
 /**
  * Khung chat dock ở footer các trang trong Mode AI.
