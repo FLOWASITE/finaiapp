@@ -47,6 +47,7 @@ type Row = {
 };
 
 function ImportStatementPage() {
+  const qc = useQueryClient();
   const accountsFn = useServerFn(listBankAccounts);
   const postFn = useServerFn(importAndPostStatement);
   const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: accountsFn });
