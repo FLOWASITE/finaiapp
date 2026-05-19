@@ -876,16 +876,33 @@ function ModelField({
     return list;
   }, [models, onlyFree, search]);
 
-  // Group by provider prefix (openai/, google/, anthropic/...)
+  // Group by provider prefix with curated order + labels
   const grouped = useMemo(() => {
     const groups = new Map<string, ModelOption[]>();
     for (const m of filtered) {
-      const provider = m.id.includes("/") ? m.id.split("/")[0] : "other";
+      const provider = m.id.includes("/") ? m.id.split("/")[0].toLowerCase() : "other";
       if (!groups.has(provider)) groups.set(provider, []);
       groups.get(provider)!.push(m);
     }
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Sort models within each provider by id
+    for (const list of groups.values()) {
+      list.sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const order = [
+      "openai", "anthropic", "google", "x-ai", "meta-llama",
+      "mistralai", "deepseek", "qwen", "alibaba", "cohere",
+      "perplexity", "nvidia", "microsoft",
+    ];
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
   }, [filtered]);
+
 
   const selected = models.find((m) => m.id === value);
   const noModelsLoaded = models.length === 0;
