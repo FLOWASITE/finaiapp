@@ -575,7 +575,7 @@ function InboxAiPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition",
+              "relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition lg:px-4 lg:py-3",
               tab === t.key
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
