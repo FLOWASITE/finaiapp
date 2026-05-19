@@ -1,66 +1,52 @@
-# Daily Digest tự động trong ChatDock
-
-## Tóm tắt
-Mỗi ngày vào giờ user cấu hình, hệ thống tự tạo 1 tin nhắn `assistant` trong thread "📅 Daily Digest" (cố định mỗi user), tổng hợp:
-- Cảnh báo AI (AR/AP/tồn kho) từ `ai_insights`
-- KPI hôm qua (doanh thu, thu/chi, số HĐ)
-- Hoá đơn nhận trong inbox chưa xử lý
-
-ChatDock hiện badge số digest chưa đọc. User tự bật/tắt trong Settings.
+# Cho phép chọn mẫu Daily Digest (ngắn / tiêu chuẩn / chi tiết)
 
 ## Database
 
-### `user_digest_prefs` (mới)
-- `user_id` (PK, FK auth.users)
-- `tenant_id` (FK tenants) — digest theo từng tenant active
-- `enabled` bool default true
-- `send_hour` int (0-23) default 8 — giờ VN
-- `last_sent_date` date — chống gửi trùng
-- RLS: user chỉ đọc/sửa của chính mình
+Migration: thêm cột `template` vào `user_digest_prefs`.
 
-### Cột mới trên `chat_messages`
-- thêm `metadata.kind = 'daily_digest'` để filter (không đổi schema, dùng jsonb sẵn)
+```sql
+ALTER TABLE public.user_digest_prefs
+  ADD COLUMN template text NOT NULL DEFAULT 'standard'
+  CHECK (template IN ('short','standard','detailed'));
+```
 
-### Cột mới trên `chat_threads`
-- thêm constant `kind = 'digest'` (text đã free-form) — query 1 thread/user
+## Định nghĩa 3 mẫu
 
-## Server
+| Mẫu | Nội dung |
+|---|---|
+| **Ngắn** (`short`) | 1 dòng KPI chính (Doanh thu hôm qua + số HĐ), số cảnh báo & số inbox dưới dạng inline. Không emoji-heavy. ~3 dòng. |
+| **Tiêu chuẩn** (`standard`) | Như hiện tại: KPI 4 dòng, danh sách cảnh báo (≤5), inbox. |
+| **Chi tiết** (`detailed`) | Tiêu chuẩn + thêm: top 3 khách hàng có doanh thu hôm qua, top 3 NCC có chi hôm qua, công nợ AR/AP tổng hiện tại, số hợp đồng quá hạn, tất cả cảnh báo (≤10) kèm body. |
 
-### `src/routes/api/public/hooks/daily-digest.ts` (mới)
-- POST, bảo vệ bằng `apikey` header = anon key
-- Query `user_digest_prefs` WHERE `enabled=true AND last_sent_date < today AND send_hour <= current_hour_vn`
-- Với mỗi user:
-  1. Lấy ai_insights chưa dismissed của tenant
-  2. Query KPI hôm qua (sales_invoices, customer_receipts, supplier_payments)
-  3. Đếm inbox documents `status='uploaded'/'ai_read'`
-  4. Render markdown digest
-  5. Upsert thread `kind='digest'` (title "📅 Daily Digest"), insert message role=assistant với `metadata={kind:'daily_digest', date:today}`
-  6. Update `last_sent_date`
-- Dùng `supabaseAdmin` (bypass RLS)
+## Server changes
 
-### `src/lib/digest-prefs.functions.ts` (mới)
-`getDigestPrefs` / `updateDigestPrefs` — server fn cho Settings UI
+**`src/lib/digest-generator.server.ts`**
+- Nhận thêm tham số `template: 'short'|'standard'|'detailed'` (default `standard`).
+- Tách `buildMarkdown(template, data)` thành 3 nhánh.
+- Với `detailed`: thêm các query — group theo `customer_id` từ `customer_receipts` + `sales_invoices` (top 3), tương tự `supplier_payments` (top 3), tổng `receivables`/`payables` (nếu có bảng tương ứng — fallback: tổng `sales_invoices.balance_due` & `invoices.balance_due`).
 
-### pg_cron (qua `supabase--insert`)
-- Schedule mỗi giờ: `0 * * * *` → POST hook (mỗi user chỉ gửi 1 lần/ngày khi đến giờ)
+**`src/lib/digest-prefs.functions.ts`**
+- `DigestPrefs` thêm `template`.
+- `getDigestPrefs` select thêm cột.
+- `updateDigestPrefs` zod schema thêm `template: z.enum(['short','standard','detailed']).optional()`.
+- `sendDigestNow` đọc `template` từ prefs và truyền vào `generateAndPostDigest`.
 
-## Frontend
+**`src/routes/api/public/hooks/daily-digest.ts`**
+- Đọc cột `template` cùng các prefs khác; truyền vào generator.
 
-### `src/routes/_app/settings/index.tsx` (sửa)
-Thêm card "Daily Digest":
-- Switch bật/tắt
-- Select giờ gửi (6-12h)
-- Nút "Gửi thử ngay"
+## UI changes
 
-### `src/components/chat/chat-dock.tsx` (sửa)
-- Badge đỏ trên icon dock = đếm message có `metadata.kind='daily_digest'` và `created_at > last_seen_digest_at` (lưu localStorage)
-- Khi mở dock, clear badge
+**`src/components/settings/digest-settings-card.tsx`**
+- Thêm 1 dòng "Mẫu nội dung" với `Select` 3 lựa chọn:
+  - Ngắn — "1 dòng tóm tắt KPI"
+  - Tiêu chuẩn — "KPI + cảnh báo + inbox"
+  - Chi tiết — "Thêm top KH/NCC + công nợ"
+- Disable khi `!enabled`. onChange → `updateMut.mutate({ template })`.
+- Nút "Gửi thử ngay" sẽ dùng mẫu đã chọn.
 
-### `src/components/chat/thread-list.tsx` (sửa)
-- Thread digest pin lên đầu với icon 📅 và label đặc biệt
+## Kiểm thử
 
-## Test
-1. Bật digest 8h → chờ cron / gọi tay endpoint → thấy thread "Daily Digest" với markdown đầy đủ 3 section
-2. Gọi 2 lần cùng ngày → chỉ 1 message (idempotent qua `last_sent_date`)
-3. Badge ChatDock hiển thị "1", mở dock → tắt
-4. Tắt switch → cron skip user đó
+1. Chọn "Ngắn" → Gửi thử → message chỉ ~3 dòng.
+2. Chọn "Chi tiết" → Gửi thử → có sections "Top khách hàng", "Top NCC", "Công nợ".
+3. Đổi mẫu → lưu → cron job lần kế tiếp dùng đúng mẫu mới.
+4. Mẫu mặc định cho user cũ = `standard` (không vỡ).

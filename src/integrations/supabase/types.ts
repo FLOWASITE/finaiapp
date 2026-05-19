@@ -6191,6 +6191,7 @@ export type Database = {
           enabled: boolean
           last_sent_date: string | null
           send_hour: number
+          template: string
           tenant_id: string
           updated_at: string
           user_id: string
@@ -6200,6 +6201,7 @@ export type Database = {
           enabled?: boolean
           last_sent_date?: string | null
           send_hour?: number
+          template?: string
           tenant_id: string
           updated_at?: string
           user_id: string
@@ -6209,6 +6211,7 @@ export type Database = {
           enabled?: boolean
           last_sent_date?: string | null
           send_hour?: number
+          template?: string
           tenant_id?: string
           updated_at?: string
           user_id?: string
