@@ -231,6 +231,15 @@ export function PartnersTab() {
               ))}
             </div>
             <div className="mt-3 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7"
+                onClick={() => setUsedWhere(p)}
+              >
+                <History className="mr-1 h-3.5 w-3.5" />
+                Dùng ở đâu
+              </Button>
               <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(p)}>
                 <Pencil className="mr-1 h-3.5 w-3.5" />
                 Sửa
@@ -260,6 +269,13 @@ export function PartnersTab() {
           setCreating(false);
           setEditing(null);
         }}
+      />
+      <SourceAppliedSheet
+        open={!!usedWhere}
+        onOpenChange={(o) => !o && setUsedWhere(null)}
+        sourceKind="partner"
+        sourceId={usedWhere?.id ?? null}
+        sourceLabel={usedWhere?.display_name ?? ""}
       />
     </>
   );
