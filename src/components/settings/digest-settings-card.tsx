@@ -107,6 +107,37 @@ export function DigestSettingsCard() {
           </Select>
         </div>
 
+        <div className="flex items-center justify-between rounded-lg border p-3">
+          <div>
+            <Label className="font-medium">Mẫu nội dung</Label>
+            <p className="text-xs text-muted-foreground">
+              {data?.template === "short"
+                ? "1 dòng tóm tắt KPI"
+                : data?.template === "detailed"
+                ? "Thêm top KH/NCC + công nợ AR/AP"
+                : "KPI + cảnh báo + inbox"}
+            </p>
+          </div>
+          <Select
+            value={data?.template ?? "standard"}
+            disabled={isLoading || !data?.enabled || updateMut.isPending}
+            onValueChange={(v) =>
+              updateMut.mutate({ template: v as "short" | "standard" | "detailed" })
+            }
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="short">Ngắn</SelectItem>
+              <SelectItem value="standard">Tiêu chuẩn</SelectItem>
+              <SelectItem value="detailed">Chi tiết</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+
+
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             {data?.last_sent_date
