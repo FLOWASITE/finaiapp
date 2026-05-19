@@ -1118,6 +1118,46 @@ function ModelField({
                 onValueChange={setSearch}
                 placeholder={`Tìm trong ${models.length || SUGGESTED_MODELS.length} model…`}
               />
+              {allProviders.length > 1 && (
+                <div className="flex flex-wrap gap-1 border-b px-2 py-1.5 bg-muted/30">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setProviderFilter("all"); }}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded border transition-colors",
+                      providerFilter === "all"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:bg-muted border-border",
+                    )}
+                  >
+                    Tất cả
+                  </button>
+                  {allProviders.map(([p, count]) => {
+                    const meta = providerMeta(p);
+                    const active = providerFilter === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); setProviderFilter(p); }}
+                        className={cn(
+                          "text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1",
+                          active
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted border-border",
+                        )}
+                      >
+                        <span className={cn("flex h-3.5 w-3.5 items-center justify-center rounded text-[8px] font-semibold", active ? "bg-primary-foreground/20" : meta.color)}>
+                          {meta.logo}
+                        </span>
+                        {meta.label}
+                        <span className="opacity-60">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
                 {grouped.map(([provider, list]) => {
