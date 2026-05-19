@@ -97,29 +97,71 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   const buckets = query.data ? bucketize(query.data) : [];
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-border/40 bg-background/40 backdrop-blur-sm">
-      <div className="border-b border-border/40 px-4 py-4">
-        <div className="mb-3 flex items-center gap-2">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-primary-foreground shadow-sm"
-            style={{ background: "var(--gradient-ai)" }}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
+    <aside
+      className={cn(
+        "flex h-full shrink-0 flex-col border-r border-border/40 bg-background/40 backdrop-blur-sm transition-[width] duration-200",
+        collapsed ? "w-14" : "w-72",
+      )}
+    >
+      <div className="border-b border-border/40 px-3 py-4">
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggle}
+              title="Mở lịch sử (Cmd+\\)"
+              aria-label="Mở lịch sử"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onNew}
+              title="Cuộc trò chuyện mới"
+              aria-label="Cuộc trò chuyện mới"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-primary/30 bg-primary/[0.04] text-primary hover:border-primary/50 hover:bg-primary/[0.08]"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight">Trợ lý kế toán</div>
-            <div className="text-[10px] text-muted-foreground">AI assistant</div>
-          </div>
-        </div>
-        <Button
-          onClick={onNew}
-          className="w-full justify-start gap-2 rounded-xl border-dashed border-primary/30 bg-primary/[0.04] text-foreground hover:border-primary/50 hover:bg-primary/[0.08]"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4 text-primary" />
-          Cuộc trò chuyện mới
-        </Button>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-primary-foreground shadow-sm"
+                style={{ background: "var(--gradient-ai)" }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold leading-tight">Trợ lý kế toán</div>
+                <div className="text-[10px] text-muted-foreground">AI assistant</div>
+              </div>
+              {onToggle && (
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  title="Ẩn lịch sử (Cmd+\\)"
+                  aria-label="Ẩn lịch sử"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              onClick={onNew}
+              className="w-full justify-start gap-2 rounded-xl border-dashed border-primary/30 bg-primary/[0.04] text-foreground hover:border-primary/50 hover:bg-primary/[0.08]"
+              variant="outline"
+            >
+              <Plus className="h-4 w-4 text-primary" />
+              Cuộc trò chuyện mới
+            </Button>
+          </>
+        )}
       </div>
+      {!collapsed && (
       <div className="chat-scroll flex-1 overflow-auto px-2 py-3">
         {query.isLoading && (
           <div className="px-2 py-4 text-xs text-muted-foreground">Đang tải…</div>
