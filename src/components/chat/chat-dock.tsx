@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles, MessageSquare, Plus } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -202,6 +202,22 @@ export function ChatDock() {
               inputRef={inputRef}
             />
           </div>
+          {input.trim() && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setInput("");
+                inputRef.current?.focus();
+                toast.success("Đã xoá bản nháp");
+              }}
+              className="h-11 w-11 shrink-0 rounded-xl border-white/10 bg-background/70 backdrop-blur-xl"
+              title="Xoá bản nháp"
+              aria-label="Xoá bản nháp"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
           <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
             <PopoverTrigger asChild>
               <Button
