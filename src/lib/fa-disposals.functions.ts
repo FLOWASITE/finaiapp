@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import { assertPeriodOpen } from "@/lib/period-lock";
 import { z } from "zod";
+
 
 const DisposalInput = z.object({
   asset_id: z.string().uuid(),
