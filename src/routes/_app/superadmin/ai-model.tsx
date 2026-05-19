@@ -119,6 +119,32 @@ const ALIBABA_PRESETS = {
   },
 } as const;
 
+const PROVIDER_META: Record<string, { label: string; logo: string; color: string }> = {
+  openai: { label: "OpenAI", logo: "AI", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  anthropic: { label: "Anthropic (Claude)", logo: "AN", color: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
+  google: { label: "Google (Gemini)", logo: "G", color: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
+  "x-ai": { label: "xAI (Grok)", logo: "X", color: "bg-slate-700/15 text-slate-800 dark:text-slate-200" },
+  "meta-llama": { label: "Meta (Llama)", logo: "M", color: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+  mistralai: { label: "Mistral", logo: "MI", color: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  deepseek: { label: "DeepSeek", logo: "DS", color: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  qwen: { label: "Qwen", logo: "通", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  alibaba: { label: "Alibaba", logo: "阿", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  cohere: { label: "Cohere", logo: "CO", color: "bg-pink-500/15 text-pink-700 dark:text-pink-300" },
+  perplexity: { label: "Perplexity", logo: "PX", color: "bg-teal-500/15 text-teal-700 dark:text-teal-300" },
+  nvidia: { label: "NVIDIA", logo: "NV", color: "bg-green-500/15 text-green-700 dark:text-green-300" },
+  microsoft: { label: "Microsoft", logo: "MS", color: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" },
+};
+
+function providerMeta(p: string) {
+  return (
+    PROVIDER_META[p] ?? {
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      logo: p.slice(0, 2).toUpperCase(),
+      color: "bg-muted text-muted-foreground",
+    }
+  );
+}
+
 function hostFromUrl(u: string): string | null {
   try {
     return new URL(u).host;
@@ -876,16 +902,33 @@ function ModelField({
     return list;
   }, [models, onlyFree, search]);
 
-  // Group by provider prefix (openai/, google/, anthropic/...)
+  // Group by provider prefix with curated order + labels
   const grouped = useMemo(() => {
     const groups = new Map<string, ModelOption[]>();
     for (const m of filtered) {
-      const provider = m.id.includes("/") ? m.id.split("/")[0] : "other";
+      const provider = m.id.includes("/") ? m.id.split("/")[0].toLowerCase() : "other";
       if (!groups.has(provider)) groups.set(provider, []);
       groups.get(provider)!.push(m);
     }
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Sort models within each provider by id
+    for (const list of groups.values()) {
+      list.sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const order = [
+      "openai", "anthropic", "google", "x-ai", "meta-llama",
+      "mistralai", "deepseek", "qwen", "alibaba", "cohere",
+      "perplexity", "nvidia", "microsoft",
+    ];
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
   }, [filtered]);
+
 
   const selected = models.find((m) => m.id === value);
   const noModelsLoaded = models.length === 0;
@@ -975,10 +1018,29 @@ function ModelField({
               <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
-                {grouped.map(([provider, list]) => (
+                {grouped.map(([provider, list]) => {
+                  const meta = providerMeta(provider);
+                  return (
                   <CommandGroup
                     key={provider}
-                    heading={`${provider} · ${list.length}`}
+                    heading={
+                      <div className="flex items-center gap-2 py-0.5">
+                        <span
+                          className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold shrink-0",
+                            meta.color,
+                          )}
+                        >
+                          {meta.logo}
+                        </span>
+                        <span className="text-[11px] font-semibold tracking-wide text-foreground">
+                          {meta.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {list.length} model
+                        </span>
+                      </div>
+                    }
                   >
                     {list.map((m) => {
                       const isSel = value === m.id;
@@ -1033,7 +1095,8 @@ function ModelField({
                       );
                     })}
                   </CommandGroup>
-                ))}
+                  );
+                })}
               </CommandList>
             </Command>
           </PopoverContent>
