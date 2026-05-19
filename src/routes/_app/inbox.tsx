@@ -209,7 +209,14 @@ function InboxAiPage() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* LEFT HALF — Chatbot */}
+      <aside className="hidden h-full w-1/2 shrink-0 border-r border-border/40 md:flex md:flex-col">
+        <InboxChatPanel />
+      </aside>
+
+      {/* RIGHT HALF — Inbox */}
+      <div className="flex h-full min-w-0 flex-1 flex-col bg-gradient-to-b from-background via-background to-muted/10">
       {/* Top header */}
       <header className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3.5">
         <Link
