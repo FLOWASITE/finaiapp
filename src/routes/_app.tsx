@@ -24,7 +24,8 @@ function AppLayout() {
   const { workspace } = useWorkspace();
   const location = useLocation();
   const onChatRoute = location.pathname.startsWith("/chat");
-  const showDock = workspace === "front" && !onChatRoute;
+  const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
+  const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute;
 
   return (
     <SidebarProvider>
