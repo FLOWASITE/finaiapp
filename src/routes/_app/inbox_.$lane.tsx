@@ -232,13 +232,16 @@ function LaneDetailPage() {
           </Select>
         )}
         {config.filters.ranges.length > 1 && (
-          <Select value={rangeFilter} onValueChange={setRangeFilter}>
+          <Select
+            value={rangeFilter || "__all__"}
+            onValueChange={(v) => setRangeFilter(v === "__all__" ? "" : v)}
+          >
             <SelectTrigger className="h-9 w-[160px]">
               <SelectValue placeholder="Khoảng thời gian" />
             </SelectTrigger>
             <SelectContent>
               {config.filters.ranges.map((r) => (
-                <SelectItem key={r || "all"} value={r}>
+                <SelectItem key={r || "__all__"} value={r || "__all__"}>
                   {r || "Tất cả"}
                 </SelectItem>
               ))}
