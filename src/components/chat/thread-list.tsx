@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, Sparkles, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, Sparkles, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -22,6 +23,8 @@ import {
   listThreads,
   renameThread,
   deleteThread,
+  setThreadPinned,
+  setThreadStarred,
   type ChatThread,
 } from "@/lib/chat-threads.functions";
 import { cn } from "@/lib/utils";
