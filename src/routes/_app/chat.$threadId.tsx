@@ -247,6 +247,12 @@ function ThreadPage() {
     if (!q || streaming) return;
     const next: ChatMsg[] = [...messages, { role: "user", content: q }];
     setLocalMsgs(next);
+    const metaAttachments = attachments?.map((a) => ({
+      name: a.name,
+      mime: a.mime,
+      size: a.size,
+      kind: a.kind,
+    }));
     try {
       await appendFn({
         data: {
@@ -254,14 +260,16 @@ function ThreadPage() {
           role: "user",
           content: q,
           updateTitleIfBlank: true,
-          metadata: attachments ? { attachments } : undefined,
+          metadata: metaAttachments ? { attachments: metaAttachments } : undefined,
         },
       });
     } catch (e: any) {
       toast.error(e?.message || "Không gửi được");
       return;
     }
-    runAssistant(next, attachments);
+    // Only forward attachments with base64 to the LLM stream.
+    const withBase64 = attachments?.filter((a) => typeof a.base64 === "string" && a.base64);
+    runAssistant(next, withBase64 && withBase64.length ? withBase64 : undefined);
   };
 
   const send = async () => {
