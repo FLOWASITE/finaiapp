@@ -84,7 +84,7 @@ function ThreadPage() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         try {
-          sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
+          localStorage.setItem(SCROLL_KEY, String(el.scrollTop));
         } catch {}
         const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
         const near = dist < 120;
