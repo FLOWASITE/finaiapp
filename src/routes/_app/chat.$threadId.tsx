@@ -117,7 +117,10 @@ function ThreadPage() {
       el.scrollTop = el.scrollHeight;
       return;
     }
-    // Subsequent updates: only stick to bottom if user is already near it.
+    // Subsequent updates: keep position stable during streaming so growing
+    // content doesn't push the view. Only auto-stick when not streaming and
+    // the user is already near the bottom (e.g. after sending a new message).
+    if (streaming) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distanceFromBottom < 120) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
