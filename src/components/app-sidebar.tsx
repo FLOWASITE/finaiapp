@@ -644,6 +644,17 @@ export function AppSidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Hồ sơ</DropdownMenuItem>
               <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Cài đặt</DropdownMenuItem>
+              {isSuperadmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/superadmin" className="cursor-pointer">
+                      <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
+                      Super Admin
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme(); }}>
                 {theme === "dark" ? (
                   <><Sun className="mr-2 h-4 w-4" />Chế độ sáng</>
