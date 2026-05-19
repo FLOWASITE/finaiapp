@@ -426,7 +426,7 @@ function AiModelPage() {
             logoBg="bg-orange-500/15 text-orange-600 dark:text-orange-400"
             title="Alibaba Qwen"
             description="Qwen-plus / max / vl / qwq · DashScope."
-            meta={["Không cần extra headers", "Chọn region"]}
+            meta={[]}
             keyHref="https://bailian.console.alibabacloud.com/?apiKey=1"
             action={
               <div className="inline-flex w-full overflow-hidden rounded-md border">
