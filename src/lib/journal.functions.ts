@@ -42,8 +42,7 @@ export const suggestJournalEntry = createServerFn({ method: "POST" })
   .inputValidator((input: { invoiceId: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Thiếu LOVABLE_API_KEY");
+    const { model } = await resolveActiveModel("reasoning", "google/gemini-3-flash-preview");
 
     const { data: invoice, error } = await supabase
       .from("invoices")
@@ -70,9 +69,6 @@ export const suggestJournalEntry = createServerFn({ method: "POST" })
       recent && recent.length > 0
         ? `\n\nMột số bút toán gần đây của user này (làm tham khảo phong cách):\n${JSON.stringify(recent, null, 2)}`
         : "";
-
-    const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
 
     const { experimental_output } = await generateText({
       model,
