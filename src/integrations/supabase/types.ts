@@ -4045,6 +4045,7 @@ export type Database = {
           pre_vat_amount: number
           product_id: string | null
           qty: number
+          sales_order_line_id: string | null
           unit_price: number
           vat_code: string
           vat_rate: number
@@ -4060,6 +4061,7 @@ export type Database = {
           pre_vat_amount?: number
           product_id?: string | null
           qty?: number
+          sales_order_line_id?: string | null
           unit_price?: number
           vat_code?: string
           vat_rate?: number
@@ -4075,6 +4077,7 @@ export type Database = {
           pre_vat_amount?: number
           product_id?: string | null
           qty?: number
+          sales_order_line_id?: string | null
           unit_price?: number
           vat_code?: string
           vat_rate?: number
@@ -4092,6 +4095,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_lines_sales_order_line_id_fkey"
+            columns: ["sales_order_line_id"]
+            isOneToOne: false
+            referencedRelation: "sales_order_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -4266,6 +4276,232 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_order_lines: {
+        Row: {
+          amount: number
+          description: string
+          discount_amount: number
+          discount_percent: number
+          id: string
+          line_no: number
+          notes: string | null
+          order_id: string
+          pre_vat_amount: number
+          product_id: string | null
+          qty_delivered: number
+          qty_ordered: number
+          unit: string | null
+          unit_price: number
+          vat_amount: number
+          vat_rate: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          amount?: number
+          description: string
+          discount_amount?: number
+          discount_percent?: number
+          id?: string
+          line_no?: number
+          notes?: string | null
+          order_id: string
+          pre_vat_amount?: number
+          product_id?: string | null
+          qty_delivered?: number
+          qty_ordered?: number
+          unit?: string | null
+          unit_price?: number
+          vat_amount?: number
+          vat_rate?: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          amount?: number
+          description?: string
+          discount_amount?: number
+          discount_percent?: number
+          id?: string
+          line_no?: number
+          notes?: string | null
+          order_id?: string
+          pre_vat_amount?: number
+          product_id?: string | null
+          qty_delivered?: number
+          qty_ordered?: number
+          unit?: string | null
+          unit_price?: number
+          vat_amount?: number
+          vat_rate?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_orders: {
+        Row: {
+          billing_address: string | null
+          branch_id: string | null
+          cancel_reason: string | null
+          closed_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          cost_center_id: string | null
+          created_at: string
+          currency: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_id: string | null
+          department_id: string | null
+          discount_amount: number
+          expected_delivery_date: string | null
+          fx_rate: number
+          id: string
+          internal_notes: string | null
+          notes: string | null
+          order_date: string
+          order_no: string
+          payment_terms_days: number | null
+          project_id: string | null
+          salesperson_id: string | null
+          ship_address: string | null
+          status: string
+          subtotal: number
+          tenant_id: string | null
+          total: number
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+          vat_amount: number
+        }
+        Insert: {
+          billing_address?: string | null
+          branch_id?: string | null
+          cancel_reason?: string | null
+          closed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          department_id?: string | null
+          discount_amount?: number
+          expected_delivery_date?: string | null
+          fx_rate?: number
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          order_date?: string
+          order_no: string
+          payment_terms_days?: number | null
+          project_id?: string | null
+          salesperson_id?: string | null
+          ship_address?: string | null
+          status?: string
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+          vat_amount?: number
+        }
+        Update: {
+          billing_address?: string | null
+          branch_id?: string | null
+          cancel_reason?: string | null
+          closed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          department_id?: string | null
+          discount_amount?: number
+          expected_delivery_date?: string | null
+          fx_rate?: number
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          order_date?: string
+          order_no?: string
+          payment_terms_days?: number | null
+          project_id?: string | null
+          salesperson_id?: string | null
+          ship_address?: string | null
+          status?: string
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -5384,6 +5620,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_report_mvs: { Args: { p_tenant?: string }; Returns: undefined }
+      refresh_sales_order_progress: {
+        Args: { p_line_id: string }
+        Returns: undefined
+      }
       transition_document_status: {
         Args: {
           p_id: string
