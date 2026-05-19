@@ -1005,21 +1005,72 @@ function EmptyTab({ label }: { label: string }) {
 }
 
 
-function ListSkeleton() {
-  // Khớp bố cục thật của ItemCard: rail trái + 5 hàng có thể có (pill/meta, title+amount, memo, proposal pills, blocker/followup)
-  const variants: Array<{
-    rail: string;
-    hasMemo?: boolean;
-    proposalCount?: number;
-    extra?: "blocker" | "followup" | null;
-  }> = [
-    { rail: "bg-emerald-500/40", proposalCount: 3, extra: null },        // invoice tin cậy cao
-    { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: "followup" }, // bank statement medium
-    { rail: "bg-emerald-500/40", proposalCount: 4, extra: null },        // einvoice high
-    { rail: "bg-rose-500/40", extra: "blocker" },                        // blocker (không có proposal)
-    { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: null }, // bank statement
-  ];
+/**
+ * Biến thể skeleton: hằng số module-level → tham chiếu ổn định, không re-tạo
+ * mỗi lần ListSkeleton render hay khi đổi tab.
+ */
+type SkeletonVariant = {
+  rail: string;
+  hasMemo?: boolean;
+  proposalCount?: number;
+  extra?: "blocker" | "followup" | null;
+};
 
+const SKELETON_VARIANTS: ReadonlyArray<SkeletonVariant> = [
+  { rail: "bg-emerald-500/40", proposalCount: 3, extra: null },
+  { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: "followup" },
+  { rail: "bg-emerald-500/40", proposalCount: 4, extra: null },
+  { rail: "bg-rose-500/40", extra: "blocker" },
+  { rail: "bg-amber-500/40", hasMemo: true, proposalCount: 2, extra: null },
+];
+
+/** Một dòng skeleton — memo theo `variant` (object tham chiếu ổn định ở module scope). */
+const SkeletonRow = React.memo(function SkeletonRow({
+  variant,
+}: {
+  variant: SkeletonVariant;
+}) {
+  const pills = variant.proposalCount ?? 0;
+  return (
+    <li className="skeleton-card rounded-lg border border-border/50 bg-card">
+      <span className={cn("absolute inset-y-0 left-0 w-1", variant.rail)} />
+      <div className="pl-4 pr-4 py-3">
+        {/* Row 1: pill + thời gian + dot */}
+        <div className="flex items-center gap-2">
+          <div className="skeleton-block h-4 w-20" />
+          <div className="skeleton-block h-3 w-12" />
+          <div className="skeleton-block h-3 w-24 hidden sm:block" />
+          <div className="skeleton-block ml-auto h-2 w-2 rounded-full" />
+        </div>
+        {/* Row 2: title + amount */}
+        <div className="mt-2 flex items-baseline justify-between gap-3">
+          <div className="skeleton-block h-4 w-2/3" />
+          <div className="skeleton-block h-4 w-24 shrink-0" />
+        </div>
+        {/* Row 3: memo */}
+        {variant.hasMemo && <div className="skeleton-block mt-1.5 h-3 w-3/4" />}
+        {/* Row 4: proposal pills */}
+        {pills > 0 && (
+          <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
+            {Array.from({ length: pills }).map((_, j) => (
+              <div key={j} className="skeleton-block h-3 w-20" />
+            ))}
+          </div>
+        )}
+        {/* Row 5: blocker / followup */}
+        {variant.extra === "blocker" && (
+          <div className="skeleton-block mt-2 h-7 w-full border border-rose-500/20 bg-rose-500/5" />
+        )}
+        {variant.extra === "followup" && (
+          <div className="skeleton-block mt-2 h-7 w-5/6 border border-amber-500/20 bg-amber-500/5" />
+        )}
+      </div>
+    </li>
+  );
+});
+
+/** Khung danh sách skeleton — memo hoá vì props rỗng, không re-render khi parent đổi tab. */
+const ListSkeleton = React.memo(function ListSkeleton() {
   return (
     <ul
       className="space-y-3 p-4"
@@ -1027,54 +1078,13 @@ function ListSkeleton() {
       aria-live="polite"
       aria-label={INBOX_COPY.loading}
     >
-
-      {variants.map((v, i) => (
-        <li
-          key={i}
-          className="skeleton-card rounded-lg border border-border/50 bg-card"
-        >
-          {/* rail */}
-          <span className={cn("absolute inset-y-0 left-0 w-1", v.rail)} />
-          <div className="pl-4 pr-4 py-3">
-            {/* Row 1: pill + thời gian + dot */}
-            <div className="flex items-center gap-2">
-              <div className="skeleton-block h-4 w-20" />
-              <div className="skeleton-block h-3 w-12" />
-              <div className="skeleton-block h-3 w-24 hidden sm:block" />
-              <div className="skeleton-block ml-auto h-2 w-2 rounded-full" />
-            </div>
-
-            {/* Row 2: title + amount */}
-            <div className="mt-2 flex items-baseline justify-between gap-3">
-              <div className="skeleton-block h-4 w-2/3" />
-              <div className="skeleton-block h-4 w-24 shrink-0" />
-            </div>
-
-            {/* Row 3: memo */}
-            {v.hasMemo && <div className="skeleton-block mt-1.5 h-3 w-3/4" />}
-
-            {/* Row 4: proposal pills */}
-            {v.proposalCount ? (
-              <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
-                {Array.from({ length: v.proposalCount }).map((_, j) => (
-                  <div key={j} className="skeleton-block h-3 w-20" />
-                ))}
-              </div>
-            ) : null}
-
-            {/* Row 5: blocker / followup */}
-            {v.extra === "blocker" && (
-              <div className="skeleton-block mt-2 h-7 w-full border border-rose-500/20 bg-rose-500/5" />
-            )}
-            {v.extra === "followup" && (
-              <div className="skeleton-block mt-2 h-7 w-5/6 border border-amber-500/20 bg-amber-500/5" />
-            )}
-          </div>
-        </li>
+      {SKELETON_VARIANTS.map((v, i) => (
+        <SkeletonRow key={i} variant={v} />
       ))}
     </ul>
   );
-}
+});
+
 
 
 /* ───────── Mobile Inbox overlay with swipe-right / pull-down to close ───────── */
