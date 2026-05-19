@@ -7,6 +7,8 @@ export type ChatThread = {
   title: string;
   last_message_at: string;
   created_at: string;
+  kind?: "general" | "inbox" | null;
+  inbox_external_id?: string | null;
 };
 
 export type ChatMessage = {
