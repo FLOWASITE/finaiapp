@@ -1,4 +1,5 @@
 import { LayoutGrid, BookOpenCheck } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,12 @@ import { cn } from "@/lib/utils";
  */
 export function WorkspaceSwitcher() {
   const { workspace, setWorkspace } = useWorkspace();
+  const navigate = useNavigate();
+  const switchTo = (next: "front" | "back") => {
+    if (workspace === next) return;
+    setWorkspace(next);
+    navigate({ to: next === "front" ? "/chat" : "/dashboard" });
+  };
   return (
     <div className="flex items-center gap-0.5 rounded-xl border border-white/5 bg-white/[0.03] p-0.5">
       <button
