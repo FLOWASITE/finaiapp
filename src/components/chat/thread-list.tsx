@@ -74,9 +74,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   const list = useServerFn(listThreads);
   const rename = useServerFn(renameThread);
   const del = useServerFn(deleteThread);
+  const pinFn = useServerFn(setThreadPinned);
+  const starFn = useServerFn(setThreadStarred);
   const qc = useQueryClient();
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
 
   const query = useQuery({
     queryKey: ["chat", "threads"],
@@ -101,12 +104,34 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
     mutationFn: (threadId: string) => del({ data: { threadId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
       toast.success("Đã xoá cuộc trò chuyện");
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi xoá"),
   });
 
-  const buckets = query.data ? bucketize(query.data) : [];
+  const pinMut = useMutation({
+    mutationFn: (v: { threadId: string; pinned: boolean }) => pinFn({ data: v }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
+      toast.success(v.pinned ? "Đã ghim" : "Đã bỏ ghim");
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi"),
+  });
+
+  const starMut = useMutation({
+    mutationFn: (v: { threadId: string; starred: boolean }) => starFn({ data: v }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
+      toast.success(v.starred ? "Đã đánh dấu sao" : "Đã bỏ sao");
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi"),
+  });
+
+  const filtered = (query.data ?? []).filter((t) => (showStarredOnly ? t.starred : true));
+  const buckets = bucketize(filtered);
 
   return (
     <aside
