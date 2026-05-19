@@ -25,7 +25,17 @@ function AppLayout() {
   const location = useLocation();
   const onChatRoute = location.pathname.startsWith("/chat");
   const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
-  const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute;
+  const chromeless = location.pathname === "/inbox";
+  const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
+
+  if (chromeless) {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-background">
+        <Outlet />
+        <CommandPalette />
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -52,3 +62,4 @@ function AppLayout() {
     </SidebarProvider>
   );
 }
+
