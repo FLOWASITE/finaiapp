@@ -19,8 +19,24 @@ function currentThreadId(pathname: string): string | null {
  * Khung chat dock ở footer các trang trong Mode AI.
  * Composer đã tích hợp sẵn Paperclip (parse chứng từ) và Mic (Web Speech).
  */
+const DRAFT_KEY = "__chatDockDraft";
+
 export function ChatDock() {
-  const [input, setInput] = useState("");
+  const [input, setInputState] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return sessionStorage.getItem(DRAFT_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const setInput = (v: string) => {
+    setInputState(v);
+    try {
+      if (v) sessionStorage.setItem(DRAFT_KEY, v);
+      else sessionStorage.removeItem(DRAFT_KEY);
+    } catch {}
+  };
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
