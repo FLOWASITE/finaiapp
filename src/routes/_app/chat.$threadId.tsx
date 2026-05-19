@@ -86,6 +86,10 @@ function ThreadPage() {
         try {
           sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
         } catch {}
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const near = dist < 120;
+        setAtBottom(near);
+        if (near) setHasNew(false);
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
