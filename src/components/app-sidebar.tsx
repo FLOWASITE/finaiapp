@@ -650,10 +650,14 @@ function GroupItem({
           <SidebarMenuSub>
             {group.items.map((i) => {
               const active = isActive(i.to);
+              const [path, query] = i.to.split("?");
+              const search = query
+                ? Object.fromEntries(new URLSearchParams(query).entries())
+                : undefined;
               return (
                 <SidebarMenuSubItem key={i.to}>
                   <SidebarMenuSubButton asChild isActive={active}>
-                    <Link to={i.to}>
+                    <Link to={path} search={search as never}>
                       <span className={cn(
                         "text-[12.5px] tracking-[-0.005em] transition-colors",
                         active ? "font-semibold text-sidebar-primary" : "text-sidebar-foreground/75 hover:text-sidebar-foreground"
