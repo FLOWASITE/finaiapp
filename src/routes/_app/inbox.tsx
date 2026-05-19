@@ -594,81 +594,70 @@ function InboxAiPage() {
         ))}
       </div>
 
-      {/* Body — 2 columns */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+      {/* Body — Desktop: pane-mode driven grid */}
+      <div
+        className={cn(
+          "hidden min-h-0 flex-1 overflow-hidden lg:grid",
+          paneMode === "split" && "lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]",
+          paneMode === "inbox" && "lg:grid-cols-[1fr]",
+          paneMode === "chat" && "lg:grid-cols-[1fr]",
+        )}
+      >
         {/* LIST */}
-        <div className="relative min-h-0 overflow-hidden">
-          <div ref={listRef} className="h-full overflow-y-auto">
-            {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
-              <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
-            ) : isLoading ? (
-              <ListSkeleton />
-            ) : items.length === 0 ? (
-              <EmptyInbox />
-            ) : (
-              <>
-                <ul className="space-y-3 p-4">
-                  {items.map((it) => (
-                    <ItemCard
-                      key={it.id}
-                      item={it}
-                      active={activeId === it.id}
-                      onClick={() => handleCardClick(it.id)}
-                      registerRef={(el) => {
-                        if (el) cardRefs.current.set(it.id, el);
-                        else cardRefs.current.delete(it.id);
-                      }}
-                    />
-                  ))}
-                </ul>
-                {stats && stats.pending > items.length && (
-                  <div className="px-4 pb-6">
-                    <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
-                      + {stats.pending - items.length} mục khác
+        {paneMode !== "chat" && (
+          <div className="relative min-h-0 overflow-hidden">
+            <div ref={listRef} className="h-full overflow-y-auto">
+              {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
+                <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
+              ) : isLoading ? (
+                <ListSkeleton />
+              ) : items.length === 0 ? (
+                <EmptyInbox />
+              ) : (
+                <>
+                  <ul className={cn("space-y-3 p-4", paneMode === "inbox" && "mx-auto max-w-3xl")}>
+                    {items.map((it) => (
+                      <ItemCard
+                        key={it.id}
+                        item={it}
+                        active={activeId === it.id}
+                        onClick={() => handleCardClick(it.id)}
+                        registerRef={(el) => {
+                          if (el) cardRefs.current.set(it.id, el);
+                          else cardRefs.current.delete(it.id);
+                        }}
+                      />
+                    ))}
+                  </ul>
+                  {stats && stats.pending > items.length && (
+                    <div className="px-4 pb-6">
+                      <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
+                        + {stats.pending - items.length} mục khác
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {showScrollDown && (
+              <button
+                type="button"
+                onClick={() =>
+                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
+                }
+                className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
+                aria-label="Cuộn xuống"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
             )}
           </div>
+        )}
 
-          {showScrollDown && (
-            <button
-              type="button"
-              onClick={() =>
-                listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
-              }
-              className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
-              aria-label="Cuộn xuống"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* CHAT (desktop) */}
-        <div className="hidden lg:block">
-          <InboxChat
-            contextItem={contextItem}
-            items={items}
-            log={chatLog}
-            onUserSend={handleUserSend}
-            onCloseContext={closeContext}
-            onPickItem={pickItem}
-            onApprove={handleApproveItem}
-            onSkip={handleSkipItem}
-            onRule={handleRuleItem}
-            onEdit={handleEditItem}
-            approving={approveM.isPending}
-          />
-        </div>
-      </div>
-
-      {/* Mobile chat sheet */}
-      {chatOpenMobile && (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="flex-1 bg-background/60" onClick={() => setChatOpenMobile(false)} />
-          <div className="h-full w-[92vw] max-w-md bg-background shadow-2xl">
+        {/* CHAT */}
+        {paneMode !== "inbox" && (
+          <div className="min-h-0">
             <InboxChat
               contextItem={contextItem}
               items={items}
@@ -683,6 +672,69 @@ function InboxAiPage() {
               approving={approveM.isPending}
             />
           </div>
+        )}
+      </div>
+
+      {/* Mobile: Chat full-screen */}
+      <div className="block min-h-0 flex-1 overflow-hidden lg:hidden">
+        <InboxChat
+          contextItem={contextItem}
+          items={items}
+          log={chatLog}
+          onUserSend={handleUserSend}
+          onCloseContext={closeContext}
+          onPickItem={pickItem}
+          onApprove={handleApproveItem}
+          onSkip={handleSkipItem}
+          onRule={handleRuleItem}
+          onEdit={handleEditItem}
+          approving={approveM.isPending}
+        />
+      </div>
+
+      {/* Mobile: Inbox overlay (slide from left) */}
+      {inboxOpenMobile && (
+        <div className="fixed inset-0 z-40 flex lg:hidden">
+          <div className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <InboxIcon className="h-4 w-4" />
+                Inbox
+                {stats?.pending ? (
+                  <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background tabular-nums">
+                    {stats.pending}
+                  </span>
+                ) : null}
+              </div>
+              <button
+                onClick={() => setInboxOpenMobile(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {items.length === 0 ? (
+                <EmptyInbox />
+              ) : (
+                <ul className="space-y-3 p-4">
+                  {items.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      active={activeId === it.id}
+                      onClick={() => {
+                        handleCardClick(it.id);
+                        setInboxOpenMobile(false);
+                      }}
+                      registerRef={() => {}}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 bg-background/60" onClick={() => setInboxOpenMobile(false)} />
         </div>
       )}
 
