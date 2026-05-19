@@ -19,7 +19,7 @@ export type MemoryLimit = {
   rule_text: string;
   limit_kind: LimitKind;
   scope: LimitScope;
-  params: Record<string, unknown>;
+  params: Record<string, any>;
   severity: "low" | "med" | "high";
   is_active: boolean;
   triggered_count: number;
