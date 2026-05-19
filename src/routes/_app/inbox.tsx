@@ -472,7 +472,7 @@ function InboxAiPage() {
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
           </span>
           AI online
-          <span className="text-emerald-700/70 dark:text-emerald-300/70">
+          <span className="hidden text-emerald-700/70 sm:inline dark:text-emerald-300/70">
             ·{" "}
             {recentlyReadDelta
               ? `vừa đọc ${recentlyReadDelta} hoá đơn mới`
@@ -483,7 +483,7 @@ function InboxAiPage() {
         <button
           type="button"
           onClick={() => setCmdOpen(true)}
-          className="ml-2 flex h-9 flex-1 items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card"
+          className="ml-2 hidden h-9 flex-1 items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card lg:flex"
         >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           <span className="flex-1 truncate">
@@ -492,7 +492,7 @@ function InboxAiPage() {
           <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
         </button>
 
-        <div className="flex items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+        <div className="ml-auto hidden items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground lg:flex">
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel()}
         </div>
@@ -540,7 +540,7 @@ function InboxAiPage() {
       </header>
 
       {/* Stats strip */}
-      <div className="flex shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4">
+      <div className="hidden shrink-0 items-center gap-8 border-b border-border/40 px-5 py-4 lg:flex">
         <Stat label="Chờ duyệt" value={String(stats?.pending ?? "—")} />
         <Divider />
         <Stat
@@ -569,7 +569,7 @@ function InboxAiPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0 items-center gap-1 border-b border-border/40 px-5">
+      <div className="hidden shrink-0 items-center gap-1 border-b border-border/40 px-5 lg:flex">
         {TABS.map((t) => (
           <button
             key={t.key}
