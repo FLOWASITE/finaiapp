@@ -13,8 +13,10 @@ const TABS = [
   { to: "/superadmin", label: "Tổng quan tenants", exact: true },
   { to: "/superadmin/accounts", label: "Tài khoản", exact: false },
   { to: "/superadmin/organizations", label: "Tổ chức", exact: false },
+  { to: "/superadmin/ai-model", label: "AI Model", exact: false },
   { to: "/superadmin/audit", label: "Nhật ký", exact: false },
 ];
+
 
 function SuperadminLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });

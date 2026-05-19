@@ -51,11 +51,8 @@ export const parseDocument = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => InputSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Thiếu LOVABLE_API_KEY trên server.");
+    const { model } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
 
-    const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-2.5-pro");
 
     // For purchase_invoice we use a strict schema; other kinds free-form JSON.
     const useStrict = data.kind === "purchase_invoice";
