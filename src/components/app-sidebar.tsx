@@ -41,7 +41,6 @@ const SECTIONS: NavSection[] = [
   {
     entries: [
       { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-      { to: "/chat", label: "Trợ lý AI", icon: Sparkles },
     ],
   },
   {
