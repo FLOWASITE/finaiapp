@@ -723,17 +723,15 @@ function InboxAiPage() {
                 <div className="space-y-3 p-4" role="status" aria-live="polite">
                   <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Đang tải Inbox…
+                    {INBOX_COPY.loading}
                   </div>
                   <ListSkeleton />
                 </div>
               ) : items.length === 0 ? (
                 <div className="p-4">
                   <EmptyInbox />
-                  <p className="mt-3 text-center text-[12px] text-muted-foreground">
-                    Chưa có mục nào cần duyệt. Sổ AI sẽ báo khi có hoá đơn mới.
-                  </p>
                 </div>
+
               ) : (
                 <ul className="space-y-3 p-4">
                   {items.map((it) => (
