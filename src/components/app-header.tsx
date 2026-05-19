@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { BarChart3, BookOpenCheck, FileText, LogOut, Receipt, Search, Settings, ShieldAlert, User } from "lucide-react";
 import { PeriodSwitcher } from "@/components/period-switcher";
 import { NotificationsMenu } from "@/components/notifications-menu";
@@ -25,6 +25,8 @@ export function AppHeader() {
   const email = cu?.email ?? null;
   const profile = cu?.profile ?? null;
   const { enabled: accountingMode, setAccountingMode } = useAccountingMode();
+  const location = useLocation();
+  const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
 
   const displayName =
     profile?.display_name?.trim() || email?.split("@")[0] || "Tài khoản";
@@ -38,7 +40,7 @@ export function AppHeader() {
   return (
     <div className="flex flex-1 items-center justify-end gap-3">
         {/* Workspace switcher (Front-Office ↔ Back-Office) */}
-        <WorkspaceSwitcher />
+        {!onSuperAdminRoute ? <WorkspaceSwitcher /> : null}
 
         {/* Accounting period switcher */}
         <PeriodSwitcher />
