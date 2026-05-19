@@ -103,8 +103,16 @@ function InboxAiPage() {
     refetchOnWindowFocus: false,
   });
 
-  const items = data?.items ?? [];
-  const stats = data?.stats;
+  const serverItems = data?.items ?? [];
+  const usingMock = serverItems.length === 0;
+  const [dismissedMock, setDismissedMock] = useState<Set<string>>(new Set());
+  const items = useMemo(
+    () => (usingMock ? mockInboxItems.filter((i) => !dismissedMock.has(i.id)) : serverItems),
+    [usingMock, serverItems, dismissedMock],
+  );
+  const stats = usingMock
+    ? { ...mockInboxStats, pending: Math.max(0, mockInboxStats.pending - dismissedMock.size) }
+    : data?.stats;
   const highCount = items.filter((i) => i.confidence_band === "high" && !i.blocker).length;
 
   const activeItem = useMemo(
