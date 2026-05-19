@@ -66,8 +66,11 @@ import {
   deleteRule,
   promoteWatchToRule,
   dismissWatch,
+  listRuleApplications,
+  undoRuleApplication,
   type MemoryRule,
   type MemoryWatch,
+  type RuleApplication,
 } from "@/lib/ai-memory.functions";
 import {
   RULE_TEMPLATES,
@@ -794,44 +797,229 @@ function RuleCard({ rule }: { rule: MemoryRule }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Applied list sheet (still mock — lịch sử áp dụng sẽ có sau) */}
-      <Sheet open={appliedOpen} onOpenChange={setAppliedOpen}>
-        <SheetContent className="w-full sm:max-w-md">
+      {/* Applied list sheet — lịch sử thật từ ai_rule_applications */}
+      <AppliedHistorySheet
+        open={appliedOpen}
+        onOpenChange={setAppliedOpen}
+        rule={rule}
+      />
+    </div>
+  );
+}
+
+function AppliedHistorySheet({
+  open,
+  onOpenChange,
+  rule,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  rule: MemoryRule;
+}) {
+  const invalidate = useInvalidate();
+  const listFn = useServerFn(listRuleApplications);
+  const undoFn = useServerFn(undoRuleApplication);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [undoTarget, setUndoTarget] = useState<RuleApplication | null>(null);
+  const [undoReason, setUndoReason] = useState("");
+
+  const { data: apps = [], isLoading, refetch } = useQuery({
+    queryKey: ["ai-memory", "applications", rule.id],
+    queryFn: () => listFn({ data: { rule_id: rule.id } }),
+    enabled: open,
+  });
+
+  const undoM = useMutation({
+    mutationFn: undoFn,
+    onSuccess: () => {
+      invalidate();
+      refetch();
+      setUndoTarget(null);
+      setUndoReason("");
+      toast.success("Đã hoàn tác — bút toán liên quan đã được gỡ bỏ");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>{rule.applied_count} lần áp dụng</SheetTitle>
-            <SheetDescription>
-              Danh sách bút toán đã được AI tạo từ quy tắc này.
-            </SheetDescription>
+            <SheetTitle>{apps.length} lần áp dụng</SheetTitle>
+            <SheetDescription className="line-clamp-2">{rule.title}</SheetDescription>
           </SheetHeader>
+
           <div className="mt-4 space-y-2">
-            {Array.from({ length: Math.min(10, rule.applied_count || 5) }).map((_, i) => (
-              <div key={i} className="rounded-md border p-2.5 text-[12.5px]">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">BT-{String(20240 + i).padStart(5, "0")}</div>
-                  <div className="text-muted-foreground">
-                    {new Date(Date.now() - i * 86400_000).toLocaleDateString("vi-VN")}
-                  </div>
-                </div>
-                <div className="mt-1 text-muted-foreground">{rule.then_text}</div>
-                <div className="mt-2 flex gap-1.5">
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[11.5px]">
-                    Xem chi tiết
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-[11.5px] text-muted-foreground hover:text-destructive"
-                    onClick={() => toast.success("Đã gửi phản hồi cho AI")}
-                  >
-                    Báo cáo sai
-                  </Button>
-                </div>
+            {isLoading && (
+              <>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </>
+            )}
+            {!isLoading && apps.length === 0 && (
+              <div className="rounded-md border border-dashed p-6 text-center text-[12.5px] text-muted-foreground">
+                Chưa có lần áp dụng nào được ghi nhận.
               </div>
-            ))}
+            )}
+            {!isLoading &&
+              apps.map((a) => {
+                const isUndone = a.status === "undone";
+                const isOpen = expanded === a.id;
+                const conf = typeof a.ai_log?.confidence === "number" ? a.ai_log.confidence : null;
+                const model = (a.ai_log?.model as string | undefined) ?? null;
+                const latency = a.ai_log?.latency_ms as number | undefined;
+                const tokens = a.ai_log?.tokens as number | undefined;
+                const matched = a.ai_log?.matched_when as string | undefined;
+                return (
+                  <div
+                    key={a.id}
+                    className={cn(
+                      "rounded-md border p-2.5 text-[12.5px] transition-colors",
+                      isUndone && "bg-muted/40 opacity-70",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium truncate">
+                          {a.journal_code ?? a.document_label ?? "—"}
+                        </span>
+                        {isUndone && (
+                          <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                            đã hoàn tác
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="shrink-0 text-[11px] text-muted-foreground">
+                        {new Date(a.applied_at).toLocaleString("vi-VN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+
+                    <div className={cn("mt-1 text-muted-foreground", isUndone && "line-through")}>
+                      {a.then_snapshot}
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {model && (
+                        <span className="inline-flex items-center gap-1">
+                          <Bot className="h-3 w-3" /> {model.split("/").pop()}
+                        </span>
+                      )}
+                      {conf != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Target className="h-3 w-3" /> {(conf * 100).toFixed(0)}%
+                        </span>
+                      )}
+                      {latency != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> {latency}ms
+                        </span>
+                      )}
+                    </div>
+
+                    {isOpen && (
+                      <div className="mt-2 space-y-1.5 rounded bg-muted/50 p-2 text-[11.5px]">
+                        {matched && (
+                          <div>
+                            <span className="font-semibold">Khớp điều kiện: </span>
+                            <span className="text-muted-foreground">{matched}</span>
+                          </div>
+                        )}
+                        {tokens != null && (
+                          <div>
+                            <span className="font-semibold">Tokens: </span>
+                            <span className="text-muted-foreground">{tokens}</span>
+                          </div>
+                        )}
+                        {a.document_label && (
+                          <div>
+                            <span className="font-semibold">Chứng từ: </span>
+                            <span className="text-muted-foreground">{a.document_label}</span>
+                          </div>
+                        )}
+                        {isUndone && a.undone_at && (
+                          <div className="text-muted-foreground">
+                            Hoàn tác lúc {new Date(a.undone_at).toLocaleString("vi-VN")}
+                            {a.undo_reason ? ` — ${a.undo_reason}` : ""}
+                          </div>
+                        )}
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                            Log AI thô (JSON)
+                          </summary>
+                          <pre className="mt-1 max-h-40 overflow-auto rounded bg-background p-1.5 text-[10.5px]">
+                            {JSON.stringify(a.ai_log, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[11.5px]"
+                        onClick={() => setExpanded(isOpen ? null : a.id)}
+                      >
+                        {isOpen ? "Thu gọn" : "Chi tiết"}
+                      </Button>
+                      {!isUndone && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11.5px] text-muted-foreground hover:text-destructive"
+                          onClick={() => setUndoTarget(a)}
+                        >
+                          Hoàn tác
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+
+      <AlertDialog open={!!undoTarget} onOpenChange={(o) => !o && setUndoTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hoàn tác lần áp dụng?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bút toán liên quan ({undoTarget?.journal_code ?? "—"}) sẽ bị gỡ bỏ. Chứng từ
+              gốc vẫn được giữ lại. Hành động này không thể đảo ngược.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={undoReason}
+            onChange={(e) => setUndoReason(e.target.value)}
+            placeholder="Lý do hoàn tác (tuỳ chọn)"
+            rows={2}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={undoM.isPending}
+              onClick={() =>
+                undoTarget &&
+                undoM.mutate({
+                  data: { id: undoTarget.id, reason: undoReason.trim() || undefined },
+                })
+              }
+            >
+              Xác nhận hoàn tác
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

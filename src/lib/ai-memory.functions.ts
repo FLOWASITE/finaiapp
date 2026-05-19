@@ -301,3 +301,106 @@ export const dismissWatch = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ Lịch sử áp dụng quy tắc ============
+
+export type RuleApplication = {
+  id: string;
+  rule_id: string;
+  document_table: string | null;
+  document_id: string | null;
+  document_label: string | null;
+  journal_entry_id: string | null;
+  journal_code: string | null;
+  then_snapshot: string;
+  ai_log: Record<string, any>;
+  status: "applied" | "undone";
+  applied_at: string;
+  undone_at: string | null;
+  undo_reason: string | null;
+};
+
+const APP_COLS =
+  "id,rule_id,document_table,document_id,document_label,journal_entry_id,journal_code,then_snapshot,ai_log,status,applied_at,undone_at,undo_reason";
+
+export const listRuleApplications = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ rule_id: z.string().uuid(), limit: z.number().int().min(1).max(200).optional() }).parse(i),
+  )
+  .handler(async ({ data, context }): Promise<RuleApplication[]> => {
+    const { supabase, tenantId } = context;
+    const { data: rows, error } = await supabase
+      .from("ai_rule_applications")
+      .select(APP_COLS)
+      .eq("tenant_id", tenantId)
+      .eq("rule_id", data.rule_id)
+      .order("applied_at", { ascending: false })
+      .limit(data.limit ?? 50);
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as RuleApplication[];
+  });
+
+export const undoRuleApplication = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reason: z.string().trim().max(500).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId, userId } = context;
+
+    // Tải application + xác nhận quyền (RLS đảm bảo cross-tenant).
+    const { data: app, error: loadErr } = await supabase
+      .from("ai_rule_applications")
+      .select("id,rule_id,journal_entry_id,status")
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadErr) throw new Error(loadErr.message);
+    if (!app) throw new Error("Không tìm thấy lần áp dụng");
+    if ((app as any).status === "undone") throw new Error("Lần áp dụng này đã được hoàn tác trước đó");
+
+    // Đảo bút toán nếu có (giữ chứng từ, chỉ xoá liên kết JE).
+    const jeId = (app as any).journal_entry_id as string | null;
+    if (jeId) {
+      const { error: delLineErr } = await supabase.from("journal_lines").delete().eq("entry_id", jeId);
+      if (delLineErr) throw new Error(delLineErr.message);
+      const { error: delEntryErr } = await supabase.from("journal_entries").delete().eq("id", jeId);
+      if (delEntryErr) throw new Error(delEntryErr.message);
+    }
+
+    // Đánh dấu application là undone.
+    const { error: updErr } = await supabase
+      .from("ai_rule_applications")
+      .update({
+        status: "undone",
+        undone_at: new Date().toISOString(),
+        undone_by: userId,
+        undo_reason: data.reason ?? null,
+        journal_entry_id: null,
+      })
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (updErr) throw new Error(updErr.message);
+
+    // Trừ applied_count để stats khớp lại.
+    const ruleId = (app as any).rule_id as string;
+    const { data: rule } = await supabase
+      .from("ai_memory_rules")
+      .select("applied_count")
+      .eq("id", ruleId)
+      .maybeSingle();
+    const nextCount = Math.max(0, ((rule as any)?.applied_count ?? 1) - 1);
+    await supabase
+      .from("ai_memory_rules")
+      .update({ applied_count: nextCount })
+      .eq("id", ruleId)
+      .eq("tenant_id", tenantId);
+
+    return { ok: true };
+  });
