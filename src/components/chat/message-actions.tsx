@@ -24,13 +24,17 @@ export function MessageActions({ content, onRegenerate, canRegenerate }: Props) 
   };
 
   return (
-    <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-      <ActionBtn onClick={copy} title="Sao chép">
-        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+    <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+      <ActionBtn onClick={copy} title={copied ? "Đã sao chép" : "Sao chép"}>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
       </ActionBtn>
       {canRegenerate && onRegenerate && (
         <ActionBtn onClick={onRegenerate} title="Tạo lại">
-          <RefreshCw className="h-3 w-3" />
+          <RefreshCw className="h-3.5 w-3.5" />
         </ActionBtn>
       )}
     </div>
@@ -53,8 +57,8 @@ function ActionBtn({
       title={title}
       aria-label={title}
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground",
-        "hover:bg-white/5 hover:text-foreground",
+        "inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors",
+        "hover:bg-muted hover:text-foreground",
       )}
     >
       {children}

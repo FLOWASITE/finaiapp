@@ -64,7 +64,7 @@ export function ToolCalls({ events }: { events: ToolEvent[] }) {
   const calls = groupEvents(events);
   if (!calls.length) return null;
   return (
-    <div className="mb-2 space-y-1.5">
+    <div className="mb-3 space-y-2">
       {calls.map((c) => (
         <ToolCallRow key={c.id} call={c} />
       ))}
@@ -79,52 +79,58 @@ function ToolCallRow({ call }: { call: Call }) {
   const status = !call.done ? "running" : call.isError ? "error" : "done";
 
   return (
-    <div className="overflow-hidden rounded-lg border border-white/10 bg-muted/30 text-xs">
+    <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/[0.03] text-xs backdrop-blur-sm">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-white/5"
+        className="flex w-full items-center gap-2.5 px-3 py-2 transition-colors hover:bg-primary/[0.06]"
       >
         <ChevronRight
           className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-90")}
         />
-        <Icon className="h-3.5 w-3.5 text-primary" />
-        <span className="font-medium">{meta.label}</span>
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <span className="font-medium text-foreground">{meta.label}</span>
         {call.input?.table && (
-          <span className="font-mono text-[10px] text-muted-foreground">{String(call.input.table)}</span>
+          <span className="rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {String(call.input.table)}
+          </span>
         )}
         {call.input?.tool_name && (
-          <span className="font-mono text-[10px] text-muted-foreground">{String(call.input.tool_name)}</span>
+          <span className="rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {String(call.input.tool_name)}
+          </span>
         )}
-        <span className="ml-auto inline-flex items-center gap-1">
+        <span className="ml-auto inline-flex items-center gap-1.5">
           {status === "running" && (
-            <>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
               <Loader2 className="h-3 w-3 animate-spin" />
-              <span className="text-muted-foreground">Đang chạy…</span>
-            </>
+              Đang chạy
+            </span>
           )}
           {status === "done" && (
-            <>
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-              <span className="text-muted-foreground">Xong</span>
-            </>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              Xong
+            </span>
           )}
           {status === "error" && (
-            <>
-              <AlertCircle className="h-3 w-3 text-destructive" />
-              <span className="text-destructive">Lỗi</span>
-            </>
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+              <AlertCircle className="h-3 w-3" />
+              Lỗi
+            </span>
           )}
         </span>
       </button>
       {open && (
-        <div className="border-t border-white/10 bg-background/40 p-2 space-y-2">
+        <div className="space-y-2 border-t border-primary/10 bg-background/40 p-2.5 backdrop-blur">
           {call.input != null && (
             <div>
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Tham số
               </div>
-              <pre className="overflow-x-auto rounded bg-muted/40 p-2 font-mono text-[11px]">
+              <pre className="chat-scroll overflow-x-auto rounded-lg border border-border/40 bg-muted/30 p-2 font-mono text-[11px] leading-relaxed">
                 {truncate(call.input)}
               </pre>
             </div>
@@ -134,7 +140,7 @@ function ToolCallRow({ call }: { call: Call }) {
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Kết quả
               </div>
-              <pre className="overflow-x-auto rounded bg-muted/40 p-2 font-mono text-[11px]">
+              <pre className="chat-scroll overflow-x-auto rounded-lg border border-border/40 bg-muted/30 p-2 font-mono text-[11px] leading-relaxed">
                 {truncate(call.output)}
               </pre>
             </div>
