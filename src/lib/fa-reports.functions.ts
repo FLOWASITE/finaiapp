@@ -215,3 +215,58 @@ export const getAssetCard = createServerFn({ method: "GET" })
       reclassifications: reclass ?? [],
     };
   });
+
+// =========== Báo cáo TSCĐ theo dimension (Bộ phận / Dự án / Chi nhánh) ===========
+export const reportByDimension = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: { dimension: "department" | "project" | "branch"; book_id?: string | null }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const { data: book } = data.book_id
+      ? await supabase.from("fa_depreciation_books").select("id, name").eq("id", data.book_id).single()
+      : await supabase.from("fa_depreciation_books").select("id, name").eq("tenant_id", tenantId).eq("is_primary", true).maybeSingle();
+
+    const { data: assets } = await supabase
+      .from("fixed_assets")
+      .select("id, code, name, cost, opening_accumulated, status, department_id, project_id, branch_id, departments(name), projects(name), branches(name)")
+      .eq("tenant_id", tenantId);
+
+    const ids = (assets ?? []).map((a: any) => a.id);
+    let accumByAsset = new Map<string, number>();
+    if (ids.length && book?.id) {
+      const { data: deps } = await supabase
+        .from("depreciation_entries").select("asset_id, amount")
+        .in("asset_id", ids).eq("book_id", book.id);
+      for (const d of deps ?? []) {
+        accumByAsset.set(d.asset_id, (accumByAsset.get(d.asset_id) ?? 0) + Number(d.amount));
+      }
+    }
+
+    const dimKey = data.dimension === "department" ? "departments"
+      : data.dimension === "project" ? "projects" : "branches";
+
+    const groups: Record<string, { key: string; name: string; count: number; cost: number; accumulated: number; nbv: number; assets: any[] }> = {};
+    for (const a of assets ?? []) {
+      const k = (a as any)[dimKey]?.name ?? "— Chưa phân bổ —";
+      if (!groups[k]) groups[k] = { key: k, name: k, count: 0, cost: 0, accumulated: 0, nbv: 0, assets: [] };
+      const accum = (accumByAsset.get(a.id) ?? 0) + Number(a.opening_accumulated ?? 0);
+      const nbv = Math.max(0, Number(a.cost) - accum);
+      groups[k].count++;
+      groups[k].cost += Number(a.cost);
+      groups[k].accumulated += accum;
+      groups[k].nbv += nbv;
+      groups[k].assets.push({ id: a.id, code: a.code, name: a.name, cost: Number(a.cost), accumulated: accum, nbv, status: a.status });
+    }
+    const rows = Object.values(groups).sort((a, b) => b.cost - a.cost);
+    return {
+      dimension: data.dimension,
+      book,
+      rows,
+      totals: {
+        cost: rows.reduce((s, r) => s + r.cost, 0),
+        accumulated: rows.reduce((s, r) => s + r.accumulated, 0),
+        nbv: rows.reduce((s, r) => s + r.nbv, 0),
+        count: rows.reduce((s, r) => s + r.count, 0),
+      },
+    };
+  });
