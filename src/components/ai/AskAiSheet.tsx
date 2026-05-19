@@ -8,6 +8,7 @@ import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2, Mic, 
 import { askAccountingStream } from "@/lib/chat.functions";
 import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { PendingActions } from "@/components/ai/PendingActions";
+import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { toast } from "sonner";
 
 const QUICK_CHIPS = [
