@@ -46,6 +46,7 @@ export function ChatDock() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
+  const [historySearch, setHistorySearch] = useState("");
 
   const threadsQuery = useQuery({
     queryKey: ["chat", "threads", "recent", "all"],
