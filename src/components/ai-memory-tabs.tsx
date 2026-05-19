@@ -119,6 +119,7 @@ export function PartnersTab() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<MemoryPartner | null>(null);
   const [creating, setCreating] = useState(false);
+  const [usedWhere, setUsedWhere] = useState<MemoryPartner | null>(null);
 
   const items = useMemo(() => {
     const all = data ?? [];
