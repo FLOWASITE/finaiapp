@@ -694,9 +694,8 @@ function InboxAiPage() {
 
       {/* Mobile: Inbox overlay (slide from left) */}
       {inboxOpenMobile && (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <MobileInboxOverlay onClose={() => setInboxOpenMobile(false)}>
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <InboxIcon className="h-4 w-4" />
                 Inbox
