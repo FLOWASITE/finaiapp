@@ -293,21 +293,13 @@ export const reportPayrollAllocation = createServerFn({ method: "GET" })
       map.set(k, row);
     }
 
-    // Add insurance company-side expense (same dept/prj as employee), same account as salary expense
-    // Map by employee → take their primary expense account = first BASIC/earning component account
-    const empExpense = new Map<string, string>();
-    for (const d of details ?? []) {
-      const empId = (d as any).employees?.department_id ?? null;
-      // we don't have employee_id selected; fallback to dept-level mapping below
-    }
-    for (const l of lines ?? []) {
+    for (const l of lines) {
       const insCo = Number(l.bhxh_co || 0) + Number(l.bhyt_co || 0) + Number(l.bhtn_co || 0);
       if (insCo <= 0) continue;
       const dept = (l.employees?.departments?.name as string) || "—";
       const prj = (l.employees?.projects?.name as string) || "—";
-      // pick expense account already used by this dept/prj if any, else infer from dept name
       let acc = "6421";
-      for (const [k, v] of map) {
+      for (const v of map.values()) {
         if (v.department === dept && v.project === prj) { acc = v.account; break; }
       }
       const k = key(acc, dept, prj);
