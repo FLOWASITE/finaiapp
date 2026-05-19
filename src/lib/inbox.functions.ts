@@ -56,11 +56,13 @@ export const getInboxLane = createServerFn({ method: "POST" })
 
     // ============ APPROVE — Tài liệu/nháp do AI tạo ============
     if (data.lane === "approve") {
+      const from = data.offset;
+      const to = data.offset + data.limit - 1;
       let qb = supabase
         .from("documents")
         .select("id, original_filename, doc_kind, ocr_status, created_at, ocr_extracted")
         .order("created_at", { ascending: false })
-        .limit(data.limit);
+        .range(from, to);
       // status chip → ocr_status hoặc trạng thái nháp
       if (wantStatus.includes("ai")) qb = qb.eq("ocr_status", "done");
       else if (wantStatus.includes("chờ")) qb = qb.eq("ocr_status", "processing");
@@ -98,7 +100,9 @@ export const getInboxLane = createServerFn({ method: "POST" })
           meta: { doc_kind: d.doc_kind ?? null },
         };
       });
-      return { rows: rows.filter(matchSearch), source: "documents" as const };
+      const filtered = rows.filter(matchSearch);
+      const nextOffset = (docs?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: filtered, source: "documents" as const, nextOffset };
     }
 
     // ============ OVERDUE — Phải thu/phải trả quá hạn ============
