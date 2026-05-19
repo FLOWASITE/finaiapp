@@ -107,6 +107,15 @@ import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
+import { Route as AppSalesDashboardReportsQtyByItemRouteImport } from './routes/_app/sales-dashboard/reports.qty-by-item'
+import { Route as AppSalesDashboardReportsProfitByItemRouteImport } from './routes/_app/sales-dashboard/reports.profit-by-item'
+import { Route as AppSalesDashboardReportsDetailRouteImport } from './routes/_app/sales-dashboard/reports.detail'
+import { Route as AppSalesDashboardReportsBySalespersonItemRouteImport } from './routes/_app/sales-dashboard/reports.by-salesperson-item'
+import { Route as AppSalesDashboardReportsBySalespersonRouteImport } from './routes/_app/sales-dashboard/reports.by-salesperson'
+import { Route as AppSalesDashboardReportsByCustomerItemRouteImport } from './routes/_app/sales-dashboard/reports.by-customer-item'
+import { Route as AppSalesDashboardReportsByCustomerRouteImport } from './routes/_app/sales-dashboard/reports.by-customer'
+import { Route as AppPurchasesReportsDetailRouteImport } from './routes/_app/purchases/reports.detail'
+import { Route as AppPurchasesReportsByItemRouteImport } from './routes/_app/purchases/reports.by-item'
 import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
@@ -610,6 +619,60 @@ const AppSalesOrdersIdRoute = AppSalesOrdersIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppSalesOrdersRoute,
 } as any)
+const AppSalesDashboardReportsQtyByItemRoute =
+  AppSalesDashboardReportsQtyByItemRouteImport.update({
+    id: '/sales-dashboard/reports/qty-by-item',
+    path: '/sales-dashboard/reports/qty-by-item',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsProfitByItemRoute =
+  AppSalesDashboardReportsProfitByItemRouteImport.update({
+    id: '/sales-dashboard/reports/profit-by-item',
+    path: '/sales-dashboard/reports/profit-by-item',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsDetailRoute =
+  AppSalesDashboardReportsDetailRouteImport.update({
+    id: '/sales-dashboard/reports/detail',
+    path: '/sales-dashboard/reports/detail',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsBySalespersonItemRoute =
+  AppSalesDashboardReportsBySalespersonItemRouteImport.update({
+    id: '/sales-dashboard/reports/by-salesperson-item',
+    path: '/sales-dashboard/reports/by-salesperson-item',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsBySalespersonRoute =
+  AppSalesDashboardReportsBySalespersonRouteImport.update({
+    id: '/sales-dashboard/reports/by-salesperson',
+    path: '/sales-dashboard/reports/by-salesperson',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsByCustomerItemRoute =
+  AppSalesDashboardReportsByCustomerItemRouteImport.update({
+    id: '/sales-dashboard/reports/by-customer-item',
+    path: '/sales-dashboard/reports/by-customer-item',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSalesDashboardReportsByCustomerRoute =
+  AppSalesDashboardReportsByCustomerRouteImport.update({
+    id: '/sales-dashboard/reports/by-customer',
+    path: '/sales-dashboard/reports/by-customer',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppPurchasesReportsDetailRoute =
+  AppPurchasesReportsDetailRouteImport.update({
+    id: '/purchases/reports/detail',
+    path: '/purchases/reports/detail',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppPurchasesReportsByItemRoute =
+  AppPurchasesReportsByItemRouteImport.update({
+    id: '/purchases/reports/by-item',
+    path: '/purchases/reports/by-item',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppPayrollPayslipsIdRoute = AppPayrollPayslipsIdRouteImport.update({
   id: '/payroll/payslips/$id',
   path: '/payroll/payslips/$id',
@@ -765,6 +828,15 @@ export interface FileRoutesByFullPath {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
+  '/purchases/reports/detail': typeof AppPurchasesReportsDetailRoute
+  '/sales-dashboard/reports/by-customer': typeof AppSalesDashboardReportsByCustomerRoute
+  '/sales-dashboard/reports/by-customer-item': typeof AppSalesDashboardReportsByCustomerItemRoute
+  '/sales-dashboard/reports/by-salesperson': typeof AppSalesDashboardReportsBySalespersonRoute
+  '/sales-dashboard/reports/by-salesperson-item': typeof AppSalesDashboardReportsBySalespersonItemRoute
+  '/sales-dashboard/reports/detail': typeof AppSalesDashboardReportsDetailRoute
+  '/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
+  '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
@@ -869,6 +941,15 @@ export interface FileRoutesByTo {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
+  '/purchases/reports/detail': typeof AppPurchasesReportsDetailRoute
+  '/sales-dashboard/reports/by-customer': typeof AppSalesDashboardReportsByCustomerRoute
+  '/sales-dashboard/reports/by-customer-item': typeof AppSalesDashboardReportsByCustomerItemRoute
+  '/sales-dashboard/reports/by-salesperson': typeof AppSalesDashboardReportsBySalespersonRoute
+  '/sales-dashboard/reports/by-salesperson-item': typeof AppSalesDashboardReportsBySalespersonItemRoute
+  '/sales-dashboard/reports/detail': typeof AppSalesDashboardReportsDetailRoute
+  '/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
+  '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
@@ -980,6 +1061,15 @@ export interface FileRoutesById {
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
+  '/_app/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
+  '/_app/purchases/reports/detail': typeof AppPurchasesReportsDetailRoute
+  '/_app/sales-dashboard/reports/by-customer': typeof AppSalesDashboardReportsByCustomerRoute
+  '/_app/sales-dashboard/reports/by-customer-item': typeof AppSalesDashboardReportsByCustomerItemRoute
+  '/_app/sales-dashboard/reports/by-salesperson': typeof AppSalesDashboardReportsBySalespersonRoute
+  '/_app/sales-dashboard/reports/by-salesperson-item': typeof AppSalesDashboardReportsBySalespersonItemRoute
+  '/_app/sales-dashboard/reports/detail': typeof AppSalesDashboardReportsDetailRoute
+  '/_app/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
+  '/_app/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
@@ -1091,6 +1181,15 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
+    | '/purchases/reports/by-item'
+    | '/purchases/reports/detail'
+    | '/sales-dashboard/reports/by-customer'
+    | '/sales-dashboard/reports/by-customer-item'
+    | '/sales-dashboard/reports/by-salesperson'
+    | '/sales-dashboard/reports/by-salesperson-item'
+    | '/sales-dashboard/reports/detail'
+    | '/sales-dashboard/reports/profit-by-item'
+    | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
@@ -1195,6 +1294,15 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
+    | '/purchases/reports/by-item'
+    | '/purchases/reports/detail'
+    | '/sales-dashboard/reports/by-customer'
+    | '/sales-dashboard/reports/by-customer-item'
+    | '/sales-dashboard/reports/by-salesperson'
+    | '/sales-dashboard/reports/by-salesperson-item'
+    | '/sales-dashboard/reports/detail'
+    | '/sales-dashboard/reports/profit-by-item'
+    | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/assets/event/$id/print'
@@ -1305,6 +1413,15 @@ export interface FileRouteTypes {
     | '/_app/assets/inventory/$id'
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
+    | '/_app/purchases/reports/by-item'
+    | '/_app/purchases/reports/detail'
+    | '/_app/sales-dashboard/reports/by-customer'
+    | '/_app/sales-dashboard/reports/by-customer-item'
+    | '/_app/sales-dashboard/reports/by-salesperson'
+    | '/_app/sales-dashboard/reports/by-salesperson-item'
+    | '/_app/sales-dashboard/reports/detail'
+    | '/_app/sales-dashboard/reports/profit-by-item'
+    | '/_app/sales-dashboard/reports/qty-by-item'
     | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
     | '/_app/assets/event/$id/print'
@@ -2007,6 +2124,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesOrdersIdRouteImport
       parentRoute: typeof AppSalesOrdersRoute
     }
+    '/_app/sales-dashboard/reports/qty-by-item': {
+      id: '/_app/sales-dashboard/reports/qty-by-item'
+      path: '/sales-dashboard/reports/qty-by-item'
+      fullPath: '/sales-dashboard/reports/qty-by-item'
+      preLoaderRoute: typeof AppSalesDashboardReportsQtyByItemRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/profit-by-item': {
+      id: '/_app/sales-dashboard/reports/profit-by-item'
+      path: '/sales-dashboard/reports/profit-by-item'
+      fullPath: '/sales-dashboard/reports/profit-by-item'
+      preLoaderRoute: typeof AppSalesDashboardReportsProfitByItemRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/detail': {
+      id: '/_app/sales-dashboard/reports/detail'
+      path: '/sales-dashboard/reports/detail'
+      fullPath: '/sales-dashboard/reports/detail'
+      preLoaderRoute: typeof AppSalesDashboardReportsDetailRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/by-salesperson-item': {
+      id: '/_app/sales-dashboard/reports/by-salesperson-item'
+      path: '/sales-dashboard/reports/by-salesperson-item'
+      fullPath: '/sales-dashboard/reports/by-salesperson-item'
+      preLoaderRoute: typeof AppSalesDashboardReportsBySalespersonItemRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/by-salesperson': {
+      id: '/_app/sales-dashboard/reports/by-salesperson'
+      path: '/sales-dashboard/reports/by-salesperson'
+      fullPath: '/sales-dashboard/reports/by-salesperson'
+      preLoaderRoute: typeof AppSalesDashboardReportsBySalespersonRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/by-customer-item': {
+      id: '/_app/sales-dashboard/reports/by-customer-item'
+      path: '/sales-dashboard/reports/by-customer-item'
+      fullPath: '/sales-dashboard/reports/by-customer-item'
+      preLoaderRoute: typeof AppSalesDashboardReportsByCustomerItemRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales-dashboard/reports/by-customer': {
+      id: '/_app/sales-dashboard/reports/by-customer'
+      path: '/sales-dashboard/reports/by-customer'
+      fullPath: '/sales-dashboard/reports/by-customer'
+      preLoaderRoute: typeof AppSalesDashboardReportsByCustomerRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/reports/detail': {
+      id: '/_app/purchases/reports/detail'
+      path: '/purchases/reports/detail'
+      fullPath: '/purchases/reports/detail'
+      preLoaderRoute: typeof AppPurchasesReportsDetailRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/reports/by-item': {
+      id: '/_app/purchases/reports/by-item'
+      path: '/purchases/reports/by-item'
+      fullPath: '/purchases/reports/by-item'
+      preLoaderRoute: typeof AppPurchasesReportsByItemRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll/payslips/$id': {
       id: '/_app/payroll/payslips/$id'
       path: '/payroll/payslips/$id'
@@ -2319,6 +2499,15 @@ interface AppRouteChildren {
   AppAssetsIdHandoverRoute: typeof AppAssetsIdHandoverRoute
   AppPayrollEmployeesIdRoute: typeof AppPayrollEmployeesIdRoute
   AppPayrollPayslipsIdRoute: typeof AppPayrollPayslipsIdRoute
+  AppPurchasesReportsByItemRoute: typeof AppPurchasesReportsByItemRoute
+  AppPurchasesReportsDetailRoute: typeof AppPurchasesReportsDetailRoute
+  AppSalesDashboardReportsByCustomerRoute: typeof AppSalesDashboardReportsByCustomerRoute
+  AppSalesDashboardReportsByCustomerItemRoute: typeof AppSalesDashboardReportsByCustomerItemRoute
+  AppSalesDashboardReportsBySalespersonRoute: typeof AppSalesDashboardReportsBySalespersonRoute
+  AppSalesDashboardReportsBySalespersonItemRoute: typeof AppSalesDashboardReportsBySalespersonItemRoute
+  AppSalesDashboardReportsDetailRoute: typeof AppSalesDashboardReportsDetailRoute
+  AppSalesDashboardReportsProfitByItemRoute: typeof AppSalesDashboardReportsProfitByItemRoute
+  AppSalesDashboardReportsQtyByItemRoute: typeof AppSalesDashboardReportsQtyByItemRoute
   AppAssetsEventIdPrintRoute: typeof AppAssetsEventIdPrintRoute
 }
 
@@ -2395,6 +2584,21 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssetsIdHandoverRoute: AppAssetsIdHandoverRoute,
   AppPayrollEmployeesIdRoute: AppPayrollEmployeesIdRoute,
   AppPayrollPayslipsIdRoute: AppPayrollPayslipsIdRoute,
+  AppPurchasesReportsByItemRoute: AppPurchasesReportsByItemRoute,
+  AppPurchasesReportsDetailRoute: AppPurchasesReportsDetailRoute,
+  AppSalesDashboardReportsByCustomerRoute:
+    AppSalesDashboardReportsByCustomerRoute,
+  AppSalesDashboardReportsByCustomerItemRoute:
+    AppSalesDashboardReportsByCustomerItemRoute,
+  AppSalesDashboardReportsBySalespersonRoute:
+    AppSalesDashboardReportsBySalespersonRoute,
+  AppSalesDashboardReportsBySalespersonItemRoute:
+    AppSalesDashboardReportsBySalespersonItemRoute,
+  AppSalesDashboardReportsDetailRoute: AppSalesDashboardReportsDetailRoute,
+  AppSalesDashboardReportsProfitByItemRoute:
+    AppSalesDashboardReportsProfitByItemRoute,
+  AppSalesDashboardReportsQtyByItemRoute:
+    AppSalesDashboardReportsQtyByItemRoute,
   AppAssetsEventIdPrintRoute: AppAssetsEventIdPrintRoute,
 }
 

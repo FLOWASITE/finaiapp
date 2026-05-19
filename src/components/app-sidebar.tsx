@@ -193,8 +193,29 @@ const REPORTS_SECTIONS: NavSection[] = [
   {
     label: "Quản trị",
     entries: [
-      { to: "/sales-dashboard", label: "Bán hàng", icon: ShoppingCart },
-      { to: "/purchases", label: "Mua hàng", icon: ShoppingCart },
+      {
+        label: "Bán hàng",
+        icon: ShoppingCart,
+        items: [
+          { to: "/sales-dashboard", label: "Tổng quan" },
+          { to: "/sales-dashboard/reports/detail", label: "Sổ chi tiết bán hàng" },
+          { to: "/sales-dashboard/reports/profit-by-item", label: "Lãi/lỗ theo mặt hàng" },
+          { to: "/sales-dashboard/reports/qty-by-item", label: "Bán hàng theo SL sản phẩm" },
+          { to: "/sales-dashboard/reports/by-customer", label: "Bán hàng theo khách hàng" },
+          { to: "/sales-dashboard/reports/by-salesperson", label: "Bán hàng theo nhân viên" },
+          { to: "/sales-dashboard/reports/by-customer-item", label: "Khách hàng và sản phẩm" },
+          { to: "/sales-dashboard/reports/by-salesperson-item", label: "Nhân viên và sản phẩm" },
+        ],
+      },
+      {
+        label: "Mua hàng",
+        icon: ShoppingCart,
+        items: [
+          { to: "/purchases", label: "Tổng quan" },
+          { to: "/purchases/reports/detail", label: "Sổ chi tiết mua hàng" },
+          { to: "/purchases/reports/by-item", label: "Mua hàng theo mặt hàng" },
+        ],
+      },
     ],
   },
   {
