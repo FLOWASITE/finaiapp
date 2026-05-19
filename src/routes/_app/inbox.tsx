@@ -675,21 +675,27 @@ function InboxAiPage() {
         )}
       </div>
 
-      {/* Mobile: Chat full-screen */}
+      {/* Mobile: nội dung theo tab */}
       <div className="block min-h-0 flex-1 overflow-hidden lg:hidden">
-        <InboxChat
-          contextItem={contextItem}
-          items={items}
-          log={chatLog}
-          onUserSend={handleUserSend}
-          onCloseContext={closeContext}
-          onPickItem={pickItem}
-          onApprove={handleApproveItem}
-          onSkip={handleSkipItem}
-          onRule={handleRuleItem}
-          onEdit={handleEditItem}
-          approving={approveM.isPending}
-        />
+        {tab === "inbox" ? (
+          <InboxChat
+            contextItem={contextItem}
+            items={items}
+            log={chatLog}
+            onUserSend={handleUserSend}
+            onCloseContext={closeContext}
+            onPickItem={pickItem}
+            onApprove={handleApproveItem}
+            onSkip={handleSkipItem}
+            onRule={handleRuleItem}
+            onEdit={handleEditItem}
+            approving={approveM.isPending}
+          />
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
+          </div>
+        )}
       </div>
 
       {/* Mobile: Inbox overlay (slide from left) */}
