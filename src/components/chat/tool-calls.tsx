@@ -133,6 +133,15 @@ function ToolCallRow({ call }: { call: Call }) {
           )}
         </span>
       </button>
+      {call.toolName === "renderChart" && call.done && !call.isError && (
+        <div className="border-t border-primary/10 bg-background/40 px-2.5 pt-2 backdrop-blur">
+          <ChartBlock
+            spec={
+              (call.output?.spec ?? call.input) as ChartSpec
+            }
+          />
+        </div>
+      )}
       {open && (
         <div className="space-y-2 border-t border-primary/10 bg-background/40 p-2.5 backdrop-blur">
           {call.input != null && (
