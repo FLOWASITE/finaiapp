@@ -364,23 +364,9 @@ function AiModelPage() {
                 {status === "muted" && "Lovable AI (mặc định)"}
               </span>
             </div>
-            {isCustomActive && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                {host && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">{host}</span>
-                )}
-                {form.model_default && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">
-                    {form.model_default}
-                  </span>
-                )}
-              </div>
-            )}
-            {!isCustomActive && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Nguồn AI cho Chat, Parse hoá đơn/sao kê, đề xuất định khoản…
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Nguồn AI cho Chat, Parse hoá đơn/sao kê, đề xuất định khoản…
+            </p>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2">
             <div className="flex flex-col">
