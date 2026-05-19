@@ -11,10 +11,13 @@ const KEY = "chat:sidebar-collapsed";
 
 function ChatLayout() {
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(KEY) === "1";
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(KEY) === "1");
+    } catch {}
+  }, []);
 
   const toggle = () => {
     setCollapsed((v) => {
@@ -39,7 +42,7 @@ function ChatLayout() {
   }, []);
 
   return (
-    <div className="chat-surface flex h-[calc(100vh-7rem)] overflow-hidden rounded-2xl border border-border/40 bg-background/30 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] backdrop-blur-sm">
+    <div className={`chat-surface flex overflow-hidden border border-border/40 bg-background/30 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] backdrop-blur-sm ${collapsed ? "h-screen rounded-none border-0" : "h-[calc(100vh-7rem)] rounded-2xl"}`}>
       <ThreadList
         onNew={() => navigate({ to: "/chat" })}
         collapsed={collapsed}

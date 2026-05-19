@@ -1,20 +1,23 @@
-# Ẩn PageBreadcrumbs trong /chat
+# Ẩn header trong /chat khi đóng lịch sử chat
 
-## Vấn đề
-Sau khi tách 2 sidebar độc lập, `PageBreadcrumbs` luôn render trong `<main>` ở mọi route — bao gồm cả `/chat`. Trên trang chat, breadcrumb chiếm thêm chiều cao phía trên khung chat, làm vướng và đẩy khung `h-[calc(100vh-7rem)]` không khớp.
+## Mục tiêu
+Khi `ThreadList` (lịch sử chat) đang collapsed, ẩn header để khung chat dùng được toàn bộ chiều cao. Khi mở lại lịch sử, header hiện trở lại.
 
 ## Thay đổi
 
 ### `src/routes/_app.tsx`
-- Tính `onChatRoute = location.pathname.startsWith("/chat")` (đã có).
-- Chỉ render `<PageBreadcrumbs />` khi **không** ở `/chat`:
-  ```tsx
-  {!onChatRoute && <PageBreadcrumbs />}
-  ```
-- Header + AppSidebar vẫn giữ nguyên (đã hoạt động độc lập).
+- Đọc lại `useChatSidebarCollapsed` (import lại hook).
+- Tính `hideHeader = onChatRoute && chatSidebarCollapsed`.
+- Header chỉ render khi `!hideHeader`.
+- AppSidebar vẫn luôn mount (vẫn toggle độc lập qua `SidebarRail` của shadcn — rail nằm cạnh sidebar, không phụ thuộc header).
 
 ### `src/routes/_app/chat.tsx`
-- Khung chat hiện dùng `h-[calc(100vh-7rem)]` — chiều cao này được tính giả định có header (~5rem) + padding. Sau khi ẩn breadcrumb, không cần đổi vì breadcrumb trước đó nằm trong `<main>` (đã scroll cùng main), nhưng để chắc khung chat không bị tràn/scroll thừa, vẫn giữ `h-[calc(100vh-7rem)]` — kiểm tra trực quan sau khi triển khai. Nếu cần điều chỉnh, đổi thành `h-full` và để `<main>` lo chiều cao.
+- Khi `collapsed`: khung chat dùng `h-screen rounded-none border-0` (full màn hình, không có header phía trên).
+- Khi không collapsed: giữ `h-[calc(100vh-7rem)] rounded-2xl` (chừa chỗ cho header).
+
+## UX kết quả
+- Mở ThreadList: header hiện, khung chat bo góc, AppSidebar toggle bằng `SidebarTrigger` trong header.
+- Đóng ThreadList: header ẩn, chat full màn hình, AppSidebar toggle bằng rail (kéo cạnh trái sidebar) hoặc mở lại ThreadList trước.
 
 ## Phạm vi
-Chỉ thay đổi điều kiện render `PageBreadcrumbs` trong `_app.tsx`. Không động vào logic nào khác.
+2 file: `src/routes/_app.tsx` và `src/routes/_app/chat.tsx`.
