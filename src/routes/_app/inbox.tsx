@@ -18,7 +18,11 @@ import {
   TrendingUp,
   ArrowLeft,
   MessageSquare,
+  Inbox as InboxIcon,
+  Columns2,
 } from "lucide-react";
+
+type PaneMode = "split" | "inbox" | "chat";
 import {
   listInboxAi,
   approveInboxItem,
