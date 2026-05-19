@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, AlertTriangle, ArrowLeft, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowDown } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -217,9 +217,10 @@ function ThreadPage() {
   };
 
   useEffect(() => {
-    if (!autostart || streaming || !query.data) return;
+    if (!autostart || streaming) return;
     if (startedRef.current === threadId) return;
-    const msgs = query.data.messages;
+    // Use either freshly-loaded data or cache-primed data.
+    const msgs = query.data?.messages ?? [];
     if (msgs.length === 1 && msgs[0].role === "user") {
       startedRef.current = threadId;
       const hist: ChatMsg[] = msgs.map((m) => ({ id: m.id, role: m.role, content: m.content }));
@@ -347,13 +348,10 @@ function ThreadPage() {
     runAssistant(withoutLast);
   };
 
-  if (query.isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang tải hội thoại…
-      </div>
-    );
-  }
+  // Note: removed full-screen "Đang tải hội thoại…" spinner.
+  // When user comes from ChatDock the cache is primed so query.data is available
+  // immediately. On cold refresh, MessageList renders empty briefly while
+  // getThread loads in the background — much less jarring than a blank screen.
 
   if (query.isError) {
     return (

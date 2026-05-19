@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox, Pin, Star, Search, X } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
@@ -41,6 +41,7 @@ export function ChatDock() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
   const createWithMsgFn = useServerFn(createThreadWithFirstMessage);
   const listFn = useServerFn(listThreads);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -127,6 +128,15 @@ export function ChatDock() {
     setLoading(true);
     createWithMsgFn({ data: { title: q.slice(0, 60), content: q } })
       .then((res) => {
+        // Prime caches so the thread page renders instantly (no spinner, no refetch).
+        qc.setQueryData(["chat", "thread", res.thread.id], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
+        );
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
@@ -185,6 +195,14 @@ export function ChatDock() {
         try {
           sessionStorage.setItem(`__attach:${res.thread.id}`, JSON.stringify(payloads));
         } catch {}
+        qc.setQueryData(["chat", "thread", res.thread.id], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
+        );
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },

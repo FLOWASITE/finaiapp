@@ -161,9 +161,10 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId, tenantId } = context;
     const title = data.title?.trim() || data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
+    const nowIso = new Date().toISOString();
     const { data: thread, error: e1 } = await supabase
       .from("chat_threads")
-      .insert({ user_id: userId, tenant_id: tenantId, title })
+      .insert({ user_id: userId, tenant_id: tenantId, title, last_message_at: nowIso })
       .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
       .single();
     if (e1 || !thread) throw new Error(e1?.message || "Không tạo được hội thoại");
@@ -181,11 +182,6 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
       .select("id,role,content,created_at,metadata")
       .single();
     if (e2) throw new Error(e2.message);
-
-    await supabase
-      .from("chat_threads")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", thread.id);
 
     return { thread: thread as ChatThread, message: msg as ChatMessage };
   });
