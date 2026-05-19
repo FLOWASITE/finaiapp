@@ -231,6 +231,74 @@ function ReportsPage() {
           </div>
         </TabsContent>
 
+
+        <TabsContent value="dim" className="space-y-4">
+          <Card><CardContent className="py-3 flex items-end gap-3 flex-wrap">
+            <div>
+              <Label>Chiều phân tích</Label>
+              <div className="flex gap-2 mt-1">
+                {(["department", "project", "branch"] as const).map(d => (
+                  <Button key={d} size="sm" variant={dim === d ? "default" : "outline"} onClick={() => setDim(d)}>
+                    {d === "department" ? "Bộ phận" : d === "project" ? "Dự án" : "Chi nhánh"}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="text-right text-xs space-y-0.5">
+              <div className="text-muted-foreground">Tổng nguyên giá</div>
+              <div className="text-base font-bold">{fmt(dimRep.data?.totals.cost ?? 0)} ₫</div>
+              <div className="text-muted-foreground">GT còn lại: <span className="font-semibold text-emerald-600">{fmt(dimRep.data?.totals.nbv ?? 0)}</span></div>
+            </div>
+            <Button variant="outline" onClick={() => {
+              if (!dimRep.data) return;
+              const csv = toCSV(
+                ["Nhóm", "Số lượng", "Nguyên giá", "Luỹ kế", "GT còn lại"],
+                dimRep.data.rows.map((r: any) => [r.name, r.count, r.cost, r.accumulated, r.nbv])
+              );
+              downloadCSV(`TSCD_theo_${dim}.csv`, csv);
+            }}><Download className="h-4 w-4 mr-2" />Xuất CSV</Button>
+          </CardContent></Card>
+
+          <Card><CardContent className="p-0 overflow-auto">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{dim === "department" ? "Bộ phận" : dim === "project" ? "Dự án" : "Chi nhánh"}</TableHead>
+                <TableHead className="text-right">SL</TableHead>
+                <TableHead className="text-right">Nguyên giá</TableHead>
+                <TableHead className="text-right">KH luỹ kế</TableHead>
+                <TableHead className="text-right">GT còn lại</TableHead>
+                <TableHead className="text-right">% NG</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {(dimRep.data?.rows ?? []).map((r: any) => {
+                  const pct = dimRep.data!.totals.cost > 0 ? (r.cost / dimRep.data!.totals.cost) * 100 : 0;
+                  return (
+                    <TableRow key={r.key}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="text-right">{r.count}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmt(r.cost)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmt(r.accumulated)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-700">{fmt(r.nbv)}</TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">{pct.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {dimRep.data && (
+                  <TableRow className="font-semibold bg-muted/30">
+                    <TableCell>Tổng</TableCell>
+                    <TableCell className="text-right">{dimRep.data.totals.count}</TableCell>
+                    <TableCell className="text-right">{fmt(dimRep.data.totals.cost)}</TableCell>
+                    <TableCell className="text-right">{fmt(dimRep.data.totals.accumulated)}</TableCell>
+                    <TableCell className="text-right">{fmt(dimRep.data.totals.nbv)}</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
         <TabsContent value="card">
           <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
             Mở thẻ TSCĐ từng tài sản qua nút <strong>Thẻ</strong> ở tab S21-DN, hoặc từ danh sách tài sản.
