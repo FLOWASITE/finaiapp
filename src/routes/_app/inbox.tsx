@@ -37,7 +37,7 @@ const LANES: Lane[] = [
     icon: ClipboardCheck,
     title: "Cần duyệt",
     caption: "Nháp do AI tạo từ hoá đơn, sao kê",
-    to: "/documents",
+    to: "/inbox/approve",
     accent: "from-emerald-500/15 to-emerald-500/5 ring-emerald-500/25",
   },
   {
@@ -45,7 +45,7 @@ const LANES: Lane[] = [
     icon: AlertTriangle,
     title: "Quá hạn",
     caption: "Phải thu / phải trả đã đến hạn",
-    to: "/receivables",
+    to: "/inbox/overdue",
     accent: "from-rose-500/15 to-rose-500/5 ring-rose-500/25",
   },
   {
@@ -53,7 +53,7 @@ const LANES: Lane[] = [
     icon: Landmark,
     title: "Chưa đối soát",
     caption: "Giao dịch ngân hàng chờ ghép",
-    to: "/bank/reconcile",
+    to: "/inbox/reconcile",
     accent: "from-sky-500/15 to-sky-500/5 ring-sky-500/25",
   },
   {
@@ -61,7 +61,7 @@ const LANES: Lane[] = [
     icon: Calendar,
     title: "Sắp đến hạn",
     caption: "Thuế, lương, công nợ trong 7 ngày",
-    to: "/tax/gtgt",
+    to: "/inbox/deadline",
     accent: "from-amber-500/15 to-amber-500/5 ring-amber-500/25",
   },
   {
@@ -69,7 +69,7 @@ const LANES: Lane[] = [
     icon: Sparkles,
     title: "Bất thường",
     caption: "AI phát hiện điểm cần xem",
-    to: "/chat",
+    to: "/inbox/anomaly",
     accent: "from-violet-500/15 to-violet-500/5 ring-violet-500/25",
   },
 ];
@@ -116,7 +116,8 @@ function InboxPage() {
           return (
             <Link
               key={lane.key}
-              to={lane.to}
+              to="/inbox/$lane"
+              params={{ lane: lane.key }}
               className={cn(
                 "group relative flex flex-col gap-3 rounded-2xl border border-border/40 bg-gradient-to-br p-4 ring-1 ring-inset transition-all hover:-translate-y-0.5 hover:border-border/70 hover:shadow-lg",
                 lane.accent,
