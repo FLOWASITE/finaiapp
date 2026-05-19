@@ -251,3 +251,37 @@ export const deleteLastAssistantMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const setThreadPinned = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ threadId: Uuid, pinned: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { error } = await supabase
+      .from("chat_threads")
+      .update({ pinned_at: data.pinned ? new Date().toISOString() : null })
+      .eq("id", data.threadId)
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setThreadStarred = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ threadId: Uuid, starred: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { error } = await supabase
+      .from("chat_threads")
+      .update({ starred: data.starred })
+      .eq("id", data.threadId)
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
