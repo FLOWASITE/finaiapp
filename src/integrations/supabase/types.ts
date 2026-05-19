@@ -143,6 +143,96 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memory_rules: {
+        Row: {
+          accuracy_correct: number
+          accuracy_total: number
+          applied_count: number
+          created_at: string
+          created_by: string
+          disable_reason: string | null
+          id: string
+          last_used_at: string | null
+          origin: string | null
+          source: string | null
+          tenant_id: string
+          then_text: string
+          title: string
+          type: string
+          updated_at: string
+          when_text: string
+        }
+        Insert: {
+          accuracy_correct?: number
+          accuracy_total?: number
+          applied_count?: number
+          created_at?: string
+          created_by?: string
+          disable_reason?: string | null
+          id?: string
+          last_used_at?: string | null
+          origin?: string | null
+          source?: string | null
+          tenant_id: string
+          then_text: string
+          title: string
+          type: string
+          updated_at?: string
+          when_text: string
+        }
+        Update: {
+          accuracy_correct?: number
+          accuracy_total?: number
+          applied_count?: number
+          created_at?: string
+          created_by?: string
+          disable_reason?: string | null
+          id?: string
+          last_used_at?: string | null
+          origin?: string | null
+          source?: string | null
+          tenant_id?: string
+          then_text?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          when_text?: string
+        }
+        Relationships: []
+      }
+      ai_memory_watch: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          seen_count: number
+          target_count: number
+          tenant_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          seen_count?: number
+          target_count?: number
+          tenant_id: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          seen_count?: number
+          target_count?: number
+          tenant_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_model_config: {
         Row: {
           api_key_encrypted: string | null
