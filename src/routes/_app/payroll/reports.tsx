@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { reportPit05KK, reportPit05QTT, reportBhxhC70a } from "@/lib/payroll-reports.functions";
+import { reportPit05KK, reportPit05QTT, reportBhxhC70a, reportC02HD, reportPayrollAllocation } from "@/lib/payroll-reports.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
