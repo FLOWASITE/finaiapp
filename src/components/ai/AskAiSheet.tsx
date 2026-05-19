@@ -359,12 +359,13 @@ export function AskAiSheet() {
               ref={fileRef}
               type="file"
               accept="application/pdf,image/*"
+              multiple
               className="hidden"
               data-kind="purchase_invoice"
               onChange={(e) => {
-                const f = e.target.files?.[0];
+                const files = Array.from(e.target.files || []);
                 const k = (e.target.dataset.kind as any) || "purchase_invoice";
-                if (f) handleUpload(f, k);
+                if (files.length) handleUploadBatch(files, k);
               }}
             />
             <div className="flex gap-2">
