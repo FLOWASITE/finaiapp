@@ -11,10 +11,13 @@ const KEY = "chat:sidebar-collapsed";
 
 function ChatLayout() {
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(KEY) === "1";
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(KEY) === "1");
+    } catch {}
+  }, []);
 
   const toggle = () => {
     setCollapsed((v) => {
