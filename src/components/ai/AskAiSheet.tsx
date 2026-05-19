@@ -346,7 +346,6 @@ export function AskAiSheet() {
           </div>
         </SheetContent>
 
-        </SheetContent>
       </Sheet>
     </>
   );
