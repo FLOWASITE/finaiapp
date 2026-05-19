@@ -365,12 +365,8 @@ function OrderFormDialog({
   });
 
   // Load existing order when editing
-  const getOrderFn = useServerFn(
-    // import lazily? Use the same listSalesOrders is heavy; reuse getSalesOrder
-    // We import dynamically via require pattern not available — call directly:
-    require("@/lib/sales-orders.functions").getSalesOrder,
-  );
-  const { data: existing } = useQuery({
+  const getOrderFn = useServerFn(getSalesOrder);
+  const { data: existing } = useQuery<any>({
     queryKey: ["sales-order", editingId],
     queryFn: () => getOrderFn({ data: { id: editingId! } }),
     enabled: !!editingId && open,
