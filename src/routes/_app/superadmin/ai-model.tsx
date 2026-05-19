@@ -164,6 +164,7 @@ function AiModelPage() {
 
   const hasKey = !!data?.hasApiKey;
   const isOpenRouter = !!form && /openrouter\.ai/i.test(form.base_url);
+  const isAlibaba = !!form && /dashscope.*aliyuncs\.com/i.test(form.base_url);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => (f ? { ...f, [k]: v } : f));
@@ -176,6 +177,18 @@ function AiModelPage() {
       enabled: true,
     });
     toast.success("Đã áp preset OpenRouter — nhớ nhập API key và lưu.");
+  };
+
+  const applyAlibabaPreset = (region: "intl" | "cn") => {
+    if (!form) return;
+    setForm({
+      ...form,
+      ...ALIBABA_PRESETS[region],
+      enabled: true,
+    });
+    toast.success(
+      `Đã áp preset Alibaba Qwen (${region === "intl" ? "Intl" : "CN"}) — nhập DashScope API key rồi lưu.`,
+    );
   };
 
   const onLoadModels = async () => {
