@@ -1050,13 +1050,20 @@ function ModelField({
                       return (
                         <CommandItem
                           key={m.id}
-                          value={m.id + " " + m.name}
+                          value={m.id}
                           onSelect={() => {
                             onChange(m.id);
                             setOpen(false);
                           }}
+                          onMouseDown={(e) => {
+                            // Fallback: cmdk's onSelect can miss inside Radix Popover + <details>.
+                            // Use mousedown so we fire before the popover's focus-out close logic.
+                            e.preventDefault();
+                            onChange(m.id);
+                            setOpen(false);
+                          }}
                           className={cn(
-                            "flex items-start gap-2 py-2",
+                            "flex items-start gap-2 py-2 cursor-pointer",
                             isSel && "bg-primary/5",
                           )}
                         >
