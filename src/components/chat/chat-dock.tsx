@@ -267,9 +267,10 @@ export function ChatDock() {
             onSubmit={() => submit()}
             loading={loading}
             placeholder={
-              recording ? "Đang nghe…" : "Hỏi trợ lý AI bất cứ điều gì…"
+              recording ? "Đang nghe…" : "Hỏi trợ lý AI bất cứ điều gì… (Cmd+J)"
             }
             compact
+            inputRef={inputRef}
           />
         </div>
         <Button
