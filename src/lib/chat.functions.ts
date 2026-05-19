@@ -181,6 +181,7 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       tools: {
         runQuery: makeRunQueryTool(supabase, userId),
         proposeAction: makeProposeActionTool(supabase, userId),
+        renderChart: makeRenderChartTool(),
       },
       stopWhen: stepCountIs(50),
       system: systemParts.join("\n\n"),
