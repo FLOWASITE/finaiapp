@@ -360,10 +360,21 @@ function LaneDetailPage() {
             </tbody>
           </table>
         )}
+        {rows.length > 0 && (
+          <div ref={sentinelRef} className="flex items-center justify-center px-6 py-4 text-xs text-muted-foreground">
+            {query.isFetchingNextPage ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tải thêm…</span>
+            ) : query.hasNextPage ? (
+              <Button size="sm" variant="ghost" onClick={() => query.fetchNextPage()}>Tải thêm</Button>
+            ) : (
+              <span>Đã tải hết {rows.length} mục</span>
+            )}
+          </div>
+        )}
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Nguồn dữ liệu: <span className="font-mono">{query.data?.source ?? "—"}</span> · cập nhật trực tiếp từ hệ thống kế toán của bạn.
+        Nguồn dữ liệu: <span className="font-mono">{source}</span> · cập nhật trực tiếp từ hệ thống kế toán của bạn.
       </p>
     </div>
   );
