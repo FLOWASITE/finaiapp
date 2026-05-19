@@ -8,7 +8,7 @@ import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { createThread, createThreadWithFirstMessage, appendMessage, listThreads } from "@/lib/chat-threads.functions";
+import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
