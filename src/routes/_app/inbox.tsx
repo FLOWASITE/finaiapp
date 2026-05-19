@@ -1087,21 +1087,33 @@ const SkeletonRow = memo(function SkeletonRow({
 });
 
 
-/** Khung danh sách skeleton — memo hoá vì props rỗng, không re-render khi parent đổi tab. */
+/**
+ * Cây JSX skeleton được build sẵn 1 lần ở module scope. Mọi phụ thuộc
+ * (SKELETON_VARIANTS, INBOX_COPY, PILL_CACHE) đều là hằng số module-level,
+ * nên element này tham chiếu ổn định suốt vòng đời app.
+ */
+const LIST_SKELETON_ELEMENT = (
+  <ul
+    className="space-y-3 p-4"
+    role="status"
+    aria-live="polite"
+    aria-label={INBOX_COPY.loading}
+  >
+    {SKELETON_VARIANTS.map((v, i) => (
+      <SkeletonRow key={i} variant={v} />
+    ))}
+  </ul>
+);
+
+/**
+ * Không nhận prop, không có state/hook → React.memo coi như luôn "bằng nhau"
+ * và bỏ qua re-render khi parent (Inbox) đổi tab. Trả về element constant
+ * để loại bỏ cả chi phí build VDOM mỗi lần được mount.
+ */
 const ListSkeleton = memo(function ListSkeleton() {
-  return (
-    <ul
-      className="space-y-3 p-4"
-      role="status"
-      aria-live="polite"
-      aria-label={INBOX_COPY.loading}
-    >
-      {SKELETON_VARIANTS.map((v, i) => (
-        <SkeletonRow key={i} variant={v} />
-      ))}
-    </ul>
-  );
+  return LIST_SKELETON_ELEMENT;
 });
+
 
 
 
