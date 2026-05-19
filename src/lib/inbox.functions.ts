@@ -24,6 +24,7 @@ const InputSchema = z
     statusFilter: z.string().max(80).optional().default(""),
     rangeFilter: z.string().max(40).optional().default(""),
     limit: z.number().int().min(1).max(200).optional().default(50),
+    offset: z.number().int().min(0).max(10_000).optional().default(0),
   })
   .strict();
 
