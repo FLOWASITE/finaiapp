@@ -300,7 +300,7 @@ function ThreadPage() {
               variant="ghost"
               size="sm"
               className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => navigate({ to: from })}
+              onClick={() => router.history.push(from)}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Quay lại trang trước
