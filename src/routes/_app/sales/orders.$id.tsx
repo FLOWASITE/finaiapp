@@ -49,6 +49,13 @@ function OrderDetail() {
         </Button>
         <h1 className="text-2xl font-semibold font-mono">{data.order_no}</h1>
         <Badge variant="secondary">{STATUS_LABEL[data.status] ?? data.status}</Badge>
+        <div className="ml-auto">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/sales/orders/$id/print" params={{ id }} target="_blank">
+              <Printer className="h-4 w-4 mr-1" /> In
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
