@@ -1011,48 +1011,43 @@ function ListSkeleton() {
       {variants.map((v, i) => (
         <li
           key={i}
-          className="relative overflow-hidden rounded-lg border border-border/50 bg-card"
+          className="skeleton-card rounded-lg border border-border/50 bg-card"
         >
           {/* rail */}
           <span className={cn("absolute inset-y-0 left-0 w-1", v.rail)} />
           <div className="pl-4 pr-4 py-3">
             {/* Row 1: pill + thời gian + dot */}
             <div className="flex items-center gap-2">
-              <div className="h-4 w-20 animate-pulse rounded-md bg-muted/60" />
-              <div className="h-3 w-12 animate-pulse rounded bg-muted/40" />
-              <div className="h-3 w-24 animate-pulse rounded bg-muted/30 hidden sm:block" />
-              <div className="ml-auto h-2 w-2 animate-pulse rounded-full bg-muted/60" />
+              <div className="skeleton-block h-4 w-20" />
+              <div className="skeleton-block h-3 w-12" />
+              <div className="skeleton-block h-3 w-24 hidden sm:block" />
+              <div className="skeleton-block ml-auto h-2 w-2 rounded-full" />
             </div>
 
             {/* Row 2: title + amount */}
             <div className="mt-2 flex items-baseline justify-between gap-3">
-              <div className="h-4 w-2/3 animate-pulse rounded bg-muted/60" />
-              <div className="h-4 w-24 shrink-0 animate-pulse rounded bg-muted/60" />
+              <div className="skeleton-block h-4 w-2/3" />
+              <div className="skeleton-block h-4 w-24 shrink-0" />
             </div>
 
             {/* Row 3: memo */}
-            {v.hasMemo && (
-              <div className="mt-1.5 h-3 w-3/4 animate-pulse rounded bg-muted/30" />
-            )}
+            {v.hasMemo && <div className="skeleton-block mt-1.5 h-3 w-3/4" />}
 
             {/* Row 4: proposal pills */}
             {v.proposalCount ? (
               <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/30 px-2 py-1.5">
                 {Array.from({ length: v.proposalCount }).map((_, j) => (
-                  <div
-                    key={j}
-                    className="h-3 w-20 animate-pulse rounded bg-muted/50"
-                  />
+                  <div key={j} className="skeleton-block h-3 w-20" />
                 ))}
               </div>
             ) : null}
 
             {/* Row 5: blocker / followup */}
             {v.extra === "blocker" && (
-              <div className="mt-2 h-7 w-full animate-pulse rounded-md border border-rose-500/20 bg-rose-500/5" />
+              <div className="skeleton-block mt-2 h-7 w-full border border-rose-500/20 bg-rose-500/5" />
             )}
             {v.extra === "followup" && (
-              <div className="mt-2 h-7 w-5/6 animate-pulse rounded-md border border-amber-500/20 bg-amber-500/5" />
+              <div className="skeleton-block mt-2 h-7 w-5/6 border border-amber-500/20 bg-amber-500/5" />
             )}
           </div>
         </li>
@@ -1060,6 +1055,7 @@ function ListSkeleton() {
     </ul>
   );
 }
+
 
 /* ───────── Mobile Inbox overlay with swipe-right / pull-down to close ───────── */
 function MobileInboxOverlay({
