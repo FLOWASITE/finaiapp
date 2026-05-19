@@ -55,6 +55,7 @@ import { Route as AppSuppliersGroupsRouteImport } from './routes/_app/suppliers/
 import { Route as AppSuppliersIdRouteImport } from './routes/_app/suppliers/$id'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
+import { Route as AppSuperadminAiModelRouteImport } from './routes/_app/superadmin/ai-model'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
 import { Route as AppSettingsProjectsRouteImport } from './routes/_app/settings/projects'
 import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/settings/fiscal-periods'
@@ -363,6 +364,11 @@ const AppSuperadminOrganizationsRoute =
 const AppSuperadminAuditRoute = AppSuperadminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSuperadminAiModelRoute = AppSuperadminAiModelRouteImport.update({
+  id: '/ai-model',
+  path: '/ai-model',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
 const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
@@ -845,6 +851,7 @@ export interface FileRoutesByFullPath {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
@@ -965,6 +972,7 @@ export interface FileRoutesByTo {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/suppliers/$id': typeof AppSuppliersIdRoute
@@ -1093,6 +1101,7 @@ export interface FileRoutesById {
   '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/_app/settings/projects': typeof AppSettingsProjectsRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/_app/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/suppliers/$id': typeof AppSuppliersIdRoute
@@ -1221,6 +1230,7 @@ export interface FileRouteTypes {
     | '/settings/fiscal-periods'
     | '/settings/projects'
     | '/superadmin/accounts'
+    | '/superadmin/ai-model'
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
@@ -1341,6 +1351,7 @@ export interface FileRouteTypes {
     | '/settings/fiscal-periods'
     | '/settings/projects'
     | '/superadmin/accounts'
+    | '/superadmin/ai-model'
     | '/superadmin/audit'
     | '/superadmin/organizations'
     | '/suppliers/$id'
@@ -1468,6 +1479,7 @@ export interface FileRouteTypes {
     | '/_app/settings/fiscal-periods'
     | '/_app/settings/projects'
     | '/_app/superadmin/accounts'
+    | '/_app/superadmin/ai-model'
     | '/_app/superadmin/audit'
     | '/_app/superadmin/organizations'
     | '/_app/suppliers/$id'
@@ -1853,6 +1865,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/superadmin/audit'
       preLoaderRoute: typeof AppSuperadminAuditRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/ai-model': {
+      id: '/_app/superadmin/ai-model'
+      path: '/ai-model'
+      fullPath: '/superadmin/ai-model'
+      preLoaderRoute: typeof AppSuperadminAiModelRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
     '/_app/superadmin/accounts': {
@@ -2509,6 +2528,7 @@ const AppItemsRouteWithChildren = AppItemsRoute._addFileChildren(
 
 interface AppSuperadminRouteChildren {
   AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
+  AppSuperadminAiModelRoute: typeof AppSuperadminAiModelRoute
   AppSuperadminAuditRoute: typeof AppSuperadminAuditRoute
   AppSuperadminOrganizationsRoute: typeof AppSuperadminOrganizationsRoute
   AppSuperadminIndexRoute: typeof AppSuperadminIndexRoute
@@ -2517,6 +2537,7 @@ interface AppSuperadminRouteChildren {
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
+  AppSuperadminAiModelRoute: AppSuperadminAiModelRoute,
   AppSuperadminAuditRoute: AppSuperadminAuditRoute,
   AppSuperadminOrganizationsRoute: AppSuperadminOrganizationsRoute,
   AppSuperadminIndexRoute: AppSuperadminIndexRoute,
