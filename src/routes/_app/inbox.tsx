@@ -569,7 +569,7 @@ function InboxAiPage() {
       </div>
 
       {/* Tabs */}
-      <div className="hidden shrink-0 items-center gap-1 border-b border-border/40 px-5 lg:flex">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border/40 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:px-5">
         {TABS.map((t) => (
           <button
             key={t.key}
