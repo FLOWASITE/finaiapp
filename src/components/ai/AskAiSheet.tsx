@@ -4,9 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Send, User, Command as CommandIcon } from "lucide-react";
+import { Sparkles, Send, User, Command as CommandIcon, Paperclip, Loader2 } from "lucide-react";
 import { askAccountingStream } from "@/lib/chat.functions";
+import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { PendingActions } from "@/components/ai/PendingActions";
+import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
