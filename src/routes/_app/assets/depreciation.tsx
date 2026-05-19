@@ -102,7 +102,11 @@ function DepreciationPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/assets"><ArrowLeft className="h-4 w-4 mr-1" />Tài sản</Link>
         </Button>
+        <Button asChild variant="outline" size="sm" className="ml-auto">
+          <Link to="/assets/audit"><ShieldCheck className="h-4 w-4 mr-1" />Nhật ký TSCĐ</Link>
+        </Button>
       </div>
+
 
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
