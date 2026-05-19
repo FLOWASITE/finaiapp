@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CodeEntity =
   | "sale_invoice"
+  | "sale_order"
   | "purchase_invoice"
   | "customer"
   | "supplier"
