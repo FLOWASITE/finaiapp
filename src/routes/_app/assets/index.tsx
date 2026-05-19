@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Sparkles, Layers, Briefcase, Coins, TrendingDown, FolderTree, Pencil, Upload, Download, FileText, Printer, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/_app/assets/")({
@@ -346,7 +347,7 @@ function Assets() {
 
             <TabsContent value="general" className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Mã TSCĐ *"><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+                <Field label="Mã TSCĐ *"><AutoCodeInput value={form.code} onChange={(v: string) => setForm({ ...form, code: v })} entity="fixed_asset" autoFillOnMount={!form.id} /></Field>
                 <Field label="Tên *" className="col-span-2"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
                 <Field label="Danh mục" className="col-span-2">
                   <Select value={form.category_id ?? ""} onValueChange={onCategoryChange}>

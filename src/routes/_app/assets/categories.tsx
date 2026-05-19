@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Sparkles, Pencil, Trash2, Layers } from "lucide-react";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/assets/categories")({
@@ -124,7 +125,7 @@ function Categories() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Mã *</label>
-              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              <AutoCodeInput value={form.code} onChange={(v: string) => setForm({ ...form, code: v })} entity="fa_category" autoFillOnMount={!form.id} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Loại</label>

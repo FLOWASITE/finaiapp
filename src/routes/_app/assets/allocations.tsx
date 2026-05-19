@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import {
   Plus,
   Search,
@@ -428,9 +429,11 @@ function UpsertDialog({ asset }: { asset?: any }) {
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Mã *">
-            <Input
+            <AutoCodeInput
               value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              onChange={(v: string) => setForm({ ...form, code: v })}
+              entity="allocated_asset"
+              autoFillOnMount={!asset}
               placeholder="VD: CCDC-001"
             />
           </Field>

@@ -13,10 +13,13 @@ export type CodeEntity =
   | "warehouse"
   | "bank_receipt"
   | "bank_payment"
-  | "bank_transfer";
+  | "bank_transfer"
+  | "fixed_asset"
+  | "fa_category"
+  | "allocated_asset";
 
 type EntityConfig = {
-  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers";
+  table: "sales_invoices" | "invoices" | "customers" | "suppliers" | "products" | "warehouses" | "bank_vouchers" | "fixed_assets" | "fa_categories" | "allocated_assets";
   column: "invoice_no" | "code" | "voucher_no";
   prefix: string;
   dateScoped: boolean;
@@ -54,6 +57,9 @@ const CONFIG: Record<CodeEntity, EntityConfig> = {
     table: "bank_vouchers", column: "voucher_no", prefix: "BT", dateScoped: true, padLen: 5,
     extraFilter: { column: "voucher_type", value: "transfer_out" },
   },
+  fixed_asset: { table: "fixed_assets", column: "code", prefix: "TS", dateScoped: false, padLen: 4 },
+  fa_category: { table: "fa_categories", column: "code", prefix: "DM-TS", dateScoped: false, padLen: 3 },
+  allocated_asset: { table: "allocated_assets", column: "code", prefix: "CCDC", dateScoped: false, padLen: 4 },
 };
 
 const InputSchema = z.object({
@@ -61,6 +67,7 @@ const InputSchema = z.object({
     "sale_invoice", "purchase_invoice", "customer", "supplier",
     "product_goods", "product_service", "product_combo", "warehouse",
     "bank_receipt", "bank_payment", "bank_transfer",
+    "fixed_asset", "fa_category", "allocated_asset",
   ]),
   date: z.string().optional(),
 });
