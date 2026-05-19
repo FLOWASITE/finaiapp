@@ -41,6 +41,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { dashboardOverview } from "@/lib/dashboard-overview.functions";
 import { useNavigate } from "@tanstack/react-router";
+import { InsightWidget } from "@/components/ai/InsightWidget";
+
 
 type Period = "month" | "quarter" | "ytd";
 
