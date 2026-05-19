@@ -45,6 +45,8 @@ function ThreadPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [hasNew, setHasNew] = useState(false);
 
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
