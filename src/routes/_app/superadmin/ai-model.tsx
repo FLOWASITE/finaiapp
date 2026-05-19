@@ -669,7 +669,7 @@ function AiModelPage() {
               <div className="text-sm font-medium">Model</div>
             </div>
             <div className="flex items-center gap-2">
-              {models.length > 0 && (
+              {modelOptions.length > 0 && (
                 <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                   <input
                     type="checkbox"
@@ -679,13 +679,13 @@ function AiModelPage() {
                   Chỉ miễn phí
                 </label>
               )}
-              <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
+          <Button size="sm" variant="outline" onClick={onLoadModels} disabled={loadingModels}>
                 {loadingModels ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách"}
+                {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách đầy đủ"}
               </Button>
             </div>
           </div>
