@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { TrendingDown, PlayCircle, Eye, ArrowLeft, BookOpen, Calendar, Wallet, FileText } from "lucide-react";
+import { TrendingDown, PlayCircle, Eye, ArrowLeft, BookOpen, Calendar, Wallet, FileText, Undo2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { listDepBooks, runBookDepreciation, listBookEntries } from "@/lib/fa-books.functions";
+import { listDepBooks, runBookDepreciation, listBookEntries, voidDepEntry } from "@/lib/fa-books.functions";
+
 
 type Search = { bookId?: string; period?: string };
 
