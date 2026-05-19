@@ -6,9 +6,9 @@ Dựa trên lựa chọn của bạn:
 - **Module**: Bán hàng + Mua hàng + Kế toán/Báo cáo + Kho + **Tiền gửi ngân hàng**
 - **Input**: Mobile-first + Upload PDF/ảnh + Voice
 
-Phase 1 (chat) + Phase 2 (write tools với approval) + Phase 3.1 (upload PDF/ảnh) + Phase 3.2 (voice Web Speech) + Phase 4.1 (mobile-first AskAiSheet, quick chips) + Phase 4.2 (proactive insights — bảng `ai_insights`, cron `ai-daily-digest` 7h sáng, `InsightWidget` trên dashboard) đã hoàn tất.
+Phase 1 (chat) + Phase 2 (write tools với approval) + Phase 3.1 (upload PDF/ảnh — hoá đơn mua + sao kê + phiếu thu/chi qua prompt `auto`) + Phase 3.2 (voice Web Speech) + Phase 4.1 (mobile-first AskAiSheet, quick chips) + Phase 4.2 (proactive insights — `ai_insights`, cron `ai-daily-digest` 7h, `InsightWidget` dashboard) + **Phase 4.3 (Conversational Reports — AI emit ```chart fenced block, `ChartBlock` render Recharts inline trong chat)** đã hoàn tất.
 
-Còn lại: Phase 3.1 nhánh sao kê ngân hàng + phiếu thu/chi viết tay, Phase 4.3 Conversational Reports (output structured + Recharts trong chat).
+Hệ thống AI-first MVP đã đủ: chat ngữ cảnh, đề xuất hành động có duyệt cho 6 loại nghiệp vụ (Bán/Mua/Ngân hàng), upload chứng từ → trích xuất, voice tiếng Việt, insight chủ động, biểu đồ trong chat.
 
 ---
 
