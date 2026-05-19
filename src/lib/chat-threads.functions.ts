@@ -147,6 +147,49 @@ export const createThread = createServerFn({ method: "POST" })
     return row as ChatThread;
   });
 
+export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        title: z.string().trim().min(1).max(200).optional(),
+        content: z.string().min(1).max(50_000),
+        metadata: z.any().optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const title = data.title?.trim() || data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
+    const { data: thread, error: e1 } = await supabase
+      .from("chat_threads")
+      .insert({ user_id: userId, tenant_id: tenantId, title })
+      .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
+      .single();
+    if (e1 || !thread) throw new Error(e1?.message || "Không tạo được hội thoại");
+
+    const { data: msg, error: e2 } = await supabase
+      .from("chat_messages")
+      .insert({
+        thread_id: thread.id,
+        tenant_id: tenantId,
+        user_id: userId,
+        role: "user",
+        content: data.content,
+        metadata: data.metadata ?? null,
+      })
+      .select("id,role,content,created_at,metadata")
+      .single();
+    if (e2) throw new Error(e2.message);
+
+    await supabase
+      .from("chat_threads")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", thread.id);
+
+    return { thread: thread as ChatThread, message: msg as ChatMessage };
+  });
+
 export const renameThread = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i: unknown) =>
