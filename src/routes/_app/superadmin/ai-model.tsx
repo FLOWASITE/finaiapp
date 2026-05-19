@@ -30,11 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -120,20 +116,103 @@ const ALIBABA_PRESETS = {
 } as const;
 
 const PROVIDER_META: Record<string, { label: string; logo: string; color: string }> = {
-  openai: { label: "OpenAI", logo: "AI", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
-  anthropic: { label: "Anthropic (Claude)", logo: "AN", color: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
-  google: { label: "Google (Gemini)", logo: "G", color: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
-  "x-ai": { label: "xAI (Grok)", logo: "X", color: "bg-slate-700/15 text-slate-800 dark:text-slate-200" },
-  "meta-llama": { label: "Meta (Llama)", logo: "M", color: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
-  mistralai: { label: "Mistral", logo: "MI", color: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  deepseek: { label: "DeepSeek", logo: "DS", color: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  openai: {
+    label: "OpenAI",
+    logo: "AI",
+    color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  },
+  anthropic: {
+    label: "Anthropic (Claude)",
+    logo: "AN",
+    color: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
+  },
+  google: {
+    label: "Google (Gemini)",
+    logo: "G",
+    color: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  },
+  "x-ai": {
+    label: "xAI (Grok)",
+    logo: "X",
+    color: "bg-slate-700/15 text-slate-800 dark:text-slate-200",
+  },
+  "meta-llama": {
+    label: "Meta (Llama)",
+    logo: "M",
+    color: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  },
+  mistralai: {
+    label: "Mistral",
+    logo: "MI",
+    color: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  },
+  deepseek: {
+    label: "DeepSeek",
+    logo: "DS",
+    color: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  },
   qwen: { label: "Qwen", logo: "通", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
-  alibaba: { label: "Alibaba", logo: "阿", color: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  alibaba: {
+    label: "Alibaba",
+    logo: "阿",
+    color: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+  },
   cohere: { label: "Cohere", logo: "CO", color: "bg-pink-500/15 text-pink-700 dark:text-pink-300" },
-  perplexity: { label: "Perplexity", logo: "PX", color: "bg-teal-500/15 text-teal-700 dark:text-teal-300" },
-  nvidia: { label: "NVIDIA", logo: "NV", color: "bg-green-500/15 text-green-700 dark:text-green-300" },
-  microsoft: { label: "Microsoft", logo: "MS", color: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" },
+  perplexity: {
+    label: "Perplexity",
+    logo: "PX",
+    color: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
+  },
+  nvidia: {
+    label: "NVIDIA",
+    logo: "NV",
+    color: "bg-green-500/15 text-green-700 dark:text-green-300",
+  },
+  microsoft: {
+    label: "Microsoft",
+    logo: "MS",
+    color: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+  },
 };
+
+const suggestedModel = (
+  id: string,
+  name: string,
+  context_length: number | null = null,
+): ModelOption => ({
+  id,
+  name,
+  description: null,
+  context_length,
+  pricing: null,
+  isFree: /:free\b/i.test(id),
+});
+
+const SUGGESTED_MODELS: ModelOption[] = [
+  suggestedModel("openai/gpt-4o-mini", "GPT-4o Mini", 128_000),
+  suggestedModel("openai/gpt-4o", "GPT-4o", 128_000),
+  suggestedModel("openai/gpt-5-mini", "GPT-5 Mini", 400_000),
+  suggestedModel("openai/gpt-5", "GPT-5", 400_000),
+  suggestedModel("google/gemini-2.5-flash", "Gemini 2.5 Flash", 1_000_000),
+  suggestedModel("google/gemini-2.5-pro", "Gemini 2.5 Pro", 1_000_000),
+  suggestedModel("google/gemini-3-flash-preview", "Gemini 3 Flash Preview", 1_000_000),
+  suggestedModel("google/gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview", 1_000_000),
+  suggestedModel("anthropic/claude-sonnet-4.5", "Claude Sonnet 4.5", 200_000),
+  suggestedModel("anthropic/claude-haiku-4.5", "Claude Haiku 4.5", 200_000),
+  suggestedModel("deepseek/deepseek-r1", "DeepSeek R1", 128_000),
+  suggestedModel("deepseek/deepseek-chat", "DeepSeek Chat", 128_000),
+  suggestedModel("qwen/qwen-vl-max", "Qwen VL Max", 128_000),
+  suggestedModel("qwen/qwq-32b", "QwQ 32B", 128_000),
+  suggestedModel("x-ai/grok-4", "Grok 4", 256_000),
+  suggestedModel("meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B Instruct", 128_000),
+];
+
+function mergeModelOptions(primary: ModelOption[], fallback: ModelOption[]) {
+  const map = new Map<string, ModelOption>();
+  fallback.forEach((m) => map.set(m.id, m));
+  primary.forEach((m) => map.set(m.id, m));
+  return Array.from(map.values());
+}
 
 function providerMeta(p: string) {
   return (
@@ -175,7 +254,6 @@ function AiModelPage() {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [onlyFree, setOnlyFree] = useState(false);
-  const [modelSearch, setModelSearch] = useState("");
 
   useEffect(() => {
     if (!data) return;
@@ -214,8 +292,7 @@ function AiModelPage() {
     if (!form?.extra_headers_json.trim()) return null;
     try {
       const p = JSON.parse(form.extra_headers_json);
-      if (!p || typeof p !== "object" || Array.isArray(p))
-        return "Phải là một object JSON";
+      if (!p || typeof p !== "object" || Array.isArray(p)) return "Phải là một object JSON";
       return null;
     } catch (e: any) {
       return e.message as string;
@@ -255,7 +332,7 @@ function AiModelPage() {
     setLoadingModels(true);
     try {
       const r: any = await listModels({ data: { base_url: form.base_url } });
-      setModels(r.models as ModelOption[]);
+      setModels(mergeModelOptions((r.models as ModelOption[]) ?? [], SUGGESTED_MODELS));
       toast.success(`Đã tải ${r.count} model.`);
     } catch (e: any) {
       toast.error("Không tải được danh sách model: " + e.message);
@@ -332,6 +409,7 @@ function AiModelPage() {
   const isCustomActive = form.enabled && hasKey && !!form.base_url;
   const missingSetup = form.enabled && (!form.base_url || (!hasKey && !form.api_key));
   const host = hostFromUrl(form.base_url);
+  const modelOptions = models.length > 0 ? models : SUGGESTED_MODELS;
 
   // status: active | warning | muted
   const status: "active" | "warning" | "muted" = missingSetup
@@ -410,7 +488,8 @@ function AiModelPage() {
           <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
-              Đã bật nhưng còn thiếu base URL hoặc API key. Hệ thống sẽ fallback Lovable AI cho tới khi hoàn tất.
+              Đã bật nhưng còn thiếu base URL hoặc API key. Hệ thống sẽ fallback Lovable AI cho tới
+              khi hoàn tất.
             </span>
           </div>
         )}
@@ -421,9 +500,7 @@ function AiModelPage() {
         <div className="flex items-center gap-2 mb-3">
           <Wand2 className="h-4 w-4 text-primary" />
           <div className="text-sm font-medium">Preset nhanh</div>
-          <span className="text-xs text-muted-foreground">
-            — chọn provider, tự fill cấu hình
-          </span>
+          <span className="text-xs text-muted-foreground">— chọn provider, tự fill cấu hình</span>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <PresetCard
@@ -435,7 +512,12 @@ function AiModelPage() {
             meta={[]}
             keyHref="https://openrouter.ai/keys"
             action={
-              <Button size="sm" variant="outline" onClick={applyOpenRouterPreset} className="w-full">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={applyOpenRouterPreset}
+                className="w-full"
+              >
                 <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                 Áp preset OpenRouter
               </Button>
@@ -486,7 +568,7 @@ function AiModelPage() {
       <Card className="p-4 md:p-5 space-y-5">
         {/* Provider section */}
         <div className="space-y-3">
-          {(isOpenRouter || isAlibaba) ? (
+          {isOpenRouter || isAlibaba ? (
             // Known preset → compact read-only summary
             <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -502,9 +584,7 @@ function AiModelPage() {
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{form.provider_label}</div>
-                  <div className="text-[11px] text-muted-foreground font-mono truncate">
-                    {host}
-                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono truncate">{host}</div>
                 </div>
               </div>
             </div>
@@ -563,11 +643,7 @@ function AiModelPage() {
                 disabled={form.clearKey}
                 onChange={(e) => update("api_key", e.target.value)}
                 placeholder={
-                  hasKey
-                    ? "••••••••• (nhập mới để thay)"
-                    : isOpenRouter
-                      ? "sk-or-v1-..."
-                      : "sk-..."
+                  hasKey ? "••••••••• (nhập mới để thay)" : isOpenRouter ? "sk-or-v1-..." : "sk-..."
                 }
                 className="pr-10 font-mono text-sm"
               />
@@ -593,7 +669,7 @@ function AiModelPage() {
               <div className="text-sm font-medium">Model</div>
             </div>
             <div className="flex items-center gap-2">
-              {models.length > 0 && (
+              {modelOptions.length > 0 && (
                 <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                   <input
                     type="checkbox"
@@ -609,7 +685,7 @@ function AiModelPage() {
                 ) : (
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách"}
+                {models.length > 0 ? `Tải lại (${models.length})` : "Tải danh sách đầy đủ"}
               </Button>
             </div>
           </div>
@@ -620,9 +696,8 @@ function AiModelPage() {
             required
             value={form.model_default}
             onChange={(v) => update("model_default", v)}
-            models={models}
+            models={modelOptions}
             onlyFree={onlyFree}
-            search={modelSearch}
             placeholder="openai/gpt-4o-mini"
           />
 
@@ -645,9 +720,8 @@ function AiModelPage() {
                 hint="Ưu tiên model nhanh & rẻ (gpt-4o-mini, gemini-flash) — phản hồi realtime."
                 value={form.model_chat}
                 onChange={(v) => update("model_chat", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: openai/gpt-4o-mini"
               />
               <ModelField
@@ -656,9 +730,8 @@ function AiModelPage() {
                 hint="BẮT BUỘC có vision + context lớn (gemini-2.5-pro, gpt-4o, qwen-vl-max)."
                 value={form.model_parse}
                 onChange={(v) => update("model_parse", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: google/gemini-2.5-pro"
               />
               <ModelField
@@ -667,9 +740,8 @@ function AiModelPage() {
                 hint="Cần reasoning tốt (gpt-4o, deepseek-r1, qwq). Tác vụ batch — cân nhắc giá."
                 value={form.model_reasoning}
                 onChange={(v) => update("model_reasoning", v)}
-                models={models}
+                models={modelOptions}
                 onlyFree={onlyFree}
-                search={modelSearch}
                 placeholder="vd: deepseek/deepseek-r1"
               />
             </div>
@@ -731,9 +803,7 @@ function AiModelPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Ghi chú nội bộ</Label>
-                <span className="text-[11px] text-muted-foreground">
-                  {form.notes.length} ký tự
-                </span>
+                <span className="text-[11px] text-muted-foreground">{form.notes.length} ký tự</span>
               </div>
               <Textarea
                 rows={2}
@@ -770,9 +840,7 @@ function AiModelPage() {
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[420px] text-xs">
-                <div className="font-mono whitespace-pre-wrap break-words">
-                  {testResult.msg}
-                </div>
+                <div className="font-mono whitespace-pre-wrap break-words">{testResult.msg}</div>
               </PopoverContent>
             </Popover>
           )}
@@ -874,7 +942,6 @@ function ModelField({
   onChange,
   models,
   onlyFree,
-  search,
   placeholder,
 }: {
   label: string;
@@ -885,19 +952,17 @@ function ModelField({
   onChange: (v: string) => void;
   models: ModelOption[];
   onlyFree: boolean;
-  search: string;
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
+  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     let list = onlyFree ? models.filter((m) => m.isFree) : models;
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(
-        (m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-      );
+      list = list.filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
     }
     return list;
   }, [models, onlyFree, search]);
@@ -915,9 +980,19 @@ function ModelField({
       list.sort((a, b) => a.id.localeCompare(b.id));
     }
     const order = [
-      "openai", "anthropic", "google", "x-ai", "meta-llama",
-      "mistralai", "deepseek", "qwen", "alibaba", "cohere",
-      "perplexity", "nvidia", "microsoft",
+      "openai",
+      "anthropic",
+      "google",
+      "x-ai",
+      "meta-llama",
+      "mistralai",
+      "deepseek",
+      "qwen",
+      "alibaba",
+      "cohere",
+      "perplexity",
+      "nvidia",
+      "microsoft",
     ];
     return Array.from(groups.entries()).sort(([a], [b]) => {
       const ia = order.indexOf(a);
@@ -929,9 +1004,7 @@ function ModelField({
     });
   }, [filtered]);
 
-
   const selected = models.find((m) => m.id === value);
-  const noModelsLoaded = models.length === 0;
 
   // Display parts for trigger
   const triggerProvider = value.includes("/") ? value.split("/")[0] : null;
@@ -945,21 +1018,17 @@ function ModelField({
           {label}
           {required && <span className="text-destructive">*</span>}
         </Label>
-        {!noModelsLoaded && (
-          <button
-            type="button"
-            onClick={() => setManual((m) => !m)}
-            className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-          >
-            {manual ? "Chọn từ list" : "Gõ tay"}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setManual((m) => !m)}
+          className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+        >
+          {manual ? "Chọn từ list" : "Gõ tay"}
+        </button>
       </div>
-      {hint && (
-        <p className="text-[11px] text-muted-foreground -mt-0.5">{hint}</p>
-      )}
+      {hint && <p className="text-[11px] text-muted-foreground -mt-0.5">{hint}</p>}
 
-      {manual || noModelsLoaded ? (
+      {manual ? (
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -1014,93 +1083,97 @@ function ModelField({
           </div>
           <PopoverContent className="w-[460px] p-0" align="start">
             <Command>
-              <CommandInput placeholder={`Tìm trong ${filtered.length} model…`} />
+              <CommandInput
+                value={search}
+                onValueChange={setSearch}
+                placeholder={`Tìm trong ${models.length || SUGGESTED_MODELS.length} model…`}
+              />
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
                 {grouped.map(([provider, list]) => {
                   const meta = providerMeta(provider);
                   return (
-                  <CommandGroup
-                    key={provider}
-                    heading={
-                      <div className="flex items-center gap-2 py-0.5">
-                        <span
-                          className={cn(
-                            "flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold shrink-0",
-                            meta.color,
-                          )}
-                        >
-                          {meta.logo}
-                        </span>
-                        <span className="text-[11px] font-semibold tracking-wide text-foreground">
-                          {meta.label}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          {list.length} model
-                        </span>
-                      </div>
-                    }
-                  >
-                    {list.map((m) => {
-                      const isSel = value === m.id;
-                      const modelName = m.id.includes("/")
-                        ? m.id.split("/").slice(1).join("/")
-                        : m.id;
-                      return (
-                        <CommandItem
-                          key={m.id}
-                          value={m.id}
-                          onSelect={() => {
-                            onChange(m.id);
-                            setOpen(false);
-                          }}
-                          onMouseDown={(e) => {
-                            // Fallback: cmdk's onSelect can miss inside Radix Popover + <details>.
-                            // Use mousedown so we fire before the popover's focus-out close logic.
-                            e.preventDefault();
-                            onChange(m.id);
-                            setOpen(false);
-                          }}
-                          className={cn(
-                            "flex items-start gap-2 py-2 cursor-pointer",
-                            isSel && "bg-primary/5",
-                          )}
-                        >
-                          <Check
+                    <CommandGroup
+                      key={provider}
+                      heading={
+                        <div className="flex items-center gap-2 py-0.5">
+                          <span
                             className={cn(
-                              "h-4 w-4 mt-0.5 shrink-0 text-primary",
-                              isSel ? "opacity-100" : "opacity-0",
+                              "flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold shrink-0",
+                              meta.color,
                             )}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-mono text-xs">{modelName}</span>
-                              {m.isFree && (
-                                <Badge variant="secondary" className="text-[10px] h-4">
-                                  free
-                                </Badge>
+                          >
+                            {meta.logo}
+                          </span>
+                          <span className="text-[11px] font-semibold tracking-wide text-foreground">
+                            {meta.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            {list.length} model
+                          </span>
+                        </div>
+                      }
+                    >
+                      {list.map((m) => {
+                        const isSel = value === m.id;
+                        const modelName = m.id.includes("/")
+                          ? m.id.split("/").slice(1).join("/")
+                          : m.id;
+                        return (
+                          <CommandItem
+                            key={m.id}
+                            value={m.id}
+                            onSelect={() => {
+                              onChange(m.id);
+                              setOpen(false);
+                            }}
+                            onMouseDown={(e) => {
+                              // Fallback: cmdk's onSelect can miss inside Radix Popover + <details>.
+                              // Use mousedown so we fire before the popover's focus-out close logic.
+                              e.preventDefault();
+                              onChange(m.id);
+                              setOpen(false);
+                            }}
+                            className={cn(
+                              "flex items-start gap-2 py-2 cursor-pointer",
+                              isSel && "bg-primary/5",
+                            )}
+                          >
+                            <Check
+                              className={cn(
+                                "h-4 w-4 mt-0.5 shrink-0 text-primary",
+                                isSel ? "opacity-100" : "opacity-0",
                               )}
-                              {m.context_length && (
-                                <Badge variant="outline" className="text-[10px] h-4 font-normal">
-                                  {(m.context_length / 1000).toFixed(0)}k
-                                </Badge>
-                              )}
-                              {!m.isFree && m.pricing?.prompt && (
-                                <span className="text-[10px] text-muted-foreground font-mono">
-                                  ${m.pricing.prompt}/${m.pricing.completion}
-                                </span>
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-xs">{modelName}</span>
+                                {m.isFree && (
+                                  <Badge variant="secondary" className="text-[10px] h-4">
+                                    free
+                                  </Badge>
+                                )}
+                                {m.context_length && (
+                                  <Badge variant="outline" className="text-[10px] h-4 font-normal">
+                                    {(m.context_length / 1000).toFixed(0)}k
+                                  </Badge>
+                                )}
+                                {!m.isFree && m.pricing?.prompt && (
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    ${m.pricing.prompt}/${m.pricing.completion}
+                                  </span>
+                                )}
+                              </div>
+                              {m.name && m.name !== m.id && (
+                                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {m.name}
+                                </div>
                               )}
                             </div>
-                            {m.name && m.name !== m.id && (
-                              <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                {m.name}
-                              </div>
-                            )}
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
                   );
                 })}
               </CommandList>
