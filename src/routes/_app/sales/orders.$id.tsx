@@ -94,6 +94,11 @@ function OrderDetail() {
         </CardContent>
       </Card>
 
+      {data.deposit_enabled && <DepositSection orderId={id} required={Number(data.deposit_required || 0)} received={Number(data.deposit_received || 0)} status={data.deposit_status} />}
+      {data.reserve_enabled && <ReservationSection orderId={id} />}
+
+
+
       <Card>
         <CardHeader><CardTitle className="text-base">Hoá đơn đã xuất</CardTitle></CardHeader>
         <CardContent className="p-0">
