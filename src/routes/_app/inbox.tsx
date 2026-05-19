@@ -86,23 +86,8 @@ function periodLabel() {
   return `T${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
-/* ───────── Chat log reducer ───────── */
-type ChatAction =
-  | { type: "push"; entry: ChatEntry }
-  | { type: "patch"; id: string; patch: Partial<ChatEntry> }
-  | { type: "reset"; entries: ChatEntry[] };
 
-function chatReducer(state: ChatEntry[], a: ChatAction): ChatEntry[] {
-  if (a.type === "reset") return a.entries;
-  if (a.type === "push") return [...state, a.entry];
-  if (a.type === "patch")
-    return state.map((e) => (e.id === a.id ? ({ ...e, ...a.patch } as ChatEntry) : e));
-  return state;
-}
 
-const nowHM = () =>
-  new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-const uid = () => Math.random().toString(36).slice(2, 9);
 
 function InboxAiPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
