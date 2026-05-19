@@ -59,7 +59,7 @@ function ImportStatementPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [sourceLabel, setSourceLabel] = useState<string>("");
 
-  // Load parsed batch from AskAiSheet on mount
+  // Load parsed batch from ChatDock on mount
   useEffect(() => {
     const batch = (typeof window !== "undefined" ? (window as any).__lastBatchImport : null);
     if (!batch || batch.kind !== "bank_statement" || !Array.isArray(batch.items)) return;

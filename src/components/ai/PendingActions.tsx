@@ -35,7 +35,7 @@ const REF_ROUTES: Record<string, (id: string) => string> = {
 
 /**
  * Inline list of AI-proposed actions awaiting user approval.
- * Rendered inside AskAiSheet; auto-refreshes via realtime + react-query.
+ * Rendered inside ChatDock / chat thread; auto-refreshes via realtime + react-query.
  */
 export function PendingActions() {
   const listFn = useServerFn(listPendingAiActions);
