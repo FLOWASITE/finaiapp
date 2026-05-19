@@ -35,6 +35,16 @@ import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
@@ -287,12 +297,28 @@ function InboxAiPage() {
   }, []);
 
   /* ───── Bulk approve with toast progress ───── */
-  const approveAllHigh = useCallback(async () => {
-    const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
-    if (!targets.length) {
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
+
+  const highTargets = useMemo(
+    () => items.filter((i) => i.confidence_band === "high" && !i.blocker),
+    [items],
+  );
+  const bulkSumAbs = useMemo(
+    () => highTargets.reduce((s, i) => s + Math.abs(i.amount || 0), 0),
+    [highTargets],
+  );
+
+  const requestApproveAllHigh = useCallback(() => {
+    if (!highTargets.length) {
       toast("Không có mục tin cậy cao nào để duyệt");
       return;
     }
+    setConfirmBulkOpen(true);
+  }, [highTargets.length]);
+
+  const runApproveAllHigh = useCallback(async () => {
+    const targets = highTargets;
+    if (!targets.length) return;
     const tId = toast.loading(`Đang duyệt 0/${targets.length} mục…`);
     let ok = 0;
     for (const it of targets) {
@@ -309,7 +335,7 @@ function InboxAiPage() {
       } catch {}
     }
     toast.success(`Đã duyệt ${ok}/${targets.length} mục`, { id: tId });
-  }, [items, approveM]);
+  }, [highTargets, approveM]);
 
   // If context item disappears (was approved/skipped externally), auto close sheet
   useEffect(() => {
@@ -392,7 +418,7 @@ function InboxAiPage() {
         <div className="ml-auto">
           <Button
             variant="outline"
-            onClick={approveAllHigh}
+            onClick={requestApproveAllHigh}
             disabled={approveM.isPending || highCount === 0}
             className="gap-2 border-border/60"
           >
@@ -527,6 +553,62 @@ function InboxAiPage() {
 
 
 
+
+      <AlertDialog open={confirmBulkOpen} onOpenChange={setConfirmBulkOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Duyệt nhanh {highTargets.length} mục tin cậy cao?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <div>
+                  Tổng giá trị tuyệt đối:{" "}
+                  <span className="font-semibold text-foreground">
+                    {VND(bulkSumAbs)} ₫
+                  </span>
+                </div>
+                <ul className="space-y-1 rounded-md border border-border/60 bg-muted/30 p-2.5 text-xs">
+                  {highTargets.slice(0, 3).map((it) => (
+                    <li key={it.id} className="flex items-baseline justify-between gap-3">
+                      <span className="truncate">
+                        <span className="text-foreground">{it.title}</span>
+                        {it.partner && (
+                          <span className="text-muted-foreground"> · {it.partner}</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 font-mono text-foreground">
+                        {VND(it.amount)} ₫
+                      </span>
+                    </li>
+                  ))}
+                  {highTargets.length > 3 && (
+                    <li className="text-muted-foreground">
+                      …và {highTargets.length - 3} mục khác
+                    </li>
+                  )}
+                </ul>
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>Hành động này sẽ tạo bút toán và không thể hoàn tác nhanh.</span>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Để xem lại</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmBulkOpen(false);
+                void runApproveAllHigh();
+              }}
+              className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+            >
+              Duyệt {highTargets.length} mục
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
     </div>
