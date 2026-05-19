@@ -379,6 +379,25 @@ function ThreadPage() {
         />
       </div>
       <div className="relative px-4 pb-5 pt-4">
+        {!atBottom && (
+          <div className="pointer-events-none absolute inset-x-0 -top-12 z-10 flex justify-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const el = scrollRef.current;
+                if (!el) return;
+                el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                setHasNew(false);
+              }}
+              className="pointer-events-auto h-8 gap-1.5 rounded-full border border-border/60 bg-background/90 px-3 text-xs shadow-lg backdrop-blur-xl"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+              {hasNew ? "Tin nhắn mới" : "Về cuối"}
+            </Button>
+          </div>
+        )}
         <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 chat-footer-fade" />
         <div className="mx-auto max-w-3xl">
           <div className="mb-3">
