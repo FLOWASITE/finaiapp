@@ -840,6 +840,15 @@ export function LimitsTab() {
               <Button
                 size="sm"
                 variant="ghost"
+                className="h-7"
+                onClick={() => setUsedWhere(l)}
+              >
+                <History className="mr-1 h-3.5 w-3.5" />
+                Dùng ở đâu
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
                 className="h-7 text-muted-foreground hover:text-destructive"
                 onClick={() => {
                   if (confirm(`Xoá giới hạn "${l.title}"?`)) {
