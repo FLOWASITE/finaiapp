@@ -30,6 +30,7 @@ type EntityConfig = {
 
 const CONFIG: Record<CodeEntity, EntityConfig> = {
   sale_invoice: { table: "sales_invoices", column: "invoice_no", prefix: "HD", dateScoped: true, padLen: 5 },
+  sale_order: { table: "sales_orders", column: "order_no", prefix: "DH", dateScoped: true, padLen: 5 },
   purchase_invoice: { table: "invoices", column: "invoice_no", prefix: "HDM", dateScoped: true, padLen: 5 },
   customer: { table: "customers", column: "code", prefix: "KH", dateScoped: false, padLen: 5 },
   supplier: { table: "suppliers", column: "code", prefix: "NCC", dateScoped: false, padLen: 5 },
