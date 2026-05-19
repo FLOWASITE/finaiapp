@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { Send, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ export type ComposerProps = {
   placeholder?: string;
   autoFocus?: boolean;
   compact?: boolean;
+  inputRef?: Ref<HTMLTextAreaElement>;
 };
 
 /**
@@ -27,8 +28,10 @@ export function Composer({
   placeholder = "Nhắn cho trợ lý AI…",
   autoFocus,
   compact,
+  inputRef,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(inputRef, () => ref.current as HTMLTextAreaElement, []);
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
