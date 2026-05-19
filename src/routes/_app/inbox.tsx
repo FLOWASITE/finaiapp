@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type React from "react";
-import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,12 +19,9 @@ import {
   MoreHorizontal,
   TrendingUp,
   ArrowLeft,
-  MessageSquare,
-  Inbox as InboxIcon,
-  Columns2,
+  
 } from "lucide-react";
 
-type PaneMode = "split" | "inbox" | "chat";
 import {
   listInboxAi,
   approveInboxItem,
@@ -37,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { InboxChat, type ChatEntry } from "@/components/inbox/inbox-chat";
+import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
 
 export const Route = createFileRoute("/_app/inbox")({
   component: InboxAiPage,
@@ -89,30 +86,14 @@ function periodLabel() {
   return `T${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
-/* ───────── Chat log reducer ───────── */
-type ChatAction =
-  | { type: "push"; entry: ChatEntry }
-  | { type: "patch"; id: string; patch: Partial<ChatEntry> }
-  | { type: "reset"; entries: ChatEntry[] };
 
-function chatReducer(state: ChatEntry[], a: ChatAction): ChatEntry[] {
-  if (a.type === "reset") return a.entries;
-  if (a.type === "push") return [...state, a.entry];
-  if (a.type === "patch")
-    return state.map((e) => (e.id === a.id ? ({ ...e, ...a.patch } as ChatEntry) : e));
-  return state;
-}
 
-const nowHM = () =>
-  new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-const uid = () => Math.random().toString(36).slice(2, 9);
 
 function InboxAiPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [inboxOpenMobile, setInboxOpenMobile] = useState(false);
-  const [paneMode, setPaneMode] = useState<PaneMode>("split");
+  
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -144,10 +125,7 @@ function InboxAiPage() {
     : data?.stats;
   const highCount = items.filter((i) => i.confidence_band === "high" && !i.blocker).length;
 
-  const contextItem = useMemo(
-    () => items.find((i) => i.id === activeId) ?? null,
-    [items, activeId],
-  );
+  const activeId = sheetItem?.id ?? null;
 
   // Track "AI online · vừa đọc N hoá đơn"
   useEffect(() => {
@@ -159,27 +137,6 @@ function InboxAiPage() {
     }
     prevPendingRef.current = p;
   }, [stats?.pending]);
-
-  // Chat log
-  const [chatLog, dispatch] = useReducer(chatReducer, [] as ChatEntry[]);
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    dispatch({
-      type: "push",
-      entry: {
-        id: uid(),
-        kind: "ai_text",
-        time: nowHM(),
-        text: `Chào sếp. Đêm qua tôi đã hạch toán **${stats?.posted_today ?? 132} mục** tự động. Còn **${stats?.pending ?? 47} mục** cần sếp duyệt — trong đó **${highCount || 32} mục tin cậy cao** có thể duyệt hàng loạt.`,
-        quickActions: [
-          { label: `Duyệt ${highCount || 32} mục tin cậy cao`, onClick: () => approveAllHighRef.current?.() },
-          { label: "Xem mục cần review", onClick: () => setTab("review") },
-        ],
-      },
-    });
-  }, [stats?.pending, stats?.posted_today, highCount]);
 
   useEffect(() => {
     if (showScrollDown) {
@@ -200,22 +157,9 @@ function InboxAiPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      const typing = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement | null)?.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setCmdOpen(true);
-        return;
-      }
-      if (typing) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
-        e.preventDefault();
-        setPaneMode((m) => (m === "inbox" ? "split" : "inbox"));
-      } else if ((e.metaKey || e.ctrlKey) && e.key === "2") {
-        e.preventDefault();
-        setPaneMode((m) => (m === "chat" ? "split" : "chat"));
-      } else if (e.key === "Escape") {
-        setPaneMode((m) => (m === "split" ? m : "split"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -279,49 +223,19 @@ function InboxAiPage() {
       return n;
     });
 
-  /* ───── Inbox ↔ Chat sync handlers ───── */
-
-  const pushAi = useCallback((text: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "ai_text", text, time: nowHM() } });
-  }, []);
-  const pushSystem = useCallback((text: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "system", text } });
-  }, []);
-  const pushProposal = useCallback((itemId: string) => {
-    dispatch({ type: "push", entry: { id: uid(), kind: "ai_proposal", itemId, time: nowHM() } });
-  }, []);
-
-  const pickItem = useCallback(
-    (id: string) => {
-      setActiveId(id);
-      const el = cardRefs.current.get(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Push a proposal bubble if last entry is not already this proposal
-      const last = chatLog[chatLog.length - 1];
-      if (!(last && last.kind === "ai_proposal" && last.itemId === id)) {
-        pushProposal(id);
-      }
-    },
-    [chatLog, pushProposal],
-  );
-
   const handleCardClick = useCallback(
     (id: string) => {
-      pickItem(id);
+      const it = items.find((x) => x.id === id);
+      if (it) setSheetItem(it);
     },
-    [pickItem],
+    [items],
   );
-
-  const closeContext = useCallback(() => {
-    setActiveId(null);
-    pushSystem("Đã đóng ngữ cảnh — chat trở về chế độ chung");
-  }, [pushSystem]);
 
   const handleApproveItem = useCallback(
     (it: InboxItem) => {
       const finish = () => {
-        pushSystem(`✓ Đã ghi sổ: ${it.title}`);
-        if (activeId === it.id) setActiveId(null);
+        toast.success(`Đã ghi sổ: ${it.title}`);
+        setSheetItem(null);
       };
       if (isMock(it)) {
         dismissMock(it.id);
@@ -333,98 +247,53 @@ function InboxAiPage() {
         onError: (e: any) => toast.error(e?.message || "Không ghi sổ được"),
       });
     },
-    [activeId, approveM, pushSystem],
+    [approveM],
   );
 
   const handleSkipItem = useCallback(
     (it: InboxItem) => {
       if (isMock(it)) {
         dismissMock(it.id);
-        pushSystem(`Đã bỏ qua: ${it.title}`);
-        if (activeId === it.id) setActiveId(null);
+        toast(`Đã bỏ qua: ${it.title}`);
+        setSheetItem(null);
         return;
       }
       skipM.mutate(it, {
         onSuccess: () => {
-          pushSystem(`Đã bỏ qua: ${it.title}`);
-          if (activeId === it.id) setActiveId(null);
+          toast(`Đã bỏ qua: ${it.title}`);
+          setSheetItem(null);
         },
       });
     },
-    [activeId, skipM, pushSystem],
+    [skipM],
   );
 
   const handleRuleItem = useCallback(
     (it: InboxItem) => {
       if (isMock(it)) {
-        pushSystem(`AI sẽ nhớ quy tắc cho các mục giống "${it.partner || it.title}"`);
+        toast.success(`AI sẽ nhớ quy tắc cho các mục giống "${it.partner || it.title}"`);
         return;
       }
       ruleM.mutate(it, {
-        onSuccess: () => pushSystem(`AI sẽ nhớ quy tắc cho "${it.partner || it.title}"`),
+        onSuccess: () =>
+          toast.success(`AI sẽ nhớ quy tắc cho "${it.partner || it.title}"`),
       });
     },
-    [ruleM, pushSystem],
+    [ruleM],
   );
 
-  const handleEditItem = useCallback(
-    (it: InboxItem) => {
-      openAskAi(`Sửa đề xuất "${it.title}": `);
-    },
-    [],
-  );
+  const handleEditItem = useCallback((it: InboxItem) => {
+    openAskAi(`Sửa đề xuất "${it.title}": `);
+  }, []);
 
-  /* ───── User message → mock AI response ───── */
-  const respondMock = useCallback(
-    (userText: string) => {
-      const lc = userText.toLowerCase();
-      const ci = contextItem;
-      // Canned: 131 vs 511 for context = mock-2
-      if (ci?.id === "mock-2" && (/131|511/.test(userText))) {
-        pushAi(
-          `Vì đây là **tiền vào** ghi nhận thanh toán cho HĐ 00125 đã xuất ngày 28/10 — doanh thu được ghi vào TK 511 lúc đó rồi, giờ chỉ đảo công nợ phải thu (131) sang tiền (112). Bút toán đề xuất: Nợ 112 / Có 131 cùng 55.000.000 ₫.`,
-        );
-        return;
-      }
-      if (ci && /tại sao|why|giải thích/.test(lc)) {
-        pushAi(
-          `Mục **${ci.title}** được đề xuất vì: ${ci.reasoning.summary}`,
-        );
-        return;
-      }
-      if (!ci) {
-        pushAi("Em chưa có ngữ cảnh. Sếp chọn một mục bên trái, hoặc cứ hỏi tự do em sẽ trả lời.");
-        return;
-      }
-      pushAi(
-        `Em ghi nhận. Liên quan đến mục **${ci.title}** — sếp muốn em đề xuất bút toán khác hay áp dụng quy tắc?`,
-      );
-    },
-    [contextItem, pushAi],
-  );
-
-  const handleUserSend = useCallback(
-    (text: string) => {
-      dispatch({ type: "push", entry: { id: uid(), kind: "user", text, time: nowHM() } });
-      setTimeout(() => respondMock(text), 400);
-    },
-    [respondMock],
-  );
-
-  /* ───── Bulk approve with chat progress ───── */
-  const approveAllHighRef = useRef<(() => Promise<void>) | null>(null);
+  /* ───── Bulk approve with toast progress ───── */
   const approveAllHigh = useCallback(async () => {
     const targets = items.filter((i) => i.confidence_band === "high" && !i.blocker);
     if (!targets.length) {
-      pushSystem("Không có mục tin cậy cao nào để duyệt");
+      toast("Không có mục tin cậy cao nào để duyệt");
       return;
     }
-    pushSystem(`↑ Sếp vừa nhấn Duyệt ${targets.length} mục tin cậy cao ở thanh trên`);
-    const progressId = uid();
-    dispatch({
-      type: "push",
-      entry: { id: progressId, kind: "ai_progress", current: 0, total: targets.length },
-    });
+    const tId = toast.loading(`Đang duyệt 0/${targets.length} mục…`);
     let ok = 0;
     for (const it of targets) {
       try {
@@ -435,20 +304,20 @@ function InboxAiPage() {
           await approveM.mutateAsync(it);
           ok++;
         }
-        dispatch({ type: "patch", id: progressId, patch: { current: ok } as any });
-        await new Promise((r) => setTimeout(r, 120));
+        toast.loading(`Đang duyệt ${ok}/${targets.length} mục…`, { id: tId });
+        await new Promise((r) => setTimeout(r, 80));
       } catch {}
     }
-    dispatch({ type: "patch", id: progressId, patch: { current: ok, done: true } as any });
-  }, [items, approveM, pushSystem]);
-  approveAllHighRef.current = approveAllHigh;
+    toast.success(`Đã duyệt ${ok}/${targets.length} mục`, { id: tId });
+  }, [items, approveM]);
 
-  // If context item disappears (was approved/skipped externally), auto close
+  // If context item disappears (was approved/skipped externally), auto close sheet
   useEffect(() => {
     if (activeId && !items.find((i) => i.id === activeId)) {
-      setActiveId(null);
+      setSheetItem(null);
     }
   }, [items, activeId]);
+
 
   return (
     <div className="flex h-screen w-full flex-col bg-gradient-to-b from-background via-background to-muted/10">
@@ -498,44 +367,7 @@ function InboxAiPage() {
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel()}
         </div>
-        {/* Mobile: open Inbox overlay */}
-        <button
-          onClick={() => setInboxOpenMobile((v) => !v)}
-          className="relative flex h-9 items-center gap-1.5 rounded-md border border-border/40 px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground lg:hidden"
-          aria-label="Mở Inbox"
-        >
-          <InboxIcon className="h-4 w-4" />
-          <span>Inbox</span>
-          {stats?.pending ? (
-            <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background tabular-nums">
-              {stats.pending}
-            </span>
-          ) : null}
-        </button>
 
-        {/* Desktop: pane mode segmented control */}
-        <div className="hidden items-center gap-0.5 rounded-md border border-border/40 p-0.5 lg:flex">
-          {([
-            { k: "inbox", label: "Inbox", icon: InboxIcon, sc: "⌘1" },
-            { k: "split", label: "Split", icon: Columns2, sc: "" },
-            { k: "chat", label: "Chat", icon: MessageSquare, sc: "⌘2" },
-          ] as const).map((m) => (
-            <button
-              key={m.k}
-              onClick={() => setPaneMode(m.k as PaneMode)}
-              title={m.sc ? `${m.label} (${m.sc})` : m.label}
-              className={cn(
-                "flex h-7 items-center gap-1.5 rounded px-2 text-[11px] font-medium transition",
-                paneMode === m.k
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-              )}
-            >
-              <m.icon className="h-3.5 w-3.5" />
-              {m.label}
-            </button>
-          ))}
-        </div>
         <button className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
           <MoreHorizontal className="h-4 w-4" />
         </button>
@@ -596,103 +428,85 @@ function InboxAiPage() {
         ))}
       </div>
 
-      {/* Body — Desktop: pane-mode driven grid */}
-      <div
-        className={cn(
-          "hidden min-h-0 flex-1 overflow-hidden lg:grid",
-          paneMode === "split" && "lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]",
-          paneMode === "inbox" && "lg:grid-cols-[1fr]",
-          paneMode === "chat" && "lg:grid-cols-[1fr]",
-        )}
-      >
-        {/* LIST */}
-        {paneMode !== "chat" && (
-          <div className="relative min-h-0 overflow-hidden">
-            <div ref={listRef} className="h-full overflow-y-auto">
-              {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
-                <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
-              ) : isLoading ? (
-                <ListSkeleton />
-              ) : items.length === 0 ? (
-                <EmptyInbox />
-              ) : (
-                <>
-                  <ul className={cn("space-y-3 p-4", paneMode === "inbox" && "mx-auto max-w-3xl")}>
-                    {items.map((it) => (
-                      <ItemCard
-                        key={it.id}
-                        item={it}
-                        active={activeId === it.id}
-                        onClick={() => handleCardClick(it.id)}
-                        registerRef={(el) => {
-                          if (el) cardRefs.current.set(it.id, el);
-                          else cardRefs.current.delete(it.id);
-                        }}
-                      />
-                    ))}
-                  </ul>
-                  {stats && stats.pending > items.length && (
-                    <div className="px-4 pb-6">
-                      <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
-                        + {stats.pending - items.length} mục khác
-                      </div>
+      {/* Body — Desktop: single full-width list */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden lg:block">
+        <div className="relative h-full min-h-0 overflow-hidden">
+          <div ref={listRef} className="h-full overflow-y-auto">
+            {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
+              <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
+            ) : isLoading ? (
+              <ListSkeleton />
+            ) : items.length === 0 ? (
+              <EmptyInbox />
+            ) : (
+              <>
+                <ul className="mx-auto max-w-3xl space-y-3 p-4">
+                  {items.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      active={activeId === it.id}
+                      onClick={() => handleCardClick(it.id)}
+                      registerRef={(el) => {
+                        if (el) cardRefs.current.set(it.id, el);
+                        else cardRefs.current.delete(it.id);
+                      }}
+                    />
+                  ))}
+                </ul>
+                {stats && stats.pending > items.length && (
+                  <div className="mx-auto max-w-3xl px-4 pb-6">
+                    <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
+                      + {stats.pending - items.length} mục khác
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {showScrollDown && (
-              <button
-                type="button"
-                onClick={() =>
-                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
-                }
-                className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
-                aria-label="Cuộn xuống"
-              >
-                <ArrowDown className="h-4 w-4" />
-              </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-        )}
 
-        {/* CHAT */}
-        {paneMode !== "inbox" && (
-          <div className="min-h-0">
-            <InboxChat
-              contextItem={contextItem}
-              items={items}
-              log={chatLog}
-              onUserSend={handleUserSend}
-              onCloseContext={closeContext}
-              onPickItem={pickItem}
-              onApprove={handleApproveItem}
-              onSkip={handleSkipItem}
-              onRule={handleRuleItem}
-              onEdit={handleEditItem}
-              approving={approveM.isPending}
-            />
-          </div>
-        )}
+          {showScrollDown && (
+            <button
+              type="button"
+              onClick={() =>
+                listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
+              }
+              className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
+              aria-label="Cuộn xuống"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Mobile: nội dung theo tab */}
+      {/* Mobile: danh sách theo tab */}
       <div className="block min-h-0 flex-1 overflow-hidden lg:hidden">
         {tab === "inbox" ? (
-          <InboxChat
-            contextItem={contextItem}
-            items={items}
-            log={chatLog}
-            onUserSend={handleUserSend}
-            onCloseContext={closeContext}
-            onPickItem={pickItem}
-            onApprove={handleApproveItem}
-            onSkip={handleSkipItem}
-            onRule={handleRuleItem}
-            onEdit={handleEditItem}
-            approving={approveM.isPending}
-          />
+          <div className="h-full overflow-y-auto">
+            {isLoading ? (
+              <ListSkeleton />
+            ) : items.length === 0 ? (
+              <EmptyInbox />
+            ) : (
+              <ul className="space-y-3 p-4">
+                {items.map((it) => (
+                  <ItemCard
+                    key={it.id}
+                    item={it}
+                    active={activeId === it.id}
+                    onClick={() => handleCardClick(it.id)}
+                    registerRef={() => {}}
+                  />
+                ))}
+                {stats && stats.pending > items.length && (
+                  <li className="pt-1 text-center text-[11px] text-muted-foreground">
+                    + {stats.pending - items.length} mục khác
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
         ) : (
           <div className="h-full overflow-y-auto">
             <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
@@ -700,65 +514,18 @@ function InboxAiPage() {
         )}
       </div>
 
-      {/* Mobile: Inbox overlay (slide from left) */}
-      {inboxOpenMobile && (
-        <MobileInboxOverlay onClose={() => setInboxOpenMobile(false)}>
-          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <InboxIcon className="h-4 w-4" />
-                Inbox
-                {stats?.pending ? (
-                  <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background tabular-nums">
-                    {stats.pending}
-                  </span>
-                ) : null}
-              </div>
-              <button
-                onClick={() => setInboxOpenMobile(false)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Đóng
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="space-y-3 p-4" role="status" aria-live="polite">
-                  <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {INBOX_COPY.loading}
-                  </div>
-                  <ListSkeleton />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="p-4">
-                  <EmptyInbox />
-                </div>
+      {/* Sheet chi tiết item */}
+      <InboxItemSheet
+        item={sheetItem}
+        onClose={() => setSheetItem(null)}
+        onApprove={handleApproveItem}
+        onSkip={handleSkipItem}
+        onRule={handleRuleItem}
+        onEdit={handleEditItem}
+        approving={approveM.isPending}
+      />
 
-              ) : (
-                <ul className="space-y-3 p-4">
-                  {items.map((it) => (
-                    <ItemCard
-                      key={it.id}
-                      item={it}
-                      active={activeId === it.id}
-                      onClick={() => {
-                        handleCardClick(it.id);
-                        setInboxOpenMobile(false);
-                      }}
-                      registerRef={() => {}}
-                    />
-                  ))}
-                  {stats && stats.pending > items.length && (
-                    <li className="pt-1 text-center text-[11px] text-muted-foreground">
-                      + {stats.pending - items.length} mục khác
-                    </li>
-                  )}
-                </ul>
-              )}
-            </div>
 
-        </MobileInboxOverlay>
-      )}
 
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
@@ -1110,69 +877,4 @@ const ListSkeleton = memo(function ListSkeleton() {
 
 
 
-
-/* ───────── Mobile Inbox overlay with swipe-right / pull-down to close ───────── */
-function MobileInboxOverlay({
-  onClose,
-  children,
-}: {
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const start = useRef<{ x: number; y: number; t: number } | null>(null);
-  const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    setDrag({ dx: 0, dy: 0 });
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!start.current) return;
-    const t = e.touches[0];
-    const dx = Math.max(0, t.clientX - start.current.x);
-    const dy = Math.max(0, t.clientY - start.current.y);
-    setDrag({ dx, dy });
-  };
-  const onTouchEnd = () => {
-    if (!start.current || !drag) {
-      start.current = null;
-      setDrag(null);
-      return;
-    }
-    const elapsed = Date.now() - start.current.t;
-    const velocity = Math.max(drag.dx, drag.dy) / Math.max(1, elapsed);
-    const shouldClose =
-      drag.dx > 120 || drag.dy > 140 || (velocity > 0.5 && (drag.dx > 50 || drag.dy > 50));
-    start.current = null;
-    setDrag(null);
-    if (shouldClose) onClose();
-  };
-
-  const tx = drag ? Math.max(drag.dx, 0) : 0;
-  const ty = drag ? Math.max(drag.dy, 0) : 0;
-  const dragging = !!drag && (tx > 2 || ty > 2);
-
-  return (
-    <div className="fixed inset-x-0 top-0 bottom-[88px] z-40 flex lg:hidden">
-      <div
-        ref={panelRef}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
-        style={{
-          transform: dragging ? `translate(${tx}px, ${ty}px)` : undefined,
-          transition: dragging ? "none" : "transform 200ms ease-out",
-          touchAction: "pan-y",
-        }}
-        className="flex h-full w-[92vw] max-w-md flex-col overflow-hidden rounded-br-2xl bg-background shadow-2xl ring-1 ring-border/40"
-      >
-        {children}
-      </div>
-      <div className="flex-1 bg-background/60" onClick={onClose} />
-    </div>
-  );
-}
 
