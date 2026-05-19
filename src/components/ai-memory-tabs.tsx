@@ -493,15 +493,27 @@ function ContextRow({ item }: { item: MemoryContext }) {
   const qc = useQueryClient();
   const updateFn = useServerFn(updateContext);
   const deleteFn = useServerFn(deleteContext);
+  const previewFn = useServerFn(previewRetroApply);
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(item.value_text);
+  const [usedOpen, setUsedOpen] = useState(false);
+  const [retro, setRetro] = useState<RetroPreview | null>(null);
 
   const updM = useMutation({
     mutationFn: updateFn,
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["ai-memory", "context"] });
       setEditing(false);
       toast.success("Đã lưu — AI sẽ dùng giá trị mới ngay");
+      // Time-travel: hỏi hồi tố nếu có bút toán trước đây dùng mục này.
+      try {
+        const preview = await previewFn({
+          data: { source_kind: "context", source_id: item.id },
+        });
+        if (preview.affected_count > 0) setRetro(preview);
+      } catch {
+        /* im lặng — không chặn flow lưu */
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -564,6 +576,14 @@ function ContextRow({ item }: { item: MemoryContext }) {
       </div>
       <button
         type="button"
+        onClick={() => setUsedOpen(true)}
+        title="Dùng ở đâu"
+        className="opacity-30 transition-opacity hover:opacity-100"
+      >
+        <History className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+      </button>
+      <button
+        type="button"
         onClick={() => {
           if (confirm(`Xoá mục "${item.label}"?`)) delM.mutate({ data: { id: item.id } });
         }}
@@ -571,6 +591,53 @@ function ContextRow({ item }: { item: MemoryContext }) {
       >
         <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
       </button>
+
+      <SourceAppliedSheet
+        open={usedOpen}
+        onOpenChange={setUsedOpen}
+        sourceKind="context"
+        sourceId={item.id}
+        sourceLabel={item.label}
+      />
+
+      <AlertDialog open={!!retro} onOpenChange={(o) => !o && setRetro(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Áp dụng hồi tố cho {retro?.affected_count} bút toán?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mục "{item.label}" đã ảnh hưởng tới {retro?.affected_count} bút toán trong quá khứ.
+              Bạn có muốn đánh dấu các bút toán này để AI rà soát lại theo giá trị mới?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-48 overflow-y-auto rounded border bg-muted/30 p-2 text-[12px]">
+            {retro?.samples.map((s) => (
+              <div key={s.id} className="border-b py-1 last:border-0">
+                <div className="font-medium">{s.journal_code ?? s.document_label ?? "—"}</div>
+                <div className="text-muted-foreground line-clamp-1">{s.then_snapshot}</div>
+              </div>
+            ))}
+            {(retro?.affected_count ?? 0) > (retro?.samples.length ?? 0) && (
+              <div className="pt-1 text-center text-[11px] text-muted-foreground">
+                … và {(retro?.affected_count ?? 0) - (retro?.samples.length ?? 0)} bút toán khác
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Để sau</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#4F46C7] text-white hover:bg-[#4338A8]"
+              onClick={() => {
+                setRetro(null);
+                toast.success(
+                  `Đã gửi ${retro?.affected_count} bút toán vào hộp thư AI để rà soát lại`,
+                );
+              }}
+            >
+              Đánh dấu rà soát
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
