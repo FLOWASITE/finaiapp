@@ -300,7 +300,16 @@ function ThreadPage() {
         toast.error("Đang xử lý câu hỏi trước, vui lòng đợi.");
         return;
       }
-      void sendUserMessage(detail.content, detail.attachments);
+      // Prefer full payloads (with base64) stashed by the dock before dispatch.
+      let fullAttachments: any[] | undefined;
+      try {
+        const raw = sessionStorage.getItem(`__attach:${threadId}`);
+        if (raw) {
+          fullAttachments = JSON.parse(raw);
+          sessionStorage.removeItem(`__attach:${threadId}`);
+        }
+      } catch {}
+      void sendUserMessage(detail.content, fullAttachments ?? detail.attachments);
     };
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
     return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
