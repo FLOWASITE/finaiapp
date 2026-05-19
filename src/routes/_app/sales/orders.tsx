@@ -13,6 +13,7 @@ import {
   closeSalesOrder,
   deleteSalesOrder,
   salesOrderStats,
+  getSalesOrder,
 } from "@/lib/sales-orders.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { CustomerCombobox, type CustomerLite } from "@/components/customer-combobox";
