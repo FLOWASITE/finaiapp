@@ -9,6 +9,8 @@ export type ChatThread = {
   created_at: string;
   kind?: "general" | "inbox" | null;
   inbox_external_id?: string | null;
+  pinned_at?: string | null;
+  starred?: boolean | null;
 };
 
 export type ChatMessage = {
@@ -33,9 +35,10 @@ export const listThreads = createServerFn({ method: "GET" })
     const kind = data.kind ?? "general";
     let q = supabase
       .from("chat_threads")
-      .select("id,title,last_message_at,created_at,kind,inbox_external_id")
+      .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
       .eq("user_id", userId)
       .eq("tenant_id", tenantId)
+      .order("pinned_at", { ascending: false, nullsFirst: false })
       .order("last_message_at", { ascending: false })
       .limit(200);
     if (kind !== "all") q = q.eq("kind", kind);
@@ -245,6 +248,40 @@ export const deleteLastAssistantMessage = createServerFn({ method: "POST" })
     const last = rows?.[0];
     if (!last || last.role !== "assistant") return { ok: false };
     const { error } = await supabase.from("chat_messages").delete().eq("id", last.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setThreadPinned = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ threadId: Uuid, pinned: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { error } = await supabase
+      .from("chat_threads")
+      .update({ pinned_at: data.pinned ? new Date().toISOString() : null })
+      .eq("id", data.threadId)
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setThreadStarred = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ threadId: Uuid, starred: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    const { error } = await supabase
+      .from("chat_threads")
+      .update({ starred: data.starred })
+      .eq("id", data.threadId)
+      .eq("user_id", userId)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

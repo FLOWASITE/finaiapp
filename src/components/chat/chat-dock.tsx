@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox } from "lucide-react";
+import { History, Sparkles, MessageSquare, Plus, Trash2, Inbox, Pin, Star } from "lucide-react";
 import { Composer } from "@/components/chat/composer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -334,6 +334,12 @@ export function ChatDock() {
                               <span className="truncate font-medium">
                                 {t.title || "(Không tiêu đề)"}
                               </span>
+                              {t.starred && (
+                                <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />
+                              )}
+                              {t.pinned_at && (
+                                <Pin className="h-3 w-3 shrink-0 text-primary/70" />
+                              )}
                               {isInbox && (
                                 <span className="shrink-0 rounded bg-primary/10 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
                                   Inbox

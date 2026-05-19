@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, Sparkles, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, Sparkles, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -22,6 +23,8 @@ import {
   listThreads,
   renameThread,
   deleteThread,
+  setThreadPinned,
+  setThreadStarred,
   type ChatThread,
 } from "@/lib/chat-threads.functions";
 import { cn } from "@/lib/utils";
@@ -31,22 +34,31 @@ type Bucket = { label: string; items: ChatThread[] };
 
 function bucketize(threads: ChatThread[]): Bucket[] {
   const now = Date.now();
+  const pinned: ChatThread[] = [];
+  const rest: ChatThread[] = [];
+  for (const t of threads) {
+    if (t.pinned_at) pinned.push(t);
+    else rest.push(t);
+  }
   const buckets: Record<string, ChatThread[]> = {
     "Hôm nay": [],
     "7 ngày qua": [],
     "30 ngày qua": [],
     "Cũ hơn": [],
   };
-  for (const t of threads) {
+  for (const t of rest) {
     const ageDays = (now - new Date(t.last_message_at).getTime()) / 86_400_000;
     if (ageDays < 1) buckets["Hôm nay"].push(t);
     else if (ageDays < 7) buckets["7 ngày qua"].push(t);
     else if (ageDays < 30) buckets["30 ngày qua"].push(t);
     else buckets["Cũ hơn"].push(t);
   }
-  return Object.entries(buckets)
-    .filter(([, items]) => items.length)
-    .map(([label, items]) => ({ label, items }));
+  const out: Bucket[] = [];
+  if (pinned.length) out.push({ label: "Đã ghim", items: pinned });
+  for (const [label, items] of Object.entries(buckets)) {
+    if (items.length) out.push({ label, items });
+  }
+  return out;
 }
 
 function relativeTime(iso: string): string {
@@ -62,9 +74,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   const list = useServerFn(listThreads);
   const rename = useServerFn(renameThread);
   const del = useServerFn(deleteThread);
+  const pinFn = useServerFn(setThreadPinned);
+  const starFn = useServerFn(setThreadStarred);
   const qc = useQueryClient();
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
 
   const query = useQuery({
     queryKey: ["chat", "threads"],
@@ -89,12 +104,34 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
     mutationFn: (threadId: string) => del({ data: { threadId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
       toast.success("Đã xoá cuộc trò chuyện");
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi xoá"),
   });
 
-  const buckets = query.data ? bucketize(query.data) : [];
+  const pinMut = useMutation({
+    mutationFn: (v: { threadId: string; pinned: boolean }) => pinFn({ data: v }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
+      toast.success(v.pinned ? "Đã ghim" : "Đã bỏ ghim");
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi"),
+  });
+
+  const starMut = useMutation({
+    mutationFn: (v: { threadId: string; starred: boolean }) => starFn({ data: v }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["chat", "threads"] });
+      qc.invalidateQueries({ queryKey: ["chat", "threads", "recent", "all"] });
+      toast.success(v.starred ? "Đã đánh dấu sao" : "Đã bỏ sao");
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi"),
+  });
+
+  const filtered = (query.data ?? []).filter((t) => (showStarredOnly ? t.starred : true));
+  const buckets = bucketize(filtered);
 
   return (
     <aside
@@ -163,6 +200,22 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
       </div>
       {!collapsed && (
       <div className="chat-scroll flex-1 overflow-auto px-2 py-3">
+        <div className="mb-2 flex items-center justify-between px-3">
+          <button
+            type="button"
+            onClick={() => setShowStarredOnly((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+              showStarredOnly
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            title="Chỉ hiển thị hội thoại đã đánh dấu sao"
+          >
+            <Star className={cn("h-3 w-3", showStarredOnly && "fill-current")} />
+            {showStarredOnly ? "Đang lọc sao" : "Chỉ hiện sao"}
+          </button>
+        </div>
         {query.isLoading && (
           <div className="px-2 py-4 text-xs text-muted-foreground">Đang tải…</div>
         )}
@@ -175,6 +228,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             </p>
           </div>
         )}
+        {query.data && query.data.length > 0 && buckets.length === 0 && (
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+            Không có hội thoại đánh dấu sao
+          </div>
+        )}
         {buckets.map((b) => (
           <div key={b.label} className="mb-4">
             <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
@@ -183,6 +241,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             <ul className="space-y-0.5">
               {b.items.map((t) => {
                 const isActive = t.id === activeId;
+                const isPinned = !!t.pinned_at;
+                const isStarred = !!t.starred;
                 return (
                   <li key={t.id} className="group relative">
                     <Link
@@ -206,6 +266,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                           )}
                         />
                         <span className="truncate text-xs font-medium">{t.title}</span>
+                        {isStarred && (
+                          <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />
+                        )}
+                        {isPinned && (
+                          <Pin className="h-3 w-3 shrink-0 text-primary/70" />
+                        )}
                       </div>
                       <span className="ml-[22px] text-[10px] text-muted-foreground/60">
                         {relativeTime(t.last_message_at)}
@@ -221,7 +287,29 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          onClick={() => pinMut.mutate({ threadId: t.id, pinned: !isPinned })}
+                        >
+                          {isPinned ? (
+                            <>
+                              <PinOff className="mr-2 h-3.5 w-3.5" />
+                              Bỏ ghim
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="mr-2 h-3.5 w-3.5" />
+                              Ghim lên đầu
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => starMut.mutate({ threadId: t.id, starred: !isStarred })}
+                        >
+                          <Star className={cn("mr-2 h-3.5 w-3.5", isStarred && "fill-amber-500 text-amber-500")} />
+                          {isStarred ? "Bỏ đánh dấu sao" : "Đánh dấu sao"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => {
                             setRenameValue(t.title);
