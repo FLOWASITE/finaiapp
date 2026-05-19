@@ -401,9 +401,18 @@ function Assets() {
                 </Field>
                 <Field label="Thời gian (tháng) *"><Input type="number" value={form.useful_life_months} onChange={(e) => setForm({ ...form, useful_life_months: Number(e.target.value) })} /></Field>
                 <Field label="Ngày bắt đầu KH *"><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></Field>
-                <Field label="TK Tài sản (211)"><Input value={form.asset_account} onChange={(e) => setForm({ ...form, asset_account: e.target.value })} /></Field>
-                <Field label="TK Hao mòn (214)"><Input value={form.accumulated_account} onChange={(e) => setForm({ ...form, accumulated_account: e.target.value })} /></Field>
-                <Field label="TK Chi phí KH"><Input value={form.expense_account} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} /></Field>
+                <Field label="TK Tài sản (211)">
+                  <AccountCombobox value={form.asset_account} onChange={(v) => setForm({ ...form, asset_account: v })}
+                    suggestions={[{code:"211",name:"TSCĐ hữu hình"},{code:"2111",name:"Nhà cửa, vật kiến trúc"},{code:"2112",name:"Máy móc, thiết bị"},{code:"2113",name:"Phương tiện vận tải"},{code:"2114",name:"Thiết bị, dụng cụ QL"},{code:"213",name:"TSCĐ vô hình"},{code:"2131",name:"Quyền sử dụng đất"},{code:"2135",name:"Phần mềm máy tính"}]} />
+                </Field>
+                <Field label="TK Hao mòn (214)">
+                  <AccountCombobox value={form.accumulated_account} onChange={(v) => setForm({ ...form, accumulated_account: v })}
+                    suggestions={[{code:"214",name:"Hao mòn TSCĐ"},{code:"2141",name:"Hao mòn TSCĐ hữu hình"},{code:"2143",name:"Hao mòn TSCĐ thuê TC"},{code:"2147",name:"Hao mòn TSCĐ vô hình"}]} />
+                </Field>
+                <Field label="TK Chi phí KH">
+                  <AccountCombobox value={form.expense_account} onChange={(v) => setForm({ ...form, expense_account: v })}
+                    suggestions={[{code:"6421",name:"CP nhân viên bán hàng"},{code:"6422",name:"CP QLDN"},{code:"6424",name:"CP khấu hao TSCĐ"},{code:"6427",name:"CP dịch vụ mua ngoài"},{code:"627",name:"CP sản xuất chung"},{code:"641",name:"CP bán hàng"},{code:"642",name:"CP QLDN"},{code:"154",name:"CP SXKD dở dang"}]} />
+                </Field>
               </div>
             </TabsContent>
 
