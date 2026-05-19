@@ -5393,6 +5393,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      void_depreciation_entry: {
+        Args: { _entry_id: string; _reason?: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role:
