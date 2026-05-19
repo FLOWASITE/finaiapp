@@ -317,6 +317,14 @@ export const cancelSalesOrder = createServerFn({ method: "POST" })
       .update({ status: "cancelled", cancel_reason: data.reason || null, closed_at: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    // Release active reservations
+    const { data: lns } = await supabase.from("sales_order_lines").select("id").eq("order_id", data.id);
+    const ids = (lns ?? []).map((l: any) => l.id);
+    if (ids.length > 0) {
+      await supabase.from("stock_reservations")
+        .update({ status: "cancelled", released_at: new Date().toISOString() })
+        .in("ref_id", ids).eq("ref_type", "sales_order").eq("status", "active");
+    }
     return { ok: true };
   });
 
