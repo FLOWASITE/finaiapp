@@ -169,14 +169,15 @@ function DepreciationPage() {
                 <TableHead>Tài sản</TableHead>
                 <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Bút toán</TableHead>
+                <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entriesLoading && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Đang tải…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Đang tải…</TableCell></TableRow>
               )}
               {!entriesLoading && entries.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sổ này chưa có bút toán khấu hao nào.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sổ này chưa có bút toán khấu hao nào.</TableCell></TableRow>
               )}
               {entries.map((e: any) => (
                 <TableRow key={e.id}>
@@ -189,8 +190,16 @@ function DepreciationPage() {
                       ? <Badge variant="default" className="text-xs">Đã hạch toán</Badge>
                       : <Badge variant="outline" className="text-xs">Theo dõi</Badge>}
                   </TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" title="Huỷ bút toán này (tạo BT đảo ngược)"
+                      disabled={voidMut.isPending}
+                      onClick={() => voidMut.mutate(e.id)}>
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
+
             </TableBody>
           </Table>
         </CardContent>
