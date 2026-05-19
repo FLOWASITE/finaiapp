@@ -694,9 +694,8 @@ function InboxAiPage() {
 
       {/* Mobile: Inbox overlay (slide from left) */}
       {inboxOpenMobile && (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <MobileInboxOverlay onClose={() => setInboxOpenMobile(false)}>
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <InboxIcon className="h-4 w-4" />
                 Inbox
@@ -733,10 +732,9 @@ function InboxAiPage() {
                 </ul>
               )}
             </div>
-          </div>
-          <div className="flex-1 bg-background/60" onClick={() => setInboxOpenMobile(false)} />
-        </div>
+        </MobileInboxOverlay>
       )}
+
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
     </div>
@@ -981,3 +979,69 @@ function ListSkeleton() {
     </ul>
   );
 }
+
+/* ───────── Mobile Inbox overlay with swipe-right / pull-down to close ───────── */
+function MobileInboxOverlay({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    setDrag({ dx: 0, dy: 0 });
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!start.current) return;
+    const t = e.touches[0];
+    const dx = Math.max(0, t.clientX - start.current.x);
+    const dy = Math.max(0, t.clientY - start.current.y);
+    setDrag({ dx, dy });
+  };
+  const onTouchEnd = () => {
+    if (!start.current || !drag) {
+      start.current = null;
+      setDrag(null);
+      return;
+    }
+    const elapsed = Date.now() - start.current.t;
+    const velocity = Math.max(drag.dx, drag.dy) / Math.max(1, elapsed);
+    const shouldClose =
+      drag.dx > 120 || drag.dy > 140 || (velocity > 0.5 && (drag.dx > 50 || drag.dy > 50));
+    start.current = null;
+    setDrag(null);
+    if (shouldClose) onClose();
+  };
+
+  const tx = drag ? Math.max(drag.dx, 0) : 0;
+  const ty = drag ? Math.max(drag.dy, 0) : 0;
+  const dragging = !!drag && (tx > 2 || ty > 2);
+
+  return (
+    <div className="fixed inset-0 z-40 flex lg:hidden">
+      <div
+        ref={panelRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        style={{
+          transform: dragging ? `translate(${tx}px, ${ty}px)` : undefined,
+          transition: dragging ? "none" : "transform 200ms ease-out",
+          touchAction: "pan-y",
+        }}
+        className="flex h-full w-[92vw] max-w-md flex-col bg-background shadow-2xl"
+      >
+        {children}
+      </div>
+      <div className="flex-1 bg-background/60" onClick={onClose} />
+    </div>
+  );
+}
+
