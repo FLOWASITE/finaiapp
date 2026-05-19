@@ -19,7 +19,7 @@ import {
   getThread,
   appendMessage,
 } from "@/lib/chat-threads.functions";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
@@ -53,12 +53,105 @@ export function InboxItemSheet({
   approving,
 }: InboxItemSheetProps) {
   const open = !!item;
+
+  // Swipe-to-close (mobile). Esc is handled natively by Radix Dialog → onOpenChange.
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const gesture = useRef<{
+    startX: number;
+    startY: number;
+    startT: number;
+    active: boolean;
+    decided: boolean;
+    width: number;
+  } | null>(null);
+
+  const resetTransform = (animate: boolean) => {
+    const el = contentRef.current;
+    if (!el) return;
+    if (animate) {
+      el.style.transition = "transform 200ms ease-out";
+      el.style.transform = "translateX(0px)";
+      window.setTimeout(() => {
+        if (!contentRef.current) return;
+        contentRef.current.style.transition = "";
+        contentRef.current.style.transform = "";
+      }, 220);
+    } else {
+      el.style.transition = "";
+      el.style.transform = "";
+    }
+  };
+
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+    const t = e.touches[0];
+    gesture.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startT: performance.now(),
+      active: true,
+      decided: false,
+      width: contentRef.current?.offsetWidth ?? window.innerWidth,
+    };
+  };
+
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    if (!g || !g.active) return;
+    const t = e.touches[0];
+    const dx = t.clientX - g.startX;
+    const dy = t.clientY - g.startY;
+    if (!g.decided) {
+      // Need ~10px movement to decide axis
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dy) > Math.abs(dx) || dx < 0) {
+        // Vertical scroll OR swipe-left — abandon gesture so scroll works
+        g.active = false;
+        return;
+      }
+      g.decided = true;
+    }
+    if (dx > 0) {
+      const el = contentRef.current;
+      if (el) {
+        el.style.transition = "";
+        el.style.transform = `translateX(${dx}px)`;
+      }
+    }
+  };
+
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    gesture.current = null;
+    if (!g || !g.active || !g.decided) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - g.startX;
+    const dt = Math.max(1, performance.now() - g.startT);
+    const velocity = dx / dt;
+    if (dx > g.width * 0.3 || velocity > 0.5) {
+      onClose();
+      // Radix will animate the close; clear inline transform next tick
+      window.setTimeout(() => resetTransform(false), 0);
+    } else {
+      resetTransform(true);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
+        ref={contentRef}
         side="right"
         className="flex w-full flex-col gap-0 p-0 sm:max-w-lg"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
+        {/* Drag handle (mobile only) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1.5 top-1/2 h-10 w-1 -translate-y-1/2 rounded-full bg-border/60 sm:hidden"
+        />
         {item && (
           <>
             <SheetHeader className="shrink-0 space-y-2 border-b border-border/40 px-5 py-4 text-left">
