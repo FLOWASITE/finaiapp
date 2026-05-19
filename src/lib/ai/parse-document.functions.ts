@@ -197,7 +197,7 @@ export async function parseFileCore(opts: {
     if (schema) {
       const r = await generateText({
         model: structuringModel,
-        output: Output.object({ schema }),
+        output: Output.object({ schema: schema as any }),
         messages,
       });
       parsed = (r as any).output;
