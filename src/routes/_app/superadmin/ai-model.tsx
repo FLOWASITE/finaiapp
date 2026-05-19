@@ -590,7 +590,7 @@ function AiModelPage() {
 
           <ModelField
             icon={<Zap className="h-3.5 w-3.5" />}
-            label="Model dùng cho mọi tác vụ"
+            label="Mặc định — fallback cho mọi tác vụ"
             required
             value={form.model_default}
             onChange={(v) => update("model_default", v)}
@@ -599,6 +599,55 @@ function AiModelPage() {
             search={modelSearch}
             placeholder="openai/gpt-4o-mini"
           />
+
+          {/* Per-purpose overrides (collapsible) */}
+          <details className="group rounded-lg border bg-background [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <span className="flex items-center gap-1.5">
+                <Settings2 className="h-3.5 w-3.5" />
+                Tuỳ chỉnh theo tác vụ
+                <span className="text-muted-foreground/70 font-normal">
+                  (để trống = dùng mặc định)
+                </span>
+              </span>
+              <ChevronsUpDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="space-y-3 border-t p-3">
+              <ModelField
+                icon={<span className="text-sm">💬</span>}
+                label="Chat hỏi đáp kế toán"
+                hint="Ưu tiên model nhanh & rẻ (gpt-4o-mini, gemini-flash) — phản hồi realtime."
+                value={form.model_chat}
+                onChange={(v) => update("model_chat", v)}
+                models={models}
+                onlyFree={onlyFree}
+                search={modelSearch}
+                placeholder="vd: openai/gpt-4o-mini"
+              />
+              <ModelField
+                icon={<span className="text-sm">📄</span>}
+                label="Parse hoá đơn & sao kê ngân hàng"
+                hint="BẮT BUỘC có vision + context lớn (gemini-2.5-pro, gpt-4o, qwen-vl-max)."
+                value={form.model_parse}
+                onChange={(v) => update("model_parse", v)}
+                models={models}
+                onlyFree={onlyFree}
+                search={modelSearch}
+                placeholder="vd: google/gemini-2.5-pro"
+              />
+              <ModelField
+                icon={<span className="text-sm">🧠</span>}
+                label="Đề xuất định khoản & đối khớp giao dịch"
+                hint="Cần reasoning tốt (gpt-4o, deepseek-r1, qwq). Tác vụ batch — cân nhắc giá."
+                value={form.model_reasoning}
+                onChange={(v) => update("model_reasoning", v)}
+                models={models}
+                onlyFree={onlyFree}
+                search={modelSearch}
+                placeholder="vd: deepseek/deepseek-r1"
+              />
+            </div>
+          </details>
         </div>
 
         {/* Advanced (collapsible) */}
