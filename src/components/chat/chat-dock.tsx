@@ -55,6 +55,28 @@ export function ChatDock() {
     enabled: historyOpen,
   });
 
+  // ---- Daily digest badge ----
+  const SEEN_KEY = "__digestSeenAt";
+  const countUnreadFn = useServerFn(countUnreadDigests);
+  const [seenAt, setSeenAt] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return localStorage.getItem(SEEN_KEY) ?? ""; } catch { return ""; }
+  });
+  const unreadQuery = useQuery({
+    queryKey: ["digest", "unread", seenAt],
+    queryFn: () => countUnreadFn({ data: { since: seenAt || undefined } }),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unreadCount = unreadQuery.data?.count ?? 0;
+  const latestDigestThreadId = unreadQuery.data?.latest_thread_id ?? null;
+  const markSeen = () => {
+    const now = new Date().toISOString();
+    setSeenAt(now);
+    try { localStorage.setItem(SEEN_KEY, now); } catch {}
+  };
+
+
   const activeThreadId = currentThreadId(location.pathname);
 
   // Full path (pathname + search + hash) so the back button restores
