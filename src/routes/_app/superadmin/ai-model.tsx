@@ -1005,7 +1005,6 @@ function ModelField({
   }, [filtered]);
 
   const selected = models.find((m) => m.id === value);
-  const noModelsLoaded = models.length === 0;
 
   // Display parts for trigger
   const triggerProvider = value.includes("/") ? value.split("/")[0] : null;
@@ -1019,19 +1018,17 @@ function ModelField({
           {label}
           {required && <span className="text-destructive">*</span>}
         </Label>
-        {!noModelsLoaded && (
-          <button
-            type="button"
-            onClick={() => setManual((m) => !m)}
-            className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-          >
-            {manual ? "Chọn từ list" : "Gõ tay"}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setManual((m) => !m)}
+          className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+        >
+          {manual ? "Chọn từ list" : "Gõ tay"}
+        </button>
       </div>
       {hint && <p className="text-[11px] text-muted-foreground -mt-0.5">{hint}</p>}
 
-      {manual || noModelsLoaded ? (
+      {manual ? (
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -1089,7 +1086,7 @@ function ModelField({
               <CommandInput
                 value={search}
                 onValueChange={setSearch}
-                placeholder={`Tìm trong ${models.length} model…`}
+                placeholder={`Tìm trong ${models.length || SUGGESTED_MODELS.length} model…`}
               />
               <CommandList className="max-h-[360px]">
                 <CommandEmpty>Không có model phù hợp.</CommandEmpty>
