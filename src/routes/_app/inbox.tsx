@@ -116,7 +116,8 @@ function InboxPage() {
           return (
             <Link
               key={lane.key}
-              to={lane.to}
+              to="/inbox/$lane"
+              params={{ lane: lane.key }}
               className={cn(
                 "group relative flex flex-col gap-3 rounded-2xl border border-border/40 bg-gradient-to-br p-4 ring-1 ring-inset transition-all hover:-translate-y-0.5 hover:border-border/70 hover:shadow-lg",
                 lane.accent,
