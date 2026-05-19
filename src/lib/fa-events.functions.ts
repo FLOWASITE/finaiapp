@@ -21,8 +21,9 @@ const RevaluationPayload = z.object({
 });
 
 const MajorRepairPayload = z.object({
-  source_account: z.string().min(1).max(20).default("2413"), // XDCB dở dang (sửa chữa lớn)
+  source_account: z.string().min(1).max(20).default("2413"),
   asset_account: z.string().min(1).max(20).default("211"),
+  extend_useful_life_months: z.number().int().min(0).max(600).default(0),
 });
 
 const PartialDisposalPayload = z.object({
