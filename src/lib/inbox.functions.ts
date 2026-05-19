@@ -195,7 +195,7 @@ export const getInboxLane = createServerFn({ method: "POST" })
         .from("bank_transactions")
         .select("id, bank_account_id, txn_date, description, amount, counterparty, status")
         .order("txn_date", { ascending: false })
-        .limit(data.limit);
+        .range(data.offset, data.offset + data.limit - 1);
       // mặc định: status = unmatched. Chip "Có gợi ý AI"/"Chưa có gợi ý" — coi như đều unmatched
       qb = qb.eq("status", "unmatched");
       if (data.rangeFilter) {
@@ -225,7 +225,8 @@ export const getInboxLane = createServerFn({ method: "POST" })
           meta: { bank_account_id: t.bank_account_id },
         };
       });
-      return { rows: rows.filter(matchSearch), source: "bank_transactions" as const };
+      const nextOffset = (txns?.length ?? 0) === data.limit ? data.offset + data.limit : null;
+      return { rows: rows.filter(matchSearch), source: "bank_transactions" as const, nextOffset };
     }
 
     // ============ DEADLINE — Công nợ/HĐ sắp đến hạn ============
