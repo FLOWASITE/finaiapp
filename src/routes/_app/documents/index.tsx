@@ -250,67 +250,101 @@ function DocumentsPage() {
         </div>
 
         <Card className="p-4">
-          <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-7">
-            <Input
-              placeholder="Tìm theo tên file..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="md:col-span-2"
-            />
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Nguồn" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Mọi nguồn</SelectItem>
-                {Object.entries(SOURCE_LABELS).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={docKind} onValueChange={setDocKind}>
-              <SelectTrigger>
-                <SelectValue placeholder="Loại tài liệu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả loại</SelectItem>
-                {Object.entries(KIND_LABELS).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={ocrStatus} onValueChange={setOcrStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Trạng thái OCR" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Mọi OCR</SelectItem>
-                {Object.entries(OCR_LABELS).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              aria-label="Từ ngày"
-            />
-            <Input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              aria-label="Đến ngày"
-            />
-          </div>
-          {activeCount > 0 && (
-            <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Đang lọc {activeCount} điều kiện</span>
-              <Button size="sm" variant="ghost" className="h-6 px-2" onClick={resetFilters}>
-                Xoá bộ lọc
-              </Button>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Tìm theo tên file..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-8 pr-8 h-9"
+              />
+              {searchText && (
+                <button
+                  type="button"
+                  onClick={() => setSearchText("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Xoá tìm kiếm"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-          )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Bộ lọc
+                  {activeCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {activeCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-3 space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nguồn</label>
+                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Nguồn" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Mọi nguồn</SelectItem>
+                      {Object.entries(SOURCE_LABELS).map(([k, label]) => (
+                        <SelectItem key={k} value={k}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Loại tài liệu</label>
+                  <Select value={docKind} onValueChange={setDocKind}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Loại tài liệu" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả loại</SelectItem>
+                      {Object.entries(KIND_LABELS).map(([k, label]) => (
+                        <SelectItem key={k} value={k}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Trạng thái OCR</label>
+                  <Select value={ocrStatus} onValueChange={setOcrStatus}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Trạng thái OCR" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Mọi OCR</SelectItem>
+                      {Object.entries(OCR_LABELS).map(([k, label]) => (
+                        <SelectItem key={k} value={k}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Từ ngày</label>
+                    <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Đến ngày</label>
+                    <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9" />
+                  </div>
+                </div>
+                {activeCount > 0 && (
+                  <Button size="sm" variant="ghost" className="w-full h-8" onClick={resetFilters}>
+                    Xoá tất cả bộ lọc
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {activeCount > 0 && (
+              <Button size="sm" variant="ghost" className="h-9 text-xs text-muted-foreground" onClick={resetFilters}>
+                <X className="h-3.5 w-3.5 mr-1" /> Xoá lọc
+              </Button>
+            )}
+          </div>
+
 
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
