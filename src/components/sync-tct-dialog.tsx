@@ -102,9 +102,13 @@ export function SyncTctDialog({
           captchaSvg: mode === "manual" ? cap?.svg ?? null : null,
         },
       }),
-    onSuccess: (r) => {
+    onSuccess: (r: any) => {
+      const enrichedMsg =
+        typeof r.enriched === "number"
+          ? ` · Tải chi tiết: ${r.enriched}${r.enrichFailed ? `, lỗi ${r.enrichFailed}` : ""}`
+          : "";
       toast.success(
-        `Đồng bộ xong: ${r.created} mới, ${r.duplicate} trùng / tổng ${r.fetched}`,
+        `Đồng bộ xong: ${r.created} mới, ${r.duplicate} trùng / tổng ${r.fetched}${enrichedMsg}`,
       );
       qc.invalidateQueries({ queryKey: ["einvoices"] });
       onOpenChange(false);

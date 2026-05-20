@@ -1,147 +1,129 @@
-# Giải pháp parse XML HĐĐT chuẩn TT78/TT32
+# Kế hoạch: Sau khi HĐĐT được tải về thì làm gì?
 
-## Hiện trạng
+## Bối cảnh hiện tại
 
-3 file đang tự parse XML riêng, mỗi nơi đọc 1 tập field khác nhau:
+Hôm nay có 2 luồng nạp HĐĐT vào kho `einvoices`:
+- **TCT sync** (`syncTctInvoices`): chỉ lấy **metadata danh sách** (tổng tiền, MST, số HĐ, trạng thái `tthai`). **Không tải XML, không có dòng hàng.**
+- **Import XML** (`importEinvoicesToStore`): có XML đầy đủ → parse ra `einvoice_lines`, lưu file vào bucket `einvoices`.
 
-- `src/lib/einvoice-xml.functions.ts` — import file XML
-- `src/lib/einvoices.functions.ts` — đọc XML đã lưu
-- `src/lib/einvoices-sync.functions.ts` — đồng bộ từ cổng TCT
-
-Khi đối chiếu với file mẫu `C26TTT34942.xml` (CT 28, TT78 v2.1.0), có ~15 trường quan trọng đang **bị bỏ qua hoặc đọc sai**:
-
-| Thiếu / sai | Hệ quả |
-|---|---|
-| `KHMSHDon` (mẫu số) không gộp với `KHHDon` | Ký hiệu hoá đơn cụt: `C26TTT` thay vì `1C26TTT` → trùng key khi dedupe |
-| `HTTToan` (hình thức thanh toán: TM/CK) | Không biết hoá đơn đã/chưa thanh toán |
-| `TGia` (tỷ giá ngoại tệ) | Sai số khi hoá đơn USD/EUR |
-| `TLCKhau / STCKhau / TTCKTMai` (chiết khấu) | Lệch số tiền dòng & tổng |
-| `THTTLTSuat` (bảng tổng hợp theo thuế suất) | Không tách được 5/8/10/KCT/KKKNT cho tờ khai GTGT |
-| `TSuat = "KCT" / "KKKNT" / "KHAC"` | `parsePct` trả 0 → nhầm thành chịu thuế 0% |
-| `TChat` (1=hàng, 2=khuyến mãi, 3=chiết khấu, 4=ghi chú) | Import cả dòng KM/CK/ghi chú thành dòng hàng |
-| `TTKhac` (Trạng thái thanh toán, Mã số bí mật, Tổng tiền bằng chữ, Quận/Tỉnh/Quốc gia bên bán, Loại + số giấy tờ bên mua) | Mất dữ liệu tra cứu & cá nhân hoá |
-| `HVTNMHang` (người mua hàng cá nhân) | Mất tên người mua khi B2C |
-| `STKNHang / TNHang` (số TK & ngân hàng) | Không tự đối soát chuyển khoản |
-| `MCCQT` (mã CQT) đọc OK nhưng không phân biệt HĐ có mã / không mã | Sai logic "HĐ có mã của CQT" |
-| `TCHDon / HDLQuan` (HĐ thay thế / điều chỉnh) | Mất liên kết HĐ gốc |
-| `DSCKS` (chữ ký bên bán + CQT) | Không hiển thị "đã ký bởi" và thời điểm ký |
-| BOM UTF-8 đầu file | `parse()` ném lỗi với 1 số nhà cung cấp |
-| `NLap` dạng `DD/MM/YYYY` (một số NCC) | `issue_date` lưu sai |
-
-Ngoài ra: `MCCQT` đôi khi không phải object `{#text, @_Id}` mà là string trực tiếp; code chỉ thử 2 nhánh, vẫn lọt 1 case.
+Sau khi tải về, HĐĐT chỉ "nằm yên" trong bảng `einvoices`. Việc đối chiếu với hoá đơn mua/bán nội bộ phải bấm nút **Auto-match** thủ công. Không có ghi sổ tự động, không có thông báo, không có gợi ý hạch toán.
 
 ## Mục tiêu
 
-1. Một module parser **duy nhất**, dùng chung cho 3 nơi.
-2. Trả về kiểu dữ liệu (`ParsedEinvoice`) đã chuẩn hoá, kèm `warnings[]` thay vì ném lỗi vụn vặt.
-3. Đủ field để vừa lưu DB (cột hiện có), vừa lưu `raw_ocr` JSON đầy đủ cho hiển thị/tra cứu sau.
-4. Không đổi schema DB ở bước này — chỉ thêm dữ liệu vào các cột đang có + cột `raw_ocr` (JSONB).
+Biến `einvoices` thành **nguồn sự thật** cho hoá đơn mua/bán: tải về → bổ sung XML đầy đủ → đối chiếu → đề xuất tạo chứng từ / hạch toán → thông báo cho người dùng.
 
-## Phạm vi thay đổi
+---
 
-### File mới
-- `src/lib/einvoice-xml-parser.server.ts` — parser thuần, không đụng Supabase
+## Pipeline đề xuất (5 bước, chạy ngay sau khi sync/import)
 
-  Xuất:
-  ```ts
-  export type ParsedEinvoice = {
-    version: string;             // PBan
-    template: string;            // KHMSHDon
-    series: string;              // KHMSHDon + KHHDon (vd "1C26TTT")
-    invoice_no: string;          // SHDon
-    issue_date: string | null;   // YYYY-MM-DD
-    sign_date: string | null;    // SigningTime của NBan
-    currency: string;            // DVTTe
-    fx_rate: number;             // TGia
-    payment_method: string;      // HTTToan
-    has_cqt_code: boolean;
-    cqt_code: string | null;     // MCCQT
-    cqt_signed: boolean;
-    seller_signed: boolean;
-    adjustment_kind: "original" | "replacement" | "adjustment" | "cancelled";
-    related_invoice: { series?: string; no?: string; date?: string } | null;
+```text
+   TCT sync danh sách           Import XML thủ công
+          |                              |
+          v                              v
+   [1] Lưu metadata             [1'] Parse + lưu lines
+          |                              |
+          +--------> [2] Tải XML chi tiết cho HĐ mới <--+ (chỉ TCT)
+                              |
+                              v
+                     [3] Auto-match theo (MST + số HĐ + tổng)
+                              |
+                              v
+                     [4] Đề xuất tạo / cập nhật chứng từ
+                              |
+                              v
+                     [5] Thông báo + đưa vào Inbox
+```
 
-    seller: { name; tax_id; address; phone; email; bank_account; bank_name; district; province; country };
-    buyer:  { name; tax_id; address; phone; email; bank_account; bank_name; contact_person; id_type; id_no };
+### Bước 1 — Lưu metadata (giữ nguyên)
 
-    lines: Array<{
-      seq: number;
-      kind: "item" | "promo" | "discount" | "note";   // từ TChat
-      code: string;
-      description: string;
-      unit: string;
-      qty: number;
-      unit_price: number;
-      discount_amount: number;
-      amount: number;            // ThTien (sau CK dòng, trước thuế)
-      vat_rate_raw: string;      // "8%" | "KCT" | "KKKNT" | "KHAC" | "-"
-      vat_rate: number | null;   // null nếu không chịu thuế / không kê khai
-      vat_taxable: boolean;
-      vat_amount: number;
-      gross_amount: number;      // từ TTKhac "Thành tiền thanh toán của hàng hóa"
-    }>;
+Đã có. Bổ sung: lưu `tct_status` chuẩn hoá (`valid | cancelled | adjusted | replaced | pending`) và **bỏ qua** HĐ `cancelled` ở các bước sau (không match, không ghi sổ).
 
-    totals: {
-      subtotal: number;          // TgTCThue
-      vat_amount: number;        // TgTThue
-      discount_total: number;    // TTCKTMai
-      total: number;             // TgTTTBSo
-      total_in_words: string;    // TgTTTBChu
-      by_rate: Array<{ rate_raw: string; rate: number | null; taxable: number; tax: number }>;
-    };
+### Bước 2 — Tải chi tiết XML cho HĐ TCT mới
 
-    raw_ttkhac: Record<string, string>;  // mọi TTruong → DLieu ở 3 cấp (TTChung/NBan/NMua/TToan/gốc)
-    warnings: string[];
-  };
+Sau khi `syncTctInvoices` xong, với mỗi HĐ vừa tạo, gọi tiếp endpoint TCT `/query/invoices/export-xml?nbmst=...&khhdon=...&shdon=...` (qua `TCT_PROXY_URL`) để lấy XML đầy đủ. Sau đó:
+- Upload XML vào bucket `einvoices` → set `xml_path`
+- Parse bằng `parseEinvoiceXml` → ghi `einvoice_lines`, bổ sung `exchange_rate`, `payment_method`, `cqt_signed`, `seller_signed`...
 
-  export function parseEinvoiceXml(xml: string): ParsedEinvoice;
-  ```
+Chạy **bất đồng bộ theo batch** (10 HĐ/lần, có retry, log vào `einvoice_sync_logs.detail`) để không kéo dài thời gian sync chính. Nếu fail → đánh dấu `xml_fetch_status = 'failed'`, người dùng có thể bấm "Tải lại XML" trên trang chi tiết.
 
-  Đặc tả xử lý:
-  - Strip BOM `\uFEFF`, normalize newlines, `XMLParser({ ignoreAttributes:false, attributeNamePrefix:"@_", parseTagValue:false, trimValues:true, isArray: predicate })` — dùng `isArray` để ép `HHDVu`, `LTSuat`, `TTin` luôn là array.
-  - Dò root linh hoạt: `HDon → DLHDon` hoặc `HDon[0].DLHDon` hoặc envelope ngoài.
-  - `MCCQT`: chấp nhận cả `string`, `{ "#text", "@_Id" }`, hoặc thiếu hoàn toàn → `has_cqt_code = !!cqt_code`.
-  - `parsePct`: ánh xạ `KCT|KCTGT|\\` → `{rate: null, taxable: false}`, `KKKNT` → `{rate: null, taxable: false}`, `0%|5%|8%|10%` → numeric, `KHAC` + giá trị riêng → đọc thêm `TSuatKhac`.
-  - `NLap`: thử ISO trước, fallback `DD/MM/YYYY` / `DD-MM-YYYY` → ISO; nếu fail → `null` + warning.
-  - `TChat`: 1→item, 2→promo, 3→discount, 4→note. Khi `promo|note` thì `qty/amount=0` không tính vào tổng (vẫn lưu để hiển thị).
-  - `TTKhac`: gom tất cả `TTin[].TTruong → DLieu` thành map phẳng, đồng thời tách các key đã biết (Trạng thái thanh toán, Mã số bí mật, Tổng tiền bằng chữ, Quận/Tỉnh/Quốc gia, Loại/Số giấy tờ, Link tra cứu) vào struct chính.
-  - Sanity check: `|subtotal + vat_amount - total| <= 1` → nếu lệch, push warning `"Tổng lệch X đồng"`.
-  - Validate bằng Zod ở cuối → ném `EinvoiceParseError` với danh sách warning để UI hiển thị.
+### Bước 3 — Auto-match thông minh
 
-### File sửa
+Hiện auto-match chỉ khớp `invoice_no` + MST. Nâng cấp:
+- **Match 3 mức** (theo độ tin cậy giảm dần):
+  1. `(MST đối tác, ký hiệu, số HĐ)` → khớp **chắc chắn** → tự gán.
+  2. `(MST đối tác, số HĐ)` + chênh lệch tổng tiền ≤ 1 đồng → tự gán + cờ `match_confidence = 'high'`.
+  3. `(MST đối tác, ngày ±3, tổng ±1%)` → đề xuất, **không tự gán**, hiển thị ở Inbox để người dùng xác nhận.
+- Phát hiện **trùng lặp ngược**: 1 invoice nội bộ đang trỏ tới 2 einvoice → cảnh báo.
 
-1. `src/lib/einvoice-xml.functions.ts`
-   - Thay block parse thủ công bằng `parseEinvoiceXml(file.content)`.
-   - Dedupe purchase: dùng `(invoice_no, sellerTax, series)` thay vì `(invoice_no, sellerTax)` → đúng quy định 1 ký hiệu có thể trùng số giữa 2 NCC khác mẫu.
-   - Map `payment_method`, `fx_rate`, `cqt_code`, `has_cqt_code`, `adjustment_kind` vào `raw_ocr`.
-   - Bỏ qua dòng `kind != "item"` khi insert `invoice_lines/sales_invoice_lines`, hoặc insert kèm flag (chọn: bỏ qua để không lệch tổng).
-   - `vat_rate = null` khi `!vat_taxable` → ghi `vat_code = "KCT" / "KKKNT"` ở sales line.
-   - `invoice_series` lưu giá trị chuẩn `series` (mẫu+ký hiệu).
+Chạy ngay cuối `syncTctInvoices` / `importEinvoicesToStore` cho riêng các HĐ vừa tạo (không quét toàn bộ).
 
-2. `src/lib/einvoices.functions.ts` (chỗ đọc lại XML hiển thị)
-   - Thay parse riêng bằng `parseEinvoiceXml` → giao diện chi tiết HĐ hiển thị đủ thông tin (chữ ký, mã tra cứu, bảng thuế theo nhóm thuế suất, dòng KM/CK).
+### Bước 4 — Đề xuất tạo chứng từ
 
-3. `src/lib/einvoices-sync.functions.ts` (đồng bộ TCT)
-   - Mỗi HĐ trả về từ cổng TCT có XML đính kèm → parse bằng module mới, lấy dữ liệu chuẩn hoá thay vì các field rời rạc từ JSON cổng.
+Với einvoice **chưa match** sau bước 3:
+- **Chiều mua (`in`)**: tạo bản nháp `invoices` (purchases) với supplier auto-upsert theo MST, lines copy từ `einvoice_lines`, gợi ý tài khoản chi phí theo `ai/suggest-account` dựa trên `description`. Trạng thái `draft`, chờ kế toán duyệt.
+- **Chiều bán (`out`)**: tạo bản nháp `sales_invoices` tương tự (trường hợp HĐ bán phát hành ngoài app rồi sync về).
+- Không tự ghi sổ — chỉ tạo nháp + link 2 chiều (`einvoices.matched_*` ↔ `invoices.einvoice_id`).
 
-### Không đổi
-- Không sửa schema DB ở plan này.
-- Không sửa UI nhập file (`import-einvoice-xml-dialog.tsx`) ngoài việc hiển thị thêm warning trả về.
-- Không động vào `MCCQT` verify chữ ký (phạm vi khác).
+Tính năng này **bật/tắt theo tenant setting** (`auto_draft_from_einvoice`), mặc định **tắt** để không ngợp người dùng cũ.
 
-## Kiểm thử
+### Bước 5 — Thông báo & Inbox
 
-Tạo `src/lib/__tests__/einvoice-xml-parser.test.ts` (bunx vitest) với fixtures:
+Kết thúc pipeline, ghi 1 bản ghi `notifications` + đẩy vào Inbox AI lane "HĐĐT mới":
+- **Tóm tắt**: "Đã tải N HĐĐT đầu vào: A đã ghép, B chờ duyệt, C cần xem (ambiguous)."
+- Mỗi HĐ ambiguous (bước 3 mức 3) là 1 inbox item với CTA "Xác nhận ghép" / "Bỏ qua".
+- HĐ `cancelled` mà đang trỏ tới invoice nội bộ → cảnh báo "HĐ đã huỷ ở TCT, cần xử lý chứng từ".
 
-1. `C26TTT34942.xml` (file user gửi) — TT78 v2.1.0 có MCCQT, có dòng KM (TChat=2), VAT 8%.
-2. Fixture HĐ không mã (`KHMSHDon=2`, không `MCCQT`).
-3. Fixture HĐ điều chỉnh (`HDLQuan`, `TCHDon=3`).
-4. Fixture đa thuế suất (5% + 10% + KCT trong cùng HĐ).
-5. Fixture NLap `19/04/2026`.
-6. Fixture có BOM + xuống dòng Windows.
+---
 
-Assert: `series`, `totals.by_rate`, `lines[].kind`, `payment_method`, `adjustment_kind`, không có warning nghiêm trọng.
+## Thay đổi DB cần thiết
 
-## Rủi ro
-- Một số NCC dùng namespace khác / khoá lowercase → giữ fallback dò không phân biệt hoa thường ở `DLHDon` root.
-- `vat_rate=null` có thể vi phạm NOT NULL ở cột `invoice_lines.vat_rate` → fallback `0` + đặt cờ `non_taxable` trong description prefix, hoặc kiểm tra schema trước khi đổi (sẽ check ở bước implement).
+| Bảng | Cột mới | Mục đích |
+|---|---|---|
+| `einvoices` | `xml_fetch_status` (`pending\|done\|failed`) | trạng thái tải XML chi tiết |
+| `einvoices` | `xml_fetch_error` text | log lỗi tải XML |
+| `einvoices` | `match_confidence` (`exact\|high\|suggested`) | mức độ tin cậy match |
+| `einvoices` | `auto_draft_invoice_id` uuid | nháp chứng từ tự sinh |
+| `invoices` / `sales_invoices` | `einvoice_id` uuid | liên kết ngược |
+| `tenants` (hoặc `tenant_settings`) | `einvoice_auto_draft` bool default false | bật/tắt bước 4 |
+| `einvoice_sync_logs` | `detail` jsonb | log chi tiết từng HĐ (xml fail, match...) |
+
+Không xoá cột nào. Trigger giữ nguyên.
+
+---
+
+## Thay đổi code
+
+- **`src/lib/einvoices-sync.functions.ts`**:
+  - Tách `syncTctInvoices` thành 2 phase: `fetchList` (đồng bộ) + `enrichXml` (background batch).
+  - Thêm helper `fetchInvoiceXmlFromTct({ nbmst, khhdon, shdon, token })`.
+  - Sau khi insert HĐ mới, push vào hàng đợi enrich (gọi inline với `Promise.allSettled` batch 10).
+- **`src/lib/einvoices.functions.ts`**:
+  - `autoMatchEInvoices` → nâng cấp 3 mức, trả `{ exact, high, suggested, ambiguous }`.
+  - Thêm `draftInvoiceFromEinvoice(einvoiceId)` server fn.
+  - Thêm `retryXmlFetch(einvoiceId)`.
+- **`src/lib/einvoice-xml-parser.ts`**: đã đủ, không sửa.
+- **UI**:
+  - `src/routes/_app/einvoices/index.tsx`: cột "XML" (✓/⚠/⏳), cột "Mức khớp", filter `xml_fetch_status`.
+  - `src/routes/_app/einvoices/$id.tsx`: nút "Tải lại XML", "Tạo nháp chứng từ", panel "Gợi ý ghép" cho suggested.
+  - `src/components/sync-tct-dialog.tsx`: sau khi sync xong, hiện toast có CTA "Xem N HĐ chờ duyệt" → /inbox?lane=einvoice.
+  - Inbox: thêm lane `einvoice_review` lấy từ einvoices có `match_confidence='suggested'` hoặc `tct_status='cancelled' AND matched_*`.
+- **`src/lib/digest-generator.server.ts`**: thêm section "HĐĐT tuần này" vào digest.
+
+---
+
+## Triển khai theo giai đoạn
+
+1. **Phase 1 (làm trước)**: Bước 2 (tải XML chi tiết sau TCT sync) + cột `xml_fetch_status`. Đây là gap lớn nhất hiện tại — HĐ TCT không có lines nên không hạch toán được.
+2. **Phase 2**: Bước 3 nâng cấp auto-match + Inbox lane mới.
+3. **Phase 3**: Bước 4 (auto-draft) + setting tenant.
+4. **Phase 4**: Bước 5 notifications + digest section.
+
+Mỗi phase độc lập, có thể release riêng.
+
+---
+
+## Câu hỏi cần bạn quyết trước khi bắt tay
+
+1. **Auto-draft ở bước 4**: mặc định **tắt** (an toàn) hay **bật** (chủ động)?
+2. **HĐ `cancelled` ở TCT** nhưng đã hạch toán nội bộ — chỉ cảnh báo, hay tự đảo bút toán?
+3. **Phạm vi Phase 1 ngay bây giờ**: chỉ tải XML + parse lines, hay làm luôn cả nâng cấp auto-match (Phase 2)?
