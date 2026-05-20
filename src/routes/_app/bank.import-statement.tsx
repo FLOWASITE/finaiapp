@@ -44,6 +44,17 @@ type Row = {
   reason?: string;
   confidence: number;
   skip: boolean;
+  // ----- validation context -----
+  stmt_balance?: number | null;     // running balance reported by statement on this row
+  file_idx?: number;                // index in source files (0-based)
+  source_file?: string;             // original filename
+};
+
+type StatementMeta = {
+  filename: string;
+  opening_balance: number | null;
+  closing_balance: number | null;
+  validation: { expected: number; actual: number; diff: number; ok: boolean } | null;
 };
 
 function ImportStatementPage() {
@@ -58,15 +69,27 @@ function ImportStatementPage() {
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [rows, setRows] = useState<Row[]>([]);
   const [sourceLabel, setSourceLabel] = useState<string>("");
+  const [stmtMeta, setStmtMeta] = useState<StatementMeta[]>([]);
 
   // Load parsed batch from ChatDock on mount
   useEffect(() => {
     const batch = (typeof window !== "undefined" ? (window as any).__lastBatchImport : null);
     if (!batch || batch.kind !== "bank_statement" || !Array.isArray(batch.items)) return;
     const all: Row[] = [];
-    for (const it of batch.items) {
-      const normalized = normalizeStatementRows(it.parsed);
-      for (const n of normalized) {
+    const metas: StatementMeta[] = [];
+    batch.items.forEach((it: any, fileIdx: number) => {
+      const parsed = it.parsed ?? {};
+      metas.push({
+        filename: it.filename,
+        opening_balance: typeof parsed.opening_balance === "number" ? parsed.opening_balance : null,
+        closing_balance: typeof parsed.closing_balance === "number" ? parsed.closing_balance : null,
+        validation: parsed._validation ?? null,
+      });
+      const txnsRaw: any[] = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+      const normalized = normalizeStatementRows(parsed);
+      // Re-zip normalized with raw to recover the balance field.
+      normalized.forEach((n, i) => {
+        const raw = txnsRaw[i] ?? {};
         const s: Suggestion = suggestCounterAccount(n);
         all.push({
           ...n,
@@ -75,10 +98,14 @@ function ImportStatementPage() {
           party_name: n.counterparty ?? undefined,
           confidence: s.confidence,
           skip: false,
+          stmt_balance: typeof raw.balance === "number" ? raw.balance : null,
+          file_idx: fileIdx,
+          source_file: it.filename,
         });
-      }
-    }
+      });
+    });
     setRows(all);
+    setStmtMeta(metas);
     setSourceLabel(`${batch.items.length} file đã trích xuất`);
     if (all.length) {
       const d = new Date(all[0].txn_date);
