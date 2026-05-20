@@ -612,6 +612,7 @@ export type Database = {
           parsed: Json | null
           parser_ms: number | null
           parser_used: string | null
+          status: string
           structurer_ms: number | null
           user_id: string
         }
@@ -628,6 +629,7 @@ export type Database = {
           parsed?: Json | null
           parser_ms?: number | null
           parser_used?: string | null
+          status?: string
           structurer_ms?: number | null
           user_id: string
         }
@@ -644,6 +646,7 @@ export type Database = {
           parsed?: Json | null
           parser_ms?: number | null
           parser_used?: string | null
+          status?: string
           structurer_ms?: number | null
           user_id?: string
         }
