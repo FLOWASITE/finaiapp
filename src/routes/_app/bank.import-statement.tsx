@@ -199,39 +199,63 @@ function ImportStatementPage() {
   const mismatchFiles = stmtMeta.filter((m) => m.validation && !m.validation.ok);
   const suspectCount = suspectByIdx.size;
 
+  // Per-file aggregated stats + status (for individual "Tạo bút toán" buttons)
+  const fileSummaries = useMemo(() => {
+    return stmtMeta.map((m, fi) => {
+      const fileRows = filtered.filter((r) => (r.file_idx ?? 0) === fi);
+      const inP = fileRows.filter((r) => r.inPeriod && !r.skip);
+      const credit = inP.filter((r) => r.amount >= 0).reduce((s, r) => s + r.amount, 0);
+      const debit = inP.filter((r) => r.amount < 0).reduce((s, r) => s + Math.abs(r.amount), 0);
+      const suspect = fileRows.filter((r) => suspectByIdx.has(r.idx)).length;
+      const lowConf = inP.filter((r) => r.confidence < 0.5).length;
+      const mismatch = !!(m.validation && !m.validation.ok);
+      return {
+        fileIdx: fi, meta: m, totalInPeriod: fileRows.filter((r) => r.inPeriod).length,
+        active: inP.length, credit, debit, suspect, lowConf, mismatch,
+      };
+    });
+  }, [stmtMeta, filtered, suspectByIdx]);
 
   const update = (idx: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   const post = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { fileIdx?: number }) => {
       if (!bankAccountId) throw new Error("Chưa chọn tài khoản ngân hàng");
       const payload = filtered
         .filter((r) => r.inPeriod)
+        .filter((r) => opts?.fileIdx == null || (r.file_idx ?? 0) === opts.fileIdx)
         .map((r) => ({
-          txn_date: r.txn_date,
-          description: r.description || null,
-          amount: r.amount,
-          counterparty: r.counterparty ?? null,
-          counter_account: r.counter_account,
-          party_name: r.party_name ?? null,
-          reason: r.reason ?? null,
-          skip: r.skip,
-        }));
+            txn_date: r.txn_date,
+            description: r.description || null,
+            amount: r.amount,
+            counterparty: r.counterparty ?? null,
+            counter_account: r.counter_account,
+            party_name: r.party_name ?? null,
+            reason: r.reason ?? null,
+            skip: r.skip,
+          }));
       if (!payload.length) throw new Error("Không có dòng nào trong kỳ");
-      return postFn({ data: { bankAccountId, period: { year, month }, rows: payload } });
+      const res = await postFn({ data: { bankAccountId, period: { year, month }, rows: payload } });
+      return { res, fileIdx: opts?.fileIdx };
     },
-    onSuccess: (res) => {
-      toast.success(`Đã hạch toán ${res.posted} GD, bỏ qua ${res.skipped}${res.errors.length ? `, lỗi ${res.errors.length}` : ""}`);
+    onSuccess: ({ res, fileIdx }) => {
+      const label = fileIdx != null ? ` (${stmtMeta[fileIdx]?.filename ?? `file #${fileIdx + 1}`})` : "";
+      toast.success(`Đã hạch toán ${res.posted} GD${label}, bỏ qua ${res.skipped}${res.errors.length ? `, lỗi ${res.errors.length}` : ""}`);
       invalidateLedgers(qc);
       if (res.errors.length) {
         toast.error(`Lỗi đầu tiên: ${res.errors[0].error}`);
+      } else if (fileIdx != null) {
+        // Remove only this file's rows
+        setRows((prev) => prev.filter((r) => (r.file_idx ?? 0) !== fileIdx));
       } else {
         setRows([]);
       }
     },
     onError: (e: any) => toast.error(e.message || "Lỗi hạch toán"),
   });
+
+  const [pendingFileIdx, setPendingFileIdx] = useState<number | null>(null);
 
   return (
     <div className="container mx-auto space-y-4 p-4 md:p-6">
