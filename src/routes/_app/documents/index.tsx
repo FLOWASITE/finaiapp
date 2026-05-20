@@ -94,14 +94,59 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+const TAB_VALUES = ["all", "purchase", "sales", "einvoice", "files"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
 const SearchSchema = z.object({
   highlight: z.string().uuid().optional(),
+  tab: z.enum(TAB_VALUES).optional(),
 });
 
 export const Route = createFileRoute("/_app/documents/")({
   validateSearch: SearchSchema,
   component: DocumentsPage,
 });
+
+// Tab → preset filter map + label + legacy route
+const TAB_PRESETS: Record<TabValue, {
+  label: string;
+  kinds: string[] | null; // null = all
+  legacyTo?: string;
+  legacyLabel?: string;
+  description: string;
+}> = {
+  all: {
+    label: "Tất cả",
+    kinds: null,
+    description: "Mọi tài liệu — sao kê, hoá đơn, chứng từ từ mọi nguồn.",
+  },
+  purchase: {
+    label: "Hoá đơn mua",
+    kinds: ["purchase_invoice"],
+    legacyTo: "/invoices",
+    legacyLabel: "Trang hoá đơn mua",
+    description: "Hoá đơn đầu vào (mua vào) — đã upload, OCR và liên kết kế toán.",
+  },
+  sales: {
+    label: "Hoá đơn bán",
+    kinds: ["sales_invoice"],
+    legacyTo: "/invoices",
+    legacyLabel: "Trang hoá đơn bán",
+    description: "Hoá đơn đầu ra (bán ra) đã tải lên hệ thống.",
+  },
+  einvoice: {
+    label: "Hoá đơn điện tử",
+    kinds: ["einvoice"],
+    legacyTo: "/einvoices",
+    legacyLabel: "Trang HĐĐT (TCT)",
+    description: "Hoá đơn điện tử đồng bộ từ TCT, import XML hoặc tải lên.",
+  },
+  files: {
+    label: "Tài liệu khác",
+    kinds: ["bank_statement", "bank_voucher", "cash_voucher", "receipt", "payment", "contract", "other"],
+    description: "Sao kê ngân hàng, hợp đồng, chứng từ phụ trợ không phải hoá đơn.",
+  },
+};
 
 const OCR_LABELS: Record<string, string> = {
   pending: "Chờ OCR",
