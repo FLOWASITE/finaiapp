@@ -133,18 +133,66 @@ type Source =
   | { kind: "markdown"; markdown: string; pages: string[]; parser: string; pageCount: number }
   | { kind: "vision"; parser: "vision"; pageCount: number };
 
+type TierChoice = { tier: "fast" | "balanced" | "premium"; reason: string };
+
+/**
+ * Auto-pick LlamaParse tier theo loại tài liệu + độ dài.
+ * - fast (~$0.001/page): chứng từ ngắn, đơn giản (phiếu thu/chi, hoá đơn 1–2 trang).
+ * - balanced (~$0.003/page): mặc định cho hoá đơn dài, sao kê (đã chunking).
+ * - premium (~$0.045/page, agent mode): bảng rất phức tạp; auto KHÔNG tự lên premium
+ *   để tránh hoá đơn $$. User có thể chỉ định thủ công nếu cần.
+ */
+function pickLlamaTier(
+  kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto",
+  mimeType: string,
+  fileBytes: number,
+  pageCount: number | null,
+): TierChoice {
+  const sizeKB = Math.round(fileBytes / 1024);
+  const pagesLabel = pageCount != null ? `${pageCount}p` : `${sizeKB}KB`;
+
+  if (kind === "cash_voucher") {
+    return { tier: "fast", reason: `cash_voucher → fast (${pagesLabel})` };
+  }
+
+  if (kind === "purchase_invoice") {
+    const short = (pageCount != null && pageCount <= 2) || (pageCount == null && fileBytes < 400_000);
+    return short
+      ? { tier: "fast", reason: `invoice ngắn → fast (${pagesLabel})` }
+      : { tier: "balanced", reason: `invoice dài → balanced (${pagesLabel})` };
+  }
+
+  if (kind === "bank_statement") {
+    // Sao kê đã có chunking; balanced đủ cho bảng. >50 trang vẫn balanced để không bùng chi phí.
+    return { tier: "balanced", reason: `bank_statement → balanced (${pagesLabel})` };
+  }
+
+  // auto / unknown
+  if (mimeType.startsWith("image/")) {
+    return { tier: "fast", reason: `image → fast (${sizeKB}KB)` };
+  }
+  if ((pageCount != null && pageCount <= 2) || (pageCount == null && fileBytes < 300_000)) {
+    return { tier: "fast", reason: `auto + ngắn → fast (${pagesLabel})` };
+  }
+  return { tier: "balanced", reason: `auto → balanced (${pagesLabel})` };
+}
+
 async function acquireSource(
   fileBase64: string,
   mimeType: string,
   filename: string | undefined,
-): Promise<{ source: Source; parserMs: number }> {
+  kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto",
+): Promise<{ source: Source; parserMs: number; tierChoice?: TierChoice }> {
   const start = Date.now();
   const isPdf = mimeType === "application/pdf";
+  const fileBytes = Math.floor((fileBase64.length * 3) / 4);
+  let knownPageCount: number | null = null;
 
   // 1) Try unpdf text-layer for digital PDFs (free, in-Worker)
   if (isPdf) {
     try {
       const t = await extractPdfText(fileBase64);
+      knownPageCount = t.pages || null;
       if (t.rich) {
         return {
           source: {
@@ -169,12 +217,14 @@ async function acquireSource(
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   if (llamaCandidate && isLlamaParseEnabled()) {
+    const tierChoice = pickLlamaTier(kind, mimeType, fileBytes, knownPageCount);
+    console.log(`[parse-document] LlamaParse tier=${tierChoice.tier} — ${tierChoice.reason}`);
     try {
       const r = await llamaParseDocument({
         fileBase64,
         mimeType,
         filename,
-        tier: "balanced",
+        tier: tierChoice.tier,
       });
       if (r.markdown && r.markdown.trim().length > 20) {
         return {
@@ -183,9 +233,10 @@ async function acquireSource(
             markdown: r.markdown,
             pages: r.pages,
             parser: `llamaparse:${r.tierUsed}`,
-            pageCount: r.pageCount,
+            pageCount: r.pageCount || knownPageCount || 0,
           },
           parserMs: Date.now() - start,
+          tierChoice,
         };
       }
     } catch (e) {
@@ -195,7 +246,7 @@ async function acquireSource(
 
   // 3) Vision fallback
   return {
-    source: { kind: "vision", parser: "vision", pageCount: 0 },
+    source: { kind: "vision", parser: "vision", pageCount: knownPageCount || 0 },
     parserMs: Date.now() - start,
   };
 }
@@ -374,6 +425,7 @@ export async function parseFileCore(opts: {
     opts.fileBase64,
     opts.mimeType,
     opts.filename,
+    opts.kind,
   );
 
   // ---- 2. Models
