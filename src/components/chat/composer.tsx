@@ -220,7 +220,7 @@ export function Composer({
     const updateFile = (idx: number, patch: Partial<FileProgress>) =>
       setParseFiles((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
 
-    const items: Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; error?: string }> = [];
+    const items: Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; uploadId: string | null; error?: string }> = [];
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
       const startedAt = Date.now();
@@ -237,10 +237,10 @@ export function Composer({
           pages: res?.pages,
           ms: Date.now() - startedAt,
         });
-        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {}, file_hash: res?.file_hash ?? null });
+        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {}, file_hash: res?.file_hash ?? null, uploadId: res?.uploadId ?? null });
       } catch (e: any) {
         updateFile(i, { phase: "error", error: e?.message || "lỗi", ms: Date.now() - startedAt });
-        items.push({ filename: file.name, kind, parsed: null, file_hash: null, error: e?.message || "lỗi" });
+        items.push({ filename: file.name, kind, parsed: null, file_hash: null, uploadId: null, error: e?.message || "lỗi" });
       }
     }
     const ok = items.filter((i) => !i.error);
@@ -254,7 +254,7 @@ export function Composer({
     }
 
     // --- New: Phase 2 — classify & dedupe ---
-    setParsedItems(ok.map((o) => ({ filename: o.filename, kind: o.kind, parsed: o.parsed, file_hash: o.file_hash })));
+    setParsedItems(ok.map((o) => ({ filename: o.filename, kind: o.kind, parsed: o.parsed, file_hash: o.file_hash, uploadId: o.uploadId })));
     setParsePhase("classifying");
     try {
       const classifyRes: any = await classifyFn({
