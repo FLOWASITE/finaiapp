@@ -1,20 +1,25 @@
-Mình đã kiểm tra: mã nguồn hiện tại đã có UI mới (`Trung tâm chứng từ`, tab, nút `Bộ lọc`). Trình preview trực tiếp cũng đang hiển thị UI mới. Ảnh bạn gửi vẫn là giao diện cũ vì nhiều khả năng bạn đang xem bản chưa reload/cache hoặc đang ở một preview/published URL cũ.
+Mình đã kiểm tra lại mã nguồn: trong repo hiện không còn chuỗi tiêu đề cũ `Tài liệu / Kho lưu trữ tập trung`; file `/documents` đã là `Trung tâm chứng từ`. Ảnh bạn gửi vẫn hiện bản cũ nên nguyên nhân gần như chắc chắn là thiết bị đang mở bản bundle cũ/published cũ/cache cũ, không phải mã nguồn hiện tại.
 
-Kế hoạch xử lý:
+Kế hoạch xử lý dứt điểm:
 
-1. Xác nhận đúng route và bản preview
-- Kiểm tra URL đang mở là `/documents` trong preview mới, không phải published/custom domain cũ.
-- Nếu bạn đang xem trên điện thoại qua Chrome, cần reload cứng/đóng tab mở lại vì trình duyệt mobile thường giữ phiên cũ.
+1. Buộc thay đổi khó nhầm trên chính route `/documents`
+- Đổi cả breadcrumb/page title từ `Documents`/`Tài liệu` sang `Trung tâm chứng từ` nếu nguồn breadcrumb còn lấy label cũ.
+- Đặt headline mới thật nổi bật và khác hoàn toàn bản cũ.
+- Thêm hàng tab ngay dưới headline để nếu không thấy tab thì biết chắc đang xem bundle cũ.
 
-2. Làm UI dễ nhận biết hơn để tránh nhầm với bản cũ
-- Đổi tiêu đề rõ ràng thành `Trung tâm chứng từ`.
-- Giữ tab thống nhất: `Tất cả`, `Hoá đơn mua`, `Hoá đơn bán`, `Hoá đơn điện tử`, `Tài liệu khác`.
-- Đảm bảo search/filter compact luôn hiện đúng trên mobile: ô tìm kiếm + nút `Bộ lọc`, không còn 4 dropdown xếp dọc như ảnh cũ.
+2. Loại bỏ hoàn toàn UI filter cũ trên mobile
+- Search chỉ còn 1 ô tìm kiếm + 1 nút icon lọc.
+- Các dropdown `Tất cả loại`, `Mọi OCR`, nguồn, ngày chỉ xuất hiện trong popover sau khi bấm lọc.
+- Không để bất kỳ layout nào có 4 ô filter xếp dọc như ảnh bạn gửi.
 
-3. Nếu vẫn không đổi sau khi reload
-- Kiểm tra lỗi runtime/network trên preview.
-- Nếu route đang fallback vào bundle cũ, restart dev preview để nạp lại mã mới.
+3. Kiểm tra route và menu
+- Kiểm tra sidebar/link đang trỏ đúng `/documents`, không trỏ route cũ hoặc URL published.
+- Nếu breadcrumb vẫn hiện `Documents`, chỉnh mapping breadcrumb sang tiếng Việt.
 
-4. Sau khi bạn bấm Implement plan
-- Mình sẽ chỉnh nhẹ phần UI `/documents` để bản mới nổi bật và tối ưu mobile hơn.
-- Sau đó mở preview kiểm tra lại đúng viewport điện thoại và xác nhận không còn giao diện search/filter cũ.
+4. Làm mới preview
+- Restart dev server sau khi sửa.
+- Mở lại `/documents` bằng browser tool ở viewport giống điện thoại để xác nhận thấy `Trung tâm chứng từ`.
+
+5. Nếu trên điện thoại của bạn vẫn không thấy sau bước này
+- Cần mở đúng preview URL mới hoặc hard refresh/đóng hẳn tab Chrome rồi mở lại.
+- Nếu bạn đang xem `finaiapp.lovable.app` hoặc `app.finai.one`, đó là bản published; phải Publish lại thì mới thấy thay đổi trên domain đó.
