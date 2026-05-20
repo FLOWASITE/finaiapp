@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { XMLParser } from "fast-xml-parser";
+
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // =================== crypto helpers (AES-GCM with EINVOICE_ENC_KEY) ===================
