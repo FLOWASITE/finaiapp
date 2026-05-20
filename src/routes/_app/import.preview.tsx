@@ -33,6 +33,9 @@ type InvoiceDraft = {
   invoice_no: string;
   issue_date: string;
   notes: string;
+  expense_account: string;   // TK Nợ chi phí/hàng hoá
+  vat_account: string;       // TK Nợ thuế VAT đầu vào
+  payable_account: string;   // TK Có (phải trả NCC)
   lines: InvoiceLine[];
   status: "idle" | "sending" | "done" | "error";
   error?: string;
@@ -45,7 +48,7 @@ type VoucherDraft = {
   voucher_type: "receipt" | "payment";
   voucher_date: string;
   amount: number;
-  counter_account: string;
+  counter_account: string;   // TK đối ứng
   party_name: string;
   reason: string;
   reference: string;
@@ -57,10 +60,14 @@ type VoucherDraft = {
 type Draft = InvoiceDraft | VoucherDraft;
 
 const COUNTER_OPTS = [
-  "1111", "1121", "131", "133", "152", "153", "156", "211",
+  "1111", "1121", "131", "133", "1331", "152", "153", "1561", "1562", "211",
   "242", "331", "334", "338", "511", "515", "621", "627",
   "635", "641", "642", "6421", "6422", "6427", "6428", "711", "811",
 ];
+
+const EXPENSE_OPTS = ["1561", "152", "153", "211", "242", "621", "627", "641", "642", "6421", "6422", "6427", "6428", "811"];
+const VAT_IN_OPTS = ["1331", "1332"];
+const PAYABLE_OPTS = ["331", "3311", "3388"];
 
 function readBatch(): { kind: string; items: Array<{ filename: string; kind: string; parsed: any }> } | null {
   if (typeof window === "undefined") return null;
@@ -123,6 +130,9 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
     invoice_no: String(p.invoice_no ?? p.invoice_number ?? ""),
     issue_date: normalizeDate(p.issue_date ?? p.date),
     notes: String(p.notes ?? ""),
+    expense_account: String(p.expense_account ?? "1561"),
+    vat_account: "1331",
+    payable_account: "331",
     lines,
     status: "idle",
   };
@@ -252,6 +262,7 @@ function ImportPreviewPage() {
               invoice_no: d.invoice_no || undefined,
               issue_date: d.issue_date,
               notes: d.notes || undefined,
+              expense_account: d.expense_account || undefined,
               lines: d.lines,
             },
           },
@@ -418,6 +429,18 @@ function DraftCard({
             </Field>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
+            <Field label="Nợ — TK chi phí/HH">
+              <AccountCombo value={draft.expense_account} options={EXPENSE_OPTS} onChange={(v) => onPatch({ expense_account: v } as any)} />
+            </Field>
+            <Field label="Nợ — TK thuế VAT đầu vào">
+              <AccountCombo value={draft.vat_account} options={VAT_IN_OPTS} onChange={(v) => onPatch({ vat_account: v } as any)} />
+            </Field>
+            <Field label="Có — TK phải trả NCC">
+              <AccountCombo value={draft.payable_account} options={PAYABLE_OPTS} onChange={(v) => onPatch({ payable_account: v } as any)} />
+            </Field>
+          </div>
+
           <div className="overflow-x-auto rounded-md border border-border">
             <Table>
               <TableHeader>
@@ -470,47 +493,65 @@ function DraftCard({
               </div>
             )}
           </div>
+
+          {invoiceTotals && (
+            <JournalPreview
+              rows={[
+                { dr: draft.expense_account || "1561", cr: draft.payable_account || "331", amount: invoiceTotals.sub, memo: `HH/CP — ${draft.supplier_name || "NCC"}` },
+                ...(invoiceTotals.vat > 0
+                  ? [{ dr: draft.vat_account || "1331", cr: draft.payable_account || "331", amount: invoiceTotals.vat, memo: "Thuế GTGT đầu vào" }]
+                  : []),
+              ]}
+            />
+          )}
         </div>
       ) : (
-        <div className="grid gap-3 p-4 md:grid-cols-4">
-          <Field label="Số phiếu">
-            <Input value={draft.voucher_no} onChange={(e) => onPatch({ voucher_no: e.target.value } as any)} />
-          </Field>
-          <Field label="Loại">
-            <Select value={draft.voucher_type} onValueChange={(v) => onPatch({ voucher_type: v as any } as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="receipt">Báo có (thu)</SelectItem>
-                <SelectItem value="payment">Báo nợ (chi)</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Ngày phiếu">
-            <Input type="date" value={draft.voucher_date} onChange={(e) => onPatch({ voucher_date: e.target.value } as any)} />
-          </Field>
-          <Field label="Số tiền">
-            <Input type="number" value={draft.amount} onChange={(e) => onPatch({ amount: Number(e.target.value) || 0 } as any)} />
-          </Field>
-          <Field label="TK đối ứng">
-            <Select value={draft.counter_account} onValueChange={(v) => onPatch({ counter_account: v } as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {COUNTER_OPTS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Đối tác">
-            <Input value={draft.party_name} onChange={(e) => onPatch({ party_name: e.target.value } as any)} />
-          </Field>
-          <Field label="Tham chiếu">
-            <Input value={draft.reference} onChange={(e) => onPatch({ reference: e.target.value } as any)} />
-          </Field>
-          <Field label="ID TK ngân hàng">
-            <Input value={draft.bank_account_id} onChange={(e) => onPatch({ bank_account_id: e.target.value } as any)} placeholder="UUID TK ngân hàng" />
-          </Field>
-          <Field label="Diễn giải" className="md:col-span-4">
-            <Textarea value={draft.reason} onChange={(e) => onPatch({ reason: e.target.value } as any)} rows={2} />
-          </Field>
+        <div className="space-y-3 p-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <Field label="Số phiếu">
+              <Input value={draft.voucher_no} onChange={(e) => onPatch({ voucher_no: e.target.value } as any)} />
+            </Field>
+            <Field label="Loại">
+              <Select value={draft.voucher_type} onValueChange={(v) => onPatch({ voucher_type: v as any } as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="receipt">Báo có (thu)</SelectItem>
+                  <SelectItem value="payment">Báo nợ (chi)</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Ngày phiếu">
+              <Input type="date" value={draft.voucher_date} onChange={(e) => onPatch({ voucher_date: e.target.value } as any)} />
+            </Field>
+            <Field label="Số tiền">
+              <Input type="number" value={draft.amount} onChange={(e) => onPatch({ amount: Number(e.target.value) || 0 } as any)} />
+            </Field>
+            <Field label={draft.voucher_type === "receipt" ? "Có — TK đối ứng" : "Nợ — TK đối ứng"}>
+              <AccountCombo value={draft.counter_account} options={COUNTER_OPTS} onChange={(v) => onPatch({ counter_account: v } as any)} />
+            </Field>
+            <Field label="Đối tác">
+              <Input value={draft.party_name} onChange={(e) => onPatch({ party_name: e.target.value } as any)} />
+            </Field>
+            <Field label="Tham chiếu">
+              <Input value={draft.reference} onChange={(e) => onPatch({ reference: e.target.value } as any)} />
+            </Field>
+            <Field label="ID TK ngân hàng">
+              <Input value={draft.bank_account_id} onChange={(e) => onPatch({ bank_account_id: e.target.value } as any)} placeholder="UUID TK ngân hàng" />
+            </Field>
+            <Field label="Diễn giải" className="md:col-span-4">
+              <Textarea value={draft.reason} onChange={(e) => onPatch({ reason: e.target.value } as any)} rows={2} />
+            </Field>
+          </div>
+
+          {draft.amount > 0 && (
+            <JournalPreview
+              rows={[
+                draft.voucher_type === "receipt"
+                  ? { dr: "1121", cr: draft.counter_account || "131", amount: draft.amount, memo: draft.reason || draft.party_name }
+                  : { dr: draft.counter_account || "331", cr: "1121", amount: draft.amount, memo: draft.reason || draft.party_name },
+              ]}
+            />
+          )}
         </div>
       )}
     </div>
@@ -522,6 +563,62 @@ function Field({ label, className, children }: { label: string; className?: stri
     <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label className="text-xs">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function AccountCombo({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const merged = Array.from(new Set([value, ...options].filter(Boolean)));
+  return (
+    <div className="flex gap-1">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          {merged.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value.trim())}
+        className="h-9 w-20 text-xs"
+        placeholder="khác"
+      />
+    </div>
+  );
+}
+
+function JournalPreview({ rows }: { rows: Array<{ dr: string; cr: string; amount: number; memo?: string }> }) {
+  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  return (
+    <div className="rounded-md border border-border bg-muted/20">
+      <div className="border-b border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        Bút toán dự kiến
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-24">Nợ</TableHead>
+            <TableHead className="w-24">Có</TableHead>
+            <TableHead className="text-right w-36">Số tiền</TableHead>
+            <TableHead>Diễn giải</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r, i) => (
+            <TableRow key={i}>
+              <TableCell className="font-mono text-xs">{r.dr}</TableCell>
+              <TableCell className="font-mono text-xs">{r.cr}</TableCell>
+              <TableCell className="text-right font-medium">{fmt(r.amount)}</TableCell>
+              <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">{r.memo}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell colSpan={2} className="text-right text-xs text-muted-foreground">Tổng</TableCell>
+            <TableCell className="text-right font-semibold">{fmt(total)}</TableCell>
+            <TableCell />
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
   );
 }

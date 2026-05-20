@@ -233,6 +233,7 @@ const PurchaseInvoiceInput = z.object({
   invoice_no: z.string().optional(),
   issue_date: z.string(),
   notes: z.string().optional(),
+  expense_account: z.string().min(3).max(20).optional(),
   lines: z.array(PurchaseInvoiceLineInput).min(1),
 });
 
@@ -245,6 +246,7 @@ const createPurchaseInvoice: ActionHandler = {
       0,
     );
     const total = subtotal + vat;
+    const dr = input.expense_account || "1561";
     return [
       `Tạo HĐ mua **${input.invoice_no || "(chưa số)"}** — ${input.supplier_name || "NCC?"}`,
       `Ngày: ${input.issue_date}`,
@@ -254,6 +256,7 @@ const createPurchaseInvoice: ActionHandler = {
       input.lines.length > 5 ? `… +${input.lines.length - 5} dòng` : "",
       `Subtotal: ${subtotal.toLocaleString("vi-VN")} ₫ | VAT: ${vat.toLocaleString("vi-VN")} ₫`,
       `**Tổng: ${total.toLocaleString("vi-VN")} ₫**`,
+      `Bút toán: Nợ ${dr} / Có 331 = ${subtotal.toLocaleString("vi-VN")}${vat > 0 ? ` ; Nợ 1331 / Có 331 = ${vat.toLocaleString("vi-VN")}` : ""}`,
     ].filter(Boolean).join("\n");
   },
   execute: async (input) => {
@@ -261,6 +264,7 @@ const createPurchaseInvoice: ActionHandler = {
     const result: any = await (createManualInvoice as any)({
       data: {
         ...input,
+        expense_account: input.expense_account,
         lines: input.lines.map((l: any) => ({ ...l, line_type: "goods" })),
       },
     });
