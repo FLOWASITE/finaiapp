@@ -199,20 +199,36 @@ export function Composer({
       return;
     }
 
-    // --- Legacy path: parse client-side + navigate to /import/preview ---
+    // --- Legacy path: parse client-side + show 2-phase dialog ---
     setUploading(true);
-    const toastId = toast.loading(`Đang xử lý ${valid.length} file…`);
+    const initial: FileProgress[] = valid.map((f) => ({ name: f.name, phase: "queued" }));
+    setParseFiles(initial);
+    setParsePhase("parsing");
+
+    const updateFile = (idx: number, patch: Partial<FileProgress>) =>
+      setParseFiles((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
     const items: Array<{ filename: string; kind: ImportKind; parsed: any; error?: string }> = [];
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
+      const startedAt = Date.now();
       try {
-        toast.loading(`(${i + 1}/${valid.length}) ${file.name}`, { id: toastId });
+        updateFile(i, { phase: "reading" });
         const base64 = await readBase64(file);
+        updateFile(i, { phase: "parsing" });
         const res: any = await parseFn({
           data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
         });
+        // Server returns observability fields: parser_used, pages, structurer_ms, parser_ms
+        updateFile(i, {
+          phase: "done",
+          parserUsed: res?.parser_used,
+          pages: res?.pages,
+          ms: Date.now() - startedAt,
+        });
         items.push({ filename: file.name, kind, parsed: res?.parsed ?? {} });
       } catch (e: any) {
+        updateFile(i, { phase: "error", error: e?.message || "lỗi", ms: Date.now() - startedAt });
         items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
       }
     }
@@ -226,19 +242,27 @@ export function Composer({
     } catch {}
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+
     if (!ok.length) {
-      toast.error(`Không xử lý được file nào (${failed.length} lỗi)`, { id: toastId });
+      // Keep dialog open in "ready" phase so the user can read errors, but no continue button enabled.
+      setParsePhase("ready");
+      setNextTarget(null);
       return;
     }
-    toast.success(
-      `${ok.length}/${items.length} file đã xử lý — mở trang xem trước`,
-      { id: toastId },
-    );
-    if (kind === "bank_statement") {
-      navigate({ to: "/bank/import-statement" });
-    } else {
-      navigate({ to: "/import/preview" });
-    }
+    setNextTarget(kind === "bank_statement" ? "/bank/import-statement" : "/import/preview");
+    setParsePhase("ready");
+  };
+
+  const closeParseDialog = () => {
+    setParsePhase(null);
+    setParseFiles([]);
+    setNextTarget(null);
+  };
+
+  const continueToReview = () => {
+    const target = nextTarget;
+    closeParseDialog();
+    if (target) navigate({ to: target });
   };
 
   const busy = !!loading || uploading;
