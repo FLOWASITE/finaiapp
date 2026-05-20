@@ -138,6 +138,68 @@ function ImportStatementPage() {
     };
   }, [filtered]);
 
+  // ----- Suspect detection: per-row reasons + per-file aggregated mismatch -----
+  const suspectByIdx = useMemo(() => {
+    const map = new Map<number, string[]>();
+    const push = (idx: number, r: string) => {
+      const arr = map.get(idx) ?? [];
+      arr.push(r);
+      map.set(idx, arr);
+    };
+    // duplicates (same date+amount+description, case-insensitive)
+    const seen = new Map<string, number>();
+    rows.forEach((r, i) => {
+      const key = `${r.txn_date}|${r.amount}|${(r.description || "").toLowerCase().trim()}`;
+      if (seen.has(key)) {
+        push(i, `Trùng với dòng #${(seen.get(key) ?? 0) + 1}`);
+        push(seen.get(key)!, `Trùng với dòng #${i + 1}`);
+      } else seen.set(key, i);
+    });
+    // running balance check (per file, in order)
+    const byFile = new Map<number, number[]>();
+    rows.forEach((r, i) => {
+      const fi = r.file_idx ?? 0;
+      const arr = byFile.get(fi) ?? [];
+      arr.push(i);
+      byFile.set(fi, arr);
+    });
+    byFile.forEach((idxList, fi) => {
+      const opening = stmtMeta[fi]?.opening_balance ?? null;
+      let prev: number | null = opening;
+      for (const i of idxList) {
+        const r = rows[i];
+        const bal = r.stmt_balance;
+        if (prev != null && typeof bal === "number") {
+          const expected = prev + r.amount;
+          if (Math.abs(expected - bal) > 1) {
+            push(i, `Số dư sau GD lệch ${fmt(Math.abs(expected - bal))}₫ (kỳ vọng ${fmt(expected)}, sao kê ${fmt(bal)})`);
+          }
+          prev = bal;
+        } else if (typeof bal === "number") {
+          prev = bal;
+        } else if (prev != null) {
+          prev = prev + r.amount;
+        }
+      }
+    });
+    // future date / invalid date
+    const todayMs = Date.now() + 24 * 60 * 60 * 1000;
+    rows.forEach((r, i) => {
+      const d = new Date(r.txn_date);
+      if (isNaN(d.getTime())) push(i, "Ngày không hợp lệ");
+      else if (d.getTime() > todayMs) push(i, "Ngày trong tương lai");
+    });
+    // Zero amount but described as txn
+    rows.forEach((r, i) => {
+      if (!r.amount) push(i, "Số tiền = 0");
+    });
+    return map;
+  }, [rows, stmtMeta]);
+
+  const mismatchFiles = stmtMeta.filter((m) => m.validation && !m.validation.ok);
+  const suspectCount = suspectByIdx.size;
+
+
   const update = (idx: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
