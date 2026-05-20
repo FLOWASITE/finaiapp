@@ -3,15 +3,21 @@ import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
-import { isLlamaParseEnabled, parseToMarkdown } from "@/lib/ai/llamaparse.server";
+import {
+  isLlamaParseEnabled,
+  parseDocument as llamaParseDocument,
+} from "@/lib/ai/llamaparse.server";
+import { extractPdfText } from "@/lib/ai/pdf-text.server";
+import { hashBase64, readParseCache, writeParseCache } from "@/lib/ai/parse-cache.server";
 
 const InputSchema = z.object({
-  /** Base64-encoded file contents (without the data: prefix). */
   fileBase64: z.string().min(1),
   mimeType: z.string().min(3).max(100),
   filename: z.string().max(255).optional(),
   kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
 });
+
+// ---------- Schemas ----------------------------------------------------
 
 const PurchaseInvoiceSchema = z.object({
   vendor_name: z.string().nullable(),
@@ -36,6 +42,17 @@ const PurchaseInvoiceSchema = z.object({
   notes: z.string().nullable(),
 });
 
+const BankTxnSchema = z.object({
+  date: z.string().describe("YYYY-MM-DD"),
+  value_date: z.string().nullable().describe("YYYY-MM-DD"),
+  description: z.string(),
+  debit: z.number().nullable().describe("Số tiền ghi NỢ (chi ra), dương"),
+  credit: z.number().nullable().describe("Số tiền ghi CÓ (thu vào), dương"),
+  balance: z.number().nullable(),
+  ref_no: z.string().nullable(),
+  counterparty: z.string().nullable(),
+});
+
 const BankStatementSchema = z.object({
   account_no: z.string().nullable(),
   account_holder: z.string().nullable(),
@@ -45,21 +62,31 @@ const BankStatementSchema = z.object({
   period_to: z.string().nullable().describe("YYYY-MM-DD"),
   opening_balance: z.number().nullable(),
   closing_balance: z.number().nullable(),
-  transactions: z
-    .array(
-      z.object({
-        date: z.string().describe("YYYY-MM-DD"),
-        value_date: z.string().nullable().describe("YYYY-MM-DD"),
-        description: z.string(),
-        debit: z.number().nullable().describe("Số tiền ghi NỢ (chi ra), dương"),
-        credit: z.number().nullable().describe("Số tiền ghi CÓ (thu vào), dương"),
-        balance: z.number().nullable(),
-        ref_no: z.string().nullable(),
-        counterparty: z.string().nullable(),
-      }),
-    )
-    .default([]),
+  transactions: z.array(BankTxnSchema).default([]),
 });
+
+const BankTxnsOnlySchema = z.object({
+  transactions: z.array(BankTxnSchema).default([]),
+});
+
+const CashVoucherSchema = z.object({
+  voucher_type: z.enum(["receipt", "payment", "other"]).nullable().describe("phiếu thu | phiếu chi | khác"),
+  voucher_no: z.string().nullable(),
+  date: z.string().nullable().describe("YYYY-MM-DD"),
+  party_name: z.string().nullable(),
+  party_tax_id: z.string().nullable(),
+  amount: z.number().nullable(),
+  currency: z.string().nullable(),
+  reason: z.string().nullable(),
+  account_debit: z.string().nullable(),
+  account_credit: z.string().nullable(),
+});
+
+const KindClassifySchema = z.object({
+  kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "unknown"]),
+});
+
+// ---------- Prompts ----------------------------------------------------
 
 const PROMPTS: Record<string, string> = {
   purchase_invoice:
@@ -67,10 +94,12 @@ const PROMPTS: Record<string, string> = {
   bank_statement:
     "Trích xuất **toàn bộ giao dịch** trong **sao kê ngân hàng** từ tài liệu. Trả JSON theo schema. Số tiền là VND, không dấu phẩy/chấm phân cách hàng nghìn, không dấu âm — phân biệt Nợ/Có vào hai cột debit/credit.",
   cash_voucher:
-    "Trích xuất **phiếu thu/chi tiền mặt** từ tài liệu. Trả JSON { voucher_type, voucher_no, date, party_name, amount, reason }.",
-  auto:
-    "Nhận diện loại chứng từ (hoá đơn mua, sao kê, phiếu thu/chi) rồi trả JSON phù hợp. Tự đặt khóa 'kind' = 'purchase_invoice' | 'bank_statement' | 'cash_voucher' và lồng dữ liệu vào khóa 'data'.",
+    "Trích xuất **phiếu thu/chi tiền mặt** từ tài liệu. voucher_type: receipt=phiếu thu, payment=phiếu chi.",
+  auto: "",
 };
+
+const PROMPT_TAIL =
+  "\n\nCHỈ trả về JSON hợp lệ. Số tiền là số (không dấu phẩy/chấm phân cách hàng nghìn). Thiếu thông tin thì dùng null.";
 
 function extractJSON(raw: string): any | null {
   if (!raw) return null;
@@ -84,30 +113,236 @@ function extractJSON(raw: string): any | null {
     if (start === -1 || end <= start) return null;
     s = s.slice(start, end + 1);
   }
-  try { return JSON.parse(s); } catch { return null; }
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
 }
 
-/** Should we send the file through LlamaParse first? */
-function shouldPreparse(mimeType: string): boolean {
-  if (!isLlamaParseEnabled()) return false;
-  return (
-    mimeType === "application/pdf" ||
+function schemaFor(kind: string) {
+  if (kind === "purchase_invoice") return PurchaseInvoiceSchema;
+  if (kind === "bank_statement") return BankStatementSchema;
+  if (kind === "cash_voucher") return CashVoucherSchema;
+  return null;
+}
+
+// ---------- Source acquisition ----------------------------------------
+
+type Source =
+  | { kind: "markdown"; markdown: string; pages: string[]; parser: string; pageCount: number }
+  | { kind: "vision"; parser: "vision"; pageCount: number };
+
+async function acquireSource(
+  fileBase64: string,
+  mimeType: string,
+  filename: string | undefined,
+): Promise<{ source: Source; parserMs: number }> {
+  const start = Date.now();
+  const isPdf = mimeType === "application/pdf";
+
+  // 1) Try unpdf text-layer for digital PDFs (free, in-Worker)
+  if (isPdf) {
+    try {
+      const t = await extractPdfText(fileBase64);
+      if (t.rich) {
+        return {
+          source: {
+            kind: "markdown",
+            markdown: t.text,
+            pages: [],
+            parser: "unpdf",
+            pageCount: t.pages,
+          },
+          parserMs: Date.now() - start,
+        };
+      }
+    } catch (e) {
+      console.warn("[parse-document] unpdf failed:", (e as Error)?.message);
+    }
+  }
+
+  // 2) LlamaParse for PDF/image/office docs (if configured)
+  const llamaCandidate =
+    isPdf ||
     mimeType.startsWith("image/") ||
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
+    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (llamaCandidate && isLlamaParseEnabled()) {
+    try {
+      const r = await llamaParseDocument({
+        fileBase64,
+        mimeType,
+        filename,
+        tier: "balanced",
+      });
+      if (r.markdown && r.markdown.trim().length > 20) {
+        return {
+          source: {
+            kind: "markdown",
+            markdown: r.markdown,
+            pages: r.pages,
+            parser: `llamaparse:${r.tierUsed}`,
+            pageCount: r.pageCount,
+          },
+          parserMs: Date.now() - start,
+        };
+      }
+    } catch (e) {
+      console.warn("[parse-document] LlamaParse failed, falling back to vision:", (e as Error)?.message);
+    }
+  }
+
+  // 3) Vision fallback
+  return {
+    source: { kind: "vision", parser: "vision", pageCount: 0 },
+    parserMs: Date.now() - start,
+  };
 }
 
-/**
- * Core parsing logic (no createServerFn wrapper) — callable from other server
- * functions (e.g. the chat stream) so we can run parseDocument inline as a
- * tool-call without an extra HTTP roundtrip.
- *
- * Pipeline (new):
- *   file ──► LlamaParse (markdown)  ──► Gemini Flash structured output ──► JSON
- *           (skip if no key/non-PDF)    (or schema-less for `auto`/cash_voucher)
- * Fallback: nếu LlamaParse lỗi → giữ pipeline vision cũ trên Gemini 2.5 Pro.
- */
+// ---------- Bank statement chunking -----------------------------------
+
+const BANK_CHUNK_PAGES = 8;
+
+async function structureBankStatement(
+  source: Source,
+  textModel: any,
+  visionModel: any,
+  fileBuf: Buffer,
+  mimeType: string,
+): Promise<any> {
+  // Vision path: single shot
+  if (source.kind === "vision") {
+    const r = await generateText({
+      model: visionModel,
+      output: Output.object({ schema: BankStatementSchema as any }),
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: PROMPTS.bank_statement + PROMPT_TAIL },
+            { type: "file", data: fileBuf, mediaType: mimeType } as any,
+          ],
+        },
+      ],
+    });
+    return (r as any).output;
+  }
+
+  // Markdown path
+  const pages = source.pages && source.pages.length > 0 ? source.pages : null;
+
+  // Short statement (or no page breakdown) → single shot with full schema
+  if (!pages || pages.length <= BANK_CHUNK_PAGES) {
+    const r = await generateText({
+      model: textModel,
+      output: Output.object({ schema: BankStatementSchema as any }),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text:
+                PROMPTS.bank_statement +
+                PROMPT_TAIL +
+                "\n\nNội dung sao kê (markdown):\n\n```markdown\n" +
+                source.markdown +
+                "\n```",
+            },
+          ],
+        },
+      ],
+    });
+    return (r as any).output;
+  }
+
+  // Long statement → chunk
+  const chunks: string[] = [];
+  for (let i = 0; i < pages.length; i += BANK_CHUNK_PAGES) {
+    chunks.push(pages.slice(i, i + BANK_CHUNK_PAGES).join("\n\n---PAGE BREAK---\n\n"));
+  }
+
+  // Header info from first chunk
+  const headerPromise = generateText({
+    model: textModel,
+    output: Output.object({
+      schema: BankStatementSchema.omit({ transactions: true }).extend({
+        transactions: z.array(BankTxnSchema).default([]),
+      }) as any,
+    }),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              PROMPTS.bank_statement +
+              PROMPT_TAIL +
+              "\n\nĐây là phần đầu sao kê — trích metadata (account_no, bank_name, period, opening/closing nếu có) + các giao dịch trong phần này:\n\n```markdown\n" +
+              chunks[0] +
+              "\n```",
+          },
+        ],
+      },
+    ],
+  });
+
+  const restPromises = chunks.slice(1).map((chunk, idx) =>
+    generateText({
+      model: textModel,
+      output: Output.object({ schema: BankTxnsOnlySchema as any }),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text:
+                "Trích toàn bộ giao dịch trong đoạn sao kê sau (phần " +
+                (idx + 2) +
+                "/" +
+                chunks.length +
+                "). Số tiền là VND, dương. Bỏ qua header/footer trùng lặp giữa các trang.\n\n```markdown\n" +
+                chunk +
+                "\n```",
+            },
+          ],
+        },
+      ],
+    }),
+  );
+
+  const [headerRes, ...restRes] = await Promise.all([headerPromise, ...restPromises]);
+  const header: any = (headerRes as any).output;
+  const allTxns: any[] = [...(header.transactions || [])];
+  for (const r of restRes) {
+    const out: any = (r as any).output;
+    if (Array.isArray(out?.transactions)) allTxns.push(...out.transactions);
+  }
+
+  // Validate: sum(credit) - sum(debit) ~= closing - opening
+  let validation: any = null;
+  if (typeof header.opening_balance === "number" && typeof header.closing_balance === "number") {
+    const credit = allTxns.reduce((s, t) => s + (Number(t.credit) || 0), 0);
+    const debit = allTxns.reduce((s, t) => s + (Number(t.debit) || 0), 0);
+    const expected = header.closing_balance - header.opening_balance;
+    const actual = credit - debit;
+    const diff = Math.abs(expected - actual);
+    validation = { expected, actual, diff, ok: diff < 1 };
+  }
+
+  return {
+    ...header,
+    transactions: allTxns,
+    _validation: validation,
+    _chunks: chunks.length,
+  };
+}
+
+// ---------- Core --------------------------------------------------------
+
 export async function parseFileCore(opts: {
   fileBase64: string;
   mimeType: string;
@@ -117,113 +352,164 @@ export async function parseFileCore(opts: {
   userId?: string;
 }) {
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
+  const fileHash = hashBase64(opts.fileBase64);
 
-  // ---- 1. Try layout-aware pre-parse ---------------------------------
-  let markdown: string | null = null;
-  let parserUsed: "llamaparse" | "vision" = "vision";
-  if (shouldPreparse(opts.mimeType)) {
-    try {
-      markdown = await parseToMarkdown({
-        fileBase64: opts.fileBase64,
-        mimeType: opts.mimeType,
-        filename: opts.filename,
-        // sao kê dài + bảng → balanced; hoá đơn ngắn cũng OK ở balanced
-        tier: "balanced",
-      });
-      if (markdown && markdown.trim().length > 20) {
-        parserUsed = "llamaparse";
-      } else {
-        markdown = null;
-      }
-    } catch (e) {
-      console.warn("[parse-document] LlamaParse failed, falling back to vision:", (e as Error)?.message);
-      markdown = null;
+  // ---- 0. Cache check (skip for `auto` since dispatch may pick different kind)
+  if (opts.supabase && opts.kind !== "auto") {
+    const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
+    if (cached) {
+      return {
+        kind: opts.kind,
+        uploadId: null,
+        parsed: cached.parsed,
+        parser: cached.parser_used || "cache",
+        cached: true,
+        pages: cached.pages,
+      };
     }
   }
 
-  // ---- 2. Structurer (Gemini) ----------------------------------------
+  // ---- 1. Source acquisition
+  const { source, parserMs } = await acquireSource(
+    opts.fileBase64,
+    opts.mimeType,
+    opts.filename,
+  );
+
+  // ---- 2. Models
   const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
   const { model: textModel } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
 
-  const promptHead = PROMPTS[opts.kind] || PROMPTS.auto;
-  const tail =
-    "\n\nCHỈ trả về JSON hợp lệ, không giải thích, không markdown fences. Số tiền là số (không dấu phẩy/chấm phân cách hàng nghìn). Thiếu thông tin thì dùng null.";
-
-  const buildMessages = (useMarkdown: boolean) => {
-    if (useMarkdown && markdown) {
-      return [
-        {
-          role: "user" as const,
-          content: [
-            {
-              type: "text" as const,
-              text:
-                promptHead +
-                tail +
-                "\n\nDưới đây là nội dung tài liệu đã trích xuất sẵn (markdown, layout-aware). Hãy chỉ căn cứ vào nội dung này:\n\n```markdown\n" +
-                markdown +
-                "\n```",
-            },
-          ],
-        },
-      ];
-    }
-    // vision fallback
-    return [
-      {
-        role: "user" as const,
-        content: [
-          { type: "text" as const, text: promptHead + tail },
-          { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
-        ],
-      },
-    ];
-  };
-
-  const schemaFor = (kind: string) =>
-    kind === "purchase_invoice"
-      ? PurchaseInvoiceSchema
-      : kind === "bank_statement"
-        ? BankStatementSchema
-        : null;
-
-  let parsed: any;
-  const schema = schemaFor(opts.kind);
-  const useMarkdownPass = !!markdown;
-  const structuringModel = useMarkdownPass ? textModel : visionModel;
-  const messages = buildMessages(useMarkdownPass);
-
-  try {
-    if (schema) {
+  // ---- 3. Auto kind classification
+  let effectiveKind = opts.kind;
+  if (effectiveKind === "auto") {
+    try {
+      const text =
+        source.kind === "markdown"
+          ? source.markdown.slice(0, 6000)
+          : "";
+      const messages =
+        source.kind === "markdown"
+          ? [
+              {
+                role: "user" as const,
+                content: [
+                  {
+                    type: "text" as const,
+                    text:
+                      "Phân loại tài liệu sau là loại nào trong: purchase_invoice (hoá đơn mua), bank_statement (sao kê ngân hàng), cash_voucher (phiếu thu/chi), unknown.\n\n```\n" +
+                      text +
+                      "\n```",
+                  },
+                ],
+              },
+            ]
+          : [
+              {
+                role: "user" as const,
+                content: [
+                  {
+                    type: "text" as const,
+                    text:
+                      "Phân loại tài liệu là: purchase_invoice / bank_statement / cash_voucher / unknown.",
+                  },
+                  { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                ],
+              },
+            ];
       const r = await generateText({
-        model: structuringModel,
-        output: Output.object({ schema: schema as any }),
+        model: source.kind === "markdown" ? textModel : visionModel,
+        output: Output.object({ schema: KindClassifySchema as any }),
         messages,
       });
-      parsed = (r as any).output;
-    } else {
-      const r = await generateText({ model: structuringModel, messages });
-      parsed = extractJSON(r.text) ?? { raw: r.text };
-    }
-  } catch (err: any) {
-    // Schema-strict failure → free-form retry on same input
-    try {
-      const r = await generateText({ model: structuringModel, messages });
-      parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
-    } catch (err2: any) {
-      // Last-ditch: if we were on markdown, retry full vision
-      if (useMarkdownPass) {
-        const visMessages = buildMessages(false);
-        const r = await generateText({ model: visionModel, messages: visMessages });
-        parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err2?.message };
-        parserUsed = "vision";
-      } else {
-        throw err2;
+      const k = (r as any).output?.kind;
+      if (k && k !== "unknown") {
+        effectiveKind = k;
       }
+    } catch (e) {
+      console.warn("[parse-document] auto classify failed:", (e as Error)?.message);
     }
   }
 
-  // ---- 3. Persist upload (best-effort) -------------------------------
+  // ---- 4. Structurer
+  const structStart = Date.now();
+  let parsed: any;
+
+  try {
+    if (effectiveKind === "bank_statement") {
+      parsed = await structureBankStatement(source, textModel, visionModel, fileBuf, opts.mimeType);
+    } else {
+      const schema = schemaFor(effectiveKind);
+      const promptHead = PROMPTS[effectiveKind] || "Trích xuất dữ liệu từ tài liệu.";
+      const messages =
+        source.kind === "markdown"
+          ? [
+              {
+                role: "user" as const,
+                content: [
+                  {
+                    type: "text" as const,
+                    text:
+                      promptHead +
+                      PROMPT_TAIL +
+                      "\n\nNội dung tài liệu (markdown):\n\n```markdown\n" +
+                      source.markdown +
+                      "\n```",
+                  },
+                ],
+              },
+            ]
+          : [
+              {
+                role: "user" as const,
+                content: [
+                  { type: "text" as const, text: promptHead + PROMPT_TAIL },
+                  { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                ],
+              },
+            ];
+      const model = source.kind === "markdown" ? textModel : visionModel;
+      if (schema) {
+        const r = await generateText({
+          model,
+          output: Output.object({ schema: schema as any }),
+          messages,
+        });
+        parsed = (r as any).output;
+      } else {
+        const r = await generateText({ model, messages });
+        parsed = extractJSON(r.text) ?? { raw: r.text };
+      }
+    }
+  } catch (err: any) {
+    console.warn("[parse-document] structurer failed:", err?.message);
+    // last-ditch vision retry
+    if (source.kind === "markdown") {
+      const r = await generateText({
+        model: visionModel,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
+              { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
+            ],
+          },
+        ],
+      });
+      parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
+    } else {
+      throw err;
+    }
+  }
+  const structurerMs = Date.now() - structStart;
+
+  // ---- 5. Write to cache (skip if `auto` resolved to nothing)
+  if (opts.supabase && effectiveKind !== "auto") {
+    await writeParseCache(opts.supabase, fileHash, effectiveKind, parsed, source.parser, source.pageCount || null);
+  }
+
+  // ---- 6. Persist upload (best-effort)
   let uploadId: string | null = null;
   if (opts.supabase && opts.userId) {
     try {
@@ -239,8 +525,13 @@ export async function parseFileCore(opts: {
           file_path: path,
           mime_type: opts.mimeType,
           filename: opts.filename || null,
-          kind: opts.kind,
+          kind: effectiveKind,
           parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
+          parser_used: source.parser,
+          parser_ms: parserMs,
+          structurer_ms: structurerMs,
+          pages: source.pageCount || null,
+          file_hash: fileHash,
         })
         .select("id")
         .maybeSingle();
@@ -250,7 +541,15 @@ export async function parseFileCore(opts: {
     }
   }
 
-  return { kind: opts.kind, uploadId, parsed, parser: parserUsed };
+  return {
+    kind: effectiveKind,
+    uploadId,
+    parsed,
+    parser: source.parser,
+    cached: false,
+    pages: source.pageCount || null,
+    timings: { parserMs, structurerMs },
+  };
 }
 
 export const parseDocument = createServerFn({ method: "POST" })
