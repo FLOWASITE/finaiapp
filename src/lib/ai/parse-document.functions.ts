@@ -625,6 +625,7 @@ export async function parseFileCore(opts: {
           .from("ai_uploads")
           .update({ status: "failed", error: msg.slice(0, 2000) })
           .eq("id", uploadId);
+        await updateDocumentOcr({ supabase: opts.supabase, uploadId, status: "failed", error: msg });
       } catch {}
     }
   };
