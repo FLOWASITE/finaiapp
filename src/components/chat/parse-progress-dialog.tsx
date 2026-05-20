@@ -60,7 +60,41 @@ function stepStatus(current: FilePhase, step: FilePhase): "done" | "active" | "p
   return "pending";
 }
 
-export type Phase = "parsing" | "ready";
+export type Phase = "parsing" | "classifying" | "ready";
+
+export type ClassificationWarning = {
+  type: string;
+  severity: "info" | "warn" | "error";
+  message: string;
+  meta?: any;
+};
+
+export type ClassificationResult = {
+  filename: string;
+  kind: string;
+  warnings: ClassificationWarning[];
+  bank_account_match?: { id: string; name: string; account_no: string; bank_name?: string | null } | null;
+  bank_account_candidates?: Array<{ id: string; name: string; account_no: string; bank_name?: string | null }>;
+  txn_overlap?: {
+    total: number;
+    duplicate_count: number;
+    duplicate_indices: number[];
+    period_from: string;
+    period_to: string;
+  };
+  invoice_duplicate?: any;
+  voucher_duplicate?: any;
+  suggested_action: "continue" | "skip";
+};
+
+export type ClassifyDecision = {
+  /** "skip" — exclude file from continuation; "continue" — proceed with selected sub-options */
+  action: "continue" | "skip";
+  /** Selected bank_account_id (for bank_statement) */
+  bankAccountId?: string | null;
+  /** Whether to include rows flagged as duplicate in DB (default false → skip) */
+  includeOverlapDup?: boolean;
+};
 
 export function ParseProgressDialog({
   open,
@@ -69,6 +103,10 @@ export function ParseProgressDialog({
   onContinue,
   onClose,
   continueLabel = "Xem lại & chỉnh sửa",
+  classifications,
+  decisions,
+  onDecisionChange,
+  onCreateBankAccount,
 }: {
   open: boolean;
   phase: Phase;
@@ -76,6 +114,10 @@ export function ParseProgressDialog({
   onContinue?: () => void;
   onClose?: () => void;
   continueLabel?: string;
+  classifications?: ClassificationResult[];
+  decisions?: Record<number, ClassifyDecision>;
+  onDecisionChange?: (idx: number, patch: Partial<ClassifyDecision>) => void;
+  onCreateBankAccount?: (idx: number, meta: any) => void;
 }) {
   const total = files.length;
   const doneCount = files.filter((f) => f.phase === "done").length;
@@ -83,6 +125,10 @@ export function ParseProgressDialog({
   const overall = total === 0 ? 0 : Math.round(
     files.reduce((s, f) => s + PHASE_PCT[f.phase], 0) / total,
   );
+
+  const continuingCount = classifications
+    ? classifications.filter((_, i) => decisions?.[i]?.action !== "skip").length
+    : doneCount;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
@@ -94,6 +140,11 @@ export function ParseProgressDialog({
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 Đang xử lý chứng từ…
               </>
+            ) : phase === "classifying" ? (
+              <>
+                <Sparkles className="h-5 w-5 text-amber-500" />
+                Phân loại & đối chiếu
+              </>
             ) : (
               <>
                 <Sparkles className="h-5 w-5 text-emerald-500" />
@@ -103,23 +154,35 @@ export function ParseProgressDialog({
           </DialogTitle>
           <DialogDescription>
             {phase === "parsing"
-              ? `Pha 1/2 — AI đang đọc và cấu trúc hoá dữ liệu (${doneCount}/${total} xong${errorCount ? `, ${errorCount} lỗi` : ""})`
-              : `Pha 2/2 — Đã trích xuất ${doneCount}/${total} chứng từ. Hãy mở trang xem lại để chỉnh sửa MST, số tiền, TK Nợ/Có trước khi ghi sổ.`}
+              ? `Pha 1/3 — AI đang đọc và cấu trúc hoá dữ liệu (${doneCount}/${total} xong${errorCount ? `, ${errorCount} lỗi` : ""})`
+              : phase === "classifying"
+                ? `Pha 2/3 — Kiểm tra TK ngân hàng, file trùng, hoá đơn đã có, giao dịch lặp. Chọn hành động cho từng file rồi tiếp tục.`
+                : `Pha 3/3 — Đã trích xuất ${doneCount}/${total} chứng từ. Mở trang xem lại để chỉnh sửa MST, số tiền, TK Nợ/Có trước khi ghi sổ.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Tiến trình tổng</span>
-            <span className="font-medium">{overall}%</span>
+        {phase !== "classifying" && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Tiến trình tổng</span>
+              <span className="font-medium">{overall}%</span>
+            </div>
+            <Progress value={overall} className="h-2" />
           </div>
-          <Progress value={overall} className="h-2" />
-        </div>
+        )}
 
-        <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-          {files.map((f, i) => (
-            <FileRow key={`${f.name}-${i}`} file={f} />
-          ))}
+        <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+          {phase === "classifying" && classifications
+            ? classifications.map((c, i) => (
+                <ClassifyRow
+                  key={`${c.filename}-${i}`}
+                  c={c}
+                  decision={decisions?.[i] ?? { action: c.suggested_action }}
+                  onDecisionChange={(patch) => onDecisionChange?.(i, patch)}
+                  onCreateBankAccount={(meta) => onCreateBankAccount?.(i, meta)}
+                />
+              ))
+            : files.map((f, i) => <FileRow key={`${f.name}-${i}`} file={f} />)}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -128,6 +191,14 @@ export function ParseProgressDialog({
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               Đang xử lý…
             </Button>
+          ) : phase === "classifying" ? (
+            <>
+              <Button variant="ghost" onClick={onClose}>Huỷ</Button>
+              <Button onClick={onContinue} disabled={continuingCount === 0}>
+                Tiếp tục ({continuingCount} file)
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" onClick={onClose}>Đóng</Button>
@@ -140,6 +211,122 @@ export function ParseProgressDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ClassifyRow({
+  c,
+  decision,
+  onDecisionChange,
+  onCreateBankAccount,
+}: {
+  c: ClassificationResult;
+  decision: ClassifyDecision;
+  onDecisionChange: (patch: Partial<ClassifyDecision>) => void;
+  onCreateBankAccount: (meta: any) => void;
+}) {
+  const skipped = decision.action === "skip";
+  const KIND_LABEL: Record<string, string> = {
+    purchase_invoice: "Hoá đơn mua",
+    bank_statement: "Sao kê NH",
+    cash_voucher: "Phiếu thu/chi",
+    unknown: "Không rõ",
+  };
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3 transition-opacity",
+        skipped ? "border-border bg-muted/20 opacity-60" : "border-border bg-card/40",
+      )}
+    >
+      <div className="flex items-start gap-2 text-sm">
+        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-medium">{c.filename}</span>
+            <Badge variant="outline" className="text-[10px]">{KIND_LABEL[c.kind] ?? c.kind}</Badge>
+          </div>
+          {c.bank_account_match && (
+            <div className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+              ✓ Khớp TK: <b>{c.bank_account_match.name}</b> · {c.bank_account_match.account_no}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className={cn(
+              "rounded border px-2 py-0.5 text-[11px] transition",
+              !skipped ? "border-primary bg-primary text-primary-foreground" : "border-border",
+            )}
+            onClick={() => onDecisionChange({ action: "continue" })}
+          >
+            Tiếp tục
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "rounded border px-2 py-0.5 text-[11px] transition",
+              skipped ? "border-destructive bg-destructive text-destructive-foreground" : "border-border",
+            )}
+            onClick={() => onDecisionChange({ action: "skip" })}
+          >
+            Bỏ qua
+          </button>
+        </div>
+      </div>
+
+      {c.warnings.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {c.warnings.map((w, j) => (
+            <li
+              key={j}
+              className={cn(
+                "rounded border px-2 py-1.5 text-xs",
+                w.severity === "error" && "border-destructive/40 bg-destructive/5 text-destructive",
+                w.severity === "warn" && "border-amber-500/40 bg-amber-500/5 text-amber-800 dark:text-amber-300",
+                w.severity === "info" && "border-border bg-muted/30 text-muted-foreground",
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div className="flex-1">{w.message}</div>
+                {w.type === "bank_account_unknown" && w.meta?.account_no && (
+                  <button
+                    type="button"
+                    onClick={() => onCreateBankAccount(w.meta)}
+                    className="rounded border border-current px-2 py-0.5 text-[10px] hover:bg-current/10"
+                  >
+                    Tạo TK mới
+                  </button>
+                )}
+                {(w.type === "invoice_duplicate" || w.type === "voucher_duplicate") && w.meta?.id && (
+                  <a
+                    href={`/purchases/${w.meta.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded border border-current px-2 py-0.5 text-[10px] hover:bg-current/10"
+                  >
+                    Mở phiếu cũ
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {c.txn_overlap && c.txn_overlap.duplicate_count > 0 && !skipped && (
+        <label className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={!!decision.includeOverlapDup}
+            onChange={(e) => onDecisionChange({ includeOverlapDup: e.target.checked })}
+          />
+          Ghi đè cả {c.txn_overlap.duplicate_count} GD đã có trong sổ (mặc định bỏ tick)
+        </label>
+      )}
+    </div>
   );
 }
 

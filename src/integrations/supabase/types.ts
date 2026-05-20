@@ -1064,6 +1064,7 @@ export type Database = {
           cost_center_id: string | null
           counter_account: string
           created_at: string
+          file_hash: string | null
           id: string
           journal_entry_id: string | null
           party_id: string | null
@@ -1090,6 +1091,7 @@ export type Database = {
           cost_center_id?: string | null
           counter_account: string
           created_at?: string
+          file_hash?: string | null
           id?: string
           journal_entry_id?: string | null
           party_id?: string | null
@@ -1116,6 +1118,7 @@ export type Database = {
           cost_center_id?: string | null
           counter_account?: string
           created_at?: string
+          file_hash?: string | null
           id?: string
           journal_entry_id?: string | null
           party_id?: string | null
@@ -1211,6 +1214,7 @@ export type Database = {
           cost_center_id: string | null
           counter_account: string
           created_at: string
+          file_hash: string | null
           id: string
           journal_entry_id: string | null
           party_name: string | null
@@ -1233,6 +1237,7 @@ export type Database = {
           cost_center_id?: string | null
           counter_account: string
           created_at?: string
+          file_hash?: string | null
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
@@ -1255,6 +1260,7 @@ export type Database = {
           cost_center_id?: string | null
           counter_account?: string
           created_at?: string
+          file_hash?: string | null
           id?: string
           journal_entry_id?: string | null
           party_name?: string | null
@@ -3480,6 +3486,42 @@ export type Database = {
           },
         ]
       }
+      import_batches: {
+        Row: {
+          classification: Json
+          created_at: string
+          decisions: Json | null
+          id: string
+          kind: string
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          classification?: Json
+          created_at?: string
+          decisions?: Json | null
+          id?: string
+          kind: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          classification?: Json
+          created_at?: string
+          decisions?: Json | null
+          id?: string
+          kind?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbox_decisions: {
         Row: {
           action: string
@@ -3639,6 +3681,7 @@ export type Database = {
           currency: string | null
           department_id: string | null
           expense_account: string | null
+          file_hash: string | null
           file_path: string
           id: string
           invoice_no: string | null
@@ -3668,6 +3711,7 @@ export type Database = {
           currency?: string | null
           department_id?: string | null
           expense_account?: string | null
+          file_hash?: string | null
           file_path: string
           id?: string
           invoice_no?: string | null
@@ -3697,6 +3741,7 @@ export type Database = {
           currency?: string | null
           department_id?: string | null
           expense_account?: string | null
+          file_hash?: string | null
           file_path?: string
           id?: string
           invoice_no?: string | null

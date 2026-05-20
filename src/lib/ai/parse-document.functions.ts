@@ -457,6 +457,7 @@ export async function parseFileCore(opts: {
         parser: cached.parser_used || "cache",
         cached: true,
         pages: cached.pages,
+        file_hash: fileHash,
       };
     }
   }
@@ -646,6 +647,7 @@ export async function parseFileCore(opts: {
     pages: source.pageCount || null,
     timings: { parserMs, structurerMs },
     llamaError: source.llamaError ?? null,
+    file_hash: fileHash,
   };
 }
 
