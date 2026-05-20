@@ -492,7 +492,7 @@ function DocumentsPage() {
           id={openId}
           onClose={() => {
             setOpenId(null);
-            if (search.highlight) navigate({ to: "/documents", search: {} });
+            if (search.highlight) navigate({ to: "/documents", search: (s: any) => ({ ...s, highlight: undefined }) });
           }}
         />
         <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
