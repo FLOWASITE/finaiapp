@@ -129,9 +129,31 @@ function schemaFor(kind: string) {
 
 // ---------- Source acquisition ----------------------------------------
 
+type LlamaParseErrorInfo = {
+  phase: string;
+  status?: number;
+  attempts: number;
+  jobId?: string;
+  tier?: string;
+  message: string;
+  bodyExcerpt?: string;
+};
+
 type Source =
-  | { kind: "markdown"; markdown: string; pages: string[]; parser: string; pageCount: number }
-  | { kind: "vision"; parser: "vision"; pageCount: number };
+  | {
+      kind: "markdown";
+      markdown: string;
+      pages: string[];
+      parser: string;
+      pageCount: number;
+      llamaError?: LlamaParseErrorInfo;
+    }
+  | {
+      kind: "vision";
+      parser: "vision";
+      pageCount: number;
+      llamaError?: LlamaParseErrorInfo;
+    };
 
 type TierChoice = { tier: "fast" | "balanced" | "premium"; reason: string };
 
