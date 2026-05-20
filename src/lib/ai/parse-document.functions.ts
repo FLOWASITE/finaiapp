@@ -440,6 +440,81 @@ async function structureBankStatement(
  * user_id + file_hash + kind). Chạy NGAY khi nhận file để luôn có audit trail,
  * kể cả khi parse fail sau đó.
  */
+const KIND_TO_DOC_KIND: Record<string, string> = {
+  bank_statement: "bank_statement",
+  purchase_invoice: "purchase_invoice",
+  cash_voucher: "cash_voucher",
+  auto: "other",
+};
+
+async function upsertDocumentForUpload(opts: {
+  supabase: any;
+  userId: string;
+  uploadId: string;
+  filePath: string;
+  filename?: string | null;
+  mimeType: string;
+  kind: string;
+  fileHash: string;
+}): Promise<void> {
+  try {
+    const { data: prof } = await opts.supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", opts.userId)
+      .maybeSingle();
+    const tenantId = prof?.active_tenant_id;
+    if (!tenantId) return;
+
+    // Existing doc on same path? Just link it.
+    const { data: existing } = await opts.supabase
+      .from("documents")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("storage_bucket", "invoices")
+      .eq("storage_path", opts.filePath)
+      .maybeSingle();
+    if (existing?.id) {
+      await opts.supabase
+        .from("documents")
+        .update({ ai_upload_id: opts.uploadId })
+        .eq("id", existing.id);
+      return;
+    }
+
+    await opts.supabase.from("documents").insert({
+      tenant_id: tenantId,
+      user_id: opts.userId,
+      doc_kind: KIND_TO_DOC_KIND[opts.kind] ?? "other",
+      source: "ai_chat",
+      storage_bucket: "invoices",
+      storage_path: opts.filePath,
+      original_filename: opts.filename ?? null,
+      mime_type: opts.mimeType,
+      checksum_sha256: opts.fileHash,
+      ocr_status: "processing",
+      ai_upload_id: opts.uploadId,
+    });
+  } catch (e: any) {
+    console.warn("[parseFileCore] upsertDocumentForUpload exception:", e?.message);
+  }
+}
+
+async function updateDocumentOcr(opts: {
+  supabase: any;
+  uploadId: string;
+  status: "done" | "failed";
+  parsed?: any;
+  error?: string;
+}): Promise<void> {
+  try {
+    const patch: any = { ocr_status: opts.status };
+    if (opts.parsed !== undefined) patch.ocr_extracted = opts.parsed;
+    if (opts.error) patch.notes = opts.error.slice(0, 500);
+    await opts.supabase.from("documents").update(patch).eq("ai_upload_id", opts.uploadId);
+  } catch {}
+}
+
 async function ensureUploadRow(opts: {
   supabase: any;
   userId: string;
@@ -458,6 +533,19 @@ async function ensureUploadRow(opts: {
       .eq("kind", opts.kind)
       .maybeSingle();
     if (existing?.id) {
+      // Ensure a document row exists too (handles legacy uploads)
+      if (existing.file_path) {
+        await upsertDocumentForUpload({
+          supabase: opts.supabase,
+          userId: opts.userId,
+          uploadId: existing.id,
+          filePath: existing.file_path,
+          filename: opts.filename,
+          mimeType: opts.mimeType,
+          kind: opts.kind,
+          fileHash: opts.fileHash,
+        });
+      }
       return { uploadId: existing.id, filePath: existing.file_path ?? null };
     }
     const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
@@ -484,6 +572,18 @@ async function ensureUploadRow(opts: {
     if (insErr) {
       console.warn("[parseFileCore] ai_uploads insert failed:", insErr.message);
       return null;
+    }
+    if (row?.id && row.file_path) {
+      await upsertDocumentForUpload({
+        supabase: opts.supabase,
+        userId: opts.userId,
+        uploadId: row.id,
+        filePath: row.file_path,
+        filename: opts.filename,
+        mimeType: opts.mimeType,
+        kind: opts.kind,
+        fileHash: opts.fileHash,
+      });
     }
     return row?.id ? { uploadId: row.id, filePath: row.file_path ?? null } : null;
   } catch (e: any) {
