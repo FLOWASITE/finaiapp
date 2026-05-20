@@ -173,16 +173,7 @@ const FRONT_SECTIONS: NavSection[] = [
           { to: "/assets", label: "Tài sản" },
         ],
       },
-      {
-        label: "Hồ sơ",
-        icon: FileText,
-        items: [
-          { to: "/invoices", label: "Hoá đơn bán" },
-          { to: "/purchases", label: "Hoá đơn mua" },
-          { to: "/einvoices", label: "Hoá đơn điện tử" },
-          { to: "/documents", label: "Trung tâm tài liệu" },
-        ],
-      },
+      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText },
     ],
   },
   {
