@@ -74,6 +74,9 @@ export function Composer({
   const [focused, setFocused] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [parsePhase, setParsePhase] = useState<Phase | null>(null);
+  const [parseFiles, setParseFiles] = useState<FileProgress[]>([]);
+  const [nextTarget, setNextTarget] = useState<"/import/preview" | "/bank/import-statement" | null>(null);
   const navigate = useNavigate();
   const parseFn = useServerFn(parseDocument);
 
