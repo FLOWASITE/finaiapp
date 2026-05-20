@@ -392,6 +392,14 @@ export function Composer({
           {" để xuống dòng"}
         </div>
       )}
+      <ParseProgressDialog
+        open={parsePhase !== null}
+        phase={parsePhase ?? "parsing"}
+        files={parseFiles}
+        onContinue={continueToReview}
+        onClose={closeParseDialog}
+        continueLabel={nextTarget === "/bank/import-statement" ? "Mở sao kê ngân hàng" : "Xem lại & chỉnh sửa"}
+      />
     </div>
   );
 }
