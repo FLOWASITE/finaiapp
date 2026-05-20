@@ -1,70 +1,77 @@
 ## Mục tiêu
-Chỉ chỉnh UI/UX của `src/components/chat/parse-progress-dialog.tsx` (và truyền thêm 1 prop từ `composer.tsx` nếu cần). Không đụng logic server/DB.
 
-## 1. Visual stepper 3 pha (Parsing → Classifying → Ready)
-Thêm thanh stepper ngang ngay dưới `DialogHeader`:
+1. **Truy vết tại sao file thứ 2 không có trong Storage** (đã có 1 file `Sao ke MB bank_1.pdf`, không có file thứ 2).
+2. **Đảm bảo file gốc luôn được lưu vào Storage** ngay cả khi parse fail, cache hit, hoặc bị auto-skip do trùng hash.
+
+## Phân tích nguyên nhân hiện tại
+
+Trong `src/lib/ai/parse-document.functions.ts`, hàm `parseFileCore` lưu file vào bucket `invoices` **chỉ ở bước 6** (cuối hàm), nên file gốc bị bỏ qua trong các trường hợp:
+
+- **Cache hit** (bước 0): return sớm, không upload.
+- **Parse fail** (LlamaParse/OCR throw): exception bubble lên, không tới bước 6.
+- **Auto-skip trong UI** (`isFileDup` ở composer): file đã có trong `ai_uploads` (theo `file_hash`) thì bị set action `"skip"`; nhưng trong session hiện tại nếu là file MỚI mà trùng hash với file đã upload trước thì OK — nhưng nếu file 2 trùng hash file 1 thì cache hit khiến không upload.
+
+Bản chất: 1 trong 2 file của bạn có thể đã trùng hash với file đã upload (cache hit) HOẶC parse fail trước bước 6.
+
+## Triển khai
+
+### 1. Refactor `parseFileCore` — upload file gốc TRƯỚC khi parse
+
+Tách bước 6 hiện tại thành **bước 0.5**: ngay sau khi tính `fileHash`, upload file lên Storage và insert một row "khung" vào `ai_uploads`. Các bước parse sau đó chỉ UPDATE row đó với `parsed`, `parser_used`, `pages`, `error` (nếu fail).
 
 ```text
-[●─Parsing────]──[○─Classifying──]──[○─Ready──]
-   done           active             pending
+0. fileHash = sha256(file)
+0.5. Upsert ai_uploads theo (user_id, file_hash, kind):
+     - Nếu chưa có: upload file lên Storage, insert row với status='uploaded'
+     - Nếu đã có: dùng lại row + file_path cũ (tránh duplicate storage objects)
+1. Cache check → nếu hit: UPDATE row với parsed từ cache, return
+2-5. Parse như cũ
+6. UPDATE row với parsed/parser_used/pages
+   Nếu throw: catch → UPDATE row với error=<message>, rồi rethrow
 ```
 
-- Mỗi bước có icon (Loader2 khi active, CheckCircle2 khi done, vòng tròn rỗng khi pending) + nhãn + đường nối đổi màu.
-- Active dùng `text-primary`, done dùng `text-emerald-500`, pending `text-muted-foreground`.
-- Animation: đường nối fill từ trái → phải bằng `transition-all duration-500`.
+Lợi ích:
+- File gốc **luôn có mặt** trong Storage ngay khi user attach, bất kể parse có thành công hay không.
+- Có audit trail cho file fail (xem được `error` trong `ai_uploads`).
+- Cache hit vẫn có row trỏ tới file gốc (file_path đầy đủ).
 
-## 2. Metrics & ETA
-Bổ sung khối thống kê dưới stepper:
+### 2. Schema thay đổi (migration nhỏ)
 
-- Pha **parsing**: `{doneCount}/{total} xong · {errorCount} lỗi · ⏱ {elapsed}s · ~{eta}s còn lại · {speed} file/s`
-  - `elapsed` tính từ lần đầu prop `phase==='parsing'` (lưu `startedAt` bằng `useRef`).
-  - `speed = doneCount / elapsedSec`; `eta = (total-doneCount)/speed`.
-- Pha **classifying**: badge tổng cảnh báo `{warnCount} cảnh báo · {errorCount} chặn`.
-- Pha **ready**: `Tổng thời gian {totalMs}s · {avgMs}s/file`.
+Bảng `ai_uploads` cần:
+- Index unique `(user_id, file_hash, kind)` để upsert idempotent.
+- Cột `status text default 'parsing'` (giá trị: `uploaded`, `parsing`, `parsed`, `failed`).
 
-## 3. Pha Classifying — gom nhóm + tóm tắt + auto-skip
+Nếu bảng đã có dữ liệu trùng `(user_id, file_hash, kind)` thì migration sẽ DEDUPLICATE trước (giữ row cũ nhất), rồi thêm unique index.
 
-### 3a. Banner tóm tắt (sticky top trong scroll area)
-```text
-✓ 3 OK    ⚠ 2 trùng hoá đơn    ⚠ 1 cần tạo TK    ⊘ 2 đã tự bỏ qua
+### 3. Hiển thị link file gốc trong UI Classifying
+
+Trong `parse-progress-dialog.tsx`, mỗi `ClassifyRow` hiện tại chỉ hiện tên file. Thêm:
+- Icon link "Xem file gốc" → mở signed URL của file trong Storage (gọi `supabase.storage.from('invoices').createSignedUrl(...)`).
+- Áp dụng cho cả file OK lẫn file fail/skip để user có thể tự kiểm tra.
+
+### 4. Server function mới: `getUploadSignedUrl`
+
+`src/lib/ai/parse-document.functions.ts` thêm:
+```ts
+getUploadSignedUrl({ uploadId }): { url: string }
 ```
-Chip có thể click để filter danh sách bên dưới (state `filter: 'all'|'ok'|'dup'|'bank'|'skipped'`).
+Dùng `requireSupabaseAuth`, validate `uploadId` thuộc về user, trả về signed URL 1 giờ.
 
-### 3b. Gom nhóm theo loại cảnh báo
-Phân loại mỗi `ClassificationResult` thành 1 bucket:
-- `file_dup` — có warning `file_duplicate`
-- `invoice_dup` — `invoice_duplicate` / `voucher_duplicate`
-- `bank_unknown` — `bank_account_unknown`
-- `txn_overlap` — có `txn_overlap.duplicate_count > 0` nhưng không thuộc trên
-- `ok` — không có warning nào
+### 5. Truy vết file thứ 2
 
-Render dưới dạng các `<section>` collapsible với header:
-```text
-▾ Trùng file (2)     [Bỏ qua tất cả] [Tiếp tục tất cả]
-  └ ClassifyRow ...
-  └ ClassifyRow ...
-▾ Hoá đơn đã tồn tại (1)
-▾ TK ngân hàng chưa khớp (1)
-▾ OK (3)
-```
-Mặc định mở các nhóm có cảnh báo, đóng nhóm `OK`.
+Sau khi deploy, để bạn kiểm tra file thứ 2:
+- Mở DevTools → Network tab, attach lại 2 file, xem response của `parseDocument` cho từng file.
+- Hoặc query: `SELECT filename, file_hash, status, error FROM ai_uploads ORDER BY created_at DESC LIMIT 5;` — sẽ thấy file thứ 2 với status/error rõ ràng.
 
-### 3c. Auto-skip file trùng hoàn toàn
-Trong `composer.tsx`, khi nhận `classifications`, init `decisions`:
-- Nếu có warning `type === 'file_duplicate'` → `decisions[i].action = 'skip'`.
-- Nếu user click "Khôi phục" thì set lại `'continue'`.
-- Thêm badge nhỏ `Đã tự bỏ qua` trên các row auto-skip để rõ lý do.
+## Files thay đổi
 
-(Đây là thay đổi nhỏ trong init logic của `composer.tsx`; component dialog vẫn nhận `decisions` từ ngoài.)
+- `supabase/migrations/<ts>_ai_uploads_dedupe_index.sql` — unique index + cột `status`.
+- `src/lib/ai/parse-document.functions.ts` — refactor `parseFileCore` (upload trước, update sau), thêm `getUploadSignedUrl` server function.
+- `src/components/chat/parse-progress-dialog.tsx` — nút "Xem file gốc" trên mỗi row classify, truyền `uploadId` từ kết quả parse.
+- `src/components/chat/composer.tsx` — giữ `uploadId` của từng item parsed để pass xuống dialog.
 
-## 4. Files chạm vào
-- `src/components/chat/parse-progress-dialog.tsx` — thêm stepper, metrics, banner tóm tắt, group sections, bulk action mỗi nhóm, filter chip.
-- `src/components/chat/composer.tsx` — chỗ build initial `decisions`: tự set `skip` cho file_duplicate; truyền thêm timestamps nếu cần ETA (hoặc để dialog tự đo bằng `useRef`).
+## Không đổi
 
-Không sửa server functions, không sửa DB, không đổi shape của `ClassificationResult` / `ClassifyDecision`.
-
-## 5. Edge cases
-- `total === 0` → ẩn metrics.
-- `phase` chuyển ngược (hiếm) → reset `startedAt`.
-- Nhóm rỗng → không render section.
-- Filter active nhưng nhóm rỗng → hiện empty state nhỏ "Không có file trong bộ lọc này".
+- Bucket `invoices` (private) giữ nguyên — vẫn dùng signed URL.
+- RLS của `ai_uploads` không đổi.
+- Logic auto-skip duplicate giữ nguyên (chỉ thêm link xem file gốc).
