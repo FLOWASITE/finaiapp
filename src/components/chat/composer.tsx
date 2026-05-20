@@ -510,9 +510,15 @@ export function Composer({
         open={parsePhase !== null}
         phase={parsePhase ?? "parsing"}
         files={parseFiles}
-        onContinue={continueToReview}
+        onContinue={parsePhase === "classifying" ? continueFromClassify : continueToReview}
         onClose={closeParseDialog}
         continueLabel={nextTarget === "/bank/import-statement" ? "Mở sao kê ngân hàng" : "Xem lại & chỉnh sửa"}
+        classifications={classifications}
+        decisions={decisions}
+        onDecisionChange={(idx, patch) =>
+          setDecisions((prev) => ({ ...prev, [idx]: { ...(prev[idx] ?? { action: "continue" }), ...patch } }))
+        }
+        onCreateBankAccount={handleCreateBankAccount}
       />
     </div>
   );
