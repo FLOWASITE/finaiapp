@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { XMLParser } from "fast-xml-parser";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  parseEinvoiceXml,
+  EinvoiceParseError,
+  type ParsedEinvoice,
+} from "@/lib/einvoice-xml-parser";
 
 const InputSchema = z.object({
   files: z
@@ -22,24 +26,39 @@ type FileResult = {
   invoiceId?: string;
   invoiceNo?: string;
   total?: number;
+  warnings?: string[];
   error?: string;
 };
 
-const num = (v: unknown): number => {
-  if (v === null || v === undefined || v === "") return 0;
-  const n = Number(String(v).replace(/[,\s]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
 const str = (v: unknown): string =>
   v === null || v === undefined ? "" : String(v).trim();
-const parsePct = (v: unknown): number => {
-  const s = str(v);
-  if (!s) return 0;
-  const m = s.match(/-?\d+(\.\d+)?/);
-  return m ? Number(m[0]) : 0;
-};
-const asArray = <T,>(v: T | T[] | undefined | null): T[] =>
-  v === null || v === undefined ? [] : Array.isArray(v) ? v : [v];
+
+function buildRawOcr(parsed: ParsedEinvoice) {
+  return {
+    source: "einvoice_xml",
+    version: parsed.version,
+    template: parsed.template,
+    series: parsed.series,
+    invoice_no: parsed.invoice_no,
+    issue_date: parsed.issue_date,
+    payment_method: parsed.payment_method,
+    fx_rate: parsed.fx_rate,
+    currency: parsed.currency,
+    cqt_code: parsed.cqt_code,
+    has_cqt_code: parsed.has_cqt_code,
+    cqt_signed: parsed.cqt_signed,
+    seller_signed: parsed.seller_signed,
+    sign_date_seller: parsed.sign_date_seller,
+    sign_date_cqt: parsed.sign_date_cqt,
+    adjustment_kind: parsed.adjustment_kind,
+    related_invoice: parsed.related_invoice,
+    seller: parsed.seller,
+    buyer: parsed.buyer,
+    totals: parsed.totals,
+    raw_ttkhac: parsed.raw_ttkhac,
+    warnings: parsed.warnings,
+  };
+}
 
 export const importEinvoiceXml = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -75,33 +94,14 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
       };
     }
 
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: "@_",
-      trimValues: true,
-      parseTagValue: false,
-    });
-
     const results: FileResult[] = [];
 
     for (const file of data.files) {
       try {
-        const xml = parser.parse(file.content);
-        const dl =
-          xml?.HDon?.DLHDon ??
-          xml?.HDon?.DLHDon?.[0] ??
-          (Array.isArray(xml?.HDon) ? xml.HDon[0]?.DLHDon : undefined);
-        if (!dl) throw new Error("Không nhận diện được cấu trúc HDon/DLHDon");
+        const parsed = parseEinvoiceXml(file.content);
 
-        const tt = dl.TTChung ?? {};
-        const nd = dl.NDHDon ?? {};
-        const nban = nd.NBan ?? {};
-        const nmua = nd.NMua ?? {};
-        const toan = nd.TToan ?? {};
-        const mccqt = str(xml?.HDon?.MCCQT?.["#text"] ?? xml?.HDon?.MCCQT);
-
-        const sellerTax = str(nban.MST).replace(/\D/g, "");
-        const buyerTax = str(nmua.MST).replace(/\D/g, "");
+        const sellerTax = parsed.seller.tax_id;
+        const buyerTax = parsed.buyer.tax_id;
 
         let direction: "purchase" | "sale";
         if (sellerTax && sellerTax === tenantTaxId) direction = "sale";
@@ -112,26 +112,22 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
           );
         }
 
-        const invoiceSeries = str(tt.KHHDon);
-        const invoiceNo = str(tt.SHDon);
-        const issueDate = str(tt.NLap) || null;
-        const subtotal = num(toan.TgTCThue);
-        const vatAmount = num(toan.TgTThue);
-        const total = num(toan.TgTTTBSo);
-        const currency = str(tt.DVTTe) || "VND";
+        const series = parsed.series; // mẫu + ký hiệu, vd "1C26TTT"
+        const invoiceNo = parsed.invoice_no;
+        const issueDate = parsed.issue_date;
+        const subtotal = parsed.totals.subtotal;
+        const vatAmount = parsed.totals.vat_amount;
+        const total = parsed.totals.total;
+        const currency = parsed.currency;
+        const rawOcr = buildRawOcr(parsed);
 
-        const lines = asArray<any>(nd?.DSHHDVu?.HHDVu).map((h) => ({
-          description: str(h.THHDVu),
-          unit: str(h.DVTinh),
-          qty: num(h.SLuong) || 1,
-          unit_price: num(h.DGia),
-          amount: num(h.ThTien),
-          vat_rate: parsePct(h.TSuat),
-          vat_amount: num(h.TThue),
-        }));
+        // Chỉ lưu dòng hàng/dv vào bảng line — bỏ qua khuyến mãi/ghi chú/CK
+        // (giá trị đã nằm trong tổng TToan).
+        const itemLines = parsed.lines.filter((l) => l.kind === "item");
 
         if (direction === "purchase") {
-          // Dedup
+          // Dedup theo (invoice_no, sellerTax, series) — 1 NCC có thể có
+          // cùng số HĐ giữa các ký hiệu/mẫu khác nhau.
           const { data: dup } = await supabase
             .from("invoices")
             .select("id")
@@ -147,6 +143,7 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               invoiceId: dup.id,
               invoiceNo,
               total,
+              warnings: parsed.warnings,
             });
             continue;
           }
@@ -168,10 +165,10 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
                   user_id: userId,
                   tenant_id: tenantId,
                   tax_id: sellerTax,
-                  name: str(nban.Ten) || "Chưa rõ",
-                  address: str(nban.DChi) || null,
-                  phone: str(nban.SDThoai) || null,
-                  email: str(nban.DCTDTu) || null,
+                  name: parsed.seller.name || "Chưa rõ",
+                  address: parsed.seller.address || null,
+                  phone: parsed.seller.phone || null,
+                  email: parsed.seller.email || null,
                 })
                 .select("id")
                 .single();
@@ -183,10 +180,11 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
           const filePath = `${userId}/xml/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
           await supabase.storage
             .from("invoices")
-            .upload(filePath, new Blob([file.content], { type: "application/xml" }), {
-              contentType: "application/xml",
-              upsert: false,
-            });
+            .upload(
+              filePath,
+              new Blob([file.content], { type: "application/xml" }),
+              { contentType: "application/xml", upsert: false },
+            );
 
           const { data: inv, error: invErr } = await supabase
             .from("invoices")
@@ -195,7 +193,7 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               tenant_id: tenantId,
               file_path: filePath,
               supplier_id: supplierId,
-              supplier_name: str(nban.Ten) || null,
+              supplier_name: parsed.seller.name || null,
               supplier_tax_id: sellerTax || null,
               invoice_no: invoiceNo,
               issue_date: issueDate,
@@ -203,26 +201,24 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               vat_amount: vatAmount,
               total,
               currency,
-              status: "extracted",
-              raw_ocr: {
-                source: "einvoice_xml",
-                series: invoiceSeries,
-                cqt_code: mccqt,
-              },
+              status: "uploaded",
+              raw_ocr: rawOcr,
             })
             .select("id")
             .single();
-          if (invErr || !inv) throw new Error(invErr?.message || "Không tạo được hoá đơn");
+          if (invErr || !inv)
+            throw new Error(invErr?.message || "Không tạo được hoá đơn");
 
-          if (lines.length) {
+          if (itemLines.length) {
             await supabase.from("invoice_lines").insert(
-              lines.map((l) => ({
+              itemLines.map((l) => ({
                 invoice_id: inv.id,
-                description: l.description,
-                qty: l.qty,
+                description: l.description || "Hàng hoá / dịch vụ",
+                qty: l.qty || 1,
                 unit_price: l.unit_price,
                 amount: l.amount,
-                vat_rate: l.vat_rate,
+                vat_rate: l.vat_rate ?? 0,
+                line_type: "goods",
               })),
             );
           }
@@ -234,6 +230,7 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
             invoiceId: inv.id,
             invoiceNo,
             total,
+            warnings: parsed.warnings,
           });
         } else {
           // SALE
@@ -242,7 +239,7 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
             .select("id")
             .eq("user_id", userId)
             .eq("invoice_no", invoiceNo)
-            .eq("invoice_series", invoiceSeries || "")
+            .eq("invoice_series", series || "")
             .maybeSingle();
           if (dup) {
             results.push({
@@ -252,6 +249,7 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               invoiceId: dup.id,
               invoiceNo,
               total,
+              warnings: parsed.warnings,
             });
             continue;
           }
@@ -272,10 +270,10 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
                   user_id: userId,
                   tenant_id: tenantId,
                   tax_id: buyerTax,
-                  name: str(nmua.Ten) || "Chưa rõ",
-                  address: str(nmua.DChi) || null,
-                  email: str(nmua.DCTDTu) || null,
-                  phone: str(nmua.SDThoai) || null,
+                  name: parsed.buyer.name || "Chưa rõ",
+                  address: parsed.buyer.address || null,
+                  email: parsed.buyer.email || null,
+                  phone: parsed.buyer.phone || null,
                 })
                 .select("id")
                 .single();
@@ -289,11 +287,11 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               user_id: userId,
               tenant_id: tenantId,
               customer_id: customerId,
-              customer_name: str(nmua.Ten) || null,
+              customer_name: parsed.buyer.name || null,
               customer_tax_id: buyerTax || null,
-              customer_email: str(nmua.DCTDTu) || null,
-              billing_address: str(nmua.DChi) || null,
-              invoice_series: invoiceSeries || "1C26TAA",
+              customer_email: parsed.buyer.email || null,
+              billing_address: parsed.buyer.address || null,
+              invoice_series: series || "1C26TAA",
               invoice_no: invoiceNo,
               issue_date: issueDate || new Date().toISOString().slice(0, 10),
               subtotal,
@@ -301,22 +299,23 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
               total,
               currency,
               status: "issued",
-              einvoice_code: mccqt || null,
+              einvoice_code: parsed.cqt_code || null,
             })
             .select("id")
             .single();
-          if (sErr || !sinv) throw new Error(sErr?.message || "Không tạo được hoá đơn bán");
+          if (sErr || !sinv)
+            throw new Error(sErr?.message || "Không tạo được hoá đơn bán");
 
-          if (lines.length) {
+          if (itemLines.length) {
             await supabase.from("sales_invoice_lines").insert(
-              lines.map((l) => ({
+              itemLines.map((l) => ({
                 invoice_id: sinv.id,
                 description: l.description || "Hàng hoá / dịch vụ",
-                qty: l.qty,
+                qty: l.qty || 1,
                 unit_price: l.unit_price,
                 amount: l.amount,
-                vat_rate: l.vat_rate,
-                vat_code: `${l.vat_rate || 0}`,
+                vat_rate: l.vat_rate ?? 0,
+                vat_code: l.vat_code,
                 pre_vat_amount: l.amount,
                 line_vat_amount: l.vat_amount,
               })),
@@ -330,14 +329,15 @@ export const importEinvoiceXml = createServerFn({ method: "POST" })
             invoiceId: sinv.id,
             invoiceNo,
             total,
+            warnings: parsed.warnings,
           });
         }
       } catch (e: any) {
-        results.push({
-          name: file.name,
-          status: "error",
-          error: e?.message || String(e),
-        });
+        const msg =
+          e instanceof EinvoiceParseError
+            ? `${e.message}${e.warnings.length ? ` (${e.warnings.join("; ")})` : ""}`
+            : e?.message || String(e);
+        results.push({ name: file.name, status: "error", error: msg });
       }
     }
 
