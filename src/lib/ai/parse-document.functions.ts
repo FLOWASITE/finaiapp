@@ -625,6 +625,9 @@ export async function parseFileCore(opts: {
           structurer_ms: structurerMs,
           pages: source.pageCount || null,
           file_hash: fileHash,
+          error: source.llamaError
+            ? `LlamaParse[${source.llamaError.phase}${source.llamaError.status ? ` ${source.llamaError.status}` : ""}] ${source.llamaError.message}`
+            : null,
         })
         .select("id")
         .maybeSingle();
@@ -642,6 +645,7 @@ export async function parseFileCore(opts: {
     cached: false,
     pages: source.pageCount || null,
     timings: { parserMs, structurerMs },
+    llamaError: source.llamaError ?? null,
   };
 }
 
