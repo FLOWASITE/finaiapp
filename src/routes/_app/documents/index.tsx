@@ -312,30 +312,33 @@ function DocumentsPage() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="p-6 space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-semibold">Trung tâm chứng từ</h1>
-            <p className="text-sm text-muted-foreground">{tabMeta.description}</p>
+      <div className="space-y-4 p-3 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border bg-card/70 p-4 shadow-sm">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">Trung tâm chứng từ</h1>
+              <Badge variant="secondary" className="h-6">Đã hợp nhất</Badge>
+            </div>
+            <p className="max-w-3xl text-sm text-muted-foreground">{tabMeta.description}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             {tabMeta.legacyTo && (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
                 <Link to={tabMeta.legacyTo}>
                   <ExternalLink className="h-4 w-4 mr-1.5" /> {tabMeta.legacyLabel}
                 </Link>
               </Button>
             )}
-            <Button onClick={() => setUploadOpen(true)}>
+            <Button onClick={() => setUploadOpen(true)} className="flex-1 sm:flex-none">
               <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
             </Button>
           </div>
         </div>
 
         <Tabs value={currentTab} onValueChange={(v) => setTab(v as TabValue)}>
-          <TabsList>
+          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl p-1 sm:w-auto">
             {TAB_VALUES.map((t) => (
-              <TabsTrigger key={t} value={t}>
+              <TabsTrigger key={t} value={t} className="shrink-0">
                 {TAB_PRESETS[t].label}
               </TabsTrigger>
             ))}
@@ -343,9 +346,9 @@ function DocumentsPage() {
         </Tabs>
 
 
-        <Card className="p-4">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px]">
+        <Card className="p-3 sm:p-4">
+          <div className="mb-3 grid grid-cols-[1fr_auto] items-center gap-2">
+            <div className="relative min-w-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Tìm theo tên file..."
@@ -367,9 +370,9 @@ function DocumentsPage() {
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 px-3">
                   <SlidersHorizontal className="h-4 w-4" />
-                  Bộ lọc
+                  <span className="hidden sm:inline">Bộ lọc</span>
                   {activeCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                       {activeCount}
@@ -377,7 +380,7 @@ function DocumentsPage() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 p-3 space-y-3">
+              <PopoverContent align="end" className="w-[calc(100vw-2rem)] max-w-80 p-3 space-y-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Nguồn</label>
                   <Select value={sourceFilter} onValueChange={setSourceFilter}>
@@ -433,7 +436,7 @@ function DocumentsPage() {
             </Popover>
 
             {activeCount > 0 && (
-              <Button size="sm" variant="ghost" className="h-9 text-xs text-muted-foreground" onClick={resetFilters}>
+              <Button size="sm" variant="ghost" className="col-span-2 h-8 justify-start text-xs text-muted-foreground sm:col-span-1 sm:h-9" onClick={resetFilters}>
                 <X className="h-3.5 w-3.5 mr-1" /> Xoá lọc
               </Button>
             )}
