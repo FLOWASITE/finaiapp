@@ -457,6 +457,7 @@ export async function parseFileCore(opts: {
         parser: cached.parser_used || "cache",
         cached: true,
         pages: cached.pages,
+        file_hash: fileHash,
       };
     }
   }
