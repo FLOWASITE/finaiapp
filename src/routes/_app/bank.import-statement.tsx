@@ -295,6 +295,81 @@ function ImportStatementPage() {
             </div>
           </div>
 
+          {(mismatchFiles.length > 0 || suspectCount > 0) && (
+            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <div className="font-semibold text-destructive">
+                    Phát hiện sao kê không khớp / có giao dịch nghi ngờ
+                  </div>
+                  {mismatchFiles.length > 0 && (
+                    <div className="space-y-1.5">
+                      {mismatchFiles.map((m, i) => (
+                        <div key={i} className="rounded-md border border-destructive/30 bg-background/60 p-2.5 text-xs">
+                          <div className="font-medium mb-1 truncate">📄 {m.filename}</div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono">
+                            <span>Số dư đầu kỳ: <b>{fmt(m.opening_balance ?? 0)}</b></span>
+                            <span>Số dư cuối kỳ: <b>{fmt(m.closing_balance ?? 0)}</b></span>
+                            <span>Kỳ vọng (closing − opening): <b>{fmt(m.validation!.expected)}</b></span>
+                            <span>Thực tế (Σcredit − Σdebit): <b>{fmt(m.validation!.actual)}</b></span>
+                            <span className="col-span-2 text-destructive font-semibold">
+                              Chênh lệch: {fmt(m.validation!.diff)} ₫
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {suspectCount > 0 && (
+                    <details className="text-xs" open={mismatchFiles.length === 0}>
+                      <summary className="cursor-pointer font-medium text-amber-700 hover:text-amber-800">
+                        🔍 {suspectCount} giao dịch nghi ngờ cần kiểm tra
+                      </summary>
+                      <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+                        {Array.from(suspectByIdx.entries()).slice(0, 30).map(([idx, reasons]) => {
+                          const r = rows[idx];
+                          return (
+                            <li key={idx} className="rounded border border-amber-500/30 bg-amber-500/5 p-1.5">
+                              <button
+                                type="button"
+                                className="text-left w-full"
+                                onClick={() => {
+                                  const el = document.getElementById(`txn-${idx}`);
+                                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                  el?.classList.add("ring-2", "ring-amber-500");
+                                  setTimeout(() => el?.classList.remove("ring-2", "ring-amber-500"), 1800);
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-[10px] text-muted-foreground">#{idx + 1}</span>
+                                  <span className="font-mono">{r.txn_date}</span>
+                                  <span className={r.amount >= 0 ? "text-emerald-600" : "text-destructive"}>
+                                    {r.amount >= 0 ? "+" : "−"}{fmt(Math.abs(r.amount))}
+                                  </span>
+                                  <span className="truncate text-muted-foreground flex-1">{r.description}</span>
+                                </div>
+                                <div className="ml-9 text-amber-700">• {reasons.join(" • ")}</div>
+                              </button>
+                            </li>
+                          );
+                        })}
+                        {suspectCount > 30 && (
+                          <li className="text-center text-muted-foreground">… và {suspectCount - 30} dòng khác</li>
+                        )}
+                      </ul>
+                    </details>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    Gợi ý: kiểm tra ngày tháng có bị OCR sai, số tiền âm/dương ngược chiều, hoặc trang sao kê bị thiếu/lặp. Sửa trực tiếp trong bảng dưới rồi mới hạch toán.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
