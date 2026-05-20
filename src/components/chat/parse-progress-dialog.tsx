@@ -147,6 +147,7 @@ export function ParseProgressDialog({
   onClose,
   continueLabel = "Xem lại & chỉnh sửa",
   classifications,
+  uploadIds,
   decisions,
   onDecisionChange,
   onCreateBankAccount,
@@ -158,6 +159,7 @@ export function ParseProgressDialog({
   onClose?: () => void;
   continueLabel?: string;
   classifications?: ClassificationResult[];
+  uploadIds?: (string | null)[];
   decisions?: Record<number, ClassifyDecision>;
   onDecisionChange?: (idx: number, patch: Partial<ClassifyDecision>) => void;
   onCreateBankAccount?: (idx: number, meta: any) => void;
