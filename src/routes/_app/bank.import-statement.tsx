@@ -404,7 +404,12 @@ function ImportStatementPage() {
                           onChange={(e) => update(r.idx, { skip: !e.target.checked })}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{r.txn_date}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <div className="flex items-center gap-1">
+                          {isSuspect && <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                          <span>{r.txn_date}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs">
                         <div className="line-clamp-2">{r.description}</div>
                         <div className="mt-0.5 flex items-center gap-1.5">
