@@ -94,7 +94,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const TAB_VALUES = ["all", "purchase", "sales", "einvoice", "files"] as const;
+const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 const SearchSchema = z.object({
