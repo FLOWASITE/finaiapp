@@ -56,6 +56,7 @@ export const listDocuments = createServerFn({ method: "GET" })
       .object({
         search: z.string().max(200).optional(),
         doc_kind: z.string().max(50).optional(),
+        source: z.string().max(50).optional(),
         ocr_status: z.string().max(50).optional(),
         from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -72,12 +73,65 @@ export const listDocuments = createServerFn({ method: "GET" })
       .range(data.offset, data.offset + data.limit - 1);
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
     if (data.doc_kind) q = q.eq("doc_kind", data.doc_kind);
+    if (data.source) q = q.eq("source", data.source);
     if (data.ocr_status) q = q.eq("ocr_status", data.ocr_status);
     if (data.from_date) q = q.gte("created_at", `${data.from_date}T00:00:00Z`);
     if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
     const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
     return { rows: rows ?? [], total: count ?? 0 };
+  });
+
+export const uploadDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        fileBase64: z.string().min(1),
+        filename: z.string().min(1).max(255),
+        mimeType: z.string().min(3).max(100),
+        doc_kind: z.enum([
+          "purchase_invoice","sales_invoice","einvoice","cash_voucher","bank_voucher",
+          "bank_statement","receipt","payment","contract","other"
+        ]),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: prof } = await supabase
+      .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const tenantId = prof?.active_tenant_id;
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+
+    const buf = Buffer.from(data.fileBase64, "base64");
+    const safeName = data.filename.replace(/[^\w.\-]+/g, "_");
+    const path = `manual/${userId}/${Date.now()}-${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from("invoices")
+      .upload(path, buf, { contentType: data.mimeType, upsert: false });
+    if (upErr) throw new Error(upErr.message);
+
+    const { data: row, error: insErr } = await supabase
+      .from("documents")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        doc_kind: data.doc_kind,
+        source: "manual",
+        storage_bucket: "invoices",
+        storage_path: path,
+        original_filename: data.filename,
+        mime_type: data.mimeType,
+        size_bytes: buf.length,
+        ocr_status: "pending",
+        notes: data.notes ?? null,
+      })
+      .select("id")
+      .maybeSingle();
+    if (insErr) throw new Error(insErr.message);
+    return { id: row?.id };
   });
 
 export const getDocument = createServerFn({ method: "GET" })
