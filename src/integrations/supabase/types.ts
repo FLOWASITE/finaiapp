@@ -1881,6 +1881,7 @@ export type Database = {
           doc_kind: string
           einvoice_id: string | null
           id: string
+          invoice_id: string | null
           mime_type: string | null
           notes: string | null
           ocr_extracted: Json | null
@@ -1889,6 +1890,7 @@ export type Database = {
           original_filename: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          sales_invoice_id: string | null
           size_bytes: number | null
           source: string
           storage_bucket: string
@@ -1904,6 +1906,7 @@ export type Database = {
           doc_kind: string
           einvoice_id?: string | null
           id?: string
+          invoice_id?: string | null
           mime_type?: string | null
           notes?: string | null
           ocr_extracted?: Json | null
@@ -1912,6 +1915,7 @@ export type Database = {
           original_filename?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          sales_invoice_id?: string | null
           size_bytes?: number | null
           source?: string
           storage_bucket: string
@@ -1927,6 +1931,7 @@ export type Database = {
           doc_kind?: string
           einvoice_id?: string | null
           id?: string
+          invoice_id?: string | null
           mime_type?: string | null
           notes?: string | null
           ocr_extracted?: Json | null
@@ -1935,6 +1940,7 @@ export type Database = {
           original_filename?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          sales_invoice_id?: string | null
           size_bytes?: number | null
           source?: string
           storage_bucket?: string
@@ -1956,6 +1962,20 @@ export type Database = {
             columns: ["einvoice_id"]
             isOneToOne: false
             referencedRelation: "einvoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_sales_invoice_id_fkey"
+            columns: ["sales_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
             referencedColumns: ["id"]
           },
         ]
