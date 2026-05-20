@@ -425,6 +425,7 @@ export async function parseFileCore(opts: {
     opts.fileBase64,
     opts.mimeType,
     opts.filename,
+    opts.kind,
   );
 
   // ---- 2. Models
