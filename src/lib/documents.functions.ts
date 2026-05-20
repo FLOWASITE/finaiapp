@@ -156,7 +156,78 @@ export const getDocument = createServerFn({ method: "GET" })
         .createSignedUrl(doc.storage_path, 60 * 30);
       signedUrl = signed?.signedUrl ?? null;
     }
-    return { doc, links: links ?? [], signedUrl };
+    let aiUpload: any = null;
+    if (doc.ai_upload_id) {
+      const { data: au } = await context.supabase
+        .from("ai_uploads")
+        .select("id, kind, parser_used, parser_ms, structurer_ms, pages, status, error, file_hash, created_at")
+        .eq("id", doc.ai_upload_id)
+        .maybeSingle();
+      aiUpload = au ?? null;
+    }
+    return { doc, links: links ?? [], signedUrl, aiUpload };
+  });
+
+export const reparseDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: doc, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!doc) throw new Error("Không tìm thấy tài liệu");
+    if (!doc.storage_bucket || !doc.storage_path) throw new Error("Tài liệu không có file gốc");
+
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from(doc.storage_bucket)
+      .download(doc.storage_path);
+    if (dlErr || !blob) throw new Error(dlErr?.message || "Không tải được file");
+    const arrayBuffer = await (blob as Blob).arrayBuffer();
+    const fileBase64 = Buffer.from(arrayBuffer).toString("base64");
+
+    const kindMap: Record<string, "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto"> = {
+      purchase_invoice: "purchase_invoice",
+      bank_statement: "bank_statement",
+      cash_voucher: "cash_voucher",
+    };
+    const kind = kindMap[doc.doc_kind] ?? "auto";
+
+    await supabase.from("documents").update({ ocr_status: "processing" }).eq("id", doc.id);
+
+    const { parseFileCore } = await import("@/lib/ai/parse-document.functions");
+    try {
+      const result = await parseFileCore({
+        fileBase64,
+        mimeType: doc.mime_type || "application/octet-stream",
+        filename: doc.original_filename || undefined,
+        kind,
+        supabase,
+        userId,
+      });
+      // parseFileCore đã update ai_uploads + documents qua ai_upload_id.
+      // Trường hợp document không có ai_upload_id (manual upload), update trực tiếp.
+      if (!doc.ai_upload_id) {
+        await supabase
+          .from("documents")
+          .update({
+            ocr_status: "done",
+            ocr_extracted: typeof result.parsed === "string" ? { raw: result.parsed } : result.parsed,
+            ai_upload_id: result.uploadId ?? null,
+          })
+          .eq("id", doc.id);
+      }
+      return { ok: true, parser: result.parser, pages: result.pages };
+    } catch (e: any) {
+      await supabase
+        .from("documents")
+        .update({ ocr_status: "failed", notes: (e?.message || "Parse failed").slice(0, 500) })
+        .eq("id", doc.id);
+      throw new Error(e?.message || "Parse failed");
+    }
   });
 
 export const getStatusHistory = createServerFn({ method: "GET" })
