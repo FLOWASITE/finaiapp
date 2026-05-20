@@ -2,10 +2,16 @@
  * SHA-256 + Supabase-backed cache for parsed documents.
  * Keyed by (file_hash, kind). Best-effort: errors are swallowed.
  */
-import { createHash } from "crypto";
 
-export function hashBase64(fileBase64: string): string {
-  return createHash("sha256").update(Buffer.from(fileBase64, "base64")).digest("hex");
+export async function hashBase64(fileBase64: string): Promise<string> {
+  const binary = atob(fileBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function readParseCache(
