@@ -516,6 +516,7 @@ export function Composer({
         onClose={closeParseDialog}
         continueLabel={nextTarget === "/bank/import-statement" ? "Mở sao kê ngân hàng" : "Xem lại & chỉnh sửa"}
         classifications={classifications}
+        uploadIds={parsedItems.map((p) => p.uploadId)}
         decisions={decisions}
         onDecisionChange={(idx, patch) =>
           setDecisions((prev) => ({ ...prev, [idx]: { ...(prev[idx] ?? { action: "continue" }), ...patch } }))
