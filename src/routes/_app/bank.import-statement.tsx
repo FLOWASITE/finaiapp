@@ -114,6 +114,7 @@ function ImportStatementPage() {
         setMonth(d.getMonth() + 1);
       }
     }
+    if (batch.bankAccountId) setBankAccountId(batch.bankAccountId);
   }, []);
 
   const filtered = useMemo(
