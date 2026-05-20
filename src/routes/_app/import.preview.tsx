@@ -33,6 +33,9 @@ type InvoiceDraft = {
   invoice_no: string;
   issue_date: string;
   notes: string;
+  expense_account: string;   // TK Nợ chi phí/hàng hoá
+  vat_account: string;       // TK Nợ thuế VAT đầu vào
+  payable_account: string;   // TK Có (phải trả NCC)
   lines: InvoiceLine[];
   status: "idle" | "sending" | "done" | "error";
   error?: string;
@@ -45,7 +48,7 @@ type VoucherDraft = {
   voucher_type: "receipt" | "payment";
   voucher_date: string;
   amount: number;
-  counter_account: string;
+  counter_account: string;   // TK đối ứng
   party_name: string;
   reason: string;
   reference: string;
@@ -57,10 +60,14 @@ type VoucherDraft = {
 type Draft = InvoiceDraft | VoucherDraft;
 
 const COUNTER_OPTS = [
-  "1111", "1121", "131", "133", "152", "153", "156", "211",
+  "1111", "1121", "131", "133", "1331", "152", "153", "1561", "1562", "211",
   "242", "331", "334", "338", "511", "515", "621", "627",
   "635", "641", "642", "6421", "6422", "6427", "6428", "711", "811",
 ];
+
+const EXPENSE_OPTS = ["1561", "152", "153", "211", "242", "621", "627", "641", "642", "6421", "6422", "6427", "6428", "811"];
+const VAT_IN_OPTS = ["1331", "1332"];
+const PAYABLE_OPTS = ["331", "3311", "3388"];
 
 function readBatch(): { kind: string; items: Array<{ filename: string; kind: string; parsed: any }> } | null {
   if (typeof window === "undefined") return null;
