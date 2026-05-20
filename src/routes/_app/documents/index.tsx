@@ -130,7 +130,7 @@ const TAB_PRESETS: Record<TabValue, {
   sales: {
     label: "Hoá đơn bán",
     kinds: ["sales_invoice"],
-    legacyTo: "/invoices",
+    legacyTo: "/sales",
     legacyLabel: "Trang hoá đơn bán",
     description: "Hoá đơn đầu ra (bán ra) đã tải lên hệ thống.",
   },
