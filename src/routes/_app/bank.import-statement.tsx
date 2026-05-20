@@ -485,7 +485,7 @@ function ImportStatementPage() {
             <Button
               size="lg"
               disabled={!bankAccountId || !stats.active || post.isPending}
-              onClick={() => post.mutate()}
+              onClick={() => post.mutate(undefined)}
             >
               <CheckCircle2 className="mr-1.5 h-4 w-4" />
               {post.isPending ? "Đang hạch toán…" : `Hạch toán ${stats.active} giao dịch`}
