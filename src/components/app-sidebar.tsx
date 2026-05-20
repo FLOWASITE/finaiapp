@@ -85,7 +85,7 @@ const SECTIONS: NavSection[] = [
         label: "Chứng từ & Tài liệu",
         icon: Inbox,
         items: [
-          { to: "/documents", label: "Trung tâm chứng từ" },
+          { to: "/documents", label: "Trung tâm tài liệu" },
           { to: "/documents?tab=purchase", label: "Hoá đơn mua" },
           { to: "/documents?tab=sales", label: "Hoá đơn bán" },
           { to: "/documents?tab=einvoice", label: "Hoá đơn điện tử" },
@@ -180,7 +180,7 @@ const FRONT_SECTIONS: NavSection[] = [
           { to: "/invoices", label: "Hoá đơn bán" },
           { to: "/purchases", label: "Hoá đơn mua" },
           { to: "/einvoices", label: "Hoá đơn điện tử" },
-          { to: "/documents", label: "Trung tâm chứng từ" },
+          { to: "/documents", label: "Trung tâm tài liệu" },
         ],
       },
     ],
