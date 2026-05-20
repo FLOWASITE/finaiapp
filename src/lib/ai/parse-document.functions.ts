@@ -837,6 +837,12 @@ export async function parseFileCore(opts: {
               : null,
           })
           .eq("id", uploadId);
+        await updateDocumentOcr({
+          supabase: opts.supabase,
+          uploadId,
+          status: "done",
+          parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
+        });
       } catch {}
     }
 
