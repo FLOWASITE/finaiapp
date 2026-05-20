@@ -220,7 +220,7 @@ export function Composer({
     const updateFile = (idx: number, patch: Partial<FileProgress>) =>
       setParseFiles((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
 
-    const items: Array<{ filename: string; kind: ImportKind; parsed: any; error?: string }> = [];
+    const items: Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; error?: string }> = [];
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
       const startedAt = Date.now();
@@ -231,44 +231,146 @@ export function Composer({
         const res: any = await parseFn({
           data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
         });
-        // Server returns observability fields: parser_used, pages, structurer_ms, parser_ms
         updateFile(i, {
           phase: "done",
           parserUsed: res?.parser_used,
           pages: res?.pages,
           ms: Date.now() - startedAt,
         });
-        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {} });
+        items.push({ filename: file.name, kind, parsed: res?.parsed ?? {}, file_hash: res?.file_hash ?? null });
       } catch (e: any) {
         updateFile(i, { phase: "error", error: e?.message || "lỗi", ms: Date.now() - startedAt });
-        items.push({ filename: file.name, kind, parsed: null, error: e?.message || "lỗi" });
+        items.push({ filename: file.name, kind, parsed: null, file_hash: null, error: e?.message || "lỗi" });
       }
     }
     const ok = items.filter((i) => !i.error);
-    const failed = items.filter((i) => i.error);
-    const batchPayload = { kind, items: ok, failed, createdAt: Date.now() };
-    (window as any).__lastBatchImport = batchPayload;
-    if (ok.length) (window as any).__lastParsedDoc = { kind, parsed: ok[0].parsed };
-    try {
-      sessionStorage.setItem("lastBatchImport", JSON.stringify(batchPayload));
-    } catch {}
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
 
     if (!ok.length) {
-      // Keep dialog open in "ready" phase so the user can read errors, but no continue button enabled.
       setParsePhase("ready");
       setNextTarget(null);
       return;
     }
-    setNextTarget(kind === "bank_statement" ? "/bank/import-statement" : "/import/preview");
-    setParsePhase("ready");
+
+    // --- New: Phase 2 — classify & dedupe ---
+    setParsedItems(ok.map((o) => ({ filename: o.filename, kind: o.kind, parsed: o.parsed, file_hash: o.file_hash })));
+    setParsePhase("classifying");
+    try {
+      const classifyRes: any = await classifyFn({
+        data: {
+          items: ok.map((o) => ({
+            filename: o.filename,
+            file_hash: o.file_hash,
+            kind: o.kind,
+            parsed: o.parsed,
+          })),
+        },
+      });
+      const results: ClassificationResult[] = classifyRes?.results ?? [];
+      setClassifications(results);
+      // Init decisions from suggested_action & auto-match
+      const init: Record<number, ClassifyDecision> = {};
+      results.forEach((r, i) => {
+        init[i] = {
+          action: r.suggested_action,
+          bankAccountId: r.bank_account_match?.id ?? null,
+          includeOverlapDup: false,
+        };
+      });
+      setDecisions(init);
+    } catch (e: any) {
+      toast.error(`Không phân loại được: ${e?.message || "lỗi"}`);
+      // Skip classify and go straight to ready
+      const batchPayload = { kind, items: ok, failed: items.filter((i) => i.error), createdAt: Date.now() };
+      (window as any).__lastBatchImport = batchPayload;
+      setNextTarget(kind === "bank_statement" ? "/bank/import-statement" : "/import/preview");
+      setParsePhase("ready");
+    }
   };
 
   const closeParseDialog = () => {
     setParsePhase(null);
     setParseFiles([]);
     setNextTarget(null);
+    setClassifications([]);
+    setDecisions({});
+    setParsedItems([]);
+  };
+
+  // Phase classifying → continue: filter, persist batch, then go to ready
+  const continueFromClassify = async () => {
+    const kept = parsedItems
+      .map((p, i) => ({ p, i, d: decisions[i] }))
+      .filter(({ d }) => d?.action !== "skip");
+
+    if (!kept.length) {
+      toast.message("Đã bỏ qua tất cả file.");
+      closeParseDialog();
+      return;
+    }
+
+    const kind = kept[0].p.kind;
+    // Apply per-row exclusion of overlap dups (bank_statement only)
+    const items = kept.map(({ p, i, d }) => {
+      const cls = classifications[i];
+      let parsed = p.parsed;
+      if (kind === "bank_statement" && cls?.txn_overlap && cls.txn_overlap.duplicate_count > 0 && !d?.includeOverlapDup) {
+        const dupSet = new Set(cls.txn_overlap.duplicate_indices);
+        const txns = Array.isArray(parsed?.transactions) ? parsed.transactions : [];
+        parsed = { ...parsed, transactions: txns.filter((_: any, idx: number) => !dupSet.has(idx)) };
+      }
+      return { filename: p.filename, kind: p.kind, parsed };
+    });
+
+    // Preselect bank account if matched
+    const bankAccountId = kind === "bank_statement"
+      ? (kept.find(({ d }) => d?.bankAccountId)?.d?.bankAccountId ?? null)
+      : null;
+
+    const batchPayload = { kind, items, failed: [], createdAt: Date.now(), bankAccountId };
+    (window as any).__lastBatchImport = batchPayload;
+    if (items.length) (window as any).__lastParsedDoc = { kind, parsed: items[0].parsed };
+    try {
+      sessionStorage.setItem("lastBatchImport", JSON.stringify(batchPayload));
+    } catch {}
+
+    setNextTarget(kind === "bank_statement" ? "/bank/import-statement" : "/import/preview");
+    setParsePhase("ready");
+  };
+
+  const handleCreateBankAccount = async (idx: number, meta: any) => {
+    if (!meta?.account_no) return;
+    try {
+      const res: any = await resolveBankFn({
+        data: {
+          account_no: meta.account_no,
+          bank_name: meta.bank_name ?? undefined,
+          account_holder: meta.account_holder ?? undefined,
+          currency: meta.currency ?? undefined,
+        },
+      });
+      toast.success(res.created ? "Đã tạo TK ngân hàng mới" : "Đã liên kết TK có sẵn");
+      setClassifications((prev) =>
+        prev.map((c, i) =>
+          i === idx
+            ? {
+                ...c,
+                bank_account_match: {
+                  id: res.id,
+                  name: meta.bank_name ? `${meta.bank_name} — ${meta.account_no}` : meta.account_no,
+                  account_no: meta.account_no,
+                  bank_name: meta.bank_name ?? null,
+                },
+                warnings: c.warnings.filter((w) => w.type !== "bank_account_unknown"),
+              }
+            : c,
+        ),
+      );
+      setDecisions((prev) => ({ ...prev, [idx]: { ...(prev[idx] ?? { action: "continue" }), bankAccountId: res.id } }));
+    } catch (e: any) {
+      toast.error(e?.message || "Không tạo được TK");
+    }
   };
 
   const continueToReview = () => {
