@@ -45,13 +45,13 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "AI",
+    label: "Bắt đầu mọi việc",
     entries: [
-      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
+      { to: "/documents", label: "Trung tâm chứng từ", icon: Inbox, badge: "MỚI", badgeTone: "new" },
     ],
   },
   {
-    label: "AI",
+    label: "Vận hành",
     entries: [
       {
         label: "Tiền & Ngân hàng",
