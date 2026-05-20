@@ -66,11 +66,25 @@ const OCR_LABELS: Record<string, string> = {
 
 const KIND_LABELS: Record<string, string> = {
   einvoice: "Hoá đơn điện tử",
-  invoice: "Hoá đơn",
-  receipt: "Phiếu thu/chi",
-  bank: "Sao kê NH",
+  purchase_invoice: "Hoá đơn mua",
+  sales_invoice: "Hoá đơn bán",
+  bank_statement: "Sao kê NH",
+  bank_voucher: "UNC ngân hàng",
+  cash_voucher: "Phiếu thu/chi",
+  receipt: "Phiếu thu",
+  payment: "Phiếu chi",
   contract: "Hợp đồng",
   other: "Khác",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  manual: "Upload tay",
+  ai_chat: "Chatbot AI",
+  tct_sync: "Sync TCT",
+  einvoice_sync: "Sync HĐ điện tử",
+  bank_import: "Bank import",
+  email: "Email",
+  api: "API",
 };
 
 function DocumentsPage() {
