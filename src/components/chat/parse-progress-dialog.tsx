@@ -455,6 +455,7 @@ export function ParseProgressDialog({
                             key={`${c.filename}-${i}`}
                             c={c}
                             decision={d}
+                            uploadId={uploadIds?.[i] ?? null}
                             autoSkipped={isAutoSkipped(c, d)}
                             onDecisionChange={(patch) => onDecisionChange?.(i, patch)}
                             onCreateBankAccount={(meta) => onCreateBankAccount?.(i, meta)}
