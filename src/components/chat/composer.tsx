@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { parseDocument } from "@/lib/ai/parse-document.functions";
+import { ParseProgressDialog, type FileProgress, type Phase } from "@/components/chat/parse-progress-dialog";
 import { cn } from "@/lib/utils";
 
 type ImportKind = "purchase_invoice" | "bank_statement" | "cash_voucher";
