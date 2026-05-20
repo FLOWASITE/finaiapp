@@ -1,56 +1,110 @@
-## Hiện trạng
+## Mục tiêu
 
-Trang `/documents` đã có filter (nguồn, loại, OCR, ngày), drawer xem trước (image/PDF), tab OCR/Liên kết, xoá, gỡ liên kết. Bảng `documents` đã có cột `ai_upload_id`, `einvoice_id`, đã bridge từ chatbot (`ai_chat`) và backfill. Server fn `uploadDocument` đã viết nhưng **chưa có UI**.
+Gộp 4 phân hệ rời rạc — **Tài liệu** (`/documents`), **Hoá đơn điện tử** (`/einvoices`), **Hoá đơn bán** (`/invoices` — thực ra là *mua vào*)— thành **một trung tâm thống nhất** dưới `/documents`, có tab và filter rõ ràng. Người dùng không còn phải nhớ "vào trang nào" cho từng loại chứng từ.
 
-DB hiện đang chứa 5 dòng: 3 từ chatbot (`ai_chat`), 2 manual.
+> **Quan trọng**: KHÔNG gộp 4 bảng DB. `invoices`, `sales_invoices`, `einvoices` có schema, RLS, trigger kế toán riêng — gộp bảng sẽ phá vỡ kế toán. **Chỉ gộp UI + bảng `documents` đóng vai trò index/registry**.
 
-## Còn thiếu — sẽ làm
+## Kiến trúc đề xuất
 
-### 1. UI upload tay (`/documents`)
-- Thêm nút **"Tải lên"** ở header trang.
-- Dialog chọn nhiều file (drag-drop) + dropdown `doc_kind` + ghi chú; gọi `uploadDocument` lần lượt, toast tiến độ; invalidate list.
-- Giới hạn 20MB/file, mime hợp lệ (pdf, image, xml, xlsx).
+```text
+/documents                 ← Trung tâm chứng từ (route gốc mới)
+  ?tab=all                 ← Mặc định: mọi loại
+  ?tab=purchase            ← Hoá đơn mua vào (invoices)
+  ?tab=sales               ← Hoá đơn bán ra (sales_invoices)
+  ?tab=einvoice-in         ← HĐĐT đầu vào (einvoices direction=in)
+  ?tab=einvoice-out        ← HĐĐT đầu ra (einvoices direction=out)
+  ?tab=files               ← Tài liệu thuần (documents không link entity)
+```
 
-### 2. Icon nguồn + UX bảng
-- Thay text `source` bằng icon + tooltip: `Upload` (manual), `Bot` (ai_chat), `RefreshCw` (tct_sync / einvoice_sync), `Mail` (email), `Landmark` (bank_import), `Plug` (api).
-- Icon loại tài liệu (FileText / Receipt / Landmark / FileSpreadsheet…) thay cho icon FileText chung.
-- Hiển thị badge OCR có màu (done = emerald, processing = amber, failed = destructive).
-- Hiển thị size_bytes, hover-row highlight, click-row mở drawer.
+Mỗi tab dùng **cùng một khung bảng** (search, filter, drawer xem trước, OCR, link entity), chỉ khác cột hiển thị + server fn nguồn dữ liệu.
 
-### 3. Highlight + deep-link
-- Đọc `?highlight=<id>` từ search params → tự mở drawer + scroll-into-view + ring-2 hàng đó trong 2s.
-- Hỗ trợ điều hướng từ chatbot và các trang khác.
+## Mô hình dữ liệu — giữ nguyên, mở rộng index
 
-### 4. Drawer — tab OCR mở rộng
-- Nếu có `ai_upload_id`: query `ai_uploads` (parser_used, pages, parser_ms, status, error) và hiển thị block metadata.
-- Nút **"Parse lại"** (chỉ khi `ocr_status` ∈ `failed`/`done` và có file): server fn `reparseDocument` → tải file từ Storage, gọi lại `parseDocument` (đã có), update `documents.ocr_extracted` + `ocr_status`.
-- Tab **Liên kết**: nếu `einvoice_id` không null → thêm nút mở `/einvoices/$id`.
+- `documents` đã có `ai_upload_id`, `einvoice_id`, `doc_kind`, `source` → là **registry trung tâm**.
+- Thêm 2 cột nullable vào `documents`: `invoice_id uuid`, `sales_invoice_id uuid` (FK mềm) để bridge ngược lại 2 bảng còn lại. Index theo từng cột.
+- Backfill: với mỗi row trong `invoices`/`sales_invoices` có `file_path`, tạo/cập nhật 1 row `documents` tương ứng (idempotent qua checksum hoặc UNIQUE `(tenant_id, kind, ref_id)`).
+- Sau bridge: `documents` chứa đủ mọi chứng từ → tab "Tất cả" chỉ cần đọc 1 bảng.
 
-### 5. Chatbot → Tài liệu
-- Trong `parse-progress-dialog.tsx`, ở phase `ready` cho mỗi file: bên cạnh "Xem file gốc" thêm nút **"Mở trong Tài liệu"** → `/documents?highlight={document_id}` (lấy `document_id` từ `ai_uploads.document_id` qua field trả về của `parseDocument`).
-- Yêu cầu `parseDocument` trả thêm `documentId` (đã có sẵn nhờ bridge ở `ensureUploadRow`).
+## Các tab và logic dữ liệu
 
-### 6. Bridge TCT sync → `documents`
-- Trong `src/lib/einvoices-sync.functions.ts` (chỗ insert/upsert `einvoices` sau khi sync): nếu có XML/PDF được tải về bucket `einvoices`, upsert row `documents` với `source='tct_sync'`, `doc_kind='einvoice'`, `einvoice_id` set, `checksum_sha256` (sha của XML), idempotent qua `ON CONFLICT (tenant_id, checksum_sha256)`.
-- Nếu sync hiện tại chưa lưu file gốc → chỉ tạo document "metadata-only" (storage_path để rỗng? — KHÔNG, do schema NOT NULL). Trong trường hợp này tạm bỏ qua; chỉ bridge khi đã có file. Sẽ log để biết.
+### Tab "Tất cả" (mặc định)
 
-### 7. Phân trang nhẹ
-- Hiển thị `total` ở footer + nút "Tải thêm" tăng offset (giữ đơn giản, không full pagination).
+- Đọc `documents` + join nhẹ tới bảng gốc theo `doc_kind`.
+- Cột: ngày, loại (icon), số HĐ, đối tác, tổng tiền, trạng thái, nguồn, OCR.
+- Click row → mở drawer thống nhất.
 
-## File đụng tới
+### Tab "Mua vào" — dùng `listPurchaseInvoices` (đã có ở `purchases.functions.ts`)
 
-- `src/lib/documents.functions.ts` — thêm `reparseDocument`, mở rộng `getDocument` để kèm `aiUpload` metadata (join `ai_uploads`).
-- `src/routes/_app/documents/index.tsx` — nút upload + dialog, icon nguồn/loại, highlight param, drawer OCR mở rộng, nút "Mở einvoice".
-- `src/components/chat/parse-progress-dialog.tsx` — nút "Mở trong Tài liệu".
-- `src/lib/ai/parse-document.functions.ts` — đảm bảo trả về `documentId` cho UI.
-- `src/lib/einvoices-sync.functions.ts` — bridge insert documents khi đã có file.
+- Cột giữ như trang `/invoices` hiện tại: số HĐ, NCC, ngày, tổng, payment_status, status.
+- Thêm action "Tải lên + OCR" → tạo `documents(doc_kind=purchase_invoice)` rồi auto-parse → tạo `invoices` row + link.
 
-## Không đụng
+### Tab "Bán ra" — dùng `listSalesInvoices`
 
-- Migration mới (schema đã đủ).
-- RLS, bucket, trigger.
-- Logic classify-import, dedupe.
+- Cột: series/số, khách hàng, ngày, tổng, payment_status.
+- Action "Tạo HĐ bán" → mở dialog tạo `sales_invoices` (giữ form hiện tại).
 
-## Hỏi nhanh trước khi làm
+### Tab "HĐĐT đầu vào / đầu ra" — dùng `listEinvoices({direction})`
 
-Bạn muốn nút **"Parse lại"** chạy ngay trên trang Tài liệu (đồng bộ, hiện spinner) hay đẩy vào hàng đợi background? Mình đề xuất chạy đồng bộ (đơn giản, file nhỏ <10MB) — OK chứ?
+- Cột: mẫu/ký hiệu/số, bên đối tác, ngày, MCCT, tct_status.
+- Action: "Đồng bộ TCT", "Import XML", "Tra cứu" (giữ nguyên các dialog hiện có).
+
+### Tab "Tài liệu thuần"
+
+- Filter `documents` chưa link entity nào (`document_links` rỗng).
+- Đúng UI hiện tại của `/documents`.
+
+## Drawer thống nhất
+
+Một drawer dùng chung, các block hiện theo `doc_kind`:
+
+1. **File gốc** — preview PDF/img/XML (đã có).
+2. **Thông tin chứng từ** — render theo loại (purchase / sales / einvoice / generic).
+3. **OCR** — block hiện tại (parser, pages, parse lại).
+4. **Kế toán** — nếu có `journal_entry_id` → link sang `/journal`.
+5. **Liên kết** — list `document_links` + nút mở entity.
+6. **Lịch sử trạng thái** — `getStatusHistory`.
+
+## Điều hướng & redirect
+
+- Giữ các route cũ (`/invoices`, `/sales`, `/einvoices`) **redirect** sang `/documents?tab=...` để không vỡ bookmark.
+- `/einvoices/$id`, `/invoices/$id`, `/sales/$id` giữ nguyên cho deep-link chi tiết (drawer chỉ là preview nhanh).
+- Sidebar: gộp mục **"Chứng từ"** với 1 link `/documents` + sub-link nhanh tới từng tab.
+
+## Cấu trúc file thay đổi
+
+### Thêm mới
+
+- `src/routes/_app/documents/index.tsx` — viết lại thành shell có Tabs.
+- `src/components/documents/tabs/all-tab.tsx`
+- `src/components/documents/tabs/purchase-tab.tsx`
+- `src/components/documents/tabs/sales-tab.tsx`
+- `src/components/documents/tabs/einvoice-tab.tsx` (dùng chung in/out qua prop)
+- `src/components/documents/tabs/files-tab.tsx` (UI hiện tại)
+- `src/components/documents/unified-drawer.tsx`
+- `src/components/documents/upload-button.tsx` (đã có inline → tách ra)
+
+### Sửa
+
+- `src/lib/documents.functions.ts` — thêm `listAllDocuments` join 4 nguồn (hoặc đọc thuần từ `documents` sau khi bridge).
+- `src/components/app-sidebar.tsx` — gộp menu.
+- `src/routes/_app/invoices/index.tsx`, `sales/index.tsx`, `einvoices/index.tsx` — đổi thành redirect.
+
+### Migration
+
+- Thêm `invoice_id`, `sales_invoice_id` vào `documents` + index.
+- Backfill script (1 lần) từ `invoices.file_path`, `sales_invoices` (nếu có file), `einvoices.xml_path/pdf_path`.
+
+## Phạm vi KHÔNG đụng
+
+- Logic kế toán (`journal_entries`, triggers, RLS).
+- Form tạo/sửa HĐ bán, HĐ mua, sync TCT — tái sử dụng nguyên xi.
+- Bảng `invoices`, `sales_invoices`, `einvoices` schema gốc.
+
+## Câu hỏi cần xác nhận
+
+1. **Đổi tên route**: giữ `/documents` làm gốc, hay đổi sang `/invoices` (vì trọng tâm là hoá đơn)? Mình đề xuất `/documents` (rộng hơn, chứa cả phi-hoá-đơn).
+2. **Tab "Bán ra"** có gộp luôn **Phiếu bán hàng** (`sales` — chứng từ nội bộ, khác `sales_invoices`)? Hiện trên sidebar đang tách 2. Mình đề xuất **không gộp** — `sales` là chứng từ giao hàng, không phải tài liệu/hoá đơn.
+3. **Mức gộp menu sidebar**: ẩn hẳn `/invoices`, `/sales`, `/einvoices` chỉ còn `/documents`; hay vẫn để như shortcut cho người quen?
+4. **Backfill**: có cho phép tạo `documents` row cho hoá đơn cũ **không có file** (metadata-only, `storage_path=NULL`)? Schema hiện đang NOT NULL — cần migration nới lỏng nếu có.
+
+Xin trả lời 4 câu trên rồi mình triển khai theo từng phase (Phase 1: migration + backfill; Phase 2: UI tabs; Phase 3: redirect + sidebar).
