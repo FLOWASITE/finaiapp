@@ -419,36 +419,22 @@ export function Composer({
         />
 
         {enableAttach && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                disabled={busy}
-                className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                aria-label="Đính kèm chứng từ"
-                title="Đính kèm chứng từ"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Paperclip className="h-4 w-4" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openPicker("purchase_invoice")}>
-                Hoá đơn mua (PDF/ảnh)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openPicker("bank_statement")}>
-                Sao kê ngân hàng
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openPicker("cash_voucher")}>
-                Phiếu thu/chi viết tay
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => openPicker("purchase_invoice")}
+            className="h-9 w-9 shrink-0 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            aria-label="Đính kèm chứng từ"
+            title="Đính kèm chứng từ"
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Paperclip className="h-4 w-4" />
+            )}
+          </Button>
         )}
 
         {enableVoice && (
