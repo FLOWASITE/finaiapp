@@ -44,6 +44,17 @@ type Row = {
   reason?: string;
   confidence: number;
   skip: boolean;
+  // ----- validation context -----
+  stmt_balance?: number | null;     // running balance reported by statement on this row
+  file_idx?: number;                // index in source files (0-based)
+  source_file?: string;             // original filename
+};
+
+type StatementMeta = {
+  filename: string;
+  opening_balance: number | null;
+  closing_balance: number | null;
+  validation: { expected: number; actual: number; diff: number; ok: boolean } | null;
 };
 
 function ImportStatementPage() {
@@ -58,15 +69,27 @@ function ImportStatementPage() {
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [rows, setRows] = useState<Row[]>([]);
   const [sourceLabel, setSourceLabel] = useState<string>("");
+  const [stmtMeta, setStmtMeta] = useState<StatementMeta[]>([]);
 
   // Load parsed batch from ChatDock on mount
   useEffect(() => {
     const batch = (typeof window !== "undefined" ? (window as any).__lastBatchImport : null);
     if (!batch || batch.kind !== "bank_statement" || !Array.isArray(batch.items)) return;
     const all: Row[] = [];
-    for (const it of batch.items) {
-      const normalized = normalizeStatementRows(it.parsed);
-      for (const n of normalized) {
+    const metas: StatementMeta[] = [];
+    batch.items.forEach((it: any, fileIdx: number) => {
+      const parsed = it.parsed ?? {};
+      metas.push({
+        filename: it.filename,
+        opening_balance: typeof parsed.opening_balance === "number" ? parsed.opening_balance : null,
+        closing_balance: typeof parsed.closing_balance === "number" ? parsed.closing_balance : null,
+        validation: parsed._validation ?? null,
+      });
+      const txnsRaw: any[] = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+      const normalized = normalizeStatementRows(parsed);
+      // Re-zip normalized with raw to recover the balance field.
+      normalized.forEach((n, i) => {
+        const raw = txnsRaw[i] ?? {};
         const s: Suggestion = suggestCounterAccount(n);
         all.push({
           ...n,
@@ -75,10 +98,14 @@ function ImportStatementPage() {
           party_name: n.counterparty ?? undefined,
           confidence: s.confidence,
           skip: false,
+          stmt_balance: typeof raw.balance === "number" ? raw.balance : null,
+          file_idx: fileIdx,
+          source_file: it.filename,
         });
-      }
-    }
+      });
+    });
     setRows(all);
+    setStmtMeta(metas);
     setSourceLabel(`${batch.items.length} file đã trích xuất`);
     if (all.length) {
       const d = new Date(all[0].txn_date);
@@ -110,6 +137,68 @@ function ImportStatementPage() {
       lowConfidence: inP.filter((r) => r.confidence < 0.5).length,
     };
   }, [filtered]);
+
+  // ----- Suspect detection: per-row reasons + per-file aggregated mismatch -----
+  const suspectByIdx = useMemo(() => {
+    const map = new Map<number, string[]>();
+    const push = (idx: number, r: string) => {
+      const arr = map.get(idx) ?? [];
+      arr.push(r);
+      map.set(idx, arr);
+    };
+    // duplicates (same date+amount+description, case-insensitive)
+    const seen = new Map<string, number>();
+    rows.forEach((r, i) => {
+      const key = `${r.txn_date}|${r.amount}|${(r.description || "").toLowerCase().trim()}`;
+      if (seen.has(key)) {
+        push(i, `Trùng với dòng #${(seen.get(key) ?? 0) + 1}`);
+        push(seen.get(key)!, `Trùng với dòng #${i + 1}`);
+      } else seen.set(key, i);
+    });
+    // running balance check (per file, in order)
+    const byFile = new Map<number, number[]>();
+    rows.forEach((r, i) => {
+      const fi = r.file_idx ?? 0;
+      const arr = byFile.get(fi) ?? [];
+      arr.push(i);
+      byFile.set(fi, arr);
+    });
+    byFile.forEach((idxList, fi) => {
+      const opening = stmtMeta[fi]?.opening_balance ?? null;
+      let prev: number | null = opening;
+      for (const i of idxList) {
+        const r = rows[i];
+        const bal = r.stmt_balance;
+        if (prev != null && typeof bal === "number") {
+          const expected = prev + r.amount;
+          if (Math.abs(expected - bal) > 1) {
+            push(i, `Số dư sau GD lệch ${fmt(Math.abs(expected - bal))}₫ (kỳ vọng ${fmt(expected)}, sao kê ${fmt(bal)})`);
+          }
+          prev = bal;
+        } else if (typeof bal === "number") {
+          prev = bal;
+        } else if (prev != null) {
+          prev = prev + r.amount;
+        }
+      }
+    });
+    // future date / invalid date
+    const todayMs = Date.now() + 24 * 60 * 60 * 1000;
+    rows.forEach((r, i) => {
+      const d = new Date(r.txn_date);
+      if (isNaN(d.getTime())) push(i, "Ngày không hợp lệ");
+      else if (d.getTime() > todayMs) push(i, "Ngày trong tương lai");
+    });
+    // Zero amount but described as txn
+    rows.forEach((r, i) => {
+      if (!r.amount) push(i, "Số tiền = 0");
+    });
+    return map;
+  }, [rows, stmtMeta]);
+
+  const mismatchFiles = stmtMeta.filter((m) => m.validation && !m.validation.ok);
+  const suspectCount = suspectByIdx.size;
+
 
   const update = (idx: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -206,6 +295,81 @@ function ImportStatementPage() {
             </div>
           </div>
 
+          {(mismatchFiles.length > 0 || suspectCount > 0) && (
+            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <div className="font-semibold text-destructive">
+                    Phát hiện sao kê không khớp / có giao dịch nghi ngờ
+                  </div>
+                  {mismatchFiles.length > 0 && (
+                    <div className="space-y-1.5">
+                      {mismatchFiles.map((m, i) => (
+                        <div key={i} className="rounded-md border border-destructive/30 bg-background/60 p-2.5 text-xs">
+                          <div className="font-medium mb-1 truncate">📄 {m.filename}</div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono">
+                            <span>Số dư đầu kỳ: <b>{fmt(m.opening_balance ?? 0)}</b></span>
+                            <span>Số dư cuối kỳ: <b>{fmt(m.closing_balance ?? 0)}</b></span>
+                            <span>Kỳ vọng (closing − opening): <b>{fmt(m.validation!.expected)}</b></span>
+                            <span>Thực tế (Σcredit − Σdebit): <b>{fmt(m.validation!.actual)}</b></span>
+                            <span className="col-span-2 text-destructive font-semibold">
+                              Chênh lệch: {fmt(m.validation!.diff)} ₫
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {suspectCount > 0 && (
+                    <details className="text-xs" open={mismatchFiles.length === 0}>
+                      <summary className="cursor-pointer font-medium text-amber-700 hover:text-amber-800">
+                        🔍 {suspectCount} giao dịch nghi ngờ cần kiểm tra
+                      </summary>
+                      <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+                        {Array.from(suspectByIdx.entries()).slice(0, 30).map(([idx, reasons]) => {
+                          const r = rows[idx];
+                          return (
+                            <li key={idx} className="rounded border border-amber-500/30 bg-amber-500/5 p-1.5">
+                              <button
+                                type="button"
+                                className="text-left w-full"
+                                onClick={() => {
+                                  const el = document.getElementById(`txn-${idx}`);
+                                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                  el?.classList.add("ring-2", "ring-amber-500");
+                                  setTimeout(() => el?.classList.remove("ring-2", "ring-amber-500"), 1800);
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-[10px] text-muted-foreground">#{idx + 1}</span>
+                                  <span className="font-mono">{r.txn_date}</span>
+                                  <span className={r.amount >= 0 ? "text-emerald-600" : "text-destructive"}>
+                                    {r.amount >= 0 ? "+" : "−"}{fmt(Math.abs(r.amount))}
+                                  </span>
+                                  <span className="truncate text-muted-foreground flex-1">{r.description}</span>
+                                </div>
+                                <div className="ml-9 text-amber-700">• {reasons.join(" • ")}</div>
+                              </button>
+                            </li>
+                          );
+                        })}
+                        {suspectCount > 30 && (
+                          <li className="text-center text-muted-foreground">… và {suspectCount - 30} dòng khác</li>
+                        )}
+                      </ul>
+                    </details>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    Gợi ý: kiểm tra ngày tháng có bị OCR sai, số tiền âm/dương ngược chiều, hoặc trang sao kê bị thiếu/lặp. Sửa trực tiếp trong bảng dưới rồi mới hạch toán.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
@@ -223,8 +387,15 @@ function ImportStatementPage() {
                 {filtered.map((r) => {
                   const opts = r.amount >= 0 ? RECEIPT_OPTS : PAYMENT_OPTS;
                   const dim = !r.inPeriod || r.skip;
+                  const suspectReasons = suspectByIdx.get(r.idx);
+                  const isSuspect = !!suspectReasons;
                   return (
-                    <TableRow key={r.idx} className={dim ? "opacity-40" : ""}>
+                    <TableRow
+                      key={r.idx}
+                      id={`txn-${r.idx}`}
+                      className={`${dim ? "opacity-40" : ""} ${isSuspect ? "bg-amber-500/5 border-l-2 border-l-amber-500" : ""} transition-shadow`}
+                      title={isSuspect ? suspectReasons!.join(" • ") : undefined}
+                    >
                       <TableCell>
                         <input
                           type="checkbox"
@@ -233,7 +404,12 @@ function ImportStatementPage() {
                           onChange={(e) => update(r.idx, { skip: !e.target.checked })}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{r.txn_date}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <div className="flex items-center gap-1">
+                          {isSuspect && <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                          <span>{r.txn_date}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs">
                         <div className="line-clamp-2">{r.description}</div>
                         <div className="mt-0.5 flex items-center gap-1.5">
