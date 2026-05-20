@@ -1,108 +1,80 @@
-# Nâng cấp khả năng đọc PDF hoá đơn & sao kê ngân hàng
+# Cải thiện tiếp theo cho pipeline parse chứng từ
 
-## 1. Hiện trạng
+Pipeline hiện tại: `LlamaParse (balanced) → Gemini 3 Flash structured → fallback Gemini 2.5 Pro vision`. Đã chạy được, nhưng còn các điểm yếu sau cần xử lý.
 
-`src/lib/ai/parse-document.functions.ts` đang gọi 1 lượt vision duy nhất:
+## 1. Sao kê dài: chunk theo trang + ghép
 
-```
-PDF (base64) ──► Gemini 2.5 Pro (vision) ──► JSON
-```
+**Vấn đề:** Sao kê 30–100 trang đưa toàn bộ markdown vào 1 lần gọi Flash → dễ vượt context, model bỏ dòng cuối, khó debug khi sai.
 
-- Không tách trang, không OCR, không pre-extract text/table.
-- Schema chặt chỉ áp dụng cho `purchase_invoice`; `bank_statement` để model "tự trả JSON" rồi regex.
-- Chạy trên Cloudflare Workers (no native binaries) → không dùng được sharp / pdfium / poppler trực tiếp.
+**Đề xuất:**
+- LlamaParse trả markdown theo từng trang (`result/json` thay vì `result/markdown`) → giữ ranh giới trang.
+- Với `bank_statement`: chia thành batch ~5–10 trang, gọi Flash song song với schema chỉ chứa `transactions[]`, sau đó merge + lấy `opening/closing_balance` từ trang đầu/cuối.
+- Validate: tổng debit/credit khớp chênh lệch `closing - opening` (sai số < 1 đồng) — nếu lệch, retry trang nghi ngờ.
 
-Hệ quả thực tế với chứng từ VN:
+## 2. PDF digital: bỏ qua LlamaParse khi có text layer
 
-- Sao kê dài (30–100 trang) → token cao, model bỏ dòng, dễ sai cột Nợ/Có.
-- Bảng hoá đơn nhiều dòng → vision dồn dòng hoặc lệch cột số tiền.
-- Số kiểu `1.234.567,89` và dấu tiếng Việt thi thoảng bị decode sai.
-- Một số PDF scan (ảnh) → Gemini OCR khá nhưng không có lớp text để đối chiếu.
+**Vấn đề:** PDF xuất từ phần mềm (hoá đơn điện tử, sao kê internet banking) đã có text layer sẵn → trả tiền LlamaParse là phí.
 
-## 2. Bối cảnh thị trường (12/2025)
+**Đề xuất:**
+- Thêm bước `unpdf` (pure-JS, chạy được trên Worker) trích text layer trước.
+- Nếu text dày + có dạng bảng (heuristic: nhiều dòng có ≥3 cụm số) → đưa thẳng vào Flash, bỏ qua LlamaParse.
+- Nếu text rỗng/quá ít (scan) → mới gọi LlamaParse.
+- Tiết kiệm ~60–80% chi phí parser cho doanh nghiệp dùng e-invoice.
 
-Tham chiếu PDFbench (Applied AI, 800+ docs, 17 parser) + LlamaIndex + Mistral docs:
+## 3. Cache theo hash file
 
+**Vấn đề:** User upload lại cùng 1 file (retry, đổi `kind`) → parse lại từ đầu, tốn tiền + chậm.
 
-| Lựa chọn                                                                       | Vai trò                                         | Giá / trang        | Điểm mạnh                                                                                         | Điểm yếu                                             |
-| ------------------------------------------------------------------------------ | ----------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| **LlamaParse** (LlamaIndex Cloud)                                              | Layout-aware parse → Markdown / JSON            | ~$0.003 (Balanced) | Best value, bảng + chữ + chữ ký, hỗ trợ tiếng Việt, schema-extract sẵn cho invoice/bank statement | SaaS, gửi file ra ngoài                              |
-| **Mistral OCR 3** (`mistral-ocr-2512`)                                         | OCR + Markdown + HTML table                     | ~$0.001            | Rẻ nhất, nhanh (≈1s/trang), multilingual tốt                                                      | Mới ra, chưa có template hoá đơn VN                  |
-| **Google Document AI** – Invoice Parser / Bank Statement Parser                | Pretrained schema cho invoice & statement Mỹ-EU | ~$0.03–0.10        | Key-value sẵn, độ ổn định cao                                                                     | Bank-statement parser tối ưu cho Mỹ; cần GCP project |
-| **Azure Document Intelligence** – `prebuilt-invoice`, `prebuilt-bankStatement` | Tương tự GDI                                    | ~$0.01–0.05        | Schema field sẵn, chấp nhận tiếng Việt                                                            | Cần Azure subscription                               |
-| **AWS Textract** – `AnalyzeExpense`, `AnalyzeDocument(TABLES)`                 | Bảng + key-value                                | ~$0.01–0.065       | Bảng rất tốt                                                                                      | Tiếng Việt yếu hơn LLM                               |
-| **FPT.AI Reader / VNPT eKYC OCR**                                              | OCR chuyên VN (invoice, CMND…)                  | Theo gói VN        | Tối ưu hoá đơn GTGT VN, có template sẵn                                                           | Tích hợp B2B, ít doc kỹ thuật                        |
-| **Frontier LLM vision** (Gemini 3 Pro / GPT-5.1) – đang dùng                   | One-shot vision → JSON                          | ~$0.01–0.06        | Linh hoạt, không cần preprocess                                                                   | Trang dài giảm chất lượng, đắt khi scale             |
-| **Pure JS trích text** (`unpdf` / `pdfjs-dist`)                                | Lấy text layer cho PDF digital                  | $0                 | Chạy được trong Worker, miễn phí                                                                  | Không OCR ảnh, không nhận bảng                       |
+**Đề xuất:**
+- Hash SHA-256 của `fileBase64`, lưu cache `(hash, kind) → parsed JSON` vào bảng `ai_parse_cache` (TTL 30 ngày).
+- Trước khi gọi LlamaParse: check cache. Hit → trả luôn.
 
+## 4. Schema chặt cho `cash_voucher` + `auto`
 
-Kết luận benchmark: không có "parser tốt nhất". Với hoá đơn / bảng tài chính, hybrid **layout parser → markdown → LLM structurer** (LlamaParse hoặc Mistral OCR + Gemini Flash) cho kết quả tốt hơn và rẻ hơn one-shot vision 5–10×.
+**Vấn đề:** Hai kind này đang free-form JSON + regex `extractJSON`, dễ lỗi parse.
 
-## 3. Đề xuất kiến trúc mới
+**Đề xuất:**
+- Thêm `CashVoucherSchema` (zod): `voucher_type`, `voucher_no`, `date`, `party_name`, `amount`, `currency`, `reason`, `account_debit?`, `account_credit?`.
+- Với `auto`: chạy bước phân loại trước (Flash + `Output.object({ kind: enum })`), rồi dispatch sang schema tương ứng — 2 lượt gọi nhưng cùng dùng Flash nên vẫn rẻ.
 
-```text
-File upload
-   │
-   ├── digital PDF? ── unpdf trích text (free, in-Worker)
-   │       │                │
-   │       │                └─ nếu có text + bảng rõ → bỏ qua OCR
-   │       │
-   │       └── nếu text rỗng/scan
-   │                └── LlamaParse (Balanced) hoặc Mistral OCR ──► Markdown
-   │
-   ├── ảnh JPG/PNG ── Mistral OCR / LlamaParse
-   │
-   └── XML hoá đơn điện tử ── giữ pipeline einvoice-xml hiện có
-                                    │
-                                    ▼
-                    Gemini 3 Flash structured output
-                    (Output.object + zod schema riêng cho
-                     purchase_invoice / bank_statement)
-                                    │
-                                    ▼
-                          parsed JSON về client
-```
+## 5. Quan sát + đo lường
 
-**Lý do chia 2 tầng:**
+**Vấn đề:** Không biết LlamaParse đang fail bao nhiêu %, latency thật, chi phí mỗi file.
 
-- Tầng parser (LlamaParse / Mistral OCR) lo *layout + table + OCR* — việc mà LLM vision làm dở.
-- Tầng LLM Flash lo *map field tiếng Việt, normalize số, suy luận tài khoản đối ứng* — rẻ vì input đã là markdown thay vì 30 trang ảnh.
+**Đề xuất:**
+- Cột mới trong `ai_uploads`: `parser_used`, `parser_ms`, `structurer_ms`, `parser_cost_estimate`, `pages`.
+- Tab nhỏ trong `/settings` → Admin → "AI parse stats": 7 ngày gần nhất, hit-rate cache, fallback-rate vision, top file lỗi.
 
-## 4. Việc cần làm (research, chưa code)
+## 6. Retry + timeout chắc hơn
 
-### 4.1 Spike LlamaParse trên 5 mẫu thực
+**Vấn đề:** `POLL_TIMEOUT_MS = 120s` cứng. File sao kê 100 trang ở tier `balanced` có thể >2 phút → timeout oan.
 
-- 2 hoá đơn GTGT (1 PDF text, 1 PDF scan)
-- 2 sao kê (Vietcombank, Techcombank) dài 20–60 trang
-- 1 hoá đơn dịch vụ nhiều dòng
-- So sánh: số dòng trích đúng, accuracy cột số, độ trễ, chi phí.
+**Đề xuất:**
+- Tăng timeout động theo size file (vd: 60s + 2s/100KB, trần 300s).
+- Retry job khi LlamaParse trả `ERROR` (1 lần, đổi tier `balanced → fast`).
+- Backoff khi 429.
 
-### 4.2 Spike Mistral OCR 3 cùng 5 mẫu — so sánh chéo với LlamaParse và Gemini hiện tại.
+## 7. UX phía client
 
-### 4.3 Đo baseline pipeline hiện tại (Gemini 2.5 Pro vision) trên cùng 5 mẫu để có số đối chứng.
+- Hiện trạng thái 2 pha trong dialog upload: "Đang trích layout…" → "Đang chuẩn hoá dữ liệu…".
+- Hiển thị badge `parser: llamaparse | vision` để user biết file nào chạy fallback.
 
-### 4.4 Đánh giá ràng buộc Worker
+---
 
-- Xác nhận `unpdf` (pure JS, đã chạy được trên Workers) đáp ứng tách text cho PDF digital.
-- Quyết định: chỉ giữ 1 nhà cung cấp parser hay cho phép fallback (LlamaParse → Mistral OCR khi 429/credit hết).
+## Ưu tiên đề xuất
 
-### 4.5 Thiết kế schema chặt cho `bank_statement`
+| # | Việc | Lợi ích | Effort |
+|---|------|---------|--------|
+| 1 | Chunk sao kê theo trang + validate balance | Sửa đúng lỗi nghiêm trọng nhất | M |
+| 2 | unpdf bypass cho PDF digital | Giảm 60–80% cost | S |
+| 3 | Cache theo hash | Giảm cost + tăng tốc retry | S |
+| 5 | Đo lường | Cần để biết bước nào fail | S |
+| 4 | Schema cash_voucher + auto | Ổn định hơn | S |
+| 6 | Timeout động + retry | Giảm flaky | XS |
+| 7 | UX 2 pha + badge | Polish | XS |
 
-- Thêm `BankStatementSchema` (zod) tương tự `PurchaseInvoiceSchema`, dùng `Output.object` để bỏ regex `extractJSON`.
-- Bao gồm: `account_no`, `period`, `opening_balance`, `closing_balance`, `transactions[{date, value_date, description, debit, credit, balance, ref_no, counterparty?}]`.
-
-### 4.6 Chính sách dữ liệu
-
-- LlamaParse / Mistral OCR gửi file ra hạ tầng EU/US → confirm với user về compliance trước khi chốt vendor (chứng từ chứa MST, số TK ngân hàng).
-- Nếu cần "on-prem only": fallback FPT.AI (datacenter VN) hoặc giữ Gemini vision + tự cắt trang.
-
-## 5. Deliverable của giai đoạn research
-
-1. Bảng điểm 3 pipeline (Gemini hiện tại / LlamaParse+Flash / Mistral OCR+Flash) trên 5 file mẫu — accuracy + chi phí + latency.
-2. Khuyến nghị vendor chính + vendor fallback.
-3. Phác thảo API key cần thêm (`LLAMA_CLOUD_API_KEY` hoặc `MISTRAL_API_KEY`) và biến cấu hình bật/tắt trong AI settings.
-4. Phác thảo `parse-document.functions.ts` mới: `parser` (LlamaParse/Mistral/none) → `structurer` (Gemini Flash structured output) với `BankStatementSchema` mới.
+Đề xuất làm theo thứ tự: **2 → 3 → 5 → 1 → 4 → 6 → 7**. Hai bước đầu (unpdf + cache) cho ROI cao nhất trong khi bước 1 (chunk sao kê) cần thiết kế cẩn thận hơn.
 
 ## Phạm vi
 
-Đây là plan **research + thiết kế**, chưa cài đặt code, chưa thêm secret, chưa đổi pipeline production. Sau khi user duyệt vendor sẽ tạo plan triển khai riêng.
+Plan này chỉ liệt kê hướng cải thiện. Sau khi bạn chốt làm cái nào, tôi sẽ tạo plan triển khai chi tiết riêng cho từng phần.
