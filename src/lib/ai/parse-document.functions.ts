@@ -891,5 +891,10 @@ export const getUploadSignedUrl = createServerFn({ method: "POST" })
       .from("invoices")
       .createSignedUrl(row.file_path, 3600);
     if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "Không tạo được link");
-    return { url: signed.signedUrl, filename: row.filename };
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("ai_upload_id", data.uploadId)
+      .maybeSingle();
+    return { url: signed.signedUrl, filename: row.filename, documentId: doc?.id ?? null };
   });

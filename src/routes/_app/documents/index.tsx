@@ -1,17 +1,21 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
   listDocuments,
   getDocument,
   deleteDocument,
   unlinkDocument,
+  uploadDocument,
+  reparseDocument,
 } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,11 +52,50 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Download, Trash2, Eye, ExternalLink } from "lucide-react";
-import { DocStatusBadge } from "@/components/doc-status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
+  FileText,
+  Download,
+  Trash2,
+  Eye,
+  ExternalLink,
+  Upload,
+  Bot,
+  RefreshCw,
+  Mail,
+  Landmark,
+  Plug,
+  Receipt,
+  FileSpreadsheet,
+  FileSignature,
+  Wallet,
+  Loader2,
+  Sparkles,
+  ArrowUpToLine,
+} from "lucide-react";
+
+const SearchSchema = z.object({
+  highlight: z.string().uuid().optional(),
+});
 
 export const Route = createFileRoute("/_app/documents/")({
+  validateSearch: SearchSchema,
   component: DocumentsPage,
 });
 
@@ -62,6 +105,13 @@ const OCR_LABELS: Record<string, string> = {
   done: "Hoàn tất",
   failed: "Lỗi",
   skipped: "Bỏ qua",
+};
+const OCR_TONE: Record<string, string> = {
+  pending: "bg-muted text-muted-foreground",
+  processing: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  failed: "bg-destructive/15 text-destructive",
+  skipped: "bg-muted text-muted-foreground",
 };
 
 const KIND_LABELS: Record<string, string> = {
@@ -77,28 +127,77 @@ const KIND_LABELS: Record<string, string> = {
   other: "Khác",
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  manual: "Upload tay",
-  ai_chat: "Chatbot AI",
-  tct_sync: "Sync TCT",
-  einvoice_sync: "Sync HĐ điện tử",
-  bank_import: "Bank import",
-  email: "Email",
-  api: "API",
+const KIND_ICON: Record<string, any> = {
+  einvoice: Receipt,
+  purchase_invoice: Receipt,
+  sales_invoice: Receipt,
+  bank_statement: Landmark,
+  bank_voucher: Landmark,
+  cash_voucher: Wallet,
+  receipt: Wallet,
+  payment: Wallet,
+  contract: FileSignature,
+  other: FileText,
 };
+
+const SOURCE_META: Record<string, { label: string; icon: any; tone: string }> = {
+  manual: { label: "Upload tay", icon: Upload, tone: "text-foreground" },
+  ai_chat: { label: "Chatbot AI", icon: Bot, tone: "text-violet-600 dark:text-violet-400" },
+  tct_sync: { label: "Sync TCT", icon: RefreshCw, tone: "text-sky-600 dark:text-sky-400" },
+  einvoice_sync: { label: "Sync HĐ điện tử", icon: RefreshCw, tone: "text-sky-600 dark:text-sky-400" },
+  email: { label: "Email", icon: Mail, tone: "text-amber-600 dark:text-amber-400" },
+  bank_import: { label: "Bank import", icon: Landmark, tone: "text-emerald-600 dark:text-emerald-400" },
+  api: { label: "API", icon: Plug, tone: "text-muted-foreground" },
+};
+
+const SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(SOURCE_META).map(([k, v]) => [k, v.label]),
+);
+
+const UPLOAD_KINDS: Array<{ value: string; label: string }> = [
+  { value: "purchase_invoice", label: "Hoá đơn mua" },
+  { value: "sales_invoice", label: "Hoá đơn bán" },
+  { value: "einvoice", label: "Hoá đơn điện tử" },
+  { value: "bank_statement", label: "Sao kê ngân hàng" },
+  { value: "bank_voucher", label: "Uỷ nhiệm chi" },
+  { value: "cash_voucher", label: "Phiếu thu/chi" },
+  { value: "contract", label: "Hợp đồng" },
+  { value: "other", label: "Khác" },
+];
+
+const PAGE_SIZE = 50;
+
+function formatBytes(n?: number | null) {
+  if (!n) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
 
 function DocumentsPage() {
   const list = useServerFn(listDocuments);
-  const [search, setSearch] = useState("");
+  const search = useSearch({ from: "/_app/documents/" });
+  const navigate = useNavigate();
+
+  const [searchText, setSearchText] = useState("");
   const [docKind, setDocKind] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [ocrStatus, setOcrStatus] = useState<string>("all");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  // deep-link ?highlight=
+  useEffect(() => {
+    if (search.highlight) {
+      setOpenId(search.highlight);
+    }
+  }, [search.highlight]);
 
   const filters = {
-    search: search || undefined,
+    search: searchText || undefined,
     doc_kind: docKind === "all" ? undefined : docKind,
     source: sourceFilter === "all" ? undefined : sourceFilter,
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
@@ -107,8 +206,8 @@ function DocumentsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["documents", filters],
-    queryFn: () => list({ data: { ...filters, limit: 100, offset: 0 } }),
+    queryKey: ["documents", filters, limit],
+    queryFn: () => list({ data: { ...filters, limit, offset: 0 } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
@@ -127,143 +226,346 @@ function DocumentsPage() {
     setToDate("");
   };
 
+  const total = data?.total ?? 0;
+  const rows = data?.rows ?? [];
+  const canLoadMore = rows.length < total;
+
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Tài liệu</h1>
-          <p className="text-sm text-muted-foreground">
-            Kho lưu trữ tập trung — chứng từ upload tay, chatbot AI, sync TCT đều hiện ở đây.
-          </p>
-        </div>
-      </div>
-
-      <Card className="p-4">
-        <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-7">
-          <Input
-            placeholder="Tìm theo tên file..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="md:col-span-2"
-          />
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Nguồn" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Mọi nguồn</SelectItem>
-              {Object.entries(SOURCE_LABELS).map(([k, label]) => (
-                <SelectItem key={k} value={k}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={docKind} onValueChange={setDocKind}>
-            <SelectTrigger>
-              <SelectValue placeholder="Loại tài liệu" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả loại</SelectItem>
-              {Object.entries(KIND_LABELS).map(([k, label]) => (
-                <SelectItem key={k} value={k}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={ocrStatus} onValueChange={setOcrStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Trạng thái OCR" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Mọi OCR</SelectItem>
-              {Object.entries(OCR_LABELS).map(([k, label]) => (
-                <SelectItem key={k} value={k}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            aria-label="Từ ngày"
-          />
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            aria-label="Đến ngày"
-          />
-        </div>
-        {activeCount > 0 && (
-          <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Đang lọc {activeCount} điều kiện</span>
-            <Button size="sm" variant="ghost" className="h-6 px-2" onClick={resetFilters}>
-              Xoá bộ lọc
-            </Button>
+    <TooltipProvider delayDuration={150}>
+      <div className="p-6 space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-semibold">Tài liệu</h1>
+            <p className="text-sm text-muted-foreground">
+              Kho lưu trữ tập trung — sao kê, hoá đơn, chứng từ từ upload tay, chatbot AI, và sync TCT.
+            </p>
           </div>
-        )}
+          <Button onClick={() => setUploadOpen(true)}>
+            <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
+          </Button>
+        </div>
 
-        {isLoading ? (
-          <Skeleton className="h-64 w-full" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên file</TableHead>
-                <TableHead>Loại</TableHead>
-                <TableHead>Nguồn</TableHead>
-                <TableHead>OCR</TableHead>
-                <TableHead>Ngày tạo</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(data?.rows ?? []).map((d: any) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">
-                    <button
-                      className="flex items-center gap-2 hover:underline text-left"
-                      onClick={() => setOpenId(d.id)}
-                    >
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate max-w-xs">
-                        {d.original_filename ?? d.storage_path?.split("/").pop() ?? "—"}
-                      </span>
-                    </button>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{KIND_LABELS[d.doc_kind] ?? d.doc_kind}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{d.source}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{OCR_LABELS[d.ocr_status] ?? d.ocr_status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(d.created_at).toLocaleDateString("vi-VN")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => setOpenId(d.id)}>
-                      <Eye className="h-4 w-4" />
+        <Card className="p-4">
+          <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-7">
+            <Input
+              placeholder="Tìm theo tên file..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="md:col-span-2"
+            />
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Nguồn" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Mọi nguồn</SelectItem>
+                {Object.entries(SOURCE_LABELS).map(([k, label]) => (
+                  <SelectItem key={k} value={k}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={docKind} onValueChange={setDocKind}>
+              <SelectTrigger>
+                <SelectValue placeholder="Loại tài liệu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả loại</SelectItem>
+                {Object.entries(KIND_LABELS).map(([k, label]) => (
+                  <SelectItem key={k} value={k}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={ocrStatus} onValueChange={setOcrStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Trạng thái OCR" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Mọi OCR</SelectItem>
+                {Object.entries(OCR_LABELS).map(([k, label]) => (
+                  <SelectItem key={k} value={k}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              aria-label="Từ ngày"
+            />
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              aria-label="Đến ngày"
+            />
+          </div>
+          {activeCount > 0 && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Đang lọc {activeCount} điều kiện</span>
+              <Button size="sm" variant="ghost" className="h-6 px-2" onClick={resetFilters}>
+                Xoá bộ lọc
+              </Button>
+            </div>
+          )}
+
+          {isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên file</TableHead>
+                    <TableHead>Loại</TableHead>
+                    <TableHead>Nguồn</TableHead>
+                    <TableHead>OCR</TableHead>
+                    <TableHead className="text-right">Kích thước</TableHead>
+                    <TableHead>Ngày tạo</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((d: any) => (
+                    <DocumentRow
+                      key={d.id}
+                      d={d}
+                      highlighted={search.highlight === d.id}
+                      onOpen={() => setOpenId(d.id)}
+                    />
+                  ))}
+                  {rows.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                        Chưa có tài liệu nào.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {rows.length > 0 && (
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Hiển thị {rows.length}/{total} tài liệu</span>
+                  {canLoadMore && (
+                    <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+                      Tải thêm
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {(data?.rows ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
-                    Chưa có tài liệu nào.
-                  </TableCell>
-                </TableRow>
+                  )}
+                </div>
               )}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+            </>
+          )}
+        </Card>
 
-      <DocumentDrawer id={openId} onClose={() => setOpenId(null)} />
-    </div>
+        <DocumentDrawer
+          id={openId}
+          onClose={() => {
+            setOpenId(null);
+            if (search.highlight) navigate({ to: "/documents", search: {} });
+          }}
+        />
+        <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function DocumentRow({
+  d,
+  highlighted,
+  onOpen,
+}: {
+  d: any;
+  highlighted?: boolean;
+  onOpen: () => void;
+}) {
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    if (highlighted) {
+      rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [highlighted]);
+
+  const KindIcon = KIND_ICON[d.doc_kind] ?? FileText;
+  const sourceMeta = SOURCE_META[d.source] ?? { label: d.source, icon: FileText, tone: "" };
+  const SourceIcon = sourceMeta.icon;
+
+  return (
+    <TableRow
+      ref={rowRef}
+      className={cn(
+        "cursor-pointer transition-colors",
+        pulse && "ring-2 ring-primary bg-primary/5",
+      )}
+      onClick={onOpen}
+    >
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-2">
+          <KindIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate max-w-xs">
+            {d.original_filename ?? d.storage_path?.split("/").pop() ?? "—"}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{KIND_LABELS[d.doc_kind] ?? d.doc_kind}</Badge>
+      </TableCell>
+      <TableCell>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="inline-flex items-center gap-1.5">
+              <SourceIcon className={cn("h-4 w-4", sourceMeta.tone)} />
+              <span className="text-xs text-muted-foreground">{sourceMeta.label}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>{sourceMeta.label}</TooltipContent>
+        </Tooltip>
+      </TableCell>
+      <TableCell>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+            OCR_TONE[d.ocr_status] ?? "bg-muted text-muted-foreground",
+          )}
+        >
+          {OCR_LABELS[d.ocr_status] ?? d.ocr_status}
+        </span>
+      </TableCell>
+      <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+        {formatBytes(d.size_bytes)}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {new Date(d.created_at).toLocaleDateString("vi-VN")}
+      </TableCell>
+      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon" onClick={onOpen}>
+          <Eye className="h-4 w-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function UploadDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const upload = useServerFn(uploadDocument);
+  const qc = useQueryClient();
+  const [files, setFiles] = useState<File[]>([]);
+  const [docKind, setDocKind] = useState("purchase_invoice");
+  const [notes, setNotes] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const reset = () => {
+    setFiles([]);
+    setNotes("");
+    setUploading(false);
+  };
+
+  const submit = async () => {
+    if (files.length === 0) return;
+    setUploading(true);
+    let okCount = 0;
+    for (const f of files) {
+      if (f.size > 20 * 1024 * 1024) {
+        toast.error(`${f.name}: vượt 20MB`);
+        continue;
+      }
+      try {
+        const buf = await f.arrayBuffer();
+        const b64 = btoa(
+          new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ""),
+        );
+        await upload({
+          data: {
+            fileBase64: b64,
+            filename: f.name,
+            mimeType: f.type || "application/octet-stream",
+            doc_kind: docKind as any,
+            notes: notes || undefined,
+          },
+        });
+        okCount++;
+      } catch (e: any) {
+        toast.error(`${f.name}: ${e.message ?? "lỗi"}`);
+      }
+    }
+    if (okCount > 0) {
+      toast.success(`Đã tải lên ${okCount}/${files.length} file`);
+      qc.invalidateQueries({ queryKey: ["documents"] });
+    }
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Tải lên tài liệu</DialogTitle>
+          <DialogDescription>
+            File được lưu vào kho tài liệu chung. Chưa OCR — bạn có thể "Parse lại" sau khi tải lên.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium mb-1 block">Loại tài liệu</label>
+            <Select value={docKind} onValueChange={setDocKind}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {UPLOAD_KINDS.map((k) => (
+                  <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-1 block">Tệp ({files.length})</label>
+            <Input
+              type="file"
+              multiple
+              accept=".pdf,image/*,.xml,.xlsx,.xls,.docx"
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            />
+            {files.length > 0 && (
+              <ul className="mt-2 max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-0.5">
+                {files.map((f, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span className="truncate">{f.name}</span>
+                    <span className="tabular-nums">{formatBytes(f.size)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-1 block">Ghi chú (tuỳ chọn)</label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={uploading}>
+            Huỷ
+          </Button>
+          <Button onClick={submit} disabled={uploading || files.length === 0}>
+            {uploading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+            Tải lên
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -271,6 +573,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
   const getDoc = useServerFn(getDocument);
   const delDoc = useServerFn(deleteDocument);
   const unlink = useServerFn(unlinkDocument);
+  const reparse = useServerFn(reparseDocument);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -300,7 +603,18 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const reparseMut = useMutation({
+    mutationFn: () => reparse({ data: { id: id! } }),
+    onSuccess: (r: any) => {
+      toast.success(`Đã parse lại (${r.parser ?? "—"})`);
+      qc.invalidateQueries({ queryKey: ["document", id] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const doc = data?.doc;
+  const aiUpload = data?.aiUpload;
   const isImage = doc?.mime_type?.startsWith("image/");
   const isPdf = doc?.mime_type === "application/pdf";
 
@@ -312,8 +626,15 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
           <SheetDescription>
             {doc && (
               <>
-                {doc.size_bytes ? `${(doc.size_bytes / 1024).toFixed(1)} KB · ` : ""}
-                {doc.mime_type}
+                {formatBytes(doc.size_bytes)} · {doc.mime_type} ·{" "}
+                <span className="inline-flex items-center gap-1">
+                  {(() => {
+                    const m = SOURCE_META[doc.source];
+                    const I = m?.icon ?? FileText;
+                    return <I className={cn("h-3 w-3 inline", m?.tone)} />;
+                  })()}
+                  {SOURCE_LABELS[doc.source] ?? doc.source}
+                </span>
               </>
             )}
           </SheetDescription>
@@ -323,7 +644,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
           <Skeleton className="h-64 w-full mt-4" />
         ) : doc ? (
           <div className="space-y-4 mt-4">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {data.signedUrl && (
                 <>
                   <Button asChild variant="outline" size="sm">
@@ -338,9 +659,24 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                   </Button>
                 </>
               )}
+              {doc.storage_path && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reparseMut.isPending}
+                  onClick={() => reparseMut.mutate()}
+                >
+                  {reparseMut.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-1" />
+                  )}
+                  Parse lại
+                </Button>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-destructive">
+                  <Button variant="outline" size="sm" className="text-destructive ml-auto">
                     <Trash2 className="h-4 w-4 mr-1" /> Xoá
                   </Button>
                 </AlertDialogTrigger>
@@ -364,7 +700,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
               <TabsList>
                 <TabsTrigger value="preview">Xem trước</TabsTrigger>
                 <TabsTrigger value="ocr">OCR</TabsTrigger>
-                <TabsTrigger value="links">Liên kết ({data.links.length})</TabsTrigger>
+                <TabsTrigger value="links">Liên kết ({(data.links?.length ?? 0) + (doc.einvoice_id ? 1 : 0)})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="preview" className="mt-3">
@@ -389,30 +725,63 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                 )}
               </TabsContent>
 
-              <TabsContent value="ocr" className="mt-3">
+              <TabsContent value="ocr" className="mt-3 space-y-3">
+                {aiUpload && (
+                  <div className="rounded border bg-muted/30 p-3 text-xs space-y-1">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {aiUpload.parser_used && (
+                        <span>Parser: <code className="font-mono">{aiUpload.parser_used}</code></span>
+                      )}
+                      {aiUpload.pages != null && <span>Trang: <b>{aiUpload.pages}</b></span>}
+                      {aiUpload.parser_ms != null && (
+                        <span>Đọc: <b>{(aiUpload.parser_ms / 1000).toFixed(1)}s</b></span>
+                      )}
+                      {aiUpload.structurer_ms != null && (
+                        <span>Cấu trúc: <b>{(aiUpload.structurer_ms / 1000).toFixed(1)}s</b></span>
+                      )}
+                      <span>Trạng thái: <b>{aiUpload.status}</b></span>
+                    </div>
+                    {aiUpload.error && (
+                      <div className="text-destructive break-words pt-1">{aiUpload.error}</div>
+                    )}
+                  </div>
+                )}
                 {doc.ocr_extracted ? (
                   <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-96">
                     {JSON.stringify(doc.ocr_extracted, null, 2)}
                   </pre>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Chưa có dữ liệu OCR.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Chưa có dữ liệu OCR. {doc.storage_path && "Bấm \"Parse lại\" để chạy OCR/AI."}
+                  </p>
                 )}
               </TabsContent>
 
-              <TabsContent value="links" className="mt-3">
-                {data.links.length === 0 ? (
+              <TabsContent value="links" className="mt-3 space-y-2">
+                {doc.einvoice_id && (
+                  <div className="flex items-center justify-between border rounded p-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-sky-600" />
+                      <span>Hoá đơn điện tử</span>
+                    </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/einvoices/$id" params={{ id: doc.einvoice_id }}>
+                        Mở <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+                {(data.links ?? []).length === 0 && !doc.einvoice_id ? (
                   <p className="text-sm text-muted-foreground">Chưa liên kết với chứng từ nào.</p>
                 ) : (
                   <ul className="space-y-2">
-                    {data.links.map((l: any) => (
+                    {(data.links ?? []).map((l: any) => (
                       <li
                         key={l.entity_table + l.entity_id}
                         className="flex items-center justify-between border rounded p-2 text-sm"
                       >
                         <div>
-                          <Badge variant="outline" className="mr-2">
-                            {l.entity_table}
-                          </Badge>
+                          <Badge variant="outline" className="mr-2">{l.entity_table}</Badge>
                           <span className="text-muted-foreground">{l.link_type}</span>
                           <code className="ml-2 text-xs text-muted-foreground">
                             {l.entity_id.slice(0, 8)}…

@@ -1,76 +1,56 @@
 ## Hiện trạng
 
-Đã có `/_app/documents/index.tsx` (trang "Tài liệu") chạy trên bảng `documents` với lọc theo loại / OCR / ngày, drawer preview + tabs (Preview / OCR / Liên kết). Nhưng:
+Trang `/documents` đã có filter (nguồn, loại, OCR, ngày), drawer xem trước (image/PDF), tab OCR/Liên kết, xoá, gỡ liên kết. Bảng `documents` đã có cột `ai_upload_id`, `einvoice_id`, đã bridge từ chatbot (`ai_chat`) và backfill. Server fn `uploadDocument` đã viết nhưng **chưa có UI**.
 
-- Bảng `documents` chỉ có **3 dòng** do hầu như chưa có flow tự động ghi vào.
-- Chứng từ upload qua **chatbot** đang ghi vào bảng riêng `ai_uploads` (3 dòng) → **không xuất hiện** trên trang.
-- E-invoice **đồng bộ từ TCT** ghi vào bảng `einvoices` → cũng không hiện trên trang.
-- `documents.doc_kind` thiếu giá trị `bank_statement`; `documents.source` thiếu `ai_chat` & `tct_sync`.
-- Sidebar đã có entry `Tài liệu` → giữ nguyên.
+DB hiện đang chứa 5 dòng: 3 từ chatbot (`ai_chat`), 2 manual.
 
-## Mục tiêu
+## Còn thiếu — sẽ làm
 
-Một trang **Tài liệu** duy nhất hiển thị MỌI file gốc / chứng từ vào hệ thống, bất kể nguồn (manual upload, chatbot AI, sync TCT, email, bank import), với preview + link tới bút toán liên quan.
+### 1. UI upload tay (`/documents`)
+- Thêm nút **"Tải lên"** ở header trang.
+- Dialog chọn nhiều file (drag-drop) + dropdown `doc_kind` + ghi chú; gọi `uploadDocument` lần lượt, toast tiến độ; invalidate list.
+- Giới hạn 20MB/file, mime hợp lệ (pdf, image, xml, xlsx).
 
-## Thay đổi
+### 2. Icon nguồn + UX bảng
+- Thay text `source` bằng icon + tooltip: `Upload` (manual), `Bot` (ai_chat), `RefreshCw` (tct_sync / einvoice_sync), `Mail` (email), `Landmark` (bank_import), `Plug` (api).
+- Icon loại tài liệu (FileText / Receipt / Landmark / FileSpreadsheet…) thay cho icon FileText chung.
+- Hiển thị badge OCR có màu (done = emerald, processing = amber, failed = destructive).
+- Hiển thị size_bytes, hover-row highlight, click-row mở drawer.
 
-### 1. Migration: mở rộng bảng `documents`
+### 3. Highlight + deep-link
+- Đọc `?highlight=<id>` từ search params → tự mở drawer + scroll-into-view + ring-2 hàng đó trong 2s.
+- Hỗ trợ điều hướng từ chatbot và các trang khác.
 
-- Thêm `'bank_statement'` vào CHECK của `doc_kind`.
-- Thêm `'ai_chat'`, `'tct_sync'` vào CHECK của `source`.
-- Thêm cột `ai_upload_id uuid REFERENCES ai_uploads(id) ON DELETE SET NULL` (liên kết ngược về parse log).
-- Thêm cột `einvoice_id uuid REFERENCES einvoices(id) ON DELETE SET NULL`.
-- Index trên 2 cột trên.
+### 4. Drawer — tab OCR mở rộng
+- Nếu có `ai_upload_id`: query `ai_uploads` (parser_used, pages, parser_ms, status, error) và hiển thị block metadata.
+- Nút **"Parse lại"** (chỉ khi `ocr_status` ∈ `failed`/`done` và có file): server fn `reparseDocument` → tải file từ Storage, gọi lại `parseDocument` (đã có), update `documents.ocr_extracted` + `ocr_status`.
+- Tab **Liên kết**: nếu `einvoice_id` không null → thêm nút mở `/einvoices/$id`.
 
-### 2. Bridge `ai_uploads` → `documents`
+### 5. Chatbot → Tài liệu
+- Trong `parse-progress-dialog.tsx`, ở phase `ready` cho mỗi file: bên cạnh "Xem file gốc" thêm nút **"Mở trong Tài liệu"** → `/documents?highlight={document_id}` (lấy `document_id` từ `ai_uploads.document_id` qua field trả về của `parseDocument`).
+- Yêu cầu `parseDocument` trả thêm `documentId` (đã có sẵn nhờ bridge ở `ensureUploadRow`).
 
-Sửa `src/lib/ai/parse-document.functions.ts`, trong helper `ensureUploadRow` (chạy ngay khi nhận file):
+### 6. Bridge TCT sync → `documents`
+- Trong `src/lib/einvoices-sync.functions.ts` (chỗ insert/upsert `einvoices` sau khi sync): nếu có XML/PDF được tải về bucket `einvoices`, upsert row `documents` với `source='tct_sync'`, `doc_kind='einvoice'`, `einvoice_id` set, `checksum_sha256` (sha của XML), idempotent qua `ON CONFLICT (tenant_id, checksum_sha256)`.
+- Nếu sync hiện tại chưa lưu file gốc → chỉ tạo document "metadata-only" (storage_path để rỗng? — KHÔNG, do schema NOT NULL). Trong trường hợp này tạm bỏ qua; chỉ bridge khi đã có file. Sẽ log để biết.
 
-- Sau khi upload Storage + insert `ai_uploads`, **insert thêm 1 row `documents`** với:
-  - `doc_kind` map từ `kind` (`bank_statement` / `purchase_invoice` / `cash_voucher`)
-  - `source = 'ai_chat'`
-  - `storage_bucket = 'invoices'`, `storage_path` = path đã upload
-  - `checksum_sha256 = file_hash`
-  - `ocr_status` đồng bộ với `ai_uploads.status` (`parsing` → `processing`, `parsed` → `done`, `failed` → `failed`)
-  - `ai_upload_id` = id vừa insert
-- Khi parse xong / fail → UPDATE cả `ai_uploads` và `documents` (ocr_status + ocr_extracted = parsed json).
-- Dùng `ON CONFLICT (tenant_id, checksum_sha256)` để idempotent — nếu document đã tồn tại thì chỉ update `ai_upload_id`.
-
-### 3. Backfill dữ liệu cũ
-
-Migration data: với mỗi `ai_uploads` chưa có `documents` tương ứng (match qua `file_path` ↔ `storage_path`), tạo row `documents` mới `source='ai_chat'`.
-
-### 4. Bridge e-invoice TCT → `documents`
-
-Trong `src/lib/einvoices-sync.functions.ts` (hoặc nơi insert `einvoices`):
-- Khi đồng bộ về 1 e-invoice mới và có XML/PDF được tải xuống bucket `einvoices` → insert thêm `documents` row `source='tct_sync'`, `doc_kind='einvoice'`, `einvoice_id` set.
-- Nếu chưa có flow tải file → bỏ qua bước này (vẫn an toàn, chỉ là không có file gốc để xem).
-
-### 5. UI trang `/documents`
-
-- Thêm filter **Nguồn** (`source`): All / Upload tay / Chatbot AI / Sync TCT / Email / Bank import.
-- Cột bảng thêm icon nguồn (chatbot, sync, manual) thay vì chỉ text mờ.
-- Drawer:
-  - Tab **OCR**: nếu có `ai_upload_id`, hiển thị thêm `parser_used`, `pages`, `parser_ms`, link "Parse lại" (gọi `parseDocument` với base64 mới từ Storage).
-  - Tab **Liên kết**: nếu có `einvoice_id`, hiển thị link tới `/einvoices/$id`.
-- Header: nút **"Tải lên"** mở dialog upload thủ công (bucket `invoices`, doc_kind chọn từ dropdown) — bổ sung server fn `uploadDocument`.
-
-### 6. Composer chatbot
-
-Sau khi parse xong, nút **"Xem file gốc"** trong `parse-progress-dialog` đổi thành 2 nút: "Xem file" (signed URL như hiện tại) + "Mở trong Tài liệu" → `/documents?highlight={document_id}`.
+### 7. Phân trang nhẹ
+- Hiển thị `total` ở footer + nút "Tải thêm" tăng offset (giữ đơn giản, không full pagination).
 
 ## File đụng tới
 
-- `supabase/migrations/<ts>_documents_unify.sql` (mới)
-- `src/lib/ai/parse-document.functions.ts` (sửa `ensureUploadRow` + error path)
-- `src/lib/einvoices-sync.functions.ts` (thêm bridge documents — nếu có file)
-- `src/lib/documents.functions.ts` (thêm filter `source`, server fn `uploadDocument`, `reparseDocument`)
-- `src/routes/_app/documents/index.tsx` (filter Nguồn, icon, tab OCR enrich, nút upload, highlight)
-- `src/components/chat/parse-progress-dialog.tsx` (thêm nút "Mở trong Tài liệu")
+- `src/lib/documents.functions.ts` — thêm `reparseDocument`, mở rộng `getDocument` để kèm `aiUpload` metadata (join `ai_uploads`).
+- `src/routes/_app/documents/index.tsx` — nút upload + dialog, icon nguồn/loại, highlight param, drawer OCR mở rộng, nút "Mở einvoice".
+- `src/components/chat/parse-progress-dialog.tsx` — nút "Mở trong Tài liệu".
+- `src/lib/ai/parse-document.functions.ts` — đảm bảo trả về `documentId` cho UI.
+- `src/lib/einvoices-sync.functions.ts` — bridge insert documents khi đã có file.
 
 ## Không đụng
 
-- Cấu trúc bucket `invoices` / `einvoices`.
-- RLS hiện tại.
-- Bảng `ai_uploads` (chỉ thêm liên kết 1 chiều từ `documents`).
-- Logic phân loại / dedupe trong classify-import.
+- Migration mới (schema đã đủ).
+- RLS, bucket, trigger.
+- Logic classify-import, dedupe.
+
+## Hỏi nhanh trước khi làm
+
+Bạn muốn nút **"Parse lại"** chạy ngay trên trang Tài liệu (đồng bộ, hiện spinner) hay đẩy vào hàng đợi background? Mình đề xuất chạy đồng bộ (đơn giản, file nhỏ <10MB) — OK chứ?
