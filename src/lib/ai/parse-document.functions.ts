@@ -646,6 +646,7 @@ export async function parseFileCore(opts: {
     pages: source.pageCount || null,
     timings: { parserMs, structurerMs },
     llamaError: source.llamaError ?? null,
+    file_hash: fileHash,
   };
 }
 
