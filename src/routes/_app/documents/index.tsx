@@ -135,17 +135,10 @@ const TAB_PRESETS: Record<TabValue, {
     legacyLabel: "Trang hoá đơn bán",
     description: "Hoá đơn đầu ra (bán ra) đã tải lên hệ thống.",
   },
-  einvoice: {
-    label: "Hoá đơn điện tử",
-    kinds: ["einvoice"],
-    legacyTo: "/einvoices",
-    legacyLabel: "Trang HĐĐT (TCT)",
-    description: "Hoá đơn điện tử đồng bộ từ TCT, import XML hoặc tải lên.",
-  },
-  files: {
-    label: "Tài liệu khác",
+  bank: {
+    label: "Ngân hàng",
     kinds: ["bank_statement", "bank_voucher", "cash_voucher", "receipt", "payment", "contract", "other"],
-    description: "Sao kê ngân hàng, hợp đồng, chứng từ phụ trợ không phải hoá đơn.",
+    description: "Sao kê ngân hàng, UNC, phiếu thu/chi, hợp đồng và chứng từ phụ trợ.",
   },
 };
 
