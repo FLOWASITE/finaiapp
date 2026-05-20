@@ -235,6 +235,7 @@ function DocumentsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [syncTctOpen, setSyncTctOpen] = useState(false);
 
   // deep-link ?highlight=
   useEffect(() => {
