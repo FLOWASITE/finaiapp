@@ -440,6 +440,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_parse_cache: {
+        Row: {
+          created_at: string
+          file_hash: string
+          hit_count: number
+          id: string
+          kind: string
+          last_hit_at: string
+          pages: number | null
+          parsed: Json
+          parser_used: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          hit_count?: number
+          id?: string
+          kind: string
+          last_hit_at?: string
+          pages?: number | null
+          parsed: Json
+          parser_used?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          hit_count?: number
+          id?: string
+          kind?: string
+          last_hit_at?: string
+          pages?: number | null
+          parsed?: Json
+          parser_used?: string | null
+        }
+        Relationships: []
+      }
       ai_rule_applications: {
         Row: {
           ai_log: Json
@@ -566,34 +602,49 @@ export type Database = {
         Row: {
           created_at: string
           error: string | null
+          file_hash: string | null
           file_path: string | null
           filename: string | null
           id: string
           kind: string
           mime_type: string | null
+          pages: number | null
           parsed: Json | null
+          parser_ms: number | null
+          parser_used: string | null
+          structurer_ms: number | null
           user_id: string
         }
         Insert: {
           created_at?: string
           error?: string | null
+          file_hash?: string | null
           file_path?: string | null
           filename?: string | null
           id?: string
           kind?: string
           mime_type?: string | null
+          pages?: number | null
           parsed?: Json | null
+          parser_ms?: number | null
+          parser_used?: string | null
+          structurer_ms?: number | null
           user_id: string
         }
         Update: {
           created_at?: string
           error?: string | null
+          file_hash?: string | null
           file_path?: string | null
           filename?: string | null
           id?: string
           kind?: string
           mime_type?: string | null
+          pages?: number | null
           parsed?: Json | null
+          parser_ms?: number | null
+          parser_used?: string | null
+          structurer_ms?: number | null
           user_id?: string
         }
         Relationships: []
