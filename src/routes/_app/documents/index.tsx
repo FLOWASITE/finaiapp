@@ -93,8 +93,9 @@ import {
   X,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SyncTctDialog } from "@/components/sync-tct-dialog";
 
-const TAB_VALUES = ["all", "purchase", "sales", "einvoice", "files"] as const;
+const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 const SearchSchema = z.object({
@@ -135,17 +136,10 @@ const TAB_PRESETS: Record<TabValue, {
     legacyLabel: "Trang hoá đơn bán",
     description: "Hoá đơn đầu ra (bán ra) đã tải lên hệ thống.",
   },
-  einvoice: {
-    label: "Hoá đơn điện tử",
-    kinds: ["einvoice"],
-    legacyTo: "/einvoices",
-    legacyLabel: "Trang HĐĐT (TCT)",
-    description: "Hoá đơn điện tử đồng bộ từ TCT, import XML hoặc tải lên.",
-  },
-  files: {
-    label: "Tài liệu khác",
+  bank: {
+    label: "Ngân hàng",
     kinds: ["bank_statement", "bank_voucher", "cash_voucher", "receipt", "payment", "contract", "other"],
-    description: "Sao kê ngân hàng, hợp đồng, chứng từ phụ trợ không phải hoá đơn.",
+    description: "Sao kê ngân hàng, UNC, phiếu thu/chi, hợp đồng và chứng từ phụ trợ.",
   },
 };
 
@@ -241,6 +235,7 @@ function DocumentsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [syncTctOpen, setSyncTctOpen] = useState(false);
 
   // deep-link ?highlight=
   useEffect(() => {
@@ -331,11 +326,15 @@ function DocumentsPage() {
                 </Link>
               </Button>
             )}
+            <Button onClick={() => setSyncTctOpen(true)} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              <RefreshCw className="h-4 w-4 mr-1.5" /> Đồng bộ HĐĐT
+            </Button>
             <Button onClick={() => setUploadOpen(true)} className="flex-1 sm:flex-none">
               <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
             </Button>
           </div>
         </div>
+        <SyncTctDialog open={syncTctOpen} onOpenChange={setSyncTctOpen} defaultDirection="in" />
 
         <Tabs value={currentTab} onValueChange={(v) => setTab(v as TabValue)}>
           <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl p-1 sm:w-auto">
