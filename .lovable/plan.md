@@ -1,77 +1,76 @@
+## Hiện trạng
+
+Đã có `/_app/documents/index.tsx` (trang "Tài liệu") chạy trên bảng `documents` với lọc theo loại / OCR / ngày, drawer preview + tabs (Preview / OCR / Liên kết). Nhưng:
+
+- Bảng `documents` chỉ có **3 dòng** do hầu như chưa có flow tự động ghi vào.
+- Chứng từ upload qua **chatbot** đang ghi vào bảng riêng `ai_uploads` (3 dòng) → **không xuất hiện** trên trang.
+- E-invoice **đồng bộ từ TCT** ghi vào bảng `einvoices` → cũng không hiện trên trang.
+- `documents.doc_kind` thiếu giá trị `bank_statement`; `documents.source` thiếu `ai_chat` & `tct_sync`.
+- Sidebar đã có entry `Tài liệu` → giữ nguyên.
+
 ## Mục tiêu
 
-1. **Truy vết tại sao file thứ 2 không có trong Storage** (đã có 1 file `Sao ke MB bank_1.pdf`, không có file thứ 2).
-2. **Đảm bảo file gốc luôn được lưu vào Storage** ngay cả khi parse fail, cache hit, hoặc bị auto-skip do trùng hash.
+Một trang **Tài liệu** duy nhất hiển thị MỌI file gốc / chứng từ vào hệ thống, bất kể nguồn (manual upload, chatbot AI, sync TCT, email, bank import), với preview + link tới bút toán liên quan.
 
-## Phân tích nguyên nhân hiện tại
+## Thay đổi
 
-Trong `src/lib/ai/parse-document.functions.ts`, hàm `parseFileCore` lưu file vào bucket `invoices` **chỉ ở bước 6** (cuối hàm), nên file gốc bị bỏ qua trong các trường hợp:
+### 1. Migration: mở rộng bảng `documents`
 
-- **Cache hit** (bước 0): return sớm, không upload.
-- **Parse fail** (LlamaParse/OCR throw): exception bubble lên, không tới bước 6.
-- **Auto-skip trong UI** (`isFileDup` ở composer): file đã có trong `ai_uploads` (theo `file_hash`) thì bị set action `"skip"`; nhưng trong session hiện tại nếu là file MỚI mà trùng hash với file đã upload trước thì OK — nhưng nếu file 2 trùng hash file 1 thì cache hit khiến không upload.
+- Thêm `'bank_statement'` vào CHECK của `doc_kind`.
+- Thêm `'ai_chat'`, `'tct_sync'` vào CHECK của `source`.
+- Thêm cột `ai_upload_id uuid REFERENCES ai_uploads(id) ON DELETE SET NULL` (liên kết ngược về parse log).
+- Thêm cột `einvoice_id uuid REFERENCES einvoices(id) ON DELETE SET NULL`.
+- Index trên 2 cột trên.
 
-Bản chất: 1 trong 2 file của bạn có thể đã trùng hash với file đã upload (cache hit) HOẶC parse fail trước bước 6.
+### 2. Bridge `ai_uploads` → `documents`
 
-## Triển khai
+Sửa `src/lib/ai/parse-document.functions.ts`, trong helper `ensureUploadRow` (chạy ngay khi nhận file):
 
-### 1. Refactor `parseFileCore` — upload file gốc TRƯỚC khi parse
+- Sau khi upload Storage + insert `ai_uploads`, **insert thêm 1 row `documents`** với:
+  - `doc_kind` map từ `kind` (`bank_statement` / `purchase_invoice` / `cash_voucher`)
+  - `source = 'ai_chat'`
+  - `storage_bucket = 'invoices'`, `storage_path` = path đã upload
+  - `checksum_sha256 = file_hash`
+  - `ocr_status` đồng bộ với `ai_uploads.status` (`parsing` → `processing`, `parsed` → `done`, `failed` → `failed`)
+  - `ai_upload_id` = id vừa insert
+- Khi parse xong / fail → UPDATE cả `ai_uploads` và `documents` (ocr_status + ocr_extracted = parsed json).
+- Dùng `ON CONFLICT (tenant_id, checksum_sha256)` để idempotent — nếu document đã tồn tại thì chỉ update `ai_upload_id`.
 
-Tách bước 6 hiện tại thành **bước 0.5**: ngay sau khi tính `fileHash`, upload file lên Storage và insert một row "khung" vào `ai_uploads`. Các bước parse sau đó chỉ UPDATE row đó với `parsed`, `parser_used`, `pages`, `error` (nếu fail).
+### 3. Backfill dữ liệu cũ
 
-```text
-0. fileHash = sha256(file)
-0.5. Upsert ai_uploads theo (user_id, file_hash, kind):
-     - Nếu chưa có: upload file lên Storage, insert row với status='uploaded'
-     - Nếu đã có: dùng lại row + file_path cũ (tránh duplicate storage objects)
-1. Cache check → nếu hit: UPDATE row với parsed từ cache, return
-2-5. Parse như cũ
-6. UPDATE row với parsed/parser_used/pages
-   Nếu throw: catch → UPDATE row với error=<message>, rồi rethrow
-```
+Migration data: với mỗi `ai_uploads` chưa có `documents` tương ứng (match qua `file_path` ↔ `storage_path`), tạo row `documents` mới `source='ai_chat'`.
 
-Lợi ích:
-- File gốc **luôn có mặt** trong Storage ngay khi user attach, bất kể parse có thành công hay không.
-- Có audit trail cho file fail (xem được `error` trong `ai_uploads`).
-- Cache hit vẫn có row trỏ tới file gốc (file_path đầy đủ).
+### 4. Bridge e-invoice TCT → `documents`
 
-### 2. Schema thay đổi (migration nhỏ)
+Trong `src/lib/einvoices-sync.functions.ts` (hoặc nơi insert `einvoices`):
+- Khi đồng bộ về 1 e-invoice mới và có XML/PDF được tải xuống bucket `einvoices` → insert thêm `documents` row `source='tct_sync'`, `doc_kind='einvoice'`, `einvoice_id` set.
+- Nếu chưa có flow tải file → bỏ qua bước này (vẫn an toàn, chỉ là không có file gốc để xem).
 
-Bảng `ai_uploads` cần:
-- Index unique `(user_id, file_hash, kind)` để upsert idempotent.
-- Cột `status text default 'parsing'` (giá trị: `uploaded`, `parsing`, `parsed`, `failed`).
+### 5. UI trang `/documents`
 
-Nếu bảng đã có dữ liệu trùng `(user_id, file_hash, kind)` thì migration sẽ DEDUPLICATE trước (giữ row cũ nhất), rồi thêm unique index.
+- Thêm filter **Nguồn** (`source`): All / Upload tay / Chatbot AI / Sync TCT / Email / Bank import.
+- Cột bảng thêm icon nguồn (chatbot, sync, manual) thay vì chỉ text mờ.
+- Drawer:
+  - Tab **OCR**: nếu có `ai_upload_id`, hiển thị thêm `parser_used`, `pages`, `parser_ms`, link "Parse lại" (gọi `parseDocument` với base64 mới từ Storage).
+  - Tab **Liên kết**: nếu có `einvoice_id`, hiển thị link tới `/einvoices/$id`.
+- Header: nút **"Tải lên"** mở dialog upload thủ công (bucket `invoices`, doc_kind chọn từ dropdown) — bổ sung server fn `uploadDocument`.
 
-### 3. Hiển thị link file gốc trong UI Classifying
+### 6. Composer chatbot
 
-Trong `parse-progress-dialog.tsx`, mỗi `ClassifyRow` hiện tại chỉ hiện tên file. Thêm:
-- Icon link "Xem file gốc" → mở signed URL của file trong Storage (gọi `supabase.storage.from('invoices').createSignedUrl(...)`).
-- Áp dụng cho cả file OK lẫn file fail/skip để user có thể tự kiểm tra.
+Sau khi parse xong, nút **"Xem file gốc"** trong `parse-progress-dialog` đổi thành 2 nút: "Xem file" (signed URL như hiện tại) + "Mở trong Tài liệu" → `/documents?highlight={document_id}`.
 
-### 4. Server function mới: `getUploadSignedUrl`
+## File đụng tới
 
-`src/lib/ai/parse-document.functions.ts` thêm:
-```ts
-getUploadSignedUrl({ uploadId }): { url: string }
-```
-Dùng `requireSupabaseAuth`, validate `uploadId` thuộc về user, trả về signed URL 1 giờ.
+- `supabase/migrations/<ts>_documents_unify.sql` (mới)
+- `src/lib/ai/parse-document.functions.ts` (sửa `ensureUploadRow` + error path)
+- `src/lib/einvoices-sync.functions.ts` (thêm bridge documents — nếu có file)
+- `src/lib/documents.functions.ts` (thêm filter `source`, server fn `uploadDocument`, `reparseDocument`)
+- `src/routes/_app/documents/index.tsx` (filter Nguồn, icon, tab OCR enrich, nút upload, highlight)
+- `src/components/chat/parse-progress-dialog.tsx` (thêm nút "Mở trong Tài liệu")
 
-### 5. Truy vết file thứ 2
+## Không đụng
 
-Sau khi deploy, để bạn kiểm tra file thứ 2:
-- Mở DevTools → Network tab, attach lại 2 file, xem response của `parseDocument` cho từng file.
-- Hoặc query: `SELECT filename, file_hash, status, error FROM ai_uploads ORDER BY created_at DESC LIMIT 5;` — sẽ thấy file thứ 2 với status/error rõ ràng.
-
-## Files thay đổi
-
-- `supabase/migrations/<ts>_ai_uploads_dedupe_index.sql` — unique index + cột `status`.
-- `src/lib/ai/parse-document.functions.ts` — refactor `parseFileCore` (upload trước, update sau), thêm `getUploadSignedUrl` server function.
-- `src/components/chat/parse-progress-dialog.tsx` — nút "Xem file gốc" trên mỗi row classify, truyền `uploadId` từ kết quả parse.
-- `src/components/chat/composer.tsx` — giữ `uploadId` của từng item parsed để pass xuống dialog.
-
-## Không đổi
-
-- Bucket `invoices` (private) giữ nguyên — vẫn dùng signed URL.
-- RLS của `ai_uploads` không đổi.
-- Logic auto-skip duplicate giữ nguyên (chỉ thêm link xem file gốc).
+- Cấu trúc bucket `invoices` / `einvoices`.
+- RLS hiện tại.
+- Bảng `ai_uploads` (chỉ thêm liên kết 1 chiều từ `documents`).
+- Logic phân loại / dedupe trong classify-import.

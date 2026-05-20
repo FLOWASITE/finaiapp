@@ -1875,9 +1875,11 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_upload_id: string | null
           checksum_sha256: string | null
           created_at: string
           doc_kind: string
+          einvoice_id: string | null
           id: string
           mime_type: string | null
           notes: string | null
@@ -1896,9 +1898,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_upload_id?: string | null
           checksum_sha256?: string | null
           created_at?: string
           doc_kind: string
+          einvoice_id?: string | null
           id?: string
           mime_type?: string | null
           notes?: string | null
@@ -1917,9 +1921,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_upload_id?: string | null
           checksum_sha256?: string | null
           created_at?: string
           doc_kind?: string
+          einvoice_id?: string | null
           id?: string
           mime_type?: string | null
           notes?: string | null
@@ -1937,7 +1943,22 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_ai_upload_id_fkey"
+            columns: ["ai_upload_id"]
+            isOneToOne: false
+            referencedRelation: "ai_uploads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_einvoice_id_fkey"
+            columns: ["einvoice_id"]
+            isOneToOne: false
+            referencedRelation: "einvoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       einvoice_credentials: {
         Row: {
