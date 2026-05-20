@@ -269,11 +269,13 @@ export function Composer({
       });
       const results: ClassificationResult[] = classifyRes?.results ?? [];
       setClassifications(results);
-      // Init decisions from suggested_action & auto-match
+      // Init decisions from suggested_action & auto-match.
+      // Auto-skip files that are exact duplicates (file_hash already imported).
       const init: Record<number, ClassifyDecision> = {};
       results.forEach((r, i) => {
+        const isFileDup = r.warnings?.some((w: any) => w.type === "file_duplicate");
         init[i] = {
-          action: r.suggested_action,
+          action: isFileDup ? "skip" : r.suggested_action,
           bankAccountId: r.bank_account_match?.id ?? null,
           includeOverlapDup: false,
         };
