@@ -345,6 +345,141 @@ async function fetchTctInvoices(args: {
   return out;
 }
 
+/**
+ * Lấy chi tiết HĐ (dòng hàng + breakdown thuế) từ cổng TCT.
+ * Endpoint trả JSON detail, KHÔNG phải file XML — nhưng đủ dữ liệu để
+ * dựng `einvoice_lines`.
+ */
+async function fetchTctInvoiceDetail(args: {
+  token: string;
+  direction: "in" | "out";
+  nbmst: string;
+  khhdon: string;
+  shdon: string;
+  khmshdon: string;
+}): Promise<any> {
+  const path = args.direction === "in" ? "purchase" : "sold";
+  const qp = new URLSearchParams({
+    nbmst: args.nbmst,
+    khhdon: args.khhdon,
+    shdon: args.shdon,
+    khmshdon: args.khmshdon,
+  });
+  const res = await fetch(
+    `${getTctBase()}/query/invoices/detail/${path}?${qp.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${args.token}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(20000),
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+/** Map mã thuế TCT về tỉ lệ + code chuẩn. */
+function mapTctVatRate(raw: unknown): { rate: number; code: string } {
+  const s = String(raw ?? "").trim().toUpperCase();
+  if (!s) return { rate: 0, code: "KCT" };
+  if (s === "KCT" || s === "KCTGT") return { rate: 0, code: "KCT" };
+  if (s === "KKKNT") return { rate: 0, code: "KKKNT" };
+  const m = s.match(/(\d+(?:[.,]\d+)?)/);
+  if (!m) return { rate: 0, code: "KCT" };
+  const n = Number(m[1].replace(",", "."));
+  if (!Number.isFinite(n)) return { rate: 0, code: "KCT" };
+  if (n === 0) return { rate: 0, code: "0" };
+  if (n === 5) return { rate: 5, code: "5" };
+  if (n === 8) return { rate: 8, code: "8" };
+  if (n === 10) return { rate: 10, code: "10" };
+  return { rate: n, code: String(Math.round(n)) };
+}
+
+/**
+ * Gọi detail TCT cho 1 einvoice, lưu lines + cập nhật xml_fetch_status.
+ * Không throw — chỉ trả status + error để batch không dừng.
+ */
+async function enrichEinvoiceFromTct(
+  supabase: any,
+  args: {
+    token: string;
+    einvoiceId: string;
+    direction: "in" | "out";
+    seller_tax_id: string;
+    invoice_series: string;
+    invoice_no: string;
+    khmshdon: string;
+  },
+): Promise<{ ok: boolean; error?: string; lineCount?: number }> {
+  try {
+    if (!args.seller_tax_id || !args.invoice_series || !args.invoice_no || !args.khmshdon) {
+      throw new Error("Thiếu khoá tra cứu (nbmst/khhdon/shdon/khmshdon)");
+    }
+    const detail = await fetchTctInvoiceDetail({
+      token: args.token,
+      direction: args.direction,
+      nbmst: args.seller_tax_id,
+      khhdon: args.invoice_series,
+      shdon: args.invoice_no,
+      khmshdon: args.khmshdon,
+    });
+
+    const rawLines: any[] = Array.isArray(detail?.hdhhdvu) ? detail.hdhhdvu : [];
+    // TT78: tchat 1=hàng/dv, 2=khuyến mãi, 3=chiết khấu, 4=ghi chú.
+    const itemLines = rawLines.filter(
+      (l) => l?.tchat === undefined || l?.tchat === null || Number(l?.tchat) === 1,
+    );
+
+    const lineRows = itemLines.map((l, idx) => {
+      const vat = mapTctVatRate(l.tsuat);
+      const qty = Number(l.sluong ?? 0) || 0;
+      const unitPrice = Number(l.dgia ?? 0) || 0;
+      const amount = Number(l.thtien ?? qty * unitPrice) || 0;
+      const vatAmount = Number(l.tthue ?? amount * (vat.rate / 100)) || 0;
+      return {
+        einvoice_id: args.einvoiceId,
+        line_no: Number(l.stt) || idx + 1,
+        description:
+          String(l.ten ?? "Hàng hoá / dịch vụ").trim() || "Hàng hoá / dịch vụ",
+        unit: l.dvtinh ? String(l.dvtinh) : null,
+        qty,
+        unit_price: unitPrice,
+        amount,
+        vat_rate: vat.rate,
+        vat_amount: vatAmount,
+      };
+    });
+
+    await supabase.from("einvoice_lines").delete().eq("einvoice_id", args.einvoiceId);
+    if (lineRows.length) {
+      await supabase.from("einvoice_lines").insert(lineRows);
+    }
+
+    await supabase
+      .from("einvoices")
+      .update({
+        xml_fetch_status: "done",
+        xml_fetch_error: null,
+        xml_fetched_at: new Date().toISOString(),
+        tct_raw: detail,
+      })
+      .eq("id", args.einvoiceId);
+
+    return { ok: true, lineCount: lineRows.length };
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    await supabase
+      .from("einvoices")
+      .update({
+        xml_fetch_status: "failed",
+        xml_fetch_error: msg.slice(0, 500),
+      })
+      .eq("id", args.einvoiceId);
+    return { ok: false, error: msg };
+  }
+}
+
 export const syncTctInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
