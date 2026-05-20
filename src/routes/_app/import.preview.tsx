@@ -262,6 +262,7 @@ function ImportPreviewPage() {
               invoice_no: d.invoice_no || undefined,
               issue_date: d.issue_date,
               notes: d.notes || undefined,
+              expense_account: d.expense_account || undefined,
               lines: d.lines,
             },
           },
