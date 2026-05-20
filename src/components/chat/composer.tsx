@@ -86,7 +86,7 @@ export function Composer({
   const [nextTarget, setNextTarget] = useState<"/import/preview" | "/bank/import-statement" | null>(null);
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [decisions, setDecisions] = useState<Record<number, ClassifyDecision>>({});
-  const [parsedItems, setParsedItems] = useState<Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null }>>([]);
+  const [parsedItems, setParsedItems] = useState<Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; uploadId: string | null }>>([]);
   const navigate = useNavigate();
   const parseFn = useServerFn(parseDocument);
   const classifyFn = useServerFn(classifyImports);
