@@ -102,14 +102,17 @@ function parseAdjustmentKind(
   return "original";
 }
 
-/** Phẳng hoá TTKhac → Record<TTruong, DLieu>. */
+/** Phẳng hoá TTKhac → Record<TTruong, DLieu>. Chấp nhận node hoặc array nhiều wrapper. */
 function flattenTTKhac(node: any): Record<string, string> {
-  const items = asArray<any>(node?.TTin);
   const out: Record<string, string> = {};
-  for (const it of items) {
-    const key = str(it?.TTruong);
-    const val = str(it?.DLieu);
-    if (key) out[key] = val;
+  const wrappers = asArray<any>(node);
+  for (const w of wrappers) {
+    const items = asArray<any>(w?.TTin);
+    for (const it of items) {
+      const key = str(it?.TTruong);
+      const val = str(it?.DLieu);
+      if (key) out[key] = val;
+    }
   }
   return out;
 }
