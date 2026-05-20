@@ -129,9 +129,31 @@ function schemaFor(kind: string) {
 
 // ---------- Source acquisition ----------------------------------------
 
+type LlamaParseErrorInfo = {
+  phase: string;
+  status?: number;
+  attempts: number;
+  jobId?: string;
+  tier?: string;
+  message: string;
+  bodyExcerpt?: string;
+};
+
 type Source =
-  | { kind: "markdown"; markdown: string; pages: string[]; parser: string; pageCount: number }
-  | { kind: "vision"; parser: "vision"; pageCount: number };
+  | {
+      kind: "markdown";
+      markdown: string;
+      pages: string[];
+      parser: string;
+      pageCount: number;
+      llamaError?: LlamaParseErrorInfo;
+    }
+  | {
+      kind: "vision";
+      parser: "vision";
+      pageCount: number;
+      llamaError?: LlamaParseErrorInfo;
+    };
 
 type TierChoice = { tier: "fast" | "balanced" | "premium"; reason: string };
 
@@ -239,12 +261,31 @@ async function acquireSource(
           tierChoice,
         };
       }
-    } catch (e) {
-      console.warn("[parse-document] LlamaParse failed, falling back to vision:", (e as Error)?.message);
+    } catch (e: any) {
+      const info: LlamaParseErrorInfo = {
+        phase: e?.phase ?? "unknown",
+        status: e?.status,
+        attempts: e?.attempts ?? 0,
+        jobId: e?.jobId,
+        tier: e?.tier,
+        message: e?.message || String(e),
+        bodyExcerpt: e?.bodyExcerpt,
+      };
+      console.warn("[parse-document] LlamaParse failed, falling back to vision:", info.message);
+      return {
+        source: {
+          kind: "vision",
+          parser: "vision",
+          pageCount: knownPageCount || 0,
+          llamaError: info,
+        },
+        parserMs: Date.now() - start,
+        tierChoice,
+      };
     }
   }
 
-  // 3) Vision fallback
+  // 3) Vision fallback (no LlamaParse attempted)
   return {
     source: { kind: "vision", parser: "vision", pageCount: knownPageCount || 0 },
     parserMs: Date.now() - start,
@@ -584,6 +625,9 @@ export async function parseFileCore(opts: {
           structurer_ms: structurerMs,
           pages: source.pageCount || null,
           file_hash: fileHash,
+          error: source.llamaError
+            ? `LlamaParse[${source.llamaError.phase}${source.llamaError.status ? ` ${source.llamaError.status}` : ""}] ${source.llamaError.message}`
+            : null,
         })
         .select("id")
         .maybeSingle();
@@ -601,6 +645,7 @@ export async function parseFileCore(opts: {
     cached: false,
     pages: source.pageCount || null,
     timings: { parserMs, structurerMs },
+    llamaError: source.llamaError ?? null,
   };
 }
 
