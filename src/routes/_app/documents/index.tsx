@@ -88,7 +88,11 @@ import {
   Loader2,
   Sparkles,
   ArrowUpToLine,
+  Search,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const SearchSchema = z.object({
   highlight: z.string().uuid().optional(),
