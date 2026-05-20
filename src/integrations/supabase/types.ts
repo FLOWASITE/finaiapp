@@ -2163,6 +2163,9 @@ export type Database = {
           vat_amount: number | null
           void_reason: string | null
           voided_at: string | null
+          xml_fetch_error: string | null
+          xml_fetch_status: string
+          xml_fetched_at: string | null
           xml_path: string | null
         }
         Insert: {
@@ -2205,6 +2208,9 @@ export type Database = {
           vat_amount?: number | null
           void_reason?: string | null
           voided_at?: string | null
+          xml_fetch_error?: string | null
+          xml_fetch_status?: string
+          xml_fetched_at?: string | null
           xml_path?: string | null
         }
         Update: {
@@ -2247,6 +2253,9 @@ export type Database = {
           vat_amount?: number | null
           void_reason?: string | null
           voided_at?: string | null
+          xml_fetch_error?: string | null
+          xml_fetch_status?: string
+          xml_fetched_at?: string | null
           xml_path?: string | null
         }
         Relationships: [
