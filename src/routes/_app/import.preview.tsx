@@ -429,6 +429,18 @@ function DraftCard({
             </Field>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
+            <Field label="Nợ — TK chi phí/HH">
+              <AccountCombo value={draft.expense_account} options={EXPENSE_OPTS} onChange={(v) => onPatch({ expense_account: v } as any)} />
+            </Field>
+            <Field label="Nợ — TK thuế VAT đầu vào">
+              <AccountCombo value={draft.vat_account} options={VAT_IN_OPTS} onChange={(v) => onPatch({ vat_account: v } as any)} />
+            </Field>
+            <Field label="Có — TK phải trả NCC">
+              <AccountCombo value={draft.payable_account} options={PAYABLE_OPTS} onChange={(v) => onPatch({ payable_account: v } as any)} />
+            </Field>
+          </div>
+
           <div className="overflow-x-auto rounded-md border border-border">
             <Table>
               <TableHeader>
