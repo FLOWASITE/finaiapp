@@ -326,11 +326,15 @@ function DocumentsPage() {
                 </Link>
               </Button>
             )}
+            <Button onClick={() => setSyncTctOpen(true)} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              <RefreshCw className="h-4 w-4 mr-1.5" /> Đồng bộ HĐĐT
+            </Button>
             <Button onClick={() => setUploadOpen(true)} className="flex-1 sm:flex-none">
               <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
             </Button>
           </div>
         </div>
+        <SyncTctDialog open={syncTctOpen} onOpenChange={setSyncTctOpen} defaultDirection="in" />
 
         <Tabs value={currentTab} onValueChange={(v) => setTab(v as TabValue)}>
           <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl p-1 sm:w-auto">
