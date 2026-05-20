@@ -130,6 +130,9 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
     invoice_no: String(p.invoice_no ?? p.invoice_number ?? ""),
     issue_date: normalizeDate(p.issue_date ?? p.date),
     notes: String(p.notes ?? ""),
+    expense_account: String(p.expense_account ?? "1561"),
+    vat_account: "1331",
+    payable_account: "331",
     lines,
     status: "idle",
   };
