@@ -55,7 +55,7 @@ export const listEInvoices = createServerFn({ method: "POST" })
     let q = supabase
       .from("einvoices")
       .select(
-        "id, direction, source, seller_tax_id, seller_name, buyer_tax_id, buyer_name, invoice_series, invoice_no, issue_date, total, vat_amount, subtotal, tct_status, tct_lookup_code, matched_sales_invoice_id, matched_purchase_invoice_id, created_at",
+        "id, direction, source, seller_tax_id, seller_name, buyer_tax_id, buyer_name, invoice_series, invoice_no, issue_date, total, vat_amount, subtotal, tct_status, tct_lookup_code, matched_sales_invoice_id, matched_purchase_invoice_id, xml_fetch_status, xml_fetch_error, created_at",
         { count: "exact" },
       )
       .eq("direction", data.direction)
