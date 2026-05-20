@@ -601,7 +601,7 @@ export async function parseFileCore(opts: {
   userId?: string;
 }) {
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
-  const fileHash = hashBase64(opts.fileBase64);
+  const fileHash = await hashBase64(opts.fileBase64);
 
   // ---- 0. Upload file gốc NGAY (trước parse) - luôn có audit trail dù parse fail/cache hit.
   let uploadInfo: { uploadId: string; filePath: string | null } | null = null;
