@@ -261,12 +261,31 @@ async function acquireSource(
           tierChoice,
         };
       }
-    } catch (e) {
-      console.warn("[parse-document] LlamaParse failed, falling back to vision:", (e as Error)?.message);
+    } catch (e: any) {
+      const info: LlamaParseErrorInfo = {
+        phase: e?.phase ?? "unknown",
+        status: e?.status,
+        attempts: e?.attempts ?? 0,
+        jobId: e?.jobId,
+        tier: e?.tier,
+        message: e?.message || String(e),
+        bodyExcerpt: e?.bodyExcerpt,
+      };
+      console.warn("[parse-document] LlamaParse failed, falling back to vision:", info.message);
+      return {
+        source: {
+          kind: "vision",
+          parser: "vision",
+          pageCount: knownPageCount || 0,
+          llamaError: info,
+        },
+        parserMs: Date.now() - start,
+        tierChoice,
+      };
     }
   }
 
-  // 3) Vision fallback
+  // 3) Vision fallback (no LlamaParse attempted)
   return {
     source: { kind: "vision", parser: "vision", pageCount: knownPageCount || 0 },
     parserMs: Date.now() - start,
