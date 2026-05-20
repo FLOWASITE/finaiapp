@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { XMLParser } from "fast-xml-parser";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  parseEinvoiceXml,
+  EinvoiceParseError,
+} from "@/lib/einvoice-xml-parser";
+
 
 // ------- helpers -------
 const num = (v: unknown): number => {
