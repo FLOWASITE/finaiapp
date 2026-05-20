@@ -435,6 +435,63 @@ async function structureBankStatement(
 
 // ---------- Core --------------------------------------------------------
 
+/**
+ * Upload file gốc lên Storage + tạo/lấy row ai_uploads (idempotent theo
+ * user_id + file_hash + kind). Chạy NGAY khi nhận file để luôn có audit trail,
+ * kể cả khi parse fail sau đó.
+ */
+async function ensureUploadRow(opts: {
+  supabase: any;
+  userId: string;
+  fileBuf: Buffer;
+  fileHash: string;
+  filename?: string;
+  mimeType: string;
+  kind: string;
+}): Promise<{ uploadId: string; filePath: string | null } | null> {
+  try {
+    const { data: existing } = await opts.supabase
+      .from("ai_uploads")
+      .select("id, file_path")
+      .eq("user_id", opts.userId)
+      .eq("file_hash", opts.fileHash)
+      .eq("kind", opts.kind)
+      .maybeSingle();
+    if (existing?.id) {
+      return { uploadId: existing.id, filePath: existing.file_path ?? null };
+    }
+    const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
+    const path = `ai-uploads/${opts.userId}/${Date.now()}-${safeName}`;
+    const { error: upErr } = await opts.supabase.storage
+      .from("invoices")
+      .upload(path, opts.fileBuf, { contentType: opts.mimeType, upsert: false });
+    if (upErr) {
+      console.warn("[parseFileCore] storage upload failed:", upErr.message);
+    }
+    const { data: row, error: insErr } = await opts.supabase
+      .from("ai_uploads")
+      .insert({
+        user_id: opts.userId,
+        file_path: upErr ? null : path,
+        mime_type: opts.mimeType,
+        filename: opts.filename || null,
+        kind: opts.kind,
+        file_hash: opts.fileHash,
+        status: "uploaded",
+      })
+      .select("id, file_path")
+      .maybeSingle();
+    if (insErr) {
+      console.warn("[parseFileCore] ai_uploads insert failed:", insErr.message);
+      return null;
+    }
+    return row?.id ? { uploadId: row.id, filePath: row.file_path ?? null } : null;
+  } catch (e: any) {
+    console.warn("[parseFileCore] ensureUploadRow exception:", e?.message);
+    return null;
+  }
+}
+
 export async function parseFileCore(opts: {
   fileBase64: string;
   mimeType: string;
@@ -446,209 +503,251 @@ export async function parseFileCore(opts: {
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
   const fileHash = hashBase64(opts.fileBase64);
 
-  // ---- 0. Cache check (skip for `auto` since dispatch may pick different kind)
-  if (opts.supabase && opts.kind !== "auto") {
-    const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
-    if (cached) {
-      return {
-        kind: opts.kind,
-        uploadId: null,
-        parsed: cached.parsed,
-        parser: cached.parser_used || "cache",
-        cached: true,
-        pages: cached.pages,
-        file_hash: fileHash,
-      };
-    }
+  // ---- 0. Upload file gốc NGAY (trước parse) - luôn có audit trail dù parse fail/cache hit.
+  let uploadInfo: { uploadId: string; filePath: string | null } | null = null;
+  if (opts.supabase && opts.userId) {
+    uploadInfo = await ensureUploadRow({
+      supabase: opts.supabase,
+      userId: opts.userId,
+      fileBuf,
+      fileHash,
+      filename: opts.filename,
+      mimeType: opts.mimeType,
+      kind: opts.kind,
+    });
   }
+  let uploadId = uploadInfo?.uploadId ?? null;
 
-  // ---- 1. Source acquisition
-  const { source, parserMs } = await acquireSource(
-    opts.fileBase64,
-    opts.mimeType,
-    opts.filename,
-    opts.kind,
-  );
-
-  // ---- 2. Models
-  const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
-  const { model: textModel } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
-
-  // ---- 3. Auto kind classification
-  let effectiveKind = opts.kind;
-  if (effectiveKind === "auto") {
-    try {
-      const text =
-        source.kind === "markdown"
-          ? source.markdown.slice(0, 6000)
-          : "";
-      const messages =
-        source.kind === "markdown"
-          ? [
-              {
-                role: "user" as const,
-                content: [
-                  {
-                    type: "text" as const,
-                    text:
-                      "Phân loại tài liệu sau là loại nào trong: purchase_invoice (hoá đơn mua), bank_statement (sao kê ngân hàng), cash_voucher (phiếu thu/chi), unknown.\n\n```\n" +
-                      text +
-                      "\n```",
-                  },
-                ],
-              },
-            ]
-          : [
-              {
-                role: "user" as const,
-                content: [
-                  {
-                    type: "text" as const,
-                    text:
-                      "Phân loại tài liệu là: purchase_invoice / bank_statement / cash_voucher / unknown.",
-                  },
-                  { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
-                ],
-              },
-            ];
-      const r = await generateText({
-        model: source.kind === "markdown" ? textModel : visionModel,
-        output: Output.object({ schema: KindClassifySchema as any }),
-        messages,
-      });
-      const k = (r as any).output?.kind;
-      if (k && k !== "unknown") {
-        effectiveKind = k;
-      }
-    } catch (e) {
-      console.warn("[parse-document] auto classify failed:", (e as Error)?.message);
+  const markFailed = async (msg: string) => {
+    if (uploadId && opts.supabase) {
+      try {
+        await opts.supabase
+          .from("ai_uploads")
+          .update({ status: "failed", error: msg.slice(0, 2000) })
+          .eq("id", uploadId);
+      } catch {}
     }
-  }
-
-  // ---- 4. Structurer
-  const structStart = Date.now();
-  let parsed: any;
+  };
 
   try {
-    if (effectiveKind === "bank_statement") {
-      parsed = await structureBankStatement(source, textModel, visionModel, fileBuf, opts.mimeType);
-    } else {
-      const schema = schemaFor(effectiveKind);
-      const promptHead = PROMPTS[effectiveKind] || "Trích xuất dữ liệu từ tài liệu.";
-      const messages =
-        source.kind === "markdown"
-          ? [
-              {
-                role: "user" as const,
-                content: [
-                  {
-                    type: "text" as const,
-                    text:
-                      promptHead +
-                      PROMPT_TAIL +
-                      "\n\nNội dung tài liệu (markdown):\n\n```markdown\n" +
-                      source.markdown +
-                      "\n```",
-                  },
-                ],
-              },
-            ]
-          : [
-              {
-                role: "user" as const,
-                content: [
-                  { type: "text" as const, text: promptHead + PROMPT_TAIL },
-                  { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
-                ],
-              },
-            ];
-      const model = source.kind === "markdown" ? textModel : visionModel;
-      if (schema) {
-        const r = await generateText({
-          model,
-          output: Output.object({ schema: schema as any }),
-          messages,
-        });
-        parsed = (r as any).output;
-      } else {
-        const r = await generateText({ model, messages });
-        parsed = extractJSON(r.text) ?? { raw: r.text };
+    // ---- 1. Cache check (skip for `auto`)
+    if (opts.supabase && opts.kind !== "auto") {
+      const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
+      if (cached) {
+        if (uploadId) {
+          try {
+            await opts.supabase
+              .from("ai_uploads")
+              .update({
+                parsed: typeof cached.parsed === "string" ? { raw: cached.parsed } : cached.parsed,
+                parser_used: cached.parser_used || "cache",
+                pages: cached.pages,
+                status: "parsed",
+                error: null,
+              })
+              .eq("id", uploadId);
+          } catch {}
+        }
+        return {
+          kind: opts.kind,
+          uploadId,
+          parsed: cached.parsed,
+          parser: cached.parser_used || "cache",
+          cached: true,
+          pages: cached.pages,
+          file_hash: fileHash,
+        };
       }
     }
-  } catch (err: any) {
-    console.warn("[parse-document] structurer failed:", err?.message);
-    // last-ditch vision retry
-    if (source.kind === "markdown") {
-      const r = await generateText({
-        model: visionModel,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
-              { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
-            ],
-          },
-        ],
-      });
-      parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
-    } else {
-      throw err;
+
+    // ---- 2. Source acquisition
+    const { source, parserMs } = await acquireSource(
+      opts.fileBase64,
+      opts.mimeType,
+      opts.filename,
+      opts.kind,
+    );
+
+    // ---- 3. Models
+    const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
+    const { model: textModel } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
+
+    // ---- 4. Auto kind classification
+    let effectiveKind = opts.kind;
+    if (effectiveKind === "auto") {
+      try {
+        const text =
+          source.kind === "markdown" ? source.markdown.slice(0, 6000) : "";
+        const messages =
+          source.kind === "markdown"
+            ? [
+                {
+                  role: "user" as const,
+                  content: [
+                    {
+                      type: "text" as const,
+                      text:
+                        "Phân loại tài liệu sau là loại nào trong: purchase_invoice (hoá đơn mua), bank_statement (sao kê ngân hàng), cash_voucher (phiếu thu/chi), unknown.\n\n```\n" +
+                        text +
+                        "\n```",
+                    },
+                  ],
+                },
+              ]
+            : [
+                {
+                  role: "user" as const,
+                  content: [
+                    {
+                      type: "text" as const,
+                      text:
+                        "Phân loại tài liệu là: purchase_invoice / bank_statement / cash_voucher / unknown.",
+                    },
+                    { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                  ],
+                },
+              ];
+        const r = await generateText({
+          model: source.kind === "markdown" ? textModel : visionModel,
+          output: Output.object({ schema: KindClassifySchema as any }),
+          messages,
+        });
+        const k = (r as any).output?.kind;
+        if (k && k !== "unknown") {
+          effectiveKind = k;
+        }
+      } catch (e) {
+        console.warn("[parse-document] auto classify failed:", (e as Error)?.message);
+      }
     }
-  }
-  const structurerMs = Date.now() - structStart;
 
-  // ---- 5. Write to cache (skip if `auto` resolved to nothing)
-  if (opts.supabase && effectiveKind !== "auto") {
-    await writeParseCache(opts.supabase, fileHash, effectiveKind, parsed, source.parser, source.pageCount || null);
-  }
+    // Nếu kind đã được resolve khác với opts.kind, cần re-ensure row với kind đúng
+    if (effectiveKind !== opts.kind && opts.supabase && opts.userId) {
+      const reUp = await ensureUploadRow({
+        supabase: opts.supabase,
+        userId: opts.userId,
+        fileBuf,
+        fileHash,
+        filename: opts.filename,
+        mimeType: opts.mimeType,
+        kind: effectiveKind,
+      });
+      if (reUp?.uploadId) uploadId = reUp.uploadId;
+    }
 
-  // ---- 6. Persist upload (best-effort)
-  let uploadId: string | null = null;
-  if (opts.supabase && opts.userId) {
+    // ---- 5. Structurer
+    const structStart = Date.now();
+    let parsed: any;
+
     try {
-      const path = `ai-uploads/${opts.userId}/${Date.now()}-${opts.filename || "file"}`;
-      await opts.supabase.storage.from("invoices").upload(path, fileBuf, {
-        contentType: opts.mimeType,
-        upsert: false,
-      });
-      const { data: row } = await opts.supabase
-        .from("ai_uploads")
-        .insert({
-          user_id: opts.userId,
-          file_path: path,
-          mime_type: opts.mimeType,
-          filename: opts.filename || null,
-          kind: effectiveKind,
-          parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
-          parser_used: source.parser,
-          parser_ms: parserMs,
-          structurer_ms: structurerMs,
-          pages: source.pageCount || null,
-          file_hash: fileHash,
-          error: source.llamaError
-            ? `LlamaParse[${source.llamaError.phase}${source.llamaError.status ? ` ${source.llamaError.status}` : ""}] ${source.llamaError.message}`
-            : null,
-        })
-        .select("id")
-        .maybeSingle();
-      uploadId = row?.id ?? null;
-    } catch {
-      // best-effort
+      if (effectiveKind === "bank_statement") {
+        parsed = await structureBankStatement(source, textModel, visionModel, fileBuf, opts.mimeType);
+      } else {
+        const schema = schemaFor(effectiveKind);
+        const promptHead = PROMPTS[effectiveKind] || "Trích xuất dữ liệu từ tài liệu.";
+        const messages =
+          source.kind === "markdown"
+            ? [
+                {
+                  role: "user" as const,
+                  content: [
+                    {
+                      type: "text" as const,
+                      text:
+                        promptHead +
+                        PROMPT_TAIL +
+                        "\n\nNội dung tài liệu (markdown):\n\n```markdown\n" +
+                        source.markdown +
+                        "\n```",
+                    },
+                  ],
+                },
+              ]
+            : [
+                {
+                  role: "user" as const,
+                  content: [
+                    { type: "text" as const, text: promptHead + PROMPT_TAIL },
+                    { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                  ],
+                },
+              ];
+        const model = source.kind === "markdown" ? textModel : visionModel;
+        if (schema) {
+          const r = await generateText({
+            model,
+            output: Output.object({ schema: schema as any }),
+            messages,
+          });
+          parsed = (r as any).output;
+        } else {
+          const r = await generateText({ model, messages });
+          parsed = extractJSON(r.text) ?? { raw: r.text };
+        }
+      }
+    } catch (err: any) {
+      console.warn("[parse-document] structurer failed:", err?.message);
+      if (source.kind === "markdown") {
+        const r = await generateText({
+          model: visionModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
+                { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
+              ],
+            },
+          ],
+        });
+        parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
+      } else {
+        throw err;
+      }
     }
-  }
+    const structurerMs = Date.now() - structStart;
 
-  return {
-    kind: effectiveKind,
-    uploadId,
-    parsed,
-    parser: source.parser,
-    cached: false,
-    pages: source.pageCount || null,
-    timings: { parserMs, structurerMs },
-    llamaError: source.llamaError ?? null,
-    file_hash: fileHash,
-  };
+    // ---- 6. Write to cache
+    if (opts.supabase && effectiveKind !== "auto") {
+      await writeParseCache(opts.supabase, fileHash, effectiveKind, parsed, source.parser, source.pageCount || null);
+    }
+
+    // ---- 7. Update ai_uploads với kết quả parse
+    if (uploadId && opts.supabase) {
+      try {
+        await opts.supabase
+          .from("ai_uploads")
+          .update({
+            kind: effectiveKind,
+            parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
+            parser_used: source.parser,
+            parser_ms: parserMs,
+            structurer_ms: structurerMs,
+            pages: source.pageCount || null,
+            status: "parsed",
+            error: source.llamaError
+              ? `LlamaParse[${source.llamaError.phase}${source.llamaError.status ? ` ${source.llamaError.status}` : ""}] ${source.llamaError.message}`
+              : null,
+          })
+          .eq("id", uploadId);
+      } catch {}
+    }
+
+    return {
+      kind: effectiveKind,
+      uploadId,
+      parsed,
+      parser: source.parser,
+      cached: false,
+      pages: source.pageCount || null,
+      timings: { parserMs, structurerMs },
+      llamaError: source.llamaError ?? null,
+      file_hash: fileHash,
+    };
+  } catch (err: any) {
+    await markFailed(err?.message || "Parse failed");
+    throw err;
+  }
 }
 
 export const parseDocument = createServerFn({ method: "POST" })
@@ -657,4 +756,27 @@ export const parseDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
     return parseFileCore({ ...data, supabase, userId });
+  });
+
+// ---- Signed URL để xem file gốc trong UI ----
+const SignedUrlInput = z.object({ uploadId: z.string().uuid() });
+
+export const getUploadSignedUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SignedUrlInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: row, error } = await supabase
+      .from("ai_uploads")
+      .select("file_path, filename, user_id")
+      .eq("id", data.uploadId)
+      .maybeSingle();
+    if (error || !row) throw new Error("Không tìm thấy file");
+    if (row.user_id !== userId) throw new Error("Không có quyền");
+    if (!row.file_path) throw new Error("File chưa được lưu trên Storage");
+    const { data: signed, error: sErr } = await supabase.storage
+      .from("invoices")
+      .createSignedUrl(row.file_path, 3600);
+    if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "Không tạo được link");
+    return { url: signed.signedUrl, filename: row.filename };
   });
