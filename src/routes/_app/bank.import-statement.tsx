@@ -199,39 +199,63 @@ function ImportStatementPage() {
   const mismatchFiles = stmtMeta.filter((m) => m.validation && !m.validation.ok);
   const suspectCount = suspectByIdx.size;
 
+  // Per-file aggregated stats + status (for individual "Tạo bút toán" buttons)
+  const fileSummaries = useMemo(() => {
+    return stmtMeta.map((m, fi) => {
+      const fileRows = filtered.filter((r) => (r.file_idx ?? 0) === fi);
+      const inP = fileRows.filter((r) => r.inPeriod && !r.skip);
+      const credit = inP.filter((r) => r.amount >= 0).reduce((s, r) => s + r.amount, 0);
+      const debit = inP.filter((r) => r.amount < 0).reduce((s, r) => s + Math.abs(r.amount), 0);
+      const suspect = fileRows.filter((r) => suspectByIdx.has(r.idx)).length;
+      const lowConf = inP.filter((r) => r.confidence < 0.5).length;
+      const mismatch = !!(m.validation && !m.validation.ok);
+      return {
+        fileIdx: fi, meta: m, totalInPeriod: fileRows.filter((r) => r.inPeriod).length,
+        active: inP.length, credit, debit, suspect, lowConf, mismatch,
+      };
+    });
+  }, [stmtMeta, filtered, suspectByIdx]);
 
   const update = (idx: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   const post = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { fileIdx?: number }) => {
       if (!bankAccountId) throw new Error("Chưa chọn tài khoản ngân hàng");
       const payload = filtered
         .filter((r) => r.inPeriod)
+        .filter((r) => opts?.fileIdx == null || (r.file_idx ?? 0) === opts.fileIdx)
         .map((r) => ({
-          txn_date: r.txn_date,
-          description: r.description || null,
-          amount: r.amount,
-          counterparty: r.counterparty ?? null,
-          counter_account: r.counter_account,
-          party_name: r.party_name ?? null,
-          reason: r.reason ?? null,
-          skip: r.skip,
-        }));
+            txn_date: r.txn_date,
+            description: r.description || null,
+            amount: r.amount,
+            counterparty: r.counterparty ?? null,
+            counter_account: r.counter_account,
+            party_name: r.party_name ?? null,
+            reason: r.reason ?? null,
+            skip: r.skip,
+          }));
       if (!payload.length) throw new Error("Không có dòng nào trong kỳ");
-      return postFn({ data: { bankAccountId, period: { year, month }, rows: payload } });
+      const res = await postFn({ data: { bankAccountId, period: { year, month }, rows: payload } });
+      return { res, fileIdx: opts?.fileIdx };
     },
-    onSuccess: (res) => {
-      toast.success(`Đã hạch toán ${res.posted} GD, bỏ qua ${res.skipped}${res.errors.length ? `, lỗi ${res.errors.length}` : ""}`);
+    onSuccess: ({ res, fileIdx }) => {
+      const label = fileIdx != null ? ` (${stmtMeta[fileIdx]?.filename ?? `file #${fileIdx + 1}`})` : "";
+      toast.success(`Đã hạch toán ${res.posted} GD${label}, bỏ qua ${res.skipped}${res.errors.length ? `, lỗi ${res.errors.length}` : ""}`);
       invalidateLedgers(qc);
       if (res.errors.length) {
         toast.error(`Lỗi đầu tiên: ${res.errors[0].error}`);
+      } else if (fileIdx != null) {
+        // Remove only this file's rows
+        setRows((prev) => prev.filter((r) => (r.file_idx ?? 0) !== fileIdx));
       } else {
         setRows([]);
       }
     },
     onError: (e: any) => toast.error(e.message || "Lỗi hạch toán"),
   });
+
+  const [pendingFileIdx, setPendingFileIdx] = useState<number | null>(null);
 
   return (
     <div className="container mx-auto space-y-4 p-4 md:p-6">
@@ -370,6 +394,85 @@ function ImportStatementPage() {
 
 
 
+          {fileSummaries.length > 0 && (
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Hạch toán theo từng file sao kê
+              </div>
+              <ul className="divide-y divide-border">
+                {fileSummaries.map((s) => {
+                  const blocked = s.mismatch;
+                  const busy = post.isPending && pendingFileIdx === s.fileIdx;
+                  return (
+                    <li key={s.fileIdx} className="flex flex-col gap-2 p-3 md:flex-row md:items-center md:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-sm font-medium truncate">
+                          📄 {s.meta.filename}
+                          {blocked ? (
+                            <Badge variant="destructive" className="text-[10px]">
+                              <AlertTriangle className="mr-1 h-3 w-3" />Sao kê lệch
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">
+                              <CheckCircle2 className="mr-1 h-3 w-3" />Đối soát OK
+                            </Badge>
+                          )}
+                          {s.suspect > 0 && (
+                            <Badge variant="outline" className="border-amber-500/50 text-amber-700 text-[10px]">
+                              {s.suspect} nghi ngờ
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          <b className="text-foreground">{s.active}</b>/{s.totalInPeriod} GD trong kỳ •
+                          {" "}Thu <span className="text-emerald-600">{fmt(s.credit)}</span>₫ •
+                          {" "}Chi <span className="text-destructive">{fmt(s.debit)}</span>₫
+                          {s.lowConf > 0 && <> • <span className="text-amber-600">{s.lowConf} dòng confidence thấp</span></>}
+                        </div>
+                        {blocked && s.meta.validation && (
+                          <div className="mt-1 text-[11px] text-destructive">
+                            Chênh lệch {fmt(s.meta.validation.diff)}₫ giữa số dư & Σcredit−Σdebit. Sửa các dòng nghi ngờ ở bảng dưới rồi thử lại.
+                          </div>
+                        )}
+                        {!blocked && s.suspect > 0 && (
+                          <div className="mt-1 text-[11px] text-amber-700">
+                            Gợi ý: kiểm tra {s.suspect} dòng nghi ngờ (highlight vàng) trước khi hạch toán để tránh sai sót.
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 md:justify-end">
+                        <Button
+                          size="sm"
+                          variant={blocked ? "outline" : "default"}
+                          disabled={!bankAccountId || !s.active || blocked || post.isPending}
+                          onClick={() => {
+                            if (s.suspect > 0) {
+                              const ok = window.confirm(
+                                `File này còn ${s.suspect} giao dịch nghi ngờ. Bạn đã kiểm tra & muốn tạo bút toán cho ${s.active} GD?`,
+                              );
+                              if (!ok) return;
+                            }
+                            setPendingFileIdx(s.fileIdx);
+                            post.mutate({ fileIdx: s.fileIdx });
+                          }}
+                          title={blocked ? "Phải khắc phục mismatch trước khi hạch toán" : undefined}
+                        >
+                          <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                          {busy ? "Đang tạo…" : `Tạo bút toán (${s.active})`}
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {mismatchFiles.length > 0 && (
+                <div className="border-t border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                  Nút "Tạo bút toán" bị khóa cho các file còn cảnh báo mismatch. Sửa số liệu trong bảng dưới đến khi tổng khớp số dư.
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
@@ -461,7 +564,7 @@ function ImportStatementPage() {
             <Button
               size="lg"
               disabled={!bankAccountId || !stats.active || post.isPending}
-              onClick={() => post.mutate()}
+              onClick={() => post.mutate(undefined)}
             >
               <CheckCircle2 className="mr-1.5 h-4 w-4" />
               {post.isPending ? "Đang hạch toán…" : `Hạch toán ${stats.active} giao dịch`}
