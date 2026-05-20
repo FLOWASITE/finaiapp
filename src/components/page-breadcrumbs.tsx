@@ -8,7 +8,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   setup: "Thiết lập",
   einvoices: "Hóa đơn điện tử",
   credentials: "Chứng thư số",
-  documents: "Trung tâm chứng từ",
+  documents: "Trung tâm tài liệu",
   invoices: "Hóa đơn",
   sales: "Bán hàng",
   orders: "Đơn hàng",

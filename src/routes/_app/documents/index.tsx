@@ -104,7 +104,7 @@ const SearchSchema = z.object({
 
 export const Route = createFileRoute("/_app/documents/")({
   validateSearch: SearchSchema,
-  staticData: { crumb: "Trung tâm chứng từ" },
+  staticData: { crumb: "Trung tâm tài liệu" },
   component: DocumentsPage,
 });
 
@@ -317,8 +317,8 @@ function DocumentsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border bg-card/70 p-4 shadow-sm">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">Trung tâm chứng từ</h1>
-              <Badge variant="secondary" className="h-6">Bản mới</Badge>
+              <h1 className="text-3xl font-bold tracking-tight">Trung tâm tài liệu</h1>
+              <Badge variant="secondary" className="h-6">Bản mới 20/05</Badge>
               <Badge variant="outline" className="h-6">Đã hợp nhất</Badge>
             </div>
             <p className="max-w-3xl text-sm text-muted-foreground">{tabMeta.description}</p>
