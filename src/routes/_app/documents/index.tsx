@@ -91,6 +91,7 @@ function DocumentsPage() {
   const list = useServerFn(listDocuments);
   const [search, setSearch] = useState("");
   const [docKind, setDocKind] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [ocrStatus, setOcrStatus] = useState<string>("all");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -99,6 +100,7 @@ function DocumentsPage() {
   const filters = {
     search: search || undefined,
     doc_kind: docKind === "all" ? undefined : docKind,
+    source: sourceFilter === "all" ? undefined : sourceFilter,
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
     from_date: fromDate || undefined,
     to_date: toDate || undefined,
@@ -112,12 +114,14 @@ function DocumentsPage() {
 
   const activeCount =
     (docKind !== "all" ? 1 : 0) +
+    (sourceFilter !== "all" ? 1 : 0) +
     (ocrStatus !== "all" ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0);
 
   const resetFilters = () => {
     setDocKind("all");
+    setSourceFilter("all");
     setOcrStatus("all");
     setFromDate("");
     setToDate("");
@@ -129,19 +133,30 @@ function DocumentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Tài liệu</h1>
           <p className="text-sm text-muted-foreground">
-            Kho lưu trữ tập trung — file, OCR và liên kết với chứng từ.
+            Kho lưu trữ tập trung — chứng từ upload tay, chatbot AI, sync TCT đều hiện ở đây.
           </p>
         </div>
       </div>
 
       <Card className="p-4">
-        <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2 mb-3 md:grid-cols-7">
           <Input
             placeholder="Tìm theo tên file..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="md:col-span-2"
           />
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Nguồn" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Mọi nguồn</SelectItem>
+              {Object.entries(SOURCE_LABELS).map(([k, label]) => (
+                <SelectItem key={k} value={k}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={docKind} onValueChange={setDocKind}>
             <SelectTrigger>
               <SelectValue placeholder="Loại tài liệu" />
