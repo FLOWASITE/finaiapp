@@ -575,6 +575,20 @@ function ClassifyRow({
       console.warn("openOriginal failed", e?.message);
     }
   };
+  const openInDocs = async () => {
+    if (!uploadId) return;
+    try {
+      const { getUploadSignedUrl } = await import("@/lib/ai/parse-document.functions");
+      const res: any = await getUploadSignedUrl({ data: { uploadId } });
+      if (res?.documentId) {
+        window.open(`/documents?highlight=${res.documentId}`, "_blank", "noopener");
+      } else {
+        window.open("/documents", "_blank", "noopener");
+      }
+    } catch (e: any) {
+      console.warn("openInDocs failed", e?.message);
+    }
+  };
   return (
     <div
       className={cn(
@@ -589,14 +603,24 @@ function ClassifyRow({
             <span className="truncate font-medium">{c.filename}</span>
             <Badge variant="outline" className="text-[10px]">{KIND_LABEL[c.kind] ?? c.kind}</Badge>
             {uploadId && (
-              <button
-                type="button"
-                onClick={openOriginal}
-                className="text-[10px] text-primary underline-offset-2 hover:underline"
-                title="Mở file gốc trong tab mới"
-              >
-                Xem file gốc
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={openOriginal}
+                  className="text-[10px] text-primary underline-offset-2 hover:underline"
+                  title="Mở file gốc trong tab mới"
+                >
+                  Xem file gốc
+                </button>
+                <button
+                  type="button"
+                  onClick={openInDocs}
+                  className="text-[10px] text-primary underline-offset-2 hover:underline"
+                  title="Mở trong trang Tài liệu"
+                >
+                  Mở trong Tài liệu
+                </button>
+              </>
             )}
             {autoSkipped && (
               <Badge variant="secondary" className="text-[10px]">Đã tự bỏ qua</Badge>
