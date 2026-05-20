@@ -147,6 +147,7 @@ export function ParseProgressDialog({
   onClose,
   continueLabel = "Xem lại & chỉnh sửa",
   classifications,
+  uploadIds,
   decisions,
   onDecisionChange,
   onCreateBankAccount,
@@ -158,6 +159,7 @@ export function ParseProgressDialog({
   onClose?: () => void;
   continueLabel?: string;
   classifications?: ClassificationResult[];
+  uploadIds?: (string | null)[];
   decisions?: Record<number, ClassifyDecision>;
   onDecisionChange?: (idx: number, patch: Partial<ClassifyDecision>) => void;
   onCreateBankAccount?: (idx: number, meta: any) => void;
@@ -453,6 +455,7 @@ export function ParseProgressDialog({
                             key={`${c.filename}-${i}`}
                             c={c}
                             decision={d}
+                            uploadId={uploadIds?.[i] ?? null}
                             autoSkipped={isAutoSkipped(c, d)}
                             onDecisionChange={(patch) => onDecisionChange?.(i, patch)}
                             onCreateBankAccount={(meta) => onCreateBankAccount?.(i, meta)}
@@ -543,12 +546,14 @@ function SummaryChip({
 function ClassifyRow({
   c,
   decision,
+  uploadId,
   autoSkipped,
   onDecisionChange,
   onCreateBankAccount,
 }: {
   c: ClassificationResult;
   decision: ClassifyDecision;
+  uploadId?: string | null;
   autoSkipped?: boolean;
   onDecisionChange: (patch: Partial<ClassifyDecision>) => void;
   onCreateBankAccount: (meta: any) => void;
@@ -559,6 +564,16 @@ function ClassifyRow({
     bank_statement: "Sao kê NH",
     cash_voucher: "Phiếu thu/chi",
     unknown: "Không rõ",
+  };
+  const openOriginal = async () => {
+    if (!uploadId) return;
+    try {
+      const { getUploadSignedUrl } = await import("@/lib/ai/parse-document.functions");
+      const res: any = await getUploadSignedUrl({ data: { uploadId } });
+      if (res?.url) window.open(res.url, "_blank", "noopener");
+    } catch (e: any) {
+      console.warn("openOriginal failed", e?.message);
+    }
   };
   return (
     <div
@@ -573,6 +588,16 @@ function ClassifyRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate font-medium">{c.filename}</span>
             <Badge variant="outline" className="text-[10px]">{KIND_LABEL[c.kind] ?? c.kind}</Badge>
+            {uploadId && (
+              <button
+                type="button"
+                onClick={openOriginal}
+                className="text-[10px] text-primary underline-offset-2 hover:underline"
+                title="Mở file gốc trong tab mới"
+              >
+                Xem file gốc
+              </button>
+            )}
             {autoSkipped && (
               <Badge variant="secondary" className="text-[10px]">Đã tự bỏ qua</Badge>
             )}
