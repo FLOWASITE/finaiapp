@@ -8,21 +8,8 @@ import {
 
 
 // ------- helpers -------
-const num = (v: unknown): number => {
-  if (v === null || v === undefined || v === "") return 0;
-  const n = Number(String(v).replace(/[,\s]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
 const str = (v: unknown): string =>
   v === null || v === undefined ? "" : String(v).trim();
-const parsePct = (v: unknown): number => {
-  const s = str(v);
-  if (!s) return 0;
-  const m = s.match(/-?\d+(\.\d+)?/);
-  return m ? Number(m[0]) : 0;
-};
-const asArray = <T,>(v: T | T[] | undefined | null): T[] =>
-  v === null || v === undefined ? [] : Array.isArray(v) ? v : [v];
 
 async function resolveTenant(supabase: any, userId: string) {
   const { data: profile } = await supabase
