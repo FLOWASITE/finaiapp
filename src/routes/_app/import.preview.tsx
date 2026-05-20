@@ -566,3 +566,59 @@ function Field({ label, className, children }: { label: string; className?: stri
     </div>
   );
 }
+
+function AccountCombo({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const merged = Array.from(new Set([value, ...options].filter(Boolean)));
+  return (
+    <div className="flex gap-1">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          {merged.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value.trim())}
+        className="h-9 w-20 text-xs"
+        placeholder="khác"
+      />
+    </div>
+  );
+}
+
+function JournalPreview({ rows }: { rows: Array<{ dr: string; cr: string; amount: number; memo?: string }> }) {
+  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  return (
+    <div className="rounded-md border border-border bg-muted/20">
+      <div className="border-b border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        Bút toán dự kiến
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-24">Nợ</TableHead>
+            <TableHead className="w-24">Có</TableHead>
+            <TableHead className="text-right w-36">Số tiền</TableHead>
+            <TableHead>Diễn giải</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r, i) => (
+            <TableRow key={i}>
+              <TableCell className="font-mono text-xs">{r.dr}</TableCell>
+              <TableCell className="font-mono text-xs">{r.cr}</TableCell>
+              <TableCell className="text-right font-medium">{fmt(r.amount)}</TableCell>
+              <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">{r.memo}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell colSpan={2} className="text-right text-xs text-muted-foreground">Tổng</TableCell>
+            <TableCell className="text-right font-semibold">{fmt(total)}</TableCell>
+            <TableCell />
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
