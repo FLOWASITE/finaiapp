@@ -228,6 +228,9 @@ function DocumentsPage() {
   const search = useSearch({ from: "/_app/documents/" });
   const navigate = useNavigate();
 
+  const currentTab: TabValue = search.tab ?? "all";
+  const tabMeta = TAB_PRESETS[currentTab];
+
   const [searchText, setSearchText] = useState("");
   const [docKind, setDocKind] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -245,9 +248,23 @@ function DocumentsPage() {
     }
   }, [search.highlight]);
 
+  // Reset inner doc_kind filter when tab changes (tab already constrains kinds)
+  useEffect(() => {
+    setDocKind("all");
+    setLimit(PAGE_SIZE);
+  }, [currentTab]);
+
+  // Tab kinds take precedence over inner docKind filter — pick first matching kind for narrowing
+  const effectiveDocKind =
+    docKind !== "all"
+      ? docKind
+      : tabMeta.kinds && tabMeta.kinds.length === 1
+        ? tabMeta.kinds[0]
+        : undefined;
+
   const filters = {
     search: searchText || undefined,
-    doc_kind: docKind === "all" ? undefined : docKind,
+    doc_kind: effectiveDocKind,
     source: sourceFilter === "all" ? undefined : sourceFilter,
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
     from_date: fromDate || undefined,
@@ -255,9 +272,16 @@ function DocumentsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["documents", filters, limit],
+    queryKey: ["documents", currentTab, filters, limit],
     queryFn: () => list({ data: { ...filters, limit, offset: 0 } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  // For multi-kind tabs (e.g. "files"), client-side filter by tabMeta.kinds
+  const filteredRows = (data?.rows ?? []).filter((r: any) => {
+    if (!tabMeta.kinds) return true;
+    if (tabMeta.kinds.length === 1) return true; // already filtered server-side
+    return tabMeta.kinds.includes(r.doc_kind);
   });
 
   const activeCount =
@@ -276,23 +300,48 @@ function DocumentsPage() {
   };
 
   const total = data?.total ?? 0;
-  const rows = data?.rows ?? [];
-  const canLoadMore = rows.length < total;
+  const rows = filteredRows;
+  const canLoadMore = data && (data.rows?.length ?? 0) < total;
+
+  const setTab = (t: TabValue) => {
+    navigate({
+      to: "/documents",
+      search: (s: any) => ({ ...s, tab: t === "all" ? undefined : t }),
+    });
+  };
 
   return (
     <TooltipProvider delayDuration={150}>
       <div className="p-6 space-y-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-semibold">Tài liệu</h1>
-            <p className="text-sm text-muted-foreground">
-              Kho lưu trữ tập trung — sao kê, hoá đơn, chứng từ từ upload tay, chatbot AI, và sync TCT.
-            </p>
+            <h1 className="text-2xl font-semibold">Trung tâm chứng từ</h1>
+            <p className="text-sm text-muted-foreground">{tabMeta.description}</p>
           </div>
-          <Button onClick={() => setUploadOpen(true)}>
-            <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
-          </Button>
+          <div className="flex items-center gap-2">
+            {tabMeta.legacyTo && (
+              <Button asChild variant="outline" size="sm">
+                <Link to={tabMeta.legacyTo}>
+                  <ExternalLink className="h-4 w-4 mr-1.5" /> {tabMeta.legacyLabel}
+                </Link>
+              </Button>
+            )}
+            <Button onClick={() => setUploadOpen(true)}>
+              <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
+            </Button>
+          </div>
         </div>
+
+        <Tabs value={currentTab} onValueChange={(v) => setTab(v as TabValue)}>
+          <TabsList>
+            {TAB_VALUES.map((t) => (
+              <TabsTrigger key={t} value={t}>
+                {TAB_PRESETS[t].label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
 
         <Card className="p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
