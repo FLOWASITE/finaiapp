@@ -720,7 +720,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                 )}
                 {data.signedUrl && !isImage && !isPdf && (
                   <p className="text-sm text-muted-foreground">
-                    Không hỗ trợs xem trước định dạng này. Bấm "Tải về" để xem.
+                    Không hỗ trợ xem trước định dạng này. Bấm "Tải về" để xem.
                   </p>
                 )}
               </TabsContent>
