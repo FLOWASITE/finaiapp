@@ -387,8 +387,15 @@ function ImportStatementPage() {
                 {filtered.map((r) => {
                   const opts = r.amount >= 0 ? RECEIPT_OPTS : PAYMENT_OPTS;
                   const dim = !r.inPeriod || r.skip;
+                  const suspectReasons = suspectByIdx.get(r.idx);
+                  const isSuspect = !!suspectReasons;
                   return (
-                    <TableRow key={r.idx} className={dim ? "opacity-40" : ""}>
+                    <TableRow
+                      key={r.idx}
+                      id={`txn-${r.idx}`}
+                      className={`${dim ? "opacity-40" : ""} ${isSuspect ? "bg-amber-500/5 border-l-2 border-l-amber-500" : ""} transition-shadow`}
+                      title={isSuspect ? suspectReasons!.join(" • ") : undefined}
+                    >
                       <TableCell>
                         <input
                           type="checkbox"
