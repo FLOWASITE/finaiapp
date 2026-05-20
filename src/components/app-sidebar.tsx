@@ -45,13 +45,13 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "AI",
+    label: "Bắt đầu mọi việc",
     entries: [
-      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
+      { to: "/documents", label: "Trung tâm chứng từ", icon: Inbox, badge: "MỚI", badgeTone: "new" },
     ],
   },
   {
-    label: "AI",
+    label: "Vận hành",
     entries: [
       {
         label: "Tiền & Ngân hàng",
@@ -173,16 +173,7 @@ const FRONT_SECTIONS: NavSection[] = [
           { to: "/assets", label: "Tài sản" },
         ],
       },
-      {
-        label: "Hồ sơ",
-        icon: FileText,
-        items: [
-          { to: "/invoices", label: "Hoá đơn bán" },
-          { to: "/purchases", label: "Hoá đơn mua" },
-          { to: "/einvoices", label: "Hoá đơn điện tử" },
-          { to: "/documents", label: "Trung tâm tài liệu" },
-        ],
-      },
+      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText },
     ],
   },
   {
