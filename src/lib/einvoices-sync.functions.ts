@@ -556,11 +556,21 @@ export const syncTctInvoices = createServerFn({ method: "POST" })
 
       let created = 0;
       let duplicate = 0;
+      // Theo dõi HĐ vừa tạo để enrich detail sau (chỉ HĐ hợp lệ — bỏ qua HĐ huỷ)
+      const toEnrich: Array<{
+        einvoiceId: string;
+        seller_tax_id: string;
+        invoice_series: string;
+        invoice_no: string;
+        khmshdon: string;
+      }> = [];
+
       for (const it of items) {
         const sellerTax = String(it.nbmst ?? "").replace(/\D/g, "");
         const buyerTax = String(it.nmmst ?? "").replace(/\D/g, "");
         const invoiceSeries = String(it.khhdon ?? "");
         const invoiceNo = String(it.shdon ?? "");
+        const khmshdon = String(it.khmshdon ?? "");
         if (!invoiceNo) continue;
 
         const { data: dup } = await supabase
@@ -589,30 +599,76 @@ export const syncTctInvoices = createServerFn({ method: "POST" })
                   ? "replaced"
                   : "pending";
 
-        await supabase.from("einvoices").insert({
-          tenant_id: tenantId,
-          user_id: userId,
-          direction: data.direction,
-          source: "tct_sync",
-          seller_tax_id: sellerTax || null,
-          seller_name: it.nbten ?? null,
-          seller_address: it.nbdchi ?? null,
-          buyer_tax_id: buyerTax || null,
-          buyer_name: it.nmten ?? null,
-          buyer_address: it.nmdchi ?? null,
-          invoice_series: invoiceSeries || null,
-          invoice_no: invoiceNo,
-          issue_date: it.tdlap ? String(it.tdlap).slice(0, 10) : null,
-          currency: it.dvtte ?? "VND",
-          subtotal: Number(it.tgtcthue ?? 0),
-          vat_amount: Number(it.tgtthue ?? 0),
-          total: Number(it.tgtttbso ?? 0),
-          tct_lookup_code: it.mhdon ?? null,
-          tct_mcct: it.mccqt ?? null,
-          tct_status,
-          tct_raw: it,
-        });
+        // HĐ đã huỷ thì không cần tải chi tiết để hạch toán.
+        const xmlFetchStatus = tct_status === "cancelled" ? "not_needed" : "pending";
+
+        const { data: inserted } = await supabase
+          .from("einvoices")
+          .insert({
+            tenant_id: tenantId,
+            user_id: userId,
+            direction: data.direction,
+            source: "tct_sync",
+            seller_tax_id: sellerTax || null,
+            seller_name: it.nbten ?? null,
+            seller_address: it.nbdchi ?? null,
+            buyer_tax_id: buyerTax || null,
+            buyer_name: it.nmten ?? null,
+            buyer_address: it.nmdchi ?? null,
+            invoice_series: invoiceSeries || null,
+            invoice_no: invoiceNo,
+            issue_date: it.tdlap ? String(it.tdlap).slice(0, 10) : null,
+            currency: it.dvtte ?? "VND",
+            subtotal: Number(it.tgtcthue ?? 0),
+            vat_amount: Number(it.tgtthue ?? 0),
+            total: Number(it.tgtttbso ?? 0),
+            tct_lookup_code: it.mhdon ?? null,
+            tct_mcct: it.mccqt ?? null,
+            tct_status,
+            tct_raw: it,
+            xml_fetch_status: xmlFetchStatus,
+          })
+          .select("id")
+          .single();
         created++;
+
+        if (
+          xmlFetchStatus === "pending" &&
+          inserted?.id &&
+          sellerTax &&
+          invoiceSeries &&
+          khmshdon
+        ) {
+          toEnrich.push({
+            einvoiceId: inserted.id,
+            seller_tax_id: sellerTax,
+            invoice_series: invoiceSeries,
+            invoice_no: invoiceNo,
+            khmshdon,
+          });
+        }
+      }
+
+      // Enrichment: gọi detail TCT theo batch 5 song song để rút ngắn thời gian
+      // nhưng không ngợp proxy. Lỗi 1 HĐ không làm hỏng batch.
+      let enriched = 0;
+      let enrichFailed = 0;
+      const BATCH = 5;
+      for (let i = 0; i < toEnrich.length; i += BATCH) {
+        const slice = toEnrich.slice(i, i + BATCH);
+        const out = await Promise.all(
+          slice.map((e) =>
+            enrichEinvoiceFromTct(supabase, {
+              token,
+              direction: data.direction,
+              ...e,
+            }),
+          ),
+        );
+        for (const r of out) {
+          if (r.ok) enriched++;
+          else enrichFailed++;
+        }
       }
 
       if (logId) {
@@ -624,11 +680,21 @@ export const syncTctInvoices = createServerFn({ method: "POST" })
             fetched_count: items.length,
             created_count: created,
             duplicate_count: duplicate,
+            error_message:
+              enrichFailed > 0
+                ? `Tải chi tiết: ${enriched} OK, ${enrichFailed} lỗi`
+                : null,
           })
           .eq("id", logId);
       }
 
-      return { fetched: items.length, created, duplicate };
+      return {
+        fetched: items.length,
+        created,
+        duplicate,
+        enriched,
+        enrichFailed,
+      };
     } catch (e: any) {
       if (logId) {
         await supabase
