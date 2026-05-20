@@ -94,14 +94,59 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+const TAB_VALUES = ["all", "purchase", "sales", "einvoice", "files"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
 const SearchSchema = z.object({
   highlight: z.string().uuid().optional(),
+  tab: z.enum(TAB_VALUES).optional(),
 });
 
 export const Route = createFileRoute("/_app/documents/")({
   validateSearch: SearchSchema,
   component: DocumentsPage,
 });
+
+// Tab → preset filter map + label + legacy route
+const TAB_PRESETS: Record<TabValue, {
+  label: string;
+  kinds: string[] | null; // null = all
+  legacyTo?: string;
+  legacyLabel?: string;
+  description: string;
+}> = {
+  all: {
+    label: "Tất cả",
+    kinds: null,
+    description: "Mọi tài liệu — sao kê, hoá đơn, chứng từ từ mọi nguồn.",
+  },
+  purchase: {
+    label: "Hoá đơn mua",
+    kinds: ["purchase_invoice"],
+    legacyTo: "/invoices",
+    legacyLabel: "Trang hoá đơn mua",
+    description: "Hoá đơn đầu vào (mua vào) — đã upload, OCR và liên kết kế toán.",
+  },
+  sales: {
+    label: "Hoá đơn bán",
+    kinds: ["sales_invoice"],
+    legacyTo: "/sales",
+    legacyLabel: "Trang hoá đơn bán",
+    description: "Hoá đơn đầu ra (bán ra) đã tải lên hệ thống.",
+  },
+  einvoice: {
+    label: "Hoá đơn điện tử",
+    kinds: ["einvoice"],
+    legacyTo: "/einvoices",
+    legacyLabel: "Trang HĐĐT (TCT)",
+    description: "Hoá đơn điện tử đồng bộ từ TCT, import XML hoặc tải lên.",
+  },
+  files: {
+    label: "Tài liệu khác",
+    kinds: ["bank_statement", "bank_voucher", "cash_voucher", "receipt", "payment", "contract", "other"],
+    description: "Sao kê ngân hàng, hợp đồng, chứng từ phụ trợ không phải hoá đơn.",
+  },
+};
 
 const OCR_LABELS: Record<string, string> = {
   pending: "Chờ OCR",
@@ -183,6 +228,9 @@ function DocumentsPage() {
   const search = useSearch({ from: "/_app/documents/" });
   const navigate = useNavigate();
 
+  const currentTab: TabValue = search.tab ?? "all";
+  const tabMeta = TAB_PRESETS[currentTab];
+
   const [searchText, setSearchText] = useState("");
   const [docKind, setDocKind] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -200,9 +248,23 @@ function DocumentsPage() {
     }
   }, [search.highlight]);
 
+  // Reset inner doc_kind filter when tab changes (tab already constrains kinds)
+  useEffect(() => {
+    setDocKind("all");
+    setLimit(PAGE_SIZE);
+  }, [currentTab]);
+
+  // Tab kinds take precedence over inner docKind filter — pick first matching kind for narrowing
+  const effectiveDocKind =
+    docKind !== "all"
+      ? docKind
+      : tabMeta.kinds && tabMeta.kinds.length === 1
+        ? tabMeta.kinds[0]
+        : undefined;
+
   const filters = {
     search: searchText || undefined,
-    doc_kind: docKind === "all" ? undefined : docKind,
+    doc_kind: effectiveDocKind,
     source: sourceFilter === "all" ? undefined : sourceFilter,
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
     from_date: fromDate || undefined,
@@ -210,9 +272,16 @@ function DocumentsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["documents", filters, limit],
+    queryKey: ["documents", currentTab, filters, limit],
     queryFn: () => list({ data: { ...filters, limit, offset: 0 } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  // For multi-kind tabs (e.g. "files"), client-side filter by tabMeta.kinds
+  const filteredRows = (data?.rows ?? []).filter((r: any) => {
+    if (!tabMeta.kinds) return true;
+    if (tabMeta.kinds.length === 1) return true; // already filtered server-side
+    return tabMeta.kinds.includes(r.doc_kind);
   });
 
   const activeCount =
@@ -231,23 +300,48 @@ function DocumentsPage() {
   };
 
   const total = data?.total ?? 0;
-  const rows = data?.rows ?? [];
-  const canLoadMore = rows.length < total;
+  const rows = filteredRows;
+  const canLoadMore = data && (data.rows?.length ?? 0) < total;
+
+  const setTab = (t: TabValue) => {
+    navigate({
+      to: "/documents",
+      search: (s: any) => ({ ...s, tab: t === "all" ? undefined : t }),
+    });
+  };
 
   return (
     <TooltipProvider delayDuration={150}>
       <div className="p-6 space-y-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-semibold">Tài liệu</h1>
-            <p className="text-sm text-muted-foreground">
-              Kho lưu trữ tập trung — sao kê, hoá đơn, chứng từ từ upload tay, chatbot AI, và sync TCT.
-            </p>
+            <h1 className="text-2xl font-semibold">Trung tâm chứng từ</h1>
+            <p className="text-sm text-muted-foreground">{tabMeta.description}</p>
           </div>
-          <Button onClick={() => setUploadOpen(true)}>
-            <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
-          </Button>
+          <div className="flex items-center gap-2">
+            {tabMeta.legacyTo && (
+              <Button asChild variant="outline" size="sm">
+                <Link to={tabMeta.legacyTo}>
+                  <ExternalLink className="h-4 w-4 mr-1.5" /> {tabMeta.legacyLabel}
+                </Link>
+              </Button>
+            )}
+            <Button onClick={() => setUploadOpen(true)}>
+              <ArrowUpToLine className="h-4 w-4 mr-1.5" /> Tải lên
+            </Button>
+          </div>
         </div>
+
+        <Tabs value={currentTab} onValueChange={(v) => setTab(v as TabValue)}>
+          <TabsList>
+            {TAB_VALUES.map((t) => (
+              <TabsTrigger key={t} value={t}>
+                {TAB_PRESETS[t].label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
 
         <Card className="p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -398,7 +492,7 @@ function DocumentsPage() {
           id={openId}
           onClose={() => {
             setOpenId(null);
-            if (search.highlight) navigate({ to: "/documents", search: {} });
+            if (search.highlight) navigate({ to: "/documents", search: (s: any) => ({ ...s, highlight: undefined }) });
           }}
         />
         <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />

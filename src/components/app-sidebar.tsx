@@ -81,8 +81,18 @@ const SECTIONS: NavSection[] = [
           { to: "/payables", label: "Công nợ phải trả" },
         ],
       },
-      { to: "/einvoices", label: "Hoá đơn điện tử", icon: FileText },
-      { to: "/documents", label: "Tài liệu", icon: Inbox },
+      {
+        label: "Chứng từ & Tài liệu",
+        icon: Inbox,
+        items: [
+          { to: "/documents", label: "Tất cả" },
+          { to: "/documents?tab=purchase", label: "Hoá đơn mua" },
+          { to: "/documents?tab=sales", label: "Hoá đơn bán" },
+          { to: "/documents?tab=einvoice", label: "Hoá đơn điện tử" },
+          { to: "/documents?tab=files", label: "Tài liệu khác" },
+          { to: "/einvoices", label: "↳ Trang HĐĐT đầy đủ" },
+        ],
+      },
       {
         label: "Đối tác",
         icon: ContactIcon,
