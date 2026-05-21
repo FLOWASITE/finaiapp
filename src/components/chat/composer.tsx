@@ -208,14 +208,19 @@ export function Composer({
       reader.readAsDataURL(file);
     });
 
+  const isXml = (f: File) =>
+    f.type === "application/xml" ||
+    f.type === "text/xml" ||
+    f.name.toLowerCase().endsWith(".xml");
+
   const validateFiles = (files: File[]) =>
     files.filter((f) => {
       if (f.size > 12 * 1024 * 1024) {
         toast.error(`${f.name}: quá 12MB, bỏ qua`);
         return false;
       }
-      if (!f.type.startsWith("image/") && f.type !== "application/pdf") {
-        toast.error(`${f.name}: chỉ PDF/ảnh`);
+      if (!f.type.startsWith("image/") && f.type !== "application/pdf" && !isXml(f)) {
+        toast.error(`${f.name}: chỉ PDF/ảnh/XML`);
         return false;
       }
       return true;
@@ -427,7 +432,7 @@ export function Composer({
       <input
         ref={fileRef}
         type="file"
-        accept="application/pdf,image/*"
+        accept="application/pdf,image/*,application/xml,text/xml,.xml"
         multiple
         className="hidden"
         data-kind="purchase_invoice"
