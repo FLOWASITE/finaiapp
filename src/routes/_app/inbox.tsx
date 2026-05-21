@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Keyboard,
   Home,
+  Calculator,
 } from "lucide-react";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 import {
   listInboxAi,
@@ -73,7 +75,7 @@ export const Route = createFileRoute("/_app/inbox")({
   validateSearch: zodValidator(tabSchema),
   component: InboxAiPage,
   head: () => ({
-    meta: [{ title: "Sổ AI · FinAI" }],
+    meta: [{ title: "Inbox · FinAI" }],
   }),
 });
 
@@ -138,8 +140,8 @@ function InboxAiPage() {
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const prevPendingRef = useRef<number | null>(null);
-  const [recentlyReadDelta, setRecentlyReadDelta] = useState<number | null>(null);
+
+
 
   const listFn = useServerFn(listInboxAi);
   const approveFn = useServerFn(approveInboxItem);
@@ -168,16 +170,8 @@ function InboxAiPage() {
 
   const activeId = sheetItem?.id ?? null;
 
-  // Track "AI online · vừa đọc N hoá đơn"
-  useEffect(() => {
-    const p = stats?.pending ?? null;
-    if (p == null) return;
-    if (prevPendingRef.current != null) {
-      const d = p - prevPendingRef.current;
-      if (d > 0) setRecentlyReadDelta(d);
-    }
-    prevPendingRef.current = p;
-  }, [stats?.pending]);
+
+
 
   useEffect(() => {
     if (showScrollDown) {
@@ -382,7 +376,6 @@ function InboxAiPage() {
       <InboxHeader
         onOpenCmd={() => setCmdOpen(true)}
         periodLabel={periodLabel()}
-        recentlyReadDelta={recentlyReadDelta}
       />
 
 
@@ -607,15 +600,14 @@ function InboxAiPage() {
 function InboxHeader({
   onOpenCmd,
   periodLabel,
-  recentlyReadDelta,
 }: {
   onOpenCmd: () => void;
   periodLabel: string;
-  recentlyReadDelta: number | null;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: me } = useCurrentUser();
+  const { workspace, setWorkspace } = useWorkspace();
 
   const initial =
     (me?.profile?.display_name || me?.email || "?").trim().charAt(0).toUpperCase() || "?";
@@ -624,6 +616,11 @@ function InboxHeader({
   const onSignOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/login" });
+  };
+
+  const switchToAccounting = () => {
+    setWorkspace("back");
+    navigate({ to: "/dashboard" });
   };
 
   return (
@@ -635,27 +632,50 @@ function InboxHeader({
       >
         <ArrowLeft className="h-4 w-4" />
       </Link>
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-[13px] font-semibold text-white shadow-sm shadow-emerald-600/30">
-        S
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground shadow-sm shadow-primary/30">
+        F
       </div>
-      <div className="text-sm font-semibold tracking-tight">Sổ AI</div>
+      <div className="text-sm font-semibold tracking-tight">FinAI</div>
 
+      {/* Mode switcher: AI ↔ Kế toán */}
       <div
-        className="ml-1 hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-700 sm:flex dark:text-emerald-300"
-        title="Cập nhật cuối: vừa xong"
+        role="tablist"
+        aria-label="Chế độ làm việc"
+        className="ml-2 hidden items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5 sm:flex"
       >
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        </span>
-        AI online
-        <span className="hidden text-emerald-700/70 lg:inline dark:text-emerald-300/70">
-          ·{" "}
-          {recentlyReadDelta
-            ? `vừa đọc ${recentlyReadDelta} hoá đơn mới`
-            : "đang theo dõi"}
-        </span>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={workspace === "front"}
+          title="Chế độ AI — gợi ý & duyệt nhanh"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition",
+            workspace === "front"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => setWorkspace("front")}
+        >
+          <Sparkles className="h-3 w-3" /> AI
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={workspace === "back"}
+          title="Chế độ Kế toán đầy đủ — sổ sách, bút toán"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition",
+            workspace === "back"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={switchToAccounting}
+        >
+          <Calculator className="h-3 w-3" /> Kế toán
+        </button>
       </div>
+
+      <Separator orientation="vertical" className="ml-1 hidden h-6 md:block" />
 
       <button
         type="button"
