@@ -76,6 +76,74 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       abortSignal = getRequest()?.signal;
     } catch {}
 
+    // ===== BRANCH A: Bulk intake (≥ N attachments in one message) =====
+    // Skip LLM entirely. Build a BulkPlan and yield ONE summary event +
+    // a deterministic 3-paragraph text. The UI gates execution behind
+    // a "Chạy kế hoạch" button.
+    if (data.attachments && data.attachments.length >= BULK_THRESHOLD && !data.bulkRun) {
+      const callId = `bulk_${Math.random().toString(36).slice(2, 10)}`;
+      yield {
+        type: "tool-call",
+        toolCallId: callId,
+        toolName: "bulkIntake",
+        input: { fileCount: data.attachments.length },
+      } as AskStreamEvent;
+
+      try {
+        const plan = await buildBulkPlan({
+          supabase,
+          userId,
+          attachments: data.attachments,
+        });
+
+        yield {
+          type: "tool-result",
+          toolCallId: callId,
+          output: truncateOutput(plan, 32000),
+        } as AskStreamEvent;
+
+        // Build deterministic 3-paragraph reply.
+        const auto = plan.items.filter((i) => i.bucket === "auto");
+        const review = plan.items.filter((i) => i.bucket === "review");
+        const ask = plan.items.filter((i) => i.bucket === "ask");
+        const dupCount = plan.duplicates.length;
+        const askFirst = ask[0];
+
+        const para1 = `Nhận đủ **${data.attachments.length} files**${dupCount ? `, đã bỏ ${dupCount} file trùng` : ""}. Đã phân loại xong — xem bảng phía trên.`;
+        const para2 = `Đây là kế hoạch của tôi cho **${plan.items.length} mục** — sếp duyệt thì tôi chạy: **${auto.length}** mục tự hạch toán, **${review.length}** mục cần xem lại, **${ask.length}** mục cần hỏi sếp.`;
+        const para3 = askFirst
+          ? `\n\nTrước khi chạy, sếp giúp tôi xác nhận **${askFirst.filename}**: ${askFirst.reason ?? "tôi chưa chắc về file này"}. Sếp có thể bỏ qua, đánh dấu là loại khác, hoặc gửi lại file rõ hơn.`
+          : "";
+
+        yield { type: "text", delta: `${para1}\n\n${para2}${para3}` } as AskStreamEvent;
+      } catch (e: any) {
+        yield {
+          type: "tool-result",
+          toolCallId: callId,
+          output: { error: e?.message || "bulk intake error" },
+          isError: true,
+        } as AskStreamEvent;
+        yield {
+          type: "text",
+          delta: `Lỗi khi phân loại file: ${e?.message ?? "unknown"}`,
+        } as AskStreamEvent;
+      }
+      return;
+    }
+
+    // ===== BRANCH B: Bulk run (executes a previously approved BulkPlan) =====
+    if (data.bulkRun && data.bulkRun.items.length > 0) {
+      yield* runBulkPlanStream({
+        supabase,
+        userId,
+        items: data.bulkRun.items,
+        abortSignal,
+      });
+      return;
+    }
+
+
+
     let model: any;
     try {
       const r = await resolveActiveModel("chat", "google/gemini-3-flash-preview");
