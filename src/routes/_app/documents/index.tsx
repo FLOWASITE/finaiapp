@@ -234,6 +234,10 @@ function DocumentsPage() {
   const [ocrStatus, setOcrStatus] = useState<string>("all");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [issueFromDate, setIssueFromDate] = useState("");
+  const [issueToDate, setIssueToDate] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
