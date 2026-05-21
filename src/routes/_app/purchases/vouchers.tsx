@@ -648,24 +648,31 @@ function CreateVoucherDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <Label>Nhà cung cấp *</Label>
-                <Select value={header.supplier_id || "none"}
-                  onValueChange={(v) => {
-                    const s = (suppliers ?? []).find((x: any) => x.id === v);
-                    setHeader({
-                      ...header,
-                      supplier_id: v === "none" ? "" : v,
-                      supplier_name: s?.name ?? "",
-                      supplier_address: s?.address ?? "",
-                    });
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Không chọn —</SelectItem>
-                    {(suppliers ?? []).map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {suppliersLoading ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-sm text-muted-foreground bg-muted/50">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang tải danh sách NCC…
+                  </div>
+                ) : (
+                  <Select value={header.supplier_id || "none"}
+                    onValueChange={(v) => {
+                      const s = (suppliers ?? []).find((x: any) => x.id === v);
+                      setHeader({
+                        ...header,
+                        supplier_id: v === "none" ? "" : v,
+                        supplier_name: s?.name ?? "",
+                        supplier_address: s?.address ?? "",
+                      });
+                    }}>
+                    <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Không chọn —</SelectItem>
+                      {(suppliers ?? []).map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label>TK công nợ phải trả *</Label>
