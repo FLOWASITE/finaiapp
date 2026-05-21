@@ -511,7 +511,7 @@ function DocumentsPage() {
 
           {currentTab === "purchase" ? (
             <PurchaseInvoicesTable
-              filters={filters}
+              filters={purchaseFilters}
               onOpenDoc={(id: string) => setOpenId(id)}
             />
           ) : isLoading ? (
