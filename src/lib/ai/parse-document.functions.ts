@@ -707,6 +707,48 @@ export async function parseFileCore(opts: {
   };
 
   try {
+    if (isXmlFile(opts.mimeType, opts.filename)) {
+      try {
+        const parsedXml = parseEinvoiceXml(fileBuf.toString("utf8"));
+        const parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        if (uploadId && opts.supabase) {
+          try {
+            await opts.supabase
+              .from("ai_uploads")
+              .update({
+                kind: "purchase_invoice",
+                parsed,
+                parser_used: "einvoice_xml",
+                pages: 1,
+                status: "parsed",
+                error: null,
+              })
+              .eq("id", uploadId);
+            await updateDocumentOcr({ supabase: opts.supabase, uploadId, status: "done", parsed });
+          } catch {}
+        }
+        if (opts.supabase) {
+          await writeParseCache(opts.supabase, fileHash, "purchase_invoice", {
+            parsed,
+            parser_used: "einvoice_xml",
+            pages: 1,
+          });
+        }
+        return {
+          kind: "purchase_invoice",
+          uploadId,
+          parsed,
+          parser: "einvoice_xml",
+          cached: false,
+          pages: 1,
+          file_hash: fileHash,
+        };
+      } catch (e: any) {
+        await markFailed(e?.message || "Không nhận diện được XML hoá đơn điện tử");
+        throw e;
+      }
+    }
+
     // ---- 1. Cache check (skip for `auto`)
     if (opts.supabase && opts.kind !== "auto") {
       const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
