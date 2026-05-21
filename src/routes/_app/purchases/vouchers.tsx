@@ -854,37 +854,45 @@ function CreateVoucherDialog({
               </Button>
             </div>
 
-            {/* Payment row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3">
-              <div>
-                <Label>Phương thức TT</Label>
-                <Select value={header.payment_method}
-                  onValueChange={(v: any) => setHeader({ ...header, payment_method: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="credit">Công nợ</SelectItem>
-                    <SelectItem value="cash">Tiền mặt (111)</SelectItem>
-                    <SelectItem value="bank">Ngân hàng (112)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {header.payment_method !== "credit" && (
-                <>
+            {/* Payment row (collapsible on mobile) */}
+            <Collapsible open={paymentOpen} onOpenChange={setPaymentOpen} className="border-t pt-3">
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 text-sm font-medium sm:hidden">
+                <span>Thanh toán</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${paymentOpen ? "rotate-180" : ""}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent forceMount className="data-[state=closed]:hidden sm:!block">
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:mt-0">
                   <div>
-                    <Label>TK tiền</Label>
-                    <Input value={header.payment_account}
-                      onChange={(e) => setHeader({ ...header, payment_account: e.target.value })} />
+                    <Label>Phương thức TT</Label>
+                    <Select value={header.payment_method}
+                      onValueChange={(v: any) => setHeader({ ...header, payment_method: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="credit">Công nợ</SelectItem>
+                        <SelectItem value="cash">Tiền mặt (111)</SelectItem>
+                        <SelectItem value="bank">Ngân hàng (112)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={header.pay_now}
-                        onCheckedChange={(v) => setHeader({ ...header, pay_now: !!v })} />
-                      Thanh toán ngay → sinh phiếu chi/UNC
-                    </label>
-                  </div>
-                </>
-              )}
-            </div>
+                  {header.payment_method !== "credit" && (
+                    <>
+                      <div>
+                        <Label>TK tiền</Label>
+                        <Input value={header.payment_account}
+                          onChange={(e) => setHeader({ ...header, payment_account: e.target.value })} />
+                      </div>
+                      <div className="flex items-end">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={header.pay_now}
+                            onCheckedChange={(v) => setHeader({ ...header, pay_now: !!v })} />
+                          Thanh toán ngay → sinh phiếu chi/UNC
+                        </label>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </TabsContent>
 
           {/* === Tab 2: Hoá đơn === */}
