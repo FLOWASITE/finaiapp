@@ -1154,7 +1154,7 @@ function PurchaseInvoicesTable({
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               );
             })}
             {rows.length === 0 && (
