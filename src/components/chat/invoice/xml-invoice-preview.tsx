@@ -1,4 +1,6 @@
-import { ExternalLink, ShieldCheck } from "lucide-react";
+import { Copy, ExternalLink, ShieldCheck, BadgeCheck } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Line = {
   description?: string | null;
@@ -6,7 +8,7 @@ type Line = {
   qty?: number | null;
   unit_price?: number | null;
   amount?: number | null;
-  vat_rate?: number | null;
+  vat_rate?: number | string | null;
 };
 
 type Party = {
@@ -37,6 +39,8 @@ export type EinvoiceExtras = {
   };
 };
 
+const RED = "#c8102e";
+
 function fmt(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
   return new Intl.NumberFormat("vi-VN").format(n);
@@ -47,6 +51,18 @@ function fmtDate(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("vi-VN");
+}
+
+function fmtVatRate(v: number | string | null | undefined): string {
+  if (v == null || v === "") return "";
+  if (typeof v === "string") {
+    const s = v.trim().toUpperCase();
+    if (["KCT", "KKKNT", "KHAC", "KHÁC"].includes(s)) return s;
+    const num = Number(s.replace("%", ""));
+    if (!Number.isNaN(num)) return `${num}%`;
+    return s;
+  }
+  return `${v}%`;
 }
 
 export function XmlInvoicePreview({
@@ -60,136 +76,168 @@ export function XmlInvoicePreview({
   const buyer = data.buyer ?? {};
   const lines = data.lines ?? [];
   const t = data.totals ?? {};
-  const visible = lines.slice(0, 4);
+  const visible = lines.slice(0, 5);
   const moreCount = Math.max(0, lines.length - visible.length);
   const isCancelled = data.adjustment_kind === "cancelled";
   const adjustLabel =
     data.adjustment_kind === "replacement"
-      ? "HÓA ĐƠN THAY THẾ"
+      ? "Hoá đơn thay thế"
       : data.adjustment_kind === "adjustment"
-        ? "HÓA ĐƠN ĐIỀU CHỈNH"
-        : data.adjustment_kind === "cancelled"
-          ? "HÓA ĐƠN ĐÃ HUỶ"
-          : null;
+        ? "Hoá đơn điều chỉnh"
+        : null;
+
+  const hasAnyVatRate = visible.some((l) => l.vat_rate != null && l.vat_rate !== "");
+  const seriesLabel = [
+    data.template ? `Mẫu ${data.template}` : null,
+    data.series ? `KH ${data.series}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const onCopyCqt = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!data.cqt_code) return;
+    navigator.clipboard.writeText(data.cqt_code).then(
+      () => toast.success("Đã copy mã CQT"),
+      () => toast.error("Không copy được mã CQT"),
+    );
+  };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-[#d9bfa3]/70 bg-[#fffaf2] text-[10.5px] leading-snug text-slate-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-50/95">
-      {/* watermark */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(135deg, #c8102e 0 2px, transparent 2px 14px)",
-        }}
-      />
+    <div className="relative w-full overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:shadow-md">
+      {/* Stamp bar */}
+      <div className="h-1.5 w-full" style={{ background: RED }} />
+
       {isCancelled && (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
         >
-          <span className="rotate-[-18deg] rounded border-2 border-red-600/80 px-3 py-1 text-sm font-black tracking-widest text-red-600/80">
+          <span className="rotate-[-14deg] rounded border-2 border-destructive/80 bg-background/40 px-3 py-1 text-sm font-black tracking-widest text-destructive backdrop-blur-sm">
             ĐÃ HUỶ
           </span>
         </div>
       )}
 
-      <div className="relative px-3 pt-3 pb-2 text-center">
-        <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-[#c8102e]">
-          Hóa đơn giá trị gia tăng
-        </div>
-        <div className="mt-0.5 text-[9px] text-slate-600">
-          (VAT Invoice) · Bản thể hiện
-        </div>
-        {adjustLabel && (
-          <div className="mt-1 inline-block rounded bg-[#c8102e]/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#c8102e]">
-            {adjustLabel}
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
+        <div>
+          <div
+            className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+            style={{ color: RED }}
+          >
+            Hoá đơn GTGT
           </div>
-        )}
-        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-[10px] text-slate-700">
-          <span>
-            Ngày <span className="font-semibold">{fmtDate(data.issue_date)}</span>
-          </span>
-          {data.series && (
-            <span>
-              Ký hiệu <span className="font-mono font-semibold">{data.series}</span>
+          <div className="mt-0.5 text-[9px] text-muted-foreground">
+            VAT Invoice · Bản thể hiện
+          </div>
+          {adjustLabel && (
+            <div className="mt-1 inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              {adjustLabel}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {data.seller_signed && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck className="h-2.5 w-2.5" />
+              Đã ký số
             </span>
           )}
-          <span>
-            Số <span className="font-mono font-semibold text-[#c8102e]">{data.invoice_no || "—"}</span>
-          </span>
+          {data.cqt_signed && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-sky-600 dark:text-sky-400">
+              <BadgeCheck className="h-2.5 w-2.5" />
+              Mã CQT
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="relative mx-3 border-t border-dashed border-[#c8102e]/30" />
+      {/* Meta row */}
+      <div className="grid grid-cols-3 gap-2 border-t border-border/60 px-3.5 py-2">
+        <MetaCell label="Số" value={data.invoice_no || "—"} accent />
+        <MetaCell label="Ký hiệu" value={data.series || "—"} mono />
+        <MetaCell label="Ngày" value={fmtDate(data.issue_date)} />
+        {seriesLabel && (
+          <div className="col-span-3 -mt-1 text-[9px] text-muted-foreground">
+            {seriesLabel}
+          </div>
+        )}
+      </div>
 
       {/* Seller */}
-      <section className="relative px-3 py-2">
-        <div className="text-[9px] font-semibold uppercase tracking-wider text-[#c8102e]">
-          Đơn vị bán hàng
-        </div>
-        <div className="mt-0.5 font-semibold text-slate-900">
+      <section className="border-t border-border/60 px-3.5 py-2">
+        <SectionLabel>Người bán</SectionLabel>
+        <div className="mt-0.5 text-[12px] font-semibold text-foreground">
           {seller.name || "—"}
         </div>
-        {seller.tax_id && (
-          <div className="mt-0.5">
-            <span className="text-slate-500">MST:</span>{" "}
-            <span className="font-mono font-semibold">{seller.tax_id}</span>
-          </div>
-        )}
-        {seller.address && (
-          <div className="mt-0.5 line-clamp-2 text-slate-600">
-            <span className="text-slate-500">Địa chỉ:</span> {seller.address}
-          </div>
-        )}
+        <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+          {seller.tax_id && (
+            <span>
+              MST <span className="font-mono font-semibold text-foreground">{seller.tax_id}</span>
+            </span>
+          )}
+          {seller.address && (
+            <span className="line-clamp-1 flex-1 min-w-0">{seller.address}</span>
+          )}
+        </div>
       </section>
 
       {/* Buyer */}
       {(buyer.name || buyer.tax_id || buyer.address) && (
-        <section className="relative border-t border-dashed border-[#c8102e]/20 px-3 py-2">
-          <div className="text-[9px] font-semibold uppercase tracking-wider text-[#c8102e]">
-            Đơn vị mua hàng
-          </div>
+        <section className="border-t border-border/60 px-3.5 py-2">
+          <SectionLabel>Người mua</SectionLabel>
           {buyer.name && (
-            <div className="mt-0.5 font-medium text-slate-900">{buyer.name}</div>
-          )}
-          {buyer.tax_id && (
-            <div className="mt-0.5">
-              <span className="text-slate-500">MST:</span>{" "}
-              <span className="font-mono">{buyer.tax_id}</span>
+            <div className="mt-0.5 text-[12px] font-semibold text-foreground">
+              {buyer.name}
             </div>
           )}
-          {buyer.address && (
-            <div className="mt-0.5 line-clamp-2 text-slate-600">
-              <span className="text-slate-500">Địa chỉ:</span> {buyer.address}
-            </div>
-          )}
+          <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+            {buyer.tax_id && (
+              <span>
+                MST <span className="font-mono font-semibold text-foreground">{buyer.tax_id}</span>
+              </span>
+            )}
+            {buyer.address && (
+              <span className="line-clamp-1 flex-1 min-w-0">{buyer.address}</span>
+            )}
+          </div>
         </section>
       )}
 
       {/* Lines */}
       {visible.length > 0 && (
-        <section className="relative border-t border-dashed border-[#c8102e]/20 px-3 py-2">
-          <table className="w-full table-fixed border-collapse text-[10px]">
+        <section className="border-t border-border/60 px-3.5 py-2">
+          <SectionLabel>Chi tiết</SectionLabel>
+          <table className="mt-1 w-full table-fixed border-collapse text-[10px]">
             <thead>
-              <tr className="text-left text-[9px] uppercase tracking-wider text-slate-500">
-                <th className="w-6 pb-1 font-medium">#</th>
-                <th className="pb-1 font-medium">Hàng hoá / dịch vụ</th>
-                <th className="w-10 pb-1 text-right font-medium">SL</th>
+              <tr className="text-left text-[9px] uppercase tracking-wider text-muted-foreground">
+                <th className="w-5 pb-1 font-medium">#</th>
+                <th className="pb-1 font-medium">Hàng hoá</th>
+                <th className="w-9 pb-1 text-right font-medium">SL</th>
                 <th className="w-16 pb-1 text-right font-medium">Đơn giá</th>
-                <th className="w-16 pb-1 text-right font-medium">Thành tiền</th>
+                <th className="w-16 pb-1 text-right font-medium">T.tiền</th>
+                {hasAnyVatRate && (
+                  <th className="w-10 pb-1 text-right font-medium">VAT</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {visible.map((l, i) => (
-                <tr key={i} className="border-t border-[#c8102e]/10 align-top">
-                  <td className="py-1 text-slate-500">{i + 1}</td>
+                <tr
+                  key={i}
+                  className="border-t border-border/40 align-top even:bg-muted/30"
+                >
+                  <td className="py-1 text-muted-foreground">{i + 1}</td>
                   <td className="py-1 pr-1">
-                    <div className="line-clamp-2 text-slate-800">
+                    <div className="line-clamp-2 text-foreground">
                       {l.description || "—"}
                     </div>
                     {l.unit && (
-                      <div className="text-[9px] text-slate-500">ĐVT: {l.unit}</div>
+                      <div className="text-[9px] text-muted-foreground">
+                        ĐVT: {l.unit}
+                      </div>
                     )}
                   </td>
                   <td className="py-1 text-right font-mono">
@@ -197,12 +245,17 @@ export function XmlInvoicePreview({
                   </td>
                   <td className="py-1 text-right font-mono">{fmt(l.unit_price)}</td>
                   <td className="py-1 text-right font-mono">{fmt(l.amount)}</td>
+                  {hasAnyVatRate && (
+                    <td className="py-1 text-right font-mono text-muted-foreground">
+                      {fmtVatRate(l.vat_rate) || "—"}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
           {moreCount > 0 && (
-            <div className="mt-1 text-center text-[9px] italic text-slate-500">
+            <div className="mt-1 text-center text-[9px] italic text-muted-foreground">
               … +{moreCount} dòng khác
             </div>
           )}
@@ -210,61 +263,108 @@ export function XmlInvoicePreview({
       )}
 
       {/* Totals */}
-      <section className="relative border-t border-dashed border-[#c8102e]/30 px-3 py-2">
-        <dl className="grid grid-cols-[1fr_auto] gap-y-0.5 text-[10px]">
-          <dt className="text-slate-600">Cộng tiền hàng</dt>
-          <dd className="font-mono">{fmt(t.subtotal)}</dd>
+      <section className="border-t border-border/60 px-3.5 py-2">
+        <dl className="grid grid-cols-[1fr_auto] gap-y-0.5 text-[10.5px]">
+          <dt className="text-muted-foreground">Cộng tiền hàng</dt>
+          <dd className="font-mono text-foreground">{fmt(t.subtotal)}</dd>
           {t.discount_total ? (
             <>
-              <dt className="text-slate-600">Chiết khấu</dt>
-              <dd className="font-mono">{fmt(t.discount_total)}</dd>
+              <dt className="text-muted-foreground">Chiết khấu</dt>
+              <dd className="font-mono text-foreground">{fmt(t.discount_total)}</dd>
             </>
           ) : null}
-          <dt className="text-slate-600">Tiền thuế GTGT</dt>
-          <dd className="font-mono">{fmt(t.vat_amount)}</dd>
-          <dt className="border-t border-[#c8102e]/30 pt-1 text-[10.5px] font-semibold text-slate-900">
+          <dt className="text-muted-foreground">Thuế GTGT</dt>
+          <dd className="font-mono text-foreground">{fmt(t.vat_amount)}</dd>
+          <dt
+            className="mt-1 border-t-2 border-border pt-1 text-[10.5px] font-semibold uppercase tracking-wider"
+            style={{ color: RED }}
+          >
             Tổng thanh toán
           </dt>
-          <dd className="border-t border-[#c8102e]/30 pt-1 font-mono text-[11px] font-bold text-[#c8102e]">
-            {fmt(t.total)} {data.currency || "VND"}
+          <dd
+            className="mt-1 border-t-2 border-border pt-1 font-mono text-[14px] font-bold"
+            style={{ color: RED }}
+          >
+            {fmt(t.total)} {data.currency || "₫"}
           </dd>
         </dl>
         {t.total_in_words && (
-          <div className="mt-1 line-clamp-2 text-[9px] italic text-slate-600">
+          <div className="mt-1 line-clamp-2 text-[9px] italic text-muted-foreground">
             Bằng chữ: {t.total_in_words}
           </div>
         )}
       </section>
 
-      {/* Footer / signature */}
-      <section className="relative flex items-center justify-between gap-2 border-t border-[#c8102e]/20 bg-[#fff5e6]/60 px-3 py-1.5">
-        <div className="flex items-center gap-1 text-[9px] text-emerald-700">
-          <ShieldCheck className="h-3 w-3" />
-          <span className="font-semibold uppercase tracking-wider">
-            {data.cqt_signed
-              ? "Có mã CQT"
-              : data.seller_signed
-                ? "Đã ký số"
-                : "Chưa ký"}
-          </span>
-        </div>
+      {/* Footer */}
+      <section className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/30 px-3.5 py-1.5">
+        {data.cqt_code ? (
+          <button
+            type="button"
+            onClick={onCopyCqt}
+            className="group flex min-w-0 items-center gap-1 truncate text-left text-[9px] text-muted-foreground hover:text-foreground"
+            title={`Mã CQT: ${data.cqt_code} — bấm để copy`}
+          >
+            <Copy className="h-3 w-3 shrink-0 opacity-60 group-hover:opacity-100" />
+            <span className="truncate font-mono">CQT: {data.cqt_code}</span>
+          </button>
+        ) : (
+          <span className="text-[9px] text-muted-foreground">Hoá đơn điện tử</span>
+        )}
         {signedUrl ? (
           <a
             href={signedUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[9px] font-medium text-[#c8102e] hover:underline"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-wider",
+              "hover:underline",
+            )}
+            style={{ color: RED }}
           >
             <ExternalLink className="h-3 w-3" />
-            Tải XML gốc
+            Tải XML
           </a>
         ) : null}
       </section>
-      {data.cqt_code && (
-        <div className="relative truncate border-t border-dashed border-[#c8102e]/20 px-3 py-1 text-center font-mono text-[9px] text-slate-500">
-          Mã CQT: {data.cqt_code}
-        </div>
-      )}
+    </div>
+  );
+}
+
+function MetaCell({
+  label,
+  value,
+  mono,
+  accent,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "truncate text-[11px] font-semibold",
+          mono || accent ? "font-mono" : "",
+        )}
+        style={accent ? { color: RED } : undefined}
+        title={value}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {children}
     </div>
   );
 }

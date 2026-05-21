@@ -1,44 +1,101 @@
 ## Mục tiêu
 
-Khi file đính kèm là hóa đơn điện tử **XML**, thay vì hiển thị icon `FileText` chung + nút "XEM HĐ GỐC", hãy **dựng lại một bản preview giống tem hóa đơn đỏ Việt Nam** (HTML/CSS render trực tiếp từ dữ liệu XML đã parse) để người dùng nhìn thấy ngay nội dung hóa đơn — giống như khi xem file ảnh/PDF.
+Nâng cấp `XmlInvoicePreview` từ "tem giấy đỏ" hiện tại sang **Hybrid editorial**: header đỏ kiểu con dấu giữ chất hóa đơn VN, phần thân dùng design tokens của app (border/muted/foreground/primary) để hòa với chat và hỗ trợ dark mode tự nhiên. Mật độ **rich** — hiển thị thêm template/ký hiệu/seri, thuế suất từng dòng, chữ ký, mã tra cứu.
 
 ## Phạm vi
 
-- Chỉ thay đổi UI trong `src/components/chat/invoice/invoice-extract-card.tsx` — phần thumbnail bên trái.
-- Tạo 1 component mới `src/components/chat/invoice/xml-invoice-preview.tsx` để render "tem hóa đơn".
-- Không đổi logic parse, không đổi backend, không đổi luồng stream.
+- Chỉ sửa `src/components/chat/invoice/xml-invoice-preview.tsx`.
+- Cập nhật nhẹ `invoice-extract-card.tsx`: mở rộng cột trái lên `md:grid-cols-[340px_1fr]` để có chỗ cho layout rich; bỏ badge "đã ký số" trùng lặp bên ngoài khi `isXml` (đã có trong preview).
+- Không đổi `parse-document.functions.ts`, không đổi backend, không đổi `EinvoiceExtras` type.
 
-## Thay đổi
+## Thiết kế mới
 
-### 1. Component mới `XmlInvoicePreview`
+### Cấu trúc
 
-- Input: `parsed` (object trích xuất từ XML — đã có sẵn `vendor_name`, `vendor_tax_id`, `invoice_no`, `issue_date`, `lines[]`, `subtotal`, `vat_amount`, `total`, có thể có `_signed`, `_cqtCode`, `vendor_address`, `buyer_name`, `buyer_tax_id`, `buyer_address`, `serial`, `form_no`).
-- Render layout cổ điển của HĐĐT VN:
-  - Header đỏ: "HÓA ĐƠN GIÁ TRỊ GIA TĂNG" + ngày + ký hiệu + số HĐ.
-  - Khối Người bán: tên + MST + địa chỉ.
-  - Khối Người mua: tên + MST + địa chỉ (nếu có).
-  - Bảng dòng hàng (rút gọn 3–5 dòng đầu, "... +N dòng" nếu nhiều hơn).
-  - Tổng tiền trước thuế / VAT / Tổng thanh toán (số + chữ nếu có).
-  - Badge "ĐÃ KÝ SỐ" / "Mã CQT: ..." ở góc.
-- Font/màu mô phỏng hóa đơn giấy: nền trắng kem, viền/typography đỏ `#C8102E`, body `text-[10px]/[11px]` cho compact, dùng design tokens cho dark mode (border, muted-foreground...).
-- Có thể scale nhỏ vừa khung thumbnail (`max-h-72`, scrollable nhẹ nếu cần) và **click để mở XML gốc** (giữ link `urlData.url` như hiện tại).
+```text
+┌─────────────────────────────────────┐
+│ ▮ HÓA ĐƠN GTGT          [đã ký số]  │  ← stamp-bar đỏ mảnh (8px) + badge
+│   VAT Invoice · Bản thể hiện        │
+├─────────────────────────────────────┤
+│ Số          Ký hiệu       Ngày      │  ← 3 cột meta, mono, foreground
+│ 00012345    1C25TXX       17/05/26  │
+├─────────────────────────────────────┤
+│ NGƯỜI BÁN                           │  ← label uppercase muted-foreground
+│ Công ty TNHH ABC                    │
+│ MST 0123456789 · HN, ...            │
+├─────────────────────────────────────┤
+│ NGƯỜI MUA                           │
+│ ...                                 │
+├─────────────────────────────────────┤
+│ #  Hàng hoá       SL  Đơn giá  VAT │  ← bảng dòng, divider mảnh
+│ 1  Bút bi xanh    10   2.000  10%  │
+│ 2  ...                              │
+│ … +3 dòng                           │
+├─────────────────────────────────────┤
+│ Cộng tiền hàng         2.000.000   │
+│ Thuế GTGT (10%)          200.000   │
+│ ─────────────────────────────────   │
+│ TỔNG THANH TOÁN       2.200.000 ₫  │  ← primary, font lớn
+│ Bằng chữ: Hai triệu hai trăm ...   │  ← italic muted
+├─────────────────────────────────────┤
+│ 🛡 CQT: M2-25-CK...   ↗ Tải XML    │
+└─────────────────────────────────────┘
+```
 
-### 2. `InvoiceExtractCard`
+### Token & màu
 
-- Thêm detect `isXml`: theo `filename` (`.xml`) hoặc `mime` (`application/xml`, `text/xml`).
-- Khi `isXml`:
-  - Mở rộng cột trái thành `md:grid-cols-[300px_1fr]` (giống PDF) để có chỗ cho preview.
-  - Render `<XmlInvoicePreview parsed={parsed} signedUrl={urlData?.url} />` thay vì khối icon.
-  - Vẫn giữ badge "đã ký số / đã xác minh" và filename bên dưới.
-- Logic PDF/Image/empty giữ nguyên.
+- Khung: `border-border bg-card text-card-foreground rounded-xl shadow-sm` — bỏ nền kem `#fffaf2`, bỏ viền vàng. Hoạt động đúng cả light/dark.
+- Stamp-bar đỏ: dải `h-1.5 bg-[#c8102e]` ở mép trên + label đỏ uppercase `text-[10px] tracking-[0.2em]` → giữ "DNA hóa đơn VN" mà không lấn cả thẻ.
+- Accent đỏ chỉ dùng cho: stamp-bar, label "HÓA ĐƠN GTGT", số HĐ, dòng "TỔNG THANH TOÁN". Mọi chỗ khác dùng `foreground` / `muted-foreground` / `border`.
+- Watermark sọc đỏ hiện tại → **bỏ** (gây nhiễu trong dark mode).
+- Badge ký số: `bg-emerald-500/10 text-emerald-600 dark:text-emerald-400` (giữ như cũ).
+- Badge "ĐÃ HUỶ": overlay xoay vẫn dùng, đổi sang `border-destructive text-destructive`.
+- Adjustment label (thay thế/điều chỉnh): chip nhỏ `bg-amber-500/10 text-amber-600` thay vì đỏ.
 
-## Lưu ý kỹ thuật
+### Typography & spacing
 
-- `parsed` đã có sẵn sau khi backend parse XML → component preview chỉ là pure render, không gọi server thêm.
-- Nếu một số field còn thiếu (vd. `buyer_*`), fallback "—" và ẩn dòng tương ứng để layout không vỡ.
-- Vẫn dùng `urlData?.url` (signed URL của file XML gốc) cho nút "Tải XML gốc" ở footer preview.
-- Không thay đổi `parse-document.functions.ts` hay `einvoice-xml-parser.ts`.
+- Title `text-[10px] font-semibold tracking-[0.22em]` đỏ.
+- Meta row (Số/Ký hiệu/Ngày): grid 3 cột, label `text-[9px] uppercase muted`, value `text-[11px] font-mono font-semibold foreground`.
+- Section labels: `text-[9px] font-semibold uppercase tracking-wider text-muted-foreground` thay cho đỏ.
+- Tên NCC/người mua: `text-[12px] font-semibold foreground`.
+- Bảng dòng: thêm cột `VAT%` (nếu `vat_rate` có); zebra `even:bg-muted/30` nhẹ; divider `border-border/60`.
+- Tổng: dùng `border-t-2 border-border` phía trên, dòng tổng `text-[14px] font-bold text-primary` (hoặc giữ đỏ `#c8102e` để nhất quán brand HĐ — chọn đỏ cho điểm nhấn).
+- Padding tổng thể: `p-3.5`, section gap `space-y-2.5`.
 
-## Kết quả mong đợi
+### Rich content thêm
 
-Trong khung chat, thẻ HĐ XML hiển thị một "tem hóa đơn đỏ" thu nhỏ với số/ngày/NCC/MST/items/tổng tiền — người dùng nhận diện được hóa đơn ngay mà không cần bấm "XEM HĐ GỐC".
+- Hiển thị `template` cạnh `series` nếu có: "Mẫu 1/001 · Ký hiệu 1C25TXX".
+- Mỗi line item show `vat_rate` (vd `10%`, `KCT`, `KKKNT` map từ số).
+- Tách 2 badge: "Đã ký số (NCC)" và "Có mã CQT" — show cả hai khi có cả.
+- Footer hiển thị `cqt_code` truncate với `title` tooltip + nút copy nhỏ (icon `Copy` lucide, click → `navigator.clipboard`).
+- Tăng số dòng hiển thị từ 4 → 5; "+N dòng khác" giữ nguyên format.
+
+### Tương tác
+
+- Hover toàn card: `hover:border-border hover:shadow-md transition`.
+- Click vào header hoặc footer "Tải XML gốc" mở `signedUrl` tab mới (giữ behavior).
+- Nút copy mã CQT: `stopPropagation`, toast `sonner` "Đã copy mã CQT".
+
+### Dark mode
+
+- Vì dùng `bg-card` + `text-card-foreground` + `border-border` → tự động đẹp ở dark.
+- Đỏ `#c8102e` giữ nguyên hex (đủ contrast trên cả nền sáng và nền `card` tối của app).
+- Emerald/amber dùng pattern `text-emerald-600 dark:text-emerald-400` đã chuẩn.
+
+## File thay đổi
+
+1. `src/components/chat/invoice/xml-invoice-preview.tsx` — rewrite render theo spec trên, giữ nguyên props (`data: EinvoiceExtras`, `signedUrl`).
+2. `src/components/chat/invoice/invoice-extract-card.tsx`:
+   - `md:grid-cols-[300px_1fr]` → `md:grid-cols-[340px_1fr]` khi `isXml`.
+   - Ẩn badge "đã ký số / đã xác minh" ngoài khi `isXml && parsed?._einvoice` (vì preview đã có).
+   - Ẩn dòng `filename` lặp dưới preview khi `isXml` để gọn (filename đã ngầm hiểu từ "Tải XML gốc").
+
+## Không làm
+
+- Không đổi parser, không đổi schema `EinvoiceExtras`.
+- Không đổi luồng upload/stream/chat.
+- Không thêm dependency mới (dùng `lucide-react` đã có).
+
+## Kết quả
+
+Preview XML trong chat trông như một "thẻ hóa đơn editorial" — vẫn nhận diện được là HĐ VN nhờ stamp đỏ + tổng tiền đỏ, nhưng phần thân sạch, hợp dark mode, đầy đủ thông tin rich (template/seri, VAT từng dòng, cả 2 badge ký số, mã CQT copy được).
