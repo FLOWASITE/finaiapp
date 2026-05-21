@@ -4935,39 +4935,75 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          debit_account: string | null
           description: string | null
+          discount_amount: number
+          discount_pct: number
           id: string
+          invoice_id: string | null
+          invoice_no: string | null
           line_order: number
           line_type: string
+          note: string | null
+          product_code: string | null
           product_id: string | null
+          product_name: string | null
           qty: number
+          total: number
+          unit: string | null
           unit_price: number
+          vat_account: string | null
+          vat_amount: number
           vat_rate: number
           voucher_id: string
         }
         Insert: {
           amount?: number
           created_at?: string
+          debit_account?: string | null
           description?: string | null
+          discount_amount?: number
+          discount_pct?: number
           id?: string
+          invoice_id?: string | null
+          invoice_no?: string | null
           line_order?: number
           line_type?: string
+          note?: string | null
+          product_code?: string | null
           product_id?: string | null
+          product_name?: string | null
           qty?: number
+          total?: number
+          unit?: string | null
           unit_price?: number
+          vat_account?: string | null
+          vat_amount?: number
           vat_rate?: number
           voucher_id: string
         }
         Update: {
           amount?: number
           created_at?: string
+          debit_account?: string | null
           description?: string | null
+          discount_amount?: number
+          discount_pct?: number
           id?: string
+          invoice_id?: string | null
+          invoice_no?: string | null
           line_order?: number
           line_type?: string
+          note?: string | null
+          product_code?: string | null
           product_id?: string | null
+          product_name?: string | null
           qty?: number
+          total?: number
+          unit?: string | null
           unit_price?: number
+          vat_account?: string | null
+          vat_amount?: number
           vat_rate?: number
           voucher_id?: string
         }
@@ -4990,6 +5026,7 @@ export type Database = {
       }
       purchase_vouchers: {
         Row: {
+          auto_allocate_cost: boolean
           bank_voucher_id: string | null
           branch_id: string | null
           cash_voucher_id: string | null
@@ -4998,23 +5035,33 @@ export type Database = {
           created_at: string
           credit_account: string
           currency: string | null
+          customer_group: string | null
           debit_account: string
           department_id: string | null
+          discount_amount: number
+          discount_pct: number
+          due_date: string | null
+          exchange_rate: number
           id: string
           invoice_date: string | null
           invoice_id: string | null
           invoice_no: string | null
+          invoice_receipt_type: string
+          is_non_deductible: boolean
+          is_purchase_cost: boolean
           journal_entry_id: string | null
           notes: string | null
           pay_now: boolean
           payment_account: string | null
           payment_method: string
+          payment_status: string
           posted_at: string | null
           project_id: string | null
           reason: string | null
           status: string
           stock_voucher_id: string | null
           subtotal: number
+          supplier_address: string | null
           supplier_id: string | null
           supplier_name: string | null
           supplier_tax_id: string | null
@@ -5032,6 +5079,7 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          auto_allocate_cost?: boolean
           bank_voucher_id?: string | null
           branch_id?: string | null
           cash_voucher_id?: string | null
@@ -5040,23 +5088,33 @@ export type Database = {
           created_at?: string
           credit_account?: string
           currency?: string | null
+          customer_group?: string | null
           debit_account?: string
           department_id?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          due_date?: string | null
+          exchange_rate?: number
           id?: string
           invoice_date?: string | null
           invoice_id?: string | null
           invoice_no?: string | null
+          invoice_receipt_type?: string
+          is_non_deductible?: boolean
+          is_purchase_cost?: boolean
           journal_entry_id?: string | null
           notes?: string | null
           pay_now?: boolean
           payment_account?: string | null
           payment_method?: string
+          payment_status?: string
           posted_at?: string | null
           project_id?: string | null
           reason?: string | null
           status?: string
           stock_voucher_id?: string | null
           subtotal?: number
+          supplier_address?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           supplier_tax_id?: string | null
@@ -5074,6 +5132,7 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          auto_allocate_cost?: boolean
           bank_voucher_id?: string | null
           branch_id?: string | null
           cash_voucher_id?: string | null
@@ -5082,23 +5141,33 @@ export type Database = {
           created_at?: string
           credit_account?: string
           currency?: string | null
+          customer_group?: string | null
           debit_account?: string
           department_id?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          due_date?: string | null
+          exchange_rate?: number
           id?: string
           invoice_date?: string | null
           invoice_id?: string | null
           invoice_no?: string | null
+          invoice_receipt_type?: string
+          is_non_deductible?: boolean
+          is_purchase_cost?: boolean
           journal_entry_id?: string | null
           notes?: string | null
           pay_now?: boolean
           payment_account?: string | null
           payment_method?: string
+          payment_status?: string
           posted_at?: string | null
           project_id?: string | null
           reason?: string | null
           status?: string
           stock_voucher_id?: string | null
           subtotal?: number
+          supplier_address?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           supplier_tax_id?: string | null
