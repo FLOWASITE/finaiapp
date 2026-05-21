@@ -124,7 +124,14 @@ function periodLabel() {
 
 
 function InboxAiPage() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: "/inbox" });
+  const setTab = useCallback(
+    (next: (typeof TABS)[number]["key"]) => {
+      navigate({ search: (prev) => ({ ...prev, tab: next }), replace: false });
+    },
+    [navigate],
+  );
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
   
