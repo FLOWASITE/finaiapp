@@ -22,7 +22,12 @@ import {
   takeAnyChatAttachmentHandoff,
   takeChatAttachments,
 } from "@/lib/chat-attachment-handoff";
-import { awaitThreadCreation } from "@/lib/chat-thread-handoff";
+import {
+  awaitThreadCreation,
+  getThreadCreationResult,
+  getThreadCreationRetry,
+  clearThreadCreationResult,
+} from "@/lib/chat-thread-handoff";
 
 const searchSchema = z.object({
   autostart: z.string().optional(),
@@ -68,6 +73,8 @@ function ThreadPage() {
   // enabling the getThread query (otherwise it would 404 and clobber the
   // primed optimistic cache).
   const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
+  const [creationError, setCreationError] = useState<Error | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -84,18 +91,47 @@ function ThreadPage() {
     }
     let cancelled = false;
     awaitThreadCreation(threadId).finally(() => {
-      if (!cancelled) setCreationSettled(true);
+      if (cancelled) return;
+      const res = getThreadCreationResult(threadId);
+      if (res && !res.ok) {
+        setCreationError(res.error);
+        setCreationSettled(false); // chặn getThread chạy → tránh 404 nhiễu
+      } else {
+        setCreationError(null);
+        setCreationSettled(true);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [pending, threadId]);
 
+  const retryCreation = async () => {
+    const retry = getThreadCreationRetry(threadId);
+    if (!retry) {
+      // Không có factory (vd user reload trang) → chỉ thử lại getThread.
+      clearThreadCreationResult(threadId);
+      setCreationError(null);
+      setCreationSettled(true);
+      return;
+    }
+    setRetrying(true);
+    try {
+      await retry();
+      setCreationError(null);
+      setCreationSettled(true);
+    } catch (e: any) {
+      setCreationError(e instanceof Error ? e : new Error(String(e)));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
-    enabled: creationSettled,
+    enabled: creationSettled && !creationError,
   });
 
   useEffect(() => {
@@ -520,6 +556,23 @@ function ThreadPage() {
   // When user comes from ChatDock the cache is primed so query.data is available
   // immediately. On cold refresh, MessageList renders empty briefly while
   // getThread loads in the background — much less jarring than a blank screen.
+
+  if (creationError) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="max-w-sm rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+          <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" />
+          <p className="mb-1 text-sm font-medium">Không tạo được cuộc trò chuyện</p>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {creationError.message || "Đã xảy ra lỗi khi lưu hội thoại lên máy chủ."}
+          </p>
+          <Button size="sm" onClick={retryCreation} disabled={retrying}>
+            {retrying ? "Đang thử lại…" : "Thử lại"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (query.isError) {
     return (

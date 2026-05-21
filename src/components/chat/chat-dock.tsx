@@ -123,10 +123,20 @@ export function ChatDock() {
     };
   }, []);
 
-  const newUuid = () =>
-    typeof (crypto as any).randomUUID === "function"
-      ? (crypto as any).randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  // UUID v4 hợp lệ. Server validator (z.string().uuid()) sẽ reject mọi format
+  // khác → fallback PHẢI là v4 đúng RFC4122, không dùng `${Date.now()}-...`.
+  const newUuid = (): string => {
+    const c: any = typeof crypto !== "undefined" ? crypto : undefined;
+    if (c && typeof c.randomUUID === "function") return c.randomUUID();
+    // Fallback v4 dùng getRandomValues (đa số trình duyệt có), cuối cùng Math.random.
+    const bytes = new Uint8Array(16);
+    if (c && typeof c.getRandomValues === "function") c.getRandomValues(bytes);
+    else for (let i = 0; i < 16; i++) bytes[i] = (Math.random() * 256) & 0xff;
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+    const h = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+    return `${h[0]}${h[1]}${h[2]}${h[3]}-${h[4]}${h[5]}-${h[6]}${h[7]}-${h[8]}${h[9]}-${h[10]}${h[11]}${h[12]}${h[13]}${h[14]}${h[15]}`;
+  };
 
   /**
    * Optimistic: navigate immediately with a client-generated threadId so the
@@ -181,8 +191,8 @@ export function ChatDock() {
       },
     });
 
-    // Background server insert.
-    const creation = (async () => {
+    // Background server insert (idempotent qua threadId — có thể retry nguyên trạng).
+    const runInsert = async () => {
       try {
         const res = await createWithMsgFn({
           data: {
@@ -207,8 +217,8 @@ export function ChatDock() {
         toast.error(e?.message || "Không tạo được cuộc trò chuyện");
         throw e;
       }
-    })();
-    registerThreadCreation(threadId, creation);
+    };
+    registerThreadCreation(threadId, runInsert(), runInsert);
   };
 
   const submit = async (override?: string) => {
@@ -341,7 +351,8 @@ export function ChatDock() {
     });
 
     // Background: upload files then create thread+message with final metadata.
-    const creation = (async () => {
+    // Idempotent qua threadId — retry sẽ chạy lại y nguyên.
+    const runInsert = async () => {
       let fullPayloads = payloads;
       try {
         fullPayloads = await Promise.all(
@@ -358,7 +369,6 @@ export function ChatDock() {
             return { ...p, uploadId: uploaded.uploadId, file_hash: uploaded.file_hash };
           }),
         );
-        // Refresh stash with uploadId-enriched payloads (same keys).
         stashChatAttachments(handoffId, fullPayloads, `__attach:${threadId}`);
       } catch (e: any) {
         toast.error(e?.message || "Không lưu được file đính kèm");
@@ -381,7 +391,6 @@ export function ChatDock() {
           },
         });
         qc.setQueryData(["chat", "thread", threadId], (prev: any) => {
-          // Preserve any assistant message the stream may have already appended.
           const prevMsgs = Array.isArray(prev?.messages) ? prev.messages : [];
           const assistantMsgs = prevMsgs.filter((m: any) => m.role !== "user");
           return {
@@ -399,8 +408,8 @@ export function ChatDock() {
         toast.error(e?.message || "Không tạo được cuộc trò chuyện");
         throw e;
       }
-    })();
-    registerThreadCreation(threadId, creation);
+    };
+    registerThreadCreation(threadId, runInsert(), runInsert);
   };
 
   return (
