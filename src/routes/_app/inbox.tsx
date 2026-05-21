@@ -170,16 +170,8 @@ function InboxAiPage() {
 
   const activeId = sheetItem?.id ?? null;
 
-  // Track "AI online · vừa đọc N hoá đơn"
-  useEffect(() => {
-    const p = stats?.pending ?? null;
-    if (p == null) return;
-    if (prevPendingRef.current != null) {
-      const d = p - prevPendingRef.current;
-      if (d > 0) setRecentlyReadDelta(d);
-    }
-    prevPendingRef.current = p;
-  }, [stats?.pending]);
+
+
 
   useEffect(() => {
     if (showScrollDown) {
