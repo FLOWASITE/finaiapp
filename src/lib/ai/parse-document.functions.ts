@@ -347,9 +347,8 @@ async function structureBankStatement(
 ): Promise<any> {
   // Vision path: single shot
   if (source.kind === "vision") {
-    const r = await generateText({
+    return generateJsonBestEffort({
       model: visionModel,
-      output: Output.object({ schema: BankStatementSchema as any }),
       messages: [
         {
           role: "user",
@@ -359,8 +358,10 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankStatementSchema,
+      fallback: { transactions: [] },
+      label: "bank_statement vision",
     });
-    return (r as any).output;
   }
 
   // Markdown path
@@ -368,9 +369,8 @@ async function structureBankStatement(
 
   // Short statement (or no page breakdown) → single shot with full schema
   if (!pages || pages.length <= BANK_CHUNK_PAGES) {
-    const r = await generateText({
+    return generateJsonBestEffort({
       model: textModel,
-      output: Output.object({ schema: BankStatementSchema as any }),
       messages: [
         {
           role: "user",
@@ -387,8 +387,10 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankStatementSchema,
+      fallback: { transactions: [] },
+      label: "bank_statement markdown",
     });
-    return (r as any).output;
   }
 
   // Long statement → chunk
@@ -398,13 +400,8 @@ async function structureBankStatement(
   }
 
   // Header info from first chunk
-  const headerPromise = generateText({
+  const headerPromise = generateJsonBestEffort({
     model: textModel,
-    output: Output.object({
-      schema: BankStatementSchema.omit({ transactions: true }).extend({
-        transactions: z.array(BankTxnSchema).default([]),
-      }) as any,
-    }),
     messages: [
       {
         role: "user",
@@ -421,12 +418,16 @@ async function structureBankStatement(
         ],
       },
     ],
+    schema: BankStatementSchema.omit({ transactions: true }).extend({
+      transactions: z.array(BankTxnSchema).default([]),
+    }),
+    fallback: { transactions: [] },
+    label: "bank_statement header chunk",
   });
 
   const restPromises = chunks.slice(1).map((chunk, idx) =>
-    generateText({
+    generateJsonBestEffort({
       model: textModel,
-      output: Output.object({ schema: BankTxnsOnlySchema as any }),
       messages: [
         {
           role: "user",
@@ -445,14 +446,17 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankTxnsOnlySchema,
+      fallback: { transactions: [] },
+      label: `bank_statement transaction chunk ${idx + 2}`,
     }),
   );
 
   const [headerRes, ...restRes] = await Promise.all([headerPromise, ...restPromises]);
-  const header: any = (headerRes as any).output;
+  const header: any = headerRes;
   const allTxns: any[] = [...(header.transactions || [])];
   for (const r of restRes) {
-    const out: any = (r as any).output;
+    const out: any = r;
     if (Array.isArray(out?.transactions)) allTxns.push(...out.transactions);
   }
 
