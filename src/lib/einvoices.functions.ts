@@ -860,3 +860,146 @@ export const dismissEInvoiceSuggestion = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ DAILY DIGEST ============
+// Tổng hợp hoạt động HĐĐT trong ngày: vừa tải chi tiết XML, vừa khớp với
+// chứng từ nội bộ, và các bản tải XML bị lỗi.
+export const getEInvoiceDailyDigest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { tenantId } = await resolveTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn tổ chức");
+
+    const day = data.date ?? new Date().toISOString().slice(0, 10);
+    const dayStart = `${day}T00:00:00.000Z`;
+    const dayEnd = `${day}T23:59:59.999Z`;
+
+    const sel =
+      "id, direction, invoice_series, invoice_no, issue_date, total, seller_name, buyer_name, xml_fetch_error";
+
+    const [fetched, failed, matched] = await Promise.all([
+      supabase
+        .from("einvoices")
+        .select(sel)
+        .eq("tenant_id", tenantId)
+        .eq("xml_fetch_status", "done")
+        .gte("xml_fetched_at", dayStart)
+        .lte("xml_fetched_at", dayEnd)
+        .order("xml_fetched_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("einvoices")
+        .select(sel)
+        .eq("tenant_id", tenantId)
+        .eq("xml_fetch_status", "failed")
+        .gte("xml_fetched_at", dayStart)
+        .lte("xml_fetched_at", dayEnd)
+        .order("xml_fetched_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("einvoices")
+        .select(sel)
+        .eq("tenant_id", tenantId)
+        .gte("matched_at", dayStart)
+        .lte("matched_at", dayEnd)
+        .order("matched_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    return {
+      date: day,
+      fetched: { count: fetched.data?.length ?? 0, items: fetched.data ?? [] },
+      failed: { count: failed.data?.length ?? 0, items: failed.data ?? [] },
+      matched: { count: matched.data?.length ?? 0, items: matched.data ?? [] },
+    };
+  });
+
+// ============ EMIT DIGEST NOTIFICATION (idempotent per day) ============
+export const emitEInvoiceDigestNotification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const day = data.date ?? new Date().toISOString().slice(0, 10);
+    const title = `Tổng hợp HĐĐT ${day}`;
+
+    // Idempotent: bỏ qua nếu đã có thông báo trong ngày
+    const { data: existed } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("title", title)
+      .limit(1);
+    if (existed && existed.length > 0) {
+      return { ok: true, skipped: true };
+    }
+
+    const { tenantId } = await resolveTenant(supabase, userId);
+    if (!tenantId) return { ok: false };
+
+    const dayStart = `${day}T00:00:00.000Z`;
+    const dayEnd = `${day}T23:59:59.999Z`;
+
+    const [{ count: fetchedCnt }, { count: failedCnt }, { count: matchedCnt }] =
+      await Promise.all([
+        supabase
+          .from("einvoices")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("xml_fetch_status", "done")
+          .gte("xml_fetched_at", dayStart)
+          .lte("xml_fetched_at", dayEnd),
+        supabase
+          .from("einvoices")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("xml_fetch_status", "failed")
+          .gte("xml_fetched_at", dayStart)
+          .lte("xml_fetched_at", dayEnd),
+        supabase
+          .from("einvoices")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("matched_at", dayStart)
+          .lte("matched_at", dayEnd),
+      ]);
+
+    const f = fetchedCnt ?? 0;
+    const er = failedCnt ?? 0;
+    const m = matchedCnt ?? 0;
+    if (f === 0 && er === 0 && m === 0) {
+      return { ok: true, empty: true };
+    }
+
+    const body = [
+      `Tải chi tiết: ${f}`,
+      `Đã khớp: ${m}`,
+      er > 0 ? `Lỗi XML: ${er}` : null,
+    ]
+      .filter(Boolean)
+      .join(" • ");
+
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title,
+      body,
+      href: "/einvoices/digest",
+      type: er > 0 ? "warning" : "info",
+    });
+
+    return { ok: true, fetched: f, failed: er, matched: m };
+  });
