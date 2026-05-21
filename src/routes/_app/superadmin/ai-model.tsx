@@ -62,6 +62,7 @@ type FormState = {
   model_chat: string;
   model_parse: string;
   model_reasoning: string;
+  model_classify: string;
   extra_headers_json: string;
   notes: string;
   api_key: string;
@@ -84,6 +85,7 @@ const OPENROUTER_PRESET = {
   model_chat: "openai/gpt-4o-mini",
   model_parse: "google/gemini-2.5-flash",
   model_reasoning: "deepseek/deepseek-r1",
+  model_classify: "google/gemini-2.5-flash-lite",
   extra_headers_json: JSON.stringify(
     {
       "HTTP-Referer": "https://app.finai.one",
@@ -102,6 +104,7 @@ const ALIBABA_PRESETS = {
     model_chat: "qwen-plus",
     model_parse: "qwen-vl-max",
     model_reasoning: "qwq-plus",
+    model_classify: "qwen-turbo",
     extra_headers_json: "",
   },
   cn: {
@@ -111,6 +114,7 @@ const ALIBABA_PRESETS = {
     model_chat: "qwen-plus",
     model_parse: "qwen-vl-max",
     model_reasoning: "qwq-plus",
+    model_classify: "qwen-turbo",
     extra_headers_json: "",
   },
 } as const;
@@ -302,6 +306,7 @@ function AiModelPage() {
       model_chat: c.model_chat ?? "",
       model_parse: c.model_parse ?? "",
       model_reasoning: c.model_reasoning ?? "",
+      model_classify: (c as any).model_classify ?? "",
       extra_headers_json:
         Object.keys(c.extra_headers ?? {}).length > 0
           ? JSON.stringify(c.extra_headers, null, 2)
@@ -409,6 +414,7 @@ function AiModelPage() {
         model_chat: form.model_chat || null,
         model_parse: form.model_parse || null,
         model_reasoning: form.model_reasoning || null,
+        model_classify: form.model_classify || null,
         extra_headers,
         notes: form.notes || null,
       };
@@ -791,6 +797,16 @@ function AiModelPage() {
                 models={modelOptions}
                 onlyFree={onlyFree}
                 placeholder="vd: deepseek/deepseek-r1"
+              />
+              <ModelField
+                icon={<span className="text-sm">🗂️</span>}
+                label="Phân loại file khi upload"
+                hint="Tác vụ siêu nhẹ — chọn model rẻ & nhanh (gemini-flash-lite, qwen-turbo, gpt-4o-mini)."
+                value={form.model_classify}
+                onChange={(v) => update("model_classify", v)}
+                models={modelOptions}
+                onlyFree={onlyFree}
+                placeholder="vd: google/gemini-2.5-flash-lite"
               />
             </div>
           </details>

@@ -10,7 +10,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 import { decryptSecret } from "@/lib/crypto-secret.server";
 
-export type ModelPurpose = "default" | "chat" | "parse" | "reasoning";
+export type ModelPurpose = "default" | "chat" | "parse" | "reasoning" | "classify";
 
 type CachedConfig = {
   enabled: boolean;
@@ -21,6 +21,7 @@ type CachedConfig = {
   model_chat: string | null;
   model_parse: string | null;
   model_reasoning: string | null;
+  model_classify: string | null;
   provider_label: string;
 };
 
@@ -33,7 +34,7 @@ async function loadConfig(): Promise<CachedConfig | null> {
   const { data, error } = await supabaseAdmin
     .from("ai_model_config")
     .select(
-      "enabled, base_url, api_key_encrypted, extra_headers, model_default, model_chat, model_parse, model_reasoning, provider_label",
+      "enabled, base_url, api_key_encrypted, extra_headers, model_default, model_chat, model_parse, model_reasoning, model_classify, provider_label",
     )
     .eq("id", 1)
     .maybeSingle();
@@ -48,6 +49,7 @@ async function loadConfig(): Promise<CachedConfig | null> {
         model_chat: (data.model_chat as string | null) || null,
         model_parse: (data.model_parse as string | null) || null,
         model_reasoning: (data.model_reasoning as string | null) || null,
+        model_classify: ((data as any).model_classify as string | null) || null,
         provider_label: String(data.provider_label || "Custom"),
       };
   cache = { at: now, value };
@@ -63,6 +65,7 @@ function pickModelName(cfg: CachedConfig, purpose: ModelPurpose): string {
   if (purpose === "chat") return cfg.model_chat || cfg.model_default;
   if (purpose === "parse") return cfg.model_parse || cfg.model_default;
   if (purpose === "reasoning") return cfg.model_reasoning || cfg.model_default;
+  if (purpose === "classify") return cfg.model_classify || cfg.model_default;
   return cfg.model_default;
 }
 

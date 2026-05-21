@@ -20,7 +20,7 @@ export const getAiModelConfig = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("ai_model_config")
       .select(
-        "id, enabled, provider_label, base_url, model_default, model_chat, model_parse, model_reasoning, extra_headers, notes, updated_at, updated_by, api_key_encrypted",
+        "id, enabled, provider_label, base_url, model_default, model_chat, model_parse, model_reasoning, model_classify, extra_headers, notes, updated_at, updated_by, api_key_encrypted",
       )
       .eq("id", 1)
       .maybeSingle();
@@ -36,6 +36,7 @@ export const getAiModelConfig = createServerFn({ method: "GET" })
         model_chat: data?.model_chat ?? "",
         model_parse: data?.model_parse ?? "",
         model_reasoning: data?.model_reasoning ?? "",
+        model_classify: (data as any)?.model_classify ?? "",
         extra_headers: (data?.extra_headers as Record<string, string>) ?? {},
         notes: data?.notes ?? "",
         updated_at: data?.updated_at ?? null,
@@ -53,6 +54,7 @@ const SaveSchema = z.object({
   model_chat: z.string().max(200).optional().nullable(),
   model_parse: z.string().max(200).optional().nullable(),
   model_reasoning: z.string().max(200).optional().nullable(),
+  model_classify: z.string().max(200).optional().nullable(),
   extra_headers: z.record(z.string().max(200), z.string().max(2000)).optional(),
   notes: z.string().max(2000).optional().nullable(),
   // Nếu undefined: giữ key cũ. Nếu chuỗi rỗng: xoá key.
@@ -74,6 +76,7 @@ export const saveAiModelConfig = createServerFn({ method: "POST" })
       model_chat: data.model_chat || null,
       model_parse: data.model_parse || null,
       model_reasoning: data.model_reasoning || null,
+      model_classify: data.model_classify || null,
       extra_headers: data.extra_headers ?? {},
       notes: data.notes || null,
       updated_by: userId,
