@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Plus, Trash2, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Trash2, Sparkles, CheckCircle2, AlertTriangle, UserCheck, UserPlus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { proposeActionFn } from "@/lib/ai-actions.functions";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { createManualInvoice } from "@/lib/purchases.functions";
+import { lookupSupplierByTaxId, quickCreateSupplier } from "@/lib/import-preview.functions";
 
 export const Route = createFileRoute("/_app/import/preview")({ component: ImportPreviewPage });
+
+const normalizeTaxId = (s: string) => (s || "").replace(/\D+/g, "");
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString("vi-VN");
 
@@ -28,6 +32,8 @@ type InvoiceLine = {
 type InvoiceDraft = {
   kind: "purchase_invoice";
   filename: string;
+  supplier_id: string | null;
+  supplier_code: string | null;
   supplier_name: string;
   supplier_tax_id: string;
   invoice_no: string;
@@ -37,8 +43,15 @@ type InvoiceDraft = {
   vat_account: string;       // TK Nợ thuế VAT đầu vào
   payable_account: string;   // TK Có (phải trả NCC)
   lines: InvoiceLine[];
+  ai_upload_id: string | null;
+  file_hash: string | null;
   status: "idle" | "sending" | "done" | "error";
   error?: string;
+  created_id?: string;
+  // lookup state
+  lookup_state?: "idle" | "loading" | "found" | "missing" | "duplicate";
+  lookup_msg?: string;
+  expense_from_history?: boolean;
 };
 
 type VoucherDraft = {
@@ -99,7 +112,7 @@ function normalizeDate(s: any): string {
   return str.slice(0, 10);
 }
 
-function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
+function toInvoiceDraft(item: { filename: string; parsed: any; uploadId?: string | null; file_hash?: string | null }): InvoiceDraft {
   const p = item.parsed ?? {};
   const rawLines: any[] = Array.isArray(p.lines) ? p.lines : [];
   const lines: InvoiceLine[] = rawLines.length
@@ -125,6 +138,8 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
   return {
     kind: "purchase_invoice",
     filename: item.filename,
+    supplier_id: null,
+    supplier_code: null,
     supplier_name: String(p.vendor_name ?? p.supplier_name ?? ""),
     supplier_tax_id: String(p.vendor_tax_id ?? p.supplier_tax_id ?? p.tax_id ?? p.mst ?? ""),
     invoice_no: String(p.invoice_no ?? p.invoice_number ?? ""),
@@ -134,7 +149,10 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
     vat_account: "1331",
     payable_account: "331",
     lines,
+    ai_upload_id: item.uploadId ?? null,
+    file_hash: item.file_hash ?? null,
     status: "idle",
+    lookup_state: "idle",
   };
 }
 
@@ -163,9 +181,60 @@ function toVoucherDraft(item: { filename: string; parsed: any }): VoucherDraft {
 }
 
 function ImportPreviewPage() {
-  const propose = useServerFn(proposeActionFn);
+  const createInvoice = useServerFn(createManualInvoice);
+  const lookupSupplier = useServerFn(lookupSupplierByTaxId);
+  const createSupplier = useServerFn(quickCreateSupplier);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [source, setSource] = useState<string>("");
+  const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
+  const lookupCache = useRef<Map<string, any>>(new Map());
+
+  const applyLookup = (idx: number, res: any) => {
+    setDrafts((prev) => prev.map((d, i) => {
+      if (i !== idx || d.kind !== "purchase_invoice") return d;
+      const next: InvoiceDraft = { ...d };
+      if (res?.supplier) {
+        next.supplier_id = res.supplier.id;
+        next.supplier_code = res.supplier.code ?? null;
+        next.lookup_state = res.duplicates > 0 ? "duplicate" : "found";
+        next.lookup_msg = res.duplicates > 0 ? `${res.duplicates + 1} NCC trùng MST` : `NCC: ${res.supplier.name}`;
+        if (!d.supplier_name.trim()) next.supplier_name = res.supplier.name;
+      } else {
+        next.supplier_id = null;
+        next.supplier_code = null;
+        next.lookup_state = "missing";
+        next.lookup_msg = "Chưa có NCC này";
+      }
+      if (res?.suggestedExpenseAccount && d.expense_account === "1561") {
+        next.expense_account = res.suggestedExpenseAccount;
+        next.expense_from_history = true;
+      }
+      if (res?.suggestedPayableAccount && d.payable_account === "331") {
+        next.payable_account = res.suggestedPayableAccount;
+      }
+      if (res?.suggestedVatRate != null) {
+        next.lines = d.lines.map((l) => (l.vat_rate === 0 ? { ...l, vat_rate: res.suggestedVatRate } : l));
+      }
+      return next;
+    }));
+  };
+
+  const runLookup = async (idx: number, taxId: string) => {
+    const tax = normalizeTaxId(taxId);
+    if (!tax) return;
+    if (lookupCache.current.has(tax)) {
+      applyLookup(idx, lookupCache.current.get(tax));
+      return;
+    }
+    setDrafts((prev) => prev.map((d, i) => (i === idx && d.kind === "purchase_invoice" ? { ...d, lookup_state: "loading" } : d)));
+    try {
+      const res = await lookupSupplier({ data: { tax_id: tax } });
+      lookupCache.current.set(tax, res);
+      applyLookup(idx, res);
+    } catch (e: any) {
+      setDrafts((prev) => prev.map((d, i) => (i === idx && d.kind === "purchase_invoice" ? { ...d, lookup_state: "idle", lookup_msg: e?.message } : d)));
+    }
+  };
 
   useEffect(() => {
     const batch = readBatch();
@@ -175,11 +244,18 @@ function ImportPreviewPage() {
       return;
     }
     const items = Array.isArray(batch.items) ? batch.items : [];
-    const built: Draft[] = items.map((it) =>
+    const built: Draft[] = items.map((it: any) =>
       it.kind === "cash_voucher" ? toVoucherDraft(it) : toInvoiceDraft(it),
     );
     setDrafts(built);
     setSource(batch.kind);
+    // Kick off lookups
+    built.forEach((d, i) => {
+      if (d.kind === "purchase_invoice" && d.supplier_tax_id) {
+        runLookup(i, d.supplier_tax_id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patch = (idx: number, p: Partial<Draft>) =>
@@ -253,40 +329,25 @@ function ImportPreviewPage() {
     patch(idx, { status: "sending", error: undefined });
     try {
       if (d.kind === "purchase_invoice") {
-        await propose({
+        const res: any = await createInvoice({
           data: {
-            tool_name: "createPurchaseInvoice",
-            input: {
-              supplier_name: d.supplier_name,
-              supplier_tax_id: d.supplier_tax_id || undefined,
-              invoice_no: d.invoice_no || undefined,
-              issue_date: d.issue_date,
-              notes: d.notes || undefined,
-              expense_account: d.expense_account || undefined,
-              lines: d.lines,
-            },
+            supplier_id: d.supplier_id || undefined,
+            supplier_name: d.supplier_name,
+            supplier_tax_id: normalizeTaxId(d.supplier_tax_id) || undefined,
+            invoice_no: d.invoice_no || undefined,
+            issue_date: d.issue_date,
+            notes: d.notes || undefined,
+            expense_account: d.expense_account || undefined,
+            ai_upload_id: d.ai_upload_id || undefined,
+            file_hash: d.file_hash || undefined,
+            lines: d.lines.map((l) => ({ ...l, line_type: "goods" as const })),
           },
         });
+        patch(idx, { status: "done", created_id: res?.id });
+        toast.success(`${d.filename}: đã tạo nháp`);
       } else {
-        await propose({
-          data: {
-            tool_name: "createBankVoucher",
-            input: {
-              voucher_no: d.voucher_no,
-              voucher_type: d.voucher_type,
-              voucher_date: d.voucher_date,
-              bank_account_id: d.bank_account_id,
-              amount: d.amount,
-              counter_account: d.counter_account,
-              party_name: d.party_name || undefined,
-              reason: d.reason || undefined,
-              reference: d.reference || undefined,
-            },
-          },
-        });
+        throw new Error("Phiếu thu/chi: dùng màn Bank để tạo");
       }
-      patch(idx, { status: "done" });
-      toast.success(`${d.filename}: đã đề xuất nháp`);
     } catch (e: any) {
       patch(idx, { status: "error", error: e?.message || "lỗi" });
       toast.error(`${d.filename}: ${e?.message || "lỗi"}`);
