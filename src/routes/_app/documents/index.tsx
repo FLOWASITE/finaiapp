@@ -1310,3 +1310,237 @@ function PurchaseInvoicesTable({
     </>
   );
 }
+
+function SalesInvoicesTable({
+  filters,
+  onOpenDoc,
+}: {
+  filters: any;
+  onOpenDoc: (id: string) => void;
+}) {
+  const listFn = useServerFn(listSalesDocuments);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, isLoading } = useQuery({
+    queryKey: ["sales-documents", filters, limit],
+    queryFn: () =>
+      listFn({
+        data: {
+          search: filters.search,
+          source: filters.source,
+          ocr_status: filters.ocr_status,
+          from_date: filters.from_date,
+          to_date: filters.to_date,
+          invoice_no: filters.invoice_no,
+          customer_search: filters.customer_search,
+          issue_from_date: filters.issue_from_date,
+          issue_to_date: filters.issue_to_date,
+          limit,
+          offset: 0,
+        },
+      }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) =>
+    setExpanded((m) => ({ ...m, [id]: !m[id] }));
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const canLoadMore = rows.length < total;
+
+  const sumSub = rows.reduce((s: number, r: any) => s + Number(r.invoice?.subtotal ?? 0), 0);
+  const sumVat = rows.reduce((s: number, r: any) => s + Number(r.invoice?.vat_amount ?? 0), 0);
+  const sumTotal = rows.reduce((s: number, r: any) => s + Number(r.invoice?.total ?? 0), 0);
+
+  return (
+    <>
+      {rows.length > 0 && (
+        <div className="mb-3 grid grid-cols-3 gap-2 rounded-md border bg-muted/30 p-2 text-xs">
+          <div>
+            <div className="text-muted-foreground">Doanh thu trước thuế</div>
+            <div className="font-mono font-semibold">{vnd(sumSub)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">VAT đầu ra</div>
+            <div className="font-mono font-semibold">{vnd(sumVat)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Tổng sau thuế</div>
+            <div className="font-mono font-semibold">{vnd(sumTotal)}</div>
+          </div>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8"></TableHead>
+              <TableHead>Ngày HĐ</TableHead>
+              <TableHead>Số HĐ</TableHead>
+              <TableHead>Khách hàng</TableHead>
+              <TableHead>Mặt hàng</TableHead>
+              <TableHead className="text-right">Tiền trước thuế</TableHead>
+              <TableHead className="text-right">VAT</TableHead>
+              <TableHead className="text-right">Tổng sau thuế</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="text-right">File</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => {
+              const inv = r.invoice;
+              const doc = r.doc;
+              const lines: any[] = r.lines ?? [];
+              const hasLines = lines.length > 0;
+              const isOpen = !!expanded[doc.id];
+              return (
+                <Fragment key={doc.id}>
+                  <TableRow
+                    key={doc.id}
+                    className="cursor-pointer"
+                    onClick={() => hasLines && toggle(doc.id)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {hasLines ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => toggle(doc.id)}
+                          aria-label={isOpen ? "Thu gọn" : "Mở rộng"}
+                        >
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 transition-transform",
+                              isOpen && "rotate-90",
+                            )}
+                          />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {inv?.issue_date ?? "—"}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div>{inv?.invoice_no ?? "—"}</div>
+                      {inv?.invoice_series && (
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {inv.invoice_series}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[220px] truncate">{inv?.customer_name ?? "—"}</div>
+                      {inv?.customer_tax_id && (
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {inv.customer_tax_id}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[260px] truncate text-sm text-muted-foreground">
+                        {r.lines_summary ?? "—"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{vnd(inv?.subtotal)}</TableCell>
+                    <TableCell className="text-right font-mono">{vnd(inv?.vat_amount)}</TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {vnd(inv?.total)}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+                          OCR_TONE[doc.ocr_status] ?? "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        {inv?.id && (
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/sales/$id" params={{ id: inv.id }}>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {isOpen && hasLines && (
+                    <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
+                      <TableCell></TableCell>
+                      <TableCell colSpan={9} className="p-0">
+                        <div className="p-3">
+                          <div className="mb-2 text-xs font-medium text-muted-foreground">
+                            Chi tiết mặt hàng ({lines.length} dòng)
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-10">#</TableHead>
+                                <TableHead>Mô tả</TableHead>
+                                <TableHead className="text-right">SL</TableHead>
+                                <TableHead className="text-right">Đơn giá</TableHead>
+                                <TableHead className="text-right">Thành tiền</TableHead>
+                                <TableHead className="text-right">VAT %</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {lines.map((l: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                  <TableCell>{l.description || "—"}</TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {l.qty ?? "—"}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {vnd(l.unit_price)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {vnd(l.amount)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {l.vat_rate != null ? `${l.vat_rate}%` : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
+                  Chưa có hoá đơn bán nào.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {rows.length > 0 && (
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Hiển thị {rows.length}/{total} hoá đơn</span>
+          {canLoadMore && (
+            <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+              Tải thêm
+            </Button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
