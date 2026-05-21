@@ -1028,24 +1028,29 @@ export const getUploadSignedUrl = createServerFn({ method: "POST" })
     const { supabase, userId } = context as { supabase: any; userId: string };
     const { data: row, error } = await supabase
       .from("ai_uploads")
-      .select("file_path, filename, user_id")
+      .select("file_path, filename, user_id, mime_type")
       .eq("id", data.uploadId)
       .maybeSingle();
     if (error || !row) throw new Error("Không tìm thấy file");
     if (row.user_id !== userId) throw new Error("Không có quyền");
     if (!row.file_path) {
-      return { url: null, filename: row.filename, documentId: null };
+      return { url: null, filename: row.filename, mimeType: row.mime_type ?? null, documentId: null };
     }
     const { data: signed, error: sErr } = await supabase.storage
       .from("invoices")
       .createSignedUrl(row.file_path, 3600);
     if (sErr || !signed?.signedUrl) {
-      return { url: null, filename: row.filename, documentId: null };
+      return { url: null, filename: row.filename, mimeType: row.mime_type ?? null, documentId: null };
     }
     const { data: doc } = await supabase
       .from("documents")
       .select("id")
       .eq("ai_upload_id", data.uploadId)
       .maybeSingle();
-    return { url: signed.signedUrl, filename: row.filename, documentId: doc?.id ?? null };
+    return {
+      url: signed.signedUrl,
+      filename: row.filename,
+      mimeType: row.mime_type ?? null,
+      documentId: doc?.id ?? null,
+    };
   });

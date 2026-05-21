@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Check } from "lucide-react";
+import { FileText, Check, ExternalLink } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
 
@@ -37,11 +37,15 @@ export function InvoiceExtractCard({
     staleTime: 50 * 60 * 1000,
   });
 
-  const isImage = filename
+  const isImageByName = filename
     ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
     : false;
+  const isPdfByName = filename ? /\.pdf$/i.test(filename) : false;
+  const mime = (urlData as any)?.mimeType as string | null | undefined;
+  const isImage = isImageByName || (mime ?? "").startsWith("image/");
+  const isPdf = isPdfByName || mime === "application/pdf";
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage;
+  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf;
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
@@ -52,6 +56,19 @@ export function InvoiceExtractCard({
   const vat = Number(parsed?.vat_amount ?? 0);
   const total = Number(parsed?.total ?? subtotal + vat);
   const firstLine = parsed?.lines?.[0]?.description ?? null;
+
+  // Detect empty extraction (all key fields missing) — likely OCR/parse failed
+  const isEmptyExtract =
+    !parsed?.vendor_name &&
+    !parsed?.invoice_no &&
+    !parsed?.issue_date &&
+    !(subtotal > 0) &&
+    !(total > 0) &&
+    !(parsed?.lines?.length > 0);
+
+  const rawText: string | null = parsed?._rawText ?? null;
+  const notes: string | null = parsed?.notes ?? null;
+  const schemaWarn: string | null = parsed?._schemaWarning ?? null;
 
   const fields: Field[] = [
     { label: "Số HĐ", value: <span className="font-semibold">{invNo}</span> },
@@ -82,15 +99,39 @@ export function InvoiceExtractCard({
     },
   ].filter(Boolean) as Field[];
 
-
-
-
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
-      <div className="grid grid-cols-[140px_1fr] gap-0">
-        {/* Thumbnail */}
-        <div className="relative flex flex-col items-center justify-center gap-2 border-r border-border/60 bg-muted/30 p-3">
-          {isImage && uploadId && !urlData && urlLoading ? (
+      <div className={cn("grid gap-0", isPdf ? "grid-cols-1 md:grid-cols-[260px_1fr]" : "grid-cols-[140px_1fr]")}>
+        {/* Thumbnail / Preview */}
+        <div className="relative flex flex-col items-center justify-center gap-2 border-b border-border/60 bg-muted/30 p-3 md:border-b-0 md:border-r">
+          {isPdf && uploadId && urlLoading && !urlData ? (
+            <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
+          ) : isPdf && urlData?.url ? (
+            <>
+              <object
+                data={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
+                type="application/pdf"
+                className="h-64 w-full rounded-md bg-background"
+                aria-label={filename ?? "pdf"}
+              >
+                <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center">
+                  <FileText className="h-8 w-8 text-primary" />
+                  <div className="text-[11px] text-muted-foreground">
+                    Trình duyệt không xem được PDF trực tiếp
+                  </div>
+                </div>
+              </object>
+              <a
+                href={urlData.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Mở PDF gốc
+              </a>
+            </>
+          ) : isImage && uploadId && !urlData && urlLoading ? (
             <div className="h-32 w-full animate-pulse rounded-md bg-muted" />
           ) : isImage && urlData?.url ? (
             <a
@@ -127,7 +168,7 @@ export function InvoiceExtractCard({
                 <FileText className="h-6 w-6" />
               </div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {isImage ? "Không tải được ảnh" : "HÓA ĐƠN"}
+                {isImage ? "Không tải được ảnh" : isPdf ? "PDF" : "HÓA ĐƠN"}
               </div>
             </div>
           )}
@@ -144,11 +185,49 @@ export function InvoiceExtractCard({
         </div>
 
         {/* Fields */}
-        <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 p-4 text-sm">
-          {fields.map((f, i) => (
-            <FieldRow key={i} label={f.label} value={f.value} />
-          ))}
-        </dl>
+        <div className="p-4">
+          {isEmptyExtract ? (
+            <div className="space-y-2">
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+                Chưa đọc được dữ liệu hoá đơn từ {isPdf ? "PDF" : "tệp"} này — bạn có thể mở file gốc để kiểm tra.
+                {schemaWarn ? <div className="mt-1 opacity-80">Chi tiết: {schemaWarn}</div> : null}
+              </div>
+              {rawText ? (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Xem nội dung đã trích xuất
+                  </summary>
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
+                    {rawText.slice(0, 4000)}
+                  </pre>
+                </details>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-sm">
+                {fields.map((f, i) => (
+                  <FieldRow key={i} label={f.label} value={f.value} />
+                ))}
+              </dl>
+              {notes ? (
+                <div className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+                  {notes}
+                </div>
+              ) : null}
+              {rawText && isPdf ? (
+                <details className="mt-3 text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Xem nội dung đã đọc từ PDF
+                  </summary>
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
+                    {rawText.slice(0, 4000)}
+                  </pre>
+                </details>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

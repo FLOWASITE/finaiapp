@@ -1,22 +1,24 @@
-Mình sẽ sửa theo hướng làm luồng attach ổn định hơn, không phụ thuộc vào event giữa component vừa unmount/mount.
+Mục tiêu: khi upload PDF trong chat, thẻ kết quả phải cho người dùng thấy nội dung PDF/đoạn trích đã đọc được, không chỉ hiện nút “Xem HĐ gốc”.
 
-1. Tạo cơ chế “handoff” bền hơn cho file attach
-- Khi gửi file từ ChatDock ngoài trang chat, lưu payload file vào `sessionStorage` theo một key có `handoffId` riêng.
-- Điều hướng sang `/chat/$threadId` kèm `handoffId` trong search params.
-- ChatThread đọc đúng `handoffId` sau khi mount để lấy file, thay vì chỉ dựa vào key theo `threadId` tạm.
+Kế hoạch triển khai:
 
-2. Tránh tự xoá params quá sớm gây remount/reset
-- Hiện ChatThread xoá `autostart/optimistic` khỏi URL ngay sau khi bắt đầu chạy, rồi lại replace từ temp id sang real id; chuỗi replace này dễ tạo cảm giác refresh và làm mất state.
-- Giữ trạng thái trong component ổn định hơn: chỉ replace URL khi cần đổi từ temp id sang real id, và không reset `localMsgs/input/abortRef` trong lần swap này.
+1. Mở rộng dữ liệu trả về cho URL file gốc
+- Cập nhật server function `getUploadSignedUrl` để trả thêm `mimeType` cùng filename/document id.
+- Giữ kiểm tra quyền theo user hiện tại như cũ.
 
-3. Sửa fallback có thể gây full page reload
-- Thay `window.location.href = from` trong nhánh lỗi bằng TanStack navigation an toàn khi có thể, để không reload toàn trang.
-- Với `from` là URL nội bộ, dùng `navigate`; chỉ fallback khi URL không parse được.
+2. Hiển thị PDF inline trong thẻ hóa đơn
+- Trong `InvoiceExtractCard`, nhận biết PDF qua filename hoặc mime type.
+- Nếu là ảnh: giữ thumbnail ảnh như hiện tại.
+- Nếu là PDF: hiển thị khung preview PDF bằng signed URL (`iframe`/`object`) trong vùng bên trái hoặc khung cao hơn phù hợp, kèm link mở file gốc.
+- Nếu trình duyệt/mobile không render được PDF inline, vẫn có nút mở file PDF trong tab mới.
 
-4. Đồng bộ attach khi đang ở sẵn trong ChatThread
-- Dùng cùng helper lưu/đọc payload để tránh trường hợp event `chat:dock-send` chạy trước khi ThreadPage kịp đăng ký listener.
-- Khi nhận attach, ưu tiên payload đầy đủ có base64; nếu chỉ còn metadata thì báo rõ cần gửi lại file.
+3. Hiển thị nội dung đã trích xuất khi PDF không có thumbnail
+- Với PDF, thêm phần “Nội dung đã đọc” lấy từ `parsed._rawText`, `parsed.notes`, hoặc một số field quan trọng đã extract được.
+- Tránh tình trạng người dùng chỉ thấy các field rỗng “— / 0đ” mà không biết hệ thống đã đọc được gì.
+
+4. Sửa trạng thái rỗng cho dễ hiểu
+- Nếu parse PDF thất bại hoặc không có text, hiện thông báo ngắn: “Chưa đọc được nội dung PDF — mở file gốc để kiểm tra”, thay vì card giống như đã xử lý thành công.
 
 5. Kiểm tra sau sửa
-- Kiểm tra luồng: attach ở dashboard/chatdock → tạo temp thread → tự chạy parse → swap sang real thread không mất ảnh/file.
-- Kiểm tra luồng: attach ngay trong `/chat/$threadId` vẫn gửi được bình thường và không reload.
+- Kiểm tra luồng PDF trong chat: upload → parse → card hiển thị preview/link/nội dung trích xuất.
+- Kiểm tra không làm hỏng luồng ảnh hóa đơn hiện tại.
