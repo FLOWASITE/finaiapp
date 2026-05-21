@@ -5,6 +5,8 @@ import {
   parseEinvoiceXml,
   EinvoiceParseError,
 } from "@/lib/einvoice-xml-parser";
+import { ensureDraftForEinvoice } from "@/lib/einvoice-drafts.functions";
+
 
 
 // ------- helpers -------
