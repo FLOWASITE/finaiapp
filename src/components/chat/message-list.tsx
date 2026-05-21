@@ -67,6 +67,16 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
           }
           if (prevKey !== curKey) showDivider = true;
         }
+
+        return (
+          <div key={m.id ?? i} className="space-y-8">
+            {showDivider && m.created_at && (
+              <div className="flex items-center justify-center pt-2">
+                <div className="rounded-full bg-muted/60 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {formatDayLabel(m.created_at)}
+                </div>
+              </div>
+            )}
           <div
             key={m.id ?? i}
             className={cn(
