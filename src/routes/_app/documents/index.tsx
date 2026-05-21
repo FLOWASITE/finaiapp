@@ -975,24 +975,35 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
               </TabsList>
 
               <TabsContent value="preview" className="mt-3">
-                {data.signedUrl && isImage && (
-                  <img
-                    src={data.signedUrl}
-                    alt={doc.original_filename ?? ""}
-                    className="max-w-full rounded border"
+                {(doc.doc_kind === "purchase_invoice" || doc.doc_kind === "sales_invoice") ? (
+                  <InvoiceFileViewer
+                    einvoice={(doc.ocr_extracted as any)?._einvoice ?? null}
+                    signedUrl={data.signedUrl}
+                    mimeType={doc.mime_type}
+                    filename={doc.original_filename}
                   />
-                )}
-                {data.signedUrl && isPdf && (
-                  <iframe
-                    src={data.signedUrl}
-                    className="w-full h-[600px] rounded border"
-                    title="PDF preview"
-                  />
-                )}
-                {data.signedUrl && !isImage && !isPdf && (
-                  <p className="text-sm text-muted-foreground">
-                    Không hỗ trợ xem trước định dạng này. Bấm "Tải về" để xem.
-                  </p>
+                ) : (
+                  <>
+                    {data.signedUrl && isImage && (
+                      <img
+                        src={data.signedUrl}
+                        alt={doc.original_filename ?? ""}
+                        className="max-w-full rounded border"
+                      />
+                    )}
+                    {data.signedUrl && isPdf && (
+                      <iframe
+                        src={data.signedUrl}
+                        className="w-full h-[600px] rounded border"
+                        title="PDF preview"
+                      />
+                    )}
+                    {data.signedUrl && !isImage && !isPdf && (
+                      <p className="text-sm text-muted-foreground">
+                        Không hỗ trợ xem trước định dạng này. Bấm "Tải về" để xem.
+                      </p>
+                    )}
+                  </>
                 )}
               </TabsContent>
 
