@@ -78,7 +78,6 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               </div>
             )}
           <div
-            key={m.id ?? i}
             className={cn(
               "group flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
               isUser ? "justify-end" : "items-start",
