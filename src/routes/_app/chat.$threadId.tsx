@@ -607,6 +607,22 @@ function ThreadPage() {
   }
 
   if (query.data?.notFound) {
+    // Đang trong giai đoạn pending (vừa điều hướng optimistic hoặc user reload
+    // trang khi background insert chưa xong) → hiển thị trạng thái chuẩn bị,
+    // refetchInterval sẽ tự poll đến khi thấy row hoặc hết hạn.
+    if (pending && !pendingExpired) {
+      return (
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="max-w-sm rounded-xl border border-border/70 bg-background p-6 text-center shadow-sm">
+            <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <p className="mb-1 text-sm font-medium">Đang chuẩn bị cuộc trò chuyện…</p>
+            <p className="text-xs text-muted-foreground">
+              Hệ thống đang lưu hội thoại lên máy chủ, chờ vài giây nhé.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="max-w-sm rounded-xl border border-border/70 bg-background p-6 text-center shadow-sm">
@@ -615,7 +631,15 @@ function ThreadPage() {
           <p className="mb-4 text-xs text-muted-foreground">
             Hội thoại này chưa được tạo xong, đã bị xoá hoặc không thuộc doanh nghiệp hiện tại.
           </p>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              pendingDeadlineRef.current = Date.now() + 30_000;
+              setPendingExpired(false);
+              query.refetch();
+            }}
+          >
             Tải lại
           </Button>
         </div>
