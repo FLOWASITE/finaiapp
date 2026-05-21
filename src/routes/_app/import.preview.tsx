@@ -329,40 +329,25 @@ function ImportPreviewPage() {
     patch(idx, { status: "sending", error: undefined });
     try {
       if (d.kind === "purchase_invoice") {
-        await propose({
+        const res: any = await createInvoice({
           data: {
-            tool_name: "createPurchaseInvoice",
-            input: {
-              supplier_name: d.supplier_name,
-              supplier_tax_id: d.supplier_tax_id || undefined,
-              invoice_no: d.invoice_no || undefined,
-              issue_date: d.issue_date,
-              notes: d.notes || undefined,
-              expense_account: d.expense_account || undefined,
-              lines: d.lines,
-            },
+            supplier_id: d.supplier_id || undefined,
+            supplier_name: d.supplier_name,
+            supplier_tax_id: normalizeTaxId(d.supplier_tax_id) || undefined,
+            invoice_no: d.invoice_no || undefined,
+            issue_date: d.issue_date,
+            notes: d.notes || undefined,
+            expense_account: d.expense_account || undefined,
+            ai_upload_id: d.ai_upload_id || undefined,
+            file_hash: d.file_hash || undefined,
+            lines: d.lines.map((l) => ({ ...l, line_type: "goods" as const })),
           },
         });
+        patch(idx, { status: "done", created_id: res?.id });
+        toast.success(`${d.filename}: đã tạo nháp`);
       } else {
-        await propose({
-          data: {
-            tool_name: "createBankVoucher",
-            input: {
-              voucher_no: d.voucher_no,
-              voucher_type: d.voucher_type,
-              voucher_date: d.voucher_date,
-              bank_account_id: d.bank_account_id,
-              amount: d.amount,
-              counter_account: d.counter_account,
-              party_name: d.party_name || undefined,
-              reason: d.reason || undefined,
-              reference: d.reference || undefined,
-            },
-          },
-        });
+        throw new Error("Phiếu thu/chi: dùng màn Bank để tạo");
       }
-      patch(idx, { status: "done" });
-      toast.success(`${d.filename}: đã đề xuất nháp`);
     } catch (e: any) {
       patch(idx, { status: "error", error: e?.message || "lỗi" });
       toast.error(`${d.filename}: ${e?.message || "lỗi"}`);
