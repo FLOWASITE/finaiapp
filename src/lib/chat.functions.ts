@@ -16,8 +16,9 @@ import { ACTION_HANDLERS } from "@/lib/ai/action-handlers.server";
 const AttachmentSchema = z.object({
   name: z.string(),
   mime: z.string(),
-  base64: z.string(),
+  base64: z.string().optional(),
   kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
+  uploadId: z.string().uuid().nullable().optional(),
 });
 
 const BulkRunItemSchema = z.object({
