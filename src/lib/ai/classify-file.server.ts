@@ -25,8 +25,8 @@ export type ClassifyResult = {
   reason: string;
   seller_tax_id?: string | null;
   buyer_tax_id?: string | null;
-  /** 'ai' | 'cache' | 'heuristic-fallback' */
-  source: "ai" | "cache" | "heuristic-fallback";
+  /** Nguồn phân loại — để biết có tốn token AI hay không */
+  source: "ai" | "cache" | "xml" | "text-rule" | "heuristic-fallback";
 };
 
 const Schema = z.object({
@@ -74,6 +74,126 @@ async function getTenantTaxId(supabase: any, userId: string): Promise<string> {
     return "";
   }
 }
+/**
+ * Phân loại không-LLM dựa trên text trích từ PDF.
+ * Trả về null nếu không đủ căn cứ → để LLM xử lý.
+ */
+function classifyByTextRule(
+  text: string,
+  tenantTaxId: string,
+): ClassifyResult | null {
+  const t = text.toLowerCase();
+
+  // 1) Loại trừ rõ ràng: hợp đồng / báo giá / CV
+  const isContract =
+    /\b(hợp đồng|hop dong|biên bản|bien ban|báo giá|bao gia|quotation|curriculum vitae|résumé|resume)\b/i.test(t) &&
+    !/hoá đơn|hoa don|invoice|gtgt|vat/i.test(t);
+  if (isContract) {
+    return {
+      kind: "other",
+      confidence: 0.9,
+      reason: "Văn bản chứa 'hợp đồng/báo giá/CV', không có dấu hiệu hoá đơn",
+      source: "text-rule",
+    };
+  }
+
+  // 2) Sao kê ngân hàng
+  const isStatement =
+    /(sao kê|sao ke|account statement|bank statement)/i.test(t) ||
+    (/(số dư đầu kỳ|so du dau ky|opening balance)/i.test(t) &&
+      /(số dư cuối kỳ|so du cuoi ky|closing balance)/i.test(t)) ||
+    (/(nợ|debit)/i.test(t) && /(có|credit)/i.test(t) && /(số dư|balance)/i.test(t));
+  if (isStatement) {
+    return {
+      kind: "bank_statement",
+      confidence: 0.92,
+      reason: "Text có dấu hiệu sao kê (số dư đầu/cuối, cột nợ/có)",
+      source: "text-rule",
+    };
+  }
+
+  // 3) Phiếu thu / phiếu chi
+  const isCashVoucher =
+    /\b(phiếu thu|phieu thu|phiếu chi|phieu chi)\b/i.test(t) &&
+    /(người nộp tiền|nguoi nop tien|người nhận tiền|nguoi nhan tien|lý do|ly do)/i.test(t);
+  if (isCashVoucher) {
+    return {
+      kind: "cash_voucher",
+      confidence: 0.9,
+      reason: "Text có 'Phiếu thu/chi' + người nộp/nhận tiền",
+      source: "text-rule",
+    };
+  }
+
+  // 4) Hoá đơn GTGT — cần KEYWORD hoá đơn + MST 10-13 số
+  const hasInvoiceKeyword =
+    /(hoá đơn giá trị gia tăng|hoa don gia tri gia tang|hoá đơn gtgt|hoa don gtgt|\bvat invoice\b|tax invoice)/i.test(
+      t,
+    );
+  if (hasInvoiceKeyword) {
+    // Trích tất cả MST
+    const mstMatches = Array.from(text.matchAll(/\b(\d{10}(?:[-\s]?\d{3})?)\b/g)).map(
+      (m) => m[1].replace(/[-\s]/g, ""),
+    );
+    const uniqMst = Array.from(new Set(mstMatches)).filter(
+      (s) => s.length === 10 || s.length === 13,
+    );
+
+    // Heuristic: MST gần "bên bán" / "bên mua"
+    let seller = "";
+    let buyer = "";
+    const sellerCtx = t.match(/(?:bên bán|ben ban|đơn vị bán|don vi ban|seller)[\s\S]{0,200}/i);
+    const buyerCtx = t.match(/(?:bên mua|ben mua|đơn vị mua|don vi mua|buyer)[\s\S]{0,200}/i);
+    if (sellerCtx) {
+      const m = sellerCtx[0].match(/\b(\d{10}(?:[-\s]?\d{3})?)\b/);
+      if (m) seller = m[1].replace(/[-\s]/g, "");
+    }
+    if (buyerCtx) {
+      const m = buyerCtx[0].match(/\b(\d{10}(?:[-\s]?\d{3})?)\b/);
+      if (m) buyer = m[1].replace(/[-\s]/g, "");
+    }
+
+    // Nếu chỉ có 2 MST, suy ra theo thứ tự xuất hiện
+    if (!seller && !buyer && uniqMst.length >= 2) {
+      seller = uniqMst[0];
+      buyer = uniqMst[1];
+    }
+
+    let kind: ClassifyKind = "purchase_invoice";
+    let confidence = 0.85;
+    let reason = "Text có 'Hoá đơn GTGT' + MST";
+
+    if (tenantTaxId) {
+      if (seller === tenantTaxId) {
+        kind = "sales_invoice";
+        confidence = 0.95;
+        reason = "Hoá đơn GTGT, MST tenant khớp bên bán → HĐ ra";
+      } else if (buyer === tenantTaxId) {
+        kind = "purchase_invoice";
+        confidence = 0.95;
+        reason = "Hoá đơn GTGT, MST tenant khớp bên mua → HĐ vào";
+      } else if (uniqMst.length > 0) {
+        confidence = 0.6;
+        reason = "Hoá đơn GTGT nhưng MST tenant chưa khớp bên mua/bán — cần AI xác nhận";
+        return null; // để LLM phân định
+      }
+    } else if (uniqMst.length === 0) {
+      return null; // không có MST, để LLM
+    }
+
+    return {
+      kind,
+      confidence,
+      reason,
+      seller_tax_id: seller || null,
+      buyer_tax_id: buyer || null,
+      source: "text-rule",
+    };
+  }
+
+  return null;
+}
+
 
 export async function classifyFile(opts: {
   supabase: any;
@@ -139,7 +259,7 @@ export async function classifyFile(opts: {
         reason,
         seller_tax_id: seller || null,
         buyer_tax_id: buyer || null,
-        source: "ai",
+        source: "xml",
       };
       if (opts.fileHash) {
         try {
@@ -168,6 +288,26 @@ export async function classifyFile(opts: {
       console.warn("[classify-file] pdf extract failed:", (e as Error).message);
     }
   }
+
+  // 2.5. Text-rule classifier — bắt nhanh PDF có text rõ ràng, KHÔNG gọi LLM.
+  if (textSnippet && textSnippet.length >= 200) {
+    const ruleResult = classifyByTextRule(textSnippet, tenantTaxId);
+    if (ruleResult) {
+      if (opts.fileHash) {
+        try {
+          await opts.supabase
+            .from("ai_uploads")
+            .update({ classify_meta: ruleResult })
+            .eq("user_id", opts.userId)
+            .eq("file_hash", opts.fileHash);
+        } catch {
+          /* ignore */
+        }
+      }
+      return ruleResult;
+    }
+  }
+
 
   const systemPrompt = `Bạn là trợ lý kế toán Việt Nam. Phân loại file đính kèm vào MỘT trong các loại:
 - purchase_invoice: hoá đơn GTGT mà người mua là doanh nghiệp đang dùng app (đầu vào).
