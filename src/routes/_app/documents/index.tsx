@@ -447,6 +447,13 @@ function DocumentsPage() {
 
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
+          ) : currentTab === "purchase" ? (
+            <PurchaseInvoicesTable
+              filters={filters}
+              limit={limit}
+              onLoadMore={() => setLimit((n) => n + PAGE_SIZE)}
+              onOpenDoc={(id) => setOpenId(id)}
+            />
           ) : (
             <>
               <Table>
