@@ -86,27 +86,35 @@ function classifyGroup(mime: string, filename: string): {
         group: "sales_invoice",
         kind: "purchase_invoice",
         bucket: "review",
-        confidence: 0.7,
-        reason: "Có vẻ là HĐ ra — cần xem lại tài khoản doanh thu",
+        confidence: 0.55,
+        reason: "Tên file gợi ý HĐ ra — chờ AI xác nhận",
       };
     }
+    if (RX_INVOICE_IN.test(lc)) {
+      return {
+        group: "purchase_invoice",
+        kind: "purchase_invoice",
+        bucket: "review",
+        confidence: 0.6,
+        reason: "Tên file gợi ý HĐ vào — chờ AI xác nhận",
+      };
+    }
+    // PDF không có gợi ý từ tên → KHÔNG mặc định là HĐ vào nữa
     return {
-      group: "purchase_invoice",
-      kind: "purchase_invoice",
-      bucket: "auto",
-      confidence: RX_INVOICE_IN.test(lc) ? 0.97 : 0.85,
-      reason: RX_INVOICE_IN.test(lc)
-        ? "Hoá đơn vào, tin cậy cao"
-        : "PDF — coi như hoá đơn vào",
+      group: "other",
+      kind: "auto",
+      bucket: "ask",
+      confidence: 0.25,
+      reason: "PDF chưa rõ loại — chờ AI phân loại",
     };
   }
   if (isImg) {
     return {
       group: "invoice_image",
       kind: "purchase_invoice",
-      bucket: "review",
-      confidence: 0.6,
-      reason: "Ảnh chụp — OCR có thể không chắc chắn",
+      bucket: "ask",
+      confidence: 0.4,
+      reason: "Ảnh chụp — chờ AI xác nhận có phải HĐ không",
     };
   }
   if (isXlsx || isCsv) {
@@ -297,21 +305,37 @@ export async function buildBulkPlan(opts: {
           base64: att.base64,
           fileHash,
         });
-        // Ưu tiên AI khi confidence >= 0.5; nếu thấp hơn, giữ heuristic
-        if (ai.confidence >= 0.5) {
-          finalGroup = kindToGroup(ai.kind);
-          finalKind = kindToItemKind(ai.kind);
-          finalBucket = decideBucket(ai.kind, ai.confidence);
-          finalConfidence = ai.confidence;
-          finalReason =
-            ai.kind === "other"
-              ? `Không liên quan kế toán — ${ai.reason}`
-              : ai.kind === "sales_invoice"
-                ? `Hoá đơn đầu ra — ${ai.reason}`
-                : ai.reason;
+        // AI là nguồn chính. Heuristic chỉ giữ khi AI lỗi.
+        finalGroup = kindToGroup(ai.kind);
+        finalKind = kindToItemKind(ai.kind);
+        finalConfidence = ai.confidence;
+        finalReason =
+          ai.kind === "other"
+            ? `Không phải chứng từ kế toán — ${ai.reason}`
+            : ai.kind === "sales_invoice"
+              ? `HĐ đầu ra — ${ai.reason}`
+              : ai.kind === "bank_statement"
+                ? `Sao kê NH — ${ai.reason}`
+                : ai.kind === "cash_voucher"
+                  ? `Phiếu thu/chi — ${ai.reason}`
+                  : ai.reason;
+
+        // Bucket: AI conf cao → auto, trung bình → review, thấp → ask
+        if (ai.kind === "other") {
+          finalBucket = "ask";
+        } else if (ai.kind === "sales_invoice" || ai.kind === "bank_statement" || ai.kind === "cash_voucher") {
+          // Các loại này luôn cần sếp xem lại (chưa có flow auto-post)
+          finalBucket = "review";
+        } else if (ai.kind === "purchase_invoice") {
+          if (ai.confidence >= 0.85) finalBucket = "auto";
+          else if (ai.confidence >= 0.5) finalBucket = "review";
+          else finalBucket = "ask";
         }
       } catch (e: any) {
         console.warn("[bulk-intake] classify err:", e?.message);
+        // AI lỗi → hạ bucket xuống ask để sếp xác nhận, không tin heuristic
+        finalBucket = "ask";
+        finalReason = `${cls.reason} (AI phân loại lỗi — cần sếp xác nhận)`;
       }
     }
 

@@ -106,22 +106,29 @@ export async function classifyFile(opts: {
   if (isPdf) {
     try {
       const r = await extractPdfText(opts.base64);
-      textSnippet = (r.text || "").slice(0, 4000);
+      textSnippet = (r.text || "").slice(0, 8000);
     } catch (e) {
       console.warn("[classify-file] pdf extract failed:", (e as Error).message);
     }
   }
 
   const systemPrompt = `Bạn là trợ lý kế toán Việt Nam. Phân loại file đính kèm vào MỘT trong các loại:
-- purchase_invoice: hoá đơn GTGT mà người mua là doanh nghiệp này (đầu vào).
-- sales_invoice: hoá đơn GTGT mà người bán là doanh nghiệp này (đầu ra).
-- bank_statement: sao kê tài khoản ngân hàng (có cột nợ/có, số dư).
-- cash_voucher: phiếu thu / phiếu chi tiền mặt.
-- other: không liên quan kế toán (hợp đồng, biên bản, ảnh chụp tự do, CV...).
+- purchase_invoice: hoá đơn GTGT mà người mua là doanh nghiệp đang dùng app (đầu vào).
+- sales_invoice: hoá đơn GTGT mà người bán là doanh nghiệp đang dùng app (đầu ra).
+- bank_statement: sao kê tài khoản ngân hàng (có cột nợ/có, số dư đầu/cuối kỳ, danh sách giao dịch).
+- cash_voucher: phiếu thu / phiếu chi tiền mặt (có "Phiếu thu", "Phiếu chi", "Người nộp tiền"...).
+- other: KHÔNG phải chứng từ kế toán — hợp đồng, báo giá, biên bản, CV, ảnh tự do, tài liệu marketing, email...
 
-${tenantTaxId ? `MST của doanh nghiệp đang dùng app: ${tenantTaxId}. Nếu nhận diện được MST bên mua/bán, dùng để quyết định đầu vào hay đầu ra.` : ""}
+QUY TẮC CONFIDENCE (BẮT BUỘC):
+- confidence >= 0.85 chỉ khi nhìn THẤY RÕ ÍT NHẤT 2 trong: "Hoá đơn GTGT" / "Mã số thuế" + MST 10-13 số / "Số hoá đơn" / "Ngày" / bảng nợ-có với số dư.
+- confidence 0.5-0.84 khi đoán dựa vào layout nhưng thiếu chi tiết.
+- confidence < 0.5 khi không chắc — KHÔNG được đoán bừa là purchase_invoice.
+- Hợp đồng / báo giá / CV / ảnh chụp không phải chứng từ → BẮT BUỘC "other" (không phải "purchase_invoice").
+- Trích MST bên bán (seller_tax_id) và bên mua (buyer_tax_id) nếu nhìn thấy — chỉ giữ chữ số, 10-13 ký tự.
 
-Trả về confidence 0..1 (>=0.85 = rất chắc), reason ngắn gọn tiếng Việt (<=120 ký tự).`;
+${tenantTaxId ? `MST doanh nghiệp đang dùng app: ${tenantTaxId}. Hãy CỐ GẮNG trích buyer/seller tax id để hệ thống có thể chốt đầu vào/đầu ra.` : ""}
+
+reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (vd: "thấy 'Hoá đơn GTGT' + MST bên bán 0312345678").`;
 
   const userParts: any[] = [
     { type: "text", text: `Tên file: ${opts.filename}\nMime: ${opts.mime}` },
@@ -134,7 +141,6 @@ Trả về confidence 0..1 (>=0.85 = rất chắc), reason ngắn gọn tiếng 
       image: `data:${opts.mime};base64,${opts.base64}`,
     });
   } else if (isPdf) {
-    // PDF không trích được text → gửi file để model nhìn
     userParts.push({
       type: "file",
       data: `data:${opts.mime};base64,${opts.base64}`,
@@ -153,18 +159,46 @@ Trả về confidence 0..1 (>=0.85 = rất chắc), reason ngắn gọn tiếng 
     });
 
     let kind = output.kind as ClassifyKind;
-    // Override bằng MST nếu rõ
-    if (tenantTaxId && (kind === "purchase_invoice" || kind === "sales_invoice")) {
-      const seller = normTaxId(output.seller_tax_id);
-      const buyer = normTaxId(output.buyer_tax_id);
-      if (buyer && buyer === tenantTaxId) kind = "purchase_invoice";
-      else if (seller && seller === tenantTaxId) kind = "sales_invoice";
+    let confidence = output.confidence;
+    let reason = output.reason;
+    const seller = normTaxId(output.seller_tax_id);
+    const buyer = normTaxId(output.buyer_tax_id);
+
+    // MST chốt chặn (chỉ khi tenant đã khai MST)
+    if (tenantTaxId) {
+      const sellerMatch = seller && seller === tenantTaxId;
+      const buyerMatch = buyer && buyer === tenantTaxId;
+
+      // Override "other" → invoice nếu MST khớp tenant (model đôi khi không tự tin)
+      if (kind === "other" && (sellerMatch || buyerMatch)) {
+        kind = buyerMatch ? "purchase_invoice" : "sales_invoice";
+        confidence = Math.max(confidence, 0.8);
+        reason = `MST tenant khớp ${buyerMatch ? "bên mua" : "bên bán"} → ép thành ${kind === "purchase_invoice" ? "HĐ vào" : "HĐ ra"} (${reason})`;
+      }
+      // Flip purchase ↔ sales nếu MST nói ngược lại
+      else if (kind === "purchase_invoice" && sellerMatch && !buyerMatch) {
+        kind = "sales_invoice";
+        reason = `MST tenant khớp bên bán → đổi sang HĐ ra (${reason})`;
+      } else if (kind === "sales_invoice" && buyerMatch && !sellerMatch) {
+        kind = "purchase_invoice";
+        reason = `MST tenant khớp bên mua → đổi sang HĐ vào (${reason})`;
+      }
+      // Hạ confidence nếu cho là hoá đơn mà MST tenant không khớp cả bên mua lẫn bên bán
+      else if (
+        (kind === "purchase_invoice" || kind === "sales_invoice") &&
+        (seller || buyer) &&
+        !sellerMatch &&
+        !buyerMatch
+      ) {
+        confidence = Math.min(confidence, 0.45);
+        reason = `MST tenant không khớp bên mua/bán nào → hạ tin cậy (${reason})`;
+      }
     }
 
     const result: ClassifyResult = {
       kind,
-      confidence: output.confidence,
-      reason: output.reason,
+      confidence,
+      reason,
       seller_tax_id: output.seller_tax_id ?? null,
       buyer_tax_id: output.buyer_tax_id ?? null,
       source: "ai",
@@ -188,7 +222,7 @@ Trả về confidence 0..1 (>=0.85 = rất chắc), reason ngắn gọn tiếng 
     return {
       kind: "other",
       confidence: 0,
-      reason: "Phân loại AI thất bại, dùng tên file",
+      reason: "Phân loại AI thất bại, cần sếp xác nhận",
       source: "heuristic-fallback",
     };
   }
