@@ -415,7 +415,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
         .single();
       if (e4) throw new Error(e4.message);
       cashVoucherId = cv?.id ?? null;
-    } else if (v.pay_now && v.payment_method === "bank") {
+    } else if (v.pay_now && v.payment_method === "bank" && v.tenant_id) {
       // Cần bank_account_id — lấy bank account đầu tiên của tenant
       const { data: ba } = await supabase
         .from("bank_accounts")
