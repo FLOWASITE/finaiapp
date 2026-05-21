@@ -163,7 +163,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onNew}
               title="Cuộc trò chuyện mới"
               aria-label="Cuộc trò chuyện mới"
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary transition-colors hover:bg-primary/25"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
             >
               <Plus className="h-4 w-4" />
             </button>
