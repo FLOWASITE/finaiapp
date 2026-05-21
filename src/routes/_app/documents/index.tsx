@@ -1241,16 +1241,39 @@ function PurchaseInvoicesTable({
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewerRow(r)}
+                              aria-label="Xem hoá đơn"
+                            >
+                              <FileSearch className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xem hoá đơn</TooltipContent>
+                        </Tooltip>
                         {inv?.id && (
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to="/invoices/$id" params={{ id: inv.id }}>
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button asChild size="sm" variant="ghost">
+                                <Link to="/invoices/$id" params={{ id: inv.id }}>
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Link>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Mở chi tiết HĐ</TooltipContent>
+                          </Tooltip>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Chi tiết tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
