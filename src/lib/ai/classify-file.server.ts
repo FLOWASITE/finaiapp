@@ -6,11 +6,18 @@
  * Cache theo `ai_uploads.classify_meta` (key = file_hash + tenant) để
  * upload lại không tốn token.
  */
+import { createHash } from "crypto";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
+
+/** sha256 hex of the first 2KB of normalized text — fingerprint for cross-file cache. */
+function textFingerprint(text: string): string {
+  const norm = text.replace(/\s+/g, " ").trim().slice(0, 2000);
+  return createHash("sha256").update(norm, "utf8").digest("hex");
+}
 
 export type ClassifyKind =
   | "purchase_invoice"
@@ -283,10 +290,48 @@ export async function classifyFile(opts: {
   if (isPdf) {
     try {
       const r = await extractPdfText(opts.base64);
-      textSnippet = (r.text || "").slice(0, 8000);
+      textSnippet = (r.text || "").slice(0, 4000);
     } catch (e) {
       console.warn("[classify-file] pdf extract failed:", (e as Error).message);
     }
+  }
+
+  // 2.4. Cache theo text fingerprint (D) — bắt file khác hash nhưng cùng nội dung text.
+  let textHash: string | null = null;
+  if (textSnippet && textSnippet.length >= 200) {
+    textHash = textFingerprint(textSnippet);
+    try {
+      const { data: row } = await opts.supabase
+        .from("ai_uploads")
+        .select("classify_meta")
+        .eq("user_id", opts.userId)
+        .filter("classify_meta->>text_hash", "eq", textHash)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const cached = row?.classify_meta as (ClassifyResult & { text_hash?: string }) | undefined;
+      if (cached && cached.kind) {
+        const hit: ClassifyResult = {
+          kind: cached.kind,
+          confidence: cached.confidence,
+          reason: cached.reason,
+          seller_tax_id: cached.seller_tax_id ?? null,
+          buyer_tax_id: cached.buyer_tax_id ?? null,
+          source: "cache",
+        };
+        // best-effort: ghi cache cho file_hash hiện tại để lần sau hit nhanh hơn
+        if (opts.fileHash) {
+          try {
+            await opts.supabase
+              .from("ai_uploads")
+              .update({ classify_meta: { ...hit, text_hash: textHash } })
+              .eq("user_id", opts.userId)
+              .eq("file_hash", opts.fileHash);
+          } catch { /* ignore */ }
+        }
+        return hit;
+      }
+    } catch { /* ignore */ }
   }
 
   // 2.5. Text-rule classifier — bắt nhanh PDF có text rõ ràng, KHÔNG gọi LLM.
@@ -297,7 +342,7 @@ export async function classifyFile(opts: {
         try {
           await opts.supabase
             .from("ai_uploads")
-            .update({ classify_meta: ruleResult })
+            .update({ classify_meta: { ...ruleResult, text_hash: textHash } })
             .eq("user_id", opts.userId)
             .eq("file_hash", opts.fileHash);
         } catch {
@@ -330,6 +375,11 @@ reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (
   const userParts: any[] = [
     { type: "text", text: `Tên file: ${opts.filename}\nMime: ${opts.mime}` },
   ];
+  // (B) Với PDF scan lớn (>5MB) không có text layer → chỉ gửi filename, bỏ qua bytes
+  // để giảm token vision. AI sẽ chỉ đoán theo tên — confidence thường < 0.5 → bucket "ask".
+  const sizeBytes = Math.floor((opts.base64.length * 3) / 4);
+  const skipPdfBytes = isPdf && !textSnippet && sizeBytes > 5 * 1024 * 1024;
+
   if (textSnippet) {
     userParts.push({ type: "text", text: `Trích văn bản (đầu file):\n${textSnippet}` });
   } else if (isImg) {
@@ -337,17 +387,28 @@ reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (
       type: "image",
       image: `data:${opts.mime};base64,${opts.base64}`,
     });
-  } else if (isPdf) {
+  } else if (isPdf && !skipPdfBytes) {
     userParts.push({
       type: "file",
       data: `data:${opts.mime};base64,${opts.base64}`,
       mediaType: opts.mime,
     });
+  } else if (skipPdfBytes) {
+    userParts.push({
+      type: "text",
+      text: `(PDF scan kích thước ${(sizeBytes / 1024 / 1024).toFixed(1)}MB không có lớp text — chỉ phân loại dựa theo tên file. Nếu không đủ chắc, hãy trả "other" với confidence thấp.)`,
+    });
   }
 
-  // 3. Gọi AI
+  // 3. Gọi AI — dùng model lite (rẻ hơn) làm mặc định, fallback flash-preview nếu lỗi.
   try {
-    const { model } = await resolveActiveModel("classify", "google/gemini-3-flash-preview");
+    let model;
+    try {
+      ({ model } = await resolveActiveModel("classify", "google/gemini-3.1-flash-lite-preview"));
+    } catch (liteErr) {
+      console.warn("[classify-file] lite model failed, fallback flash:", (liteErr as Error).message);
+      ({ model } = await resolveActiveModel("classify", "google/gemini-3-flash-preview"));
+    }
     const { output } = await generateText({
       model,
       output: Output.object({ schema: Schema }),
@@ -401,12 +462,12 @@ reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (
       source: "ai",
     };
 
-    // 4. Cache về DB (best-effort)
+    // 4. Cache về DB (best-effort) — kèm text_hash để hit cross-file-hash sau này.
     if (opts.fileHash) {
       try {
         await opts.supabase
           .from("ai_uploads")
-          .update({ classify_meta: result })
+          .update({ classify_meta: { ...result, text_hash: textHash } })
           .eq("user_id", opts.userId)
           .eq("file_hash", opts.fileHash);
       } catch {

@@ -345,6 +345,7 @@ export async function buildBulkPlan(opts: {
     let finalBucket = p.cls.bucket;
     let finalReason = p.cls.reason;
     let finalConfidence = p.cls.confidence;
+    let finalSource: BulkItem["source"] = "heuristic";
 
     if (p.shouldAi) {
       try {
@@ -359,6 +360,7 @@ export async function buildBulkPlan(opts: {
         finalGroup = kindToGroup(ai.kind);
         finalKind = kindToItemKind(ai.kind);
         finalConfidence = ai.confidence;
+        finalSource = ai.source;
         finalReason =
           ai.kind === "other"
             ? `Không phải chứng từ kế toán — ${ai.reason}`
@@ -386,6 +388,7 @@ export async function buildBulkPlan(opts: {
       } catch (e: any) {
         console.warn("[bulk-intake] classify err:", e?.message);
         finalBucket = "ask";
+        finalSource = "heuristic-fallback";
         finalReason = `${p.cls.reason} (AI phân loại lỗi — cần sếp xác nhận)`;
       }
     }
@@ -397,6 +400,7 @@ export async function buildBulkPlan(opts: {
       bucket: finalBucket,
       reason: finalReason,
       confidence: finalConfidence,
+      source: finalSource,
     };
   }
 

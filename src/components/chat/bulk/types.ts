@@ -1,5 +1,14 @@
 export type BulkBucket = "auto" | "review" | "ask";
 
+/** Nguồn phân loại — để UI biết item này có tốn token AI hay không. */
+export type BulkClassifySource =
+  | "ai"
+  | "cache"
+  | "xml"
+  | "text-rule"
+  | "heuristic-fallback"
+  | "heuristic";
+
 export type BulkItemKindGroup =
   | "purchase_invoice"
   | "sales_invoice"
@@ -28,6 +37,8 @@ export type BulkItem = {
   uploadId: string | null;
   /** File hash — used for dedupe. */
   fileHash: string | null;
+  /** Nguồn phân loại (ai/xml/text-rule/cache/heuristic). */
+  source?: BulkClassifySource;
   /** When this item is dropped as duplicate, points at the original. */
   dupOf?: { filename?: string | null; uploadId?: string | null; reason: string };
 };
