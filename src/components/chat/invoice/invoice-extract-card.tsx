@@ -108,7 +108,7 @@ export function InvoiceExtractCard({
         className={cn(
           "grid gap-0",
           isXml
-            ? "grid-cols-1 md:grid-cols-[300px_1fr]"
+            ? "grid-cols-1 md:grid-cols-[340px_1fr]"
             : isPdf
               ? "grid-cols-1 md:grid-cols-[260px_1fr]"
               : "grid-cols-[140px_1fr]",
@@ -189,12 +189,12 @@ export function InvoiceExtractCard({
               </div>
             </div>
           )}
-          {filename && (
+          {filename && !(isXml && parsed?._einvoice) && (
             <div className="line-clamp-2 break-all text-center text-[10px] text-muted-foreground/80">
               {filename}
             </div>
           )}
-          {parsed?._signed != null || taxId ? (
+          {!(isXml && parsed?._einvoice) && (parsed?._signed != null || taxId) ? (
             <span className="inline-flex items-center rounded-full bg-emerald-500/12 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
               {parsed?._signed ? "đã ký số" : "đã xác minh"}
             </span>
