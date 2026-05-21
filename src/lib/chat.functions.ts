@@ -141,10 +141,28 @@ export const askAccountingStream = createServerFn({ method: "POST" })
             userId,
           });
           parsedAttachments.push({ name: att.name, kind: att.kind, parsed: r.parsed });
+          const t = (r as any).timings ?? {};
+          const phases = [
+            { name: "ocr", label: "OCR & đọc nội dung", ms: t.parserMs ?? null },
+            { name: "extract", label: "Trích xuất trường thông tin", ms: t.structurerMs ?? null },
+            { name: "partner_match", label: "Khớp đối tác với danh bạ", ms: null },
+            { name: "rules_check", label: "Đối chiếu với quy tắc trong Trí nhớ AI", ms: null },
+          ];
           yield {
             type: "tool-result",
             toolCallId: callId,
-            output: truncateOutput({ filename: att.name, kind: att.kind, parsed: r.parsed }),
+            output: truncateOutput(
+              {
+                filename: att.name,
+                kind: (r as any).kind ?? att.kind,
+                uploadId: (r as any).uploadId ?? null,
+                parsed: r.parsed,
+                parser: (r as any).parser ?? null,
+                cached: (r as any).cached ?? false,
+                phases,
+              },
+              16000,
+            ),
           } as AskStreamEvent;
         } catch (e: any) {
           yield {
