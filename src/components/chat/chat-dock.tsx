@@ -212,6 +212,7 @@ export function ChatDock() {
           ["chat", "threads", "recent", "all"],
           (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
         );
+        collapseChatSidebar();
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
