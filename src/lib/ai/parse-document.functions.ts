@@ -760,12 +760,14 @@ export async function parseFileCore(opts: {
                   ],
                 },
               ];
-        const r = await generateText({
+        const classified = await generateJsonBestEffort({
           model: source.kind === "markdown" ? textModel : visionModel,
-          output: Output.object({ schema: KindClassifySchema as any }),
           messages,
+          schema: KindClassifySchema,
+          fallback: { kind: "unknown" },
+          label: "document kind classification",
         });
-        const k = (r as any).output?.kind;
+        const k = classified?.kind;
         if (k && k !== "unknown") {
           effectiveKind = k;
         }
@@ -827,12 +829,13 @@ export async function parseFileCore(opts: {
               ];
         const model = source.kind === "markdown" ? textModel : visionModel;
         if (schema) {
-          const r = await generateText({
+          parsed = await generateJsonBestEffort({
             model,
-            output: Output.object({ schema: schema as any }),
             messages,
+            schema,
+            fallback: {},
+            label: effectiveKind,
           });
-          parsed = (r as any).output;
         } else {
           const r = await generateText({ model, messages });
           parsed = extractJSON(r.text) ?? { raw: r.text };
