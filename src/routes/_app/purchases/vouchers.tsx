@@ -319,7 +319,7 @@ function CreateVoucherDialog({
               <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— Không chọn —</SelectItem>
-                {(suppliers?.rows ?? []).map((s: any) => (
+                {(suppliers ?? []).map((s: any) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
