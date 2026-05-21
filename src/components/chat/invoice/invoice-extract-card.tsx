@@ -30,14 +30,18 @@ export function InvoiceExtractCard({
   kind?: string;
 }) {
   const getUrlFn = useServerFn(getUploadSignedUrl);
-  const { data: urlData } = useQuery({
+  const { data: urlData, isLoading: urlLoading } = useQuery({
     queryKey: ["ai_upload_url", uploadId],
     queryFn: () => getUrlFn({ data: { uploadId: uploadId! } }),
     enabled: !!uploadId,
     staleTime: 50 * 60 * 1000,
   });
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name;
+  const isImage = filename
+    ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
+    : false;
+
+  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage;
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
