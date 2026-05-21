@@ -234,6 +234,10 @@ function DocumentsPage() {
   const [ocrStatus, setOcrStatus] = useState<string>("all");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [issueFromDate, setIssueFromDate] = useState("");
+  const [issueToDate, setIssueToDate] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -250,6 +254,13 @@ function DocumentsPage() {
   useEffect(() => {
     setDocKind("all");
     setLimit(PAGE_SIZE);
+    // Also clear purchase-specific filters when leaving purchase tab
+    if (currentTab !== "purchase") {
+      setInvoiceNo("");
+      setSupplierSearch("");
+      setIssueFromDate("");
+      setIssueToDate("");
+    }
   }, [currentTab]);
 
   // Tab kinds take precedence over inner docKind filter — pick first matching kind for narrowing
@@ -267,6 +278,18 @@ function DocumentsPage() {
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
     from_date: fromDate || undefined,
     to_date: toDate || undefined,
+  };
+
+  const purchaseFilters = {
+    search: searchText || undefined,
+    source: sourceFilter === "all" ? undefined : sourceFilter,
+    ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    invoice_no: invoiceNo || undefined,
+    supplier_search: supplierSearch || undefined,
+    issue_from_date: issueFromDate || undefined,
+    issue_to_date: issueToDate || undefined,
   };
 
   const { data, isLoading } = useQuery({
@@ -287,7 +310,8 @@ function DocumentsPage() {
     (sourceFilter !== "all" ? 1 : 0) +
     (ocrStatus !== "all" ? 1 : 0) +
     (fromDate ? 1 : 0) +
-    (toDate ? 1 : 0);
+    (toDate ? 1 : 0) +
+    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 0);
 
   const resetFilters = () => {
     setDocKind("all");
@@ -295,6 +319,10 @@ function DocumentsPage() {
     setOcrStatus("all");
     setFromDate("");
     setToDate("");
+    setInvoiceNo("");
+    setSupplierSearch("");
+    setIssueFromDate("");
+    setIssueToDate("");
   };
 
   const total = data?.total ?? 0;
@@ -430,6 +458,41 @@ function DocumentsPage() {
                     <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9" />
                   </div>
                 </div>
+                {currentTab === "purchase" && (
+                  <>
+                    <div className="border-t pt-2 space-y-2">
+                      <div className="text-xs font-semibold text-muted-foreground">Lọc theo hoá đơn</div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Số hoá đơn</label>
+                        <Input
+                          placeholder="VD: 0000123"
+                          value={invoiceNo}
+                          onChange={(e) => setInvoiceNo(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Nhà cung cấp / MST</label>
+                        <Input
+                          placeholder="Tên NCC hoặc MST..."
+                          value={supplierSearch}
+                          onChange={(e) => setSupplierSearch(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Ngày HĐ từ</label>
+                          <Input type="date" value={issueFromDate} onChange={(e) => setIssueFromDate(e.target.value)} className="h-9" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Ngày HĐ đến</label>
+                          <Input type="date" value={issueToDate} onChange={(e) => setIssueToDate(e.target.value)} className="h-9" />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
                 {activeCount > 0 && (
                   <Button size="sm" variant="ghost" className="w-full h-8" onClick={resetFilters}>
                     Xoá tất cả bộ lọc
@@ -448,7 +511,7 @@ function DocumentsPage() {
 
           {currentTab === "purchase" ? (
             <PurchaseInvoicesTable
-              filters={filters}
+              filters={purchaseFilters}
               onOpenDoc={(id: string) => setOpenId(id)}
             />
           ) : isLoading ? (
@@ -977,6 +1040,10 @@ function PurchaseInvoicesTable({
           ocr_status: filters.ocr_status,
           from_date: filters.from_date,
           to_date: filters.to_date,
+          invoice_no: filters.invoice_no,
+          supplier_search: filters.supplier_search,
+          issue_from_date: filters.issue_from_date,
+          issue_to_date: filters.issue_to_date,
           limit,
           offset: 0,
         },
