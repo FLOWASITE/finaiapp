@@ -600,6 +600,7 @@ export type Database = {
       }
       ai_uploads: {
         Row: {
+          classify_meta: Json | null
           created_at: string
           error: string | null
           file_hash: string | null
@@ -617,6 +618,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          classify_meta?: Json | null
           created_at?: string
           error?: string | null
           file_hash?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          classify_meta?: Json | null
           created_at?: string
           error?: string | null
           file_hash?: string | null

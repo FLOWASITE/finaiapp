@@ -10,12 +10,39 @@
  *   5. Assign a bucket (auto / review / ask) per item
  */
 import { hashBase64 } from "@/lib/ai/parse-cache.server";
+import { classifyFile, type ClassifyKind } from "@/lib/ai/classify-file.server";
 import type {
   BulkItem,
   BulkItemKindGroup,
   BulkPlan,
   BulkBucket,
 } from "@/components/chat/bulk/types";
+
+function kindToGroup(kind: ClassifyKind): BulkItemKindGroup {
+  if (kind === "purchase_invoice") return "purchase_invoice";
+  if (kind === "sales_invoice") return "sales_invoice";
+  if (kind === "bank_statement") return "bank_statement";
+  if (kind === "cash_voucher") return "other"; // chưa có group riêng
+  return "other";
+}
+
+function kindToItemKind(kind: ClassifyKind): BulkItem["kind"] {
+  if (kind === "purchase_invoice") return "purchase_invoice";
+  if (kind === "bank_statement") return "bank_statement";
+  if (kind === "cash_voucher") return "cash_voucher";
+  // sales_invoice & other → giữ "auto", sẽ ép bucket review/ask
+  return "auto";
+}
+
+function decideBucket(kind: ClassifyKind, confidence: number): BulkBucket {
+  if (kind === "other") return "ask";
+  if (kind === "sales_invoice") return "review";
+  if (kind === "bank_statement") return "review";
+  if (kind === "cash_voucher") return "review";
+  if (confidence >= 0.85) return "auto";
+  if (confidence >= 0.5) return "review";
+  return "ask";
+}
 
 type Att = {
   name: string;
@@ -247,8 +274,57 @@ export async function buildBulkPlan(opts: {
       continue;
     }
 
-    items.push({ ...baseItem, uploadId: up.uploadId });
-    groupCounts[cls.group]++;
+    // AI classify (best-effort) — chỉ chạy cho PDF/ảnh/Excel có khả năng đoán được
+    const shouldAiClassify =
+      att.mime === "application/pdf" ||
+      att.mime.startsWith("image/") ||
+      att.mime.includes("spreadsheet") ||
+      att.mime === "application/vnd.ms-excel";
+
+    let finalGroup = cls.group;
+    let finalKind = cls.kind;
+    let finalBucket = cls.bucket;
+    let finalReason = cls.reason;
+    let finalConfidence = cls.confidence;
+
+    if (shouldAiClassify) {
+      try {
+        const ai = await classifyFile({
+          supabase: opts.supabase,
+          userId: opts.userId,
+          filename: att.name,
+          mime: att.mime,
+          base64: att.base64,
+          fileHash,
+        });
+        // Ưu tiên AI khi confidence >= 0.5; nếu thấp hơn, giữ heuristic
+        if (ai.confidence >= 0.5) {
+          finalGroup = kindToGroup(ai.kind);
+          finalKind = kindToItemKind(ai.kind);
+          finalBucket = decideBucket(ai.kind, ai.confidence);
+          finalConfidence = ai.confidence;
+          finalReason =
+            ai.kind === "other"
+              ? `Không liên quan kế toán — ${ai.reason}`
+              : ai.kind === "sales_invoice"
+                ? `Hoá đơn đầu ra — ${ai.reason}`
+                : ai.reason;
+        }
+      } catch (e: any) {
+        console.warn("[bulk-intake] classify err:", e?.message);
+      }
+    }
+
+    items.push({
+      ...baseItem,
+      uploadId: up.uploadId,
+      group: finalGroup,
+      kind: finalKind,
+      bucket: finalBucket,
+      reason: finalReason,
+      confidence: finalConfidence,
+    });
+    groupCounts[finalGroup]++;
   }
 
   // ETA: ~12 sec per auto item (parse + post)
