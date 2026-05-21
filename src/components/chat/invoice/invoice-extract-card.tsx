@@ -1,9 +1,18 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Check, ExternalLink } from "lucide-react";
+import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
+import { JournalProposalCard } from "./journal-proposal-card";
 
 function fmtVND(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
@@ -19,16 +28,25 @@ function fmtDate(iso: string | null | undefined): string {
 
 type Field = { label: string; value: React.ReactNode };
 
+export type InvoiceProposal = {
+  actionId: string;
+  toolName: string;
+  input: any;
+  summary?: string;
+};
+
 export function InvoiceExtractCard({
   parsed,
   uploadId,
   filename,
   kind,
+  proposal,
 }: {
   parsed: any;
   uploadId?: string | null;
   filename?: string;
   kind?: string;
+  proposal?: InvoiceProposal | null;
 }) {
   const getUrlFn = useServerFn(getUploadSignedUrl);
   const { data: urlData, isLoading: urlLoading } = useQuery({
@@ -49,6 +67,9 @@ export function InvoiceExtractCard({
   const isXml = isXmlByName || (mime ?? "").includes("xml") || !!parsed?._einvoice;
 
   const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf || isXml;
+
+  const [zoomOpen, setZoomOpen] = useState(false);
+
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
@@ -102,151 +123,257 @@ export function InvoiceExtractCard({
     },
   ].filter(Boolean) as Field[];
 
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
-      <div
-        className={cn(
-          "grid gap-0",
-          isXml
-            ? "grid-cols-1 md:grid-cols-[340px_1fr]"
-            : isPdf
-              ? "grid-cols-1 md:grid-cols-[260px_1fr]"
-              : "grid-cols-[140px_1fr]",
-        )}
+  // Determine whether the left preview can be zoomed
+  const canZoom = (isXml && !!parsed?._einvoice) || (isPdf && !!urlData?.url) || (isImage && !!urlData?.url);
+
+  const renderZoomBtn = () =>
+    canZoom ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setZoomOpen(true);
+        }}
+        className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/85 px-2 py-1 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground"
+        title="Xem lớn"
       >
-        {/* Thumbnail / Preview */}
-        <div className="relative flex flex-col items-center justify-center gap-2 border-b border-border/60 bg-muted/30 p-3 md:border-b-0 md:border-r">
-          {isXml && parsed?._einvoice ? (
-            <XmlInvoicePreview
-              data={parsed._einvoice as EinvoiceExtras}
-              signedUrl={urlData?.url ?? null}
-            />
-          ) : isPdf && uploadId && urlLoading && !urlData ? (
-            <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
-          ) : isPdf && urlData?.url ? (
-            <>
-              <object
-                data={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
-                type="application/pdf"
-                className="h-64 w-full rounded-md bg-background"
-                aria-label={filename ?? "pdf"}
-              >
-                <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center">
-                  <FileText className="h-8 w-8 text-primary" />
-                  <div className="text-[11px] text-muted-foreground">
-                    Trình duyệt không xem được PDF trực tiếp
+        <Maximize2 className="h-3 w-3" />
+        Xem lớn
+      </button>
+    ) : null;
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
+        <div
+          className={cn(
+            "grid gap-0",
+            isXml
+              ? "grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+              : isPdf
+                ? "grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
+                : "grid-cols-[160px_1fr]",
+          )}
+        >
+          {/* Thumbnail / Preview */}
+          <div className="relative flex flex-col items-center justify-center gap-2 border-b border-border/60 bg-muted/30 p-3 md:border-b-0 md:border-r">
+            {renderZoomBtn()}
+            {isXml && parsed?._einvoice ? (
+              <XmlInvoicePreview
+                data={parsed._einvoice as EinvoiceExtras}
+                signedUrl={urlData?.url ?? null}
+              />
+            ) : isPdf && uploadId && urlLoading && !urlData ? (
+              <div className="h-80 w-full animate-pulse rounded-md bg-muted" />
+            ) : isPdf && urlData?.url ? (
+              <>
+                <object
+                  data={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
+                  type="application/pdf"
+                  className="h-80 w-full rounded-md bg-background"
+                  aria-label={filename ?? "pdf"}
+                >
+                  <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div className="text-[11px] text-muted-foreground">
+                      Trình duyệt không xem được PDF trực tiếp
+                    </div>
                   </div>
-                </div>
-              </object>
+                </object>
+                <a
+                  href={urlData.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Mở PDF gốc
+                </a>
+              </>
+            ) : isImage && uploadId && !urlData && urlLoading ? (
+              <div className="h-40 w-full animate-pulse rounded-md bg-muted" />
+            ) : isImage && urlData?.url ? (
               <a
                 href={urlData.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                className="block w-full"
+                title="Bấm để xem ảnh gốc"
               >
-                <ExternalLink className="h-3 w-3" />
-                Mở PDF gốc
+                <img
+                  src={urlData.url}
+                  alt={filename ?? "invoice"}
+                  className="max-h-56 w-full rounded-md bg-background object-contain"
+                  loading="lazy"
+                />
               </a>
-            </>
-          ) : isImage && uploadId && !urlData && urlLoading ? (
-            <div className="h-32 w-full animate-pulse rounded-md bg-muted" />
-          ) : isImage && urlData?.url ? (
-            <a
-              href={urlData.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block w-full"
-              title="Bấm để xem ảnh gốc"
-            >
+            ) : urlData?.url ? (
+              <a
+                href={urlData.url}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex flex-col items-center gap-2 rounded-md p-2 text-center hover:bg-background/40"
+              >
+                <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground">
+                  Xem HĐ gốc
+                </div>
+              </a>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {isImage ? "Không tải được ảnh" : isPdf ? "PDF" : "HÓA ĐƠN"}
+                </div>
+              </div>
+            )}
+            {filename && !(isXml && parsed?._einvoice) && (
+              <div className="line-clamp-2 break-all text-center text-[10px] text-muted-foreground/80">
+                {filename}
+              </div>
+            )}
+            {!(isXml && parsed?._einvoice) && (parsed?._signed != null || taxId) ? (
+              <span className="inline-flex items-center rounded-full bg-emerald-500/12 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                {parsed?._signed ? "đã ký số" : "đã xác minh"}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Right column — for XML invoices, replace duplicate fields with the journal proposal */}
+          <div className={cn(isXml ? "" : "p-4")}>
+            {isXml && !isEmptyExtract ? (
+              <ProposalSlot proposal={proposal} />
+            ) : isEmptyExtract ? (
+              <div className="space-y-2 p-4">
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+                  Chưa đọc được dữ liệu hoá đơn từ {isPdf ? "PDF" : "tệp"} này — bạn có thể mở file gốc để kiểm tra.
+                  {schemaWarn ? <div className="mt-1 opacity-80">Chi tiết: {schemaWarn}</div> : null}
+                </div>
+                {rawText ? (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                      Xem nội dung đã trích xuất
+                    </summary>
+                    <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
+                      {rawText.slice(0, 4000)}
+                    </pre>
+                  </details>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-sm">
+                  {fields.map((f, i) => (
+                    <FieldRow key={i} label={f.label} value={f.value} />
+                  ))}
+                </dl>
+                {notes ? (
+                  <div className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+                    {notes}
+                  </div>
+                ) : null}
+                {rawText && isPdf ? (
+                  <details className="mt-3 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                      Xem nội dung đã đọc từ PDF
+                    </summary>
+                    <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
+                      {rawText.slice(0, 4000)}
+                    </pre>
+                  </details>
+                ) : null}
+                {/* Non-XML: also surface the proposal underneath the fields */}
+                {proposal ? (
+                  <div className="mt-3 border-t border-border/40 pt-3">
+                    <JournalProposalCard
+                      actionId={proposal.actionId}
+                      toolName={proposal.toolName}
+                      input={proposal.input}
+                      summary={proposal.summary}
+                      embedded
+                    />
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Zoom dialog */}
+      <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-auto p-0">
+          <DialogHeader className="px-5 pt-4 pb-2">
+            <DialogTitle className="text-sm font-semibold">
+              {filename ?? "Hoá đơn"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-5 pb-5">
+            {isXml && parsed?._einvoice ? (
+              <XmlInvoicePreview
+                data={parsed._einvoice as EinvoiceExtras}
+                signedUrl={urlData?.url ?? null}
+                size="large"
+              />
+            ) : isPdf && urlData?.url ? (
+              <object
+                data={`${urlData.url}#toolbar=1&view=FitH`}
+                type="application/pdf"
+                className="h-[80vh] w-full rounded-md bg-background"
+                aria-label={filename ?? "pdf"}
+              />
+            ) : isImage && urlData?.url ? (
               <img
                 src={urlData.url}
                 alt={filename ?? "invoice"}
-                className="max-h-40 w-full rounded-md bg-background object-contain"
-                loading="lazy"
+                className="mx-auto max-h-[82vh] w-auto rounded-md bg-background object-contain"
               />
-            </a>
-          ) : urlData?.url ? (
-            <a
-              href={urlData.url}
-              target="_blank"
-              rel="noreferrer"
-              className="group flex flex-col items-center gap-2 rounded-md p-2 text-center hover:bg-background/40"
-            >
-              <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <FileText className="h-6 w-6" />
+            ) : (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                Không có nội dung để xem.
               </div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground">
-                Xem HĐ gốc
-              </div>
-            </a>
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <FileText className="h-6 w-6" />
-              </div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {isImage ? "Không tải được ảnh" : isPdf ? "PDF" : "HÓA ĐƠN"}
-              </div>
-            </div>
-          )}
-          {filename && !(isXml && parsed?._einvoice) && (
-            <div className="line-clamp-2 break-all text-center text-[10px] text-muted-foreground/80">
-              {filename}
-            </div>
-          )}
-          {!(isXml && parsed?._einvoice) && (parsed?._signed != null || taxId) ? (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/12 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              {parsed?._signed ? "đã ký số" : "đã xác minh"}
-            </span>
-          ) : null}
-        </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
-        {/* Fields */}
-        <div className="p-4">
-          {isEmptyExtract ? (
-            <div className="space-y-2">
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
-                Chưa đọc được dữ liệu hoá đơn từ {isPdf ? "PDF" : "tệp"} này — bạn có thể mở file gốc để kiểm tra.
-                {schemaWarn ? <div className="mt-1 opacity-80">Chi tiết: {schemaWarn}</div> : null}
-              </div>
-              {rawText ? (
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    Xem nội dung đã trích xuất
-                  </summary>
-                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
-                    {rawText.slice(0, 4000)}
-                  </pre>
-                </details>
-              ) : null}
-            </div>
-          ) : (
-            <>
-              <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-sm">
-                {fields.map((f, i) => (
-                  <FieldRow key={i} label={f.label} value={f.value} />
-                ))}
-              </dl>
-              {notes ? (
-                <div className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
-                  {notes}
-                </div>
-              ) : null}
-              {rawText && isPdf ? (
-                <details className="mt-3 text-xs">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    Xem nội dung đã đọc từ PDF
-                  </summary>
-                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed text-foreground/80">
-                    {rawText.slice(0, 4000)}
-                  </pre>
-                </details>
-              ) : null}
-            </>
-          )}
+function ProposalSlot({ proposal }: { proposal?: InvoiceProposal | null }) {
+  if (!proposal) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border/60 px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Bút toán đề xuất
+        </div>
+        <div className="flex-1 px-4 py-4">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 animate-pulse text-primary" />
+            AI đang lập bút toán đề xuất…
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-3.5 w-5/6 animate-pulse rounded bg-muted" />
+            <div className="h-3.5 w-4/6 animate-pulse rounded bg-muted" />
+            <div className="h-3.5 w-3/6 animate-pulse rounded bg-muted" />
+          </div>
         </div>
       </div>
-    </div>
+    );
+  }
+  return (
+    <JournalProposalCard
+      actionId={proposal.actionId}
+      toolName={proposal.toolName}
+      input={proposal.input}
+      summary={proposal.summary}
+      embedded
+    />
   );
 }
 
