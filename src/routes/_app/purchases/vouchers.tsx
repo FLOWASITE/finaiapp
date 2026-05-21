@@ -386,6 +386,13 @@ function CreateVoucherDialog({
   const suppliersFn = useServerFn(listSuppliers);
 
   const today = new Date().toISOString().slice(0, 10);
+  const isMobile = useIsMobile();
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  useEffect(() => {
+    setDiscountOpen(!isMobile);
+    setPaymentOpen(!isMobile);
+  }, [isMobile]);
 
   const [header, setHeader] = useState({
     voucher_no: "",
