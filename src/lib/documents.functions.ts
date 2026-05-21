@@ -228,6 +228,152 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
     return { rows: paginated, total: filtered.length };
   });
 
+export const listSalesDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        search: z.string().max(200).optional(),
+        source: z.string().max(50).optional(),
+        ocr_status: z.string().max(50).optional(),
+        from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        invoice_no: z.string().max(100).optional(),
+        customer_search: z.string().max(200).optional(),
+        issue_from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        issue_to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("documents")
+      .select("*", { count: "exact" })
+      .eq("doc_kind", "sales_invoice")
+      .order("created_at", { ascending: false });
+    if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
+    if (data.source) q = q.eq("source", data.source);
+    if (data.ocr_status) q = q.eq("ocr_status", data.ocr_status);
+    if (data.from_date) q = q.gte("created_at", `${data.from_date}T00:00:00Z`);
+    if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
+
+    const bufferLimit = Math.min(data.limit * 8, 2000);
+    q = q.range(data.offset, data.offset + bufferLimit - 1);
+
+    const { data: docs, error, count } = await q;
+    if (error) throw new Error(error.message);
+    const docList = docs ?? [];
+    if (docList.length === 0) return { rows: [], total: count ?? 0 };
+
+    const docIds = docList.map((d: any) => d.id);
+    const { data: links } = await context.supabase
+      .from("document_links")
+      .select("document_id, entity_id, entity_table")
+      .in("document_id", docIds)
+      .eq("entity_table", "sales_invoices");
+    const invIds = Array.from(new Set((links ?? []).map((l: any) => l.entity_id)));
+
+    let invoicesById: Record<string, any> = {};
+    let linesByInvoice: Record<string, any[]> = {};
+    if (invIds.length > 0) {
+      const { data: invs } = await context.supabase
+        .from("sales_invoices")
+        .select("id, invoice_no, invoice_series, issue_date, customer_name, customer_tax_id, subtotal, vat_amount, total, status, payment_status, due_date")
+        .in("id", invIds);
+      invoicesById = Object.fromEntries((invs ?? []).map((i: any) => [i.id, i]));
+      const { data: lines } = await context.supabase
+        .from("sales_invoice_lines")
+        .select("invoice_id, description, qty, unit_price, amount, vat_rate")
+        .in("invoice_id", invIds);
+      for (const l of lines ?? []) {
+        (linesByInvoice[l.invoice_id] ||= []).push(l);
+      }
+    }
+
+    const docToInv: Record<string, string> = {};
+    for (const l of links ?? []) docToInv[l.document_id] = l.entity_id;
+
+    const rows = docList.map((d: any) => {
+      const invId = docToInv[d.id];
+      const inv = invId ? invoicesById[invId] : null;
+      const dbLines = invId ? (linesByInvoice[invId] ?? []) : [];
+      const ocr = d.ocr_extracted ?? {};
+      const ocrLines: any[] = Array.isArray(ocr.lines) ? ocr.lines : [];
+      const finalLines =
+        dbLines.length > 0
+          ? dbLines.map((l: any) => ({
+              description: l.description,
+              qty: l.qty,
+              unit_price: l.unit_price,
+              amount: l.amount,
+              vat_rate: l.vat_rate,
+            }))
+          : ocrLines.map((l: any) => ({
+              description: l.description ?? "",
+              qty: l.qty ?? null,
+              unit_price: l.unit_price ?? null,
+              amount: l.amount ?? null,
+              vat_rate: l.vat_rate ?? null,
+            }));
+      const firstDesc = finalLines[0]?.description ?? null;
+      const lines_summary = firstDesc
+        ? finalLines.length > 1
+          ? `${firstDesc} +${finalLines.length - 1} dòng`
+          : firstDesc
+        : null;
+      return {
+        doc: d,
+        invoice: inv
+          ? { ...inv, id: invId }
+          : {
+              id: null,
+              invoice_no: ocr.invoice_no ?? null,
+              invoice_series: ocr.invoice_series ?? null,
+              issue_date: ocr.issue_date ?? null,
+              customer_name: ocr.customer_name ?? ocr.buyer_name ?? null,
+              customer_tax_id: ocr.customer_tax_id ?? ocr.buyer_tax_id ?? null,
+              subtotal: ocr.subtotal ?? null,
+              vat_amount: ocr.vat_amount ?? null,
+              total: ocr.total ?? null,
+              status: null,
+              payment_status: null,
+              due_date: null,
+            },
+        lines: finalLines,
+        lines_summary,
+      };
+    });
+
+    const termNo = (data.invoice_no || "").trim().toLowerCase();
+    const termCus = (data.customer_search || "").trim().toLowerCase();
+    const issueFrom = data.issue_from_date || "";
+    const issueTo = data.issue_to_date || "";
+
+    const filtered = rows.filter((r: any) => {
+      const inv = r.invoice;
+      if (termNo) {
+        const no = String(inv?.invoice_no ?? "").toLowerCase();
+        if (!no.includes(termNo)) return false;
+      }
+      if (termCus) {
+        const name = String(inv?.customer_name ?? "").toLowerCase();
+        const tax = String(inv?.customer_tax_id ?? "").toLowerCase();
+        if (!name.includes(termCus) && !tax.includes(termCus)) return false;
+      }
+      if (issueFrom || issueTo) {
+        const d = inv?.issue_date ?? "";
+        if (issueFrom && d < issueFrom) return false;
+        if (issueTo && d > issueTo) return false;
+      }
+      return true;
+    });
+
+    const paginated = filtered.slice(data.offset, data.offset + data.limit);
+    return { rows: paginated, total: filtered.length };
+  });
+
 export const uploadDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
