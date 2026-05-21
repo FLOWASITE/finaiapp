@@ -984,6 +984,10 @@ function PurchaseInvoicesTable({
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) =>
+    setExpanded((m) => ({ ...m, [id]: !m[id] }));
+
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
@@ -1015,6 +1019,7 @@ function PurchaseInvoicesTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8"></TableHead>
               <TableHead>Ngày HĐ</TableHead>
               <TableHead>Số HĐ</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
@@ -1030,64 +1035,131 @@ function PurchaseInvoicesTable({
             {rows.map((r: any) => {
               const inv = r.invoice;
               const doc = r.doc;
+              const lines: any[] = r.lines ?? [];
+              const hasLines = lines.length > 0;
+              const isOpen = !!expanded[doc.id];
               return (
-                <TableRow
-                  key={doc.id}
-                  className="cursor-pointer"
-                  onClick={() => onOpenDoc(doc.id)}
-                >
-                  <TableCell className="whitespace-nowrap">
-                    {inv?.issue_date ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-medium">{inv?.invoice_no ?? "—"}</TableCell>
-                  <TableCell>
-                    <div className="max-w-[220px] truncate">{inv?.supplier_name ?? "—"}</div>
-                    {inv?.supplier_tax_id && (
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {inv.supplier_tax_id}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-[260px] truncate text-sm text-muted-foreground">
-                      {r.lines_summary ?? "—"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{vnd(inv?.subtotal)}</TableCell>
-                  <TableCell className="text-right font-mono">{vnd(inv?.vat_amount)}</TableCell>
-                  <TableCell className="text-right font-mono font-semibold">
-                    {vnd(inv?.total)}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-                        OCR_TONE[doc.ocr_status] ?? "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1">
-                      {inv?.id && (
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/invoices/$id" params={{ id: inv.id }}>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
+                <>
+                  <TableRow
+                    key={doc.id}
+                    className="cursor-pointer"
+                    onClick={() => hasLines && toggle(doc.id)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {hasLines ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => toggle(doc.id)}
+                          aria-label={isOpen ? "Thu gọn" : "Mở rộng"}
+                        >
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 transition-transform",
+                              isOpen && "rotate-90",
+                            )}
+                          />
                         </Button>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {inv?.issue_date ?? "—"}
+                    </TableCell>
+                    <TableCell className="font-medium">{inv?.invoice_no ?? "—"}</TableCell>
+                    <TableCell>
+                      <div className="max-w-[220px] truncate">{inv?.supplier_name ?? "—"}</div>
+                      {inv?.supplier_tax_id && (
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {inv.supplier_tax_id}
+                        </div>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[260px] truncate text-sm text-muted-foreground">
+                        {r.lines_summary ?? "—"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{vnd(inv?.subtotal)}</TableCell>
+                    <TableCell className="text-right font-mono">{vnd(inv?.vat_amount)}</TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {vnd(inv?.total)}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+                          OCR_TONE[doc.ocr_status] ?? "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        {inv?.id && (
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/invoices/$id" params={{ id: inv.id }}>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {isOpen && hasLines && (
+                    <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
+                      <TableCell></TableCell>
+                      <TableCell colSpan={9} className="p-0">
+                        <div className="p-3">
+                          <div className="mb-2 text-xs font-medium text-muted-foreground">
+                            Chi tiết mặt hàng ({lines.length} dòng)
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-10">#</TableHead>
+                                <TableHead>Mô tả</TableHead>
+                                <TableHead className="text-right">SL</TableHead>
+                                <TableHead className="text-right">Đơn giá</TableHead>
+                                <TableHead className="text-right">Thành tiền</TableHead>
+                                <TableHead className="text-right">VAT %</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {lines.map((l: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                  <TableCell>{l.description || "—"}</TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {l.qty ?? "—"}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {vnd(l.unit_price)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {vnd(l.amount)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {l.vat_rate != null ? `${l.vat_rate}%` : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               );
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
                   Chưa có hoá đơn mua nào.
                 </TableCell>
               </TableRow>
