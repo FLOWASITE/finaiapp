@@ -75,7 +75,7 @@ export const Route = createFileRoute("/_app/inbox")({
   validateSearch: zodValidator(tabSchema),
   component: InboxAiPage,
   head: () => ({
-    meta: [{ title: "Sổ AI · FinAI" }],
+    meta: [{ title: "Inbox · FinAI" }],
   }),
 });
 
