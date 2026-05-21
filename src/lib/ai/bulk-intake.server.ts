@@ -11,6 +11,7 @@
  */
 import { hashBase64 } from "@/lib/ai/parse-cache.server";
 import { classifyFile, type ClassifyKind } from "@/lib/ai/classify-file.server";
+import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
 import type {
   BulkItem,
   BulkItemKindGroup,
@@ -56,6 +57,21 @@ const RX_INVOICE_OUT = /(^|[_\-\s])(ban|bán|sale|xuất|xuat|xhd|out)[_\-\s]?/i
 const RX_STATEMENT = /(saoke|sao[._-]?kê|sao[._-]?ke|statement|vcb|tcb|bidv|tpbank|mbbank|acb|vietin|agribank|techcom)/i;
 const RX_PAYROLL = /(tt|chuyen[._-]?tien|payroll|luong|lương|salary)/i;
 
+function isXmlFile(mime: string, filename: string): boolean {
+  const m = (mime || "").toLowerCase();
+  const f = (filename || "").toLowerCase();
+  return m.includes("xml") || f.endsWith(".xml");
+}
+
+function looksLikeEinvoiceXml(base64: string): boolean {
+  try {
+    parseEinvoiceXml(Buffer.from(base64, "base64").toString("utf8"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function classifyGroup(mime: string, filename: string): {
   group: BulkItemKindGroup;
   kind: Att["kind"];
@@ -70,6 +86,16 @@ function classifyGroup(mime: string, filename: string): {
     mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
     mime === "application/vnd.ms-excel";
   const isCsv = mime === "text/csv" || lc.endsWith(".csv");
+
+  if (isXmlFile(mime, filename)) {
+    return {
+      group: "purchase_invoice",
+      kind: "purchase_invoice",
+      bucket: "review",
+      confidence: 0.6,
+      reason: "XML hoá đơn điện tử — đang kiểm tra MST để xác định đầu vào/đầu ra",
+    };
+  }
 
   if (RX_STATEMENT.test(lc) && (isPdf || isXlsx || isCsv)) {
     return {
@@ -287,7 +313,9 @@ export async function buildBulkPlan(opts: {
       att.mime === "application/pdf" ||
       att.mime.startsWith("image/") ||
       att.mime.includes("spreadsheet") ||
-      att.mime === "application/vnd.ms-excel";
+      att.mime === "application/vnd.ms-excel" ||
+      isXmlFile(att.mime, att.name) ||
+      looksLikeEinvoiceXml(att.base64);
 
     let finalGroup = cls.group;
     let finalKind = cls.kind;
