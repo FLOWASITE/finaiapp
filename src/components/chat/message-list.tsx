@@ -262,6 +262,84 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
   );
 }
 
+function UserMessageActions({ content, createdAt }: { content: string; createdAt?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const time = createdAt
+    ? new Date(createdAt).toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const copy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      toast.success("Đã sao chép");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Không sao chép được");
+    }
+  };
+
+  const edit = () => {
+    if (!content) return;
+    window.dispatchEvent(
+      new CustomEvent("chat:edit-user-msg", { detail: { content } }),
+    );
+  };
+
+  const resend = () => {
+    if (!content) return;
+    window.dispatchEvent(
+      new CustomEvent("chat:resend-user-msg", { detail: { content } }),
+    );
+  };
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1 text-slate-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+      {time && <span className="px-1 text-[11px] tabular-nums">{time}</span>}
+      <ActionMini onClick={resend} title="Gửi lại">
+        <RefreshCw className="h-3.5 w-3.5" />
+      </ActionMini>
+      <ActionMini onClick={edit} title="Sửa và gửi lại">
+        <Pencil className="h-3.5 w-3.5" />
+      </ActionMini>
+      <ActionMini onClick={copy} title={copied ? "Đã sao chép" : "Sao chép"}>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </ActionMini>
+    </div>
+  );
+}
+
+function ActionMini({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+    >
+      {children}
+    </button>
+  );
+}
+
 
 function ThinkingIndicator() {
   return (
