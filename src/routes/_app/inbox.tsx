@@ -128,7 +128,7 @@ function InboxAiPage() {
   const navigate = useNavigate({ from: "/inbox" });
   const setTab = useCallback(
     (next: (typeof TABS)[number]["key"]) => {
-      navigate({ search: (prev) => ({ ...prev, tab: next }), replace: false });
+      navigate({ search: (prev: { tab?: string }) => ({ ...prev, tab: next }), replace: false });
     },
     [navigate],
   );
