@@ -12,6 +12,7 @@ function getStore(): HandoffStore | null {
 }
 
 function tryReadStorage(key: string): any[] | undefined {
+  if (typeof window === "undefined") return undefined;
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return undefined;
@@ -23,6 +24,7 @@ function tryReadStorage(key: string): any[] | undefined {
 }
 
 function tryRemoveStorage(key: string) {
+  if (typeof window === "undefined") return;
   try {
     sessionStorage.removeItem(key);
   } catch {}
