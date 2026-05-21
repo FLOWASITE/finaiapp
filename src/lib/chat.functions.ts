@@ -78,6 +78,35 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       abortSignal = getRequest()?.signal;
     } catch {}
 
+    let hydratedAttachments: Array<{
+      name: string;
+      mime: string;
+      base64: string;
+      kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto";
+      uploadId?: string | null;
+    }> | null = null;
+    const getHydratedAttachments = async () => {
+      if (hydratedAttachments) return hydratedAttachments;
+      hydratedAttachments = [];
+      for (const att of data.attachments ?? []) {
+        if (att.base64) {
+          hydratedAttachments.push({ ...att, base64: att.base64 });
+          continue;
+        }
+        if (!att.uploadId) throw new Error(`Mất nội dung file ${att.name}`);
+        const loaded = await loadUploadAsBase64(supabase, userId, att.uploadId);
+        if (!loaded?.base64) throw new Error(`Không đọc lại được file ${att.name}`);
+        hydratedAttachments.push({
+          ...att,
+          base64: loaded.base64,
+          mime: att.mime || loaded.mime,
+          name: att.name || loaded.filename,
+          kind: att.kind,
+        });
+      }
+      return hydratedAttachments;
+    };
+
     // ===== BRANCH A: Bulk intake (≥ N attachments in one message) =====
     // Skip LLM entirely. Build a BulkPlan and yield ONE summary event +
     // a deterministic 3-paragraph text. The UI gates execution behind
@@ -92,10 +121,11 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       } as AskStreamEvent;
 
       try {
+        const attachments = await getHydratedAttachments();
         const plan = await buildBulkPlan({
           supabase,
           userId,
-          attachments: data.attachments,
+          attachments,
         });
 
         yield {
@@ -210,7 +240,8 @@ export const askAccountingStream = createServerFn({ method: "POST" })
     // ----- Parse attachments INLINE before LLM, surfacing as tool-call events -----
     const parsedAttachments: Array<{ name: string; kind: string; parsed: any }> = [];
     if (data.attachments && data.attachments.length > 0) {
-      for (const att of data.attachments) {
+      const attachments = await getHydratedAttachments();
+      for (const att of attachments) {
         const callId = `parse_${Math.random().toString(36).slice(2, 10)}`;
         yield {
           type: "tool-call",
