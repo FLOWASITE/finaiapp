@@ -396,16 +396,49 @@ export function AppSidebar() {
   const email = cu?.email ?? "";
   const isSuperadmin = cu?.isSuperadmin ?? false;
 
+  // Đếm động cho Sidebar Mode AI (workspace=front).
+  const fetchSidebarCounts = useServerFn(getAiSidebarCounts);
+  const { data: aiCounts } = useQuery({
+    queryKey: ["sidebar", "ai-counts"],
+    queryFn: () => fetchSidebarCounts(),
+    enabled: workspace === "front" && !inSuperadminModule && !inEinvoiceModule && !inTaxModule && !inReportsModule,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Inject badge từ aiCounts vào FRONT_SECTIONS đang dùng.
+  const sectionsWithBadges = React.useMemo<NavSection[]>(() => {
+    if (activeSections !== FRONT_SECTIONS || !aiCounts) return activeSections;
+    const map: Record<string, { badge: string | number; tone?: BadgeTone }> = {
+      "/inbox": { badge: aiCounts.inbox },
+      "/inbox?tab=review": { badge: aiCounts.review, tone: "danger" },
+      "/documents": { badge: aiCounts.documents, tone: "muted" },
+      "/alerts": { badge: aiCounts.alerts, tone: "danger" },
+      "/tax/gtgt": aiCounts.taxDaysLeft != null
+        ? { badge: `${aiCounts.taxDaysLeft} ngày`, tone: "danger" }
+        : { badge: "" },
+    };
+    return activeSections.map((s) => ({
+      ...s,
+      entries: s.entries.map((e) => {
+        if (isGroup(e)) return e;
+        const inject = map[e.to];
+        if (!inject || inject.badge === "" || inject.badge === 0) return e;
+        return { ...e, badge: inject.badge, badgeTone: inject.tone ?? e.badgeTone };
+      }),
+    }));
+  }, [activeSections, aiCounts]);
+
   const allTos = React.useMemo(() => {
     const tos: string[] = [];
-    activeSections.forEach((s) =>
+    sectionsWithBadges.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e)) e.items.forEach((i) => tos.push(i.to));
         else tos.push(e.to);
       }),
     );
     return tos;
-  }, [activeSections]);
+  }, [sectionsWithBadges]);
 
   const isActive = React.useCallback(
     (to: string) => {
