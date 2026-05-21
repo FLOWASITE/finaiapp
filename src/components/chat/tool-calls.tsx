@@ -73,11 +73,86 @@ function truncate(v: any, max = 4000): string {
 export function ToolCalls({ events }: { events: ToolEvent[] }) {
   const calls = groupEvents(events);
   if (!calls.length) return null;
+
+  // Gộp các call runQuery thành 1 dòng tổng để tránh hiển thị hàng chục box.
+  const queries = calls.filter((c) => c.toolName === "runQuery");
+  const others = calls.filter((c) => c.toolName !== "runQuery");
+
   return (
     <div className="mb-3 space-y-2">
-      {calls.map((c) => (
+      {queries.length > 0 && <QueryGroupRow calls={queries} />}
+      {others.map((c) => (
         <ToolCallRow key={c.id} call={c} />
       ))}
+    </div>
+  );
+}
+
+function QueryGroupRow({ calls }: { calls: Call[] }) {
+  const [open, setOpen] = useState(false);
+  const running = calls.some((c) => !c.done);
+  const errors = calls.filter((c) => c.done && c.isError).length;
+  const done = calls.filter((c) => c.done && !c.isError).length;
+  const status = running ? "running" : errors > 0 ? "error" : "done";
+
+  const tables = Array.from(
+    new Set(
+      calls
+        .map((c) => c.input?.table)
+        .filter((t): t is string => typeof t === "string"),
+    ),
+  );
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/[0.03] text-xs backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2.5 px-3 py-2 transition-colors hover:bg-primary/[0.06]"
+      >
+        <ChevronRight
+          className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-90")}
+        />
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Database className="h-3.5 w-3.5" />
+        </span>
+        <span className="font-medium text-foreground">Truy vấn dữ liệu</span>
+        <span className="rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {calls.length} truy vấn
+        </span>
+        {tables.length > 0 && tables.length <= 3 && (
+          <span className="hidden truncate rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+            {tables.join(", ")}
+          </span>
+        )}
+        <span className="ml-auto inline-flex items-center gap-1.5">
+          {status === "running" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Đang chạy {done}/{calls.length}
+            </span>
+          )}
+          {status === "done" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              Xong
+            </span>
+          )}
+          {status === "error" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+              <AlertCircle className="h-3 w-3" />
+              {errors} lỗi
+            </span>
+          )}
+        </span>
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-primary/10 bg-background/40 p-2 backdrop-blur">
+          {calls.map((c) => (
+            <ToolCallRow key={c.id} call={c} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
