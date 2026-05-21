@@ -6,11 +6,18 @@
  * Cache theo `ai_uploads.classify_meta` (key = file_hash + tenant) để
  * upload lại không tốn token.
  */
+import { createHash } from "crypto";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
+
+/** sha256 hex of the first 2KB of normalized text — fingerprint for cross-file cache. */
+function textFingerprint(text: string): string {
+  const norm = text.replace(/\s+/g, " ").trim().slice(0, 2000);
+  return createHash("sha256").update(norm, "utf8").digest("hex");
+}
 
 export type ClassifyKind =
   | "purchase_invoice"
