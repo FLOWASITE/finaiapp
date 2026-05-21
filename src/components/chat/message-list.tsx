@@ -3,6 +3,9 @@ import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { Markdown } from "@/components/chat/markdown";
 import { ToolCalls, type ToolEvent } from "@/components/chat/tool-calls";
 import { MessageActions } from "@/components/chat/message-actions";
+import { ParseProgressCard } from "@/components/chat/invoice/parse-progress-card";
+import { InvoiceExtractCard } from "@/components/chat/invoice/invoice-extract-card";
+import { JournalProposalCard } from "@/components/chat/invoice/journal-proposal-card";
 import { cn } from "@/lib/utils";
 
 export type ChatAttachmentMeta = {
@@ -159,7 +162,18 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                     Trợ lý
                   </div>
                   {m.toolEvents && m.toolEvents.length > 0 && (
-                    <ToolCalls events={m.toolEvents} />
+                    <div className="mb-3 space-y-3">
+                      <InvoiceToolEvents events={m.toolEvents} streaming={!!streaming && isLast} />
+                      <ToolCalls
+                        events={m.toolEvents.filter(
+                          (ev) =>
+                            !(
+                              (ev as any).toolName === "parseDocument" ||
+                              (ev as any).toolName === "proposeAction"
+                            ),
+                        )}
+                      />
+                    </div>
                   )}
                   {m.content ? (
                     <div className="space-y-3">
@@ -205,4 +219,109 @@ function ThinkingIndicator() {
       <span className="chat-dot" style={{ animationDelay: "320ms" }} />
     </div>
   );
+}
+
+/**
+ * Render specialized cards for parseDocument + proposeAction tool events
+ * inside an assistant message. Generic tools are rendered separately by
+ * <ToolCalls> in the parent.
+ */
+function InvoiceToolEvents({
+  events,
+  streaming,
+}: {
+  events: ToolEvent[];
+  streaming: boolean;
+}) {
+  // Group by toolCallId so we know if a parseDocument call is still in-flight.
+  type Pair = { call?: any; result?: any };
+  const map = new Map<string, Pair>();
+  const order: string[] = [];
+  for (const ev of events) {
+    const id = (ev as any).toolCallId as string;
+    if (!map.has(id)) {
+      map.set(id, {});
+      order.push(id);
+    }
+    const slot = map.get(id)!;
+    if (ev.type === "tool-call") slot.call = ev;
+    else slot.result = ev;
+  }
+
+  const out: React.ReactNode[] = [];
+  for (const id of order) {
+    const { call, result } = map.get(id)!;
+    const toolName = (call?.toolName ?? result?.output?.toolName) as string | undefined;
+
+    if (toolName === "parseDocument") {
+      const filename = call?.input?.filename ?? result?.output?.filename;
+      if (result) {
+        const out_ = result.output ?? {};
+        if (out_?.error) {
+          out.push(
+            <div
+              key={id + "-err"}
+              className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+            >
+              Không đọc được {filename ?? "tệp"}: {out_.error}
+            </div>,
+          );
+          continue;
+        }
+        out.push(
+          <ParseProgressCard
+            key={id + "-prog"}
+            phases={out_.phases}
+            filename={filename}
+            streaming={false}
+          />,
+        );
+        if (out_.parsed) {
+          out.push(
+            <InvoiceExtractCard
+              key={id + "-ext"}
+              parsed={out_.parsed}
+              uploadId={out_.uploadId}
+              filename={filename}
+              kind={out_.kind}
+            />,
+          );
+        }
+      } else {
+        // call without result yet → live progress
+        out.push(
+          <ParseProgressCard
+            key={id + "-prog"}
+            streaming={streaming}
+            filename={filename}
+          />,
+        );
+      }
+      continue;
+    }
+
+    if (toolName === "proposeAction") {
+      const input = call?.input ?? {};
+      const innerTool = input?.tool_name as string | undefined;
+      const innerInput = input?.input ?? {};
+      const r = result?.output ?? {};
+      const actionId = r?.action_id as string | undefined;
+      const summary = r?.summary as string | undefined;
+      if (actionId && innerTool) {
+        out.push(
+          <JournalProposalCard
+            key={id + "-prop"}
+            actionId={actionId}
+            toolName={innerTool}
+            input={innerInput}
+            summary={summary}
+          />,
+        );
+      }
+      continue;
+    }
+  }
+
+  if (out.length === 0) return null;
+  return <>{out}</>;
 }
