@@ -1,33 +1,29 @@
-## Mục tiêu
-Giữ nguyên payload file attach (bao gồm base64) khi gửi từ ChatDock sang trang chat thread, để thread tự động stream parse OCR → extract → match → check và AI nhận đúng ngữ cảnh file.
+## Kế hoạch sửa lỗi mất file attach
 
-## Vấn đề tìm thấy
-1. Route `/chat/$threadId` đang gọi `useSidebar()` và render `SidebarTrigger`, nhưng khi đi từ `/inbox` layout đang ở chế độ chromeless không bọc `SidebarProvider`.
-2. Console đang có lỗi runtime: `useSidebar must be used within a SidebarProvider.` Lỗi này có thể làm thread crash trước khi effect `autostart` đọc `sessionStorage` key `__attach:h:<handoff>` và gọi `runAssistant(...)`.
-3. Luồng handoff hiện dựa vào `sessionStorage`; nếu route crash/remount hoặc event resolve xảy ra lệch nhịp, payload dễ bị mất dù metadata file vẫn còn.
+### Vấn đề chính
+Luồng hiện tại vẫn phụ thuộc vào `sessionStorage` để giữ payload base64. Với file PDF/ảnh, payload base64 dễ vượt quota hoặc không ghi được, nhưng code đang `catch {}` im lặng. Kết quả là DB chỉ lưu metadata file, còn thread không lấy được payload thật nên hiện lỗi “Mất nội dung file đính kèm…”.
 
-## Kế hoạch sửa
-1. **Làm chat thread chạy được trong mọi layout**
-   - Bỏ dependency bắt buộc vào `useSidebar()` trong `src/routes/_app/chat.$threadId.tsx`.
-   - Thay `SidebarTrigger` bằng nút local chỉ dispatch `chat-sidebar-toggle` cho chat history, không cần `SidebarProvider`.
-   - Việc đóng app sidebar khi `autostart` chỉ thực hiện an toàn khi provider tồn tại, hoặc bỏ hẳn để không crash.
+### Cách sửa
+1. **Bỏ phụ thuộc sessionStorage cho payload file trong luồng ChatDock → thread**
+   - Tạo một handoff store in-memory dùng `window` để giữ payload gốc trong cùng phiên SPA.
+   - ChatDock sẽ đặt payload vào store này trước khi navigate.
+   - Thread sẽ đọc trực tiếp từ store bằng `handoffId`, không cần serialize base64 vào `sessionStorage`.
 
-2. **Ổn định handoff file attach từ ChatDock**
-   - Giữ cơ chế `handoffId` độc lập với temp/real threadId.
-   - Bổ sung helper đọc attachment theo thứ tự ưu tiên:
-     - `__attach:h:<handoff>`
-     - `__attach:<threadId>`
-     - với optimistic thread, fallback thêm key handoff còn tồn tại nếu có.
-   - Chỉ remove stash sau khi parse JSON thành công và đã truyền vào `runAssistant`.
+2. **Giữ sessionStorage chỉ làm fallback nhẹ**
+   - Chỉ dùng `sessionStorage` khi ghi thành công và payload đủ nhỏ.
+   - Nếu ghi fail vì quota, không nuốt lỗi âm thầm; vẫn giữ bằng memory store.
+   - Không xoá handoff trước khi thread thật sự lấy được payload và gọi `runAssistant`.
 
-3. **Chặn chạy assistant khi metadata có file nhưng payload base64 chưa sẵn sàng**
-   - Trong autostart, nếu user message có metadata attachments nhưng chưa lấy được full payload base64, hiển thị lỗi rõ ràng và không gọi AI với attachment metadata rỗng.
-   - Như vậy không còn tình trạng AI trả lời “không thấy nội dung file”.
+3. **Sửa cả 2 đường gửi file**
+   - ChatDock tạo thread mới với file attach: dùng handoff store.
+   - ChatDock gửi file vào thread đang mở: dùng event detail chứa `handoffId`, thread đọc payload từ store thay vì chỉ dựa vào `__attach:<threadId>`.
+   - Composer trong chính thread vẫn truyền payload trực tiếp vào `sendUserMessage`, không bị đổi.
 
-4. **Đảm bảo gửi trong thread hiện tại vẫn hoạt động**
-   - Giữ `handleAttach` trong thread dùng payload trực tiếp qua `sendUserMessage(..., payloads)`.
-   - Dọn stash thread-local sau khi dùng để tránh gửi lặp.
+4. **Chặn gọi AI với attachment metadata rỗng**
+   - Nếu metadata có file nhưng payload thật không có, vẫn báo lỗi rõ ràng.
+   - Nhưng sau sửa này lỗi chỉ còn xảy ra khi user reload trang hoặc rời phiên SPA trước khi thread kịp nhận file.
 
-5. **Xác minh**
-   - Kiểm tra lại bằng console/runtime signal: không còn lỗi `useSidebar must be used within a SidebarProvider`.
-   - Kiểm tra luồng logic: ChatDock attach 1 file → tạo temp thread → navigate với `handoff` → thread đọc đúng full payload → stream parseDocument xuất hiện.
+5. **Dọn code và xác minh**
+   - Tách helper handoff nhỏ, dùng chung giữa ChatDock và thread.
+   - Kiểm tra lại console không còn lỗi liên quan abort/provider.
+   - Kiểm tra luồng: attach 1 file từ `/inbox` → chuyển `/chat/:threadId` → parse stream OCR/extract/match/check chạy ngay và AI nhận đủ file.
