@@ -62,6 +62,7 @@ type FormState = {
   model_chat: string;
   model_parse: string;
   model_reasoning: string;
+  model_classify: string;
   extra_headers_json: string;
   notes: string;
   api_key: string;
