@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Keyboard,
   Home,
+  Calculator,
 } from "lucide-react";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 import {
   listInboxAi,
