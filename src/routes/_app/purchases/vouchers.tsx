@@ -944,7 +944,7 @@ function CreateVoucherDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-2">
+        <DialogFooter className="sticky bottom-0 -mx-4 -mb-4 sm:mx-0 sm:mb-0 sm:static z-10 flex-col-reverse sm:flex-row gap-2 border-t bg-background/95 backdrop-blur px-4 py-3 sm:border-0 sm:bg-transparent sm:backdrop-blur-none sm:p-0 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)] sm:[padding-bottom:0]">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Huỷ</Button>
           <Button onClick={() => mut.mutate()}
             disabled={mut.isPending || !header.voucher_no}
