@@ -625,7 +625,10 @@ async function ensureUploadRow(opts: {
       return { uploadId: existing.id, filePath: existing.file_path ?? null };
     }
     const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
-    const path = `ai-uploads/${opts.userId}/${Date.now()}-${safeName}`;
+    // IMPORTANT: storage RLS on `invoices` bucket requires the first folder
+    // segment to equal auth.uid(). Putting "ai-uploads" first makes the upload
+    // silently fail RLS → file_path stays null → thumbnails can't load.
+    const path = `${opts.userId}/ai-uploads/${Date.now()}-${safeName}`;
     const { error: upErr } = await opts.supabase.storage
       .from("invoices")
       .upload(path, opts.fileBuf, { contentType: opts.mimeType, upsert: false });
