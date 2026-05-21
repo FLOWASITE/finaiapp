@@ -384,7 +384,6 @@ function InboxAiPage() {
       <InboxHeader
         onOpenCmd={() => setCmdOpen(true)}
         periodLabel={periodLabel()}
-        recentlyReadDelta={recentlyReadDelta}
       />
 
 
