@@ -622,12 +622,13 @@ export const stickStockVoucher = createServerFn({ method: "POST" })
     if (error || !sv) throw new Error(error?.message || "Không tạo được phiếu nhập kho");
 
     for (const line of goodsLines) {
+      const productId = line.product_id as string;
       const qty = Number(line.qty || 0);
       const unitCost = qty > 0 ? Number(line.amount || 0) / qty : Number(line.unit_price || 0);
       await supabase.from("stock_movements").insert({
         user_id: userId,
         tenant_id: v.tenant_id,
-        product_id: line.product_id,
+        product_id: productId,
         warehouse_id: data.warehouseId,
         voucher_id: sv.id,
         movement_type: "in",
@@ -641,7 +642,7 @@ export const stickStockVoucher = createServerFn({ method: "POST" })
       const { data: prod } = await supabase
         .from("products")
         .select("on_hand, unit_cost")
-        .eq("id", line.product_id)
+        .eq("id", productId)
         .single();
       if (prod) {
         const oldQty = Number(prod.on_hand || 0);
@@ -651,7 +652,7 @@ export const stickStockVoucher = createServerFn({ method: "POST" })
         await supabase
           .from("products")
           .update({ on_hand: newQty, unit_cost: newCost })
-          .eq("id", line.product_id);
+          .eq("id", productId);
       }
     }
 
