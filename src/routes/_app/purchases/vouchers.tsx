@@ -591,14 +591,14 @@ function CreateVoucherDialog({
         </div>
 
         <Tabs defaultValue="pmh" className="mt-2">
-          <TabsList>
-            <TabsTrigger value="pmh">Phiếu mua hàng</TabsTrigger>
-            <TabsTrigger value="hd">Hoá đơn</TabsTrigger>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="pmh" className="flex-1 sm:flex-none">Phiếu mua hàng</TabsTrigger>
+            <TabsTrigger value="hd" className="flex-1 sm:flex-none">Hoá đơn</TabsTrigger>
           </TabsList>
 
           {/* === Tab 1: PMH header === */}
           <TabsContent value="pmh" className="space-y-4">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <Label>Nhà cung cấp *</Label>
                 <Select value={header.supplier_id || "none"}
