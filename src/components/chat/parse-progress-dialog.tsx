@@ -139,20 +139,7 @@ function fmtSec(ms: number) {
   return s < 10 ? s.toFixed(1) + "s" : Math.round(s) + "s";
 }
 
-export function ParseProgressDialog({
-  open,
-  phase,
-  files,
-  onContinue,
-  onClose,
-  continueLabel = "Xem lại & chỉnh sửa",
-  classifications,
-  uploadIds,
-  decisions,
-  onDecisionChange,
-  onCreateBankAccount,
-}: {
-  open: boolean;
+type PanelProps = {
   phase: Phase;
   files: FileProgress[];
   onContinue?: () => void;
@@ -163,7 +150,24 @@ export function ParseProgressDialog({
   decisions?: Record<number, ClassifyDecision>;
   onDecisionChange?: (idx: number, patch: Partial<ClassifyDecision>) => void;
   onCreateBankAccount?: (idx: number, meta: any) => void;
-}) {
+  /** When true (inline mode), render plain markup instead of Dialog header/footer styling. */
+  inline?: boolean;
+};
+
+export function ParseProgressPanel(props: PanelProps) {
+  const {
+    phase,
+    files,
+    onContinue,
+    onClose,
+    continueLabel = "Xem lại & chỉnh sửa",
+    classifications,
+    uploadIds,
+    decisions,
+    onDecisionChange,
+    onCreateBankAccount,
+    inline,
+  } = props;
   const total = files.length;
   const doneCount = files.filter((f) => f.phase === "done").length;
   const errorCount = files.filter((f) => f.phase === "error").length;
@@ -171,22 +175,18 @@ export function ParseProgressDialog({
     files.reduce((s, f) => s + PHASE_PCT[f.phase], 0) / total,
   );
 
-  // ─── Timing / ETA ───────────────────────────────────────────────
   const phaseStartRef = useRef<{ parsing?: number; classifying?: number; ready?: number }>({});
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (open && phase && !phaseStartRef.current[phase]) {
+    if (phase && !phaseStartRef.current[phase]) {
       phaseStartRef.current[phase] = Date.now();
     }
-    if (!open) {
-      phaseStartRef.current = {};
-    }
-  }, [open, phase]);
+  }, [phase]);
   useEffect(() => {
-    if (!open || phase !== "parsing") return;
+    if (phase !== "parsing") return;
     const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
-  }, [open, phase]);
+  }, [phase]);
 
   const parsingStarted = phaseStartRef.current.parsing;
   const elapsedMs = parsingStarted ? now - parsingStarted : 0;
@@ -196,7 +196,6 @@ export function ParseProgressDialog({
   const totalReadyMs = useMemo(() => files.reduce((s, f) => s + (f.ms ?? 0), 0), [files]);
   const avgMs = doneCount > 0 ? totalReadyMs / doneCount : 0;
 
-  // ─── Classify summary buckets ───────────────────────────────────
   const buckets = useMemo(() => {
     const out: Record<Bucket, number[]> = { file_dup: [], invoice_dup: [], bank_unknown: [], txn_overlap: [], ok: [] };
     classifications?.forEach((c, i) => {
@@ -239,7 +238,6 @@ export function ParseProgressDialog({
     ? classifications.filter((_, i) => decisions?.[i]?.action !== "skip").length
     : doneCount;
 
-  // ─── 3-phase stepper ────────────────────────────────────────────
   const PHASES: Array<{ key: Phase; label: string }> = [
     { key: "parsing", label: "Trích xuất" },
     { key: "classifying", label: "Phân loại" },
@@ -251,262 +249,298 @@ export function ParseProgressDialog({
     idxs.forEach((i) => onDecisionChange?.(i, { action }));
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {phase === "parsing" ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                Đang xử lý chứng từ…
-              </>
-            ) : phase === "classifying" ? (
-              <>
-                <Sparkles className="h-5 w-5 text-amber-500" />
-                Phân loại & đối chiếu
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 text-emerald-500" />
-                Sẵn sàng xem lại
-              </>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            {phase === "parsing"
-              ? `Pha 1/3 — AI đang đọc và cấu trúc hoá dữ liệu`
-              : phase === "classifying"
-                ? `Pha 2/3 — Kiểm tra TK ngân hàng, file trùng, hoá đơn đã có`
-                : `Pha 3/3 — Mở trang xem lại để chỉnh sửa trước khi ghi sổ`}
-          </DialogDescription>
-        </DialogHeader>
+  const title = (
+    <div className={cn("flex items-center gap-2 font-semibold", inline ? "text-sm" : "text-base")}>
+      {phase === "parsing" ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Đang xử lý chứng từ…
+        </>
+      ) : phase === "classifying" ? (
+        <>
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          Phân loại & đối chiếu
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4 text-emerald-500" />
+          Sẵn sàng xem lại
+        </>
+      )}
+    </div>
+  );
 
-        {/* Stepper */}
-        <div className="flex items-center gap-1.5 px-1">
-          {PHASES.map((p, i) => {
-            const st = i < currentIdx ? "done" : i === currentIdx ? "active" : "pending";
-            return (
-              <div key={p.key} className="flex flex-1 items-center gap-1.5">
-                <div
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    st === "done" && "border-emerald-500 bg-emerald-500/10 text-emerald-600",
-                    st === "active" && "border-primary bg-primary/10 text-primary",
-                    st === "pending" && "border-border bg-muted text-muted-foreground",
-                  )}
-                >
-                  {st === "done" ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : st === "active" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Circle className="h-3 w-3" />
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-xs font-medium whitespace-nowrap",
-                    st === "done" && "text-emerald-600",
-                    st === "active" && "text-primary",
-                    st === "pending" && "text-muted-foreground",
-                  )}
-                >
-                  {p.label}
-                </span>
-                {i < PHASES.length - 1 && (
-                  <div className="relative mx-1 h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        "absolute inset-y-0 left-0 transition-all duration-500",
-                        i < currentIdx ? "w-full bg-emerald-500" : i === currentIdx ? "w-1/2 bg-primary" : "w-0",
-                      )}
-                    />
-                  </div>
+  const description = (
+    <p className="text-xs text-muted-foreground">
+      {phase === "parsing"
+        ? `Pha 1/3 — AI đang đọc và cấu trúc hoá dữ liệu`
+        : phase === "classifying"
+          ? `Pha 2/3 — Kiểm tra TK ngân hàng, file trùng, hoá đơn đã có`
+          : `Pha 3/3 — Mở trang xem lại để chỉnh sửa trước khi ghi sổ`}
+    </p>
+  );
+
+  return (
+    <div className={cn("flex flex-col gap-3", inline && "min-h-0")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-1">
+          {title}
+          {description}
+        </div>
+        {inline && onClose && phase !== "parsing" && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Đóng"
+            title="Đóng"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Stepper */}
+      <div className="flex items-center gap-1.5 px-1">
+        {PHASES.map((p, i) => {
+          const st = i < currentIdx ? "done" : i === currentIdx ? "active" : "pending";
+          return (
+            <div key={p.key} className="flex flex-1 items-center gap-1.5">
+              <div
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                  st === "done" && "border-emerald-500 bg-emerald-500/10 text-emerald-600",
+                  st === "active" && "border-primary bg-primary/10 text-primary",
+                  st === "pending" && "border-border bg-muted text-muted-foreground",
+                )}
+              >
+                {st === "done" ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : st === "active" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Circle className="h-3 w-3" />
                 )}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Metrics */}
-        {phase === "parsing" && total > 0 && (
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>
-                <b className="text-foreground">{doneCount}/{total}</b> xong
-                {errorCount > 0 && <span className="text-destructive"> · {errorCount} lỗi</span>}
+              <span
+                className={cn(
+                  "text-xs font-medium whitespace-nowrap",
+                  st === "done" && "text-emerald-600",
+                  st === "active" && "text-primary",
+                  st === "pending" && "text-muted-foreground",
+                )}
+              >
+                {p.label}
               </span>
-              <span className="flex items-center gap-3 tabular-nums">
-                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {fmtSec(elapsedMs)}</span>
-                {etaMs > 0 && <span>~{fmtSec(etaMs)} còn lại</span>}
-                {speed > 0 && <span>{speed.toFixed(1)} file/s</span>}
-                <span className="font-medium text-foreground">{overall}%</span>
-              </span>
+              {i < PHASES.length - 1 && (
+                <div className="relative mx-1 h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "absolute inset-y-0 left-0 transition-all duration-500",
+                      i < currentIdx ? "w-full bg-emerald-500" : i === currentIdx ? "w-1/2 bg-primary" : "w-0",
+                    )}
+                  />
+                </div>
+              )}
             </div>
-            <Progress value={overall} className="h-2" />
-          </div>
-        )}
+          );
+        })}
+      </div>
 
-        {phase === "ready" && total > 0 && (
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span><b className="text-emerald-600">{doneCount}</b> chứng từ sẵn sàng{errorCount > 0 && <span className="text-destructive"> · {errorCount} lỗi</span>}</span>
-            {totalReadyMs > 0 && (
-              <span className="tabular-nums">Tổng {fmtSec(totalReadyMs)} · TB {fmtSec(avgMs)}/file</span>
-            )}
-          </div>
-        )}
-
-        {/* Classify summary chips */}
-        {phase === "classifying" && classifications && classifications.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 p-2">
-            <SummaryChip
-              active={filter === "all"}
-              onClick={() => setFilter("all")}
-              label={`Tất cả ${classifications.length}`}
-              tone="default"
-            />
-            {buckets.ok.length > 0 && (
-              <SummaryChip
-                active={filter === "ok"}
-                onClick={() => setFilter("ok")}
-                label={`✓ ${buckets.ok.length} OK`}
-                tone="emerald"
-              />
-            )}
-            {(buckets.file_dup.length + buckets.invoice_dup.length + buckets.txn_overlap.length) > 0 && (
-              <SummaryChip
-                active={filter === "dup"}
-                onClick={() => setFilter("dup")}
-                label={`⚠ ${buckets.file_dup.length + buckets.invoice_dup.length + buckets.txn_overlap.length} trùng`}
-                tone="amber"
-              />
-            )}
-            {buckets.bank_unknown.length > 0 && (
-              <SummaryChip
-                active={filter === "bank"}
-                onClick={() => setFilter("bank")}
-                label={`⚠ ${buckets.bank_unknown.length} cần TK`}
-                tone="amber"
-              />
-            )}
-            {autoSkippedIdx.length > 0 && (
-              <SummaryChip
-                active={filter === "skipped"}
-                onClick={() => setFilter("skipped")}
-                label={`⊘ ${autoSkippedIdx.length} đã bỏ qua`}
-                tone="muted"
-              />
-            )}
-            <span className="ml-auto text-[11px] text-muted-foreground">
-              {warnCount > 0 && <span>{warnCount} cảnh báo</span>}
-              {errCount > 0 && <span className="text-destructive"> · {errCount} chặn</span>}
+      {/* Metrics */}
+      {phase === "parsing" && total > 0 && (
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              <b className="text-foreground">{doneCount}/{total}</b> xong
+              {errorCount > 0 && <span className="text-destructive"> · {errorCount} lỗi</span>}
+            </span>
+            <span className="flex items-center gap-3 tabular-nums">
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {fmtSec(elapsedMs)}</span>
+              {etaMs > 0 && <span>~{fmtSec(etaMs)} còn lại</span>}
+              {speed > 0 && <span>{speed.toFixed(1)} file/s</span>}
+              <span className="font-medium text-foreground">{overall}%</span>
             </span>
           </div>
-        )}
+          <Progress value={overall} className="h-2" />
+        </div>
+      )}
 
-        <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-          {phase === "classifying" && classifications ? (
-            (["file_dup", "invoice_dup", "bank_unknown", "txn_overlap", "ok"] as Bucket[]).map((b) => {
-              const idxs = visibleBucket(b, buckets[b]);
-              if (idxs.length === 0) return null;
-              const meta = BUCKET_META[b];
-              const Icon = meta.icon;
-              const isOpen = openBuckets[b];
-              return (
-                <section key={b} className="rounded-lg border bg-card/30">
-                  <header className="flex items-center gap-2 px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setOpenBuckets((s) => ({ ...s, [b]: !s[b] }))}
-                      className="flex items-center gap-1.5 text-sm font-medium"
-                    >
-                      {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      <Icon className={cn("h-4 w-4", meta.tone)} />
-                      <span>{meta.label}</span>
-                      <Badge variant="secondary" className="text-[10px]">{idxs.length}</Badge>
-                    </button>
-                    {b !== "ok" && (
-                      <div className="ml-auto flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => bulkSet(idxs, "skip")}
-                          className="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
-                        >
-                          <Ban className="mr-0.5 inline h-3 w-3" />Bỏ qua tất cả
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => bulkSet(idxs, "continue")}
-                          className="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
-                        >
-                          Tiếp tục tất cả
-                        </button>
-                      </div>
-                    )}
-                  </header>
-                  {isOpen && (
-                    <div className="space-y-2 p-2 pt-0">
-                      {idxs.map((i) => {
-                        const c = classifications[i];
-                        const d = decisions?.[i] ?? { action: c.suggested_action };
-                        return (
-                          <ClassifyRow
-                            key={`${c.filename}-${i}`}
-                            c={c}
-                            decision={d}
-                            uploadId={uploadIds?.[i] ?? null}
-                            autoSkipped={isAutoSkipped(c, d)}
-                            onDecisionChange={(patch) => onDecisionChange?.(i, patch)}
-                            onCreateBankAccount={(meta) => onCreateBankAccount?.(i, meta)}
-                          />
-                        );
-                      })}
+      {phase === "ready" && total > 0 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span><b className="text-emerald-600">{doneCount}</b> chứng từ sẵn sàng{errorCount > 0 && <span className="text-destructive"> · {errorCount} lỗi</span>}</span>
+          {totalReadyMs > 0 && (
+            <span className="tabular-nums">Tổng {fmtSec(totalReadyMs)} · TB {fmtSec(avgMs)}/file</span>
+          )}
+        </div>
+      )}
+
+      {/* Classify summary chips */}
+      {phase === "classifying" && classifications && classifications.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 p-2">
+          <SummaryChip
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+            label={`Tất cả ${classifications.length}`}
+            tone="default"
+          />
+          {buckets.ok.length > 0 && (
+            <SummaryChip
+              active={filter === "ok"}
+              onClick={() => setFilter("ok")}
+              label={`✓ ${buckets.ok.length} OK`}
+              tone="emerald"
+            />
+          )}
+          {(buckets.file_dup.length + buckets.invoice_dup.length + buckets.txn_overlap.length) > 0 && (
+            <SummaryChip
+              active={filter === "dup"}
+              onClick={() => setFilter("dup")}
+              label={`⚠ ${buckets.file_dup.length + buckets.invoice_dup.length + buckets.txn_overlap.length} trùng`}
+              tone="amber"
+            />
+          )}
+          {buckets.bank_unknown.length > 0 && (
+            <SummaryChip
+              active={filter === "bank"}
+              onClick={() => setFilter("bank")}
+              label={`⚠ ${buckets.bank_unknown.length} cần TK`}
+              tone="amber"
+            />
+          )}
+          {autoSkippedIdx.length > 0 && (
+            <SummaryChip
+              active={filter === "skipped"}
+              onClick={() => setFilter("skipped")}
+              label={`⊘ ${autoSkippedIdx.length} đã bỏ qua`}
+              tone="muted"
+            />
+          )}
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {warnCount > 0 && <span>{warnCount} cảnh báo</span>}
+            {errCount > 0 && <span className="text-destructive"> · {errCount} chặn</span>}
+          </span>
+        </div>
+      )}
+
+      <div className={cn("space-y-3 overflow-y-auto pr-1", inline ? "max-h-[40vh]" : "max-h-[420px]")}>
+        {phase === "classifying" && classifications ? (
+          (["file_dup", "invoice_dup", "bank_unknown", "txn_overlap", "ok"] as Bucket[]).map((b) => {
+            const idxs = visibleBucket(b, buckets[b]);
+            if (idxs.length === 0) return null;
+            const meta = BUCKET_META[b];
+            const Icon = meta.icon;
+            const isOpen = openBuckets[b];
+            return (
+              <section key={b} className="rounded-lg border bg-card/30">
+                <header className="flex items-center gap-2 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpenBuckets((s) => ({ ...s, [b]: !s[b] }))}
+                    className="flex items-center gap-1.5 text-sm font-medium"
+                  >
+                    {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Icon className={cn("h-4 w-4", meta.tone)} />
+                    <span>{meta.label}</span>
+                    <Badge variant="secondary" className="text-[10px]">{idxs.length}</Badge>
+                  </button>
+                  {b !== "ok" && (
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => bulkSet(idxs, "skip")}
+                        className="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
+                      >
+                        <Ban className="mr-0.5 inline h-3 w-3" />Bỏ qua tất cả
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => bulkSet(idxs, "continue")}
+                        className="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
+                      >
+                        Tiếp tục tất cả
+                      </button>
                     </div>
                   )}
-                </section>
-              );
-            })
-          ) : (
-            <div className="space-y-2">
-              {files.map((f, i) => <FileRow key={`${f.name}-${i}`} file={f} />)}
+                </header>
+                {isOpen && (
+                  <div className="space-y-2 p-2 pt-0">
+                    {idxs.map((i) => {
+                      const c = classifications[i];
+                      const d = decisions?.[i] ?? { action: c.suggested_action };
+                      return (
+                        <ClassifyRow
+                          key={`${c.filename}-${i}`}
+                          c={c}
+                          decision={d}
+                          uploadId={uploadIds?.[i] ?? null}
+                          autoSkipped={isAutoSkipped(c, d)}
+                          onDecisionChange={(patch) => onDecisionChange?.(i, patch)}
+                          onCreateBankAccount={(meta) => onCreateBankAccount?.(i, meta)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        ) : (
+          <div className="space-y-2">
+            {files.map((f, i) => <FileRow key={`${f.name}-${i}`} file={f} />)}
+          </div>
+        )}
+
+        {phase === "classifying" && classifications &&
+          (["file_dup", "invoice_dup", "bank_unknown", "txn_overlap", "ok"] as Bucket[]).every(
+            (b) => visibleBucket(b, buckets[b]).length === 0,
+          ) && (
+            <div className="rounded-lg border border-dashed py-8 text-center text-xs text-muted-foreground">
+              Không có file trong bộ lọc này.
             </div>
           )}
+      </div>
 
-          {phase === "classifying" && classifications &&
-            (["file_dup", "invoice_dup", "bank_unknown", "txn_overlap", "ok"] as Bucket[]).every(
-              (b) => visibleBucket(b, buckets[b]).length === 0,
-            ) && (
-              <div className="rounded-lg border border-dashed py-8 text-center text-xs text-muted-foreground">
-                Không có file trong bộ lọc này.
-              </div>
-            )}
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-2">
-          {phase === "parsing" ? (
-            <Button variant="ghost" disabled>
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              Đang xử lý…
+      <div className="flex items-center justify-end gap-2 pt-1">
+        {phase === "parsing" ? (
+          <Button variant="ghost" size="sm" disabled>
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            Đang xử lý…
+          </Button>
+        ) : phase === "classifying" ? (
+          <>
+            <Button variant="ghost" size="sm" onClick={onClose}>Huỷ</Button>
+            <Button size="sm" onClick={onContinue} disabled={continuingCount === 0}>
+              Tiếp tục ({continuingCount} file)
+              <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
-          ) : phase === "classifying" ? (
-            <>
-              <Button variant="ghost" onClick={onClose}>Huỷ</Button>
-              <Button onClick={onContinue} disabled={continuingCount === 0}>
-                Tiếp tục ({continuingCount} file)
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={onClose}>Đóng</Button>
-              <Button onClick={onContinue} disabled={doneCount === 0}>
-                {continueLabel}
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" size="sm" onClick={onClose}>Đóng</Button>
+            <Button size="sm" onClick={onContinue} disabled={doneCount === 0}>
+              {continueLabel}
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ParseProgressDialog({
+  open,
+  ...rest
+}: PanelProps & { open: boolean }) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && rest.onClose?.()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Xử lý chứng từ</DialogTitle>
+          <DialogDescription>Tiến trình xử lý và phân loại chứng từ</DialogDescription>
+        </DialogHeader>
+        <ParseProgressPanel {...rest} />
       </DialogContent>
     </Dialog>
   );
