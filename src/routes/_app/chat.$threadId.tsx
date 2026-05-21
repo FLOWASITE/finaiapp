@@ -422,14 +422,10 @@ function ThreadPage() {
     } catch {}
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
+    // Truyền nguyên payloads (kèm base64) để runAssistant gửi file lên server parse.
     void sendUserMessage(
       note && note.trim() ? note.trim() : fallback,
-      payloads.map((p) => ({
-        name: p.name,
-        mime: p.mime,
-        size: p.size,
-        kind: p.kind,
-      })),
+      payloads,
     );
   };
 
