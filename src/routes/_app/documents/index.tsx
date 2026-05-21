@@ -94,9 +94,11 @@ import {
   SlidersHorizontal,
   X,
   ChevronRight,
+  FileSearch,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
+import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 
 const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -973,24 +975,35 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
               </TabsList>
 
               <TabsContent value="preview" className="mt-3">
-                {data.signedUrl && isImage && (
-                  <img
-                    src={data.signedUrl}
-                    alt={doc.original_filename ?? ""}
-                    className="max-w-full rounded border"
+                {(doc.doc_kind === "purchase_invoice" || doc.doc_kind === "sales_invoice") ? (
+                  <InvoiceFileViewer
+                    einvoice={(doc.ocr_extracted as any)?._einvoice ?? null}
+                    signedUrl={data.signedUrl}
+                    mimeType={doc.mime_type}
+                    filename={doc.original_filename}
                   />
-                )}
-                {data.signedUrl && isPdf && (
-                  <iframe
-                    src={data.signedUrl}
-                    className="w-full h-[600px] rounded border"
-                    title="PDF preview"
-                  />
-                )}
-                {data.signedUrl && !isImage && !isPdf && (
-                  <p className="text-sm text-muted-foreground">
-                    Không hỗ trợ xem trước định dạng này. Bấm "Tải về" để xem.
-                  </p>
+                ) : (
+                  <>
+                    {data.signedUrl && isImage && (
+                      <img
+                        src={data.signedUrl}
+                        alt={doc.original_filename ?? ""}
+                        className="max-w-full rounded border"
+                      />
+                    )}
+                    {data.signedUrl && isPdf && (
+                      <iframe
+                        src={data.signedUrl}
+                        className="w-full h-[600px] rounded border"
+                        title="PDF preview"
+                      />
+                    )}
+                    {data.signedUrl && !isImage && !isPdf && (
+                      <p className="text-sm text-muted-foreground">
+                        Không hỗ trợ xem trước định dạng này. Bấm "Tải về" để xem.
+                      </p>
+                    )}
+                  </>
                 )}
               </TabsContent>
 
@@ -1117,6 +1130,7 @@ function PurchaseInvoicesTable({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
     setExpanded((m) => ({ ...m, [id]: !m[id] }));
+  const [viewerRow, setViewerRow] = useState<any | null>(null);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
@@ -1227,16 +1241,39 @@ function PurchaseInvoicesTable({
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewerRow(r)}
+                              aria-label="Xem hoá đơn"
+                            >
+                              <FileSearch className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xem hoá đơn</TooltipContent>
+                        </Tooltip>
                         {inv?.id && (
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to="/invoices/$id" params={{ id: inv.id }}>
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button asChild size="sm" variant="ghost">
+                                <Link to="/invoices/$id" params={{ id: inv.id }}>
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Link>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Mở chi tiết HĐ</TooltipContent>
+                          </Tooltip>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Chi tiết tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1307,6 +1344,31 @@ function PurchaseInvoicesTable({
           )}
         </div>
       )}
+      <InvoiceViewerDialog
+        docId={viewerRow?.doc?.id ?? null}
+        invoiceInfo={
+          viewerRow
+            ? {
+                invoice_no: viewerRow.invoice?.invoice_no,
+                issue_date: viewerRow.invoice?.issue_date,
+                party_label: "Nhà cung cấp",
+                party_name: viewerRow.invoice?.supplier_name,
+                party_tax_id: viewerRow.invoice?.supplier_tax_id,
+                subtotal: viewerRow.invoice?.subtotal,
+                vat_amount: viewerRow.invoice?.vat_amount,
+                total: viewerRow.invoice?.total,
+                lines_summary: viewerRow.lines_summary,
+              }
+            : null
+        }
+        detailHref={
+          viewerRow?.invoice?.id
+            ? { to: "/invoices/$id", params: { id: viewerRow.invoice.id } }
+            : null
+        }
+        onOpenDrawer={onOpenDoc}
+        onClose={() => setViewerRow(null)}
+      />
     </>
   );
 }
@@ -1344,6 +1406,7 @@ function SalesInvoicesTable({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
     setExpanded((m) => ({ ...m, [id]: !m[id] }));
+  const [viewerRow, setViewerRow] = useState<any | null>(null);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
@@ -1461,16 +1524,39 @@ function SalesInvoicesTable({
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewerRow(r)}
+                              aria-label="Xem hoá đơn"
+                            >
+                              <FileSearch className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xem hoá đơn</TooltipContent>
+                        </Tooltip>
                         {inv?.id && (
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to="/sales/$id" params={{ id: inv.id }}>
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button asChild size="sm" variant="ghost">
+                                <Link to="/sales/$id" params={{ id: inv.id }}>
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Link>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Mở chi tiết HĐ</TooltipContent>
+                          </Tooltip>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Chi tiết tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1541,6 +1627,183 @@ function SalesInvoicesTable({
           )}
         </div>
       )}
+      <InvoiceViewerDialog
+        docId={viewerRow?.doc?.id ?? null}
+        invoiceInfo={
+          viewerRow
+            ? {
+                invoice_no: viewerRow.invoice?.invoice_no,
+                issue_date: viewerRow.invoice?.issue_date,
+                party_label: "Khách hàng",
+                party_name: viewerRow.invoice?.customer_name,
+                party_tax_id: viewerRow.invoice?.customer_tax_id,
+                subtotal: viewerRow.invoice?.subtotal,
+                vat_amount: viewerRow.invoice?.vat_amount,
+                total: viewerRow.invoice?.total,
+                lines_summary: viewerRow.lines_summary,
+              }
+            : null
+        }
+        detailHref={
+          viewerRow?.invoice?.id
+            ? { to: "/sales/$id", params: { id: viewerRow.invoice.id } }
+            : null
+        }
+        onOpenDrawer={onOpenDoc}
+        onClose={() => setViewerRow(null)}
+      />
     </>
+  );
+}
+
+function InvoiceViewerDialog({
+  docId,
+  invoiceInfo,
+  detailHref,
+  onOpenDrawer,
+  onClose,
+}: {
+  docId: string | null;
+  invoiceInfo: {
+    invoice_no?: string | null;
+    issue_date?: string | null;
+    party_label: string;
+    party_name?: string | null;
+    party_tax_id?: string | null;
+    subtotal?: number | null;
+    vat_amount?: number | null;
+    total?: number | null;
+    lines_summary?: string | null;
+  } | null;
+  detailHref?: { to: "/invoices/$id" | "/sales/$id"; params: { id: string } } | null;
+  onOpenDrawer: (id: string) => void;
+  onClose: () => void;
+}) {
+  const getDoc = useServerFn(getDocument);
+  const { data, isLoading } = useQuery({
+    queryKey: ["document", docId],
+    queryFn: () => getDoc({ data: { id: docId! } }),
+    enabled: !!docId,
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const doc = data?.doc;
+  const einvoice = (doc?.ocr_extracted as any)?._einvoice ?? null;
+
+  return (
+    <Dialog open={!!docId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden p-0">
+        <DialogHeader className="px-5 pt-4 pb-2 border-b">
+          <DialogTitle className="text-sm font-semibold">
+            {invoiceInfo?.invoice_no
+              ? `HĐ ${invoiceInfo.invoice_no}`
+              : (doc?.original_filename ?? "Hoá đơn")}
+            {doc?.original_filename && invoiceInfo?.invoice_no ? (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                · {doc.original_filename}
+              </span>
+            ) : null}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-0 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] max-h-[78vh] overflow-hidden">
+          {/* Left: file viewer */}
+          <div className="relative overflow-auto border-b md:border-b-0 md:border-r bg-muted/20 p-4">
+            {isLoading ? (
+              <Skeleton className="h-[60vh] w-full" />
+            ) : doc ? (
+              <InvoiceFileViewer
+                einvoice={einvoice}
+                signedUrl={data?.signedUrl}
+                mimeType={doc.mime_type}
+                filename={doc.original_filename}
+              />
+            ) : (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                Không tải được tài liệu.
+              </div>
+            )}
+          </div>
+
+          {/* Right: extracted info */}
+          <div className="overflow-auto p-5 space-y-4 text-sm">
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Thông tin hoá đơn
+              </div>
+              <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 pt-1">
+                <dt className="text-xs text-muted-foreground self-center">Số HĐ</dt>
+                <dd className="font-semibold">{invoiceInfo?.invoice_no ?? "—"}</dd>
+                <dt className="text-xs text-muted-foreground self-center">Ngày</dt>
+                <dd>{invoiceInfo?.issue_date ?? "—"}</dd>
+                <dt className="text-xs text-muted-foreground self-center">
+                  {invoiceInfo?.party_label}
+                </dt>
+                <dd>
+                  <div className="font-medium">{invoiceInfo?.party_name ?? "—"}</div>
+                  {invoiceInfo?.party_tax_id ? (
+                    <div className="text-xs text-muted-foreground font-mono">
+                      {invoiceInfo.party_tax_id}
+                    </div>
+                  ) : null}
+                </dd>
+                {invoiceInfo?.lines_summary ? (
+                  <>
+                    <dt className="text-xs text-muted-foreground self-start pt-0.5">Mặt hàng</dt>
+                    <dd className="text-muted-foreground">{invoiceInfo.lines_summary}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </div>
+
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Tiền trước thuế</span>
+                <span className="font-mono">{vnd(invoiceInfo?.subtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">VAT</span>
+                <span className="font-mono">{vnd(invoiceInfo?.vat_amount)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-2">
+                <span className="text-xs font-semibold">Tổng sau thuế</span>
+                <span className="font-mono font-bold text-base">{vnd(invoiceInfo?.total)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2 border-t">
+              {detailHref ? (
+                <Button asChild variant="default" size="sm">
+                  <Link to={detailHref.to} params={detailHref.params}>
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    Mở chi tiết hoá đơn
+                  </Link>
+                </Button>
+              ) : null}
+              {doc ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onOpenDrawer(doc.id);
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  Mở chi tiết tài liệu
+                </Button>
+              ) : null}
+              {data?.signedUrl ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={data.signedUrl} download={doc?.original_filename ?? ""}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" /> Tải file gốc
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
