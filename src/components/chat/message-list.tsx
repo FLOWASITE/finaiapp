@@ -483,6 +483,7 @@ function InvoiceToolEvents({
             key={id + "-prog"}
             streaming={streaming}
             filename={filename}
+            livePhases={progress}
           />,
         );
       }
