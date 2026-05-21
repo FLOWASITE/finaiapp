@@ -414,6 +414,7 @@ function AiModelPage() {
         model_chat: form.model_chat || null,
         model_parse: form.model_parse || null,
         model_reasoning: form.model_reasoning || null,
+        model_classify: form.model_classify || null,
         extra_headers,
         notes: form.notes || null,
       };
