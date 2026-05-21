@@ -400,6 +400,7 @@ export type Database = {
           extra_headers: Json
           id: number
           model_chat: string | null
+          model_classify: string | null
           model_default: string
           model_parse: string | null
           model_reasoning: string | null
@@ -415,6 +416,7 @@ export type Database = {
           extra_headers?: Json
           id?: number
           model_chat?: string | null
+          model_classify?: string | null
           model_default?: string
           model_parse?: string | null
           model_reasoning?: string | null
@@ -430,6 +432,7 @@ export type Database = {
           extra_headers?: Json
           id?: number
           model_chat?: string | null
+          model_classify?: string | null
           model_default?: string
           model_parse?: string | null
           model_reasoning?: string | null

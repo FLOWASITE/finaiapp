@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_model_config ADD COLUMN IF NOT EXISTS model_classify text;
