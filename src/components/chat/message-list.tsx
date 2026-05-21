@@ -52,7 +52,21 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
         const isUser = m.role === "user";
         const isLast = i === messages.length - 1;
         const isLastAssistant = i === lastAssistantIdx;
-        return (
+
+        // Date divider: show when this is the first non-system message of a new day.
+        let showDivider = false;
+        if (m.created_at) {
+          const curKey = dayKey(new Date(m.created_at));
+          let prevKey: string | null = null;
+          for (let j = i - 1; j >= 0; j--) {
+            if (messages[j].role === "system") continue;
+            if (messages[j].created_at) {
+              prevKey = dayKey(new Date(messages[j].created_at!));
+            }
+            break;
+          }
+          if (prevKey !== curKey) showDivider = true;
+        }
           <div
             key={m.id ?? i}
             className={cn(
