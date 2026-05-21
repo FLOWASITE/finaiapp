@@ -20,7 +20,7 @@ export const getAiModelConfig = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("ai_model_config")
       .select(
-        "id, enabled, provider_label, base_url, model_default, model_chat, model_parse, model_reasoning, extra_headers, notes, updated_at, updated_by, api_key_encrypted",
+        "id, enabled, provider_label, base_url, model_default, model_chat, model_parse, model_reasoning, model_classify, extra_headers, notes, updated_at, updated_by, api_key_encrypted",
       )
       .eq("id", 1)
       .maybeSingle();
