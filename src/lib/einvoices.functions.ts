@@ -67,6 +67,7 @@ export const listEInvoices = createServerFn({ method: "POST" })
     if (data.dateFrom) q = q.gte("issue_date", data.dateFrom);
     if (data.dateTo) q = q.lte("issue_date", data.dateTo);
     if (data.status) q = q.eq("tct_status", data.status);
+    if (data.xmlStatus) q = q.eq("xml_fetch_status", data.xmlStatus);
     if (data.matched === "matched") {
       q =
         data.direction === "in"
