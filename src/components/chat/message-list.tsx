@@ -3,6 +3,9 @@ import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { Markdown } from "@/components/chat/markdown";
 import { ToolCalls, type ToolEvent } from "@/components/chat/tool-calls";
 import { MessageActions } from "@/components/chat/message-actions";
+import { ParseProgressCard } from "@/components/chat/invoice/parse-progress-card";
+import { InvoiceExtractCard } from "@/components/chat/invoice/invoice-extract-card";
+import { JournalProposalCard } from "@/components/chat/invoice/journal-proposal-card";
 import { cn } from "@/lib/utils";
 
 export type ChatAttachmentMeta = {
