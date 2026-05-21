@@ -300,61 +300,63 @@ function PurchaseVouchersPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Số phiếu</TableHead>
-                <TableHead>Ngày</TableHead>
-                <TableHead>Nhà cung cấp</TableHead>
-                <TableHead>Diễn giải</TableHead>
-                <TableHead className="text-right">Tổng tiền</TableHead>
-                <TableHead>PT TT</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Chưa có phiếu</TableCell></TableRow>
-              ) : rows.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.voucher_no}</TableCell>
-                  <TableCell>{r.voucher_date}</TableCell>
-                  <TableCell>{r.supplier_name ?? "—"}</TableCell>
-                  <TableCell className="max-w-xs truncate">{r.reason ?? "—"}</TableCell>
-                  <TableCell className="text-right">{fmtMoney(r.total)}</TableCell>
-                  <TableCell>
-                    {r.payment_method === "cash" ? "Tiền mặt"
-                      : r.payment_method === "bank" ? "Ngân hàng" : "Công nợ"}
-                  </TableCell>
-                  <TableCell>{statusBadge(r.status)}</TableCell>
-                  <TableCell className="text-right space-x-1">
-                    {r.status !== "posted" && r.status !== "void" && (
-                      <Button size="sm" variant="default" onClick={() => postMut.mutate(r.id)}>
-                        <Check className="h-3 w-3 mr-1" /> Ghi sổ
-                      </Button>
-                    )}
-                    {r.status === "posted" && (
-                      <Button size="sm" variant="outline" onClick={() => voidMut.mutate(r.id)}>
-                        <X className="h-3 w-3 mr-1" /> Huỷ
-                      </Button>
-                    )}
-                    {r.status !== "posted" && (
-                      <Button size="sm" variant="ghost" onClick={() => delMut.mutate(r.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                    {r.journal_entry_id && (
-                      <Link to="/journal" className="inline-flex">
-                        <Button size="sm" variant="ghost"><FileText className="h-3 w-3" /></Button>
-                      </Link>
-                    )}
-                  </TableCell>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[960px] text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">Số phiếu</TableHead>
+                  <TableHead className="whitespace-nowrap">Ngày</TableHead>
+                  <TableHead className="min-w-[220px]">Nhà cung cấp</TableHead>
+                  <TableHead className="min-w-[240px]">Diễn giải</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Tổng tiền</TableHead>
+                  <TableHead className="whitespace-nowrap">PT TT</TableHead>
+                  <TableHead className="whitespace-nowrap">Trạng thái</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Thao tác</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Chưa có phiếu</TableCell></TableRow>
+                ) : rows.map((r: any) => (
+                  <TableRow key={r.id} className="hover:bg-muted/40">
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{r.voucher_no}</TableCell>
+                    <TableCell className="whitespace-nowrap">{r.voucher_date}</TableCell>
+                    <TableCell className="max-w-[260px] truncate" title={r.supplier_name ?? ""}>{r.supplier_name ?? "—"}</TableCell>
+                    <TableCell className="max-w-[320px] truncate text-muted-foreground" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
+                    <TableCell className="text-right font-medium whitespace-nowrap">{fmtMoney(r.total)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {r.payment_method === "cash" ? "Tiền mặt"
+                        : r.payment_method === "bank" ? "Ngân hàng" : "Công nợ"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{statusBadge(r.status)}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap space-x-1">
+                      {r.status !== "posted" && r.status !== "void" && (
+                        <Button size="sm" variant="default" onClick={() => postMut.mutate(r.id)}>
+                          <Check className="h-3 w-3 mr-1" /> Ghi sổ
+                        </Button>
+                      )}
+                      {r.status === "posted" && (
+                        <Button size="sm" variant="outline" onClick={() => voidMut.mutate(r.id)}>
+                          <X className="h-3 w-3 mr-1" /> Huỷ
+                        </Button>
+                      )}
+                      {r.status !== "posted" && (
+                        <Button size="sm" variant="ghost" onClick={() => delMut.mutate(r.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {r.journal_entry_id && (
+                        <Link to="/journal" className="inline-flex">
+                          <Button size="sm" variant="ghost"><FileText className="h-3 w-3" /></Button>
+                        </Link>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
