@@ -900,6 +900,7 @@ export async function parseFileCore(opts: {
     }
 
     // ---- 5. Structurer
+    emitPhase({ name: "extract", status: "start" });
     const structStart = Date.now();
     let parsed: any;
 
