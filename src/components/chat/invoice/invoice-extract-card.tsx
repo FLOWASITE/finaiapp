@@ -332,12 +332,23 @@ export function InvoiceExtractCard({
                 size="large"
               />
             ) : isPdf && urlData?.url ? (
-              <object
-                data={`${urlData.url}#toolbar=1&view=FitH`}
-                type="application/pdf"
-                className="h-[80vh] w-full rounded-md bg-background"
-                aria-label={filename ?? "pdf"}
-              />
+              <div className="flex flex-col gap-2">
+                <iframe
+                  src={`${urlData.url}#toolbar=1&view=FitH`}
+                  title={filename ?? "pdf"}
+                  className="h-[78vh] w-full rounded-md border border-border/40 bg-background"
+                />
+                <a
+                  href={urlData.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 self-end text-[12px] font-medium text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Mở PDF trong tab mới
+                </a>
+              </div>
+
             ) : isImage && urlData?.url ? (
               <img
                 src={urlData.url}
