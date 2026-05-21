@@ -303,7 +303,8 @@ function ThreadPage() {
         takeChatAttachments(handoff, [`__attach:${threadId}`]) ??
         takeAnyChatAttachmentHandoff();
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
-      if (declaredAttachments?.length && !pendingAttachments?.length) {
+      const attachmentsForRun = pendingAttachments?.length ? pendingAttachments : declaredAttachments;
+      if (declaredAttachments?.length && !attachmentsForRun?.length) {
         toast.error("Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.");
         setLocalMsgs((prev) => [
           ...prev,
@@ -315,7 +316,7 @@ function ThreadPage() {
         ]);
         return;
       }
-      runAssistant(hist, pendingAttachments);
+      runAssistant(hist, attachmentsForRun);
       // KHÔNG navigate replace để xoá autostart ở đây — sẽ gây re-render +
       // Route.useSearch đổi → trông như refresh. startedRef đã chặn chạy lại.
     }
