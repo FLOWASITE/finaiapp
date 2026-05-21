@@ -169,6 +169,7 @@ function ThreadPage() {
           id: m.id,
           role: m.role,
           content: m.content,
+          created_at: m.created_at,
           toolEvents: (m.metadata?.toolEvents as ToolEvent[] | undefined) ?? undefined,
         }));
 
@@ -253,7 +254,7 @@ function ThreadPage() {
     abortRef.current = controller;
     const working: ChatMsg[] = [
       ...history,
-      { role: "assistant", content: "", toolEvents: [] },
+      { role: "assistant", content: "", toolEvents: [], created_at: new Date().toISOString() },
     ];
     setLocalMsgs(working);
     let buffer = "";
@@ -351,6 +352,7 @@ function ThreadPage() {
         id: m.id,
         role: m.role,
         content: m.content,
+        created_at: m.created_at,
       }));
       let pendingAttachments: any[] | undefined;
       try {
@@ -379,7 +381,7 @@ function ThreadPage() {
     const baseMsgs = messages.filter(
       (m, i) => !(i === messages.length - 1 && m.role === "assistant"),
     );
-    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q }];
+    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q, created_at: new Date().toISOString() }];
     setLocalMsgs(next);
     const metaAttachments = attachments?.map((a) => ({
       name: a.name,

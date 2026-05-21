@@ -10,7 +10,26 @@ export type ChatMsg = {
   role: "user" | "assistant" | "system";
   content: string;
   toolEvents?: ToolEvent[];
+  created_at?: string;
 };
+
+const WEEKDAYS_VI = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatDayLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Hôm nay";
+  if (diffDays === 1) return "Hôm qua";
+  if (diffDays > 1 && diffDays < 7) return WEEKDAYS_VI[d.getDay()];
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 type Props = {
   messages: ChatMsg[];
@@ -33,9 +52,32 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
         const isUser = m.role === "user";
         const isLast = i === messages.length - 1;
         const isLastAssistant = i === lastAssistantIdx;
+
+        // Date divider: show when this is the first non-system message of a new day.
+        let showDivider = false;
+        if (m.created_at) {
+          const curKey = dayKey(new Date(m.created_at));
+          let prevKey: string | null = null;
+          for (let j = i - 1; j >= 0; j--) {
+            if (messages[j].role === "system") continue;
+            if (messages[j].created_at) {
+              prevKey = dayKey(new Date(messages[j].created_at!));
+            }
+            break;
+          }
+          if (prevKey !== curKey) showDivider = true;
+        }
+
         return (
+          <div key={m.id ?? i} className="space-y-8">
+            {showDivider && m.created_at && (
+              <div className="flex items-center justify-center pt-2">
+                <div className="rounded-full bg-muted/60 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {formatDayLabel(m.created_at)}
+                </div>
+              </div>
+            )}
           <div
-            key={m.id ?? i}
             className={cn(
               "group flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
               isUser ? "justify-end" : "items-start",
@@ -95,6 +137,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                 <User className="h-4 w-4" />
               </div>
             )}
+          </div>
           </div>
         );
       })}
