@@ -171,7 +171,7 @@ function ThreadPage() {
       window.removeEventListener("chat:thread-resolved", onResolved as EventListener);
       window.removeEventListener("chat:thread-failed", onFailed as EventListener);
     };
-  }, [threadId, isOptimistic, from, navigate]);
+  }, [threadId, isOptimistic, from, handoff, navigate]);
 
   /** Trả về threadId dùng để persist message (đợi nếu đang optimistic). */
   const getEffectiveThreadId = async (): Promise<string> => {
