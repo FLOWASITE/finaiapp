@@ -44,6 +44,36 @@ export const Route = createFileRoute("/_app/einvoices/")({
   component: EInvoicesPage,
 });
 
+function XmlStatusBadge({ s, err }: { s: string | null; err?: string | null }) {
+  if (s === "done")
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 text-emerald-700 border-emerald-500/30"
+        title="Đã tải chi tiết XML"
+      >
+        <CheckCircle2 className="h-3 w-3" />XML
+      </Badge>
+    );
+  if (s === "failed")
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 text-destructive border-destructive/30"
+        title={err || "Tải XML lỗi"}
+      >
+        <XCircle className="h-3 w-3" />Lỗi
+      </Badge>
+    );
+  if (s === "pending")
+    return (
+      <Badge variant="secondary" className="gap-1" title="Chờ tải chi tiết">
+        <RefreshCw className="h-3 w-3 animate-spin" />Đang tải
+      </Badge>
+    );
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+
 const vnd = (n: number | string | null | undefined) =>
   n == null ? "-" : Number(n).toLocaleString("vi-VN");
 
