@@ -32,32 +32,54 @@ import { toast } from "sonner";
 
 type Bucket = { label: string; items: ChatThread[] };
 
+const WEEKDAY_VI = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+const MONTH_VI = [
+  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
+];
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function bucketLabel(date: Date, today: Date): string {
+  const d0 = startOfDay(date).getTime();
+  const t0 = startOfDay(today).getTime();
+  const diffDays = Math.floor((t0 - d0) / 86_400_000);
+  if (diffDays <= 0) return "Hôm nay";
+  if (diffDays === 1) return "Hôm qua";
+  if (diffDays < 7) return WEEKDAY_VI[date.getDay()];
+  if (diffDays < 14) return "Tuần trước";
+  if (diffDays < 30) return "30 ngày qua";
+  const sameYear = date.getFullYear() === today.getFullYear();
+  return sameYear
+    ? MONTH_VI[date.getMonth()]
+    : `${MONTH_VI[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 function bucketize(threads: ChatThread[]): Bucket[] {
-  const now = Date.now();
+  const today = new Date();
   const pinned: ChatThread[] = [];
   const rest: ChatThread[] = [];
   for (const t of threads) {
     if (t.pinned_at) pinned.push(t);
     else rest.push(t);
   }
-  const buckets: Record<string, ChatThread[]> = {
-    "Hôm nay": [],
-    "7 ngày qua": [],
-    "30 ngày qua": [],
-    "Cũ hơn": [],
-  };
+  const order: string[] = [];
+  const map = new Map<string, ChatThread[]>();
   for (const t of rest) {
-    const ageDays = (now - new Date(t.last_message_at).getTime()) / 86_400_000;
-    if (ageDays < 1) buckets["Hôm nay"].push(t);
-    else if (ageDays < 7) buckets["7 ngày qua"].push(t);
-    else if (ageDays < 30) buckets["30 ngày qua"].push(t);
-    else buckets["Cũ hơn"].push(t);
+    const label = bucketLabel(new Date(t.last_message_at), today);
+    if (!map.has(label)) {
+      map.set(label, []);
+      order.push(label);
+    }
+    map.get(label)!.push(t);
   }
   const out: Bucket[] = [];
   if (pinned.length) out.push({ label: "Đã ghim", items: pinned });
-  for (const [label, items] of Object.entries(buckets)) {
-    if (items.length) out.push({ label, items });
-  }
+  for (const label of order) out.push({ label, items: map.get(label)! });
   return out;
 }
 
