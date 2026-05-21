@@ -122,13 +122,13 @@ async function ensureUploadQuick(opts: {
   try {
     const { data: existing } = await opts.supabase
       .from("ai_uploads")
-      .select("id, filename, kind")
+      .select("id, filename, kind, file_path")
       .eq("user_id", opts.userId)
       .eq("file_hash", opts.fileHash)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing?.id) {
+    if (existing?.id && existing.file_path) {
       return {
         uploadId: existing.id,
         isDup: true,
@@ -137,10 +137,22 @@ async function ensureUploadQuick(opts: {
     }
 
     const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
-    const path = `ai-uploads/${opts.userId}/${Date.now()}-${safeName}`;
+    const path = `${opts.userId}/ai-uploads/${Date.now()}-${safeName}`;
     const { error: upErr } = await opts.supabase.storage
       .from("invoices")
       .upload(path, opts.fileBuf, { contentType: opts.mime, upsert: false });
+    if (upErr) {
+      console.error("[bulk-intake] storage upload failed", upErr);
+    }
+
+    // Backfill existing row with missing file_path, or insert new
+    if (existing?.id && !existing.file_path) {
+      await opts.supabase
+        .from("ai_uploads")
+        .update({ file_path: upErr ? null : path })
+        .eq("id", existing.id);
+      return { uploadId: existing.id, isDup: false, dupFilename: null };
+    }
 
     const { data: row } = await opts.supabase
       .from("ai_uploads")
