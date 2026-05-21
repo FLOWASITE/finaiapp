@@ -388,7 +388,7 @@ function InvoiceToolEvents({
 
   const out: React.ReactNode[] = [];
   for (const id of order) {
-    const { call, result } = map.get(id)!;
+    const { call, result, progress } = map.get(id)!;
     const toolName = (call?.toolName ?? result?.output?.toolName) as string | undefined;
 
     if (toolName === "bulkIntake") {
