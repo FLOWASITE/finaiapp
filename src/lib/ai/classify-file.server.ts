@@ -25,8 +25,8 @@ export type ClassifyResult = {
   reason: string;
   seller_tax_id?: string | null;
   buyer_tax_id?: string | null;
-  /** 'ai' | 'cache' | 'heuristic-fallback' */
-  source: "ai" | "cache" | "heuristic-fallback";
+  /** Nguồn phân loại — để biết có tốn token AI hay không */
+  source: "ai" | "cache" | "xml" | "text-rule" | "heuristic-fallback";
 };
 
 const Schema = z.object({
