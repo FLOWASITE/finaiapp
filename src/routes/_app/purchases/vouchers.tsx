@@ -740,9 +740,19 @@ function CreateVoucherDialog({
                     <TableRow key={l.key}>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
-                        <Input value={l.product_name}
-                          onChange={(e) => updateLine(l.key, { product_name: e.target.value })}
-                          placeholder="Vui lòng chọn" />
+                        <ProductPickerCell
+                          value={l.product_name}
+                          onPick={(p) => updateLine(l.key, {
+                            product_id: p.id,
+                            product_code: p.code ?? "",
+                            product_name: p.name ?? "",
+                            unit: p.unit ?? "",
+                            unit_price: Number(p.unit_cost ?? 0),
+                            vat_rate: Number(p.vat_rate ?? 10),
+                            debit_account: p.stock_account ?? l.debit_account,
+                            line_type: p.item_type === "service" ? "service" : "goods",
+                          })}
+                        />
                       </TableCell>
                       <TableCell>
                         <Input value={l.product_code}
