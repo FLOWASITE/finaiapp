@@ -145,6 +145,15 @@ async function ensureUploadQuick(opts: {
       console.error("[bulk-intake] storage upload failed", upErr);
     }
 
+    // Backfill existing row with missing file_path, or insert new
+    if (existing?.id && !existing.file_path) {
+      await opts.supabase
+        .from("ai_uploads")
+        .update({ file_path: upErr ? null : path })
+        .eq("id", existing.id);
+      return { uploadId: existing.id, isDup: false, dupFilename: null };
+    }
+
     const { data: row } = await opts.supabase
       .from("ai_uploads")
       .insert({
