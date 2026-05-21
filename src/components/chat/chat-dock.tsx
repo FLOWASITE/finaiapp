@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
 import { countUnreadDigests } from "@/lib/digest-prefs.functions";
+import { stashChatAttachments, takeChatAttachments } from "@/lib/chat-attachment-handoff";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
@@ -169,12 +170,7 @@ export function ChatDock() {
     );
     const hasPayloads = !!opts?.payloadsForStash?.length;
     if (hasPayloads) {
-      try {
-        sessionStorage.setItem(
-          `__attach:h:${handoffId}`,
-          JSON.stringify(opts!.payloadsForStash),
-        );
-      } catch {}
+      stashChatAttachments(handoffId, opts!.payloadsForStash);
     }
     collapseChatSidebar();
     navigate({
@@ -228,9 +224,7 @@ export function ChatDock() {
           (prev: any) =>
             Array.isArray(prev) ? prev.filter((t: any) => t.id !== tempId) : prev,
         );
-        try {
-          if (hasPayloads) sessionStorage.removeItem(`__attach:h:${handoffId}`);
-        } catch {}
+        if (hasPayloads) takeChatAttachments(handoffId);
         window.dispatchEvent(
           new CustomEvent("chat:thread-failed", { detail: { tempId, error: e?.message } }),
         );
@@ -266,14 +260,17 @@ export function ChatDock() {
       kind: p.kind,
     }));
     if (existingThreadId) {
-      try {
-        sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
-      } catch {}
+      const handoffId =
+        typeof (crypto as any).randomUUID === "function"
+          ? (crypto as any).randomUUID()
+          : Math.random().toString(36).slice(2);
+      stashChatAttachments(handoffId, payloads, `__attach:${existingThreadId}`);
       window.dispatchEvent(
         new CustomEvent("chat:dock-send", {
           detail: {
             threadId: existingThreadId,
             content,
+            handoff: handoffId,
             attachments: metaAttachments,
           },
         }),
