@@ -593,7 +593,7 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="relative gap-1">
-          {activeSections.map((section, idx) => (
+          {sectionsWithBadges.map((section, idx) => (
             <React.Fragment key={section.label ?? `s-${idx}`}>
               {section.label && idx > 0 && (
                 <div
@@ -605,7 +605,12 @@ export function AppSidebar() {
                 {section.label && (
                   <SidebarGroupLabel className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
                     <span className="inline-block h-1 w-1 rounded-full bg-sidebar-primary/50" />
-                    {section.label}
+                    <span>{section.label}</span>
+                    {section.labelBadge && (
+                      <span className="ml-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-600">
+                        {section.labelBadge}
+                      </span>
+                    )}
                   </SidebarGroupLabel>
                 )}
                 <SidebarGroupContent>
