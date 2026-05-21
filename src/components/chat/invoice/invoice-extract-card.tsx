@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import {
   Dialog,
   DialogContent,
