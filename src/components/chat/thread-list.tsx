@@ -236,7 +236,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               showStarredOnly
                 ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                : "text-slate-500 hover:text-slate-200",
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
             )}
             title="Chỉ hiển thị hội thoại đã đánh dấu sao"
           >
