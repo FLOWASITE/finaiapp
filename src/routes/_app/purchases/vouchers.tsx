@@ -247,7 +247,7 @@ function PurchaseVouchersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ["purchase-vouchers", search, status],
     queryFn: () =>
       listFn({ data: { search: search || undefined, status: status === "all" ? undefined : status } }),
