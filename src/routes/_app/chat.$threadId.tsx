@@ -299,7 +299,11 @@ function ThreadPage() {
           })),
           ...(attachments && attachments.length ? { attachments } : {}),
         },
-        signal: controller.signal,
+        // TanStack serverFn không forward `signal` trực tiếp — phải override fetch
+        // để gắn AbortSignal vào request, nhờ đó server `getRequest()?.signal`
+        // và client fetch đều dừng khi user bấm Stop.
+        fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+          globalThis.fetch(input, { ...(init ?? {}), signal: controller.signal }),
       } as any);
 
       for await (const ev of stream as AsyncIterable<any>) {
