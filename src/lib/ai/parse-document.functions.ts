@@ -18,6 +18,13 @@ const InputSchema = z.object({
   kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
 });
 
+const UploadOnlyInputSchema = InputSchema.pick({
+  fileBase64: true,
+  mimeType: true,
+  filename: true,
+  kind: true,
+});
+
 // ---------- Schemas ----------------------------------------------------
 
 const PurchaseInvoiceSchema = z.object({
@@ -1037,6 +1044,26 @@ export const parseDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
     return parseFileCore({ ...data, supabase, userId });
+  });
+
+export const uploadChatAttachment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UploadOnlyInputSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const fileBuf = Buffer.from(data.fileBase64, "base64");
+    const fileHash = await hashBase64(data.fileBase64);
+    const uploadInfo = await ensureUploadRow({
+      supabase,
+      userId,
+      fileBuf,
+      fileHash,
+      filename: data.filename,
+      mimeType: data.mimeType,
+      kind: data.kind,
+    });
+    if (!uploadInfo?.uploadId) throw new Error("Không lưu được file đính kèm");
+    return { uploadId: uploadInfo.uploadId, filePath: uploadInfo.filePath, file_hash: fileHash };
   });
 
 // ---- Signed URL để xem file gốc trong UI ----
