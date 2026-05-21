@@ -509,6 +509,25 @@ export function Composer({
           </div>
         </div>
       )}
+      {parsePhase !== null && (
+        <div className="mb-2 rounded-2xl border border-border/60 bg-card/80 p-3 shadow-lg backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <ParseProgressPanel
+            inline
+            phase={parsePhase}
+            files={parseFiles}
+            onContinue={parsePhase === "classifying" ? continueFromClassify : continueToReview}
+            onClose={closeParseDialog}
+            continueLabel={nextTarget === "/bank/import-statement" ? "Mở sao kê ngân hàng" : "Xem lại & chỉnh sửa"}
+            classifications={classifications}
+            uploadIds={parsedItems.map((p) => p.uploadId)}
+            decisions={decisions}
+            onDecisionChange={(idx: number, patch: Partial<ClassifyDecision>) =>
+              setDecisions((prev) => ({ ...prev, [idx]: { ...(prev[idx] ?? { action: "continue" }), ...patch } }))
+            }
+            onCreateBankAccount={handleCreateBankAccount}
+          />
+        </div>
+      )}
       <div
         className={cn(
           "group relative flex w-full items-end gap-2 rounded-3xl border bg-card/70 px-4 py-2.5 backdrop-blur-xl transition-all duration-200",
