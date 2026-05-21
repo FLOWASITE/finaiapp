@@ -141,12 +141,15 @@ function ThreadPage() {
       // Mark startedRef đã chạy cho temp id, đồng thời cho real id để
       // autostart không chạy lại sau khi navigate replace.
       startedRef.current = detail.realThreadId;
-      // Navigate replace sang URL thật, giữ nguyên view (skipReset).
+      // Navigate replace sang URL thật, giữ nguyên view (skipReset) + handoff.
       skipResetRef.current = true;
       navigate({
         to: "/chat/$threadId",
         params: { threadId: detail.realThreadId },
-        search: from ? { from } : {},
+        search: {
+          ...(from ? { from } : {}),
+          ...(handoff ? { handoff } : {}),
+        },
         replace: true,
       });
     };
@@ -154,11 +157,10 @@ function ThreadPage() {
       const detail = (e as CustomEvent<{ tempId: string; error?: string }>).detail;
       if (!detail || detail.tempId !== threadId) return;
       abortRef.current?.abort();
-      // Quay lại trang trước đó.
-      if (from) {
-        try {
-          window.location.href = from;
-        } catch {}
+      // Quay lại trang trước đó — dùng navigate (SPA) thay vì window.location
+      // để không full reload.
+      if (from && from.startsWith("/")) {
+        navigate({ to: from });
       } else {
         navigate({ to: "/chat" });
       }
