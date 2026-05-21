@@ -30,6 +30,8 @@ export type AttachmentPayload = {
   size: number;
   base64: string;
   kind: ImportKind;
+  uploadId?: string | null;
+  file_hash?: string | null;
 };
 
 export type ComposerProps = {
