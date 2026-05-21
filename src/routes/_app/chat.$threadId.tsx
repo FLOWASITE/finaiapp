@@ -557,6 +557,23 @@ function ThreadPage() {
   // immediately. On cold refresh, MessageList renders empty briefly while
   // getThread loads in the background — much less jarring than a blank screen.
 
+  if (creationError) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="max-w-sm rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+          <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" />
+          <p className="mb-1 text-sm font-medium">Không tạo được cuộc trò chuyện</p>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {creationError.message || "Đã xảy ra lỗi khi lưu hội thoại lên máy chủ."}
+          </p>
+          <Button size="sm" onClick={retryCreation} disabled={retrying}>
+            {retrying ? "Đang thử lại…" : "Thử lại"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (query.isError) {
     return (
       <div className="flex flex-1 items-center justify-center">
