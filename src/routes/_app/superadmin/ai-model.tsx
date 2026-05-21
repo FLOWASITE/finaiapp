@@ -306,6 +306,7 @@ function AiModelPage() {
       model_chat: c.model_chat ?? "",
       model_parse: c.model_parse ?? "",
       model_reasoning: c.model_reasoning ?? "",
+      model_classify: (c as any).model_classify ?? "",
       extra_headers_json:
         Object.keys(c.extra_headers ?? {}).length > 0
           ? JSON.stringify(c.extra_headers, null, 2)
