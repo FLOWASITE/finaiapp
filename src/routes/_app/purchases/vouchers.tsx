@@ -943,31 +943,38 @@ function CreateVoucherDialog({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-3">
                 <Label>Link tới Hoá đơn mua đã có</Label>
-                <Select value={header.invoice_id || "none"}
-                  onValueChange={(v) => {
-                    if (v === "none") { setHeader({ ...header, invoice_id: "" }); return; }
-                    const inv = invoices?.rows?.find((x: any) => x.id === v);
-                    if (inv) {
-                      setHeader({
-                        ...header,
-                        invoice_id: v,
-                        invoice_no: inv.invoice_no ?? "",
-                        invoice_date: inv.issue_date ?? "",
-                        supplier_id: inv.supplier_id ?? header.supplier_id,
-                        supplier_name: inv.supplier_name ?? header.supplier_name,
-                      });
-                    }
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="Không link" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Không link —</SelectItem>
-                    {(invoices?.rows ?? []).map((i: any) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.invoice_no ?? "—"} · {i.supplier_name} · {fmtMoney(i.total)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {invoicesLoading ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-sm text-muted-foreground bg-muted/50">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang tải danh sách hoá đơn…
+                  </div>
+                ) : (
+                  <Select value={header.invoice_id || "none"}
+                    onValueChange={(v) => {
+                      if (v === "none") { setHeader({ ...header, invoice_id: "" }); return; }
+                      const inv = invoices?.rows?.find((x: any) => x.id === v);
+                      if (inv) {
+                        setHeader({
+                          ...header,
+                          invoice_id: v,
+                          invoice_no: inv.invoice_no ?? "",
+                          invoice_date: inv.issue_date ?? "",
+                          supplier_id: inv.supplier_id ?? header.supplier_id,
+                          supplier_name: inv.supplier_name ?? header.supplier_name,
+                        });
+                      }
+                    }}>
+                    <SelectTrigger><SelectValue placeholder="Không link" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Không link —</SelectItem>
+                      {(invoices?.rows ?? []).map((i: any) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.invoice_no ?? "—"} · {i.supplier_name} · {fmtMoney(i.total)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label>Số hoá đơn</Label>
