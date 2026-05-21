@@ -140,8 +140,8 @@ function InboxAiPage() {
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const prevPendingRef = useRef<number | null>(null);
-  const [recentlyReadDelta, setRecentlyReadDelta] = useState<number | null>(null);
+
+
 
   const listFn = useServerFn(listInboxAi);
   const approveFn = useServerFn(approveInboxItem);
