@@ -821,12 +821,14 @@ export async function parseFileCore(opts: {
     }
 
     // ---- 2. Source acquisition
+    emitPhase({ name: "ocr", status: "start" });
     const { source, parserMs } = await acquireSource(
       opts.fileBase64,
       opts.mimeType,
       opts.filename,
       opts.kind,
     );
+    emitPhase({ name: "ocr", status: "done", ms: parserMs });
 
     // ---- 3. Models
     const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
