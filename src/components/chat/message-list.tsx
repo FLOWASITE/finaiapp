@@ -364,17 +364,18 @@ function InvoiceToolEvents({
   streaming: boolean;
 }) {
   // Group by toolCallId so we know if a parseDocument call is still in-flight.
-  type Pair = { call?: any; result?: any };
+  type Pair = { call?: any; result?: any; progress: any[] };
   const map = new Map<string, Pair>();
   const order: string[] = [];
   for (const ev of events) {
     const id = (ev as any).toolCallId as string;
     if (!map.has(id)) {
-      map.set(id, {});
+      map.set(id, { progress: [] });
       order.push(id);
     }
     const slot = map.get(id)!;
     if (ev.type === "tool-call") slot.call = ev;
+    else if ((ev as any).type === "tool-progress") slot.progress.push((ev as any).phase);
     else slot.result = ev;
   }
 
