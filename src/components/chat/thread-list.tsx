@@ -196,7 +196,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             <Button
               onClick={onNew}
               variant="outline"
-              className="w-full justify-start gap-2 rounded-xl border-white/10 bg-white/[0.03] text-slate-100 transition-colors hover:border-white/15 hover:bg-white/[0.06] hover:text-white"
+              className="w-full justify-start gap-2 rounded-xl border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <Plus className="h-4 w-4 text-primary" />
               Cuộc trò chuyện mới
