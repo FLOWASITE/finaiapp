@@ -2139,6 +2139,7 @@ export type Database = {
           invoice_series: string | null
           invoice_template: string | null
           issue_date: string | null
+          matched_at: string | null
           matched_purchase_invoice_id: string | null
           matched_sales_invoice_id: string | null
           notes: string | null
@@ -2185,6 +2186,7 @@ export type Database = {
           invoice_series?: string | null
           invoice_template?: string | null
           issue_date?: string | null
+          matched_at?: string | null
           matched_purchase_invoice_id?: string | null
           matched_sales_invoice_id?: string | null
           notes?: string | null
@@ -2231,6 +2233,7 @@ export type Database = {
           invoice_series?: string | null
           invoice_template?: string | null
           issue_date?: string | null
+          matched_at?: string | null
           matched_purchase_invoice_id?: string | null
           matched_sales_invoice_id?: string | null
           notes?: string | null
