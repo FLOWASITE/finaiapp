@@ -67,6 +67,8 @@ const LEDGER_KEYS = [
   "bank-accounts", "bank-book",
   // Kho
   "stock-card", "inventory-movements",
+  // Phiếu mua hàng
+  "purchase-vouchers",
 ];
 
 export function invalidateLedgers(qc: QueryClient) {
