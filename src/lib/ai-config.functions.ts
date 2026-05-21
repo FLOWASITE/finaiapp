@@ -76,6 +76,7 @@ export const saveAiModelConfig = createServerFn({ method: "POST" })
       model_chat: data.model_chat || null,
       model_parse: data.model_parse || null,
       model_reasoning: data.model_reasoning || null,
+      model_classify: data.model_classify || null,
       extra_headers: data.extra_headers ?? {},
       notes: data.notes || null,
       updated_by: userId,
