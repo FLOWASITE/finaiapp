@@ -171,6 +171,7 @@ function ThreadPage() {
           content: m.content,
           created_at: m.created_at,
           toolEvents: (m.metadata?.toolEvents as ToolEvent[] | undefined) ?? undefined,
+          attachments: (m.metadata as any)?.attachments ?? undefined,
         }));
 
   const restoredRef = useRef(false);
@@ -353,6 +354,7 @@ function ThreadPage() {
         role: m.role,
         content: m.content,
         created_at: m.created_at,
+        attachments: m.metadata?.attachments ?? undefined,
       }));
       let pendingAttachments: any[] | undefined;
       try {
@@ -362,6 +364,10 @@ function ThreadPage() {
           sessionStorage.removeItem(`__attach:${threadId}`);
         }
       } catch {}
+      const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
+      if (declaredAttachments?.length && !pendingAttachments?.length) {
+        toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
+      }
       runAssistant(hist, pendingAttachments);
       // Xoá autostart/optimistic khỏi URL (giữ nguyên id hiện tại, kể cả temp).
       navigate({
@@ -381,14 +387,22 @@ function ThreadPage() {
     const baseMsgs = messages.filter(
       (m, i) => !(i === messages.length - 1 && m.role === "assistant"),
     );
-    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q, created_at: new Date().toISOString() }];
-    setLocalMsgs(next);
     const metaAttachments = attachments?.map((a) => ({
       name: a.name,
       mime: a.mime,
       size: a.size,
       kind: a.kind,
     }));
+    const next: ChatMsg[] = [
+      ...baseMsgs,
+      {
+        role: "user",
+        content: q,
+        created_at: new Date().toISOString(),
+        ...(metaAttachments && metaAttachments.length ? { attachments: metaAttachments } : {}),
+      },
+    ];
+    setLocalMsgs(next);
     // Persist user message vào DB (đợi threadId thật nếu đang optimistic).
     void (async () => {
       try {

@@ -1,9 +1,16 @@
-import { Sparkles, User } from "lucide-react";
+import { Sparkles, User, FileText, Image as ImageIcon } from "lucide-react";
 import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { Markdown } from "@/components/chat/markdown";
 import { ToolCalls, type ToolEvent } from "@/components/chat/tool-calls";
 import { MessageActions } from "@/components/chat/message-actions";
 import { cn } from "@/lib/utils";
+
+export type ChatAttachmentMeta = {
+  name: string;
+  mime: string;
+  size?: number;
+  kind?: string;
+};
 
 export type ChatMsg = {
   id?: string;
@@ -11,7 +18,43 @@ export type ChatMsg = {
   content: string;
   toolEvents?: ToolEvent[];
   created_at?: string;
+  attachments?: ChatAttachmentMeta[];
 };
+
+function formatSize(n?: number) {
+  if (n == null) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function AttachmentChips({ items }: { items: ChatAttachmentMeta[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((a, idx) => {
+        const isImg = a.mime?.startsWith("image/");
+        return (
+          <div
+            key={`${a.name}-${idx}`}
+            className="flex max-w-[220px] items-center gap-2 rounded-xl border border-primary-foreground/20 bg-primary-foreground/10 px-2 py-1.5"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary-foreground/15">
+              {isImg ? <ImageIcon className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[11px] font-medium">{a.name}</div>
+              <div className="truncate text-[10px] uppercase opacity-70">
+                {(a.mime?.split("/")[1] || "file").toUpperCase()}
+                {a.size != null ? ` · ${formatSize(a.size)}` : ""}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 const WEEKDAYS_VI = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 
@@ -100,7 +143,16 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               )}
             >
               {isUser ? (
-                m.content
+                <div className="space-y-2">
+                  {m.attachments && m.attachments.length > 0 && (
+                    <AttachmentChips items={m.attachments} />
+                  )}
+                  {m.content ? (
+                    <div>{m.content}</div>
+                  ) : m.attachments && m.attachments.length > 0 ? (
+                    <div className="text-[11px] italic opacity-70">(đã đính kèm)</div>
+                  ) : null}
+                </div>
               ) : (
                 <>
                   <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
