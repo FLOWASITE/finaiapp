@@ -680,12 +680,12 @@ function CreateVoucherDialog({
                   onChange={(e) => setHeader({ ...header, exchange_rate: Number(e.target.value) })}
                   disabled={header.currency === "VND"} />
               </div>
-              <div className="col-span-2 text-right">
+              <div className="sm:col-span-2 text-right">
                 <div className="text-sm text-muted-foreground">Tổng</div>
-                <div className="text-3xl font-semibold text-primary">{fmtMoney(totals.total)}</div>
+                <div className="text-2xl sm:text-3xl font-semibold text-primary break-all">{fmtMoney(totals.total)}</div>
               </div>
 
-              <div className="col-span-4">
+              <div className="sm:col-span-2 lg:col-span-4">
                 <Label>Diễn giải</Label>
                 <Input value={header.reason}
                   onChange={(e) => setHeader({ ...header, reason: e.target.value })}
