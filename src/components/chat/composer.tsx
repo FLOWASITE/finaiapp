@@ -217,13 +217,21 @@ export function Composer({
     f.type === "text/xml" ||
     f.name.toLowerCase().endsWith(".xml");
 
+  const normalizedMime = (f: File) => {
+    const name = f.name.toLowerCase();
+    if (name.endsWith(".pdf")) return "application/pdf";
+    if (name.endsWith(".xml") && (!f.type || !f.type.includes("xml"))) return "application/xml";
+    return f.type || "application/octet-stream";
+  };
+
   const validateFiles = (files: File[]) =>
     files.filter((f) => {
+      const mime = normalizedMime(f);
       if (f.size > 12 * 1024 * 1024) {
         toast.error(`${f.name}: quá 12MB, bỏ qua`);
         return false;
       }
-      if (!f.type.startsWith("image/") && f.type !== "application/pdf" && !isXml(f)) {
+      if (!mime.startsWith("image/") && mime !== "application/pdf" && !isXml(f)) {
         toast.error(`${f.name}: chỉ PDF/ảnh/XML`);
         return false;
       }
@@ -243,7 +251,7 @@ export function Composer({
         const payloads: AttachmentPayload[] = [];
         for (const f of valid) {
           const base64 = await readBase64(f);
-          payloads.push({ name: f.name, mime: f.type, size: f.size, base64, kind });
+          payloads.push({ name: f.name, mime: normalizedMime(f), size: f.size, base64, kind });
         }
         setPending((prev) => [...prev, ...payloads]);
         toast.success(`Đã đính kèm ${payloads.length} file`, { id: toastId });
@@ -277,7 +285,7 @@ export function Composer({
         const base64 = await readBase64(file);
         updateFile(i, { phase: "parsing" });
         const res: any = await parseFn({
-          data: { fileBase64: base64, mimeType: file.type, filename: file.name, kind },
+          data: { fileBase64: base64, mimeType: normalizedMime(file), filename: file.name, kind },
         });
         updateFile(i, {
           phase: "done",
