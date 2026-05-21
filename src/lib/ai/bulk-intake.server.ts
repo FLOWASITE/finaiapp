@@ -137,10 +137,13 @@ async function ensureUploadQuick(opts: {
     }
 
     const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
-    const path = `ai-uploads/${opts.userId}/${Date.now()}-${safeName}`;
+    const path = `${opts.userId}/ai-uploads/${Date.now()}-${safeName}`;
     const { error: upErr } = await opts.supabase.storage
       .from("invoices")
       .upload(path, opts.fileBuf, { contentType: opts.mime, upsert: false });
+    if (upErr) {
+      console.error("[bulk-intake] storage upload failed", upErr);
+    }
 
     const { data: row } = await opts.supabase
       .from("ai_uploads")
