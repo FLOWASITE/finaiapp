@@ -18,6 +18,11 @@ import {
 import { askAccountingStream } from "@/lib/chat.functions";
 import type { ToolEvent } from "@/components/chat/tool-calls";
 import { toast } from "sonner";
+import {
+  stashChatAttachments,
+  takeAnyChatAttachmentHandoff,
+  takeChatAttachments,
+} from "@/lib/chat-attachment-handoff";
 
 const searchSchema = z.object({
   autostart: z.string().optional(),
@@ -386,38 +391,9 @@ function ThreadPage() {
         created_at: m.created_at,
         attachments: m.metadata?.attachments ?? undefined,
       }));
-      let pendingAttachments: any[] | undefined;
-      try {
-        // Thử lần lượt: handoff key (bền qua swap temp→real id), rồi
-        // thread key. Nếu vẫn không có (route từng remount/crash mất tham
-        // chiếu handoff), quét sessionStorage tìm key `__attach:h:*` duy
-        // nhất còn sót để tránh mất file.
-        const candidates: string[] = [];
-        if (handoff) candidates.push(`__attach:h:${handoff}`);
-        candidates.push(`__attach:${threadId}`);
-        for (const key of candidates) {
-          const raw = sessionStorage.getItem(key);
-          if (raw) {
-            pendingAttachments = JSON.parse(raw);
-            sessionStorage.removeItem(key);
-            break;
-          }
-        }
-        if (!pendingAttachments?.length) {
-          const handoffKeys: string[] = [];
-          for (let i = 0; i < sessionStorage.length; i++) {
-            const k = sessionStorage.key(i);
-            if (k && k.startsWith("__attach:h:")) handoffKeys.push(k);
-          }
-          if (handoffKeys.length === 1) {
-            const raw = sessionStorage.getItem(handoffKeys[0]);
-            if (raw) {
-              pendingAttachments = JSON.parse(raw);
-              sessionStorage.removeItem(handoffKeys[0]);
-            }
-          }
-        }
-      } catch {}
+      const pendingAttachments =
+        takeChatAttachments(handoff, [`__attach:${threadId}`]) ??
+        takeAnyChatAttachmentHandoff();
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
       if (declaredAttachments?.length && !pendingAttachments?.length) {
         toast.error("Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.");
@@ -491,9 +467,7 @@ function ThreadPage() {
 
   const handleAttach = (payloads: any[], note?: string) => {
     if (!payloads.length) return;
-    try {
-      sessionStorage.setItem(`__attach:${threadId}`, JSON.stringify(payloads));
-    } catch {}
+    stashChatAttachments(threadId, payloads, `__attach:${threadId}`);
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     // Truyền nguyên payloads (kèm base64) để runAssistant gửi file lên server parse.
@@ -510,16 +484,10 @@ function ThreadPage() {
         threadId: string;
         content: string;
         attachments?: any[];
+        handoff?: string;
       }>).detail;
       if (!detail || detail.threadId !== threadId) return;
-      let fullAttachments: any[] | undefined;
-      try {
-        const raw = sessionStorage.getItem(`__attach:${threadId}`);
-        if (raw) {
-          fullAttachments = JSON.parse(raw);
-          sessionStorage.removeItem(`__attach:${threadId}`);
-        }
-      } catch {}
+      const fullAttachments = takeChatAttachments(detail.handoff, [`__attach:${threadId}`]);
       void sendUserMessage(detail.content, fullAttachments ?? detail.attachments);
     };
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
