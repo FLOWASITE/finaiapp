@@ -2016,6 +2016,104 @@ export type Database = {
         }
         Relationships: []
       }
+      einvoice_journal_draft_lines: {
+        Row: {
+          account_code: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          draft_id: string
+          id: string
+          line_order: number
+        }
+        Insert: {
+          account_code: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          draft_id: string
+          id?: string
+          line_order?: number
+        }
+        Update: {
+          account_code?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          draft_id?: string
+          id?: string
+          line_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einvoice_journal_draft_lines_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "einvoice_journal_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      einvoice_journal_drafts: {
+        Row: {
+          created_at: string
+          description: string | null
+          einvoice_id: string
+          entry_date: string
+          id: string
+          posted_at: string | null
+          posted_entry_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          einvoice_id: string
+          entry_date: string
+          id?: string
+          posted_at?: string | null
+          posted_entry_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          einvoice_id?: string
+          entry_date?: string
+          id?: string
+          posted_at?: string | null
+          posted_entry_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einvoice_journal_drafts_einvoice_id_fkey"
+            columns: ["einvoice_id"]
+            isOneToOne: false
+            referencedRelation: "einvoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "einvoice_journal_drafts_posted_entry_id_fkey"
+            columns: ["posted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       einvoice_lines: {
         Row: {
           amount: number | null
