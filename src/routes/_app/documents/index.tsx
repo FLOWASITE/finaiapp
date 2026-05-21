@@ -237,6 +237,7 @@ function DocumentsPage() {
   const [toDate, setToDate] = useState<string>("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [issueFromDate, setIssueFromDate] = useState("");
   const [issueToDate, setIssueToDate] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
