@@ -126,6 +126,20 @@ export function InvoiceExtractCard({
   // Determine whether the left preview can be zoomed
   const canZoom = (isXml && !!parsed?._einvoice) || (isPdf && !!urlData?.url) || (isImage && !!urlData?.url);
 
+  // Mobile browsers (Android Chrome, iOS Safari trong WebView) thường không
+  // render PDF qua <iframe>. Nếu là PDF + đang ở mobile → mở thẳng URL gốc
+  // trong tab mới thay vì mở dialog iframe rỗng.
+  const isMobile =
+    typeof window !== "undefined" &&
+    !window.matchMedia("(min-width: 768px)").matches;
+  const openZoom = () => {
+    if (isPdf && isMobile && urlData?.url) {
+      window.open(urlData.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setZoomOpen(true);
+  };
+
   const renderZoomBtn = () =>
     canZoom ? (
       <button
@@ -133,7 +147,7 @@ export function InvoiceExtractCard({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setZoomOpen(true);
+          openZoom();
         }}
         className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/85 px-2 py-1 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground"
         title="Xem lớn"
