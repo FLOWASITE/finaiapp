@@ -14,9 +14,18 @@ function ChatLayout() {
   const [collapsed, setCollapsed] = useState<boolean>(false);
 
   useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(KEY) === "1");
-    } catch {}
+    const read = () => {
+      try {
+        setCollapsed(localStorage.getItem(KEY) === "1");
+      } catch {}
+    };
+    read();
+    window.addEventListener("chat-sidebar-toggle", read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener("chat-sidebar-toggle", read);
+      window.removeEventListener("storage", read);
+    };
   }, []);
 
   const toggle = () => {
