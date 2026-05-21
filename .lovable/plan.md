@@ -1,51 +1,51 @@
+## Bối cảnh
+
+Tại `/inbox` (ChatDock, chưa có thread), khi đính kèm file + gõ text rồi gửi:
+- Tin nhắn user lưu vào DB với `content = note (text)` và `metadata.attachments = [...]`.
+- Server function `askAccountingStream` nhận `question = note` và `attachments = [...]` riêng, rồi ghép vào prompt cuối qua `attachmentBlock`.
+
+Nhưng UI tin nhắn user (message-list) **không render** `metadata.attachments` → người dùng nhìn chat thấy chỉ có text (hoặc chỉ có file-summary nếu không gõ text), tưởng là "AI mất 1 trong 2". Bên cạnh đó, do `content` chỉ chứa note thuần, nếu autostart race khiến `__attach:${tempId}` bị xoá trước khi đọc (ví dụ remount), thì AI sẽ chỉ nhận text — file thực sự bị mất.
+
 ## Mục tiêu
 
-Tinh gọn header `/inbox` (`src/routes/_app/inbox.tsx` → component `InboxHeader`): nhận diện thương hiệu rõ ràng, lộ rõ workspace mode (AI ↔ Kế toán), và bỏ phần "AI online" gây nhiễu.
+1. UI hiển thị đầy đủ cả text + chip file ngay trên bong bóng tin nhắn của user — không còn ấn tượng "mất 1 trong 2".
+2. Đảm bảo cả text lẫn file đều thực sự đi tới server (không phụ thuộc thuần vào sessionStorage stash).
+3. Không thay đổi hành vi của các luồng khác (legacy parse → /import/preview, ghi âm, v.v.).
 
-## Thay đổi chính
+## Phạm vi
 
-### 1. Brand block (trái)
-- Đổi chữ `Sổ AI` → `FinAI` (font-semibold, tracking-tight).
-- Ô vuông avatar `S` (emerald) → logo `F` (giữ kiểu hiện tại để không phá layout) hoặc icon `Sparkles` trong khối gradient. Đề xuất: chữ `F` trắng trên nền `bg-primary` cho đồng bộ với toàn app.
-- Cập nhật `head meta.title` từ `"Sổ AI · FinAI"` → `"Inbox · FinAI"` (đỡ trùng lặp).
+Chỉ frontend / presentation. Không đụng `chat.functions.ts`, không đụng DB, không đụng RLS.
 
-### 2. Bỏ "AI online · đang theo dõi"
-- Xoá toàn bộ pill emerald có dot ping + text `AI online`/`vừa đọc N hoá đơn` (lines ~643-658).
-- Bỏ luôn prop `recentlyReadDelta` và effect tracking `prevPendingRef` nếu không còn dùng ở chỗ khác (kiểm tra: chỉ dùng trong header → an toàn xoá).
+## Thay đổi
 
-### 3. Thêm Mode switcher (AI ↔ Kế toán)
-- Dùng hook sẵn có `useWorkspace()` (`src/hooks/use-workspace.ts`) — đã có `workspace: "front" | "back"` và setter persist localStorage.
-- UI: một segmented control nhỏ, 2 nút bằng nhau, đặt ngay sau brand:
-  ```
-  [ ✨ AI ] [ 📊 Kế toán ]
-  ```
-  - Active: `bg-foreground text-background`
-  - Inactive: `text-muted-foreground hover:text-foreground`
-  - Icon: `Sparkles` cho AI, `Calculator` (lucide) cho Kế toán
-  - Click "Kế toán" → `setWorkspace("back")` rồi `navigate({ to: "/dashboard" })` (vì Inbox là trải nghiệm Front/AI; chuyển sang Back nên rời route).
-- Tooltip giải thích ngắn: "Chuyển sang chế độ kế toán đầy đủ".
+### 1. `src/components/chat/message-list.tsx` (và/hoặc bong bóng user)
+- Khi `message.role === "user"` và `message.metadata?.attachments?.length`, render danh sách chip file ở trên/dưới phần text:
+  - Icon (FileText / image preview nếu mime image), tên file, kích thước, đuôi.
+  - Style tương tự chip "pending" trong `composer.tsx` (rounded-xl, border-border/60, bg-background/80).
+- Nếu `content` rỗng thì vẫn render chip + có thể hiện placeholder mờ "(đã đính kèm)" để bong bóng không trống.
 
-### 4. Các đề xuất tinh chỉnh hợp lý kèm theo
-- **Period chip**: giữ nhưng đổi thành button mở `PeriodSwitcher` (hiện đang là `<div>` tĩnh) — sẵn có component `src/components/period-switcher.tsx`.
-- **Ask AI search**: rút gọn placeholder khi viewport hẹp; thêm shortcut hint `⌘K` luôn hiển thị từ `md` trở lên (hiện đang `sm:inline`, ổn — giữ).
-- **Separator dọc**: thêm separator giữa Mode switcher và Ask AI để phân nhóm thị giác.
-- **Avatar dropdown**: thêm mục "Chuyển workspace" trong dropdown để có lối tắt thứ hai (nhất quán với `WorkspaceSwitcher` ở sidebar).
-- **Accessibility**: thêm `aria-label` cho 2 nút mode; `title` tooltip "Đang ở chế độ AI".
+### 2. `src/components/chat/chat-dock.tsx` — `handleAttach`
+- Giữ `content = note (nếu có)` để question gửi server không bị "ô nhiễm" bằng file-summary.
+- Vẫn lưu `metadata.attachments` như hiện tại (đã có) để chip render được ở bước (1).
+- Không đổi server contract.
 
-## File chạm
+### 3. `src/routes/_app/chat.$threadId.tsx`
+- Trong `messages` mapping (line ~165) và trong `sendUserMessage` (line ~384): bổ sung `metadata` vào `ChatMsg` để chip hiển thị cả cho tin nhắn vừa gửi (optimistic) lẫn tin tải từ DB.
+- Type `ChatMsg` cần thêm `metadata?: { attachments?: Array<{name; mime; size; kind}> }`.
 
-- `src/routes/_app/inbox.tsx` — chỉ sửa `InboxHeader` (~ lines 607-730) + xoá `recentlyReadDelta` plumbing (~ lines 142, 171-180, 385).
+### 4. Phòng race attachments stash (an toàn nhẹ)
+- Trong `chat-dock.tsx > startOptimistic`: stash payloads vào sessionStorage **trước** khi `qc.setQueryData` + `navigate` (hiện đã đúng — chỉ thêm log/guard).
+- Trong `chat.$threadId.tsx` autostart effect: nếu `pendingAttachments` undefined nhưng `msgs[0].metadata?.attachments?.length`, hiển thị toast "Đã mất nội dung file đính kèm, vui lòng gửi lại" để người dùng không bị bối rối thay vì nghĩ "AI lờ file".
 
-## Không đổi
+## Out of scope
 
-- Toàn bộ tabs, stats strip, list logic.
-- Sidebar, các route khác.
-- Không tạo file mới, không đổi schema/DB.
+- Không thay đổi `askAccountingStream` (server đã đúng).
+- Không refactor composer chip path.
+- Không thay đổi luồng /chat/$threadId composer (đã đúng path qua `sendUserMessage`).
 
-## Câu hỏi xác nhận (nếu cần)
+## Kiểm thử nhanh sau khi build
 
-Bạn muốn nút "Kế toán" trong Mode switcher:
-- (a) Chỉ đổi workspace rồi ở lại `/inbox`?
-- (b) Đổi workspace và điều hướng sang `/dashboard` (Back workspace landing)?
-
-Mặc định plan dùng (b) vì Inbox AI là trải nghiệm Front; nếu bạn muốn (a) cứ nói khi approve.
+1. /inbox → Paperclip → chọn 1 PDF → gõ "xem hộ" → Send.
+2. Quan sát: bong bóng user hiện đủ "xem hộ" + chip PDF.
+3. AI phản hồi đề cập tới nội dung file (không phải greeting chung).
+4. Lặp lại với: chỉ file (không text) → hiện chip + placeholder; chỉ text → như cũ.
