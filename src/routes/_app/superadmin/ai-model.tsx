@@ -798,6 +798,16 @@ function AiModelPage() {
                 onlyFree={onlyFree}
                 placeholder="vd: deepseek/deepseek-r1"
               />
+              <ModelField
+                icon={<span className="text-sm">🗂️</span>}
+                label="Phân loại file khi upload"
+                hint="Tác vụ siêu nhẹ — chọn model rẻ & nhanh (gemini-flash-lite, qwen-turbo, gpt-4o-mini)."
+                value={form.model_classify}
+                onChange={(v) => update("model_classify", v)}
+                models={modelOptions}
+                onlyFree={onlyFree}
+                placeholder="vd: google/gemini-2.5-flash-lite"
+              />
             </div>
           </details>
         </div>
