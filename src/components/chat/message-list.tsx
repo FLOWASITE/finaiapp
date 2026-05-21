@@ -1,4 +1,6 @@
-import { Sparkles, User, FileText, Image as ImageIcon } from "lucide-react";
+import { Sparkles, User, FileText, Image as ImageIcon, Copy, Check, Pencil, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { Markdown } from "@/components/chat/markdown";
 import { ToolCalls, type ToolEvent } from "@/components/chat/tool-calls";
