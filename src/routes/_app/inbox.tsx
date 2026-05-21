@@ -65,7 +65,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const tabSchema = z.object({
+  tab: fallback(z.enum(["inbox", "posted", "review", "documents", "reports"]), "inbox").default("inbox"),
+});
+
 export const Route = createFileRoute("/_app/inbox")({
+  validateSearch: zodValidator(tabSchema),
   component: InboxAiPage,
   head: () => ({
     meta: [{ title: "Sổ AI · FinAI" }],
