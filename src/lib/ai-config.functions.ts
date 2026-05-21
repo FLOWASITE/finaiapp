@@ -36,6 +36,7 @@ export const getAiModelConfig = createServerFn({ method: "GET" })
         model_chat: data?.model_chat ?? "",
         model_parse: data?.model_parse ?? "",
         model_reasoning: data?.model_reasoning ?? "",
+        model_classify: (data as any)?.model_classify ?? "",
         extra_headers: (data?.extra_headers as Record<string, string>) ?? {},
         notes: data?.notes ?? "",
         updated_at: data?.updated_at ?? null,
