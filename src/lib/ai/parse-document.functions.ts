@@ -697,6 +697,12 @@ async function ensureUploadRow(opts: {
   }
 }
 
+export type ParsePhaseEvent = {
+  name: "ocr" | "extract" | "partner_match" | "rules_check";
+  status: "start" | "done";
+  ms?: number | null;
+};
+
 export async function parseFileCore(opts: {
   fileBase64: string;
   mimeType: string;
@@ -704,7 +710,11 @@ export async function parseFileCore(opts: {
   kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto";
   supabase?: any;
   userId?: string;
+  onPhase?: (phase: ParsePhaseEvent) => void;
 }) {
+  const emitPhase = (p: ParsePhaseEvent) => {
+    try { opts.onPhase?.(p); } catch {}
+  };
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
   const fileHash = await hashBase64(opts.fileBase64);
 
