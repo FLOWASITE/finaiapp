@@ -232,7 +232,12 @@ export const askAccountingStream = createServerFn({ method: "POST" })
             const isError =
               output && typeof output === "object" && "error" in output ? true : false;
             const toolName = (part as any).toolName as string | undefined;
-            const cap = toolName === "renderChart" ? 64000 : 4000;
+            const cap =
+              toolName === "renderChart"
+                ? 64000
+                : toolName === "parseDocument" || toolName === "proposeAction"
+                  ? 16000
+                  : 4000;
             yield {
               type: "tool-result",
               toolCallId: (part as any).toolCallId,
