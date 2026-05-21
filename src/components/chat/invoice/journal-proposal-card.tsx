@@ -145,9 +145,11 @@ type Props = {
   input: any;
   /** Optional summary fallback when we can't derive lines */
   summary?: string;
+  /** When true, drop the outer card chrome — useful when nested inside another card */
+  embedded?: boolean;
 };
 
-export function JournalProposalCard({ actionId, toolName, input, summary }: Props) {
+export function JournalProposalCard({ actionId, toolName, input, summary, embedded }: Props) {
   const approveFn = useServerFn(approveAiAction);
   const cancelFn = useServerFn(cancelAiAction);
   const qc = useQueryClient();
@@ -251,7 +253,12 @@ export function JournalProposalCard({ actionId, toolName, input, summary }: Prop
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
+    <div className={cn(
+      "overflow-hidden",
+      embedded
+        ? "h-full"
+        : "rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm",
+    )}>
       {/* Header */}
       <div className="border-b border-border/60 px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Bút toán đề xuất
