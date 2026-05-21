@@ -381,7 +381,7 @@ function ThreadPage() {
     const baseMsgs = messages.filter(
       (m, i) => !(i === messages.length - 1 && m.role === "assistant"),
     );
-    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q }];
+    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q, created_at: new Date().toISOString() }];
     setLocalMsgs(next);
     const metaAttachments = attachments?.map((a) => ({
       name: a.name,
