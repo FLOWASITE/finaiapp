@@ -268,6 +268,8 @@ function EInvoiceDetail() {
         </table>
       </div>
 
+      <EinvoiceDraftPanel einvoiceId={id} />
+
       <LinkEInvoiceDialog
         einvoiceId={id}
         direction={e.direction}
