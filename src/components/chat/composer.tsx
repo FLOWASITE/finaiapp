@@ -109,12 +109,45 @@ export function Composer({
     el.style.height = Math.min(el.scrollHeight, max) + "px";
   }, [value, compact]);
 
+  const canSubmit = () => !disabled && !loading && !uploading && (value.trim().length > 0 || pending.length > 0);
+
+  const doSubmit = () => {
+    if (!canSubmit()) return;
+    if (pending.length > 0 && onAttach) {
+      const note = value.trim();
+      const files = pending;
+      setPending([]);
+      onChange("");
+      onAttach(files, note || undefined);
+      return;
+    }
+    onSubmit();
+  };
+
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (!disabled && !loading && value.trim()) onSubmit();
+      doSubmit();
     }
   };
+
+  const removePending = (idx: number) =>
+    setPending((prev) => prev.filter((_, i) => i !== idx));
+
+  const previewUrl = useMemo(
+    () =>
+      pending.map((p) =>
+        p.mime.startsWith("image/") ? `data:${p.mime};base64,${p.base64}` : null,
+      ),
+    [pending],
+  );
+
+  const formatSize = (n: number) => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  };
+
 
   // ----- Mic (Web Speech API) -----
   const toggleVoice = () => {
