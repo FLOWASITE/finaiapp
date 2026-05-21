@@ -214,7 +214,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm hội thoại…"
-              className="h-9 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] pl-9 pr-8 text-xs text-slate-200 placeholder:text-slate-500 outline-none transition-all focus:border-primary/40 focus:bg-white/[0.08] focus:ring-1 focus:ring-primary/30"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition-all focus:border-primary/40 focus:bg-white focus:ring-1 focus:ring-primary/30"
             />
             {searchQuery && (
               <button
