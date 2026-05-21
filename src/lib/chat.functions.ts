@@ -9,12 +9,23 @@ import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { makeRenderChartTool } from "@/lib/ai/tools/chart.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { parseFileCore } from "@/lib/ai/parse-document.functions";
+import { buildBulkPlan } from "@/lib/ai/bulk-intake.server";
+import { loadUploadAsBase64 } from "@/lib/ai/upload-fetch.server";
+import { ACTION_HANDLERS } from "@/lib/ai/action-handlers.server";
 
 const AttachmentSchema = z.object({
   name: z.string(),
   mime: z.string(),
   base64: z.string(),
   kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
+});
+
+const BulkRunItemSchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  uploadId: z.string().nullable(),
+  kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]),
+  bucket: z.enum(["auto", "review", "ask"]),
 });
 
 const askInput = z.object({
@@ -26,7 +37,13 @@ const askInput = z.object({
   pageContext: z.string().optional(),
   /** Files attached to the user message — parsed inline before the LLM runs. */
   attachments: z.array(AttachmentSchema).optional(),
+  /** Bulk-run trigger: when present, server executes a previously-approved BulkPlan
+   *  instead of going through the LLM. */
+  bulkRun: z.object({ items: z.array(BulkRunItemSchema) }).optional(),
 });
+
+/** When ≥ this many files arrive in one message, switch to bulk intake mode. */
+const BULK_THRESHOLD = 3;
 
 export type AskStreamEvent =
   | { type: "text"; delta: string }
