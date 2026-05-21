@@ -704,12 +704,12 @@ function CreateVoucherDialog({
                   Tự phân bổ chi phí mua hàng
                 </label>
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs">Chiết khấu (%)</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">Chiết khấu (%)</Label>
                 <Input type="number" className="w-20 h-8" value={header.discount_pct}
                   onChange={(e) => setHeader({ ...header, discount_pct: Number(e.target.value), discount_amount: 0 })} />
-                <Label className="text-xs">Chiết khấu</Label>
-                <Input type="number" className="w-32 h-8" value={header.discount_amount}
+                <Label className="text-xs whitespace-nowrap">Chiết khấu</Label>
+                <Input type="number" className="w-28 sm:w-32 h-8" value={header.discount_amount}
                   onChange={(e) => setHeader({ ...header, discount_amount: Number(e.target.value), discount_pct: 0 })} />
               </div>
             </div>
