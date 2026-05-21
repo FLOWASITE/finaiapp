@@ -1406,6 +1406,7 @@ function SalesInvoicesTable({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
     setExpanded((m) => ({ ...m, [id]: !m[id] }));
+  const [viewerRow, setViewerRow] = useState<any | null>(null);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
