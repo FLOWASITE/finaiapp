@@ -22,7 +22,12 @@ import {
   takeAnyChatAttachmentHandoff,
   takeChatAttachments,
 } from "@/lib/chat-attachment-handoff";
-import { awaitThreadCreation } from "@/lib/chat-thread-handoff";
+import {
+  awaitThreadCreation,
+  getThreadCreationResult,
+  getThreadCreationRetry,
+  clearThreadCreationResult,
+} from "@/lib/chat-thread-handoff";
 
 const searchSchema = z.object({
   autostart: z.string().optional(),
