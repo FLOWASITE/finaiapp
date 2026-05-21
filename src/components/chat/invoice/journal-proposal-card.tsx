@@ -145,9 +145,11 @@ type Props = {
   input: any;
   /** Optional summary fallback when we can't derive lines */
   summary?: string;
+  /** When true, drop the outer card chrome — useful when nested inside another card */
+  embedded?: boolean;
 };
 
-export function JournalProposalCard({ actionId, toolName, input, summary }: Props) {
+export function JournalProposalCard({ actionId, toolName, input, summary, embedded }: Props) {
   const approveFn = useServerFn(approveAiAction);
   const cancelFn = useServerFn(cancelAiAction);
   const qc = useQueryClient();
