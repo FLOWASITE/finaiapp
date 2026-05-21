@@ -548,12 +548,12 @@ function CreateVoucherDialog({
         </DialogHeader>
 
         {/* Top toggle row */}
-        <div className="flex flex-wrap items-center gap-4 border-b pb-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Trạng thái TT</Label>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 border-b pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Label className="text-xs whitespace-nowrap">Trạng thái TT</Label>
             <Select value={header.payment_status}
               onValueChange={(v: any) => setHeader({ ...header, payment_status: v })}>
-              <SelectTrigger className="w-44 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-36 sm:w-44 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="unpaid">Chưa thanh toán</SelectItem>
                 <SelectItem value="partial">Thanh toán một phần</SelectItem>
@@ -561,11 +561,11 @@ function CreateVoucherDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Hình thức HĐ</Label>
+          <div className="flex items-center gap-2 min-w-0">
+            <Label className="text-xs whitespace-nowrap">Hình thức HĐ</Label>
             <Select value={header.invoice_receipt_type}
               onValueChange={(v: any) => setHeader({ ...header, invoice_receipt_type: v })}>
-              <SelectTrigger className="w-48 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40 sm:w-48 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="with_invoice">Nhận kèm hoá đơn</SelectItem>
                 <SelectItem value="without_invoice">Nhận chưa kèm hoá đơn</SelectItem>
