@@ -94,6 +94,7 @@ import { Route as AppInventoryMovementsRouteImport } from './routes/_app/invento
 import { Route as AppInventoryIdRouteImport } from './routes/_app/inventory/$id'
 import { Route as AppInboxLaneRouteImport } from './routes/_app/inbox_.$lane'
 import { Route as AppImportPreviewRouteImport } from './routes/_app/import.preview'
+import { Route as AppEinvoicesInboxRouteImport } from './routes/_app/einvoices/inbox'
 import { Route as AppEinvoicesCredentialsRouteImport } from './routes/_app/einvoices/credentials'
 import { Route as AppEinvoicesIdRouteImport } from './routes/_app/einvoices/$id'
 import { Route as AppCustomersGroupsRouteImport } from './routes/_app/customers/groups'
@@ -570,6 +571,11 @@ const AppImportPreviewRoute = AppImportPreviewRouteImport.update({
   path: '/import/preview',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEinvoicesInboxRoute = AppEinvoicesInboxRouteImport.update({
+  id: '/einvoices/inbox',
+  path: '/einvoices/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEinvoicesCredentialsRoute = AppEinvoicesCredentialsRouteImport.update({
   id: '/einvoices/credentials',
   path: '/einvoices/credentials',
@@ -862,6 +868,7 @@ export interface FileRoutesByFullPath {
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
+  '/einvoices/inbox': typeof AppEinvoicesInboxRoute
   '/import/preview': typeof AppImportPreviewRoute
   '/inbox/$lane': typeof AppInboxLaneRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -990,6 +997,7 @@ export interface FileRoutesByTo {
   '/customers/groups': typeof AppCustomersGroupsRoute
   '/einvoices/$id': typeof AppEinvoicesIdRoute
   '/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
+  '/einvoices/inbox': typeof AppEinvoicesInboxRoute
   '/import/preview': typeof AppImportPreviewRoute
   '/inbox/$lane': typeof AppInboxLaneRoute
   '/inventory/$id': typeof AppInventoryIdRoute
@@ -1126,6 +1134,7 @@ export interface FileRoutesById {
   '/_app/customers/groups': typeof AppCustomersGroupsRoute
   '/_app/einvoices/$id': typeof AppEinvoicesIdRoute
   '/_app/einvoices/credentials': typeof AppEinvoicesCredentialsRoute
+  '/_app/einvoices/inbox': typeof AppEinvoicesInboxRoute
   '/_app/import/preview': typeof AppImportPreviewRoute
   '/_app/inbox_/$lane': typeof AppInboxLaneRoute
   '/_app/inventory/$id': typeof AppInventoryIdRoute
@@ -1262,6 +1271,7 @@ export interface FileRouteTypes {
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
+    | '/einvoices/inbox'
     | '/import/preview'
     | '/inbox/$lane'
     | '/inventory/$id'
@@ -1390,6 +1400,7 @@ export interface FileRouteTypes {
     | '/customers/groups'
     | '/einvoices/$id'
     | '/einvoices/credentials'
+    | '/einvoices/inbox'
     | '/import/preview'
     | '/inbox/$lane'
     | '/inventory/$id'
@@ -1525,6 +1536,7 @@ export interface FileRouteTypes {
     | '/_app/customers/groups'
     | '/_app/einvoices/$id'
     | '/_app/einvoices/credentials'
+    | '/_app/einvoices/inbox'
     | '/_app/import/preview'
     | '/_app/inbox_/$lane'
     | '/_app/inventory/$id'
@@ -2226,6 +2238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportPreviewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/einvoices/inbox': {
+      id: '/_app/einvoices/inbox'
+      path: '/einvoices/inbox'
+      fullPath: '/einvoices/inbox'
+      preLoaderRoute: typeof AppEinvoicesInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/einvoices/credentials': {
       id: '/_app/einvoices/credentials'
       path: '/einvoices/credentials'
@@ -2787,6 +2806,7 @@ interface AppRouteChildren {
   AppCustomersGroupsRoute: typeof AppCustomersGroupsRoute
   AppEinvoicesIdRoute: typeof AppEinvoicesIdRoute
   AppEinvoicesCredentialsRoute: typeof AppEinvoicesCredentialsRoute
+  AppEinvoicesInboxRoute: typeof AppEinvoicesInboxRoute
   AppImportPreviewRoute: typeof AppImportPreviewRoute
   AppInboxLaneRoute: typeof AppInboxLaneRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
@@ -2876,6 +2896,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCustomersGroupsRoute: AppCustomersGroupsRoute,
   AppEinvoicesIdRoute: AppEinvoicesIdRoute,
   AppEinvoicesCredentialsRoute: AppEinvoicesCredentialsRoute,
+  AppEinvoicesInboxRoute: AppEinvoicesInboxRoute,
   AppImportPreviewRoute: AppImportPreviewRoute,
   AppInboxLaneRoute: AppInboxLaneRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,

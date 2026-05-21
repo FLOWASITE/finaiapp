@@ -200,6 +200,12 @@ function EInvoicesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild title="Hộp thư gợi ý ghép HĐĐT">
+            <Link to="/einvoices/inbox" search={{ tab }}>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              Hộp thư gợi ý
+            </Link>
+          </Button>
           <Button variant="outline" asChild title="Khai báo tài khoản TCT">
             <Link to="/einvoices/credentials">
               <KeyRound className="mr-2 h-4 w-4" />

@@ -2151,6 +2151,7 @@ export type Database = {
           source: string
           status: string
           subtotal: number | null
+          suggestion_dismissed: boolean
           tct_lookup_code: string | null
           tct_mcct: string | null
           tct_raw: Json | null
@@ -2196,6 +2197,7 @@ export type Database = {
           source?: string
           status?: string
           subtotal?: number | null
+          suggestion_dismissed?: boolean
           tct_lookup_code?: string | null
           tct_mcct?: string | null
           tct_raw?: Json | null
@@ -2241,6 +2243,7 @@ export type Database = {
           source?: string
           status?: string
           subtotal?: number | null
+          suggestion_dismissed?: boolean
           tct_lookup_code?: string | null
           tct_mcct?: string | null
           tct_raw?: Json | null
