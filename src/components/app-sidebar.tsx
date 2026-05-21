@@ -640,34 +640,60 @@ export function AppSidebar() {
         <SidebarFooter className="relative border-t border-sidebar-border/40 p-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-2 rounded-xl border border-sidebar-border/40 bg-sidebar-accent/25 backdrop-blur-sm px-2 py-1.5 hover:bg-sidebar-accent/50 hover:border-sidebar-border/60 transition-all duration-200">
-                <div className="relative">
+              <button
+                className={cn(
+                  "group relative flex w-full items-center gap-2.5 overflow-hidden rounded-2xl border border-sidebar-border/50 bg-gradient-to-br from-sidebar-accent/40 via-sidebar-accent/15 to-transparent px-2 py-2 text-left backdrop-blur-md transition-all duration-300",
+                  "hover:border-sidebar-primary/40 hover:from-sidebar-accent/60 hover:via-sidebar-accent/25 hover:shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--sidebar-primary)_45%,transparent)]",
+                  "data-[state=open]:border-sidebar-primary/50 data-[state=open]:from-sidebar-accent/60",
+                )}
+              >
+                {/* subtle hover glow */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  style={{
+                    background:
+                      "radial-gradient(120% 60% at 0% 50%, color-mix(in oklab, var(--sidebar-primary) 18%, transparent), transparent 60%)",
+                  }}
+                />
+                <div className="relative shrink-0">
                   <div
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-sidebar-accent-foreground text-xs font-bold ring-2 ring-sidebar-primary/25 shadow-[var(--shadow-ai-card)]"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_4px_14px_-2px_color-mix(in_oklab,var(--sidebar-primary)_55%,transparent)] ring-2 ring-sidebar/80"
                     style={{ background: "var(--gradient-ai)" }}
                   >
-                    {email.charAt(0).toUpperCase() || "U"}
+                    {(email.charAt(0) || "U").toUpperCase()}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar animate-pulse shadow-[0_0_8px_oklch(0.78_0.18_152/0.9)]" />
+                  {/* online dot: solid emerald with soft pulsing halo */}
+                  <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar" />
+                  </span>
                 </div>
                 {!collapsed && (
                   <>
-                    <div className="flex-1 min-w-0 text-left">
+                    <div className="relative min-w-0 flex-1">
                       {cuLoading && !cu ? (
                         <>
-                          <Skeleton className="h-3 w-24 mb-1" />
+                          <Skeleton className="mb-1 h-3 w-24" />
                           <Skeleton className="h-2.5 w-16" />
                         </>
                       ) : (
                         <>
-                          <div className="truncate text-[12.5px] font-semibold tracking-tight text-sidebar-foreground">
+                          <div className="truncate text-[12.5px] font-semibold leading-tight tracking-tight text-sidebar-foreground">
                             {email || "Người dùng"}
                           </div>
-                          <div className="text-[10.5px] font-medium tracking-wide text-sidebar-foreground/55">Lovable Cloud · Online</div>
+                          <div className="mt-0.5 flex items-center gap-1 text-[10px] font-medium tracking-wide text-sidebar-foreground/55">
+                            <span className="inline-block h-1 w-1 rounded-full bg-emerald-400" />
+                            Online
+                            <span className="text-sidebar-foreground/30">·</span>
+                            <span className="truncate">Lovable Cloud</span>
+                          </div>
                         </>
                       )}
                     </div>
-                    <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+                    <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent/40 text-sidebar-foreground/60 transition-all duration-200 group-hover:bg-sidebar-primary/15 group-hover:text-sidebar-primary">
+                      <ChevronsUpDown className="h-3.5 w-3.5" />
+                    </span>
                   </>
                 )}
               </button>
