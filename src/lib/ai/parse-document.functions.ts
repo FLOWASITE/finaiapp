@@ -728,11 +728,7 @@ export async function parseFileCore(opts: {
           } catch {}
         }
         if (opts.supabase) {
-          await writeParseCache(opts.supabase, fileHash, "purchase_invoice", {
-            parsed,
-            parser_used: "einvoice_xml",
-            pages: 1,
-          });
+          await writeParseCache(opts.supabase, fileHash, "purchase_invoice", parsed, "einvoice_xml", 1);
         }
         return {
           kind: "purchase_invoice",
