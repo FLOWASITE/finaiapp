@@ -68,16 +68,19 @@ function fmtVatRate(v: number | string | null | undefined): string {
 export function XmlInvoicePreview({
   data,
   signedUrl,
+  size = "default",
 }: {
   data: EinvoiceExtras;
   signedUrl?: string | null;
+  size?: "default" | "large";
 }) {
   const seller = data.seller ?? {};
   const buyer = data.buyer ?? {};
   const lines = data.lines ?? [];
   const t = data.totals ?? {};
-  const visible = lines.slice(0, 5);
-  const moreCount = Math.max(0, lines.length - visible.length);
+  const isLarge = size === "large";
+  const visible = isLarge ? lines : lines.slice(0, 5);
+  const moreCount = isLarge ? 0 : Math.max(0, lines.length - visible.length);
   const isCancelled = data.adjustment_kind === "cancelled";
   const adjustLabel =
     data.adjustment_kind === "replacement"
@@ -103,6 +106,19 @@ export function XmlInvoicePreview({
       () => toast.error("Không copy được mã CQT"),
     );
   };
+
+  // Size-driven class tokens
+  const px = isLarge ? "px-6" : "px-4";
+  const titleCls = isLarge ? "text-sm" : "text-[11px]";
+  const metaValCls = isLarge ? "text-[15px]" : "text-[12.5px]";
+  const partyNameCls = isLarge ? "text-base" : "text-[13px]";
+  const partyMetaCls = isLarge ? "text-[12px]" : "text-[11px]";
+  const tableCls = isLarge ? "text-[13px]" : "text-[11.5px]";
+  const tableHeadCls = isLarge ? "text-[11px]" : "text-[10px]";
+  const totalsCls = isLarge ? "text-[13px]" : "text-[11.5px]";
+  const grandCls = isLarge ? "text-2xl" : "text-[16px]";
+  const grandLabelCls = isLarge ? "text-[12px]" : "text-[11px]";
+  const footerCls = isLarge ? "text-[11px]" : "text-[10px]";
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:shadow-md">
