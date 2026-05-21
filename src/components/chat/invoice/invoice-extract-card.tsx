@@ -202,7 +202,7 @@ export function InvoiceExtractCard({
                   </a>
                 </div>
               </div>
-
+            ) : isImage && uploadId && !urlData && urlLoading ? (
               <div className="h-40 w-full animate-pulse rounded-md bg-muted" />
             ) : isImage && urlData?.url ? (
               <a
