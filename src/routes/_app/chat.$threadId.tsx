@@ -75,6 +75,12 @@ function ThreadPage() {
   const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
   const [creationError, setCreationError] = useState<Error | null>(null);
   const [retrying, setRetrying] = useState(false);
+  // Khi user reload trang trong lúc thread đang được tạo nền, in-memory
+  // promise store (window) bị xoá → awaitThreadCreation resolve ngay, getThread
+  // trả notFound. Cho phép page đợi thêm ~30s polling thay vì show "Không
+  // tìm thấy" liền.
+  const pendingDeadlineRef = useRef<number>(pending ? Date.now() + 30_000 : 0);
+  const [pendingExpired, setPendingExpired] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -97,6 +103,8 @@ function ThreadPage() {
         setCreationError(res.error);
         setCreationSettled(false); // chặn getThread chạy → tránh 404 nhiễu
       } else {
+        // Dù không có promise (vd: user vừa reload trang → window state đã mất)
+        // vẫn cho phép getThread chạy; polling bên dưới sẽ chờ row xuất hiện.
         setCreationError(null);
         setCreationSettled(true);
       }
@@ -113,6 +121,8 @@ function ThreadPage() {
       clearThreadCreationResult(threadId);
       setCreationError(null);
       setCreationSettled(true);
+      pendingDeadlineRef.current = Date.now() + 30_000;
+      setPendingExpired(false);
       return;
     }
     setRetrying(true);
@@ -132,7 +142,29 @@ function ThreadPage() {
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
     enabled: creationSettled && !creationError,
+    // Khi đang ở giai đoạn pending (vừa điều hướng optimistic hoặc user reload
+    // trong lúc background insert đang chạy) và server vẫn trả notFound → tiếp
+    // tục poll mỗi 1s tới khi quá hạn.
+    refetchInterval: (q) => {
+      if (!pending || pendingExpired) return false;
+      const data: any = q.state.data;
+      if (data && data.notFound) return 1000;
+      return false;
+    },
   });
+
+  // Khi quá hạn chờ tạo thread → dừng polling và hiển thị notFound thật.
+  useEffect(() => {
+    if (!pending || pendingExpired) return;
+    if (!query.data?.notFound) return;
+    const remaining = pendingDeadlineRef.current - Date.now();
+    if (remaining <= 0) {
+      setPendingExpired(true);
+      return;
+    }
+    const t = setTimeout(() => setPendingExpired(true), remaining);
+    return () => clearTimeout(t);
+  }, [pending, pendingExpired, query.data]);
 
   useEffect(() => {
     setLocalMsgs([]);
