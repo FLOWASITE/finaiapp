@@ -306,7 +306,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-white/10 hover:text-white group-hover:opacity-100 data-[state=open]:opacity-100"
+                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100 data-[state=open]:opacity-100"
                             aria-label="Tuỳ chọn"
                           >
                             <MoreHorizontal className="h-3.5 w-3.5" />
