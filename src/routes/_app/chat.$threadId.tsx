@@ -354,6 +354,7 @@ function ThreadPage() {
         role: m.role,
         content: m.content,
         created_at: m.created_at,
+        attachments: m.metadata?.attachments ?? undefined,
       }));
       let pendingAttachments: any[] | undefined;
       try {
@@ -363,6 +364,10 @@ function ThreadPage() {
           sessionStorage.removeItem(`__attach:${threadId}`);
         }
       } catch {}
+      const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
+      if (declaredAttachments?.length && !pendingAttachments?.length) {
+        toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
+      }
       runAssistant(hist, pendingAttachments);
       // Xoá autostart/optimistic khỏi URL (giữ nguyên id hiện tại, kể cả temp).
       navigate({
