@@ -56,12 +56,14 @@ export function ChatDock() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
   const [historySearch, setHistorySearch] = useState("");
+  const [historyPrefetch, setHistoryPrefetch] = useState(false);
 
   const threadsQuery = useQuery({
     queryKey: ["chat", "threads", "recent", "all"],
     queryFn: () => listFn({ data: { kind: "all" } }),
-    staleTime: 15_000,
-    enabled: historyOpen,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled: historyOpen || historyPrefetch,
   });
 
   // ---- Daily digest badge ----
