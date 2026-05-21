@@ -14,7 +14,7 @@ import {
 import { parseDocument } from "@/lib/ai/parse-document.functions";
 import { classifyImports, resolveBankAccount } from "@/lib/ai/classify-import.functions";
 import {
-  ParseProgressDialog,
+  ParseProgressPanel,
   type FileProgress,
   type Phase,
   type ClassificationResult,
