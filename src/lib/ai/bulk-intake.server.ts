@@ -252,8 +252,17 @@ export async function buildBulkPlan(opts: {
     other: 0,
   };
 
-  // Phase 1: hash + dedupe in-batch
+  // ---- Phase 1: hash + dedupe + upload (tuần tự để tránh đụng storage) ----
+  type Pending = {
+    att: Att;
+    baseItem: BulkItem;
+    cls: ReturnType<typeof classifyGroup>;
+    uploadId: string | null;
+    shouldAi: boolean;
+  };
+  const pendings: Pending[] = [];
   const seenInBatch = new Set<string>();
+
   for (let i = 0; i < opts.attachments.length; i++) {
     const att = opts.attachments[i];
     const fileBuf = Buffer.from(att.base64, "base64");
@@ -308,8 +317,7 @@ export async function buildBulkPlan(opts: {
       continue;
     }
 
-    // AI classify (best-effort) — chỉ chạy cho PDF/ảnh/Excel có khả năng đoán được
-    const shouldAiClassify =
+    const shouldAi =
       att.mime === "application/pdf" ||
       att.mime.startsWith("image/") ||
       att.mime.includes("spreadsheet") ||
@@ -317,23 +325,37 @@ export async function buildBulkPlan(opts: {
       isXmlFile(att.mime, att.name) ||
       looksLikeEinvoiceXml(att.base64);
 
-    let finalGroup = cls.group;
-    let finalKind = cls.kind;
-    let finalBucket = cls.bucket;
-    let finalReason = cls.reason;
-    let finalConfidence = cls.confidence;
+    pendings.push({
+      att,
+      baseItem: { ...baseItem, uploadId: up.uploadId },
+      cls,
+      uploadId: up.uploadId,
+      shouldAi,
+    });
+  }
 
-    if (shouldAiClassify) {
+  // ---- Phase 2: classify song song (concurrency 4) ----
+  const CONCURRENCY = 4;
+  const finalized: BulkItem[] = new Array(pendings.length);
+
+  async function runOne(idx: number) {
+    const p = pendings[idx];
+    let finalGroup = p.cls.group;
+    let finalKind = p.cls.kind;
+    let finalBucket = p.cls.bucket;
+    let finalReason = p.cls.reason;
+    let finalConfidence = p.cls.confidence;
+
+    if (p.shouldAi) {
       try {
         const ai = await classifyFile({
           supabase: opts.supabase,
           userId: opts.userId,
-          filename: att.name,
-          mime: att.mime,
-          base64: att.base64,
-          fileHash,
+          filename: p.att.name,
+          mime: p.att.mime,
+          base64: p.att.base64,
+          fileHash: p.baseItem.fileHash,
         });
-        // AI là nguồn chính. Heuristic chỉ giữ khi AI lỗi.
         finalGroup = kindToGroup(ai.kind);
         finalKind = kindToItemKind(ai.kind);
         finalConfidence = ai.confidence;
@@ -348,11 +370,13 @@ export async function buildBulkPlan(opts: {
                   ? `Phiếu thu/chi — ${ai.reason}`
                   : ai.reason;
 
-        // Bucket: AI conf cao → auto, trung bình → review, thấp → ask
         if (ai.kind === "other") {
           finalBucket = "ask";
-        } else if (ai.kind === "sales_invoice" || ai.kind === "bank_statement" || ai.kind === "cash_voucher") {
-          // Các loại này luôn cần sếp xem lại (chưa có flow auto-post)
+        } else if (
+          ai.kind === "sales_invoice" ||
+          ai.kind === "bank_statement" ||
+          ai.kind === "cash_voucher"
+        ) {
           finalBucket = "review";
         } else if (ai.kind === "purchase_invoice") {
           if (ai.confidence >= 0.85) finalBucket = "auto";
@@ -361,22 +385,35 @@ export async function buildBulkPlan(opts: {
         }
       } catch (e: any) {
         console.warn("[bulk-intake] classify err:", e?.message);
-        // AI lỗi → hạ bucket xuống ask để sếp xác nhận, không tin heuristic
         finalBucket = "ask";
-        finalReason = `${cls.reason} (AI phân loại lỗi — cần sếp xác nhận)`;
+        finalReason = `${p.cls.reason} (AI phân loại lỗi — cần sếp xác nhận)`;
       }
     }
 
-    items.push({
-      ...baseItem,
-      uploadId: up.uploadId,
+    finalized[idx] = {
+      ...p.baseItem,
       group: finalGroup,
       kind: finalKind,
       bucket: finalBucket,
       reason: finalReason,
       confidence: finalConfidence,
-    });
-    groupCounts[finalGroup]++;
+    };
+  }
+
+  // Pool concurrency đơn giản
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(CONCURRENCY, pendings.length) }, async () => {
+    while (true) {
+      const my = cursor++;
+      if (my >= pendings.length) return;
+      await runOne(my);
+    }
+  });
+  await Promise.all(workers);
+
+  for (const it of finalized) {
+    items.push(it);
+    groupCounts[it.group]++;
   }
 
   // ETA: ~12 sec per auto item (parse + post)
