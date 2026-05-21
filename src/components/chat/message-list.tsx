@@ -1,4 +1,6 @@
-import { Sparkles, User, FileText, Image as ImageIcon } from "lucide-react";
+import { Sparkles, User, FileText, Image as ImageIcon, Copy, Check, Pencil, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
 import { Markdown } from "@/components/chat/markdown";
 import { ToolCalls, type ToolEvent } from "@/components/chat/tool-calls";
@@ -183,76 +185,70 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                 </div>
               </div>
             )}
-            <div
-              className={cn(
-                "min-w-0 text-sm leading-relaxed",
-                isUser
-                  ? "max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-3xl px-5 py-3 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/10"
-                  : "flex-1 text-slate-800",
-              )}
-              style={
-                isUser
-                  ? { background: "var(--gradient-ai)" }
-                  : undefined
-              }
-            >
-              {isUser ? (
-                <div className="space-y-2">
-                  {m.attachments && m.attachments.length > 0 && (
-                    <AttachmentChips items={m.attachments} />
-                  )}
-                  {m.content ? (
-                    <div>{m.content}</div>
-                  ) : m.attachments && m.attachments.length > 0 ? (
-                    <div className="text-[11px] italic opacity-70">(đã đính kèm)</div>
-                  ) : null}
-                </div>
-              ) : (
-                <>
-                  <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Trợ lý
-                    <span className="h-1 w-1 rounded-full bg-slate-300" />
-                    <span className="font-medium normal-case tracking-normal text-slate-400">
-                      AI kế toán
-                    </span>
+            {isUser ? (
+              <div className="flex min-w-0 max-w-[78%] flex-col items-end">
+                <div
+                  className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-3xl px-5 py-3 text-sm leading-relaxed text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/10"
+                  style={{ background: "var(--gradient-ai)" }}
+                >
+                  <div className="space-y-2">
+                    {m.attachments && m.attachments.length > 0 && (
+                      <AttachmentChips items={m.attachments} />
+                    )}
+                    {m.content ? (
+                      <div>{m.content}</div>
+                    ) : m.attachments && m.attachments.length > 0 ? (
+                      <div className="text-[11px] italic opacity-70">(đã đính kèm)</div>
+                    ) : null}
                   </div>
-                  {m.toolEvents && m.toolEvents.length > 0 && (
-                    <div className="mb-3 space-y-3">
-                      <InvoiceToolEvents events={m.toolEvents} streaming={!!streaming && isLast} />
-                      <ToolCalls
-                        events={m.toolEvents.filter(
-                          (ev) =>
-                            !(
-                              (ev as any).toolName === "parseDocument" ||
-                              (ev as any).toolName === "proposeAction"
-                            ),
-                        )}
-                      />
-                    </div>
-                  )}
-                  {m.content ? (
-                    <div className="space-y-3">
-                      {parseChartBlocks(m.content).map((part, idx) =>
-                        part.type === "chart" ? (
-                          <ChartBlock key={idx} spec={part.spec} />
-                        ) : (
-                          <Markdown key={idx}>{part.value}</Markdown>
-                        ),
+                </div>
+                <UserMessageActions content={m.content} createdAt={m.created_at} />
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-800">
+                <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Trợ lý
+                  <span className="h-1 w-1 rounded-full bg-slate-300" />
+                  <span className="font-medium normal-case tracking-normal text-slate-400">
+                    AI kế toán
+                  </span>
+                </div>
+                {m.toolEvents && m.toolEvents.length > 0 && (
+                  <div className="mb-3 space-y-3">
+                    <InvoiceToolEvents events={m.toolEvents} streaming={!!streaming && isLast} />
+                    <ToolCalls
+                      events={m.toolEvents.filter(
+                        (ev) =>
+                          !(
+                            (ev as any).toolName === "parseDocument" ||
+                            (ev as any).toolName === "proposeAction"
+                          ),
                       )}
-                    </div>
-                  ) : streaming && isLast ? (
-                    <ThinkingIndicator />
-                  ) : null}
-                  {m.content && !(streaming && isLast) && (
-                    <MessageActions
-                      content={m.content}
-                      canRegenerate={isLastAssistant && !!onRegenerate}
-                      onRegenerate={onRegenerate}
                     />
-                  )}
-                </>
-              )}
-            </div>
+                  </div>
+                )}
+                {m.content ? (
+                  <div className="space-y-3">
+                    {parseChartBlocks(m.content).map((part, idx) =>
+                      part.type === "chart" ? (
+                        <ChartBlock key={idx} spec={part.spec} />
+                      ) : (
+                        <Markdown key={idx}>{part.value}</Markdown>
+                      ),
+                    )}
+                  </div>
+                ) : streaming && isLast ? (
+                  <ThinkingIndicator />
+                ) : null}
+                {m.content && !(streaming && isLast) && (
+                  <MessageActions
+                    content={m.content}
+                    canRegenerate={isLastAssistant && !!onRegenerate}
+                    onRegenerate={onRegenerate}
+                  />
+                )}
+              </div>
+            )}
             {isUser && (
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 shadow-sm">
                 <User className="h-4 w-4" />
@@ -263,6 +259,84 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
         );
       })}
     </div>
+  );
+}
+
+function UserMessageActions({ content, createdAt }: { content: string; createdAt?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const time = createdAt
+    ? new Date(createdAt).toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const copy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      toast.success("Đã sao chép");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Không sao chép được");
+    }
+  };
+
+  const edit = () => {
+    if (!content) return;
+    window.dispatchEvent(
+      new CustomEvent("chat:edit-user-msg", { detail: { content } }),
+    );
+  };
+
+  const resend = () => {
+    if (!content) return;
+    window.dispatchEvent(
+      new CustomEvent("chat:resend-user-msg", { detail: { content } }),
+    );
+  };
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1 text-slate-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+      {time && <span className="px-1 text-[11px] tabular-nums">{time}</span>}
+      <ActionMini onClick={resend} title="Gửi lại">
+        <RefreshCw className="h-3.5 w-3.5" />
+      </ActionMini>
+      <ActionMini onClick={edit} title="Sửa và gửi lại">
+        <Pencil className="h-3.5 w-3.5" />
+      </ActionMini>
+      <ActionMini onClick={copy} title={copied ? "Đã sao chép" : "Sao chép"}>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </ActionMini>
+    </div>
+  );
+}
+
+function ActionMini({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+    >
+      {children}
+    </button>
   );
 }
 

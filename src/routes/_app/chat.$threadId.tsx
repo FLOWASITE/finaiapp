@@ -494,6 +494,27 @@ function ThreadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, messages]);
 
+  // Edit/Resend từ hover-actions trên user message bubble.
+  useEffect(() => {
+    const onEdit = (e: Event) => {
+      const detail = (e as CustomEvent<{ content: string }>).detail;
+      if (!detail?.content) return;
+      setInput(detail.content);
+    };
+    const onResend = (e: Event) => {
+      const detail = (e as CustomEvent<{ content: string }>).detail;
+      if (!detail?.content) return;
+      void sendUserMessage(detail.content);
+    };
+    window.addEventListener("chat:edit-user-msg", onEdit as EventListener);
+    window.addEventListener("chat:resend-user-msg", onResend as EventListener);
+    return () => {
+      window.removeEventListener("chat:edit-user-msg", onEdit as EventListener);
+      window.removeEventListener("chat:resend-user-msg", onResend as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, messages]);
+
   // Bulk plan run: user clicked "Chạy kế hoạch" on a BulkIntakeCard.
   useEffect(() => {
     const onRunBulk = (e: Event) => {
