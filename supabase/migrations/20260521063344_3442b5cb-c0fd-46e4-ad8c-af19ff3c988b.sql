@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_uploads ADD COLUMN IF NOT EXISTS classify_meta jsonb;
