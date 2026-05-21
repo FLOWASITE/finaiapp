@@ -193,7 +193,7 @@ export function Composer({
     const valid = validateFiles(files);
     if (!valid.length) return;
 
-    // --- New path: hand off to parent (xử lý ngay trong phòng chat) ---
+    // --- New path: stash as pending chips, gửi cùng message khi user bấm Gửi ---
     if (onAttach) {
       setUploading(true);
       const toastId = toast.loading(`Đang đọc ${valid.length} file…`);
@@ -203,8 +203,10 @@ export function Composer({
           const base64 = await readBase64(f);
           payloads.push({ name: f.name, mime: f.type, size: f.size, base64, kind });
         }
+        setPending((prev) => [...prev, ...payloads]);
         toast.success(`Đã đính kèm ${payloads.length} file`, { id: toastId });
-        onAttach(payloads);
+        // Focus lại textarea để user gõ ghi chú.
+        setTimeout(() => ref.current?.focus(), 0);
       } catch (e: any) {
         toast.error(e?.message || "Không đọc được file", { id: toastId });
       } finally {
@@ -213,6 +215,7 @@ export function Composer({
       }
       return;
     }
+
 
     // --- Legacy path: parse client-side + show 2-phase dialog ---
     setUploading(true);
