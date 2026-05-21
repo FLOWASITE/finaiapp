@@ -1557,3 +1557,155 @@ function SalesInvoicesTable({
     </>
   );
 }
+
+function InvoiceViewerDialog({
+  docId,
+  invoiceInfo,
+  detailHref,
+  onOpenDrawer,
+  onClose,
+}: {
+  docId: string | null;
+  invoiceInfo: {
+    invoice_no?: string | null;
+    issue_date?: string | null;
+    party_label: string;
+    party_name?: string | null;
+    party_tax_id?: string | null;
+    subtotal?: number | null;
+    vat_amount?: number | null;
+    total?: number | null;
+    lines_summary?: string | null;
+  } | null;
+  detailHref?: { to: "/invoices/$id" | "/sales/$id"; params: { id: string } } | null;
+  onOpenDrawer: (id: string) => void;
+  onClose: () => void;
+}) {
+  const getDoc = useServerFn(getDocument);
+  const { data, isLoading } = useQuery({
+    queryKey: ["document", docId],
+    queryFn: () => getDoc({ data: { id: docId! } }),
+    enabled: !!docId,
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const doc = data?.doc;
+  const einvoice = (doc?.ocr_extracted as any)?._einvoice ?? null;
+
+  return (
+    <Dialog open={!!docId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden p-0">
+        <DialogHeader className="px-5 pt-4 pb-2 border-b">
+          <DialogTitle className="text-sm font-semibold">
+            {invoiceInfo?.invoice_no
+              ? `HĐ ${invoiceInfo.invoice_no}`
+              : (doc?.original_filename ?? "Hoá đơn")}
+            {doc?.original_filename && invoiceInfo?.invoice_no ? (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                · {doc.original_filename}
+              </span>
+            ) : null}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-0 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] max-h-[78vh] overflow-hidden">
+          {/* Left: file viewer */}
+          <div className="relative overflow-auto border-b md:border-b-0 md:border-r bg-muted/20 p-4">
+            {isLoading ? (
+              <Skeleton className="h-[60vh] w-full" />
+            ) : doc ? (
+              <InvoiceFileViewer
+                einvoice={einvoice}
+                signedUrl={data?.signedUrl}
+                mimeType={doc.mime_type}
+                filename={doc.original_filename}
+              />
+            ) : (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                Không tải được tài liệu.
+              </div>
+            )}
+          </div>
+
+          {/* Right: extracted info */}
+          <div className="overflow-auto p-5 space-y-4 text-sm">
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Thông tin hoá đơn
+              </div>
+              <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2 pt-1">
+                <dt className="text-xs text-muted-foreground self-center">Số HĐ</dt>
+                <dd className="font-semibold">{invoiceInfo?.invoice_no ?? "—"}</dd>
+                <dt className="text-xs text-muted-foreground self-center">Ngày</dt>
+                <dd>{invoiceInfo?.issue_date ?? "—"}</dd>
+                <dt className="text-xs text-muted-foreground self-center">
+                  {invoiceInfo?.party_label}
+                </dt>
+                <dd>
+                  <div className="font-medium">{invoiceInfo?.party_name ?? "—"}</div>
+                  {invoiceInfo?.party_tax_id ? (
+                    <div className="text-xs text-muted-foreground font-mono">
+                      {invoiceInfo.party_tax_id}
+                    </div>
+                  ) : null}
+                </dd>
+                {invoiceInfo?.lines_summary ? (
+                  <>
+                    <dt className="text-xs text-muted-foreground self-start pt-0.5">Mặt hàng</dt>
+                    <dd className="text-muted-foreground">{invoiceInfo.lines_summary}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </div>
+
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Tiền trước thuế</span>
+                <span className="font-mono">{vnd(invoiceInfo?.subtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">VAT</span>
+                <span className="font-mono">{vnd(invoiceInfo?.vat_amount)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-2">
+                <span className="text-xs font-semibold">Tổng sau thuế</span>
+                <span className="font-mono font-bold text-base">{vnd(invoiceInfo?.total)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2 border-t">
+              {detailHref ? (
+                <Button asChild variant="default" size="sm">
+                  <Link to={detailHref.to} params={detailHref.params}>
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    Mở chi tiết hoá đơn
+                  </Link>
+                </Button>
+              ) : null}
+              {doc ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onOpenDrawer(doc.id);
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  Mở chi tiết tài liệu
+                </Button>
+              ) : null}
+              {data?.signedUrl ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={data.signedUrl} download={doc?.original_filename ?? ""}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" /> Tải file gốc
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
