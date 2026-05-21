@@ -516,6 +516,41 @@ function DocumentsPage() {
                     </div>
                   </>
                 )}
+                {currentTab === "sales" && (
+                  <>
+                    <div className="border-t pt-2 space-y-2">
+                      <div className="text-xs font-semibold text-muted-foreground">Lọc theo hoá đơn</div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Số hoá đơn</label>
+                        <Input
+                          placeholder="VD: 0000123"
+                          value={invoiceNo}
+                          onChange={(e) => setInvoiceNo(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Khách hàng / MST</label>
+                        <Input
+                          placeholder="Tên KH hoặc MST..."
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Ngày HĐ từ</label>
+                          <Input type="date" value={issueFromDate} onChange={(e) => setIssueFromDate(e.target.value)} className="h-9" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Ngày HĐ đến</label>
+                          <Input type="date" value={issueToDate} onChange={(e) => setIssueToDate(e.target.value)} className="h-9" />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
                 {activeCount > 0 && (
                   <Button size="sm" variant="ghost" className="w-full h-8" onClick={resetFilters}>
                     Xoá tất cả bộ lọc
