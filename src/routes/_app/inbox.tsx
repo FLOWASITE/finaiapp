@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -63,7 +65,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const tabSchema = z.object({
+  tab: fallback(z.enum(["inbox", "posted", "review", "documents", "reports"]), "inbox").default("inbox"),
+});
+
 export const Route = createFileRoute("/_app/inbox")({
+  validateSearch: zodValidator(tabSchema),
   component: InboxAiPage,
   head: () => ({
     meta: [{ title: "Sổ AI · FinAI" }],
@@ -117,7 +124,14 @@ function periodLabel() {
 
 
 function InboxAiPage() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("inbox");
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: "/inbox" });
+  const setTab = useCallback(
+    (next: (typeof TABS)[number]["key"]) => {
+      navigate({ search: (prev: { tab?: string }) => ({ ...prev, tab: next }), replace: false });
+    },
+    [navigate],
+  );
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
   
