@@ -794,7 +794,8 @@ export async function parseFileCore(opts: {
       }
     } catch (err: any) {
       console.warn("[parse-document] structurer failed:", err?.message);
-      if (source.kind === "markdown") {
+      // Fallback: retry without structured schema using vision model + raw file.
+      try {
         const r = await generateText({
           model: visionModel,
           messages: [
@@ -808,8 +809,8 @@ export async function parseFileCore(opts: {
           ],
         });
         parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
-      } else {
-        throw err;
+      } catch (err2: any) {
+        parsed = { raw: null, _schemaError: err?.message, _fallbackError: err2?.message };
       }
     }
     const structurerMs = Date.now() - structStart;
