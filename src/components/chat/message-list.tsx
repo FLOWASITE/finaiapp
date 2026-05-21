@@ -127,7 +127,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
   })();
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+    <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
       {messages.map((m, i) => {
         if (m.role === "system") return null;
         const isUser = m.role === "user";
@@ -150,11 +150,15 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
         }
 
         return (
-          <div key={m.id ?? i} className="space-y-8">
+          <div key={m.id ?? i} className="space-y-6">
             {showDivider && m.created_at && (
-              <div className="flex items-center justify-center pt-2">
-                <div className="rounded-full bg-muted/60 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {formatDayLabel(m.created_at)}
+              <div className="flex items-center justify-center py-2">
+                <div className="flex items-center gap-3">
+                  <span className="h-px w-12 bg-slate-200" />
+                  <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 backdrop-blur-sm">
+                    {formatDayLabel(m.created_at)}
+                  </span>
+                  <span className="h-px w-12 bg-slate-200" />
                 </div>
               </div>
             )}
@@ -165,20 +169,32 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
             )}
           >
             {!isUser && (
-              <div
-                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-md ring-1 ring-white/10"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                <Sparkles className="h-4 w-4" />
+              <div className="relative mt-0.5 shrink-0">
+                <div
+                  className="absolute inset-0 rounded-xl opacity-50 blur-md"
+                  style={{ background: "var(--gradient-ai)" }}
+                  aria-hidden
+                />
+                <div
+                  className="relative flex h-9 w-9 items-center justify-center rounded-xl text-primary-foreground shadow-md ring-1 ring-white/15"
+                  style={{ background: "var(--gradient-ai)" }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                </div>
               </div>
             )}
             <div
               className={cn(
                 "min-w-0 text-sm leading-relaxed",
                 isUser
-                  ? "max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl bg-primary px-5 py-3 text-primary-foreground shadow-lg shadow-primary/15"
-                  : "flex-1 text-foreground",
+                  ? "max-w-[78%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-3xl px-5 py-3 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/10"
+                  : "flex-1 text-slate-800",
               )}
+              style={
+                isUser
+                  ? { background: "var(--gradient-ai)" }
+                  : undefined
+              }
             >
               {isUser ? (
                 <div className="space-y-2">
@@ -193,8 +209,12 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                 </div>
               ) : (
                 <>
-                  <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                  <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                     Trợ lý
+                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    <span className="font-medium normal-case tracking-normal text-slate-400">
+                      AI kế toán
+                    </span>
                   </div>
                   {m.toolEvents && m.toolEvents.length > 0 && (
                     <div className="mb-3 space-y-3">
@@ -234,7 +254,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               )}
             </div>
             {isUser && (
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-border/60">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 shadow-sm">
                 <User className="h-4 w-4" />
               </div>
             )}
@@ -245,6 +265,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
     </div>
   );
 }
+
 
 function ThinkingIndicator() {
   return (
