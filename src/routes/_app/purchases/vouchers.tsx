@@ -870,8 +870,8 @@ function CreateVoucherDialog({
 
           {/* === Tab 2: Hoá đơn === */}
           <TabsContent value="hd" className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-3">
                 <Label>Link tới Hoá đơn mua đã có</Label>
                 <Select value={header.invoice_id || "none"}
                   onValueChange={(v) => {
