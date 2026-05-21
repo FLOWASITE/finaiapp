@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
 
 function fmtVND(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
