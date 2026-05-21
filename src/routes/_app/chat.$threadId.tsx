@@ -139,19 +139,10 @@ function ThreadPage() {
         });
       }
       // Mark startedRef đã chạy cho temp id, đồng thời cho real id để
-      // autostart không chạy lại sau khi navigate replace.
+      // autostart không chạy lại.
       startedRef.current = detail.realThreadId;
-      // Navigate replace sang URL thật, giữ nguyên view (skipReset) + handoff.
-      skipResetRef.current = true;
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId: detail.realThreadId },
-        search: {
-          ...(from ? { from } : {}),
-          ...(handoff ? { handoff } : {}),
-        },
-        replace: true,
-      });
+      // Không đổi URL khi đang stream: đổi threadId sẽ trigger reset effect,
+      // abort request và tạo cảm giác trang bị reload giữa câu trả lời.
     };
     const onFailed = (e: Event) => {
       const detail = (e as CustomEvent<{ tempId: string; error?: string }>).detail;
