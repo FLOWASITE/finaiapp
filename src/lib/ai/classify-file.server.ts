@@ -462,12 +462,12 @@ reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (
       source: "ai",
     };
 
-    // 4. Cache về DB (best-effort)
+    // 4. Cache về DB (best-effort) — kèm text_hash để hit cross-file-hash sau này.
     if (opts.fileHash) {
       try {
         await opts.supabase
           .from("ai_uploads")
-          .update({ classify_meta: result })
+          .update({ classify_meta: { ...result, text_hash: textHash } })
           .eq("user_id", opts.userId)
           .eq("file_hash", opts.fileHash);
       } catch {
