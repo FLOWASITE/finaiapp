@@ -138,6 +138,12 @@ export function ChatDock() {
         : Math.random().toString(36).slice(2);
     const tempId = `temp-${rid}`;
     const tempMsgId = `temp-msg-${Math.random().toString(36).slice(2)}`;
+    // handoffId độc lập với threadId — không đổi khi swap temp→real id, nên
+    // không bao giờ "lạc" file đính kèm trong sessionStorage.
+    const handoffId =
+      typeof (crypto as any).randomUUID === "function"
+        ? (crypto as any).randomUUID()
+        : Math.random().toString(36).slice(2);
     const nowIso = new Date().toISOString();
     const tempThread = {
       id: tempId,
@@ -161,18 +167,25 @@ export function ChatDock() {
       ["chat", "threads", "recent", "all"],
       (prev: any) => (Array.isArray(prev) ? [tempThread, ...prev] : [tempThread]),
     );
-    if (opts?.payloadsForStash?.length) {
+    const hasPayloads = !!opts?.payloadsForStash?.length;
+    if (hasPayloads) {
       try {
-        sessionStorage.setItem(`__attach:${tempId}`, JSON.stringify(opts.payloadsForStash));
+        sessionStorage.setItem(
+          `__attach:h:${handoffId}`,
+          JSON.stringify(opts!.payloadsForStash),
+        );
       } catch {}
     }
     collapseChatSidebar();
     navigate({
       to: "/chat/$threadId",
       params: { threadId: tempId },
-      search: fromHref
-        ? { autostart: "1", optimistic: "1", from: fromHref }
-        : { autostart: "1", optimistic: "1" },
+      search: {
+        autostart: "1",
+        optimistic: "1",
+        ...(hasPayloads ? { handoff: handoffId } : {}),
+        ...(fromHref ? { from: fromHref } : {}),
+      },
     });
 
     createWithMsgFn({
@@ -194,13 +207,7 @@ export function ChatDock() {
             return [res.thread, ...list];
           },
         );
-        try {
-          const raw = sessionStorage.getItem(`__attach:${tempId}`);
-          if (raw) {
-            sessionStorage.setItem(`__attach:${res.thread.id}`, raw);
-            sessionStorage.removeItem(`__attach:${tempId}`);
-          }
-        } catch {}
+        // KHÔNG cần rename key vì handoffId là độc lập với threadId.
         window.dispatchEvent(
           new CustomEvent("chat:thread-resolved", {
             detail: {
@@ -222,7 +229,7 @@ export function ChatDock() {
             Array.isArray(prev) ? prev.filter((t: any) => t.id !== tempId) : prev,
         );
         try {
-          sessionStorage.removeItem(`__attach:${tempId}`);
+          if (hasPayloads) sessionStorage.removeItem(`__attach:h:${handoffId}`);
         } catch {}
         window.dispatchEvent(
           new CustomEvent("chat:thread-failed", { detail: { tempId, error: e?.message } }),
