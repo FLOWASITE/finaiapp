@@ -75,6 +75,12 @@ function ThreadPage() {
   const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
   const [creationError, setCreationError] = useState<Error | null>(null);
   const [retrying, setRetrying] = useState(false);
+  // Khi user reload trang trong lúc thread đang được tạo nền, in-memory
+  // promise store (window) bị xoá → awaitThreadCreation resolve ngay, getThread
+  // trả notFound. Cho phép page đợi thêm ~30s polling thay vì show "Không
+  // tìm thấy" liền.
+  const pendingDeadlineRef = useRef<number>(pending ? Date.now() + 30_000 : 0);
+  const [pendingExpired, setPendingExpired] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -97,6 +103,8 @@ function ThreadPage() {
         setCreationError(res.error);
         setCreationSettled(false); // chặn getThread chạy → tránh 404 nhiễu
       } else {
+        // Dù không có promise (vd: user vừa reload trang → window state đã mất)
+        // vẫn cho phép getThread chạy; polling bên dưới sẽ chờ row xuất hiện.
         setCreationError(null);
         setCreationSettled(true);
       }
@@ -113,6 +121,8 @@ function ThreadPage() {
       clearThreadCreationResult(threadId);
       setCreationError(null);
       setCreationSettled(true);
+      pendingDeadlineRef.current = Date.now() + 30_000;
+      setPendingExpired(false);
       return;
     }
     setRetrying(true);
@@ -132,7 +142,29 @@ function ThreadPage() {
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
     enabled: creationSettled && !creationError,
+    // Khi đang ở giai đoạn pending (vừa điều hướng optimistic hoặc user reload
+    // trong lúc background insert đang chạy) và server vẫn trả notFound → tiếp
+    // tục poll mỗi 1s tới khi quá hạn.
+    refetchInterval: (q) => {
+      if (!pending || pendingExpired) return false;
+      const data: any = q.state.data;
+      if (data && data.notFound) return 1000;
+      return false;
+    },
   });
+
+  // Khi quá hạn chờ tạo thread → dừng polling và hiển thị notFound thật.
+  useEffect(() => {
+    if (!pending || pendingExpired) return;
+    if (!query.data?.notFound) return;
+    const remaining = pendingDeadlineRef.current - Date.now();
+    if (remaining <= 0) {
+      setPendingExpired(true);
+      return;
+    }
+    const t = setTimeout(() => setPendingExpired(true), remaining);
+    return () => clearTimeout(t);
+  }, [pending, pendingExpired, query.data]);
 
   useEffect(() => {
     setLocalMsgs([]);
@@ -575,6 +607,22 @@ function ThreadPage() {
   }
 
   if (query.data?.notFound) {
+    // Đang trong giai đoạn pending (vừa điều hướng optimistic hoặc user reload
+    // trang khi background insert chưa xong) → hiển thị trạng thái chuẩn bị,
+    // refetchInterval sẽ tự poll đến khi thấy row hoặc hết hạn.
+    if (pending && !pendingExpired) {
+      return (
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="max-w-sm rounded-xl border border-border/70 bg-background p-6 text-center shadow-sm">
+            <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <p className="mb-1 text-sm font-medium">Đang chuẩn bị cuộc trò chuyện…</p>
+            <p className="text-xs text-muted-foreground">
+              Hệ thống đang lưu hội thoại lên máy chủ, chờ vài giây nhé.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="max-w-sm rounded-xl border border-border/70 bg-background p-6 text-center shadow-sm">
@@ -583,7 +631,15 @@ function ThreadPage() {
           <p className="mb-4 text-xs text-muted-foreground">
             Hội thoại này chưa được tạo xong, đã bị xoá hoặc không thuộc doanh nghiệp hiện tại.
           </p>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              pendingDeadlineRef.current = Date.now() + 30_000;
+              setPendingExpired(false);
+              query.refetch();
+            }}
+          >
             Tải lại
           </Button>
         </div>

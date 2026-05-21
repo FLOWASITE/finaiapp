@@ -52,8 +52,8 @@ function PdfPagePreview({
       try {
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-        task = pdfjs.getDocument({ url, withCredentials: false });
-        const pdf = (await task.promise) as PdfDocument;
+        task = (pdfjs as any).getDocument({ url, withCredentials: false });
+        const pdf = (await task!.promise) as PdfDocument;
         const page = await pdf.getPage(1);
         if (cancelled) return;
 
