@@ -254,7 +254,7 @@ function ThreadPage() {
     abortRef.current = controller;
     const working: ChatMsg[] = [
       ...history,
-      { role: "assistant", content: "", toolEvents: [] },
+      { role: "assistant", content: "", toolEvents: [], created_at: new Date().toISOString() },
     ];
     setLocalMsgs(working);
     let buffer = "";
