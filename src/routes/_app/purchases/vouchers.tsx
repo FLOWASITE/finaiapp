@@ -704,26 +704,34 @@ function CreateVoucherDialog({
               </div>
             </div>
 
-            {/* Sub-tab + chiết khấu */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-              <div className="flex items-center gap-4 text-sm">
-                <span className="font-medium border-b-2 border-primary pb-1">Giá trị hàng</span>
-                <span className="text-muted-foreground">Chi phí mua hàng</span>
-                <label className="flex items-center gap-2">
-                  <Checkbox checked={header.auto_allocate_cost}
-                    onCheckedChange={(v) => setHeader({ ...header, auto_allocate_cost: !!v })} />
-                  Tự phân bổ chi phí mua hàng
-                </label>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Label className="text-xs whitespace-nowrap">Chiết khấu (%)</Label>
-                <Input type="number" className="w-20 h-8" value={header.discount_pct}
-                  onChange={(e) => setHeader({ ...header, discount_pct: Number(e.target.value), discount_amount: 0 })} />
-                <Label className="text-xs whitespace-nowrap">Chiết khấu</Label>
-                <Input type="number" className="w-28 sm:w-32 h-8" value={header.discount_amount}
-                  onChange={(e) => setHeader({ ...header, discount_amount: Number(e.target.value), discount_pct: 0 })} />
-              </div>
-            </div>
+            {/* Sub-tab + chiết khấu (collapsible on mobile) */}
+            <Collapsible open={discountOpen} onOpenChange={setDiscountOpen} className="border-t pt-3">
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 text-sm font-medium sm:hidden">
+                <span>Chiết khấu & phân bổ chi phí</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${discountOpen ? "rotate-180" : ""}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent forceMount className="data-[state=closed]:hidden sm:!block">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 sm:mt-0">
+                  <div className="flex flex-wrap items-center gap-3 text-sm sm:gap-4">
+                    <span className="font-medium border-b-2 border-primary pb-1">Giá trị hàng</span>
+                    <span className="text-muted-foreground">Chi phí mua hàng</span>
+                    <label className="flex items-center gap-2">
+                      <Checkbox checked={header.auto_allocate_cost}
+                        onCheckedChange={(v) => setHeader({ ...header, auto_allocate_cost: !!v })} />
+                      Tự phân bổ chi phí mua hàng
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-xs whitespace-nowrap">Chiết khấu (%)</Label>
+                    <Input type="number" className="w-20 h-8" value={header.discount_pct}
+                      onChange={(e) => setHeader({ ...header, discount_pct: Number(e.target.value), discount_amount: 0 })} />
+                    <Label className="text-xs whitespace-nowrap">Chiết khấu</Label>
+                    <Input type="number" className="w-28 sm:w-32 h-8" value={header.discount_amount}
+                      onChange={(e) => setHeader({ ...header, discount_amount: Number(e.target.value), discount_pct: 0 })} />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Lines table */}
             <div className="overflow-x-auto border rounded-md">
