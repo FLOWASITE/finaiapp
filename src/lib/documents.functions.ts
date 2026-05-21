@@ -92,6 +92,10 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
         ocr_status: z.string().max(50).optional(),
         from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        invoice_no: z.string().max(100).optional(),
+        supplier_search: z.string().max(200).optional(),
+        issue_from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        issue_to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         limit: z.number().int().min(1).max(200).default(50),
         offset: z.number().int().min(0).default(0),
       })
@@ -102,13 +106,17 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
       .from("documents")
       .select("*", { count: "exact" })
       .eq("doc_kind", "purchase_invoice")
-      .order("created_at", { ascending: false })
-      .range(data.offset, data.offset + data.limit - 1);
+      .order("created_at", { ascending: false });
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
     if (data.source) q = q.eq("source", data.source);
     if (data.ocr_status) q = q.eq("ocr_status", data.ocr_status);
     if (data.from_date) q = q.gte("created_at", `${data.from_date}T00:00:00Z`);
     if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
+
+    // Fetch a generous buffer so invoice-level filters still return enough rows
+    const bufferLimit = Math.min(data.limit * 8, 2000);
+    q = q.range(data.offset, data.offset + bufferLimit - 1);
+
     const { data: docs, error, count } = await q;
     if (error) throw new Error(error.message);
     const docList = docs ?? [];
@@ -191,7 +199,33 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
       };
     });
 
-    return { rows, total: count ?? 0 };
+    // Apply invoice-level filters client-side
+    const termNo = (data.invoice_no || "").trim().toLowerCase();
+    const termSup = (data.supplier_search || "").trim().toLowerCase();
+    const issueFrom = data.issue_from_date || "";
+    const issueTo = data.issue_to_date || "";
+
+    const filtered = rows.filter((r: any) => {
+      const inv = r.invoice;
+      if (termNo) {
+        const no = String(inv?.invoice_no ?? "").toLowerCase();
+        if (!no.includes(termNo)) return false;
+      }
+      if (termSup) {
+        const name = String(inv?.supplier_name ?? "").toLowerCase();
+        const tax = String(inv?.supplier_tax_id ?? "").toLowerCase();
+        if (!name.includes(termSup) && !tax.includes(termSup)) return false;
+      }
+      if (issueFrom || issueTo) {
+        const d = inv?.issue_date ?? "";
+        if (issueFrom && d < issueFrom) return false;
+        if (issueTo && d > issueTo) return false;
+      }
+      return true;
+    });
+
+    const paginated = filtered.slice(data.offset, data.offset + data.limit);
+    return { rows: paginated, total: filtered.length };
   });
 
 export const uploadDocument = createServerFn({ method: "POST" })
