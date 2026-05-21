@@ -243,7 +243,7 @@ function CreateVoucherDialog({
 
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers-list"],
-    queryFn: () => suppliersFn({ data: {} }),
+    queryFn: () => suppliersFn(),
     enabled: open,
   });
   const { data: invoices } = useQuery({
