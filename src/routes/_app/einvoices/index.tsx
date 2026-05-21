@@ -136,7 +136,7 @@ function EInvoicesPage() {
   const [page, setPage] = React.useState(1);
   const [syncOpen, setSyncOpen] = React.useState(false);
 
-  React.useEffect(() => setPage(1), [tab, q, status, matched, dateRange]);
+  React.useEffect(() => setPage(1), [tab, q, status, matched, xmlStatus, dateRange]);
 
   const autoMatchMut = useMutation({
     mutationFn: () =>
