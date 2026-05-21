@@ -366,7 +366,7 @@ export function Composer({
         const txns = Array.isArray(parsed?.transactions) ? parsed.transactions : [];
         parsed = { ...parsed, transactions: txns.filter((_: any, idx: number) => !dupSet.has(idx)) };
       }
-      return { filename: p.filename, kind: p.kind, parsed };
+      return { filename: p.filename, kind: p.kind, parsed, file_hash: p.file_hash, uploadId: p.uploadId };
     });
 
     // Preselect bank account if matched
