@@ -917,10 +917,11 @@ function CreateVoucherDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Huỷ</Button>
           <Button onClick={() => mut.mutate()}
-            disabled={mut.isPending || !header.voucher_no}>
+            disabled={mut.isPending || !header.voucher_no}
+            className="w-full sm:w-auto">
             Lưu phiếu nháp
           </Button>
         </DialogFooter>
