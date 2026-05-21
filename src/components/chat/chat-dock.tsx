@@ -177,9 +177,8 @@ export function ChatDock() {
     }
     setLoading(true);
 
-    const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
-    const content = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     const metaAttachments = payloads.map((p) => ({
+
       name: p.name,
       mime: p.mime,
       size: p.size,
