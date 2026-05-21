@@ -445,15 +445,13 @@ function DocumentsPage() {
           </div>
 
 
-          {isLoading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : currentTab === "purchase" ? (
+          {currentTab === "purchase" ? (
             <PurchaseInvoicesTable
               filters={filters}
-              limit={limit}
-              onLoadMore={() => setLimit((n) => n + PAGE_SIZE)}
-              onOpenDoc={(id) => setOpenId(id)}
+              onOpenDoc={(id: string) => setOpenId(id)}
             />
+          ) : isLoading ? (
+            <Skeleton className="h-64 w-full" />
           ) : (
             <>
               <Table>
