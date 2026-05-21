@@ -316,6 +316,7 @@ function EInvoicesPage() {
               <th className="px-3 py-2 text-left">MST</th>
               <th className="px-3 py-2 text-right">Tổng</th>
               <th className="px-3 py-2 text-left">Trạng thái</th>
+              <th className="px-3 py-2 text-left">XML</th>
               <th className="px-3 py-2 text-left">Đã ghi nhận</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -324,7 +325,7 @@ function EInvoicesPage() {
             {query.isLoading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i} className="border-t border-border">
-                  <td colSpan={8} className="px-3 py-2">
+                  <td colSpan={9} className="px-3 py-2">
                     <Skeleton className="h-5 w-full" />
                   </td>
                 </tr>
