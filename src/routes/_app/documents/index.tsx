@@ -301,6 +301,18 @@ function DocumentsPage() {
     issue_to_date: issueToDate || undefined,
   };
 
+  const salesFilters = {
+    search: searchText || undefined,
+    source: sourceFilter === "all" ? undefined : sourceFilter,
+    ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    invoice_no: invoiceNo || undefined,
+    customer_search: customerSearch || undefined,
+    issue_from_date: issueFromDate || undefined,
+    issue_to_date: issueToDate || undefined,
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ["documents", currentTab, filters, limit],
     queryFn: () => list({ data: { ...filters, limit, offset: 0 } }),
@@ -320,7 +332,8 @@ function DocumentsPage() {
     (ocrStatus !== "all" ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0) +
-    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 0);
+    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 0) +
+    (currentTab === "sales" ? ((invoiceNo ? 1 : 0) + (customerSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 0);
 
   const resetFilters = () => {
     setDocKind("all");
@@ -330,6 +343,7 @@ function DocumentsPage() {
     setToDate("");
     setInvoiceNo("");
     setSupplierSearch("");
+    setCustomerSearch("");
     setIssueFromDate("");
     setIssueToDate("");
   };
