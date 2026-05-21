@@ -578,10 +578,24 @@ function ThreadPage() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-transparent px-4 py-2">
-        <div className="pointer-events-auto mx-auto flex max-w-3xl items-center justify-between gap-2">
-          <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
+      <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-4">
+          <SidebarTrigger className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-sm font-semibold text-slate-800">
+              {query.data?.thread.title ?? "Cuộc trò chuyện"}
+            </h1>
+          </div>
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-foreground shadow-sm ring-1 ring-white/10"
+            style={{ background: "var(--gradient-ai)" }}
+            aria-hidden
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+            </svg>
+          </span>
         </div>
       </div>
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
@@ -595,6 +609,7 @@ function ThreadPage() {
           />
         )}
       </div>
+
       <div className="relative px-4 pb-5 pt-4">
         {!atBottom && (
           <div className="pointer-events-none absolute inset-x-0 -top-12 z-10 flex justify-center">
