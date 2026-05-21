@@ -10,7 +10,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway";
 import { decryptSecret } from "@/lib/crypto-secret.server";
 
-export type ModelPurpose = "default" | "chat" | "parse" | "reasoning";
+export type ModelPurpose = "default" | "chat" | "parse" | "reasoning" | "classify";
 
 type CachedConfig = {
   enabled: boolean;
