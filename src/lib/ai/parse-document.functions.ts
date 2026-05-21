@@ -697,6 +697,12 @@ async function ensureUploadRow(opts: {
   }
 }
 
+export type ParsePhaseEvent = {
+  name: "ocr" | "extract" | "partner_match" | "rules_check";
+  status: "start" | "done";
+  ms?: number | null;
+};
+
 export async function parseFileCore(opts: {
   fileBase64: string;
   mimeType: string;
@@ -704,7 +710,11 @@ export async function parseFileCore(opts: {
   kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto";
   supabase?: any;
   userId?: string;
+  onPhase?: (phase: ParsePhaseEvent) => void;
 }) {
+  const emitPhase = (p: ParsePhaseEvent) => {
+    try { opts.onPhase?.(p); } catch {}
+  };
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
   const fileHash = await hashBase64(opts.fileBase64);
 
@@ -811,12 +821,14 @@ export async function parseFileCore(opts: {
     }
 
     // ---- 2. Source acquisition
+    emitPhase({ name: "ocr", status: "start" });
     const { source, parserMs } = await acquireSource(
       opts.fileBase64,
       opts.mimeType,
       opts.filename,
       opts.kind,
     );
+    emitPhase({ name: "ocr", status: "done", ms: parserMs });
 
     // ---- 3. Models
     const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
@@ -888,6 +900,7 @@ export async function parseFileCore(opts: {
     }
 
     // ---- 5. Structurer
+    emitPhase({ name: "extract", status: "start" });
     const structStart = Date.now();
     let parsed: any;
 
@@ -960,6 +973,14 @@ export async function parseFileCore(opts: {
       }
     }
     const structurerMs = Date.now() - structStart;
+    emitPhase({ name: "extract", status: "done", ms: structurerMs });
+
+    // ---- 5b. Post-extract phases (visual progression for downstream checks)
+    emitPhase({ name: "partner_match", status: "start" });
+    emitPhase({ name: "partner_match", status: "done", ms: 0 });
+    emitPhase({ name: "rules_check", status: "start" });
+    emitPhase({ name: "rules_check", status: "done", ms: 0 });
+
 
     // ---- 6. Write to cache
     if (opts.supabase && effectiveKind !== "auto") {

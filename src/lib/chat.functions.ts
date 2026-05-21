@@ -48,6 +48,7 @@ const BULK_THRESHOLD = 3;
 export type AskStreamEvent =
   | { type: "text"; delta: string }
   | { type: "tool-call"; toolCallId: string; toolName: string; input: any }
+  | { type: "tool-progress"; toolCallId: string; phase: { name: string; status: "start" | "done"; ms?: number | null } }
   | { type: "tool-result"; toolCallId: string; output: any; isError?: boolean };
 
 function truncateOutput(v: any, max = 4000): any {
@@ -216,15 +217,65 @@ export const askAccountingStream = createServerFn({ method: "POST" })
           toolName: "parseDocument",
           input: { filename: att.name, kind: att.kind, mime: att.mime },
         } as AskStreamEvent;
-        try {
-          const r = await parseFileCore({
-            fileBase64: att.base64,
-            mimeType: att.mime,
-            filename: att.name,
-            kind: att.kind,
-            supabase,
-            userId,
+
+        // Phase event queue: parseFileCore.onPhase() pushes here, this loop
+        // drains and yields them as `tool-progress` events to the client.
+        const phaseQueue: Array<{ name: string; status: "start" | "done"; ms?: number | null }> = [];
+        let phaseResolve: (() => void) | null = null;
+        let finished: { ok?: any; err?: any } | null = null as { ok?: any; err?: any } | null;
+
+        const parsePromise = parseFileCore({
+          fileBase64: att.base64,
+          mimeType: att.mime,
+          filename: att.name,
+          kind: att.kind,
+          supabase,
+          userId,
+          onPhase: (p) => {
+            phaseQueue.push(p);
+            phaseResolve?.();
+            phaseResolve = null;
+          },
+        })
+          .then((r) => {
+            finished = { ok: r };
+            phaseResolve?.();
+            phaseResolve = null;
+          })
+          .catch((e) => {
+            finished = { err: e };
+            phaseResolve?.();
+            phaseResolve = null;
           });
+
+        // Drain phase events until parse settles
+        while (!finished || phaseQueue.length > 0) {
+          while (phaseQueue.length > 0) {
+            const phase = phaseQueue.shift()!;
+            yield {
+              type: "tool-progress",
+              toolCallId: callId,
+              phase,
+            } as AskStreamEvent;
+          }
+          if (!finished) {
+            await new Promise<void>((res) => {
+              phaseResolve = res;
+            });
+          }
+        }
+        await parsePromise; // ensure settled
+        const settled = finished as { ok?: any; err?: any };
+
+        if (settled.err) {
+          yield {
+            type: "tool-result",
+            toolCallId: callId,
+            output: { error: settled.err?.message || "parse error", filename: att.name },
+            isError: true,
+          } as AskStreamEvent;
+        } else {
+          const r = settled.ok;
           parsedAttachments.push({ name: att.name, kind: att.kind, parsed: r.parsed });
           const t = (r as any).timings ?? {};
           const phases = [
@@ -248,13 +299,6 @@ export const askAccountingStream = createServerFn({ method: "POST" })
               },
               16000,
             ),
-          } as AskStreamEvent;
-        } catch (e: any) {
-          yield {
-            type: "tool-result",
-            toolCallId: callId,
-            output: { error: e?.message || "parse error", filename: att.name },
-            isError: true,
           } as AskStreamEvent;
         }
         if (abortSignal?.aborted) return;

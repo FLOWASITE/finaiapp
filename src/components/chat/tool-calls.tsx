@@ -13,6 +13,7 @@ import { ChartBlock, type ChartSpec } from "@/components/ai/ChartBlock";
 
 export type ToolEvent =
   | { type: "tool-call"; toolCallId: string; toolName: string; input: any }
+  | { type: "tool-progress"; toolCallId: string; phase: { name: string; status: "start" | "done"; ms?: number | null } }
   | { type: "tool-result"; toolCallId: string; output: any; isError?: boolean };
 
 const TOOL_META: Record<string, { label: string; Icon: any }> = {
@@ -40,6 +41,9 @@ function groupEvents(events: ToolEvent[]): Call[] {
         input: ev.input,
         done: false,
       });
+    } else if (ev.type === "tool-progress") {
+      // Progress events don't change call grouping; consumed by specialized renderers.
+      continue;
     } else {
       const c = map.get(ev.toolCallId);
       if (c) {

@@ -323,6 +323,9 @@ function ThreadPage() {
           toolEvents.push(ev);
           if (ev.toolName === "proposeAction") sawProposeAction = true;
           updateLast({ toolEvents: [...toolEvents] });
+        } else if (ev.type === "tool-progress") {
+          toolEvents.push(ev);
+          updateLast({ toolEvents: [...toolEvents] });
         } else if (ev.type === "tool-result") {
           toolEvents.push(ev);
           updateLast({ toolEvents: [...toolEvents] });
@@ -342,12 +345,14 @@ function ThreadPage() {
       }
 
       const persistId = await getEffectiveThreadId();
+      // Strip transient progress events before persisting — they're only for live UI.
+      const persistedToolEvents = toolEvents.filter((e: any) => e.type !== "tool-progress");
       await appendFn({
         data: {
           threadId: persistId,
           role: "assistant",
           content: buffer,
-          metadata: toolEvents.length ? { toolEvents } : undefined,
+          metadata: persistedToolEvents.length ? { toolEvents: persistedToolEvents } : undefined,
         },
       });
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
