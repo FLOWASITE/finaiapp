@@ -222,7 +222,7 @@ export const askAccountingStream = createServerFn({ method: "POST" })
         // drains and yields them as `tool-progress` events to the client.
         const phaseQueue: Array<{ name: string; status: "start" | "done"; ms?: number | null }> = [];
         let phaseResolve: (() => void) | null = null;
-        let finished: { ok?: any; err?: any } | null = null;
+        let finished: { ok?: any; err?: any } | null = null as { ok?: any; err?: any } | null;
 
         const parsePromise = parseFileCore({
           fileBase64: att.base64,
