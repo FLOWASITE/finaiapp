@@ -143,7 +143,16 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               )}
             >
               {isUser ? (
-                m.content
+                <div className="space-y-2">
+                  {m.attachments && m.attachments.length > 0 && (
+                    <AttachmentChips items={m.attachments} />
+                  )}
+                  {m.content ? (
+                    <div>{m.content}</div>
+                  ) : m.attachments && m.attachments.length > 0 ? (
+                    <div className="text-[11px] italic opacity-70">(đã đính kèm)</div>
+                  ) : null}
+                </div>
               ) : (
                 <>
                   <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
