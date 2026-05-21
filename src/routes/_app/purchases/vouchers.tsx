@@ -243,7 +243,7 @@ function CreateVoucherDialog({
 
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers-list"],
-    queryFn: () => suppliersFn({ data: {} }),
+    queryFn: () => suppliersFn(),
     enabled: open,
   });
   const { data: invoices } = useQuery({
@@ -308,7 +308,7 @@ function CreateVoucherDialog({
             <Select
               value={form.supplier_id || "none"}
               onValueChange={(v) => {
-                const s = suppliers?.rows?.find((x: any) => x.id === v);
+                const s = suppliers?.find((x: any) => x.id === v);
                 setForm({
                   ...form,
                   supplier_id: v === "none" ? "" : v,
@@ -319,7 +319,7 @@ function CreateVoucherDialog({
               <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— Không chọn —</SelectItem>
-                {(suppliers?.rows ?? []).map((s: any) => (
+                {(suppliers ?? []).map((s: any) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
