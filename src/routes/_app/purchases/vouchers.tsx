@@ -462,12 +462,12 @@ function CreateVoucherDialog({
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
-  const { data: suppliers } = useQuery({
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers-list"],
     queryFn: () => suppliersFn(),
     enabled: open,
   });
-  const { data: invoices } = useQuery({
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["linkable-purchase-invoices", header.supplier_id],
     queryFn: () => linkInvFn({ data: { supplierId: header.supplier_id || undefined } }),
     enabled: open,
