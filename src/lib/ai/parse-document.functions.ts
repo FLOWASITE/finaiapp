@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import {
@@ -118,6 +118,48 @@ function extractJSON(raw: string): any | null {
   } catch {
     return null;
   }
+}
+
+function appendJsonOnlyInstruction(messages: any[]): any[] {
+  return messages.map((message, index) => {
+    if (index !== messages.length - 1) return message;
+    const reminder =
+      "\n\nBẮT BUỘC chỉ trả về một JSON object hợp lệ, không markdown, không giải thích, không thêm chữ ngoài JSON.";
+    if (Array.isArray(message.content)) {
+      return { ...message, content: [...message.content, { type: "text", text: reminder }] };
+    }
+    return { ...message, content: `${message.content || ""}${reminder}` };
+  });
+}
+
+function withSchemaWarning(value: any, warning: string, rawText?: string) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return { ...value, _schemaWarning: warning, ...(rawText ? { _rawText: rawText.slice(0, 12000) } : {}) };
+  }
+  return { raw: value ?? rawText ?? null, _schemaWarning: warning };
+}
+
+async function generateJsonBestEffort(opts: {
+  model: any;
+  messages: any[];
+  schema?: z.ZodTypeAny | null;
+  fallback: any;
+  label: string;
+}) {
+  const r = await generateText({
+    model: opts.model,
+    messages: appendJsonOnlyInstruction(opts.messages),
+  });
+  const json = extractJSON(r.text);
+  if (json == null) {
+    console.warn(`[parse-document] ${opts.label} returned no JSON`);
+    return withSchemaWarning(opts.fallback, "AI returned no valid JSON", r.text);
+  }
+  if (!opts.schema) return json;
+  const checked = opts.schema.safeParse(json);
+  if (checked.success) return checked.data;
+  console.warn(`[parse-document] ${opts.label} schema mismatch:`, checked.error.message);
+  return withSchemaWarning(json, checked.error.message);
 }
 
 function schemaFor(kind: string) {
@@ -305,9 +347,8 @@ async function structureBankStatement(
 ): Promise<any> {
   // Vision path: single shot
   if (source.kind === "vision") {
-    const r = await generateText({
+    return generateJsonBestEffort({
       model: visionModel,
-      output: Output.object({ schema: BankStatementSchema as any }),
       messages: [
         {
           role: "user",
@@ -317,8 +358,10 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankStatementSchema,
+      fallback: { transactions: [] },
+      label: "bank_statement vision",
     });
-    return (r as any).output;
   }
 
   // Markdown path
@@ -326,9 +369,8 @@ async function structureBankStatement(
 
   // Short statement (or no page breakdown) → single shot with full schema
   if (!pages || pages.length <= BANK_CHUNK_PAGES) {
-    const r = await generateText({
+    return generateJsonBestEffort({
       model: textModel,
-      output: Output.object({ schema: BankStatementSchema as any }),
       messages: [
         {
           role: "user",
@@ -345,8 +387,10 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankStatementSchema,
+      fallback: { transactions: [] },
+      label: "bank_statement markdown",
     });
-    return (r as any).output;
   }
 
   // Long statement → chunk
@@ -356,13 +400,8 @@ async function structureBankStatement(
   }
 
   // Header info from first chunk
-  const headerPromise = generateText({
+  const headerPromise = generateJsonBestEffort({
     model: textModel,
-    output: Output.object({
-      schema: BankStatementSchema.omit({ transactions: true }).extend({
-        transactions: z.array(BankTxnSchema).default([]),
-      }) as any,
-    }),
     messages: [
       {
         role: "user",
@@ -379,12 +418,16 @@ async function structureBankStatement(
         ],
       },
     ],
+    schema: BankStatementSchema.omit({ transactions: true }).extend({
+      transactions: z.array(BankTxnSchema).default([]),
+    }),
+    fallback: { transactions: [] },
+    label: "bank_statement header chunk",
   });
 
   const restPromises = chunks.slice(1).map((chunk, idx) =>
-    generateText({
+    generateJsonBestEffort({
       model: textModel,
-      output: Output.object({ schema: BankTxnsOnlySchema as any }),
       messages: [
         {
           role: "user",
@@ -403,14 +446,17 @@ async function structureBankStatement(
           ],
         },
       ],
+      schema: BankTxnsOnlySchema,
+      fallback: { transactions: [] },
+      label: `bank_statement transaction chunk ${idx + 2}`,
     }),
   );
 
   const [headerRes, ...restRes] = await Promise.all([headerPromise, ...restPromises]);
-  const header: any = (headerRes as any).output;
+  const header: any = headerRes;
   const allTxns: any[] = [...(header.transactions || [])];
   for (const r of restRes) {
-    const out: any = (r as any).output;
+    const out: any = r;
     if (Array.isArray(out?.transactions)) allTxns.push(...out.transactions);
   }
 
@@ -714,12 +760,14 @@ export async function parseFileCore(opts: {
                   ],
                 },
               ];
-        const r = await generateText({
+        const classified = await generateJsonBestEffort({
           model: source.kind === "markdown" ? textModel : visionModel,
-          output: Output.object({ schema: KindClassifySchema as any }),
           messages,
+          schema: KindClassifySchema,
+          fallback: { kind: "unknown" },
+          label: "document kind classification",
         });
-        const k = (r as any).output?.kind;
+        const k = classified?.kind;
         if (k && k !== "unknown") {
           effectiveKind = k;
         }
@@ -781,12 +829,13 @@ export async function parseFileCore(opts: {
               ];
         const model = source.kind === "markdown" ? textModel : visionModel;
         if (schema) {
-          const r = await generateText({
+          parsed = await generateJsonBestEffort({
             model,
-            output: Output.object({ schema: schema as any }),
             messages,
+            schema,
+            fallback: {},
+            label: effectiveKind,
           });
-          parsed = (r as any).output;
         } else {
           const r = await generateText({ model, messages });
           parsed = extractJSON(r.text) ?? { raw: r.text };
