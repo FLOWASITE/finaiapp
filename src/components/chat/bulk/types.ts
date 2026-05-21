@@ -1,5 +1,14 @@
 export type BulkBucket = "auto" | "review" | "ask";
 
+/** Nguồn phân loại — để UI biết item này có tốn token AI hay không. */
+export type BulkClassifySource =
+  | "ai"
+  | "cache"
+  | "xml"
+  | "text-rule"
+  | "heuristic-fallback"
+  | "heuristic";
+
 export type BulkItemKindGroup =
   | "purchase_invoice"
   | "sales_invoice"
