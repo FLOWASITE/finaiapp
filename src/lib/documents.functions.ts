@@ -332,17 +332,24 @@ export const listSalesDocuments = createServerFn({ method: "GET" })
           ? `${firstDesc} +${finalLines.length - 1} dòng`
           : firstDesc
         : null;
+      const ocrCustomerName = ocr.customer_name ?? ocr.buyer_name ?? null;
+      const ocrCustomerTaxId = ocr.customer_tax_id ?? ocr.buyer_tax_id ?? null;
       return {
         doc: d,
         invoice: inv
-          ? { ...inv, id: invId }
+          ? {
+              ...inv,
+              id: invId,
+              customer_name: inv.customer_name ?? ocrCustomerName,
+              customer_tax_id: inv.customer_tax_id ?? ocrCustomerTaxId,
+            }
           : {
               id: null,
               invoice_no: ocr.invoice_no ?? null,
               invoice_series: ocr.invoice_series ?? null,
               issue_date: ocr.issue_date ?? null,
-              customer_name: ocr.customer_name ?? ocr.buyer_name ?? null,
-              customer_tax_id: ocr.customer_tax_id ?? ocr.buyer_tax_id ?? null,
+              customer_name: ocrCustomerName,
+              customer_tax_id: ocrCustomerTaxId,
               subtotal: ocr.subtotal ?? null,
               vat_amount: ocr.vat_amount ?? null,
               total: ocr.total ?? null,
