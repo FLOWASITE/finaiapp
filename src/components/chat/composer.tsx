@@ -429,6 +429,53 @@ export function Composer({
 
   const busy = !!loading || uploading;
 
+  // ----- Drag & drop file vào bất kỳ đâu trên trang (uỷ quyền tới Composer) -----
+  useEffect(() => {
+    if (!enableAttach || !onAttach) return;
+    if (typeof window === "undefined") return;
+
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types || []).includes("Files");
+
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current += 1;
+      setDragOver(true);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) setDragOver(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) handleUploadBatch(files, "purchase_invoice");
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [enableAttach, onAttach, uploading]);
+
+
   return (
     <div className="relative">
       <input
