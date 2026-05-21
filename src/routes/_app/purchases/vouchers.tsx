@@ -644,7 +644,7 @@ function CreateVoucherDialog({
                   onChange={(e) => setHeader({ ...header, voucher_no: e.target.value })} />
               </div>
 
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <Label>Địa chỉ</Label>
                 <Input value={header.supplier_address}
                   onChange={(e) => setHeader({ ...header, supplier_address: e.target.value })} />
