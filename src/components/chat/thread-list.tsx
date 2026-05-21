@@ -298,7 +298,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                             <Pin className="h-3 w-3 shrink-0 text-primary/70" />
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-500/80">
+                        <span className="text-[10px] text-slate-400">
                           {relativeTime(t.last_message_at)}
                         </span>
                       </Link>
