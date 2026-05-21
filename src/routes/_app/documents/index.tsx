@@ -256,12 +256,19 @@ function DocumentsPage() {
   useEffect(() => {
     setDocKind("all");
     setLimit(PAGE_SIZE);
-    // Also clear purchase-specific filters when leaving purchase tab
     if (currentTab !== "purchase") {
       setInvoiceNo("");
       setSupplierSearch("");
       setIssueFromDate("");
       setIssueToDate("");
+    }
+    if (currentTab !== "sales") {
+      setCustomerSearch("");
+      if (currentTab !== "purchase") {
+        setInvoiceNo("");
+        setIssueFromDate("");
+        setIssueToDate("");
+      }
     }
   }, [currentTab]);
 
