@@ -16,6 +16,7 @@ const SUGGESTIONS: Array<{ icon: any; label: string; text: string }> = [
     icon: Database,
     label: "Tổng chi phí",
     text: "Tháng này tổng chi phí là bao nhiêu?",
+    tone: "teal" as const,
   },
   {
     icon: Users,
