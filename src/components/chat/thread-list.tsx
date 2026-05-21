@@ -187,7 +187,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                   onClick={onToggle}
                   title="Ẩn lịch sử (Cmd+\\)"
                   aria-label="Ẩn lịch sử"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
