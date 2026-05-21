@@ -1,85 +1,74 @@
 ## Mục tiêu
+Bổ sung **Phiếu mua hàng** — chứng từ kế toán riêng để ghi nhận nghiệp vụ mua (hàng hoá / dịch vụ / chi phí). Phiếu nhập tay được, có thể link tới một Hoá đơn mua (`invoices`) đã có, và tự sinh các nghiệp vụ kéo theo.
 
-Đem trải nghiệm xem hoá đơn của chatbot (XML einvoice template đỏ kiểu HĐĐT VN + PDF render bằng pdfjs canvas + nút "Xem lớn") sang trang **Trung tâm tài liệu**, áp dụng cho 2 tab **Hoá đơn mua** và **Hoá đơn bán**.
+## 1. Database (migration)
 
-Phạm vi: chỉ doc có `doc_kind ∈ {purchase_invoice, sales_invoice}`. Các tab khác (Tất cả, Ngân hàng) giữ preview cũ.
+**Bảng mới `purchase_vouchers`** — theo pattern `cash_vouchers`:
+- Định danh: `voucher_no`, `voucher_date`, `tenant_id`, `user_id`, các chiều phân tích (branch/department/project/cost_center).
+- Liên kết: `supplier_id`, `supplier_name`, `supplier_tax_id`, `invoice_id` (FK invoices, nullable), `journal_entry_id`, `stock_voucher_id`, `cash_voucher_id`, `bank_voucher_id`.
+- Nội dung: `reason` (diễn giải), `subtotal`, `vat_amount`, `total`, `vat_rate`, `currency`.
+- Định khoản (form gọn): `debit_account` (mặc định 156/152/642…), `credit_account` (331/111/112), `vat_account` (mặc định 1331, nullable).
+- Thanh toán: `payment_method` enum `credit` | `cash` | `bank` (mặc định `credit` = ghi 331), `payment_account` (1111/1121…), `pay_now` boolean.
+- Tạo kho: `create_stock_voucher` boolean, `warehouse_id` (nullable).
+- Trạng thái: `status` (uploaded/reviewed/posted/void), `posted_at`, `voided_at`, `void_reason`, `notes`.
 
----
+**Bảng mới `purchase_voucher_lines`** — dùng khi link tới invoice hoặc khi chuyển sang chế độ chi tiết (đã được snapshot từ `invoice_lines` nếu link): `product_id`, `description`, `qty`, `unit_price`, `amount`, `vat_rate`, `line_type`. Ở MVP form gọn có thể chỉ có 1 dòng tổng.
 
-## Phần 1 — Tách viewer khỏi chat thành component dùng chung
+**RLS & trigger**:
+- RLS theo `tenant_id` (pattern hiện có) — chỉ thành viên tenant đọc/ghi; owner/admin/accountant được post & void.
+- Trigger `enforce_document_status_transition` (tái dùng), `log_document_status_change`, `assert_dim_same_tenant`, `audit_trigger`.
+- Trigger sau khi `posted` → đảm bảo `journal_entry_id` không null (giống invoices).
 
-Hiện tại `XmlInvoicePreview` đã thuần (chỉ nhận `data` + `signedUrl`), nhưng `PdfPagePreview` đang nằm bên trong `invoice-extract-card.tsx`. Tách ra để cả chat lẫn Document Center cùng dùng:
+## 2. Server functions (`src/lib/purchase-vouchers.functions.ts`)
 
-- Tạo `src/components/invoice-viewer/pdf-page-preview.tsx` chứa `PdfPagePreview` (copy nguyên từ `invoice-extract-card.tsx`).
-- Tạo `src/components/invoice-viewer/invoice-file-viewer.tsx` — component "chỉ phần preview file" (XML/PDF/ảnh + nút Xem lớn + Dialog zoom), tách từ phần preview-cột-trái của `InvoiceExtractCard`. Props: `{ einvoice, signedUrl, mimeType, filename }`.
-- Cập nhật `invoice-extract-card.tsx` import lại 2 component này (giữ nguyên hành vi chat).
+Tất cả `createServerFn` + `requireSupabaseAuth`:
+- `listPurchaseVouchers({ search?, status?, from?, to?, supplierId? })` → trả về voucher + supplier + tổng tiền.
+- `getPurchaseVoucher({ id })` → chi tiết + lines + JE + linked stock/cash voucher + invoice.
+- `createPurchaseVoucher({ ... })` → insert header + lines; nếu `invoice_id` được chọn, snapshot lines từ `invoice_lines` và lock các trường tiền theo invoice.
+- `updatePurchaseVoucher({ id, ... })` — chỉ khi `status ∈ {uploaded, reviewed}`.
+- `deletePurchaseVoucher({ id })` — chỉ draft.
+- `postPurchaseVoucher({ id })` — atomic:
+  1. Tính bút toán theo `payment_method`:
+     - `credit` (mặc định): Nợ `debit_account` (subtotal) + Nợ `vat_account` (vat) / Có 331 (total).
+     - `cash` / `bank`: Nợ `debit_account` + Nợ `vat_account` / Có `payment_account` (1111/1121).
+  2. Insert `journal_entries` + `journal_lines`.
+  3. Nếu `create_stock_voucher` = true và có dòng hàng có `product_id` → insert `stock_vouchers` (loại nhập) + `stock_movements` theo đơn giá tính từ `amount/qty` (giống `approveJournalEntry` hiện tại); cập nhật bình quân gia quyền `products.unit_cost`.
+  4. Nếu `pay_now` (cash/bank) → tạo `cash_vouchers` (type `payment`) hoặc `bank_vouchers` tương ứng, link `journal_entry_id`.
+  5. Update voucher: `status='posted'`, `posted_at`, các id liên kết.
+- `voidPurchaseVoucher({ id, reason })` — đảo bút toán (sinh JE đảo), huỷ stock_movements (insert dòng ngược), đặt `status='void'`.
+- `stickStockVoucher({ id, warehouseId })` — nút "Stick Nhập kho" để tạo riêng phiếu nhập kho sau khi đã ghi sổ (cho trường hợp ban đầu chưa tick).
 
-Không thay đổi `xml-invoice-preview.tsx` (đã reusable).
+Tái dùng `is_period_locked` để chặn ghi sổ vào kỳ đã khoá.
 
----
+## 3. UI
 
-## Phần 2 — Nâng cấp tab "Xem trước" trong `DocumentDrawer`
+**Route mới** `src/routes/_app/purchases/vouchers.tsx` — danh sách phiếu mua (filter theo trạng thái, NCC, khoảng ngày, search số phiếu/NCC). Cột: Số phiếu, Ngày, NCC, Diễn giải, Tổng tiền, PT thanh toán, Trạng thái, Hành động.
 
-File: `src/routes/_app/documents/index.tsx` → hàm `DocumentDrawer`.
+**Route mới** `src/routes/_app/purchases/vouchers.$id.tsx` — chi tiết phiếu (xem/edit/post/void), 2 cột:
+- Trái: thông tin phiếu + định khoản preview (bảng Nợ/Có với số tiền tự tính), nút In phiếu.
+- Phải: nghiệp vụ liên kết (Bút toán, Phiếu nhập kho, Phiếu chi) với link nhanh; nút "Stick Nhập kho" nếu chưa có.
 
-Trong `TabsContent value="preview"`, nếu `doc.doc_kind ∈ {purchase_invoice, sales_invoice}`:
-- Lấy `einvoice = doc.ocr_extracted?._einvoice ?? null`.
-- Render `<InvoiceFileViewer einvoice={einvoice} signedUrl={data.signedUrl} mimeType={doc.mime_type} filename={doc.original_filename} />`.
-- Fallback: nếu không phải 2 kind trên → giữ nguyên img/iframe hiện tại.
+**Dialog/Drawer "Tạo phiếu mua hàng"** — form gọn:
+- Hàng 1: Số phiếu (auto-gen `PMH-YYYYMM-####`), Ngày, NCC (combobox suppliers, tạo nhanh).
+- Hàng 2: Link HĐ mua (Select rỗng hoặc gợi ý từ `invoices` cùng NCC chưa post) — chọn xong tự fill số HĐ/ngày/tổng/VAT.
+- Hàng 3: Diễn giải.
+- Hàng 4: Subtotal | VAT% | VAT amount | Total (auto-tính, có thể override).
+- Hàng 5: TK Nợ (combobox CoA, default 156), TK Có (default 331), TK VAT (default 1331).
+- Hàng 6: Phương thức TT (`credit` | `cash` | `bank`); nếu cash/bank → hiện TK tiền + checkbox "Thanh toán ngay → sinh phiếu chi/UNC".
+- Hàng 7: Checkbox "Sinh phiếu nhập kho" + chọn Kho (chỉ enable khi `debit_account` thuộc nhóm 15* và có link invoice với dòng hàng có product, hoặc chế độ chi tiết sau này).
+- Nút "Lưu nháp" / "Lưu & Ghi sổ".
 
----
+**Tích hợp vào trang Mua hàng hiện có** (`src/routes/_app/purchases/index.tsx`):
+- Thêm tab/section "Phiếu mua hàng" hoặc nút điều hướng nhanh `/purchases/vouchers`.
+- Bổ sung thẻ thống kê "Phiếu mua hàng tháng này" (số phiếu, tổng tiền) — query nhẹ.
 
-## Phần 3 — Nút "Xem hoá đơn" trên mỗi dòng (Dialog full)
+## 4. Cập nhật khác
+- `query-invalidation.ts`: thêm key `purchase-vouchers`, invalidate cùng `journal`, `inventory`, `payables` sau post/void.
+- `documents.functions.ts`: thêm loại `purchase_voucher` vào Trung tâm tài liệu (chỉ liệt kê, không cần preview file).
+- Sidebar / menu kế toán: thêm "Phiếu mua hàng" dưới nhóm Mua hàng.
+- Audit logging tự động qua `audit_trigger` (cần ATTACH trong migration).
 
-Trong `PurchaseInvoicesTable` và `SalesInvoicesTable`:
-
-- Cột "File" thêm 1 nút icon mới (icon `Eye` thì đã có cho "mở drawer"; dùng `FileSearch` hoặc `Maximize2` cho "xem hoá đơn") đứng cạnh nút mở drawer.
-- Click → mở 1 `Dialog` mới (state cục bộ `viewerDocId`).
-- Dialog content: layout 2 cột giống chat:
-  - Trái: `<InvoiceFileViewer ... />` (XML template hoặc PDF canvas).
-  - Phải: card thông tin trích xuất gọn (Số HĐ / Ngày / NCC hoặc KH / MST / Tiền trước thuế / VAT / Tổng) — tái dùng dữ liệu `r.invoice` đã có sẵn trong row, không cần fetch thêm.
-- Tải `signedUrl` cho doc bằng `useServerFn(getDocument)` chỉ khi dialog mở (`enabled: !!viewerDocId`).
-- Tiêu đề dialog: số HĐ + tên file.
-- Footer dialog: link "Mở chi tiết hoá đơn" → `/invoices/$id` (mua) hoặc `/sales/$id` (bán), + nút "Mở Drawer" để chuyển sang Drawer tài liệu nếu cần thao tác file.
-
----
-
-## Phần 4 — Đảm bảo dữ liệu `_einvoice` luôn có cho file XML
-
-Khi doc XML được upload thủ công ngoài chat, `ocr_extracted._einvoice` có thể chưa được điền nếu parser path khác không gọi `parsedXmlToPurchaseInvoice`. Kiểm tra `reparseDocument` (đã có nút "Parse lại" trong Drawer) — nếu nhánh XML chưa gắn `_einvoice`, bổ sung 1 lần để đảm bảo:
-
-- Trong `src/lib/ai/parse-document.functions.ts` nhánh `parsedXml` (line ~852), confirm output đi qua `parsedXmlToPurchaseInvoice` (đã có `_einvoice`). Nếu có path khác bỏ qua → thêm fallback gắn `_einvoice` trước khi ghi `ocr_extracted`.
-
-Không tạo migration. Không thêm cột mới.
-
----
-
-## Technical notes
-
-- **Routing**: không thêm route mới; mọi thay đổi nằm trong `documents/index.tsx` + components mới.
-- **Lazy load**: `PdfPagePreview` đã dynamic-import `pdfjs-dist` — giữ nguyên để không tăng bundle ban đầu của trang documents.
-- **Worker URL**: import `pdf.worker.mjs?url` đã được Vite handle, dùng lại cùng cách trong file mới tách.
-- **State**: `viewerDocId` là `useState<string|null>` trong từng table component (cục bộ, không cần URL search param).
-- **Không đổi server functions** (`listPurchaseDocuments`, `listSalesDocuments`, `getDocument`) — đã đủ data.
-
-```text
-src/components/invoice-viewer/
-├── pdf-page-preview.tsx          (tách từ invoice-extract-card)
-└── invoice-file-viewer.tsx       (mới — XML/PDF/img + zoom dialog)
-
-src/components/chat/invoice/
-└── invoice-extract-card.tsx      (refactor: import 2 file trên)
-
-src/routes/_app/documents/index.tsx
-├── DocumentDrawer                (preview tab dùng InvoiceFileViewer khi là HĐ)
-├── PurchaseInvoicesTable         (+ nút Xem HĐ + Dialog viewer)
-└── SalesInvoicesTable            (+ nút Xem HĐ + Dialog viewer)
-```
-
----
-
-## Out of scope
-
-- Không đụng tab "Tất cả" / "Ngân hàng".
-- Không thêm chỉnh sửa hoá đơn trong Dialog (chỉ xem; nếu muốn edit → bấm "Mở chi tiết hoá đơn" sang `/invoices/$id` hoặc `/sales/$id`).
-- Không thay đổi schema DB.
+## 5. Out of scope (giai đoạn sau)
+- Chế độ form chi tiết nhiều dòng — schema đã sẵn `purchase_voucher_lines` nhưng UI chỉ làm form gọn ở MVP này.
+- Import hàng loạt phiếu từ Excel.
+- AI gợi ý định khoản cho phiếu (sẽ tái dùng `suggestJournalEntry` ở vòng sau).

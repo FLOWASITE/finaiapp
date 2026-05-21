@@ -4931,6 +4931,277 @@ export type Database = {
           },
         ]
       }
+      purchase_voucher_lines: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          line_order: number
+          line_type: string
+          product_id: string | null
+          qty: number
+          unit_price: number
+          vat_rate: number
+          voucher_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          line_order?: number
+          line_type?: string
+          product_id?: string | null
+          qty?: number
+          unit_price?: number
+          vat_rate?: number
+          voucher_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          line_order?: number
+          line_type?: string
+          product_id?: string | null
+          qty?: number
+          unit_price?: number
+          vat_rate?: number
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_voucher_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_voucher_lines_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_vouchers: {
+        Row: {
+          bank_voucher_id: string | null
+          branch_id: string | null
+          cash_voucher_id: string | null
+          cost_center_id: string | null
+          create_stock_voucher: boolean
+          created_at: string
+          credit_account: string
+          currency: string | null
+          debit_account: string
+          department_id: string | null
+          id: string
+          invoice_date: string | null
+          invoice_id: string | null
+          invoice_no: string | null
+          journal_entry_id: string | null
+          notes: string | null
+          pay_now: boolean
+          payment_account: string | null
+          payment_method: string
+          posted_at: string | null
+          project_id: string | null
+          reason: string | null
+          status: string
+          stock_voucher_id: string | null
+          subtotal: number
+          supplier_id: string | null
+          supplier_name: string | null
+          supplier_tax_id: string | null
+          tenant_id: string | null
+          total: number
+          updated_at: string
+          user_id: string
+          vat_account: string | null
+          vat_amount: number
+          vat_rate: number
+          void_reason: string | null
+          voided_at: string | null
+          voucher_date: string
+          voucher_no: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          bank_voucher_id?: string | null
+          branch_id?: string | null
+          cash_voucher_id?: string | null
+          cost_center_id?: string | null
+          create_stock_voucher?: boolean
+          created_at?: string
+          credit_account?: string
+          currency?: string | null
+          debit_account?: string
+          department_id?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_id?: string | null
+          invoice_no?: string | null
+          journal_entry_id?: string | null
+          notes?: string | null
+          pay_now?: boolean
+          payment_account?: string | null
+          payment_method?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reason?: string | null
+          status?: string
+          stock_voucher_id?: string | null
+          subtotal?: number
+          supplier_id?: string | null
+          supplier_name?: string | null
+          supplier_tax_id?: string | null
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id: string
+          vat_account?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voucher_date?: string
+          voucher_no: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          bank_voucher_id?: string | null
+          branch_id?: string | null
+          cash_voucher_id?: string | null
+          cost_center_id?: string | null
+          create_stock_voucher?: boolean
+          created_at?: string
+          credit_account?: string
+          currency?: string | null
+          debit_account?: string
+          department_id?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_id?: string | null
+          invoice_no?: string | null
+          journal_entry_id?: string | null
+          notes?: string | null
+          pay_now?: boolean
+          payment_account?: string | null
+          payment_method?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reason?: string | null
+          status?: string
+          stock_voucher_id?: string | null
+          subtotal?: number
+          supplier_id?: string | null
+          supplier_name?: string | null
+          supplier_tax_id?: string | null
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id?: string
+          vat_account?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voucher_date?: string
+          voucher_no?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_vouchers_bank_voucher_id_fkey"
+            columns: ["bank_voucher_id"]
+            isOneToOne: false
+            referencedRelation: "bank_vouchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_cash_voucher_id_fkey"
+            columns: ["cash_voucher_id"]
+            isOneToOne: false
+            referencedRelation: "cash_vouchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_stock_voucher_id_fkey"
+            columns: ["stock_voucher_id"]
+            isOneToOne: false
+            referencedRelation: "stock_vouchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_vouchers_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_notes: {
         Row: {
           content: string
