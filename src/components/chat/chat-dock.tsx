@@ -197,6 +197,7 @@ export function ChatDock() {
         const res = await createWithMsgFn({
           data: {
             threadId,
+            messageId: tempMessage.id,
             title: titleText,
             content: q,
             ...(opts?.metadata ? { metadata: opts.metadata } : {}),
@@ -385,6 +386,7 @@ export function ChatDock() {
         const res = await createWithMsgFn({
           data: {
             threadId,
+            messageId: tempMessage.id,
             title: titleText,
             content,
             metadata: { attachments: finalMeta },

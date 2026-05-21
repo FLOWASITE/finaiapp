@@ -574,6 +574,23 @@ function ThreadPage() {
     );
   }
 
+  if (query.data?.notFound) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="max-w-sm rounded-xl border border-border/70 bg-background p-6 text-center shadow-sm">
+          <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+          <p className="mb-1 text-sm font-medium">Không tìm thấy cuộc trò chuyện</p>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Hội thoại này chưa được tạo xong, đã bị xoá hoặc không thuộc doanh nghiệp hiện tại.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+            Tải lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (query.isError) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -602,7 +619,7 @@ function ThreadPage() {
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-semibold text-slate-800">
-              {query.data?.thread.title ?? "Cuộc trò chuyện"}
+              {query.data?.thread?.title ?? "Cuộc trò chuyện"}
             </h1>
           </div>
           <span

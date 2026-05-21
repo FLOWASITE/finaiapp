@@ -107,13 +107,13 @@ export const getThread = createServerFn({ method: "POST" })
     const { supabase, userId, tenantId } = context;
     const { data: thread, error: e1 } = await supabase
       .from("chat_threads")
-      .select("id,title,last_message_at,created_at")
+      .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
       .eq("id", data.threadId)
       .eq("user_id", userId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (e1) throw new Error(e1.message);
-    if (!thread) throw new Error("Không tìm thấy cuộc trò chuyện");
+    if (!thread) return { thread: null, messages: [], notFound: true as const };
     const { data: messages, error: e2 } = await supabase
       .from("chat_messages")
       .select("id,role,content,created_at,metadata")
@@ -124,6 +124,7 @@ export const getThread = createServerFn({ method: "POST" })
     return {
       thread: thread as ChatThread,
       messages: (messages ?? []) as ChatMessage[],
+      notFound: false as const,
     };
   });
 
@@ -153,6 +154,7 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
     z
       .object({
         threadId: Uuid.optional(),
+        messageId: Uuid.optional(),
         title: z.string().trim().min(1).max(200).optional(),
         content: z.string().min(1).max(50_000),
         metadata: z.any().optional(),
@@ -163,33 +165,80 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
     const { supabase, userId, tenantId } = context;
     const title = data.title?.trim() || data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
     const nowIso = new Date().toISOString();
-    const insertPayload: any = {
-      user_id: userId,
-      tenant_id: tenantId,
-      title,
-      last_message_at: nowIso,
-    };
-    if (data.threadId) insertPayload.id = data.threadId;
-    const { data: thread, error: e1 } = await supabase
-      .from("chat_threads")
-      .insert(insertPayload)
-      .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
-      .single();
-    if (e1 || !thread) throw new Error(e1?.message || "Không tạo được hội thoại");
+    const threadSelect = "id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred";
+    const messageSelect = "id,role,content,created_at,metadata";
+    const isDuplicate = (error: any) =>
+      error?.code === "23505" || String(error?.message ?? "").toLowerCase().includes("duplicate key");
 
-    const { data: msg, error: e2 } = await supabase
-      .from("chat_messages")
-      .insert({
+    const loadThread = async () => {
+      if (!data.threadId) return null;
+      const { data: row, error } = await supabase
+        .from("chat_threads")
+        .select(threadSelect)
+        .eq("id", data.threadId)
+        .eq("user_id", userId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return row;
+    };
+
+    let thread = await loadThread();
+    if (!thread) {
+      const insertPayload: any = { user_id: userId, tenant_id: tenantId, title, last_message_at: nowIso };
+      if (data.threadId) insertPayload.id = data.threadId;
+      const { data: inserted, error: e1 } = await supabase
+        .from("chat_threads")
+        .insert(insertPayload)
+        .select(threadSelect)
+        .single();
+      if (e1) {
+        if (data.threadId && isDuplicate(e1)) thread = await loadThread();
+        else throw new Error(e1.message);
+      } else {
+        thread = inserted;
+      }
+    }
+    if (!thread) throw new Error("Không tạo được hội thoại");
+
+    const loadMessage = async () => {
+      if (!data.messageId) return null;
+      const { data: row, error } = await supabase
+        .from("chat_messages")
+        .select(messageSelect)
+        .eq("id", data.messageId)
+        .eq("thread_id", thread.id)
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return row;
+    };
+
+    let msg = await loadMessage();
+    if (!msg) {
+      const messagePayload: any = {
         thread_id: thread.id,
         tenant_id: tenantId,
         user_id: userId,
         role: "user",
         content: data.content,
         metadata: data.metadata ?? null,
-      })
-      .select("id,role,content,created_at,metadata")
-      .single();
-    if (e2) throw new Error(e2.message);
+      };
+      if (data.messageId) messagePayload.id = data.messageId;
+      const { data: insertedMsg, error: e2 } = await supabase
+        .from("chat_messages")
+        .insert(messagePayload)
+        .select(messageSelect)
+        .single();
+      if (e2) {
+        if (data.messageId && isDuplicate(e2)) msg = await loadMessage();
+        else throw new Error(e2.message);
+      } else {
+        msg = insertedMsg;
+      }
+    }
+    if (!msg) throw new Error("Không tạo được tin nhắn đầu tiên");
 
     return { thread: thread as ChatThread, message: msg as ChatMessage };
   });
