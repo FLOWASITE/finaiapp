@@ -441,7 +441,7 @@ function DocumentsPage() {
                   <Select value={ocrStatus} onValueChange={setOcrStatus}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Trạng thái OCR" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Mọy OCR</SelectItem>
+                      <SelectItem value="all">Mọi OCR</SelectItem>
                       {Object.entries(OCR_LABELS).map(([k, label]) => (
                         <SelectItem key={k} value={k}>{label}</SelectItem>
                       ))}
