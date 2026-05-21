@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
+import { PdfPagePreview } from "@/components/invoice-viewer/pdf-page-preview";
 import { JournalProposalCard } from "./journal-proposal-card";
 
 function fmtVND(n: number | null | undefined): string {
