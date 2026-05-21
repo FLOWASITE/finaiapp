@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/llamaparse.server";
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { hashBase64, readParseCache, writeParseCache } from "@/lib/ai/parse-cache.server";
+import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
 
 const InputSchema = z.object({
   fileBase64: z.string().min(1),
@@ -167,6 +168,35 @@ function schemaFor(kind: string) {
   if (kind === "bank_statement") return BankStatementSchema;
   if (kind === "cash_voucher") return CashVoucherSchema;
   return null;
+}
+
+function isXmlFile(mimeType: string, filename?: string): boolean {
+  const m = (mimeType || "").toLowerCase();
+  const f = (filename || "").toLowerCase();
+  return m.includes("xml") || f.endsWith(".xml");
+}
+
+function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>) {
+  return {
+    vendor_name: parsed.seller.name || null,
+    vendor_tax_id: parsed.seller.tax_id || null,
+    invoice_no: parsed.invoice_no || null,
+    issue_date: parsed.issue_date,
+    currency: parsed.currency || "VND",
+    subtotal: parsed.totals.subtotal || null,
+    vat_amount: parsed.totals.vat_amount || null,
+    total: parsed.totals.total || null,
+    lines: parsed.lines
+      .filter((line) => line.kind === "item")
+      .map((line) => ({
+        description: line.description || "Hàng hoá / dịch vụ",
+        qty: line.qty || 1,
+        unit_price: line.unit_price || null,
+        amount: line.amount || null,
+        vat_rate: line.vat_rate,
+      })),
+    notes: parsed.cqt_code ? `XML HĐĐT, mã CQT: ${parsed.cqt_code}` : "XML HĐĐT",
+  };
 }
 
 // ---------- Source acquisition ----------------------------------------
@@ -677,6 +707,44 @@ export async function parseFileCore(opts: {
   };
 
   try {
+    if (isXmlFile(opts.mimeType, opts.filename)) {
+      try {
+        const parsedXml = parseEinvoiceXml(fileBuf.toString("utf8"));
+        const parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        if (uploadId && opts.supabase) {
+          try {
+            await opts.supabase
+              .from("ai_uploads")
+              .update({
+                kind: "purchase_invoice",
+                parsed,
+                parser_used: "einvoice_xml",
+                pages: 1,
+                status: "parsed",
+                error: null,
+              })
+              .eq("id", uploadId);
+            await updateDocumentOcr({ supabase: opts.supabase, uploadId, status: "done", parsed });
+          } catch {}
+        }
+        if (opts.supabase) {
+          await writeParseCache(opts.supabase, fileHash, "purchase_invoice", parsed, "einvoice_xml", 1);
+        }
+        return {
+          kind: "purchase_invoice",
+          uploadId,
+          parsed,
+          parser: "einvoice_xml",
+          cached: false,
+          pages: 1,
+          file_hash: fileHash,
+        };
+      } catch (e: any) {
+        await markFailed(e?.message || "Không nhận diện được XML hoá đơn điện tử");
+        throw e;
+      }
+    }
+
     // ---- 1. Cache check (skip for `auto`)
     if (opts.supabase && opts.kind !== "auto") {
       const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
