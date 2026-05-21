@@ -179,18 +179,6 @@ export function ChatDock() {
       return [tempThread, ...list];
     });
 
-    collapseChatSidebar();
-    navigate({
-      to: "/chat/$threadId",
-      params: { threadId },
-      search: {
-        autostart: "1",
-        pending: "1",
-        ...(opts?.handoff ? { handoff: opts.handoff } : {}),
-        ...(fromHref ? { from: fromHref } : {}),
-      },
-    });
-
     // Background server insert (idempotent qua threadId — có thể retry nguyên trạng).
     const runInsert = async () => {
       try {
@@ -220,6 +208,18 @@ export function ChatDock() {
       }
     };
     registerThreadCreation(threadId, runInsert(), runInsert);
+
+    collapseChatSidebar();
+    navigate({
+      to: "/chat/$threadId",
+      params: { threadId },
+      search: {
+        autostart: "1",
+        pending: "1",
+        ...(opts?.handoff ? { handoff: opts.handoff } : {}),
+        ...(fromHref ? { from: fromHref } : {}),
+      },
+    });
   };
 
   const submit = async (override?: string) => {
@@ -339,18 +339,6 @@ export function ChatDock() {
       return [tempThread, ...list];
     });
 
-    collapseChatSidebar();
-    navigate({
-      to: "/chat/$threadId",
-      params: { threadId },
-      search: {
-        autostart: "1",
-        pending: "1",
-        handoff: handoffId,
-        ...(fromHref ? { from: fromHref } : {}),
-      },
-    });
-
     // Background: upload files then create thread+message with final metadata.
     // Idempotent qua threadId — retry sẽ chạy lại y nguyên.
     const runInsert = async () => {
@@ -412,6 +400,18 @@ export function ChatDock() {
       }
     };
     registerThreadCreation(threadId, runInsert(), runInsert);
+
+    collapseChatSidebar();
+    navigate({
+      to: "/chat/$threadId",
+      params: { threadId },
+      search: {
+        autostart: "1",
+        pending: "1",
+        handoff: handoffId,
+        ...(fromHref ? { from: fromHref } : {}),
+      },
+    });
   };
 
   return (
