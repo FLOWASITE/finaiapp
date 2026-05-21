@@ -139,7 +139,7 @@ export async function classifyFile(opts: {
         reason,
         seller_tax_id: seller || null,
         buyer_tax_id: buyer || null,
-        source: "ai",
+        source: "xml",
       };
       if (opts.fileHash) {
         try {
