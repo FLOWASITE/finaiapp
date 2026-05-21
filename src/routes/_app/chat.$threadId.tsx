@@ -22,11 +22,13 @@ import {
   takeAnyChatAttachmentHandoff,
   takeChatAttachments,
 } from "@/lib/chat-attachment-handoff";
+import { awaitThreadCreation } from "@/lib/chat-thread-handoff";
 
 const searchSchema = z.object({
   autostart: z.string().optional(),
   from: z.string().optional(),
   optimistic: z.string().optional(),
+  pending: z.string().optional(),
   handoff: z.string().optional(),
 });
 
@@ -37,7 +39,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart, handoff } = Route.useSearch();
+  const { autostart, handoff, pending } = Route.useSearch();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
@@ -74,6 +76,10 @@ function ThreadPage() {
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
+    // On `pending` (optimistic) the cache is already primed by ChatDock and
+    // the row may not even exist server-side yet. Avoid a query that would
+    // 404 the freshly-created thread and clobber the optimistic cache.
+    enabled: !pending,
   });
 
   useEffect(() => {
@@ -85,8 +91,10 @@ function ThreadPage() {
     abortRef.current = null;
   }, [threadId]);
 
-  /** Trả về threadId dùng để persist message. ChatDock đã tạo thread thật trước khi mở route. */
+  /** Trả về threadId dùng để persist message. Khi ChatDock điều hướng optimistic,
+   * thread chưa tồn tại server-side → đợi background creation xong trước. */
   const getEffectiveThreadId = async (): Promise<string> => {
+    await awaitThreadCreation(threadId);
     return threadId;
   };
 
