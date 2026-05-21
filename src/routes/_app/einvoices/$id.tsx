@@ -15,6 +15,7 @@ import {
   linkEInvoice,
 } from "@/lib/einvoices.functions";
 import { LinkEInvoiceDialog } from "@/components/link-einvoice-dialog";
+import { EinvoiceDraftPanel } from "@/components/einvoice-draft-panel";
 
 export const Route = createFileRoute("/_app/einvoices/$id")({
   component: EInvoiceDetail,
