@@ -1,102 +1,127 @@
-## Mục tiêu
 
-Khi user kéo / đính kèm hoá đơn vào ChatDock, biến luồng trả lời của AI thành **3 message cards có cấu trúc** thay cho text + accordion JSON hiện tại, đúng theo mockup:
+# Xử lý khi user gửi nhiều file cùng lúc
 
-1. **Card tiến trình minh bạch** — 4 bước có ✓ + thời gian thực (OCR · Trích xuất · Khớp đối tác · Đối chiếu quy tắc).
-2. **Card hoá đơn + bảng trích xuất** — thumbnail PDF/ảnh bên trái, bảng field bên phải, pill `✓ MST hợp lệ` cạnh số MST.
-3. **Card bút toán đề xuất** — Nợ/Có monospace + chip "Quy tắc áp dụng · lần thứ N" (click → `/ai/memory`) + hàng pill xác nhận đa nguồn + callout TT 219 + 4 nút sắc thái khác nhau.
-4. Sau khi **Duyệt & ghi sổ** → card collapse thành 1 dòng tóm tắt, AI gửi **chained next card** "Còn N mục — tiếp tục?" với 3 nút.
+Mục tiêu: thay vì 27 lượt parse rời rạc (mỗi file = 1 `parseDocument` card), chat hiển thị **1 message user duy nhất** + **3 message AI** (phân loại → kế hoạch → câu hỏi ngay) + **1 status card live** khi chạy → tóm tắt cuối → chained task.
 
-Giữ design tokens (`--gradient-ai`, `primary`, `muted`, `border`, `accent`). Không màu cứng. Toàn bộ là FE/wiring nhẹ — không đụng business logic duyệt (`approveAiAction` giữ nguyên).
+## Đổi gì so với hiện tại
 
-## Phạm vi
+Hôm nay (`composer.tsx` + `chat.functions.ts`):
+- User chip lên N file rời, gửi đi → `attachments[]`.
+- Server lặp `parseFileCore` từng file, **mỗi file yield 1 cặp tool-call/result** → message-list render N `ParseProgressCard` + N `InvoiceExtractCard` xen kẽ.
+- Không có dedupe, không có phân loại tổng, không có "ba xô", không có gating "Chạy kế hoạch".
 
-- FE chat: components mới + render logic trong `MessageList`.
-- Server: bổ sung **phases có timing** vào output của `parseDocument` event đã có (không đổi schema tool, không đổi DB).
-- Thumbnail: lưu file vào Storage (đã có `ai_uploads` flow); trả `storage_path` để FE tạo signed URL.
-- 1 server fn nhỏ mới: `getAiUploadThumbnail({uploadId})` trả signed URL.
-- 1 server fn nhỏ mới: `learnRulePreference({action_id, kind})` ghi feedback vào `ai_memory` khi user bấm "Đây không phải marketing".
+Sau khi sửa:
+- Bubble user: nếu ≥ 6 file → grid 9 ô + `+N` (đã có `AttachmentChips` nhưng list-flat, sẽ thay bằng grid + collapse).
+- Server thêm 2 step **trước** khi parse từng cái: **dedupe theo file_hash** + **classify nhanh theo filename/mime/size** → yield **1 tool event tổng** `bulkIntake` (không yield 27 cái lẻ).
+- Vẫn parse từng file ở background nhưng **gộp progress** vào 1 card duy nhất (`BulkPlanCard`), không spam.
+- AI text chia 3 đoạn rõ ràng (prompt hướng dẫn).
+- Card kế hoạch có 3 xô (auto / review / ask), nút **Chạy kế hoạch** (gated — không tự chạy bulk), nút **Tinh chỉnh phân nhóm**, nút **Xem từng file**.
+- Khi `Chạy` → status card live cập nhật `done/total`, có `Tạm dừng`, kết thúc → summary + chained next.
 
-## Kiến trúc render
+## Files mới (FE)
 
+`src/components/chat/bulk/`:
+- `types.ts` — `BulkIntake`, `BulkBucket = "auto" | "review" | "ask"`, `BulkItem { id, filename, kind, bucket, confidence, dupOf?, ocrCandidates?, reason }`, `BulkPlan { buckets: Record<BulkBucket, BulkItem[]>, duplicates: {filename, reason}[], etaSec }`.
+- `bulk-grid-chips.tsx` — render attachment chips dạng grid 5×2 + `+N nữa`, click mở dialog xem hết. Dùng cho **bubble user**.
+- `bulk-intake-card.tsx` — bảng 5 hàng (HĐ vào / HĐ ra / Sao kê / Ảnh HĐ giấy / Excel) với `count + status` (✓ đọc rõ / ⚠ OCR khó / ✓ đã parse). Khối "X file trùng đã bỏ qua" với link xem file gốc.
+- `bulk-plan-card.tsx` — 3 panel (xanh / cam / đỏ), số lớn góc phải, danh sách ngắn từng item bên trong (truncate). Nút `Chạy kế hoạch` (`primary`), `Tinh chỉnh phân nhóm` (mở `bulk-refine-sheet`), `Xem từng file`. ETA `~N phút`.
+- `bulk-refine-sheet.tsx` — sheet/right-drawer: list mọi item, mỗi item có select bucket (auto/review/ask) + override kind.
+- `bulk-run-status-card.tsx` — sticky card khi đang chạy: progress `14/18`, list 4 mục gần nhất với ✓/◌, ETA còn lại, `Tạm dừng`, `Xem chi tiết`. Subscribe stream events.
+- `bulk-summary-card.tsx` — tóm tắt cuối + chained next CTA (`Có, hạch toán luôn` / `Tôi xem trước`).
+- `ocr-disambiguation-card.tsx` — thumbnail (xoay nhẹ `rotate-[-2deg]`) + 2-3 candidate với % giống + 3 nút: `Là X`, `Là Y (tạo mới)`, `Để tôi xem ảnh gốc`, `Bỏ file này`.
+
+## FE wiring
+
+`src/components/chat/composer.tsx`:
+- Khi `pending.length >= 6` hiển thị grid 5×2 + `+N` thay cho flex-wrap dài.
+- Không đổi luồng `onAttach` (vẫn gửi `AttachmentPayload[]` lên server như cũ).
+
+`src/components/chat/message-list.tsx` (`InvoiceToolEvents`):
+- Thêm 3 nhánh mới: `bulkIntake` → `BulkIntakeCard` + `BulkPlanCard` (gộp); `bulkRun` → `BulkRunStatusCard`; `bulkSummary` → `BulkSummaryCard`; `ocrDisambiguate` → `OcrDisambiguationCard`.
+- Khi 1 message có `bulkIntake`, **ẩn toàn bộ** `parseDocument` events lẻ trong cùng message (đã được cuộn vào trong `BulkPlanCard`).
+- `AttachmentChips` ở user bubble: nếu items > 5 → render `BulkGridChips` thay vì list dài.
+
+`src/routes/_app/chat.$threadId.tsx`:
+- Lắng nghe custom event `chat:run-bulk-plan` (từ `BulkPlanCard`) → gọi `askFn` với prompt nội bộ `__bulk_run__` + `bulkPlanId` để server biết thực thi danh sách đã duyệt.
+- Lắng nghe `chat:bulk-pause` → `abortRef.current?.abort()` (đã có sẵn từ Stop logic).
+- Lắng nghe `chat:bulk-chain-next` (từ `BulkSummaryCard`) → gửi prompt `__bulk_chain__:<fileId>`.
+
+## Server changes
+
+`src/lib/chat.functions.ts` (`askAccountingStream`):
+
+1. **Nếu `attachments.length >= 3`**, chạy `bulkIntake` thay vì loop parse cũ:
+   ```text
+   - Tính file_hash (sha256 base64) cho từng file (đã có hash trong parseFileCore — tách thành helper hashOnly()).
+   - Query ai_uploads.file_hash IN (...) cho user/tenant → mark dup, kèm filename gốc.
+   - Phân loại nhanh theo (mime, filename regex): pdf+"HD"/"INV" → purchase_invoice/sales_invoice; csv|xlsx+"sao_ke"/"vcb"/"tcb" → bank_statement; image → invoice_image; xlsx khác → excel_unknown.
+   - Build BulkPlan: confidence cao + có rule trùng → bucket "auto"; OCR ảnh hoặc thiếu match → "review"; ảnh mờ không đọc được tên / file lạ → "ask".
+   - Yield 1 event:
+       tool-call { toolName: "bulkIntake", input: { fileCount, dedupedCount } }
+       tool-result { output: BulkPlan }
+   - KHÔNG yield parseDocument lẻ.
+   ```
+
+2. Sửa system-prompt nhánh bulk: AI phải xuất **đúng 3 đoạn**:
+   - Đoạn 1: 1 câu xác nhận ("Nhận đủ N files. Đang phân loại…") + nhắc card phía trên.
+   - Đoạn 2: "Đây là kế hoạch của tôi cho M mục — sếp duyệt thì tôi chạy:" (card kế hoạch hiện ở dưới).
+   - Đoạn 3: hỏi NGAY mục `ask` đầu tiên nếu có (OCR/ambiguous filename). Nếu rỗng → bỏ đoạn 3.
+
+3. Thêm prompt `__bulk_run__` (frontend-injected user msg, ẩn khỏi UI):
+   - Server phát hiện prefix → bỏ qua LLM, tự loop parse + auto-post các mục `auto` (gọi handler tương ứng giống `approveAiAction`), yield progress qua tool event `bulkRun` (stream nhiều `tool-result` cập nhật `{done, total, recentNames}`), kết thúc yield `bulkSummary` (counts + chained_next gợi ý từ items `excel_unknown`).
+   - Mục `review` → tạo `ai_actions` row pending; mục `ask` → không làm gì (đã hỏi ở turn trước).
+
+4. Helper mới: `src/lib/ai/bulk-intake.server.ts` — `buildBulkPlan({files, supabase, tenantId})`. Tách logic dedupe + classify quick.
+
+`src/lib/ai/parse-document.functions.ts`: export `hashOnly(base64)` để tính sha256 nhanh không cần parse.
+
+`src/lib/ai/action-handlers.server.ts`: không đổi shape, nhưng đảm bảo `createPurchaseInvoice` callable từ bulk runner (tách thành `runHandler(name, input, ctx)` tái sử dụng).
+
+## OCR disambiguation
+
+Khi `parseFileCore` cho `invoice_image` trả về `parsed.vendor_name` confidence < 70% và có >1 candidate trong `parties` table:
+- Server yield `ocrDisambiguate` event với `{uploadId, candidates: [{partyId, name, similarity}]}`.
+- FE render `OcrDisambiguationCard`. 3 nút: chọn party → POST `chat:ocr-resolve` → server lưu vào `ai_uploads.meta` và bucket item chuyển từ `ask` → `auto`/`review`. Nút "xem ảnh gốc" mở signed URL trong tab mới. "Bỏ file này" → mark skip.
+
+## Status card streaming
+
+Trong nhánh `__bulk_run__`:
 ```text
-Assistant message (có toolEvents)
-├── parseDocument event  ──► <ParseProgressCard phases=[ocr,extract,partner,rules] />
-├── parseDocument result ──► <InvoiceExtractCard thumbnailUrl extracted msgStatus="ok" />
-└── proposeAction event  ──► <JournalProposalCard
-                                lines=[{side,acct,name,amount}]
-                                rule={label, hitCount, memoryId}
-                                signals=[{kind,label,ok}]
-                                callout="TT 219 …"
-                                actionId=…
-                              />
-                              ── on Approve ──► collapse to <PostedSummaryRow/>
-                                                + render <ChainedNextCard remaining=46/>
+yield tool-call bulkRun { total }
+for each item:
+  process → yield tool-result bulkRun { done, total, lastName, lastStatus, etaSec }
+end:
+  yield tool-result bulkSummary { posted, review, ask, chainedFile?: {uploadId, kind, summary} }
 ```
-
-## Files
-
-### Mới (FE)
-
-- `src/components/chat/invoice/parse-progress-card.tsx` — 4 dòng ✓ + ms, animate khi đang chạy.
-- `src/components/chat/invoice/invoice-extract-card.tsx` — flex 2 cột: thumbnail (signed URL từ `ai_uploads.storage_path`) + danh sách field; pill MST hợp lệ.
-- `src/components/chat/invoice/journal-proposal-card.tsx` — header BÚT TOÁN, `JournalLines`, `AppliedRuleChip` (Link tới `/ai/memory?ruleId=…`), `ConfidenceChips`, `CalloutTT219`, `ActionRow` 4 nút.
-- `src/components/chat/invoice/posted-summary-row.tsx` — 1 dòng "✓ Đã ghi sổ HĐ … → 641/133/331" có link mở chứng từ.
-- `src/components/chat/invoice/chained-next-card.tsx` — "Còn N mục" + 3 nút.
-- `src/components/chat/invoice/types.ts` — type chung (InvoicePhases, ExtractedInvoice, ProposalCardData).
-
-### Sửa
-
-- `src/lib/ai/parse-document.functions.ts` — `parseFileCore` trả thêm `phases: [{name:'ocr'|'extract'|'partner_match'|'rules_check', label, ms}]`, `thumbnail: {uploadId}`, `partnerMatch: {name, id}|null`, `vatIdValid: boolean|null`, `rules: {matchedCount, ruleId, ruleLabel, hitCount}`.
-- `src/lib/chat.functions.ts` — khi yield `tool-result` cho `parseDocument`, lấy `phases/thumbnail/partnerMatch/vatIdValid/rules` từ `parseFileCore` (đang trả về nhưng bị `truncateOutput` cắt) — nâng cap lên 8000 cho `parseDocument`.
-- `src/lib/ai/tools/propose-action.tool.ts` — `execute` trả thêm `card: { lines, rule, signals, callout? }` lấy từ handler. **Không đổi `inputSchema`.**
-- `src/lib/ai/action-handlers.server.ts` — mỗi handler thêm `toCardData(parsed, ctx)` trả `{lines,rule,signals,callout}`. Fallback null nếu chưa map.
-- `src/components/chat/message-list.tsx` — sau khi nhận toolEvents:
-  - `parseDocument` (call) → render `<ParseProgressCard streaming />`.
-  - `parseDocument` (result) → render `<InvoiceExtractCard />`.
-  - `proposeAction` (result) → render `<JournalProposalCard />` (thay cho row accordion).
-  - Vẫn render `ToolCalls` cho các tool khác (`runQuery`, `renderChart`).
-- `src/components/chat/tool-calls.tsx` — bỏ render `parseDocument` & `proposeAction` (đã có card riêng), tránh trùng.
-
-### Mới (BE — nhỏ)
-
-- `src/lib/ai-uploads.functions.ts` — `getAiUploadThumbnail({uploadId})`: signed URL 1h từ bucket `invoices`.
-- `src/lib/ai-memory.functions.ts` (sửa) — thêm `learnFromFeedback({actionId, signal})` ghi 1 row `ai_memory` kiểu `negative_pattern` để lần sau AI không chọn quy tắc đó cho doanh nghiệp này.
-
-## Hành vi nút bấm
-
-| Nút | Hành động |
-|---|---|
-| `✓ Duyệt & ghi sổ` | `approveAiAction({action_id})` → toast → card collapse thành `PostedSummaryRow` → AI tự gửi tin nhắn "Đã ghi sổ. Còn N mục…" (gọi `askAccountingStream` ngầm với prompt hệ thống `__chained_next__`, không hiện thoại user). |
-| `Sửa tài khoản` | Mở `Sheet` (shadcn) chỉnh `lines` của `input`, submit → server fn `updateAiActionInput({action_id, patch})` → invalidate. |
-| `Đây không phải marketing` | Gọi `learnFromFeedback` + `cancelAiAction` → toast "Đã học. Mở Trí nhớ AI để xem lại?" với link. |
-| `Bỏ qua` | `cancelAiAction` → card đổi sang trạng thái `dismissed` mờ. |
-
-## Chained workflow
-
-Sau `Duyệt & ghi sổ`:
-- FE gửi `chat:dock-send` event với content rỗng + `meta.chainedNext = true`.
-- Server `askAccountingStream` thấy meta đặc biệt → trả ngay text "Còn N mục…" + tool-result fake kiểu `chainedNext` với `{remaining, nextHref}`.
-- FE render `<ChainedNextCard remaining=N />` với 3 nút `Tiếp tục` (mở hoá đơn kế tiếp từ inbox), `Tạm dừng`, `Xem sổ vừa ghi` (link đến chứng từ vừa tạo).
-
-## Wiring tóm tắt
-
-```text
-parseFileCore  ─► {parsed, phases, thumbnail, partnerMatch, vatIdValid, rules}
-chat.functions ─► yield tool-result parseDocument {...full payload}
-MessageList    ─► nhìn toolName, dispatch sang card riêng
-JournalProposalCard ─► approveAiAction → onPosted → triggerChainedNext()
-ChainedNextCard  ─► Tiếp tục → window.dispatchEvent('chat:open-next-inbox')
-```
+FE chỉ render **1 card cuối cùng** cho `bulkRun` (key theo toolCallId), update tại chỗ — KHÔNG đẩy thêm card cho mỗi tick. Pause = abort signal (đã có).
 
 ## Out of scope
 
-- Bulk approve nhiều hoá đơn 1 click (sẽ làm sau khi card đơn ổn).
-- OCR realtime trên trình duyệt — vẫn dùng pipeline server hiện tại, chỉ trình bày đẹp hơn.
-- Tab Trí nhớ AI: chỉ thêm route param `?ruleId=` để highlight; UI tab giữ nguyên.
+- Không thay đổi logic single-file (< 3 attachments giữ nguyên flow hiện tại).
+- Không build bảng lương parser cho Excel (chỉ phân loại + chained CTA).
+- Không animation thumbnail xoay phức tạp — chỉ `rotate-[-2deg] shadow-md`.
+- Không lưu `BulkPlan` vào DB; sống trong `ai_actions.input` của 1 row tạm để run bulk reproduce được khi reload.
 
-## Rủi ro / fallback
+## Rủi ro
 
-- Nếu handler chưa có `toCardData` (thiếu map TK Nợ/Có) → card hiển thị `summary` text + ẩn block bút toán, giữ các nút.
-- Nếu `parseFileCore` không trả `phases` (lỗi LlamaParse) → `ParseProgressCard` hiện 1 dòng "Đang phân tích…" rồi sang thẳng card kết quả/lỗi.
-- Thumbnail thiếu (file ảnh bị xoá hoặc Storage lỗi) → fallback icon PDF + tên file (giống bubble user attachment hiện tại).
+- AI text 3 đoạn không nhất quán: mitigate bằng prompt + few-shot trong `system-prompt.ts`.
+- Stream nhiều tick `bulkRun` có thể spam re-render: dùng `useDeferredValue` + throttle trong `BulkRunStatusCard`.
+- Dedupe sai (collision rare): luôn hiển thị "X file trùng — xem lại" với link, user có thể `Vẫn import`.
+
+## Diagram
+
+```text
+User: [27 files chip grid] "Hạch toán hết..."
+AI msg #1: "Nhận đủ 27 files. Đang phân loại..."
+  └─ [BulkIntakeCard]   (5 hàng phân loại + 2 file trùng)
+AI msg #2: "Đây là kế hoạch..."
+  └─ [BulkPlanCard]     (3 xô + nút Chạy kế hoạch)
+AI msg #3: "Trước khi chạy, sếp giúp file 23..."
+  └─ [OcrDisambiguationCard]
+
+(user click Chạy)
+AI msg #4 (streaming live):
+  └─ [BulkRunStatusCard]  done 14/18 → 18/18
+AI msg #5:
+  └─ [BulkSummaryCard]    + chained next CTA
+```
