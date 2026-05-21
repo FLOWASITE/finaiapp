@@ -10,6 +10,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
+import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
 
 export type ClassifyKind =
   | "purchase_invoice"
@@ -45,6 +46,12 @@ const Schema = z.object({
 function normTaxId(s: string | null | undefined): string {
   if (!s) return "";
   return String(s).replace(/[^0-9]/g, "");
+}
+
+function isXmlInvoiceCandidate(mime: string, filename: string): boolean {
+  const m = (mime || "").toLowerCase();
+  const f = (filename || "").toLowerCase();
+  return m.includes("xml") || f.endsWith(".xml");
 }
 
 /** Đọc tenant tax_id để xác định vào/ra. */
@@ -100,6 +107,56 @@ export async function classifyFile(opts: {
   const tenantTaxId = await getTenantTaxId(opts.supabase, opts.userId);
   const isPdf = opts.mime === "application/pdf";
   const isImg = opts.mime.startsWith("image/");
+
+  if (isXmlInvoiceCandidate(opts.mime, opts.filename)) {
+    try {
+      const xmlText = Buffer.from(opts.base64, "base64").toString("utf8");
+      const parsed = parseEinvoiceXml(xmlText);
+      const seller = normTaxId(parsed.seller.tax_id);
+      const buyer = normTaxId(parsed.buyer.tax_id);
+      let kind: ClassifyKind = "purchase_invoice";
+      let confidence = 0.9;
+      let reason = `XML HĐĐT ${parsed.invoice_no || ""} — thấy MST bán ${seller || "?"}, mua ${buyer || "?"}`.trim();
+
+      if (tenantTaxId) {
+        if (seller === tenantTaxId) {
+          kind = "sales_invoice";
+          confidence = 0.98;
+          reason = `XML HĐĐT, MST tenant khớp bên bán → HĐ đầu ra`;
+        } else if (buyer === tenantTaxId) {
+          kind = "purchase_invoice";
+          confidence = 0.98;
+          reason = `XML HĐĐT, MST tenant khớp bên mua → HĐ đầu vào`;
+        } else {
+          confidence = 0.55;
+          reason = `XML HĐĐT nhưng MST tenant không khớp bên bán/mua`;
+        }
+      }
+
+      const result: ClassifyResult = {
+        kind,
+        confidence,
+        reason,
+        seller_tax_id: seller || null,
+        buyer_tax_id: buyer || null,
+        source: "ai",
+      };
+      if (opts.fileHash) {
+        try {
+          await opts.supabase
+            .from("ai_uploads")
+            .update({ classify_meta: result })
+            .eq("user_id", opts.userId)
+            .eq("file_hash", opts.fileHash);
+        } catch {
+          /* ignore */
+        }
+      }
+      return result;
+    } catch (e: any) {
+      console.warn("[classify-file] xml parse failed:", e?.message);
+    }
+  }
 
   // 2. Build prompt
   let textSnippet = "";
