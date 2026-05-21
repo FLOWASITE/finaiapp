@@ -387,6 +387,12 @@ function EInvoicesPage() {
                       <StatusBadge s={r.tct_status} />
                     </td>
                     <td className="px-3 py-2">
+                      <XmlStatusBadge
+                        s={r.xml_fetch_status}
+                        err={r.xml_fetch_error}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
                       {matchedId ? (
                         <Link
                           to={tab === "out" ? "/sales/$id" : "/invoices/$id"}
