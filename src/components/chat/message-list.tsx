@@ -386,8 +386,34 @@ function InvoiceToolEvents({
     return tn === "bulkIntake";
   });
 
+  // Build a set of proposeAction ids that should be consumed (rendered inline
+  // inside a paired InvoiceExtractCard) instead of rendered as standalone cards.
+  const consumedProposalIds = new Set<string>();
+  for (let i = 0; i < order.length; i++) {
+    const id = order[i];
+    const { call, result } = map.get(id)!;
+    const tn = (call?.toolName ?? result?.output?.toolName) as string | undefined;
+    if (tn !== "parseDocument") continue;
+    if (!result?.output?.parsed) continue;
+    // find next proposeAction
+    for (let j = i + 1; j < order.length; j++) {
+      const nid = order[j];
+      const np = map.get(nid)!;
+      const ntn = (np.call?.toolName ?? np.result?.output?.toolName) as string | undefined;
+      if (ntn === "proposeAction") {
+        const innerTool = np.call?.input?.tool_name as string | undefined;
+        const aid = np.result?.output?.action_id as string | undefined;
+        if (innerTool && aid) {
+          consumedProposalIds.add(nid);
+        }
+        break;
+      }
+    }
+  }
+
   const out: React.ReactNode[] = [];
-  for (const id of order) {
+  for (let i = 0; i < order.length; i++) {
+    const id = order[i];
     const { call, result, progress } = map.get(id)!;
     const toolName = (call?.toolName ?? result?.output?.toolName) as string | undefined;
 
@@ -467,6 +493,22 @@ function InvoiceToolEvents({
           />,
         );
         if (out_.parsed) {
+          // Look ahead for a paired proposeAction to embed inside the card.
+          let proposal: { actionId: string; toolName: string; input: any; summary?: string } | null = null;
+          for (let j = i + 1; j < order.length; j++) {
+            const np = map.get(order[j])!;
+            const ntn = (np.call?.toolName ?? np.result?.output?.toolName) as string | undefined;
+            if (ntn === "proposeAction") {
+              const innerTool = np.call?.input?.tool_name as string | undefined;
+              const innerInput = np.call?.input?.input ?? {};
+              const aid = np.result?.output?.action_id as string | undefined;
+              const summary = np.result?.output?.summary as string | undefined;
+              if (aid && innerTool) {
+                proposal = { actionId: aid, toolName: innerTool, input: innerInput, summary };
+              }
+              break;
+            }
+          }
           out.push(
             <InvoiceExtractCard
               key={id + "-ext"}
@@ -474,6 +516,7 @@ function InvoiceToolEvents({
               uploadId={out_.uploadId}
               filename={filename}
               kind={out_.kind}
+              proposal={proposal}
             />,
           );
         }
@@ -491,6 +534,7 @@ function InvoiceToolEvents({
     }
 
     if (toolName === "proposeAction") {
+      if (consumedProposalIds.has(id)) continue;
       const input = call?.input ?? {};
       const innerTool = input?.tool_name as string | undefined;
       const innerInput = input?.input ?? {};
@@ -511,6 +555,7 @@ function InvoiceToolEvents({
       continue;
     }
   }
+
 
   if (out.length === 0) return null;
   return <>{out}</>;
