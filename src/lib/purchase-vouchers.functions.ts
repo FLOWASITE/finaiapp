@@ -6,35 +6,58 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const LineSchema = z.object({
   product_id: z.string().uuid().nullable().optional(),
+  product_code: z.string().max(64).nullable().optional(),
+  product_name: z.string().max(255).nullable().optional(),
   description: z.string().max(500).nullable().optional(),
+  unit: z.string().max(32).nullable().optional(),
   qty: z.number().nonnegative().default(1),
   unit_price: z.number().nonnegative().default(0),
   amount: z.number().nonnegative().default(0),
+  discount_pct: z.number().min(0).max(100).default(0),
+  discount_amount: z.number().nonnegative().default(0),
   vat_rate: z.number().min(0).max(100).default(0),
+  vat_amount: z.number().nonnegative().default(0),
+  total: z.number().nonnegative().default(0),
+  debit_account: z.string().max(20).nullable().optional(),
+  vat_account: z.string().max(20).nullable().optional(),
+  invoice_id: z.string().uuid().nullable().optional(),
+  invoice_no: z.string().max(64).nullable().optional(),
   line_type: z.enum(["goods", "service", "expense", "asset"]).default("goods"),
+  note: z.string().max(500).nullable().optional(),
 });
 
 const VoucherUpsertSchema = z.object({
   id: z.string().uuid().optional(),
   voucher_no: z.string().trim().min(1).max(64),
-  voucher_date: z.string(), // YYYY-MM-DD
+  voucher_date: z.string(),
   supplier_id: z.string().uuid().nullable().optional(),
   supplier_name: z.string().max(255).nullable().optional(),
   supplier_tax_id: z.string().max(20).nullable().optional(),
+  supplier_address: z.string().max(500).nullable().optional(),
+  customer_group: z.string().max(128).nullable().optional(),
   invoice_id: z.string().uuid().nullable().optional(),
   invoice_no: z.string().max(64).nullable().optional(),
   invoice_date: z.string().nullable().optional(),
   reason: z.string().max(1000).nullable().optional(),
   currency: z.string().max(8).default("VND"),
+  exchange_rate: z.number().positive().default(1),
+  due_date: z.string().nullable().optional(),
   subtotal: z.number().nonnegative().default(0),
   vat_rate: z.number().min(0).max(100).default(0),
   vat_amount: z.number().nonnegative().default(0),
+  discount_pct: z.number().min(0).max(100).default(0),
+  discount_amount: z.number().nonnegative().default(0),
   total: z.number().nonnegative().default(0),
   debit_account: z.string().trim().min(1).max(20).default("156"),
   credit_account: z.string().trim().min(1).max(20).default("331"),
   vat_account: z.string().trim().max(20).nullable().optional(),
   payment_method: z.enum(["credit", "cash", "bank"]).default("credit"),
   payment_account: z.string().max(20).nullable().optional(),
+  payment_status: z.enum(["unpaid", "partial", "paid"]).default("unpaid"),
+  invoice_receipt_type: z.enum(["with_invoice", "without_invoice", "invoice_only"]).default("with_invoice"),
+  is_purchase_cost: z.boolean().default(false),
+  is_non_deductible: z.boolean().default(false),
+  auto_allocate_cost: z.boolean().default(false),
   pay_now: z.boolean().default(false),
   create_stock_voucher: z.boolean().default(false),
   warehouse_id: z.string().uuid().nullable().optional(),
@@ -286,10 +309,19 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // 1) Tạo bút toán
-    const subtotal = Number(v.subtotal || 0);
-    const vat = Number(v.vat_amount || 0);
-    const total = Number(v.total || subtotal + vat);
+    // 1) Tạo bút toán — mỗi line 1 dòng Nợ TK kho/CP + tổng VAT 1 dòng Nợ 133* + 1 dòng Có
+    const allLines: any[] = v.purchase_voucher_lines ?? [];
+    const hasLines = allLines.length > 0;
+
+    const subtotal = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.amount || 0), 0)
+      : Number(v.subtotal || 0);
+    const vat = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.vat_amount || 0), 0)
+      : Number(v.vat_amount || 0);
+    const total = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.total || 0), 0)
+      : Number(v.total || subtotal + vat);
 
     const creditAcc =
       v.payment_method === "credit"
@@ -297,12 +329,36 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
         : v.payment_account ||
           (v.payment_method === "cash" ? "1111" : "1121");
 
-    const lines: Array<{ account_code: string; debit: number; credit: number }> = [];
-    lines.push({ account_code: v.debit_account, debit: subtotal, credit: 0 });
-    if (vat > 0 && v.vat_account) {
-      lines.push({ account_code: v.vat_account, debit: vat, credit: 0 });
+    const jLines: Array<{ account_code: string; debit: number; credit: number }> = [];
+
+    if (hasLines) {
+      // gộp theo TK nợ
+      const byDebit = new Map<string, number>();
+      for (const l of allLines) {
+        const acc = l.debit_account || v.debit_account;
+        byDebit.set(acc, (byDebit.get(acc) || 0) + Number(l.amount || 0));
+      }
+      for (const [acc, amt] of byDebit) {
+        if (amt > 0) jLines.push({ account_code: acc, debit: amt, credit: 0 });
+      }
+      // gộp VAT theo TK thuế
+      const byVat = new Map<string, number>();
+      for (const l of allLines) {
+        const va = Number(l.vat_amount || 0);
+        if (va <= 0) continue;
+        const acc = l.vat_account || v.vat_account || "1331";
+        byVat.set(acc, (byVat.get(acc) || 0) + va);
+      }
+      for (const [acc, amt] of byVat) {
+        jLines.push({ account_code: acc, debit: amt, credit: 0 });
+      }
+    } else {
+      jLines.push({ account_code: v.debit_account, debit: subtotal, credit: 0 });
+      if (vat > 0 && v.vat_account) {
+        jLines.push({ account_code: v.vat_account, debit: vat, credit: 0 });
+      }
     }
-    lines.push({ account_code: creditAcc, debit: 0, credit: total });
+    jLines.push({ account_code: creditAcc, debit: 0, credit: total });
 
     const { data: entry, error: e1 } = await supabase
       .from("journal_entries")
@@ -320,7 +376,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     if (e1 || !entry) throw new Error(e1?.message || "Không tạo được bút toán");
 
     const { error: e2 } = await supabase.from("journal_lines").insert(
-      lines.map((l, i) => ({
+      jLines.map((l, i) => ({
         entry_id: entry.id,
         account_code: l.account_code,
         debit: l.debit,
