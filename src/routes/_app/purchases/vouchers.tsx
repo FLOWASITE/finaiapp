@@ -716,7 +716,7 @@ function CreateVoucherDialog({
 
             {/* Lines table */}
             <div className="overflow-x-auto border rounded-md">
-              <Table>
+              <Table className="min-w-[1100px] text-xs sm:text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
