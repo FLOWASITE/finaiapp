@@ -53,15 +53,39 @@ export function Markdown({ children, className }: { children: string; className?
             </pre>
           ),
           table: ({ children }) => (
-            <div className="my-3 overflow-x-auto rounded-lg border border-white/10">
-              <table className="min-w-full text-xs">{children}</table>
+            <div className="my-3 overflow-x-auto rounded-xl border border-primary/15 bg-primary/[0.02] backdrop-blur-sm">
+              <table className="min-w-full text-sm tabular-nums">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-muted/40">{children}</thead>,
-          tbody: ({ children }) => <tbody className="divide-y divide-white/5">{children}</tbody>,
-          tr: ({ children }) => <tr>{children}</tr>,
-          th: ({ children }) => <th className="px-3 py-2 text-left font-semibold">{children}</th>,
-          td: ({ children }) => <td className="px-3 py-2 align-top">{children}</td>,
+          thead: ({ children }) => (
+            <thead className="border-b border-primary/15 bg-primary/[0.04] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {children}
+            </thead>
+          ),
+          tbody: ({ children }) => <tbody className="divide-y divide-primary/10">{children}</tbody>,
+          tr: ({ children }) => <tr className="transition-colors hover:bg-primary/[0.04]">{children}</tr>,
+          th: ({ children, style }) => (
+            <th
+              style={style}
+              className={cn(
+                "px-3 py-2 font-semibold",
+                style?.textAlign === "right" ? "text-right" : style?.textAlign === "center" ? "text-center" : "text-left",
+              )}
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children, style }) => (
+            <td
+              style={style}
+              className={cn(
+                "px-3 py-2 align-top",
+                style?.textAlign === "right" ? "text-right font-medium" : style?.textAlign === "center" ? "text-center" : "text-left",
+              )}
+            >
+              {children}
+            </td>
+          ),
         }}
       >
         {children}
