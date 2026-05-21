@@ -445,17 +445,65 @@ export function Composer({
           compact ? "min-h-[48px]" : "min-h-[60px]",
         )}
       >
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKey}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder={recording ? "Đang nghe…" : placeholder}
-          rows={1}
-          className="flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
-        />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {pending.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {pending.map((p, i) => {
+                const isImg = p.mime.startsWith("image/");
+                return (
+                  <div
+                    key={`${p.name}-${i}`}
+                    className="group/chip relative flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 py-1.5 pl-1.5 pr-7 shadow-sm"
+                  >
+                    {isImg && previewUrl[i] ? (
+                      <img
+                        src={previewUrl[i] as string}
+                        alt={p.name}
+                        className="h-9 w-9 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div className="min-w-0 max-w-[180px]">
+                      <div className="truncate text-xs font-medium text-foreground">{p.name}</div>
+                      <div className="text-[10px] uppercase text-muted-foreground">
+                        {(p.mime.split("/")[1] || "file").toUpperCase()} · {formatSize(p.size)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePending(i)}
+                      aria-label={`Bỏ ${p.name}`}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <textarea
+            ref={ref}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKey}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={
+              recording
+                ? "Đang nghe…"
+                : pending.length > 0
+                  ? "Thêm ghi chú cho file (tuỳ chọn)…"
+                  : placeholder
+            }
+            rows={1}
+            className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
+          />
+        </div>
+
 
         {enableAttach && (
           <Button
