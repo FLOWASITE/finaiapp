@@ -311,7 +311,7 @@ function DocumentsPage() {
     (ocrStatus !== "all" ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0) +
-    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 1 - 1);
+    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 0);
 
   const resetFilters = () => {
     setDocKind("all");
