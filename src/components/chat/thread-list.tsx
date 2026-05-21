@@ -282,8 +282,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         className={cn(
                           "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
                           isActive
-                            ? "border border-primary/20 bg-primary/10 text-white"
-                            : "border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
+                            ? "border border-primary/20 bg-primary/10 text-slate-900"
+                            : "border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                         )}
                       >
                         {isActive && (
