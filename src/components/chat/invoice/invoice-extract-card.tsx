@@ -30,14 +30,18 @@ export function InvoiceExtractCard({
   kind?: string;
 }) {
   const getUrlFn = useServerFn(getUploadSignedUrl);
-  const { data: urlData } = useQuery({
+  const { data: urlData, isLoading: urlLoading } = useQuery({
     queryKey: ["ai_upload_url", uploadId],
     queryFn: () => getUrlFn({ data: { uploadId: uploadId! } }),
     enabled: !!uploadId,
     staleTime: 50 * 60 * 1000,
   });
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name;
+  const isImage = filename
+    ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
+    : false;
+
+  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage;
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
@@ -78,19 +82,31 @@ export function InvoiceExtractCard({
     },
   ].filter(Boolean) as Field[];
 
-  const isImage = filename ? /\.(jpe?g|png|webp|gif|heic)$/i.test(filename) : false;
+
+
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
       <div className="grid grid-cols-[140px_1fr] gap-0">
         {/* Thumbnail */}
         <div className="relative flex flex-col items-center justify-center gap-2 border-r border-border/60 bg-muted/30 p-3">
-          {urlData?.url && isImage ? (
-            <img
-              src={urlData.url}
-              alt={filename ?? "invoice"}
-              className="max-h-32 w-full rounded-md object-cover"
-            />
+          {isImage && uploadId && !urlData && urlLoading ? (
+            <div className="h-32 w-full animate-pulse rounded-md bg-muted" />
+          ) : isImage && urlData?.url ? (
+            <a
+              href={urlData.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full"
+              title="Bấm để xem ảnh gốc"
+            >
+              <img
+                src={urlData.url}
+                alt={filename ?? "invoice"}
+                className="max-h-40 w-full rounded-md bg-background object-contain"
+                loading="lazy"
+              />
+            </a>
           ) : urlData?.url ? (
             <a
               href={urlData.url}
@@ -111,7 +127,7 @@ export function InvoiceExtractCard({
                 <FileText className="h-6 w-6" />
               </div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                HÓA ĐƠN
+                {isImage ? "Không tải được ảnh" : "HÓA ĐƠN"}
               </div>
             </div>
           )}
