@@ -41,6 +41,7 @@ export const listEInvoices = createServerFn({ method: "POST" })
         dateFrom: z.string().optional().nullable(),
         dateTo: z.string().optional().nullable(),
         status: z.string().optional().nullable(),
+        xmlStatus: z.string().optional().nullable(),
         matched: z.enum(["all", "matched", "unmatched"]).optional().default("all"),
         page: z.number().int().min(1).max(1000).optional().default(1),
         pageSize: z.number().int().min(1).max(200).optional().default(50),
@@ -66,6 +67,7 @@ export const listEInvoices = createServerFn({ method: "POST" })
     if (data.dateFrom) q = q.gte("issue_date", data.dateFrom);
     if (data.dateTo) q = q.lte("issue_date", data.dateTo);
     if (data.status) q = q.eq("tct_status", data.status);
+    if (data.xmlStatus) q = q.eq("xml_fetch_status", data.xmlStatus);
     if (data.matched === "matched") {
       q =
         data.direction === "in"

@@ -44,6 +44,36 @@ export const Route = createFileRoute("/_app/einvoices/")({
   component: EInvoicesPage,
 });
 
+function XmlStatusBadge({ s, err }: { s: string | null; err?: string | null }) {
+  if (s === "done")
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 text-emerald-700 border-emerald-500/30"
+        title="Đã tải chi tiết XML"
+      >
+        <CheckCircle2 className="h-3 w-3" />XML
+      </Badge>
+    );
+  if (s === "failed")
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 text-destructive border-destructive/30"
+        title={err || "Tải XML lỗi"}
+      >
+        <XCircle className="h-3 w-3" />Lỗi
+      </Badge>
+    );
+  if (s === "pending")
+    return (
+      <Badge variant="secondary" className="gap-1" title="Chờ tải chi tiết">
+        <RefreshCw className="h-3 w-3 animate-spin" />Đang tải
+      </Badge>
+    );
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+
 const vnd = (n: number | string | null | undefined) =>
   n == null ? "-" : Number(n).toLocaleString("vi-VN");
 
@@ -98,6 +128,7 @@ function EInvoicesPage() {
   const [matched, setMatched] = React.useState<"all" | "matched" | "unmatched">(
     "all",
   );
+  const [xmlStatus, setXmlStatus] = React.useState<string>("all");
   const [dateRange, setDateRange] = React.useState<{
     from?: string;
     to?: string;
@@ -105,7 +136,7 @@ function EInvoicesPage() {
   const [page, setPage] = React.useState(1);
   const [syncOpen, setSyncOpen] = React.useState(false);
 
-  React.useEffect(() => setPage(1), [tab, q, status, matched, dateRange]);
+  React.useEffect(() => setPage(1), [tab, q, status, matched, xmlStatus, dateRange]);
 
   const autoMatchMut = useMutation({
     mutationFn: () =>
@@ -132,6 +163,7 @@ function EInvoicesPage() {
       q,
       status,
       matched,
+      xmlStatus,
       dateRange.from,
       dateRange.to,
       page,
@@ -143,6 +175,7 @@ function EInvoicesPage() {
           q,
           status: status === "all" ? null : status,
           matched,
+          xmlStatus: xmlStatus === "all" ? null : xmlStatus,
           dateFrom: dateRange.from ?? null,
           dateTo: dateRange.to ?? null,
           page,
@@ -245,6 +278,17 @@ function EInvoicesPage() {
             <SelectItem value="unmatched">Chưa ghi nhận</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={xmlStatus} onValueChange={setXmlStatus}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Tải XML" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">XML: Tất cả</SelectItem>
+            <SelectItem value="done">XML: Đã tải</SelectItem>
+            <SelectItem value="pending">XML: Đang chờ</SelectItem>
+            <SelectItem value="failed">XML: Lỗi</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           variant="ghost"
           size="sm"
@@ -272,6 +316,7 @@ function EInvoicesPage() {
               <th className="px-3 py-2 text-left">MST</th>
               <th className="px-3 py-2 text-right">Tổng</th>
               <th className="px-3 py-2 text-left">Trạng thái</th>
+              <th className="px-3 py-2 text-left">XML</th>
               <th className="px-3 py-2 text-left">Đã ghi nhận</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -280,7 +325,7 @@ function EInvoicesPage() {
             {query.isLoading ? (
               [...Array(6)].map((_, i) => (
                 <tr key={i} className="border-t border-border">
-                  <td colSpan={8} className="px-3 py-2">
+                  <td colSpan={9} className="px-3 py-2">
                     <Skeleton className="h-5 w-full" />
                   </td>
                 </tr>
@@ -288,7 +333,7 @@ function EInvoicesPage() {
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-3 py-12 text-center text-muted-foreground"
                 >
                   Chưa có HĐĐT nào. Bấm{" "}
@@ -340,6 +385,12 @@ function EInvoicesPage() {
                     </td>
                     <td className="px-3 py-2">
                       <StatusBadge s={r.tct_status} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <XmlStatusBadge
+                        s={r.xml_fetch_status}
+                        err={r.xml_fetch_error}
+                      />
                     </td>
                     <td className="px-3 py-2">
                       {matchedId ? (
