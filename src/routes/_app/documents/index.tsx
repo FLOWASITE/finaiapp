@@ -1344,6 +1344,31 @@ function PurchaseInvoicesTable({
           )}
         </div>
       )}
+      <InvoiceViewerDialog
+        docId={viewerRow?.doc?.id ?? null}
+        invoiceInfo={
+          viewerRow
+            ? {
+                invoice_no: viewerRow.invoice?.invoice_no,
+                issue_date: viewerRow.invoice?.issue_date,
+                party_label: "Nhà cung cấp",
+                party_name: viewerRow.invoice?.supplier_name,
+                party_tax_id: viewerRow.invoice?.supplier_tax_id,
+                subtotal: viewerRow.invoice?.subtotal,
+                vat_amount: viewerRow.invoice?.vat_amount,
+                total: viewerRow.invoice?.total,
+                lines_summary: viewerRow.lines_summary,
+              }
+            : null
+        }
+        detailHref={
+          viewerRow?.invoice?.id
+            ? { to: "/invoices/$id", params: { id: viewerRow.invoice.id } }
+            : null
+        }
+        onOpenDrawer={onOpenDoc}
+        onClose={() => setViewerRow(null)}
+      />
     </>
   );
 }
