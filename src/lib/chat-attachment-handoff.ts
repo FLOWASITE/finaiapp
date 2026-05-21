@@ -72,7 +72,7 @@ export function takeChatAttachments(
 
 export function takeAnyChatAttachmentHandoff(): any[] | undefined {
   const store = getStore();
-  if (store?.size) {
+  if (store?.size === 1) {
     const first = store.entries().next().value as [string, any[]] | undefined;
     if (first?.[1]?.length) {
       store.delete(first[0]);
