@@ -150,9 +150,11 @@ export function ChatDock() {
       .finally(() => setLoading(false));
   };
 
-  const handleAttach = async (payloads: any[]) => {
+  const handleAttach = async (payloads: any[], note?: string) => {
     if (!payloads.length || loading) return;
     const existingThreadId = currentThreadId(location.pathname);
+    const fallback = `Xử lý ${payloads.length} chứng từ:\n${payloads.map((p) => `📎 ${p.name}`).join("\n")}`;
+    const content = note && note.trim() ? note.trim() : fallback;
     if (existingThreadId) {
       try {
         sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
@@ -161,9 +163,7 @@ export function ChatDock() {
         new CustomEvent("chat:dock-send", {
           detail: {
             threadId: existingThreadId,
-            content: `Xử lý ${payloads.length} chứng từ:\n${payloads
-              .map((p) => `📎 ${p.name}`)
-              .join("\n")}`,
+            content,
             attachments: payloads.map((p) => ({
               name: p.name,
               mime: p.mime,
@@ -176,6 +176,7 @@ export function ChatDock() {
       return;
     }
     setLoading(true);
+
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
     const content = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     const metaAttachments = payloads.map((p) => ({
