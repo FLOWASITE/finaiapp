@@ -162,7 +162,18 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
                     Trợ lý
                   </div>
                   {m.toolEvents && m.toolEvents.length > 0 && (
-                    <ToolCalls events={m.toolEvents} />
+                    <div className="mb-3 space-y-3">
+                      <InvoiceToolEvents events={m.toolEvents} streaming={!!streaming && isLast} />
+                      <ToolCalls
+                        events={m.toolEvents.filter(
+                          (ev) =>
+                            !(
+                              (ev as any).toolName === "parseDocument" ||
+                              (ev as any).toolName === "proposeAction"
+                            ),
+                        )}
+                      />
+                    </div>
                   )}
                   {m.content ? (
                     <div className="space-y-3">
