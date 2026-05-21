@@ -278,6 +278,17 @@ function EInvoicesPage() {
             <SelectItem value="unmatched">Chưa ghi nhận</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={xmlStatus} onValueChange={setXmlStatus}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Tải XML" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">XML: Tất cả</SelectItem>
+            <SelectItem value="done">XML: Đã tải</SelectItem>
+            <SelectItem value="pending">XML: Đang chờ</SelectItem>
+            <SelectItem value="failed">XML: Lỗi</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           variant="ghost"
           size="sm"
