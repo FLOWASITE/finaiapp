@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getAiSidebarCounts } from "@/lib/sidebar-counts.functions";
 
 type BadgeTone = "new" | "muted" | "danger" | "default";
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
