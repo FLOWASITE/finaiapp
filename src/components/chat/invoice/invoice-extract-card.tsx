@@ -190,9 +190,10 @@ export function InvoiceExtractCard({
                   title={filename ?? "pdf"}
                   className="hidden h-[440px] w-full rounded-md border border-border/40 bg-background md:block"
                 />
-                <button
-                  type="button"
-                  onClick={() => setZoomOpen(true)}
+                <a
+                  href={urlData.url}
+                  target="_blank"
+                  rel="noreferrer"
                   className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/60 bg-background/60 p-6 text-center transition hover:border-primary/40 hover:bg-background md:hidden"
                 >
                   <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -200,10 +201,10 @@ export function InvoiceExtractCard({
                   </div>
                   <div className="text-sm font-semibold text-foreground">Xem hoá đơn PDF</div>
                   <div className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
-                    <Maximize2 className="h-3 w-3" />
-                    Bấm để mở lớn
+                    <ExternalLink className="h-3 w-3" />
+                    Mở trong tab mới
                   </div>
-                </button>
+                </a>
                 <div className="flex items-center justify-between gap-2">
                   <a
                     href={urlData.url}
