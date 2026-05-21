@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown } from "lucide-react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -246,7 +247,7 @@ function PurchaseVouchersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ["purchase-vouchers", search, status],
     queryFn: () =>
       listFn({ data: { search: search || undefined, status: status === "all" ? undefined : status } }),
@@ -318,8 +319,43 @@ function PurchaseVouchersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Chưa có phiếu</TableCell></TableRow>
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={`sk-${i}`}>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : isError ? (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+                        <p className="text-sm font-medium text-foreground">Không tải được dữ liệu</p>
+                        <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm">{error instanceof Error ? error.message : "Đã xảy ra lỗi khi tải danh sách phiếu mua hàng."}</p>
+                        <Button size="sm" variant="outline" onClick={() => refetch()}>
+                          <Loader2 className="mr-2 h-3 w-3" />
+                          Thử lại
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                        <Inbox className="h-10 w-10 text-muted-foreground mb-3" />
+                        <p className="text-sm font-medium text-foreground">Chưa có phiếu mua hàng</p>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-sm">Nhấn "Tạo phiếu mới" để thêm phiếu mua hàng đầu tiên.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : rows.map((r: any) => (
                   <TableRow key={r.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-xs whitespace-nowrap">{r.voucher_no}</TableCell>
@@ -426,12 +462,12 @@ function CreateVoucherDialog({
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
-  const { data: suppliers } = useQuery({
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers-list"],
     queryFn: () => suppliersFn(),
     enabled: open,
   });
-  const { data: invoices } = useQuery({
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["linkable-purchase-invoices", header.supplier_id],
     queryFn: () => linkInvFn({ data: { supplierId: header.supplier_id || undefined } }),
     enabled: open,
@@ -612,24 +648,31 @@ function CreateVoucherDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <Label>Nhà cung cấp *</Label>
-                <Select value={header.supplier_id || "none"}
-                  onValueChange={(v) => {
-                    const s = (suppliers ?? []).find((x: any) => x.id === v);
-                    setHeader({
-                      ...header,
-                      supplier_id: v === "none" ? "" : v,
-                      supplier_name: s?.name ?? "",
-                      supplier_address: s?.address ?? "",
-                    });
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Không chọn —</SelectItem>
-                    {(suppliers ?? []).map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {suppliersLoading ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-sm text-muted-foreground bg-muted/50">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang tải danh sách NCC…
+                  </div>
+                ) : (
+                  <Select value={header.supplier_id || "none"}
+                    onValueChange={(v) => {
+                      const s = (suppliers ?? []).find((x: any) => x.id === v);
+                      setHeader({
+                        ...header,
+                        supplier_id: v === "none" ? "" : v,
+                        supplier_name: s?.name ?? "",
+                        supplier_address: s?.address ?? "",
+                      });
+                    }}>
+                    <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Không chọn —</SelectItem>
+                      {(suppliers ?? []).map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label>TK công nợ phải trả *</Label>
@@ -900,31 +943,38 @@ function CreateVoucherDialog({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-3">
                 <Label>Link tới Hoá đơn mua đã có</Label>
-                <Select value={header.invoice_id || "none"}
-                  onValueChange={(v) => {
-                    if (v === "none") { setHeader({ ...header, invoice_id: "" }); return; }
-                    const inv = invoices?.rows?.find((x: any) => x.id === v);
-                    if (inv) {
-                      setHeader({
-                        ...header,
-                        invoice_id: v,
-                        invoice_no: inv.invoice_no ?? "",
-                        invoice_date: inv.issue_date ?? "",
-                        supplier_id: inv.supplier_id ?? header.supplier_id,
-                        supplier_name: inv.supplier_name ?? header.supplier_name,
-                      });
-                    }
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="Không link" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Không link —</SelectItem>
-                    {(invoices?.rows ?? []).map((i: any) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.invoice_no ?? "—"} · {i.supplier_name} · {fmtMoney(i.total)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {invoicesLoading ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-sm text-muted-foreground bg-muted/50">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang tải danh sách hoá đơn…
+                  </div>
+                ) : (
+                  <Select value={header.invoice_id || "none"}
+                    onValueChange={(v) => {
+                      if (v === "none") { setHeader({ ...header, invoice_id: "" }); return; }
+                      const inv = invoices?.rows?.find((x: any) => x.id === v);
+                      if (inv) {
+                        setHeader({
+                          ...header,
+                          invoice_id: v,
+                          invoice_no: inv.invoice_no ?? "",
+                          invoice_date: inv.issue_date ?? "",
+                          supplier_id: inv.supplier_id ?? header.supplier_id,
+                          supplier_name: inv.supplier_name ?? header.supplier_name,
+                        });
+                      }
+                    }}>
+                    <SelectTrigger><SelectValue placeholder="Không link" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Không link —</SelectItem>
+                      {(invoices?.rows ?? []).map((i: any) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.invoice_no ?? "—"} · {i.supplier_name} · {fmtMoney(i.total)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label>Số hoá đơn</Label>
