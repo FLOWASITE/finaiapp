@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } f
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2, X, FileText } from "lucide-react";
+import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2, X, FileText, UploadCloud } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -89,6 +89,8 @@ export function Composer({
   const [decisions, setDecisions] = useState<Record<number, ClassifyDecision>>({});
   const [parsedItems, setParsedItems] = useState<Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; uploadId: string | null }>>([]);
   const [pending, setPending] = useState<AttachmentPayload[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const navigate = useNavigate();
   const parseFn = useServerFn(parseDocument);
@@ -427,6 +429,53 @@ export function Composer({
 
   const busy = !!loading || uploading;
 
+  // ----- Drag & drop file vào bất kỳ đâu trên trang (uỷ quyền tới Composer) -----
+  useEffect(() => {
+    if (!enableAttach || !onAttach) return;
+    if (typeof window === "undefined") return;
+
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types || []).includes("Files");
+
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current += 1;
+      setDragOver(true);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) setDragOver(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) handleUploadBatch(files, "purchase_invoice");
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [enableAttach, onAttach, uploading]);
+
+
   return (
     <div className="relative">
       <input
@@ -442,6 +491,24 @@ export function Composer({
           if (files.length) handleUploadBatch(files, k);
         }}
       />
+      {dragOver && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/10 backdrop-blur-sm animate-in fade-in duration-150"
+          aria-hidden
+        >
+          <div className="pointer-events-none flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-primary/60 bg-background/90 px-10 py-8 shadow-2xl shadow-primary/20">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <UploadCloud className="h-7 w-7" />
+            </div>
+            <div className="text-center">
+              <div className="text-base font-semibold text-foreground">Thả file vào đây</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                PDF, ảnh hoặc XML · tối đa 12MB / file
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className={cn(
           "group relative flex w-full items-end gap-2 rounded-3xl border bg-card/70 px-4 py-2.5 backdrop-blur-xl transition-all duration-200",
