@@ -203,6 +203,40 @@ function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>)
         vat_rate: line.vat_rate,
       })),
     notes: parsed.cqt_code ? `XML HĐĐT, mã CQT: ${parsed.cqt_code}` : "XML HĐĐT",
+    // Extra fields (ignored by downstream validators) used by the chat
+    // preview to render the original e-invoice as a paper-style template.
+    _signed: parsed.cqt_signed || parsed.seller_signed,
+    _einvoice: {
+      series: parsed.series || parsed.series_short || null,
+      template: parsed.template || null,
+      invoice_no: parsed.invoice_no || null,
+      issue_date: parsed.issue_date,
+      currency: parsed.currency || "VND",
+      cqt_code: parsed.cqt_code,
+      cqt_signed: parsed.cqt_signed,
+      seller_signed: parsed.seller_signed,
+      adjustment_kind: parsed.adjustment_kind,
+      seller: parsed.seller,
+      buyer: parsed.buyer,
+      lines: parsed.lines
+        .filter((l) => l.kind === "item")
+        .map((l) => ({
+          description: l.description,
+          unit: l.unit,
+          qty: l.qty,
+          unit_price: l.unit_price,
+          amount: l.amount,
+          vat_rate: l.vat_rate,
+          vat_amount: l.vat_amount,
+        })),
+      totals: {
+        subtotal: parsed.totals.subtotal,
+        vat_amount: parsed.totals.vat_amount,
+        discount_total: parsed.totals.discount_total,
+        total: parsed.totals.total,
+        total_in_words: parsed.totals.total_in_words,
+      },
+    },
   };
 }
 

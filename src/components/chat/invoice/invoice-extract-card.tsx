@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
 
 function fmtVND(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
@@ -41,11 +42,13 @@ export function InvoiceExtractCard({
     ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
     : false;
   const isPdfByName = filename ? /\.pdf$/i.test(filename) : false;
+  const isXmlByName = filename ? /\.xml$/i.test(filename) : false;
   const mime = (urlData as any)?.mimeType as string | null | undefined;
   const isImage = isImageByName || (mime ?? "").startsWith("image/");
   const isPdf = isPdfByName || mime === "application/pdf";
+  const isXml = isXmlByName || (mime ?? "").includes("xml") || !!parsed?._einvoice;
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf;
+  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf || isXml;
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
@@ -101,10 +104,24 @@ export function InvoiceExtractCard({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
-      <div className={cn("grid gap-0", isPdf ? "grid-cols-1 md:grid-cols-[260px_1fr]" : "grid-cols-[140px_1fr]")}>
+      <div
+        className={cn(
+          "grid gap-0",
+          isXml
+            ? "grid-cols-1 md:grid-cols-[300px_1fr]"
+            : isPdf
+              ? "grid-cols-1 md:grid-cols-[260px_1fr]"
+              : "grid-cols-[140px_1fr]",
+        )}
+      >
         {/* Thumbnail / Preview */}
         <div className="relative flex flex-col items-center justify-center gap-2 border-b border-border/60 bg-muted/30 p-3 md:border-b-0 md:border-r">
-          {isPdf && uploadId && urlLoading && !urlData ? (
+          {isXml && parsed?._einvoice ? (
+            <XmlInvoicePreview
+              data={parsed._einvoice as EinvoiceExtras}
+              signedUrl={urlData?.url ?? null}
+            />
+          ) : isPdf && uploadId && urlLoading && !urlData ? (
             <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
           ) : isPdf && urlData?.url ? (
             <>
