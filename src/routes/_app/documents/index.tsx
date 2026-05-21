@@ -13,6 +13,7 @@ import {
   uploadDocument,
   reparseDocument,
   listPurchaseDocuments,
+  listSalesDocuments,
 } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
