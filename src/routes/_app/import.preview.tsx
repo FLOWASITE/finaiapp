@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Plus, Trash2, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Trash2, Sparkles, CheckCircle2, AlertTriangle, UserCheck, UserPlus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { proposeActionFn } from "@/lib/ai-actions.functions";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { createManualInvoice } from "@/lib/purchases.functions";
+import { lookupSupplierByTaxId, quickCreateSupplier } from "@/lib/import-preview.functions";
 
 export const Route = createFileRoute("/_app/import/preview")({ component: ImportPreviewPage });
+
+const normalizeTaxId = (s: string) => (s || "").replace(/\D+/g, "");
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString("vi-VN");
 
