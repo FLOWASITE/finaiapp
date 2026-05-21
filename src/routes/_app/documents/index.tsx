@@ -92,6 +92,7 @@ import {
   Search,
   SlidersHorizontal,
   X,
+  ChevronRight,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
