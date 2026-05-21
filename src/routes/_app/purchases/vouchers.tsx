@@ -823,7 +823,7 @@ function CreateVoucherDialog({
               </Table>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="default" size="sm" onClick={addLine}>
                 <PlusCircle className="h-3 w-3 mr-1" /> Thêm
               </Button>
@@ -836,7 +836,7 @@ function CreateVoucherDialog({
             </div>
 
             {/* Payment row */}
-            <div className="grid grid-cols-4 gap-3 border-t pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3">
               <div>
                 <Label>Phương thức TT</Label>
                 <Select value={header.payment_method}
