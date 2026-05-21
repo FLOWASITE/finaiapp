@@ -1,7 +1,7 @@
 import { Check, AlertTriangle, FileText, Loader2, Play, Image as ImageIcon, FileSpreadsheet, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { BulkPlan, BulkItem, BulkItemKindGroup } from "./types";
+import type { BulkPlan, BulkItem, BulkItemKindGroup, BulkClassifySource } from "./types";
 
 const GROUP_LABEL: Record<BulkItemKindGroup, { label: string; Icon: any; status: string; tone: "ok" | "warn" }> = {
   purchase_invoice: { label: "Hoá đơn vào (HĐ điện tử)", Icon: FileText, status: "✓ đọc rõ", tone: "ok" },
@@ -10,6 +10,15 @@ const GROUP_LABEL: Record<BulkItemKindGroup, { label: string; Icon: any; status:
   invoice_image:    { label: "Ảnh chụp HĐ giấy",          Icon: ImageIcon, status: "⚠ OCR khó", tone: "warn" },
   excel_unknown:    { label: "Excel chưa rõ nội dung",    Icon: FileSpreadsheet, status: "cần xác nhận", tone: "warn" },
   other:            { label: "Định dạng khác",            Icon: FileText, status: "cần kiểm tra", tone: "warn" },
+};
+
+const SOURCE_BADGE: Record<BulkClassifySource, { label: string; cls: string; title: string }> = {
+  "text-rule":          { label: "Quy tắc",   cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30", title: "Nhận dạng bằng quy tắc văn bản — không tốn token AI" },
+  xml:                  { label: "XML",       cls: "bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30",     title: "Phân tích trực tiếp file XML hoá đơn điện tử" },
+  cache:                { label: "Cache",     cls: "bg-muted text-muted-foreground ring-1 ring-border",                                   title: "Lấy lại từ kết quả phân loại trước đó" },
+  ai:                   { label: "AI",        cls: "bg-sky-500/15 text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/30",                 title: "Phân loại bằng Gemini (có tốn token)" },
+  heuristic:            { label: "Tên file",  cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30",         title: "Đoán theo tên file (chưa qua AI)" },
+  "heuristic-fallback": { label: "AI lỗi",    cls: "bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500/30",             title: "AI phân loại lỗi — cần xác nhận thủ công" },
 };
 
 export function BulkIntakeCard({
