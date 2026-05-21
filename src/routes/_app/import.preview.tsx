@@ -112,7 +112,7 @@ function normalizeDate(s: any): string {
   return str.slice(0, 10);
 }
 
-function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
+function toInvoiceDraft(item: { filename: string; parsed: any; uploadId?: string | null; file_hash?: string | null }): InvoiceDraft {
   const p = item.parsed ?? {};
   const rawLines: any[] = Array.isArray(p.lines) ? p.lines : [];
   const lines: InvoiceLine[] = rawLines.length
@@ -138,6 +138,8 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
   return {
     kind: "purchase_invoice",
     filename: item.filename,
+    supplier_id: null,
+    supplier_code: null,
     supplier_name: String(p.vendor_name ?? p.supplier_name ?? ""),
     supplier_tax_id: String(p.vendor_tax_id ?? p.supplier_tax_id ?? p.tax_id ?? p.mst ?? ""),
     invoice_no: String(p.invoice_no ?? p.invoice_number ?? ""),
@@ -147,7 +149,10 @@ function toInvoiceDraft(item: { filename: string; parsed: any }): InvoiceDraft {
     vat_account: "1331",
     payable_account: "331",
     lines,
+    ai_upload_id: item.uploadId ?? null,
+    file_hash: item.file_hash ?? null,
     status: "idle",
+    lookup_state: "idle",
   };
 }
 
