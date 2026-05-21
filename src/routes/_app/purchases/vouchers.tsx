@@ -920,7 +920,7 @@ function CreateVoucherDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button onClick={() => mut.mutate()}
-            disabled={mut.isPending || !header.voucher_no || !header.reason}>
+            disabled={mut.isPending || !header.voucher_no}>
             Lưu phiếu nháp
           </Button>
         </DialogFooter>
