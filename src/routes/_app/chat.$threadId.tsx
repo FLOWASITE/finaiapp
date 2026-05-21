@@ -256,7 +256,11 @@ function ThreadPage() {
     }
   }, [messages, streaming, SCROLL_KEY]);
 
-  const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
+  const runAssistant = async (
+    history: ChatMsg[],
+    attachments?: any[],
+    bulkRun?: { items: any[] },
+  ) => {
     // Hủy stream cũ (nếu có) trước khi bắt đầu, KHÔNG đánh dấu user stop
     // → coi như replacement: bỏ partial assistant cũ.
     if (abortRef.current) {
