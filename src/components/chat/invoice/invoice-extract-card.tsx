@@ -165,33 +165,44 @@ export function InvoiceExtractCard({
                 signedUrl={urlData?.url ?? null}
               />
             ) : isPdf && uploadId && urlLoading && !urlData ? (
-              <div className="h-80 w-full animate-pulse rounded-md bg-muted" />
+              <div className="h-[420px] w-full animate-pulse rounded-md bg-muted" />
             ) : isPdf && urlData?.url ? (
-              <>
-                <object
-                  data={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
-                  type="application/pdf"
-                  className="h-80 w-full rounded-md bg-background"
-                  aria-label={filename ?? "pdf"}
+              <div className="flex w-full flex-col items-stretch gap-2">
+                {/* Desktop: inline iframe preview. Most desktop browsers render PDFs in iframes;
+                    mobile browsers usually don't, so we hide the iframe on small screens
+                    and rely on the tappable tile + actions below. */}
+                <iframe
+                  src={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
+                  title={filename ?? "pdf"}
+                  className="hidden h-[440px] w-full rounded-md border border-border/40 bg-background md:block"
+                />
+                <button
+                  type="button"
+                  onClick={() => setZoomOpen(true)}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/60 bg-background/60 p-6 text-center transition hover:border-primary/40 hover:bg-background md:hidden"
                 >
-                  <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center">
-                    <FileText className="h-8 w-8 text-primary" />
-                    <div className="text-[11px] text-muted-foreground">
-                      Trình duyệt không xem được PDF trực tiếp
-                    </div>
+                  <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <FileText className="h-7 w-7" />
                   </div>
-                </object>
-                <a
-                  href={urlData.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Mở PDF gốc
-                </a>
-              </>
-            ) : isImage && uploadId && !urlData && urlLoading ? (
+                  <div className="text-sm font-semibold text-foreground">Xem hoá đơn PDF</div>
+                  <div className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                    <Maximize2 className="h-3 w-3" />
+                    Bấm để mở lớn
+                  </div>
+                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <a
+                    href={urlData.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Mở PDF gốc trong tab mới
+                  </a>
+                </div>
+              </div>
+
               <div className="h-40 w-full animate-pulse rounded-md bg-muted" />
             ) : isImage && urlData?.url ? (
               <a
