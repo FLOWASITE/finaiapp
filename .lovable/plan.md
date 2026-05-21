@@ -1,74 +1,81 @@
-## Mục tiêu
-Bổ sung **Phiếu mua hàng** — chứng từ kế toán riêng để ghi nhận nghiệp vụ mua (hàng hoá / dịch vụ / chi phí). Phiếu nhập tay được, có thể link tới một Hoá đơn mua (`invoices`) đã có, và tự sinh các nghiệp vụ kéo theo.
+## So sánh với Phiếu mua hàng chuẩn (theo ảnh)
 
-## 1. Database (migration)
+### ❌ Những gì Phiếu mua hàng hiện tại còn THIẾU
 
-**Bảng mới `purchase_vouchers`** — theo pattern `cash_vouchers`:
-- Định danh: `voucher_no`, `voucher_date`, `tenant_id`, `user_id`, các chiều phân tích (branch/department/project/cost_center).
-- Liên kết: `supplier_id`, `supplier_name`, `supplier_tax_id`, `invoice_id` (FK invoices, nullable), `journal_entry_id`, `stock_voucher_id`, `cash_voucher_id`, `bank_voucher_id`.
-- Nội dung: `reason` (diễn giải), `subtotal`, `vat_amount`, `total`, `vat_rate`, `currency`.
-- Định khoản (form gọn): `debit_account` (mặc định 156/152/642…), `credit_account` (331/111/112), `vat_account` (mặc định 1331, nullable).
-- Thanh toán: `payment_method` enum `credit` | `cash` | `bank` (mặc định `credit` = ghi 331), `payment_account` (1111/1121…), `pay_now` boolean.
-- Tạo kho: `create_stock_voucher` boolean, `warehouse_id` (nullable).
-- Trạng thái: `status` (uploaded/reviewed/posted/void), `posted_at`, `voided_at`, `void_reason`, `notes`.
+#### 1. Bảng dòng hàng (lines) — **THIẾU NẶNG NHẤT**
+Form hiện tại chỉ có **1 dòng tổng** (subtotal/VAT/total). Chuẩn yêu cầu bảng nhiều dòng với các cột:
+- STT
+- Tên sản phẩm (*) — chọn từ products
+- Mã (auto từ product)
+- Hoá đơn (*) — link tới hoá đơn dòng (cho phép 1 phiếu gom nhiều HĐ)
+- TK nợ (kho/chi phí — mặc định 156/152/642…)
+- Số lượng (*)
+- Đơn giá (*)
+- Giá trị trước thuế (= SL × ĐG)
+- Giảm giá (%) / Giảm giá (số tiền)
+- TK thuế GTGT (*) — 1331 / 1332
+- Thuế suất (%)
+- Tiền thuế
+- Thành tiền
+- Nút **Thêm / Thêm nhiều / Xoá hết** từng dòng
+- Dòng **Tổng** cộng dồn ở cuối
 
-**Bảng mới `purchase_voucher_lines`** — dùng khi link tới invoice hoặc khi chuyển sang chế độ chi tiết (đã được snapshot từ `invoice_lines` nếu link): `product_id`, `description`, `qty`, `unit_price`, `amount`, `vat_rate`, `line_type`. Ở MVP form gọn có thể chỉ có 1 dòng tổng.
+*(DB `purchase_voucher_lines` đã có, nhưng UI chưa expose — cần mở rộng schema thêm: discount_pct, discount_amount, vat_account, debit_account theo dòng, invoice_line_id)*
 
-**RLS & trigger**:
-- RLS theo `tenant_id` (pattern hiện có) — chỉ thành viên tenant đọc/ghi; owner/admin/accountant được post & void.
-- Trigger `enforce_document_status_transition` (tái dùng), `log_document_status_change`, `assert_dim_same_tenant`, `audit_trigger`.
-- Trigger sau khi `posted` → đảm bảo `journal_entry_id` không null (giống invoices).
+#### 2. Header — thiếu các trường chuẩn
+- **Trạng thái thanh toán** (dropdown: Chưa TT / Đã TT / TT một phần)
+- **Hình thức nhận hoá đơn** (Nhận kèm HĐ / Nhận chưa kèm HĐ / Chỉ HĐ không hàng)
+- **Nhập kho** (checkbox header — sinh phiếu nhập kho ngay)
+- **Chi phí mua hàng** (checkbox — phiếu chỉ ghi chi phí, không nhập kho)
+- **Chi phí không được trừ** (checkbox — phục vụ quyết toán thuế TNDN)
+- **TK công nợ phải trả** (3311 / 3312 / 3388) — hiện cứng `credit_account`
+- **Nhóm khách hàng** (customer_group)
+- **Địa chỉ NCC** (auto-fill từ supplier)
+- **Chi nhánh** (branch_id) — đã có DB, chưa hiện UI
+- **Ngoại tệ** + tỷ giá (currency có sẵn nhưng UI thiếu, cần thêm `exchange_rate`)
+- **Hạn thanh toán** (due_date)
 
-## 2. Server functions (`src/lib/purchase-vouchers.functions.ts`)
+#### 3. Tabs / cấu trúc form
+- **Tab "Phiếu mua hàng" vs "Hoá đơn"** — cho phép cùng lúc nhập 2 mặt: bút toán mua + thông tin HĐ đầu vào (số HĐ, ký hiệu, ngày HĐ, MST NCC) cho báo cáo thuế GTGT
+- **Sub-tab "Giá trị hàng" vs "Chi phí mua hàng"** — chi phí mua hàng (vận chuyển, bốc xếp) phân bổ vào giá vốn
 
-Tất cả `createServerFn` + `requireSupabaseAuth`:
-- `listPurchaseVouchers({ search?, status?, from?, to?, supplierId? })` → trả về voucher + supplier + tổng tiền.
-- `getPurchaseVoucher({ id })` → chi tiết + lines + JE + linked stock/cash voucher + invoice.
-- `createPurchaseVoucher({ ... })` → insert header + lines; nếu `invoice_id` được chọn, snapshot lines từ `invoice_lines` và lock các trường tiền theo invoice.
-- `updatePurchaseVoucher({ id, ... })` — chỉ khi `status ∈ {uploaded, reviewed}`.
-- `deletePurchaseVoucher({ id })` — chỉ draft.
-- `postPurchaseVoucher({ id })` — atomic:
-  1. Tính bút toán theo `payment_method`:
-     - `credit` (mặc định): Nợ `debit_account` (subtotal) + Nợ `vat_account` (vat) / Có 331 (total).
-     - `cash` / `bank`: Nợ `debit_account` + Nợ `vat_account` / Có `payment_account` (1111/1121).
-  2. Insert `journal_entries` + `journal_lines`.
-  3. Nếu `create_stock_voucher` = true và có dòng hàng có `product_id` → insert `stock_vouchers` (loại nhập) + `stock_movements` theo đơn giá tính từ `amount/qty` (giống `approveJournalEntry` hiện tại); cập nhật bình quân gia quyền `products.unit_cost`.
-  4. Nếu `pay_now` (cash/bank) → tạo `cash_vouchers` (type `payment`) hoặc `bank_vouchers` tương ứng, link `journal_entry_id`.
-  5. Update voucher: `status='posted'`, `posted_at`, các id liên kết.
-- `voidPurchaseVoucher({ id, reason })` — đảo bút toán (sinh JE đảo), huỷ stock_movements (insert dòng ngược), đặt `status='void'`.
-- `stickStockVoucher({ id, warehouseId })` — nút "Stick Nhập kho" để tạo riêng phiếu nhập kho sau khi đã ghi sổ (cho trường hợp ban đầu chưa tick).
+#### 4. Phân bổ & chiết khấu cấp phiếu
+- **Tự phân bổ chi phí mua hàng** (checkbox) — phân bổ theo giá trị hoặc số lượng
+- **Chiết khấu (%)** / **Chiết khấu (số tiền)** cấp phiếu — phân bổ về từng dòng
 
-Tái dùng `is_period_locked` để chặn ghi sổ vào kỳ đã khoá.
+#### 5. Trang chi tiết phiếu
+- Hiện chỉ có list + dialog tạo. Cần route `/_app/purchases/vouchers/$id` để xem/sửa/duyệt/in phiếu, xem các chứng từ liên kết (JE, Stock voucher, Cash voucher).
 
-## 3. UI
+---
 
-**Route mới** `src/routes/_app/purchases/vouchers.tsx` — danh sách phiếu mua (filter theo trạng thái, NCC, khoảng ngày, search số phiếu/NCC). Cột: Số phiếu, Ngày, NCC, Diễn giải, Tổng tiền, PT thanh toán, Trạng thái, Hành động.
+## Kế hoạch triển khai (chia 3 phase)
 
-**Route mới** `src/routes/_app/purchases/vouchers.$id.tsx` — chi tiết phiếu (xem/edit/post/void), 2 cột:
-- Trái: thông tin phiếu + định khoản preview (bảng Nợ/Có với số tiền tự tính), nút In phiếu.
-- Phải: nghiệp vụ liên kết (Bút toán, Phiếu nhập kho, Phiếu chi) với link nhanh; nút "Stick Nhập kho" nếu chưa có.
+### Phase 1 — Multi-line + header chuẩn (ưu tiên cao)
+1. Migration `purchase_voucher_lines`: thêm cột `line_no`, `product_code`, `discount_pct`, `discount_amount`, `vat_account`, `debit_account` (per line), `invoice_line_id` (nullable FK), `invoice_no` (text — cho phép gom HĐ chưa import).
+2. Migration `purchase_vouchers`: thêm `payment_status`, `invoice_receipt_type` (with/without/invoice_only), `is_purchase_cost`, `is_non_deductible`, `customer_group_id`, `supplier_address`, `exchange_rate`, `due_date`, `discount_pct`, `discount_amount`, `auto_allocate_cost`.
+3. Cập nhật `createPurchaseVoucher` / `updatePurchaseVoucher` / `postPurchaseVoucher`:
+   - Lưu lines đầy đủ, tính total từ lines
+   - Sinh JE: mỗi line 1 dòng Nợ TK kho/CP; tổng VAT 1 dòng Nợ 133*; 1 dòng Có 331/111/112
+   - Sinh Stock voucher: gom các line `line_type='goods'` có `product_id`
+4. Mở rộng dialog tạo phiếu:
+   - Thay phần "Thành tiền / VAT / Tổng" cứng bằng **bảng lines** có Add/Add-many/Clear, auto-tính subtotal/VAT/total từ lines
+   - Thêm các trường header còn thiếu (payment_status, receipt_type, due_date, branch, currency+rate, address auto-fill)
+   - Thêm checkbox **Nhập kho** header (đồng nghĩa `create_stock_voucher`)
 
-**Dialog/Drawer "Tạo phiếu mua hàng"** — form gọn:
-- Hàng 1: Số phiếu (auto-gen `PMH-YYYYMM-####`), Ngày, NCC (combobox suppliers, tạo nhanh).
-- Hàng 2: Link HĐ mua (Select rỗng hoặc gợi ý từ `invoices` cùng NCC chưa post) — chọn xong tự fill số HĐ/ngày/tổng/VAT.
-- Hàng 3: Diễn giải.
-- Hàng 4: Subtotal | VAT% | VAT amount | Total (auto-tính, có thể override).
-- Hàng 5: TK Nợ (combobox CoA, default 156), TK Có (default 331), TK VAT (default 1331).
-- Hàng 6: Phương thức TT (`credit` | `cash` | `bank`); nếu cash/bank → hiện TK tiền + checkbox "Thanh toán ngay → sinh phiếu chi/UNC".
-- Hàng 7: Checkbox "Sinh phiếu nhập kho" + chọn Kho (chỉ enable khi `debit_account` thuộc nhóm 15* và có link invoice với dòng hàng có product, hoặc chế độ chi tiết sau này).
-- Nút "Lưu nháp" / "Lưu & Ghi sổ".
+### Phase 2 — Tabs & phân bổ
+- Tabs "Phiếu mua hàng / Hoá đơn" với thông tin HĐ đầu vào (mẫu số, ký hiệu, số HĐ, ngày, MST) → đẩy vào bảng `purchase_invoices` khi ghi sổ nếu chưa link
+- Sub-tab **Chi phí mua hàng** + auto-phân bổ về dòng goods (theo amount hoặc qty)
+- Chiết khấu cấp phiếu phân bổ về line
 
-**Tích hợp vào trang Mua hàng hiện có** (`src/routes/_app/purchases/index.tsx`):
-- Thêm tab/section "Phiếu mua hàng" hoặc nút điều hướng nhanh `/purchases/vouchers`.
-- Bổ sung thẻ thống kê "Phiếu mua hàng tháng này" (số phiếu, tổng tiền) — query nhẹ.
+### Phase 3 — Trang chi tiết + workflow
+- Route `/_app/purchases/vouchers/$id` (view/edit/post/void/print)
+- Nút **Stick nhập kho** trên list (đã có function `stickStockVoucher`, chưa gắn UI)
+- Liên kết xem JE / Stock / Cash voucher
 
-## 4. Cập nhật khác
-- `query-invalidation.ts`: thêm key `purchase-vouchers`, invalidate cùng `journal`, `inventory`, `payables` sau post/void.
-- `documents.functions.ts`: thêm loại `purchase_voucher` vào Trung tâm tài liệu (chỉ liệt kê, không cần preview file).
-- Sidebar / menu kế toán: thêm "Phiếu mua hàng" dưới nhóm Mua hàng.
-- Audit logging tự động qua `audit_trigger` (cần ATTACH trong migration).
+---
 
-## 5. Out of scope (giai đoạn sau)
-- Chế độ form chi tiết nhiều dòng — schema đã sẵn `purchase_voucher_lines` nhưng UI chỉ làm form gọn ở MVP này.
-- Import hàng loạt phiếu từ Excel.
-- AI gợi ý định khoản cho phiếu (sẽ tái dùng `suggestJournalEntry` ở vòng sau).
+## Câu hỏi trước khi build
+
+1. Triển khai **Phase 1 đầy đủ** (DB migration + UI multi-line + JE per-line), hay làm trước **chỉ UI multi-line** (giữ DB hiện tại, ghi gộp subtotal)?
+2. Tab "Hoá đơn" có cần ngay không, hay để Phase 2?
+3. Có cần trang chi tiết phiếu (`/vouchers/$id`) trong cùng đợt này?
