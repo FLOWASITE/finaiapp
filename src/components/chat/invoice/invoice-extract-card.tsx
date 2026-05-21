@@ -42,11 +42,13 @@ export function InvoiceExtractCard({
     ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
     : false;
   const isPdfByName = filename ? /\.pdf$/i.test(filename) : false;
+  const isXmlByName = filename ? /\.xml$/i.test(filename) : false;
   const mime = (urlData as any)?.mimeType as string | null | undefined;
   const isImage = isImageByName || (mime ?? "").startsWith("image/");
   const isPdf = isPdfByName || mime === "application/pdf";
+  const isXml = isXmlByName || (mime ?? "").includes("xml") || !!parsed?._einvoice;
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf;
+  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf || isXml;
   if (!isInvoice) return null;
 
   const vendor = parsed?.vendor_name ?? "—";
