@@ -57,7 +57,7 @@ export type ComposerProps = {
    * thay vì tự parse + điều hướng /import/preview.
    * Dùng để xử lý chứng từ NGAY TRONG phòng hội thoại.
    */
-  onAttach?: (files: AttachmentPayload[]) => void;
+  onAttach?: (files: AttachmentPayload[], note?: string) => void;
 };
 
 export function Composer({
