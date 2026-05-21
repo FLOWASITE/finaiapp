@@ -609,6 +609,32 @@ async function ensureUploadRow(opts: {
       .eq("kind", opts.kind)
       .maybeSingle();
     if (existing?.id) {
+      // If a previous attempt failed to upload to storage (file_path null),
+      // try again now so thumbnails / signed URLs work going forward.
+      if (!existing.file_path) {
+        const safeName0 = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
+        const retryPath = `${opts.userId}/ai-uploads/${Date.now()}-${safeName0}`;
+        const { error: retryErr } = await opts.supabase.storage
+          .from("invoices")
+          .upload(retryPath, opts.fileBuf, { contentType: opts.mimeType, upsert: false });
+        if (!retryErr) {
+          await opts.supabase
+            .from("ai_uploads")
+            .update({ file_path: retryPath })
+            .eq("id", existing.id);
+          await upsertDocumentForUpload({
+            supabase: opts.supabase,
+            userId: opts.userId,
+            uploadId: existing.id,
+            filePath: retryPath,
+            filename: opts.filename,
+            mimeType: opts.mimeType,
+            kind: opts.kind,
+            fileHash: opts.fileHash,
+          });
+          return { uploadId: existing.id, filePath: retryPath };
+        }
+      }
       // Ensure a document row exists too (handles legacy uploads)
       if (existing.file_path) {
         await upsertDocumentForUpload({
