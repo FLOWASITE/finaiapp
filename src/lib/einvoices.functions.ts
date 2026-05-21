@@ -725,3 +725,138 @@ export const deleteEInvoice = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ INBOX: SUGGESTED MATCHES ============
+// Lấy các HĐĐT chưa liên kết, gợi ý hoá đơn nội bộ ứng viên dựa trên
+// MST đối tác + ngày phát hành ±3 ngày + tổng tiền ±1%.
+export const listEInvoiceSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        direction: z.enum(["in", "out"]),
+        limit: z.number().int().min(1).max(100).optional().default(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { tenantId } = await resolveTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn tổ chức");
+
+    const matchedCol =
+      data.direction === "in"
+        ? "matched_purchase_invoice_id"
+        : "matched_sales_invoice_id";
+
+    const { data: einvoices, error } = await supabase
+      .from("einvoices")
+      .select(
+        "id, direction, seller_tax_id, seller_name, buyer_tax_id, buyer_name, invoice_series, invoice_no, issue_date, total, vat_amount, tct_status, tct_lookup_code",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("direction", data.direction)
+      .eq("suggestion_dismissed", false)
+      .is(matchedCol, null)
+      .not("issue_date", "is", null)
+      .not("total", "is", null)
+      .order("issue_date", { ascending: false })
+      .limit(data.limit);
+    if (error) throw new Error(error.message);
+
+    const targetTable = data.direction === "in" ? "invoices" : "sales_invoices";
+    const partyCol =
+      data.direction === "in" ? "supplier_tax_id" : "customer_tax_id";
+
+    const suggestions: Array<{
+      einvoice: any;
+      candidates: Array<{
+        id: string;
+        invoice_no: string | null;
+        issue_date: string | null;
+        total: number | null;
+        score: number;
+        reasons: string[];
+      }>;
+    }> = [];
+
+    for (const e of einvoices ?? []) {
+      const partyTax =
+        data.direction === "in" ? e.seller_tax_id : e.buyer_tax_id;
+      if (!partyTax || !e.issue_date || e.total == null) continue;
+
+      const d = new Date(e.issue_date);
+      const from = new Date(d);
+      from.setDate(d.getDate() - 3);
+      const to = new Date(d);
+      to.setDate(d.getDate() + 3);
+      const tol = Math.max(1000, Math.abs(Number(e.total)) * 0.01);
+      const lo = Number(e.total) - tol;
+      const hi = Number(e.total) + tol;
+
+      const { data: cands } = await supabase
+        .from(targetTable)
+        .select("id, invoice_no, issue_date, total")
+        .eq("tenant_id", tenantId)
+        .eq(partyCol, partyTax)
+        .gte("issue_date", from.toISOString().slice(0, 10))
+        .lte("issue_date", to.toISOString().slice(0, 10))
+        .gte("total", lo)
+        .lte("total", hi)
+        .limit(5);
+
+      if (!cands || cands.length === 0) continue;
+
+      const scored = cands.map((c: any) => {
+        const reasons: string[] = [];
+        let score = 50;
+        reasons.push(`Cùng MST ${partyTax}`);
+        const dayDiff = Math.abs(
+          (new Date(c.issue_date).getTime() - d.getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+        if (dayDiff < 0.5) {
+          score += 25;
+          reasons.push("Cùng ngày phát hành");
+        } else {
+          reasons.push(`Lệch ${Math.round(dayDiff)} ngày`);
+          score += Math.max(0, 20 - Math.round(dayDiff) * 5);
+        }
+        const diff = Math.abs(Number(c.total) - Number(e.total));
+        const pct = Number(e.total) ? diff / Math.abs(Number(e.total)) : 0;
+        if (diff < 1) {
+          score += 25;
+          reasons.push("Tổng tiền trùng khớp");
+        } else {
+          reasons.push(`Lệch ${(pct * 100).toFixed(2)}% tổng tiền`);
+          score += Math.max(0, 20 - Math.round(pct * 1000));
+        }
+        if (c.invoice_no && e.invoice_no && c.invoice_no === e.invoice_no) {
+          score += 15;
+          reasons.push("Trùng số HĐ");
+        }
+        return { ...c, score, reasons };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      suggestions.push({ einvoice: e, candidates: scored });
+    }
+
+    return { suggestions };
+  });
+
+// ============ DISMISS SUGGESTION ============
+export const dismissEInvoiceSuggestion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ einvoiceId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("einvoices")
+      .update({ suggestion_dismissed: true })
+      .eq("id", data.einvoiceId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
