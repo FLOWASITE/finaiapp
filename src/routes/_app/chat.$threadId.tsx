@@ -73,6 +73,8 @@ function ThreadPage() {
   // enabling the getThread query (otherwise it would 404 and clobber the
   // primed optimistic cache).
   const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
+  const [creationError, setCreationError] = useState<Error | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -89,18 +91,47 @@ function ThreadPage() {
     }
     let cancelled = false;
     awaitThreadCreation(threadId).finally(() => {
-      if (!cancelled) setCreationSettled(true);
+      if (cancelled) return;
+      const res = getThreadCreationResult(threadId);
+      if (res && !res.ok) {
+        setCreationError(res.error);
+        setCreationSettled(false); // chặn getThread chạy → tránh 404 nhiễu
+      } else {
+        setCreationError(null);
+        setCreationSettled(true);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [pending, threadId]);
 
+  const retryCreation = async () => {
+    const retry = getThreadCreationRetry(threadId);
+    if (!retry) {
+      // Không có factory (vd user reload trang) → chỉ thử lại getThread.
+      clearThreadCreationResult(threadId);
+      setCreationError(null);
+      setCreationSettled(true);
+      return;
+    }
+    setRetrying(true);
+    try {
+      await retry();
+      setCreationError(null);
+      setCreationSettled(true);
+    } catch (e: any) {
+      setCreationError(e instanceof Error ? e : new Error(String(e)));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
-    enabled: creationSettled,
+    enabled: creationSettled && !creationError,
   });
 
   useEffect(() => {
