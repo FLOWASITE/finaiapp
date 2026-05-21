@@ -63,6 +63,11 @@ function ThreadPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [localMsgs, setLocalMsgs] = useState<ChatMsg[]>([]);
+  // When ChatDock navigates optimistically the thread row does not exist
+  // server-side yet. We wait for the background insert to finish before
+  // enabling the getThread query (otherwise it would 404 and clobber the
+  // primed optimistic cache).
+  const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -72,14 +77,25 @@ function ThreadPage() {
   const [atBottom, setAtBottom] = useState(true);
   const [hasNew, setHasNew] = useState(false);
 
+  useEffect(() => {
+    if (!pending) {
+      setCreationSettled(true);
+      return;
+    }
+    let cancelled = false;
+    awaitThreadCreation(threadId).finally(() => {
+      if (!cancelled) setCreationSettled(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pending, threadId]);
+
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
-    // On `pending` (optimistic) the cache is already primed by ChatDock and
-    // the row may not even exist server-side yet. Avoid a query that would
-    // 404 the freshly-created thread and clobber the optimistic cache.
-    enabled: !pending,
+    enabled: creationSettled,
   });
 
   useEffect(() => {
