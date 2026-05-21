@@ -178,16 +178,25 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
           ? `${firstDesc} +${finalLines.length - 1} dòng`
           : firstDesc
         : null;
+      const ocrSupplierName =
+        ocr.supplier_name ?? ocr.vendor_name ?? ocr.seller_name ?? null;
+      const ocrSupplierTaxId =
+        ocr.supplier_tax_id ?? ocr.vendor_tax_id ?? ocr.seller_tax_id ?? null;
       return {
         doc: d,
         invoice: inv
-          ? { ...inv, id: invId }
+          ? {
+              ...inv,
+              id: invId,
+              supplier_name: inv.supplier_name ?? ocrSupplierName,
+              supplier_tax_id: inv.supplier_tax_id ?? ocrSupplierTaxId,
+            }
           : {
               id: null,
               invoice_no: ocr.invoice_no ?? null,
               issue_date: ocr.issue_date ?? null,
-              supplier_name: ocr.supplier_name ?? null,
-              supplier_tax_id: ocr.supplier_tax_id ?? null,
+              supplier_name: ocrSupplierName,
+              supplier_tax_id: ocrSupplierTaxId,
               subtotal: ocr.subtotal ?? null,
               vat_amount: ocr.vat_amount ?? null,
               total: ocr.total ?? null,
