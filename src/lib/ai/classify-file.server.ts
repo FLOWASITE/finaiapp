@@ -144,7 +144,7 @@ Trả về confidence 0..1 (>=0.85 = rất chắc), reason ngắn gọn tiếng 
 
   // 3. Gọi AI
   try {
-    const { model } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
+    const { model } = await resolveActiveModel("classify", "google/gemini-3-flash-preview");
     const { output } = await generateText({
       model,
       output: Output.object({ schema: Schema }),
