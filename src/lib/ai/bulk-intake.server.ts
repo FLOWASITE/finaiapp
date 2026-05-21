@@ -122,13 +122,13 @@ async function ensureUploadQuick(opts: {
   try {
     const { data: existing } = await opts.supabase
       .from("ai_uploads")
-      .select("id, filename, kind")
+      .select("id, filename, kind, file_path")
       .eq("user_id", opts.userId)
       .eq("file_hash", opts.fileHash)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing?.id) {
+    if (existing?.id && existing.file_path) {
       return {
         uploadId: existing.id,
         isDup: true,
