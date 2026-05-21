@@ -35,6 +35,38 @@ function formatSize(n?: number) {
 }
 
 function AttachmentChips({ items }: { items: ChatAttachmentMeta[] }) {
+  if (items.length >= 6) {
+    const shown = items.slice(0, 9);
+    return (
+      <div>
+        <div className="mb-1 text-[11px] font-medium opacity-80">
+          {items.length} file đính kèm
+        </div>
+        <div className="grid grid-cols-5 gap-1 sm:grid-cols-9">
+          {shown.map((a, idx) => {
+            const isImg = a.mime?.startsWith("image/");
+            return (
+              <div
+                key={`${a.name}-${idx}`}
+                title={a.name}
+                className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md bg-primary-foreground/15 px-1 text-primary-foreground"
+              >
+                {isImg ? <ImageIcon className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                <span className="w-full truncate text-center text-[9px] leading-none opacity-90">
+                  {(a.mime?.split("/")[1] || "file").toUpperCase()}
+                </span>
+              </div>
+            );
+          })}
+          {items.length > 9 && (
+            <div className="flex aspect-square items-center justify-center rounded-md border border-dashed border-primary-foreground/30 text-[10px] font-semibold">
+              +{items.length - 9}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((a, idx) => {
@@ -251,12 +283,71 @@ function InvoiceToolEvents({
     else slot.result = ev;
   }
 
+  // If this message contains a bulkIntake event, hide the (otherwise
+  // duplicate) individual parseDocument cards.
+  const hasBulkIntake = order.some((id) => {
+    const tn = map.get(id)?.call?.toolName ?? map.get(id)?.result?.output?.toolName;
+    return tn === "bulkIntake";
+  });
+
   const out: React.ReactNode[] = [];
   for (const id of order) {
     const { call, result } = map.get(id)!;
     const toolName = (call?.toolName ?? result?.output?.toolName) as string | undefined;
 
+    if (toolName === "bulkIntake") {
+      const plan = result?.output as BulkPlan | undefined;
+      if (!plan || (plan as any).error) {
+        out.push(
+          <div
+            key={id + "-bulk-loading"}
+            className="rounded-xl border border-border/60 bg-card/40 p-3 text-sm text-muted-foreground"
+          >
+            Đang phân loại {call?.input?.fileCount ?? ""} file…
+          </div>,
+        );
+        continue;
+      }
+      out.push(
+        <BulkIntakeCard
+          key={id + "-bulk-plan"}
+          plan={plan}
+          running={streaming}
+          onRun={() => {
+            window.dispatchEvent(
+              new CustomEvent("chat:run-bulk-plan", {
+                detail: {
+                  items: plan.items.map((it) => ({
+                    id: it.id,
+                    filename: it.filename,
+                    uploadId: it.uploadId,
+                    kind: it.kind,
+                    bucket: it.bucket,
+                  })),
+                },
+              }),
+            );
+          }}
+        />,
+      );
+      continue;
+    }
+
+    if (toolName === "bulkRun") {
+      const update = (result?.output ?? {
+        total: call?.input?.total ?? 0,
+        done: 0,
+        posted: 0,
+        failed: 0,
+        recent: [],
+        etaSec: null,
+      }) as BulkRunUpdate;
+      out.push(<BulkRunCard key={id + "-bulk-run"} update={update} />);
+      continue;
+    }
+
     if (toolName === "parseDocument") {
+      if (hasBulkIntake) continue;
       const filename = call?.input?.filename ?? result?.output?.filename;
       if (result) {
         const out_ = result.output ?? {};
@@ -291,7 +382,6 @@ function InvoiceToolEvents({
           );
         }
       } else {
-        // call without result yet → live progress
         out.push(
           <ParseProgressCard
             key={id + "-prog"}

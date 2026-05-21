@@ -256,7 +256,11 @@ function ThreadPage() {
     }
   }, [messages, streaming, SCROLL_KEY]);
 
-  const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
+  const runAssistant = async (
+    history: ChatMsg[],
+    attachments?: any[],
+    bulkRun?: { items: any[] },
+  ) => {
     // Hủy stream cũ (nếu có) trước khi bắt đầu, KHÔNG đánh dấu user stop
     // → coi như replacement: bỏ partial assistant cũ.
     if (abortRef.current) {
@@ -298,6 +302,7 @@ function ThreadPage() {
             content: m.content,
           })),
           ...(attachments && attachments.length ? { attachments } : {}),
+          ...(bulkRun ? { bulkRun } : {}),
         },
         // TanStack serverFn không forward `signal` trực tiếp — phải override fetch
         // để gắn AbortSignal vào request, nhờ đó server `getRequest()?.signal`
@@ -486,6 +491,43 @@ function ThreadPage() {
     };
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
     return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, messages]);
+
+  // Bulk plan run: user clicked "Chạy kế hoạch" on a BulkIntakeCard.
+  useEffect(() => {
+    const onRunBulk = (e: Event) => {
+      const detail = (e as CustomEvent<{ items: any[] }>).detail;
+      if (!detail?.items?.length) return;
+      const baseMsgs = messages.filter(
+        (m, i) => !(i === messages.length - 1 && m.role === "assistant"),
+      );
+      const next: ChatMsg[] = [
+        ...baseMsgs,
+        {
+          role: "user",
+          content: `__bulk_run__ (${detail.items.length} mục)`,
+          created_at: new Date().toISOString(),
+        },
+      ];
+      setLocalMsgs(next);
+      void (async () => {
+        try {
+          const persistId = await getEffectiveThreadId();
+          await appendFn({
+            data: {
+              threadId: persistId,
+              role: "user",
+              content: `Chạy kế hoạch cho ${detail.items.length} mục.`,
+            },
+          });
+        } catch {}
+      })();
+      runAssistant(next, undefined, { items: detail.items });
+    };
+    window.addEventListener("chat:run-bulk-plan", onRunBulk as EventListener);
+    return () =>
+      window.removeEventListener("chat:run-bulk-plan", onRunBulk as EventListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, messages]);
 
