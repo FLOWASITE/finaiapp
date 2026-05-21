@@ -142,11 +142,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-border/40 bg-transparent transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-white/5 bg-[oklch(0.09_0.02_260)] transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
-      <div className="border-b border-border/40 px-3 py-4">
+      <div className="px-3 py-4">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
@@ -154,7 +154,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onToggle}
               title="Mở lịch sử (Cmd+\\)"
               aria-label="Mở lịch sử"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
@@ -163,23 +163,23 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onNew}
               title="Cuộc trò chuyện mới"
               aria-label="Cuộc trò chuyện mới"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-primary/30 bg-primary/[0.04] text-primary hover:border-primary/50 hover:bg-primary/[0.08]"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary transition-colors hover:bg-primary/25"
             >
               <Plus className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <>
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-center gap-2.5">
               <div
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-primary-foreground shadow-sm"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-foreground shadow-sm"
                 style={{ background: "var(--gradient-ai)" }}
               >
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight">Trợ lý kế toán</div>
-                <div className="text-[10px] text-muted-foreground">AI assistant</div>
+                <div className="text-sm font-semibold leading-tight tracking-tight text-white">Trợ lý kế toán</div>
+                <div className="text-[10px] text-slate-500">AI assistant</div>
               </div>
               {onToggle && (
                 <button
@@ -187,7 +187,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                   onClick={onToggle}
                   title="Ẩn lịch sử (Cmd+\\)"
                   aria-label="Ẩn lịch sử"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -195,8 +195,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             </div>
             <Button
               onClick={onNew}
-              className="w-full justify-start gap-2 rounded-xl border-dashed border-primary/30 bg-primary/[0.04] text-foreground hover:border-primary/50 hover:bg-primary/[0.08]"
               variant="outline"
+              className="w-full justify-start gap-2 rounded-xl border-white/10 bg-white/[0.03] text-slate-100 transition-colors hover:border-white/15 hover:bg-white/[0.06] hover:text-white"
             >
               <Plus className="h-4 w-4 text-primary" />
               Cuộc trò chuyện mới
@@ -205,38 +205,38 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         )}
       </div>
       {!collapsed && (
-      <div className="chat-scroll flex-1 overflow-auto px-2 py-3">
-        <div className="mb-2 px-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+      <div className="chat-scroll flex-1 overflow-auto px-2 pb-3">
+        <div className="mb-2 px-2 pt-1">
+          <div className="group relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-primary" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm hội thoại…"
-              className="h-8 w-full rounded-lg border border-border/40 bg-background/60 pl-8 pr-7 text-xs outline-none transition-colors focus:border-primary/40 focus:bg-background"
+              className="h-9 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] pl-9 pr-8 text-xs text-slate-200 placeholder:text-slate-500 outline-none transition-all focus:border-primary/40 focus:bg-white/[0.08] focus:ring-1 focus:ring-primary/30"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
                 aria-label="Xoá tìm kiếm"
-                className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-white/10 hover:text-white"
               >
                 <X className="h-3 w-3" />
               </button>
             )}
           </div>
         </div>
-        <div className="mb-2 flex items-center justify-between px-3">
+        <div className="mb-3 flex items-center justify-between px-3">
           <button
             type="button"
             onClick={() => setShowStarredOnly((v) => !v)}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               showStarredOnly
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                : "text-muted-foreground hover:text-foreground",
+                ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                : "text-slate-500 hover:text-slate-200",
             )}
             title="Chỉ hiển thị hội thoại đã đánh dấu sao"
           >
@@ -245,131 +245,125 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
           </button>
         </div>
         {query.isLoading && (
-          <div className="px-2 py-4 text-xs text-muted-foreground">Đang tải…</div>
+          <div className="px-3 py-4 text-xs text-slate-500">Đang tải…</div>
         )}
         {query.data && query.data.length === 0 && (
-          <div className="flex flex-col items-center px-4 py-10 text-center">
-            <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/30" />
-            <p className="text-xs text-muted-foreground">
+          <div className="flex flex-col items-center px-4 py-12 text-center">
+            <MessageSquare className="mb-3 h-10 w-10 text-slate-700" />
+            <p className="text-xs leading-relaxed text-slate-500">
               Chưa có cuộc trò chuyện nào.<br />
-              Bấm <span className="font-medium text-foreground">Cuộc trò chuyện mới</span> để bắt đầu.
+              Bấm <span className="font-medium text-slate-300">Cuộc trò chuyện mới</span> để bắt đầu.
             </p>
           </div>
         )}
         {query.data && query.data.length > 0 && buckets.length === 0 && (
-          <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+          <div className="px-4 py-8 text-center text-xs text-slate-500">
             {q
               ? `Không tìm thấy hội thoại nào cho “${searchQuery.trim()}”`
               : "Không có hội thoại đánh dấu sao"}
           </div>
         )}
-        {buckets.map((b) => (
-          <div key={b.label} className="mb-4">
-            <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
-              {b.label}
+        <div className="space-y-6">
+          {buckets.map((b) => (
+            <div key={b.label}>
+              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                {b.label}
+              </div>
+              <ul className="space-y-0.5">
+                {b.items.map((t) => {
+                  const isActive = t.id === activeId;
+                  const isPinned = !!t.pinned_at;
+                  const isStarred = !!t.starred;
+                  return (
+                    <li key={t.id} className="group relative">
+                      <Link
+                        to="/chat/$threadId"
+                        params={{ threadId: t.id }}
+                        className={cn(
+                          "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
+                          isActive
+                            ? "border border-primary/20 bg-primary/10 text-white"
+                            : "border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
+                        )}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-3 bottom-3 w-[2px] rounded-r-full bg-primary shadow-[0_0_8px_oklch(var(--primary)/0.6)]" />
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-[13px] font-medium">{t.title}</span>
+                          {isStarred && (
+                            <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+                          )}
+                          {isPinned && (
+                            <Pin className="h-3 w-3 shrink-0 text-primary/70" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500/80">
+                          {relativeTime(t.last_message_at)}
+                        </span>
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-white/10 hover:text-white group-hover:opacity-100 data-[state=open]:opacity-100"
+                            aria-label="Tuỳ chọn"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem
+                            onClick={() => pinMut.mutate({ threadId: t.id, pinned: !isPinned })}
+                          >
+                            {isPinned ? (
+                              <>
+                                <PinOff className="mr-2 h-3.5 w-3.5" />
+                                Bỏ ghim
+                              </>
+                            ) : (
+                              <>
+                                <Pin className="mr-2 h-3.5 w-3.5" />
+                                Ghim lên đầu
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => starMut.mutate({ threadId: t.id, starred: !isStarred })}
+                          >
+                            <Star className={cn("mr-2 h-3.5 w-3.5", isStarred && "fill-amber-500 text-amber-500")} />
+                            {isStarred ? "Bỏ đánh dấu sao" : "Đánh dấu sao"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setRenameValue(t.title);
+                              setRenaming(t);
+                            }}
+                          >
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Đổi tên
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Xoá "${t.title}"?`)) deleteMut.mutate(t.id);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            Xoá
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            <ul className="space-y-0.5">
-              {b.items.map((t) => {
-                const isActive = t.id === activeId;
-                const isPinned = !!t.pinned_at;
-                const isStarred = !!t.starred;
-                return (
-                  <li key={t.id} className="group relative">
-                    <Link
-                      to="/chat/$threadId"
-                      params={{ threadId: t.id }}
-                      className={cn(
-                        "relative flex flex-col gap-0.5 rounded-xl px-3 py-2 pr-9 transition-all",
-                        isActive
-                          ? "bg-gradient-to-r from-primary/15 to-primary/5 text-foreground"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                      )}
-                    >
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-r-full bg-primary" />
-                      )}
-                      <div className="flex items-center gap-2">
-                        <MessageSquare
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0 transition-colors",
-                            isActive ? "text-primary" : "text-muted-foreground/60 group-hover:text-primary",
-                          )}
-                        />
-                        <span className="truncate text-xs font-medium">{t.title}</span>
-                        {isStarred && (
-                          <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />
-                        )}
-                        {isPinned && (
-                          <Pin className="h-3 w-3 shrink-0 text-primary/70" />
-                        )}
-                      </div>
-                      <span className="ml-[22px] text-[10px] text-muted-foreground/60">
-                        {relativeTime(t.last_message_at)}
-                      </span>
-                    </Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="absolute right-1.5 top-2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
-                          aria-label="Tuỳ chọn"
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem
-                          onClick={() => pinMut.mutate({ threadId: t.id, pinned: !isPinned })}
-                        >
-                          {isPinned ? (
-                            <>
-                              <PinOff className="mr-2 h-3.5 w-3.5" />
-                              Bỏ ghim
-                            </>
-                          ) : (
-                            <>
-                              <Pin className="mr-2 h-3.5 w-3.5" />
-                              Ghim lên đầu
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => starMut.mutate({ threadId: t.id, starred: !isStarred })}
-                        >
-                          <Star className={cn("mr-2 h-3.5 w-3.5", isStarred && "fill-amber-500 text-amber-500")} />
-                          {isStarred ? "Bỏ đánh dấu sao" : "Đánh dấu sao"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setRenameValue(t.title);
-                            setRenaming(t);
-                          }}
-                        >
-                          <Pencil className="mr-2 h-3.5 w-3.5" />
-                          Đổi tên
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => {
-                            if (confirm(`Xoá "${t.title}"?`)) deleteMut.mutate(t.id);
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" />
-                          Xoá
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       )}
-
-
 
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-md">
