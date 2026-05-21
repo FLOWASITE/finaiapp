@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart, from } = Route.useSearch();
+  const { autostart, from, handoff } = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
   const qc = useQueryClient();
