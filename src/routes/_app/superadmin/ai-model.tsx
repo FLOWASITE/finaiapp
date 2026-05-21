@@ -114,6 +114,7 @@ const ALIBABA_PRESETS = {
     model_chat: "qwen-plus",
     model_parse: "qwen-vl-max",
     model_reasoning: "qwq-plus",
+    model_classify: "qwen-turbo",
     extra_headers_json: "",
   },
 } as const;
