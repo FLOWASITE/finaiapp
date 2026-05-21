@@ -41,6 +41,7 @@ export const listEInvoices = createServerFn({ method: "POST" })
         dateFrom: z.string().optional().nullable(),
         dateTo: z.string().optional().nullable(),
         status: z.string().optional().nullable(),
+        xmlStatus: z.string().optional().nullable(),
         matched: z.enum(["all", "matched", "unmatched"]).optional().default("all"),
         page: z.number().int().min(1).max(1000).optional().default(1),
         pageSize: z.number().int().min(1).max(200).optional().default(50),
