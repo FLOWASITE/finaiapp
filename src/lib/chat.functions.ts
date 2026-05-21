@@ -48,6 +48,7 @@ const BULK_THRESHOLD = 3;
 export type AskStreamEvent =
   | { type: "text"; delta: string }
   | { type: "tool-call"; toolCallId: string; toolName: string; input: any }
+  | { type: "tool-progress"; toolCallId: string; phase: { name: string; status: "start" | "done"; ms?: number | null } }
   | { type: "tool-result"; toolCallId: string; output: any; isError?: boolean };
 
 function truncateOutput(v: any, max = 4000): any {
