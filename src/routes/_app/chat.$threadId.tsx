@@ -24,6 +24,7 @@ const searchSchema = z.object({
   autostart: z.string().optional(),
   from: z.string().optional(),
   optimistic: z.string().optional(),
+  handoff: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/chat/$threadId")({
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart, from } = Route.useSearch();
+  const { autostart, from, handoff } = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
   const qc = useQueryClient();
@@ -140,12 +141,15 @@ function ThreadPage() {
       // Mark startedRef đã chạy cho temp id, đồng thời cho real id để
       // autostart không chạy lại sau khi navigate replace.
       startedRef.current = detail.realThreadId;
-      // Navigate replace sang URL thật, giữ nguyên view (skipReset).
+      // Navigate replace sang URL thật, giữ nguyên view (skipReset) + handoff.
       skipResetRef.current = true;
       navigate({
         to: "/chat/$threadId",
         params: { threadId: detail.realThreadId },
-        search: from ? { from } : {},
+        search: {
+          ...(from ? { from } : {}),
+          ...(handoff ? { handoff } : {}),
+        },
         replace: true,
       });
     };
@@ -153,11 +157,10 @@ function ThreadPage() {
       const detail = (e as CustomEvent<{ tempId: string; error?: string }>).detail;
       if (!detail || detail.tempId !== threadId) return;
       abortRef.current?.abort();
-      // Quay lại trang trước đó.
-      if (from) {
-        try {
-          window.location.href = from;
-        } catch {}
+      // Quay lại trang trước đó — dùng navigate (SPA) thay vì window.location
+      // để không full reload.
+      if (from && from.startsWith("/")) {
+        navigate({ to: from });
       } else {
         navigate({ to: "/chat" });
       }
@@ -168,7 +171,7 @@ function ThreadPage() {
       window.removeEventListener("chat:thread-resolved", onResolved as EventListener);
       window.removeEventListener("chat:thread-failed", onFailed as EventListener);
     };
-  }, [threadId, isOptimistic, from, navigate]);
+  }, [threadId, isOptimistic, from, handoff, navigate]);
 
   /** Trả về threadId dùng để persist message (đợi nếu đang optimistic). */
   const getEffectiveThreadId = async (): Promise<string> => {
@@ -383,10 +386,14 @@ function ThreadPage() {
       }));
       let pendingAttachments: any[] | undefined;
       try {
-        const raw = sessionStorage.getItem(`__attach:${threadId}`);
+        // Ưu tiên key theo handoffId (bền: không bị rename khi swap temp→real id).
+        const stashKey = handoff
+          ? `__attach:h:${handoff}`
+          : `__attach:${threadId}`;
+        const raw = sessionStorage.getItem(stashKey);
         if (raw) {
           pendingAttachments = JSON.parse(raw);
-          sessionStorage.removeItem(`__attach:${threadId}`);
+          sessionStorage.removeItem(stashKey);
         }
       } catch {}
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
@@ -394,13 +401,8 @@ function ThreadPage() {
         toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
       }
       runAssistant(hist, pendingAttachments);
-      // Xoá autostart/optimistic khỏi URL (giữ nguyên id hiện tại, kể cả temp).
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId },
-        search: from ? { from } : {},
-        replace: true,
-      });
+      // KHÔNG navigate replace để xoá autostart ở đây — sẽ gây re-render +
+      // Route.useSearch đổi → trông như refresh. startedRef đã chặn chạy lại.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, query.data, threadId, isOptimistic]);
