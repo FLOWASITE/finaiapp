@@ -9,12 +9,23 @@ import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { makeRenderChartTool } from "@/lib/ai/tools/chart.tool";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { parseFileCore } from "@/lib/ai/parse-document.functions";
+import { buildBulkPlan } from "@/lib/ai/bulk-intake.server";
+import { loadUploadAsBase64 } from "@/lib/ai/upload-fetch.server";
+import { ACTION_HANDLERS } from "@/lib/ai/action-handlers.server";
 
 const AttachmentSchema = z.object({
   name: z.string(),
   mime: z.string(),
   base64: z.string(),
   kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]).default("auto"),
+});
+
+const BulkRunItemSchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  uploadId: z.string().nullable(),
+  kind: z.enum(["purchase_invoice", "bank_statement", "cash_voucher", "auto"]),
+  bucket: z.enum(["auto", "review", "ask"]),
 });
 
 const askInput = z.object({
@@ -26,7 +37,13 @@ const askInput = z.object({
   pageContext: z.string().optional(),
   /** Files attached to the user message — parsed inline before the LLM runs. */
   attachments: z.array(AttachmentSchema).optional(),
+  /** Bulk-run trigger: when present, server executes a previously-approved BulkPlan
+   *  instead of going through the LLM. */
+  bulkRun: z.object({ items: z.array(BulkRunItemSchema) }).optional(),
 });
+
+/** When ≥ this many files arrive in one message, switch to bulk intake mode. */
+const BULK_THRESHOLD = 3;
 
 export type AskStreamEvent =
   | { type: "text"; delta: string }
@@ -58,6 +75,74 @@ export const askAccountingStream = createServerFn({ method: "POST" })
     try {
       abortSignal = getRequest()?.signal;
     } catch {}
+
+    // ===== BRANCH A: Bulk intake (≥ N attachments in one message) =====
+    // Skip LLM entirely. Build a BulkPlan and yield ONE summary event +
+    // a deterministic 3-paragraph text. The UI gates execution behind
+    // a "Chạy kế hoạch" button.
+    if (data.attachments && data.attachments.length >= BULK_THRESHOLD && !data.bulkRun) {
+      const callId = `bulk_${Math.random().toString(36).slice(2, 10)}`;
+      yield {
+        type: "tool-call",
+        toolCallId: callId,
+        toolName: "bulkIntake",
+        input: { fileCount: data.attachments.length },
+      } as AskStreamEvent;
+
+      try {
+        const plan = await buildBulkPlan({
+          supabase,
+          userId,
+          attachments: data.attachments,
+        });
+
+        yield {
+          type: "tool-result",
+          toolCallId: callId,
+          output: truncateOutput(plan, 32000),
+        } as AskStreamEvent;
+
+        // Build deterministic 3-paragraph reply.
+        const auto = plan.items.filter((i) => i.bucket === "auto");
+        const review = plan.items.filter((i) => i.bucket === "review");
+        const ask = plan.items.filter((i) => i.bucket === "ask");
+        const dupCount = plan.duplicates.length;
+        const askFirst = ask[0];
+
+        const para1 = `Nhận đủ **${data.attachments.length} files**${dupCount ? `, đã bỏ ${dupCount} file trùng` : ""}. Đã phân loại xong — xem bảng phía trên.`;
+        const para2 = `Đây là kế hoạch của tôi cho **${plan.items.length} mục** — sếp duyệt thì tôi chạy: **${auto.length}** mục tự hạch toán, **${review.length}** mục cần xem lại, **${ask.length}** mục cần hỏi sếp.`;
+        const para3 = askFirst
+          ? `\n\nTrước khi chạy, sếp giúp tôi xác nhận **${askFirst.filename}**: ${askFirst.reason ?? "tôi chưa chắc về file này"}. Sếp có thể bỏ qua, đánh dấu là loại khác, hoặc gửi lại file rõ hơn.`
+          : "";
+
+        yield { type: "text", delta: `${para1}\n\n${para2}${para3}` } as AskStreamEvent;
+      } catch (e: any) {
+        yield {
+          type: "tool-result",
+          toolCallId: callId,
+          output: { error: e?.message || "bulk intake error" },
+          isError: true,
+        } as AskStreamEvent;
+        yield {
+          type: "text",
+          delta: `Lỗi khi phân loại file: ${e?.message ?? "unknown"}`,
+        } as AskStreamEvent;
+      }
+      return;
+    }
+
+    // ===== BRANCH B: Bulk run (executes a previously approved BulkPlan) =====
+    if (data.bulkRun && data.bulkRun.items.length > 0) {
+      yield* runBulkPlanStream({
+        supabase,
+        userId,
+        items: data.bulkRun.items,
+        abortSignal,
+      });
+      return;
+    }
+
+
 
     let model: any;
     try {
@@ -260,3 +345,226 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       yield { type: "text", delta: `\n\n[Lỗi: ${e?.message ?? "stream error"}]` } as AskStreamEvent;
     }
   });
+
+// ===== Bulk plan executor (no LLM) =====
+
+type BulkRunItem = z.infer<typeof BulkRunItemSchema>;
+
+async function* runBulkPlanStream(opts: {
+  supabase: any;
+  userId: string;
+  items: BulkRunItem[];
+  abortSignal?: AbortSignal;
+}): AsyncGenerator<AskStreamEvent, void, unknown> {
+  const { supabase, userId, items, abortSignal } = opts;
+  const autoItems = items.filter((it) => it.bucket === "auto");
+  const reviewItems = items.filter((it) => it.bucket === "review");
+
+  const total = autoItems.length + reviewItems.length;
+  const callId = `bulkrun_${Math.random().toString(36).slice(2, 10)}`;
+
+  yield {
+    type: "tool-call",
+    toolCallId: callId,
+    toolName: "bulkRun",
+    input: { total },
+  } as AskStreamEvent;
+
+  let done = 0;
+  let posted = 0;
+  let failed = 0;
+  const recent: { filename: string; status: "ok" | "fail" | "review"; message?: string }[] = [];
+  const postedItems: { filename: string; refTable?: string; refId?: string }[] = [];
+  const startedAt = Date.now();
+
+  const pushUpdate = (finished = false) => {
+    const elapsed = (Date.now() - startedAt) / 1000;
+    const perItem = done > 0 ? elapsed / done : 12;
+    const etaSec = finished ? 0 : Math.max(0, Math.round((total - done) * perItem));
+    return {
+      type: "tool-result",
+      toolCallId: callId,
+      output: {
+        total,
+        done,
+        posted,
+        failed,
+        recent: recent.slice(-5),
+        etaSec,
+        finished,
+      },
+    } as AskStreamEvent;
+  };
+
+  for (const item of [...autoItems, ...reviewItems]) {
+    if (abortSignal?.aborted) break;
+
+    let parsed: any = null;
+    let parseKind: string = item.kind;
+    let parseErr: string | null = null;
+
+    if (item.uploadId) {
+      try {
+        const loaded = await loadUploadAsBase64(supabase, userId, item.uploadId);
+        if (!loaded) throw new Error("Không tải được file gốc");
+        const r = await parseFileCore({
+          fileBase64: loaded.base64,
+          mimeType: loaded.mime,
+          filename: loaded.filename,
+          kind: item.kind as any,
+          supabase,
+          userId,
+        });
+        parsed = r.parsed;
+        parseKind = (r as any).kind ?? item.kind;
+      } catch (e: any) {
+        parseErr = e?.message ?? "parse error";
+      }
+    } else {
+      parseErr = "Không có upload id";
+    }
+
+    if (parseErr) {
+      failed++;
+      recent.push({ filename: item.filename, status: "fail", message: parseErr });
+      done++;
+      yield pushUpdate();
+      continue;
+    }
+
+    // For "auto" bucket + recognized invoice → auto-create + execute
+    if (item.bucket === "auto" && parseKind === "purchase_invoice" && parsed) {
+      const handler = ACTION_HANDLERS.createPurchaseInvoice;
+      try {
+        const lines = (parsed.lines ?? []).map((l: any) => ({
+          description: l.description ?? "Hàng hoá / dịch vụ",
+          qty: Number(l.qty ?? 1) || 1,
+          unit_price: Number(l.unit_price ?? l.amount ?? 0) || 0,
+          amount: Number(l.amount ?? 0) || 0,
+          vat_rate: Number(l.vat_rate ?? 0) || 0,
+        }));
+        if (!lines.length) {
+          const total = Number(parsed.subtotal ?? parsed.total ?? 0);
+          lines.push({
+            description: "Hàng hoá / dịch vụ",
+            qty: 1,
+            unit_price: total,
+            amount: total,
+            vat_rate: 0,
+          });
+        }
+        const input = handler.schema.parse({
+          supplier_name: parsed.vendor_name ?? undefined,
+          supplier_tax_id: parsed.vendor_tax_id ?? undefined,
+          invoice_no: parsed.invoice_no ?? undefined,
+          issue_date: parsed.issue_date ?? new Date().toISOString().slice(0, 10),
+          notes: parsed.notes ?? undefined,
+          lines,
+        });
+        const summary = await handler.preview(input, { supabase, userId });
+
+        const { data: row, error: insErr } = await supabase
+          .from("ai_actions")
+          .insert({
+            user_id: userId,
+            tool_name: "createPurchaseInvoice",
+            input,
+            summary,
+            status: "approved",
+            approved_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (insErr) throw new Error(insErr.message);
+
+        const result = await handler.execute(input, { supabase, userId });
+        await supabase
+          .from("ai_actions")
+          .update({
+            status: "executed",
+            executed_at: new Date().toISOString(),
+            result: result as any,
+            result_ref_table: result.ref_table ?? null,
+            result_ref_id: result.ref_id ?? null,
+          })
+          .eq("id", row.id);
+
+        posted++;
+        postedItems.push({
+          filename: item.filename,
+          refTable: result.ref_table,
+          refId: result.ref_id,
+        });
+        recent.push({ filename: item.filename, status: "ok" });
+      } catch (e: any) {
+        failed++;
+        recent.push({ filename: item.filename, status: "fail", message: e?.message ?? "post error" });
+      }
+    } else if (item.bucket === "review" && parseKind === "purchase_invoice" && parsed) {
+      // Create a pending ai_action so user can review later.
+      try {
+        const handler = ACTION_HANDLERS.createPurchaseInvoice;
+        const lines = (parsed.lines ?? []).map((l: any) => ({
+          description: l.description ?? "Hàng hoá / dịch vụ",
+          qty: Number(l.qty ?? 1) || 1,
+          unit_price: Number(l.unit_price ?? l.amount ?? 0) || 0,
+          amount: Number(l.amount ?? 0) || 0,
+          vat_rate: Number(l.vat_rate ?? 0) || 0,
+        }));
+        if (lines.length) {
+          const input = handler.schema.parse({
+            supplier_name: parsed.vendor_name ?? undefined,
+            supplier_tax_id: parsed.vendor_tax_id ?? undefined,
+            invoice_no: parsed.invoice_no ?? undefined,
+            issue_date: parsed.issue_date ?? new Date().toISOString().slice(0, 10),
+            notes: parsed.notes ?? undefined,
+            lines,
+          });
+          const summary = await handler.preview(input, { supabase, userId });
+          await supabase.from("ai_actions").insert({
+            user_id: userId,
+            tool_name: "createPurchaseInvoice",
+            input,
+            summary,
+            status: "pending",
+          });
+        }
+        recent.push({ filename: item.filename, status: "review" });
+      } catch (e: any) {
+        failed++;
+        recent.push({ filename: item.filename, status: "fail", message: e?.message ?? "review error" });
+      }
+    } else {
+      // Bank statements + others: leave for dedicated flow, just mark reviewed
+      recent.push({ filename: item.filename, status: "review", message: "Cần xử lý riêng" });
+    }
+
+    done++;
+    yield pushUpdate();
+  }
+
+  // Final summary event
+  const summaryCallId = `bulksum_${Math.random().toString(36).slice(2, 10)}`;
+  yield {
+    type: "tool-call",
+    toolCallId: summaryCallId,
+    toolName: "bulkSummary",
+    input: {},
+  } as AskStreamEvent;
+  yield {
+    type: "tool-result",
+    toolCallId: summaryCallId,
+    output: {
+      posted,
+      review: reviewItems.length,
+      ask: 0,
+      postedItems,
+    },
+  } as AskStreamEvent;
+
+  yield {
+    type: "text",
+    delta: `Xong rồi sếp.\n\n- **${posted}** mục đã ghi sổ\n- **${reviewItems.length}** mục chờ sếp ở "Cần xem lại"${failed ? `\n- ${failed} mục lỗi` : ""}`,
+  } as AskStreamEvent;
+}
+

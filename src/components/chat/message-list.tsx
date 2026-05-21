@@ -6,6 +6,9 @@ import { MessageActions } from "@/components/chat/message-actions";
 import { ParseProgressCard } from "@/components/chat/invoice/parse-progress-card";
 import { InvoiceExtractCard } from "@/components/chat/invoice/invoice-extract-card";
 import { JournalProposalCard } from "@/components/chat/invoice/journal-proposal-card";
+import { BulkIntakeCard } from "@/components/chat/bulk/bulk-intake-card";
+import { BulkRunCard } from "@/components/chat/bulk/bulk-run-card";
+import type { BulkPlan, BulkRunUpdate } from "@/components/chat/bulk/types";
 import { cn } from "@/lib/utils";
 
 export type ChatAttachmentMeta = {
