@@ -5,6 +5,8 @@ import {
   parseEinvoiceXml,
   EinvoiceParseError,
 } from "@/lib/einvoice-xml-parser";
+import { ensureDraftForEinvoice } from "@/lib/einvoice-drafts.functions";
+
 
 
 // ------- helpers -------
@@ -306,6 +308,7 @@ export const autoMatchEInvoices = createServerFn({ method: "POST" })
     let matched = 0;
     let ambiguous = 0;
     let skipped = 0;
+    let drafted = 0;
 
     for (const e of candidates ?? []) {
       if (!e.invoice_no) {
@@ -362,6 +365,14 @@ export const autoMatchEInvoices = createServerFn({ method: "POST" })
           .eq("id", e.id);
         matched++;
       }
+
+      // Sau khi auto-match: tự sinh nháp bút toán (idempotent, không chặn nếu lỗi)
+      try {
+        const did = await ensureDraftForEinvoice(supabase, userId, e.id);
+        if (did) drafted++;
+      } catch (err) {
+        console.warn("ensureDraftForEinvoice failed", e.id, err);
+      }
     }
 
     return {
@@ -369,8 +380,10 @@ export const autoMatchEInvoices = createServerFn({ method: "POST" })
       matched,
       ambiguous,
       skipped,
+      drafted,
     };
   });
+
 
 // ============ IMPORT XML INTO STORE ============
 export const importEinvoicesToStore = createServerFn({ method: "POST" })
