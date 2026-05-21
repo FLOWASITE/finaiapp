@@ -37,6 +37,8 @@ export type BulkItem = {
   uploadId: string | null;
   /** File hash — used for dedupe. */
   fileHash: string | null;
+  /** Nguồn phân loại (ai/xml/text-rule/cache/heuristic). */
+  source?: BulkClassifySource;
   /** When this item is dropped as duplicate, points at the original. */
   dupOf?: { filename?: string | null; uploadId?: string | null; reason: string };
 };
