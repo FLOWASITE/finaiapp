@@ -7,7 +7,7 @@ import {
   Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
   ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
   ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown, ArrowRightLeft, ArrowLeftRight, ScanBarcode, FileBarChart,
-  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2, Brain,
+  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2, Brain, AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,11 +30,15 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getAiSidebarCounts } from "@/lib/sidebar-counts.functions";
 
-type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: "new" };
+type BadgeTone = "new" | "muted" | "danger" | "default";
+type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
 type NavEntry = NavLeaf | NavGroup;
-type NavSection = { label?: string; entries: NavEntry[] };
+type NavSection = { label?: string; labelBadge?: string; entries: NavEntry[] };
 
 const isGroup = (e: NavEntry): e is NavGroup => "items" in e;
 
@@ -131,56 +135,39 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-// FRONT-OFFICE: 5 không gian + AI. Mọi route gốc vẫn tồn tại,
-// chỉ ẩn bớt mục kế toán đi.
+// FRONT (Mode AI): cấu trúc tinh gọn theo mockup.
+// 4 section: XỬ LÝ / THƯ VIỆN / THẤU HIỂU / AI.
+// Badge sẽ được inject từ getAiSidebarCounts trong AppSidebar.
 const FRONT_SECTIONS: NavSection[] = [
   {
+    label: "Xử lý",
     entries: [
-      { to: "/inbox", label: "Hộp việc", icon: Inbox },
-      { to: "/chat", label: "Hỏi AI", icon: Sparkles },
-      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
+      { to: "/inbox", label: "Inbox AI", icon: Inbox },
+      { to: "/inbox?tab=review", label: "Cần xem lại", icon: AlertTriangle },
+      { to: "/inbox?tab=posted", label: "Đã hạch toán", icon: BookOpenCheck },
     ],
   },
   {
-    label: "Không gian",
+    label: "Thư viện",
     entries: [
-      {
-        label: "Tiền",
-        icon: PiggyBank,
-        items: [
-          { to: "/bank", label: "Ngân hàng" },
-          { to: "/cash", label: "Tiền mặt" },
-          { to: "/bank/reconcile", label: "Đối soát" },
-          { to: "/receipts", label: "Phiếu thu" },
-        ],
-      },
-      {
-        label: "Đối tác",
-        icon: ContactIcon,
-        items: [
-          { to: "/customers", label: "Khách hàng" },
-          { to: "/suppliers", label: "Nhà cung cấp" },
-          { to: "/receivables", label: "Khách đang nợ" },
-          { to: "/payables", label: "Mình đang nợ" },
-        ],
-      },
-      {
-        label: "Hàng hoá",
-        icon: Package,
-        items: [
-          { to: "/items", label: "Sản phẩm & dịch vụ" },
-          { to: "/inventory", label: "Tồn kho" },
-          { to: "/assets", label: "Tài sản" },
-        ],
-      },
-      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText },
+      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText, badgeTone: "muted" },
+      { to: "/customers", label: "Đối tác", icon: ContactIcon },
     ],
   },
   {
-    label: "Khác",
+    label: "Thấu hiểu",
     entries: [
-      { to: "/dashboard", label: "Bảng số liệu", icon: LayoutDashboard },
-      { to: "/settings", label: "Cài đặt", icon: Settings },
+      { to: "/reports", label: "Báo cáo", icon: BarChart3 },
+      { to: "/cashflow", label: "Dòng tiền", icon: LineChart },
+      { to: "/tax/gtgt", label: "Thuế", icon: Receipt },
+    ],
+  },
+  {
+    label: "AI",
+    labelBadge: "MỚI",
+    entries: [
+      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain },
+      { to: "/alerts", label: "Cảnh báo", icon: ShieldAlert },
     ],
   },
 ];
@@ -412,16 +399,49 @@ export function AppSidebar() {
   const email = cu?.email ?? "";
   const isSuperadmin = cu?.isSuperadmin ?? false;
 
+  // Đếm động cho Sidebar Mode AI (workspace=front).
+  const fetchSidebarCounts = useServerFn(getAiSidebarCounts);
+  const { data: aiCounts } = useQuery({
+    queryKey: ["sidebar", "ai-counts"],
+    queryFn: () => fetchSidebarCounts(),
+    enabled: workspace === "front" && !inSuperadminModule && !inEinvoiceModule && !inTaxModule && !inReportsModule,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Inject badge từ aiCounts vào FRONT_SECTIONS đang dùng.
+  const sectionsWithBadges = React.useMemo<NavSection[]>(() => {
+    if (activeSections !== FRONT_SECTIONS || !aiCounts) return activeSections;
+    const map: Record<string, { badge: string | number; tone?: BadgeTone }> = {
+      "/inbox": { badge: aiCounts.inbox },
+      "/inbox?tab=review": { badge: aiCounts.review, tone: "danger" },
+      "/documents": { badge: aiCounts.documents, tone: "muted" },
+      "/alerts": { badge: aiCounts.alerts, tone: "danger" },
+      "/tax/gtgt": aiCounts.taxDaysLeft != null
+        ? { badge: `${aiCounts.taxDaysLeft} ngày`, tone: "danger" }
+        : { badge: "" },
+    };
+    return activeSections.map((s) => ({
+      ...s,
+      entries: s.entries.map((e) => {
+        if (isGroup(e)) return e;
+        const inject = map[e.to];
+        if (!inject || inject.badge === "" || inject.badge === 0) return e;
+        return { ...e, badge: inject.badge, badgeTone: inject.tone ?? e.badgeTone };
+      }),
+    }));
+  }, [activeSections, aiCounts]);
+
   const allTos = React.useMemo(() => {
     const tos: string[] = [];
-    activeSections.forEach((s) =>
+    sectionsWithBadges.forEach((s) =>
       s.entries.forEach((e) => {
         if (isGroup(e)) e.items.forEach((i) => tos.push(i.to));
         else tos.push(e.to);
       }),
     );
     return tos;
-  }, [activeSections]);
+  }, [sectionsWithBadges]);
 
   const isActive = React.useCallback(
     (to: string) => {
@@ -573,7 +593,7 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent className="relative gap-1">
-          {activeSections.map((section, idx) => (
+          {sectionsWithBadges.map((section, idx) => (
             <React.Fragment key={section.label ?? `s-${idx}`}>
               {section.label && idx > 0 && (
                 <div
@@ -585,7 +605,12 @@ export function AppSidebar() {
                 {section.label && (
                   <SidebarGroupLabel className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50 mb-1">
                     <span className="inline-block h-1 w-1 rounded-full bg-sidebar-primary/50" />
-                    {section.label}
+                    <span>{section.label}</span>
+                    {section.labelBadge && (
+                      <span className="ml-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-600">
+                        {section.labelBadge}
+                      </span>
+                    )}
                   </SidebarGroupLabel>
                 )}
                 <SidebarGroupContent>
@@ -755,13 +780,14 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
             )}
           />
           <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
-          {item.badge != null && (
+          {item.badge != null && item.badge !== "" && (
             <span
               className={cn(
-                "ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide tabular-nums",
-                item.badgeTone === "new"
-                  ? "bg-[#4F46C7] text-white"
-                  : "bg-sidebar-accent/60 text-sidebar-foreground/70 text-[10px] font-semibold",
+                "ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums",
+                item.badgeTone === "new" && "bg-[#4F46C7] text-white",
+                item.badgeTone === "danger" && "bg-rose-500/15 text-rose-600",
+                item.badgeTone === "muted" && "bg-transparent px-0 text-sidebar-foreground/45 font-medium",
+                (!item.badgeTone || item.badgeTone === "default") && "bg-sidebar-accent/60 text-sidebar-foreground/70",
               )}
             >
               {item.badge}

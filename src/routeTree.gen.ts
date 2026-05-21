@@ -21,7 +21,9 @@ import { Route as AppInventoryRouteImport } from './routes/_app/inventory'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
+import { Route as AppCashflowRouteImport } from './routes/_app/cashflow'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
@@ -204,9 +206,19 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCashflowRoute = AppCashflowRouteImport.update({
+  id: '/cashflow',
+  path: '/cashflow',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBankRoute = AppBankRouteImport.update({
   id: '/bank',
   path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAlertsRoute = AppAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminRoute = AppAdminRouteImport.update({
@@ -838,7 +850,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/alerts': typeof AppAlertsRoute
   '/bank': typeof AppBankRouteWithChildren
+  '/cashflow': typeof AppCashflowRoute
   '/chat': typeof AppChatRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/inbox': typeof AppInboxRoute
@@ -973,6 +987,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/alerts': typeof AppAlertsRoute
+  '/cashflow': typeof AppCashflowRoute
   '/dashboard': typeof AppDashboardRoute
   '/inbox': typeof AppInboxRoute
   '/journal': typeof AppJournalRoute
@@ -1106,7 +1122,9 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/alerts': typeof AppAlertsRoute
   '/_app/bank': typeof AppBankRouteWithChildren
+  '/_app/cashflow': typeof AppCashflowRoute
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inbox': typeof AppInboxRoute
@@ -1244,7 +1262,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/admin'
+    | '/alerts'
     | '/bank'
+    | '/cashflow'
     | '/chat'
     | '/dashboard'
     | '/inbox'
@@ -1379,6 +1399,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/alerts'
+    | '/cashflow'
     | '/dashboard'
     | '/inbox'
     | '/journal'
@@ -1511,7 +1533,9 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/admin'
+    | '/_app/alerts'
     | '/_app/bank'
+    | '/_app/cashflow'
     | '/_app/chat'
     | '/_app/dashboard'
     | '/_app/inbox'
@@ -1739,11 +1763,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cashflow': {
+      id: '/_app/cashflow'
+      path: '/cashflow'
+      fullPath: '/cashflow'
+      preLoaderRoute: typeof AppCashflowRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bank': {
       id: '/_app/bank'
       path: '/bank'
       fullPath: '/bank'
       preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/alerts': {
+      id: '/_app/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AppAlertsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin': {
@@ -2800,7 +2838,9 @@ const AppSalesOrdersRouteWithChildren = AppSalesOrdersRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppAlertsRoute: typeof AppAlertsRoute
   AppBankRoute: typeof AppBankRouteWithChildren
+  AppCashflowRoute: typeof AppCashflowRoute
   AppChatRoute: typeof AppChatRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppInboxRoute: typeof AppInboxRoute
@@ -2891,7 +2931,9 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppAlertsRoute: AppAlertsRoute,
   AppBankRoute: AppBankRouteWithChildren,
+  AppCashflowRoute: AppCashflowRoute,
   AppChatRoute: AppChatRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppInboxRoute: AppInboxRoute,
