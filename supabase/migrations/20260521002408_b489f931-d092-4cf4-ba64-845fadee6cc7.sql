@@ -1,0 +1,2 @@
+ALTER TABLE public.einvoices ADD COLUMN IF NOT EXISTS suggestion_dismissed boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_einvoices_suggestion_inbox ON public.einvoices(tenant_id, direction) WHERE suggestion_dismissed = false AND matched_purchase_invoice_id IS NULL AND matched_sales_invoice_id IS NULL;
