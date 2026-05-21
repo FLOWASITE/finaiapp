@@ -169,6 +169,26 @@ export async function classifyFile(opts: {
     }
   }
 
+  // 2.5. Text-rule classifier — bắt nhanh PDF có text rõ ràng, KHÔNG gọi LLM.
+  if (textSnippet && textSnippet.length >= 200) {
+    const ruleResult = classifyByTextRule(textSnippet, tenantTaxId);
+    if (ruleResult) {
+      if (opts.fileHash) {
+        try {
+          await opts.supabase
+            .from("ai_uploads")
+            .update({ classify_meta: ruleResult })
+            .eq("user_id", opts.userId)
+            .eq("file_hash", opts.fileHash);
+        } catch {
+          /* ignore */
+        }
+      }
+      return ruleResult;
+    }
+  }
+
+
   const systemPrompt = `Bạn là trợ lý kế toán Việt Nam. Phân loại file đính kèm vào MỘT trong các loại:
 - purchase_invoice: hoá đơn GTGT mà người mua là doanh nghiệp đang dùng app (đầu vào).
 - sales_invoice: hoá đơn GTGT mà người bán là doanh nghiệp đang dùng app (đầu ra).
