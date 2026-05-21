@@ -308,7 +308,7 @@ function CreateVoucherDialog({
             <Select
               value={form.supplier_id || "none"}
               onValueChange={(v) => {
-                const s = suppliers?.rows?.find((x: any) => x.id === v);
+                const s = suppliers?.find((x: any) => x.id === v);
                 setForm({
                   ...form,
                   supplier_id: v === "none" ? "" : v,
