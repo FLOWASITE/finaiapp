@@ -179,12 +179,26 @@ function BucketRow({
           <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
           {items.length > 0 && (
             <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground/90">
-              {items.slice(0, 3).map((it) => (
-                <li key={it.id} className="truncate">
-                  · <span className="font-mono">{it.filename}</span>
-                  {it.reason && <span className="text-muted-foreground/70"> — {it.reason}</span>}
-                </li>
-              ))}
+              {items.slice(0, 3).map((it) => {
+                const badge = it.source ? SOURCE_BADGE[it.source] : null;
+                return (
+                  <li key={it.id} className="truncate">
+                    · <span className="font-mono">{it.filename}</span>
+                    {badge && (
+                      <span
+                        title={badge.title}
+                        className={cn(
+                          "ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none",
+                          badge.cls,
+                        )}
+                      >
+                        {badge.label}
+                      </span>
+                    )}
+                    {it.reason && <span className="text-muted-foreground/70"> — {it.reason}</span>}
+                  </li>
+                );
+              })}
               {items.length > 3 && <li>… +{items.length - 3} mục</li>}
             </ul>
           )}
