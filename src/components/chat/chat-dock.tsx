@@ -343,13 +343,16 @@ export function ChatDock() {
           <Popover open={historyOpen} onOpenChange={(o) => { setHistoryOpen(o); if (o) markSeen(); }}>
             <PopoverTrigger asChild>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-11 w-11 shrink-0 rounded-xl border-white/10 bg-background/70 backdrop-blur-xl"
+                onMouseEnter={() => setHistoryPrefetch(true)}
+                onFocus={() => setHistoryPrefetch(true)}
+                onTouchStart={() => setHistoryPrefetch(true)}
+                className="group relative h-11 w-11 shrink-0 rounded-2xl border border-border/60 bg-background/70 text-muted-foreground shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.06] hover:text-primary hover:shadow-md hover:shadow-primary/10 data-[state=open]:border-primary/50 data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
                 title="Hội thoại gần đây"
                 aria-label="Hội thoại gần đây"
               >
-                <History className="h-4 w-4" />
+                <History className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-12" />
               </Button>
             </PopoverTrigger>
             <PopoverContent
