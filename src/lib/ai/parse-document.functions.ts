@@ -609,6 +609,32 @@ async function ensureUploadRow(opts: {
       .eq("kind", opts.kind)
       .maybeSingle();
     if (existing?.id) {
+      // If a previous attempt failed to upload to storage (file_path null),
+      // try again now so thumbnails / signed URLs work going forward.
+      if (!existing.file_path) {
+        const safeName0 = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
+        const retryPath = `${opts.userId}/ai-uploads/${Date.now()}-${safeName0}`;
+        const { error: retryErr } = await opts.supabase.storage
+          .from("invoices")
+          .upload(retryPath, opts.fileBuf, { contentType: opts.mimeType, upsert: false });
+        if (!retryErr) {
+          await opts.supabase
+            .from("ai_uploads")
+            .update({ file_path: retryPath })
+            .eq("id", existing.id);
+          await upsertDocumentForUpload({
+            supabase: opts.supabase,
+            userId: opts.userId,
+            uploadId: existing.id,
+            filePath: retryPath,
+            filename: opts.filename,
+            mimeType: opts.mimeType,
+            kind: opts.kind,
+            fileHash: opts.fileHash,
+          });
+          return { uploadId: existing.id, filePath: retryPath };
+        }
+      }
       // Ensure a document row exists too (handles legacy uploads)
       if (existing.file_path) {
         await upsertDocumentForUpload({
@@ -625,7 +651,10 @@ async function ensureUploadRow(opts: {
       return { uploadId: existing.id, filePath: existing.file_path ?? null };
     }
     const safeName = (opts.filename || "file").replace(/[^\w.\-]+/g, "_");
-    const path = `ai-uploads/${opts.userId}/${Date.now()}-${safeName}`;
+    // IMPORTANT: storage RLS on `invoices` bucket requires the first folder
+    // segment to equal auth.uid(). Putting "ai-uploads" first makes the upload
+    // silently fail RLS → file_path stays null → thumbnails can't load.
+    const path = `${opts.userId}/ai-uploads/${Date.now()}-${safeName}`;
     const { error: upErr } = await opts.supabase.storage
       .from("invoices")
       .upload(path, opts.fileBuf, { contentType: opts.mimeType, upsert: false });
