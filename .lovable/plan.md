@@ -1,29 +1,34 @@
-## Kế hoạch sửa lỗi mất file attach
+## Kế hoạch sửa dứt điểm lỗi đang trả lời thì reload
 
-### Vấn đề chính
-Luồng hiện tại vẫn phụ thuộc vào `sessionStorage` để giữ payload base64. Với file PDF/ảnh, payload base64 dễ vượt quota hoặc không ghi được, nhưng code đang `catch {}` im lặng. Kết quả là DB chỉ lưu metadata file, còn thread không lấy được payload thật nên hiện lỗi “Mất nội dung file đính kèm…”.
+### Nguyên nhân đã thấy từ log
+Dev server đang lỗi transform ở `src/components/chat/invoice/invoice-extract-card.tsx`:
 
-### Cách sửa
-1. **Bỏ phụ thuộc sessionStorage cho payload file trong luồng ChatDock → thread**
-   - Tạo một handoff store in-memory dùng `window` để giữ payload gốc trong cùng phiên SPA.
-   - ChatDock sẽ đặt payload vào store này trước khi navigate.
-   - Thread sẽ đọc trực tiếp từ store bằng `handoffId`, không cần serialize base64 vào `sessionStorage`.
+```text
+ERROR: The symbol "isImage" has already been declared
+```
 
-2. **Giữ sessionStorage chỉ làm fallback nhẹ**
-   - Chỉ dùng `sessionStorage` khi ghi thành công và payload đủ nhỏ.
-   - Nếu ghi fail vì quota, không nuốt lỗi âm thầm; vẫn giữ bằng memory store.
-   - Không xoá handoff trước khi thread thật sự lấy được payload và gọi `runAssistant`.
+Route chat import `MessageList`, `MessageList` import `InvoiceExtractCard`, nên khi assistant stream ra `tool-result` parse hóa đơn, Vite/route module bị lỗi và preview reload/crash. Đây là lý do người dùng thấy đang trả lời thì bị reload, không chỉ là lỗi handoff file.
 
-3. **Sửa cả 2 đường gửi file**
-   - ChatDock tạo thread mới với file attach: dùng handoff store.
-   - ChatDock gửi file vào thread đang mở: dùng event detail chứa `handoffId`, thread đọc payload từ store thay vì chỉ dựa vào `__attach:<threadId>`.
-   - Composer trong chính thread vẫn truyền payload trực tiếp vào `sendUserMessage`, không bị đổi.
+### Việc sẽ sửa
+1. **Sửa lỗi compile trong `InvoiceExtractCard`**
+   - Loại khai báo trùng `isImage`.
+   - Giữ logic preview PDF/ảnh hiện tại, không làm mất UI xem file gốc.
 
-4. **Chặn gọi AI với attachment metadata rỗng**
-   - Nếu metadata có file nhưng payload thật không có, vẫn báo lỗi rõ ràng.
-   - Nhưng sau sửa này lỗi chỉ còn xảy ra khi user reload trang hoặc rời phiên SPA trước khi thread kịp nhận file.
+2. **Gỡ phần optimistic thread cũ còn sót trong chat thread**
+   - `ChatDock` hiện đã tạo thread thật trước khi navigate.
+   - Route `chat.$threadId` vẫn còn code dành cho `temp-*`, listener `chat:thread-resolved`, promise chờ real id, và reset/abort theo threadId.
+   - Xóa nhánh legacy này để không còn bất kỳ đường nào abort stream do swap thread.
 
-5. **Dọn code và xác minh**
-   - Tách helper handoff nhỏ, dùng chung giữa ChatDock và thread.
-   - Kiểm tra lại console không còn lỗi liên quan abort/provider.
-   - Kiểm tra luồng: attach 1 file từ `/inbox` → chuyển `/chat/:threadId` → parse stream OCR/extract/match/check chạy ngay và AI nhận đủ file.
+3. **Làm autostart idempotent theo thread + handoff**
+   - Autostart chỉ chạy một lần cho thread hiện tại.
+   - Không reset local messages/abort stream vì thay đổi search param không cần thiết.
+   - Nếu attachment handoff không còn, báo lỗi đúng; nếu còn thì parse/stream bình thường.
+
+4. **Giữ stream ổn định khi query refetch/invalidate**
+   - Khi đang streaming, ưu tiên `localMsgs` và không để query update làm thay transcript.
+   - Chỉ persist assistant sau khi stream hoàn tất hoặc user stop.
+
+5. **Xác minh bằng signal đúng**
+   - Kiểm tra dev-server log không còn transform error.
+   - Kiểm tra runtime không còn `AbortError` ngoài trường hợp user bấm Stop.
+   - Luồng cần đạt: attach file từ ChatDock → mở `/chat/:id` thật → OCR/extract/match/check stream liên tục → không reload giữa câu trả lời.
