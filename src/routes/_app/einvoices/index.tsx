@@ -333,7 +333,7 @@ function EInvoicesPage() {
             ) : rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-3 py-12 text-center text-muted-foreground"
                 >
                   Chưa có HĐĐT nào. Bấm{" "}
