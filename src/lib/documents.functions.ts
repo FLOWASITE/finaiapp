@@ -82,6 +82,107 @@ export const listDocuments = createServerFn({ method: "GET" })
     return { rows: rows ?? [], total: count ?? 0 };
   });
 
+export const listPurchaseDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        search: z.string().max(200).optional(),
+        source: z.string().max(50).optional(),
+        ocr_status: z.string().max(50).optional(),
+        from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("documents")
+      .select("*", { count: "exact" })
+      .eq("doc_kind", "purchase_invoice")
+      .order("created_at", { ascending: false })
+      .range(data.offset, data.offset + data.limit - 1);
+    if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
+    if (data.source) q = q.eq("source", data.source);
+    if (data.ocr_status) q = q.eq("ocr_status", data.ocr_status);
+    if (data.from_date) q = q.gte("created_at", `${data.from_date}T00:00:00Z`);
+    if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
+    const { data: docs, error, count } = await q;
+    if (error) throw new Error(error.message);
+    const docList = docs ?? [];
+    if (docList.length === 0) return { rows: [], total: count ?? 0 };
+
+    const docIds = docList.map((d: any) => d.id);
+    const { data: links } = await context.supabase
+      .from("document_links")
+      .select("document_id, entity_id, entity_table")
+      .in("document_id", docIds)
+      .eq("entity_table", "invoices");
+    const invIds = Array.from(new Set((links ?? []).map((l: any) => l.entity_id)));
+
+    let invoicesById: Record<string, any> = {};
+    let linesByInvoice: Record<string, any[]> = {};
+    if (invIds.length > 0) {
+      const { data: invs } = await context.supabase
+        .from("invoices")
+        .select("id, invoice_no, issue_date, supplier_name, supplier_tax_id, subtotal, vat_amount, total, status, payment_status")
+        .in("id", invIds);
+      invoicesById = Object.fromEntries((invs ?? []).map((i: any) => [i.id, i]));
+      const { data: lines } = await context.supabase
+        .from("invoice_lines")
+        .select("invoice_id, description")
+        .in("invoice_id", invIds);
+      for (const l of lines ?? []) {
+        (linesByInvoice[l.invoice_id] ||= []).push(l);
+      }
+    }
+
+    const docToInv: Record<string, string> = {};
+    for (const l of links ?? []) docToInv[l.document_id] = l.entity_id;
+
+    const rows = docList.map((d: any) => {
+      const invId = docToInv[d.id];
+      const inv = invId ? invoicesById[invId] : null;
+      const lines = invId ? (linesByInvoice[invId] ?? []) : [];
+      const firstDesc = lines[0]?.description ?? null;
+      const lines_summary = firstDesc
+        ? lines.length > 1
+          ? `${firstDesc} +${lines.length - 1} dòng`
+          : firstDesc
+        : null;
+      // Fallback to ocr_extracted JSON when no linked invoice
+      const ocr = d.ocr_extracted ?? {};
+      return {
+        doc: d,
+        invoice: inv
+          ? { ...inv, id: invId }
+          : {
+              id: null,
+              invoice_no: ocr.invoice_no ?? null,
+              issue_date: ocr.issue_date ?? null,
+              supplier_name: ocr.supplier_name ?? null,
+              supplier_tax_id: ocr.supplier_tax_id ?? null,
+              subtotal: ocr.subtotal ?? null,
+              vat_amount: ocr.vat_amount ?? null,
+              total: ocr.total ?? null,
+              status: null,
+              payment_status: null,
+            },
+        lines_summary:
+          lines_summary ??
+          (Array.isArray(ocr.lines) && ocr.lines[0]?.description
+            ? ocr.lines.length > 1
+              ? `${ocr.lines[0].description} +${ocr.lines.length - 1} dòng`
+              : ocr.lines[0].description
+            : null),
+      };
+    });
+
+    return { rows, total: count ?? 0 };
+  });
+
 export const uploadDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
