@@ -171,6 +171,7 @@ function ThreadPage() {
           content: m.content,
           created_at: m.created_at,
           toolEvents: (m.metadata?.toolEvents as ToolEvent[] | undefined) ?? undefined,
+          attachments: (m.metadata as any)?.attachments ?? undefined,
         }));
 
   const restoredRef = useRef(false);
