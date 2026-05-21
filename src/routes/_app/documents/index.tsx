@@ -1627,6 +1627,31 @@ function SalesInvoicesTable({
           )}
         </div>
       )}
+      <InvoiceViewerDialog
+        docId={viewerRow?.doc?.id ?? null}
+        invoiceInfo={
+          viewerRow
+            ? {
+                invoice_no: viewerRow.invoice?.invoice_no,
+                issue_date: viewerRow.invoice?.issue_date,
+                party_label: "Khách hàng",
+                party_name: viewerRow.invoice?.customer_name,
+                party_tax_id: viewerRow.invoice?.customer_tax_id,
+                subtotal: viewerRow.invoice?.subtotal,
+                vat_amount: viewerRow.invoice?.vat_amount,
+                total: viewerRow.invoice?.total,
+                lines_summary: viewerRow.lines_summary,
+              }
+            : null
+        }
+        detailHref={
+          viewerRow?.invoice?.id
+            ? { to: "/sales/$id", params: { id: viewerRow.invoice.id } }
+            : null
+        }
+        onOpenDrawer={onOpenDoc}
+        onClose={() => setViewerRow(null)}
+      />
     </>
   );
 }
