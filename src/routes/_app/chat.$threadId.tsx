@@ -384,10 +384,14 @@ function ThreadPage() {
       }));
       let pendingAttachments: any[] | undefined;
       try {
-        const raw = sessionStorage.getItem(`__attach:${threadId}`);
+        // Ưu tiên key theo handoffId (bền: không bị rename khi swap temp→real id).
+        const stashKey = handoff
+          ? `__attach:h:${handoff}`
+          : `__attach:${threadId}`;
+        const raw = sessionStorage.getItem(stashKey);
         if (raw) {
           pendingAttachments = JSON.parse(raw);
-          sessionStorage.removeItem(`__attach:${threadId}`);
+          sessionStorage.removeItem(stashKey);
         }
       } catch {}
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
@@ -395,13 +399,8 @@ function ThreadPage() {
         toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
       }
       runAssistant(hist, pendingAttachments);
-      // Xoá autostart/optimistic khỏi URL (giữ nguyên id hiện tại, kể cả temp).
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId },
-        search: from ? { from } : {},
-        replace: true,
-      });
+      // KHÔNG navigate replace để xoá autostart ở đây — sẽ gây re-render +
+      // Route.useSearch đổi → trông như refresh. startedRef đã chặn chạy lại.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, query.data, threadId, isOptimistic]);
