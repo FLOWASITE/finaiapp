@@ -388,19 +388,48 @@ function ThreadPage() {
       }));
       let pendingAttachments: any[] | undefined;
       try {
-        // Ưu tiên key theo handoffId (bền: không bị rename khi swap temp→real id).
-        const stashKey = handoff
-          ? `__attach:h:${handoff}`
-          : `__attach:${threadId}`;
-        const raw = sessionStorage.getItem(stashKey);
-        if (raw) {
-          pendingAttachments = JSON.parse(raw);
-          sessionStorage.removeItem(stashKey);
+        // Thử lần lượt: handoff key (bền qua swap temp→real id), rồi
+        // thread key. Nếu vẫn không có (route từng remount/crash mất tham
+        // chiếu handoff), quét sessionStorage tìm key `__attach:h:*` duy
+        // nhất còn sót để tránh mất file.
+        const candidates: string[] = [];
+        if (handoff) candidates.push(`__attach:h:${handoff}`);
+        candidates.push(`__attach:${threadId}`);
+        for (const key of candidates) {
+          const raw = sessionStorage.getItem(key);
+          if (raw) {
+            pendingAttachments = JSON.parse(raw);
+            sessionStorage.removeItem(key);
+            break;
+          }
+        }
+        if (!pendingAttachments?.length) {
+          const handoffKeys: string[] = [];
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i);
+            if (k && k.startsWith("__attach:h:")) handoffKeys.push(k);
+          }
+          if (handoffKeys.length === 1) {
+            const raw = sessionStorage.getItem(handoffKeys[0]);
+            if (raw) {
+              pendingAttachments = JSON.parse(raw);
+              sessionStorage.removeItem(handoffKeys[0]);
+            }
+          }
         }
       } catch {}
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
       if (declaredAttachments?.length && !pendingAttachments?.length) {
-        toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
+        toast.error("Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.");
+        setLocalMsgs((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Tôi không nhận được nội dung file vì dữ liệu bị mất khi chuyển trang. Sếp đính kèm lại file ở đây giúp em nhé.",
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        return;
       }
       runAssistant(hist, pendingAttachments);
       // KHÔNG navigate replace để xoá autostart ở đây — sẽ gây re-render +
