@@ -142,7 +142,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-white/5 bg-[oklch(0.09_0.02_260)] transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-slate-200/70 bg-white transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
@@ -154,7 +154,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onToggle}
               title="Mở lịch sử (Cmd+\\)"
               aria-label="Mở lịch sử"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
@@ -163,7 +163,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onNew}
               title="Cuộc trò chuyện mới"
               aria-label="Cuộc trò chuyện mới"
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary transition-colors hover:bg-primary/25"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -178,7 +178,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight tracking-tight text-white">Trợ lý kế toán</div>
+                <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">Trợ lý kế toán</div>
                 <div className="text-[10px] text-slate-500">AI assistant</div>
               </div>
               {onToggle && (
@@ -187,7 +187,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                   onClick={onToggle}
                   title="Ẩn lịch sử (Cmd+\\)"
                   aria-label="Ẩn lịch sử"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -196,7 +196,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             <Button
               onClick={onNew}
               variant="outline"
-              className="w-full justify-start gap-2 rounded-xl border-white/10 bg-white/[0.03] text-slate-100 transition-colors hover:border-white/15 hover:bg-white/[0.06] hover:text-white"
+              className="w-full justify-start gap-2 rounded-xl border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <Plus className="h-4 w-4 text-primary" />
               Cuộc trò chuyện mới
@@ -214,14 +214,14 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm hội thoại…"
-              className="h-9 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] pl-9 pr-8 text-xs text-slate-200 placeholder:text-slate-500 outline-none transition-all focus:border-primary/40 focus:bg-white/[0.08] focus:ring-1 focus:ring-primary/30"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition-all focus:border-primary/40 focus:bg-white focus:ring-1 focus:ring-primary/30"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
                 aria-label="Xoá tìm kiếm"
-                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-white/10 hover:text-white"
+                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -236,7 +236,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               showStarredOnly
                 ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                : "text-slate-500 hover:text-slate-200",
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
             )}
             title="Chỉ hiển thị hội thoại đã đánh dấu sao"
           >
@@ -249,10 +249,10 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         )}
         {query.data && query.data.length === 0 && (
           <div className="flex flex-col items-center px-4 py-12 text-center">
-            <MessageSquare className="mb-3 h-10 w-10 text-slate-700" />
+            <MessageSquare className="mb-3 h-10 w-10 text-slate-300" />
             <p className="text-xs leading-relaxed text-slate-500">
               Chưa có cuộc trò chuyện nào.<br />
-              Bấm <span className="font-medium text-slate-300">Cuộc trò chuyện mới</span> để bắt đầu.
+              Bấm <span className="font-medium text-slate-700">Cuộc trò chuyện mới</span> để bắt đầu.
             </p>
           </div>
         )}
@@ -282,8 +282,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         className={cn(
                           "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
                           isActive
-                            ? "border border-primary/20 bg-primary/10 text-white"
-                            : "border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-100",
+                            ? "border border-primary/20 bg-primary/10 text-slate-900"
+                            : "border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                         )}
                       >
                         {isActive && (
@@ -298,7 +298,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                             <Pin className="h-3 w-3 shrink-0 text-primary/70" />
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-500/80">
+                        <span className="text-[10px] text-slate-400">
                           {relativeTime(t.last_message_at)}
                         </span>
                       </Link>
@@ -306,7 +306,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-white/10 hover:text-white group-hover:opacity-100 data-[state=open]:opacity-100"
+                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100 data-[state=open]:opacity-100"
                             aria-label="Tuỳ chọn"
                           >
                             <MoreHorizontal className="h-3.5 w-3.5" />
