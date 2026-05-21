@@ -22,11 +22,13 @@ import {
   takeAnyChatAttachmentHandoff,
   takeChatAttachments,
 } from "@/lib/chat-attachment-handoff";
+import { awaitThreadCreation } from "@/lib/chat-thread-handoff";
 
 const searchSchema = z.object({
   autostart: z.string().optional(),
   from: z.string().optional(),
   optimistic: z.string().optional(),
+  pending: z.string().optional(),
   handoff: z.string().optional(),
 });
 
@@ -37,7 +39,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart, handoff } = Route.useSearch();
+  const { autostart, handoff, pending } = Route.useSearch();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
@@ -61,6 +63,11 @@ function ThreadPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [localMsgs, setLocalMsgs] = useState<ChatMsg[]>([]);
+  // When ChatDock navigates optimistically the thread row does not exist
+  // server-side yet. We wait for the background insert to finish before
+  // enabling the getThread query (otherwise it would 404 and clobber the
+  // primed optimistic cache).
+  const [creationSettled, setCreationSettled] = useState<boolean>(() => !pending);
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -70,10 +77,25 @@ function ThreadPage() {
   const [atBottom, setAtBottom] = useState(true);
   const [hasNew, setHasNew] = useState(false);
 
+  useEffect(() => {
+    if (!pending) {
+      setCreationSettled(true);
+      return;
+    }
+    let cancelled = false;
+    awaitThreadCreation(threadId).finally(() => {
+      if (!cancelled) setCreationSettled(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pending, threadId]);
+
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
+    enabled: creationSettled,
   });
 
   useEffect(() => {
@@ -85,8 +107,10 @@ function ThreadPage() {
     abortRef.current = null;
   }, [threadId]);
 
-  /** Trả về threadId dùng để persist message. ChatDock đã tạo thread thật trước khi mở route. */
+  /** Trả về threadId dùng để persist message. Khi ChatDock điều hướng optimistic,
+   * thread chưa tồn tại server-side → đợi background creation xong trước. */
   const getEffectiveThreadId = async (): Promise<string> => {
+    await awaitThreadCreation(threadId);
     return threadId;
   };
 

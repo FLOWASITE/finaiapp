@@ -152,6 +152,7 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) =>
     z
       .object({
+        threadId: Uuid.optional(),
         title: z.string().trim().min(1).max(200).optional(),
         content: z.string().min(1).max(50_000),
         metadata: z.any().optional(),
@@ -162,9 +163,16 @@ export const createThreadWithFirstMessage = createServerFn({ method: "POST" })
     const { supabase, userId, tenantId } = context;
     const title = data.title?.trim() || data.content.trim().slice(0, 60) || "Cuộc trò chuyện mới";
     const nowIso = new Date().toISOString();
+    const insertPayload: any = {
+      user_id: userId,
+      tenant_id: tenantId,
+      title,
+      last_message_at: nowIso,
+    };
+    if (data.threadId) insertPayload.id = data.threadId;
     const { data: thread, error: e1 } = await supabase
       .from("chat_threads")
-      .insert({ user_id: userId, tenant_id: tenantId, title, last_message_at: nowIso })
+      .insert(insertPayload)
       .select("id,title,last_message_at,created_at,kind,inbox_external_id,pinned_at,starred")
       .single();
     if (e1 || !thread) throw new Error(e1?.message || "Không tạo được hội thoại");
