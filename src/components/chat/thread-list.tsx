@@ -249,10 +249,10 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         )}
         {query.data && query.data.length === 0 && (
           <div className="flex flex-col items-center px-4 py-12 text-center">
-            <MessageSquare className="mb-3 h-10 w-10 text-slate-700" />
+            <MessageSquare className="mb-3 h-10 w-10 text-slate-300" />
             <p className="text-xs leading-relaxed text-slate-500">
               Chưa có cuộc trò chuyện nào.<br />
-              Bấm <span className="font-medium text-slate-300">Cuộc trò chuyện mới</span> để bắt đầu.
+              Bấm <span className="font-medium text-slate-700">Cuộc trò chuyện mới</span> để bắt đầu.
             </p>
           </div>
         )}
