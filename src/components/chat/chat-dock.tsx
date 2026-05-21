@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
 import { countUnreadDigests } from "@/lib/digest-prefs.functions";
 import { stashChatAttachments, takeChatAttachments } from "@/lib/chat-attachment-handoff";
+import { registerThreadCreation } from "@/lib/chat-thread-handoff";
 import { uploadChatAttachment } from "@/lib/ai/parse-document.functions";
 
 function currentThreadId(pathname: string): string | null {
@@ -122,45 +123,92 @@ export function ChatDock() {
     };
   }, []);
 
-  const openPersistedThread = async (
+  const newUuid = () =>
+    typeof (crypto as any).randomUUID === "function"
+      ? (crypto as any).randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+  /**
+   * Optimistic: navigate immediately with a client-generated threadId so the
+   * thread UI mounts with the user's bubble already visible. The actual
+   * thread/message insert happens in the background; the thread page awaits
+   * it via chat-thread-handoff before persisting the assistant reply.
+   */
+  const openPersistedThread = (
     q: string,
     opts?: { title?: string; metadata?: any; handoff?: string },
   ) => {
-    setLoading(true);
-    try {
-      const res = await createWithMsgFn({
-        data: {
-          title: (opts?.title ?? q).slice(0, 60),
-          content: q,
-          ...(opts?.metadata ? { metadata: opts.metadata } : {}),
-        },
-      });
-      qc.setQueryData(["chat", "thread", res.thread.id], {
-        thread: res.thread,
-        messages: [res.message],
-      });
-      qc.setQueryData(["chat", "threads", "recent", "all"], (prev: any) => {
-        const list = Array.isArray(prev)
-          ? prev.filter((t: any) => t.id !== res.thread.id)
-          : [];
-        return [res.thread, ...list];
-      });
-      collapseChatSidebar();
-      navigate({
-        to: "/chat/$threadId",
-        params: { threadId: res.thread.id },
-        search: {
-          autostart: "1",
-          ...(opts?.handoff ? { handoff: opts.handoff } : {}),
-          ...(fromHref ? { from: fromHref } : {}),
-        },
-      });
-    } catch (e: any) {
-      if (opts?.handoff) takeChatAttachments(opts.handoff);
-      toast.error(e?.message || "Không tạo được cuộc trò chuyện");
-    } finally {
-      setLoading(false);
-    }
+    const threadId = newUuid();
+    const nowIso = new Date().toISOString();
+    const titleText = (opts?.title ?? q).slice(0, 60);
+    const tempThread = {
+      id: threadId,
+      title: titleText || "Cuộc trò chuyện mới",
+      last_message_at: nowIso,
+      created_at: nowIso,
+      kind: "general" as const,
+      inbox_external_id: null,
+      pinned_at: null,
+      starred: null,
+    };
+    const tempMessage = {
+      id: newUuid(),
+      role: "user" as const,
+      content: q,
+      created_at: nowIso,
+      metadata: opts?.metadata ?? null,
+    };
+
+    // Prime caches so thread route renders bubble + thread title immediately.
+    qc.setQueryData(["chat", "thread", threadId], {
+      thread: tempThread,
+      messages: [tempMessage],
+    });
+    qc.setQueryData(["chat", "threads", "recent", "all"], (prev: any) => {
+      const list = Array.isArray(prev) ? prev : [];
+      return [tempThread, ...list];
+    });
+
+    collapseChatSidebar();
+    navigate({
+      to: "/chat/$threadId",
+      params: { threadId },
+      search: {
+        autostart: "1",
+        pending: "1",
+        ...(opts?.handoff ? { handoff: opts.handoff } : {}),
+        ...(fromHref ? { from: fromHref } : {}),
+      },
+    });
+
+    // Background server insert.
+    const creation = (async () => {
+      try {
+        const res = await createWithMsgFn({
+          data: {
+            threadId,
+            title: titleText,
+            content: q,
+            ...(opts?.metadata ? { metadata: opts.metadata } : {}),
+          },
+        });
+        qc.setQueryData(["chat", "thread", threadId], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(["chat", "threads", "recent", "all"], (prev: any) => {
+          const list = Array.isArray(prev)
+            ? prev.filter((t: any) => t.id !== threadId)
+            : [];
+          return [res.thread, ...list];
+        });
+      } catch (e: any) {
+        if (opts?.handoff) takeChatAttachments(opts.handoff);
+        toast.error(e?.message || "Không tạo được cuộc trò chuyện");
+        throw e;
+      }
+    })();
+    registerThreadCreation(threadId, creation);
   };
 
   const submit = async (override?: string) => {
@@ -177,51 +225,50 @@ export function ChatDock() {
       return;
     }
     setInput("");
-    void openPersistedThread(q);
+    openPersistedThread(q);
   };
 
   const handleAttach = async (payloads: any[], note?: string) => {
     if (!payloads.length) return;
-    setLoading(true);
-    const toastId = toast.loading(`Đang lưu ${payloads.length} file đính kèm…`);
     const existingThreadId = currentThreadId(location.pathname);
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${payloads.map((p) => `📎 ${p.name}`).join("\n")}`;
     const content = note && note.trim() ? note.trim() : fallback;
-    let fullPayloads = payloads;
-    try {
-      fullPayloads = await Promise.all(
-        payloads.map(async (p) => {
-          if (p.uploadId) return p;
-          const uploaded = await uploadAttachmentFn({
-            data: {
-              fileBase64: p.base64,
-              mimeType: p.mime,
-              filename: p.name,
-              kind: p.kind ?? "auto",
-            },
-          });
-          return { ...p, uploadId: uploaded.uploadId, file_hash: uploaded.file_hash };
-        }),
-      );
-      toast.success("Đã lưu file đính kèm", { id: toastId });
-    } catch (e: any) {
-      toast.error(e?.message || "Không lưu được file đính kèm", { id: toastId });
-      setLoading(false);
-      return;
-    }
-    const metaAttachments = fullPayloads.map((p) => ({
-      name: p.name,
-      mime: p.mime,
-      size: p.size,
-      kind: p.kind,
-      uploadId: p.uploadId ?? null,
-      file_hash: p.file_hash ?? null,
-    }));
+
+    // Path A: already inside a thread — send via dock-send event as before.
     if (existingThreadId) {
-      const handoffId =
-        typeof (crypto as any).randomUUID === "function"
-          ? (crypto as any).randomUUID()
-          : Math.random().toString(36).slice(2);
+      setLoading(true);
+      const toastId = toast.loading(`Đang lưu ${payloads.length} file đính kèm…`);
+      let fullPayloads = payloads;
+      try {
+        fullPayloads = await Promise.all(
+          payloads.map(async (p) => {
+            if (p.uploadId) return p;
+            const uploaded = await uploadAttachmentFn({
+              data: {
+                fileBase64: p.base64,
+                mimeType: p.mime,
+                filename: p.name,
+                kind: p.kind ?? "auto",
+              },
+            });
+            return { ...p, uploadId: uploaded.uploadId, file_hash: uploaded.file_hash };
+          }),
+        );
+        toast.success("Đã lưu file đính kèm", { id: toastId });
+      } catch (e: any) {
+        toast.error(e?.message || "Không lưu được file đính kèm", { id: toastId });
+        setLoading(false);
+        return;
+      }
+      const metaAttachments = fullPayloads.map((p) => ({
+        name: p.name,
+        mime: p.mime,
+        size: p.size,
+        kind: p.kind,
+        uploadId: p.uploadId ?? null,
+        file_hash: p.file_hash ?? null,
+      }));
+      const handoffId = newUuid();
       stashChatAttachments(handoffId, fullPayloads, `__attach:${existingThreadId}`);
       window.dispatchEvent(
         new CustomEvent("chat:dock-send", {
@@ -236,16 +283,124 @@ export function ChatDock() {
       setLoading(false);
       return;
     }
-    const handoffId =
-      typeof (crypto as any).randomUUID === "function"
-        ? (crypto as any).randomUUID()
-        : Math.random().toString(36).slice(2);
-    stashChatAttachments(handoffId, fullPayloads);
-    await openPersistedThread(content, {
-      title: fullPayloads[0].name,
-      metadata: { attachments: metaAttachments },
-      handoff: handoffId,
+
+    // Path B: new thread — optimistic navigate first, upload + create in
+    // background. Base64 is stashed under both handoff and __attach:<threadId>
+    // so the thread page can retrieve it for the parser even before uploadId
+    // is known.
+    const threadId = newUuid();
+    const handoffId = newUuid();
+    const optimisticMeta = payloads.map((p) => ({
+      name: p.name,
+      mime: p.mime,
+      size: p.size,
+      kind: p.kind,
+      uploadId: null,
+      file_hash: null,
+    }));
+    stashChatAttachments(handoffId, payloads, `__attach:${threadId}`);
+
+    const nowIso = new Date().toISOString();
+    const titleText = payloads[0].name.slice(0, 60);
+    const tempThread = {
+      id: threadId,
+      title: titleText,
+      last_message_at: nowIso,
+      created_at: nowIso,
+      kind: "general" as const,
+      inbox_external_id: null,
+      pinned_at: null,
+      starred: null,
+    };
+    const tempMessage = {
+      id: newUuid(),
+      role: "user" as const,
+      content,
+      created_at: nowIso,
+      metadata: { attachments: optimisticMeta },
+    };
+    qc.setQueryData(["chat", "thread", threadId], {
+      thread: tempThread,
+      messages: [tempMessage],
     });
+    qc.setQueryData(["chat", "threads", "recent", "all"], (prev: any) => {
+      const list = Array.isArray(prev) ? prev : [];
+      return [tempThread, ...list];
+    });
+
+    collapseChatSidebar();
+    navigate({
+      to: "/chat/$threadId",
+      params: { threadId },
+      search: {
+        autostart: "1",
+        pending: "1",
+        handoff: handoffId,
+        ...(fromHref ? { from: fromHref } : {}),
+      },
+    });
+
+    // Background: upload files then create thread+message with final metadata.
+    const creation = (async () => {
+      let fullPayloads = payloads;
+      try {
+        fullPayloads = await Promise.all(
+          payloads.map(async (p) => {
+            if (p.uploadId) return p;
+            const uploaded = await uploadAttachmentFn({
+              data: {
+                fileBase64: p.base64,
+                mimeType: p.mime,
+                filename: p.name,
+                kind: p.kind ?? "auto",
+              },
+            });
+            return { ...p, uploadId: uploaded.uploadId, file_hash: uploaded.file_hash };
+          }),
+        );
+        // Refresh stash with uploadId-enriched payloads (same keys).
+        stashChatAttachments(handoffId, fullPayloads, `__attach:${threadId}`);
+      } catch (e: any) {
+        toast.error(e?.message || "Không lưu được file đính kèm");
+      }
+      const finalMeta = fullPayloads.map((p) => ({
+        name: p.name,
+        mime: p.mime,
+        size: p.size,
+        kind: p.kind,
+        uploadId: p.uploadId ?? null,
+        file_hash: p.file_hash ?? null,
+      }));
+      try {
+        const res = await createWithMsgFn({
+          data: {
+            threadId,
+            title: titleText,
+            content,
+            metadata: { attachments: finalMeta },
+          },
+        });
+        qc.setQueryData(["chat", "thread", threadId], (prev: any) => {
+          // Preserve any assistant message the stream may have already appended.
+          const prevMsgs = Array.isArray(prev?.messages) ? prev.messages : [];
+          const assistantMsgs = prevMsgs.filter((m: any) => m.role !== "user");
+          return {
+            thread: res.thread,
+            messages: [res.message, ...assistantMsgs],
+          };
+        });
+        qc.setQueryData(["chat", "threads", "recent", "all"], (prev: any) => {
+          const list = Array.isArray(prev)
+            ? prev.filter((t: any) => t.id !== threadId)
+            : [];
+          return [res.thread, ...list];
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Không tạo được cuộc trò chuyện");
+        throw e;
+      }
+    })();
+    registerThreadCreation(threadId, creation);
   };
 
   return (
