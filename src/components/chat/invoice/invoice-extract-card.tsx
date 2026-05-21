@@ -104,10 +104,24 @@ export function InvoiceExtractCard({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
-      <div className={cn("grid gap-0", isPdf ? "grid-cols-1 md:grid-cols-[260px_1fr]" : "grid-cols-[140px_1fr]")}>
+      <div
+        className={cn(
+          "grid gap-0",
+          isXml
+            ? "grid-cols-1 md:grid-cols-[300px_1fr]"
+            : isPdf
+              ? "grid-cols-1 md:grid-cols-[260px_1fr]"
+              : "grid-cols-[140px_1fr]",
+        )}
+      >
         {/* Thumbnail / Preview */}
         <div className="relative flex flex-col items-center justify-center gap-2 border-b border-border/60 bg-muted/30 p-3 md:border-b-0 md:border-r">
-          {isPdf && uploadId && urlLoading && !urlData ? (
+          {isXml && parsed?._einvoice ? (
+            <XmlInvoicePreview
+              data={parsed._einvoice as EinvoiceExtras}
+              signedUrl={urlData?.url ?? null}
+            />
+          ) : isPdf && uploadId && urlLoading && !urlData ? (
             <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
           ) : isPdf && urlData?.url ? (
             <>
