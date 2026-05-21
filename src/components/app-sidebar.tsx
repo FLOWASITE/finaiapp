@@ -132,56 +132,39 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-// FRONT-OFFICE: 5 không gian + AI. Mọi route gốc vẫn tồn tại,
-// chỉ ẩn bớt mục kế toán đi.
+// FRONT (Mode AI): cấu trúc tinh gọn theo mockup.
+// 4 section: XỬ LÝ / THƯ VIỆN / THẤU HIỂU / AI.
+// Badge sẽ được inject từ getAiSidebarCounts trong AppSidebar.
 const FRONT_SECTIONS: NavSection[] = [
   {
+    label: "Xử lý",
     entries: [
-      { to: "/inbox", label: "Hộp việc", icon: Inbox },
-      { to: "/chat", label: "Hỏi AI", icon: Sparkles },
-      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain, badge: "MỚI", badgeTone: "new" },
+      { to: "/inbox", label: "Inbox AI", icon: Inbox },
+      { to: "/inbox?tab=review", label: "Cần xem lại", icon: AlertTriangle },
+      { to: "/inbox?tab=posted", label: "Đã hạch toán", icon: BookOpenCheck },
     ],
   },
   {
-    label: "Không gian",
+    label: "Thư viện",
     entries: [
-      {
-        label: "Tiền",
-        icon: PiggyBank,
-        items: [
-          { to: "/bank", label: "Ngân hàng" },
-          { to: "/cash", label: "Tiền mặt" },
-          { to: "/bank/reconcile", label: "Đối soát" },
-          { to: "/receipts", label: "Phiếu thu" },
-        ],
-      },
-      {
-        label: "Đối tác",
-        icon: ContactIcon,
-        items: [
-          { to: "/customers", label: "Khách hàng" },
-          { to: "/suppliers", label: "Nhà cung cấp" },
-          { to: "/receivables", label: "Khách đang nợ" },
-          { to: "/payables", label: "Mình đang nợ" },
-        ],
-      },
-      {
-        label: "Hàng hoá",
-        icon: Package,
-        items: [
-          { to: "/items", label: "Sản phẩm & dịch vụ" },
-          { to: "/inventory", label: "Tồn kho" },
-          { to: "/assets", label: "Tài sản" },
-        ],
-      },
-      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText },
+      { to: "/documents", label: "Trung tâm tài liệu", icon: FileText, badgeTone: "muted" },
+      { to: "/customers", label: "Đối tác", icon: ContactIcon },
     ],
   },
   {
-    label: "Khác",
+    label: "Thấu hiểu",
     entries: [
-      { to: "/dashboard", label: "Bảng số liệu", icon: LayoutDashboard },
-      { to: "/settings", label: "Cài đặt", icon: Settings },
+      { to: "/reports", label: "Báo cáo", icon: BarChart3 },
+      { to: "/cashflow", label: "Dòng tiền", icon: LineChart },
+      { to: "/tax/gtgt", label: "Thuế", icon: Receipt },
+    ],
+  },
+  {
+    label: "AI",
+    labelBadge: "MỚI",
+    entries: [
+      { to: "/ai/memory", label: "Trí nhớ AI", icon: Brain },
+      { to: "/alerts", label: "Cảnh báo", icon: ShieldAlert },
     ],
   },
 ];
