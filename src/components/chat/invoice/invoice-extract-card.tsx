@@ -82,7 +82,8 @@ export function InvoiceExtractCard({
     },
   ].filter(Boolean) as Field[];
 
-  const isImage = filename ? /\.(jpe?g|png|webp|gif|heic)$/i.test(filename) : false;
+
+
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
