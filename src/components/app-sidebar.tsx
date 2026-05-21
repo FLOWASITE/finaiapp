@@ -780,13 +780,14 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
             )}
           />
           <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
-          {item.badge != null && (
+          {item.badge != null && item.badge !== "" && (
             <span
               className={cn(
-                "ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide tabular-nums",
-                item.badgeTone === "new"
-                  ? "bg-[#4F46C7] text-white"
-                  : "bg-sidebar-accent/60 text-sidebar-foreground/70 text-[10px] font-semibold",
+                "ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums",
+                item.badgeTone === "new" && "bg-[#4F46C7] text-white",
+                item.badgeTone === "danger" && "bg-rose-500/15 text-rose-600",
+                item.badgeTone === "muted" && "bg-transparent px-0 text-sidebar-foreground/45 font-medium",
+                (!item.badgeTone || item.badgeTone === "default") && "bg-sidebar-accent/60 text-sidebar-foreground/70",
               )}
             >
               {item.badge}
