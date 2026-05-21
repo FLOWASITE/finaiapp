@@ -24,6 +24,7 @@ const searchSchema = z.object({
   autostart: z.string().optional(),
   from: z.string().optional(),
   optimistic: z.string().optional(),
+  handoff: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/chat/$threadId")({
