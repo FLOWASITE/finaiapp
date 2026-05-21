@@ -12,6 +12,7 @@ import {
   unlinkDocument,
   uploadDocument,
   reparseDocument,
+  listPurchaseDocuments,
 } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -444,7 +445,12 @@ function DocumentsPage() {
           </div>
 
 
-          {isLoading ? (
+          {currentTab === "purchase" ? (
+            <PurchaseInvoicesTable
+              filters={filters}
+              onOpenDoc={(id: string) => setOpenId(id)}
+            />
+          ) : isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
             <>
@@ -943,5 +949,161 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
         ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function vnd(n: number | string | null | undefined) {
+  if (n === null || n === undefined || n === "") return "—";
+  return Number(n).toLocaleString("vi-VN");
+}
+
+function PurchaseInvoicesTable({
+  filters,
+  onOpenDoc,
+}: {
+  filters: any;
+  onOpenDoc: (id: string) => void;
+}) {
+  const listFn = useServerFn(listPurchaseDocuments);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, isLoading } = useQuery({
+    queryKey: ["purchase-documents", filters, limit],
+    queryFn: () =>
+      listFn({
+        data: {
+          search: filters.search,
+          source: filters.source,
+          ocr_status: filters.ocr_status,
+          from_date: filters.from_date,
+          to_date: filters.to_date,
+          limit,
+          offset: 0,
+        },
+      }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const canLoadMore = rows.length < total;
+
+  const sumSub = rows.reduce((s: number, r: any) => s + Number(r.invoice?.subtotal ?? 0), 0);
+  const sumVat = rows.reduce((s: number, r: any) => s + Number(r.invoice?.vat_amount ?? 0), 0);
+  const sumTotal = rows.reduce((s: number, r: any) => s + Number(r.invoice?.total ?? 0), 0);
+
+  return (
+    <>
+      {rows.length > 0 && (
+        <div className="mb-3 grid grid-cols-3 gap-2 rounded-md border bg-muted/30 p-2 text-xs">
+          <div>
+            <div className="text-muted-foreground">Tiền hàng</div>
+            <div className="font-mono font-semibold">{vnd(sumSub)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">VAT</div>
+            <div className="font-mono font-semibold">{vnd(sumVat)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Tổng sau thuế</div>
+            <div className="font-mono font-semibold">{vnd(sumTotal)}</div>
+          </div>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ngày HĐ</TableHead>
+              <TableHead>Số HĐ</TableHead>
+              <TableHead>Nhà cung cấp</TableHead>
+              <TableHead>Mặt hàng</TableHead>
+              <TableHead className="text-right">Tiền trước thuế</TableHead>
+              <TableHead className="text-right">VAT</TableHead>
+              <TableHead className="text-right">Tổng sau thuế</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="text-right">File</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r: any) => {
+              const inv = r.invoice;
+              const doc = r.doc;
+              return (
+                <TableRow
+                  key={doc.id}
+                  className="cursor-pointer"
+                  onClick={() => onOpenDoc(doc.id)}
+                >
+                  <TableCell className="whitespace-nowrap">
+                    {inv?.issue_date ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-medium">{inv?.invoice_no ?? "—"}</TableCell>
+                  <TableCell>
+                    <div className="max-w-[220px] truncate">{inv?.supplier_name ?? "—"}</div>
+                    {inv?.supplier_tax_id && (
+                      <div className="text-xs text-muted-foreground font-mono">
+                        {inv.supplier_tax_id}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[260px] truncate text-sm text-muted-foreground">
+                      {r.lines_summary ?? "—"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">{vnd(inv?.subtotal)}</TableCell>
+                  <TableCell className="text-right font-mono">{vnd(inv?.vat_amount)}</TableCell>
+                  <TableCell className="text-right font-mono font-semibold">
+                    {vnd(inv?.total)}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+                        OCR_TONE[doc.ocr_status] ?? "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-1">
+                      {inv?.id && (
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to="/invoices/$id" params={{ id: inv.id }}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => onOpenDoc(doc.id)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                  Chưa có hoá đơn mua nào.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {rows.length > 0 && (
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Hiển thị {rows.length}/{total} hoá đơn</span>
+          {canLoadMore && (
+            <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+              Tải thêm
+            </Button>
+          )}
+        </div>
+      )}
+    </>
   );
 }

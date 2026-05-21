@@ -1,27 +1,40 @@
-Mình đã xác định lỗi chính: khi gửi file từ ChatDock để tạo hội thoại mới, app điều hướng ngay sang `/chat/:threadId` trong lúc việc upload file và tạo thread chạy nền. Nhưng state chờ tạo thread chỉ nằm trong memory của tab hiện tại và có thể không còn/không kịp đăng ký sau khi route mount, nên trang thread gọi `getThread` quá sớm và nhận `notFound: true`.
+## Mục tiêu
+Khi vào **Trung tâm tài liệu → tab "Hoá đơn mua"**, bảng sẽ hiển thị các trường nghiệp vụ của hoá đơn (thay vì chỉ tên file / OCR / size như hiện nay):
 
-Kế hoạch sửa:
+| Cột | Nguồn dữ liệu |
+|---|---|
+| Ngày HĐ | `invoices.issue_date` (fallback `documents.ocr_extracted.issue_date`) |
+| Số HĐ | `invoices.invoice_no` |
+| Nhà cung cấp (MST) | `invoices.supplier_name` + `supplier_tax_id` |
+| Mặt hàng | Tóm tắt từ `invoice_lines` (vd: "Dịch vụ tư vấn +2 dòng") |
+| Tiền trước thuế | `invoices.subtotal` |
+| Thuế (VAT) | `invoices.vat_amount` |
+| Tổng sau thuế | `invoices.total` |
+| Trạng thái | `documents.ocr_status` + `invoices.status` (Chờ OCR / Đã bóc tách / Đã ghi sổ) |
+| File | icon mở preview (giữ hành vi hiện tại) |
 
-1. Bỏ phụ thuộc vào handoff memory cho trạng thái tạo thread
-- Khi tạo chat mới từ file hoặc text, vẫn có thể hiển thị optimistic UI ngay.
-- Nhưng trang thread sẽ không coi `notFound` là lỗi ngay nếu URL có `pending=1` hoặc cache đã có thread tạm.
-- Thay vào đó, trang sẽ poll/refetch ngắn trong vài giây để chờ row thật được tạo.
+Click vào hàng → mở Drawer xem preview như hiện tại; thêm nút **"Mở chi tiết hoá đơn"** đi tới `/invoices/$id` để duyệt/định khoản.
 
-2. Làm luồng tạo thread bền hơn khi upload PDF chậm
-- Với file đính kèm, tạo thread + user message trước bằng metadata tạm.
-- Upload file PDF chạy sau đó và cập nhật cache/message metadata khi xong.
-- Như vậy `/chat/:threadId` luôn có thread thật để load, không còn rơi vào màn “Không tìm thấy cuộc trò chuyện”.
+## Các thay đổi
 
-3. Sửa màn not-found thành trạng thái phục hồi được
-- Nếu hội thoại chưa tạo xong: hiển thị trạng thái “Đang chuẩn bị cuộc trò chuyện…” thay vì lỗi.
-- Chỉ hiện “Không tìm thấy” khi đã hết thời gian chờ hoặc URL không phải pending.
-- Nút “Tải lại” sẽ invalidate/refetch đúng query thay vì chỉ refetch một lần.
+### 1. Server function mới: `listPurchaseDocuments`
+Trong `src/lib/documents.functions.ts`, thêm 1 fn riêng cho tab purchase:
+- Query `documents` (filter `doc_kind='purchase_invoice'`, search, source, ocr_status, date range, limit/offset).
+- Với mỗi document, lấy `invoice` liên kết qua `document_links` (entity_table='invoices') — join `invoices` + `invoice_lines(description)` để lấy đủ 7 trường nghiệp vụ + tóm tắt mặt hàng.
+- Trả `{ rows: Array<{ doc, invoice, lines_summary }>, total }`.
+- Giữ nguyên `listDocuments` cũ cho các tab khác.
 
-4. Giữ nguyên phần đọc PDF đã làm trước đó
-- Không thay đổi logic parse PDF/canvas preview nếu không cần.
-- Chỉ chỉnh luồng chat/thread để file PDF được đưa vào hội thoại ổn định trước khi AI đọc.
+### 2. UI tab purchase trong `src/routes/_app/documents/index.tsx`
+- Khi `currentTab === 'purchase'`: render component bảng riêng `<PurchaseInvoicesTable />` với 9 cột nghiệp vụ ở trên.
+- Các tab khác giữ nguyên bảng hiện tại.
+- Reuse các filter hiện có (search, source, OCR status, date) — bộ lọc OCR/source vẫn áp dụng cho documents.
+- Tổng kết nhanh ở đầu bảng: tổng tiền hàng / VAT / tổng (sum của các row đang load) — nhỏ gọn, 1 dòng.
 
-5. Kiểm chứng sau khi sửa
-- Kiểm tra network/server logs để đảm bảo sau khi upload PDF có request tạo `chat_threads` và `chat_messages` thành công.
-- Xác nhận route `/chat/:threadId` không còn trả `notFound: true` ngay sau khi gửi PDF.
-- Không chỉnh `routeTree.gen.ts` thủ công.
+### 3. Drawer chi tiết
+- Khi mở document có liên kết invoice: thêm nút **"Mở chi tiết hoá đơn →"** trong tab "Liên kết" (link tới `/invoices/$id`).
+- Không đổi logic preview/OCR/xoá hiện tại.
+
+### Lưu ý
+- Hoá đơn chưa có liên kết invoice (mới upload, chưa OCR): các cột nghiệp vụ hiển thị "—" và badge "Chờ OCR".
+- Không thay đổi schema DB, không tạo migration.
+- Chỉ thay đổi UI + 1 server function read-only — không đụng tới flow upload/OCR/chat đã hoạt động.
