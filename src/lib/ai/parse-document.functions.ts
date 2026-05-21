@@ -794,31 +794,23 @@ export async function parseFileCore(opts: {
       }
     } catch (err: any) {
       console.warn("[parse-document] structurer failed:", err?.message);
-      // Fallback: retry without structured Output schema, then extract JSON best-effort.
+      // Fallback: retry without structured schema using vision model + raw file.
       try {
         const r = await generateText({
-          model: source.kind === "markdown" ? textModel : visionModel,
-          messages,
+          model: visionModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
+                { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
+              ],
+            },
+          ],
         });
         parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
       } catch (err2: any) {
-        if (source.kind === "markdown") {
-          const r = await generateText({
-            model: visionModel,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
-                  { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
-                ],
-              },
-            ],
-          });
-          parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
-        } else {
-          throw err2;
-        }
+        parsed = { raw: null, _schemaError: err?.message, _fallbackError: err2?.message };
       }
     }
     const structurerMs = Date.now() - structStart;
