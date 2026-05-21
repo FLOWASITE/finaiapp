@@ -254,6 +254,13 @@ function DocumentsPage() {
   useEffect(() => {
     setDocKind("all");
     setLimit(PAGE_SIZE);
+    // Also clear purchase-specific filters when leaving purchase tab
+    if (currentTab !== "purchase") {
+      setInvoiceNo("");
+      setSupplierSearch("");
+      setIssueFromDate("");
+      setIssueToDate("");
+    }
   }, [currentTab]);
 
   // Tab kinds take precedence over inner docKind filter — pick first matching kind for narrowing
@@ -271,6 +278,18 @@ function DocumentsPage() {
     ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
     from_date: fromDate || undefined,
     to_date: toDate || undefined,
+  };
+
+  const purchaseFilters = {
+    search: searchText || undefined,
+    source: sourceFilter === "all" ? undefined : sourceFilter,
+    ocr_status: ocrStatus === "all" ? undefined : ocrStatus,
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    invoice_no: invoiceNo || undefined,
+    supplier_search: supplierSearch || undefined,
+    issue_from_date: issueFromDate || undefined,
+    issue_to_date: issueToDate || undefined,
   };
 
   const { data, isLoading } = useQuery({
@@ -291,7 +310,8 @@ function DocumentsPage() {
     (sourceFilter !== "all" ? 1 : 0) +
     (ocrStatus !== "all" ? 1 : 0) +
     (fromDate ? 1 : 0) +
-    (toDate ? 1 : 0);
+    (toDate ? 1 : 0) +
+    (currentTab === "purchase" ? ((invoiceNo ? 1 : 0) + (supplierSearch ? 1 : 0) + (issueFromDate ? 1 : 0) + (issueToDate ? 1 : 0)) : 1 - 1);
 
   const resetFilters = () => {
     setDocKind("all");
@@ -299,6 +319,10 @@ function DocumentsPage() {
     setOcrStatus("all");
     setFromDate("");
     setToDate("");
+    setInvoiceNo("");
+    setSupplierSearch("");
+    setIssueFromDate("");
+    setIssueToDate("");
   };
 
   const total = data?.total ?? 0;
