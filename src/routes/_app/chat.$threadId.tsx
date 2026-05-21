@@ -345,12 +345,14 @@ function ThreadPage() {
       }
 
       const persistId = await getEffectiveThreadId();
+      // Strip transient progress events before persisting — they're only for live UI.
+      const persistedToolEvents = toolEvents.filter((e: any) => e.type !== "tool-progress");
       await appendFn({
         data: {
           threadId: persistId,
           role: "assistant",
           content: buffer,
-          metadata: toolEvents.length ? { toolEvents } : undefined,
+          metadata: persistedToolEvents.length ? { toolEvents: persistedToolEvents } : undefined,
         },
       });
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
