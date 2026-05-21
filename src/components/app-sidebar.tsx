@@ -31,10 +31,11 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: "new" };
+type BadgeTone = "new" | "muted" | "danger" | "default";
+type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
 type NavEntry = NavLeaf | NavGroup;
-type NavSection = { label?: string; entries: NavEntry[] };
+type NavSection = { label?: string; labelBadge?: string; entries: NavEntry[] };
 
 const isGroup = (e: NavEntry): e is NavGroup => "items" in e;
 
