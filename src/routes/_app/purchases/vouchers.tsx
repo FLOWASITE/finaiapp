@@ -482,7 +482,9 @@ function CreateVoucherDialog({
         invoice_id: header.invoice_id || null,
         invoice_no: header.invoice_no || null,
         invoice_date: header.invoice_date || null,
-        reason: header.reason || null,
+        reason:
+          (header.reason && header.reason.trim()) ||
+          `Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || "---"}`,
         currency: header.currency,
         exchange_rate: Number(header.exchange_rate || 1),
         due_date: header.due_date || null,
