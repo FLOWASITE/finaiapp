@@ -253,7 +253,12 @@ export function JournalProposalCard({ actionId, toolName, input, summary, embedd
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm">
+    <div className={cn(
+      "overflow-hidden",
+      embedded
+        ? "h-full"
+        : "rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm",
+    )}>
       {/* Header */}
       <div className="border-b border-border/60 px-4 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Bút toán đề xuất
