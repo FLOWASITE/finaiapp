@@ -32,6 +32,8 @@ type InvoiceLine = {
 type InvoiceDraft = {
   kind: "purchase_invoice";
   filename: string;
+  supplier_id: string | null;
+  supplier_code: string | null;
   supplier_name: string;
   supplier_tax_id: string;
   invoice_no: string;
@@ -41,8 +43,15 @@ type InvoiceDraft = {
   vat_account: string;       // TK Nợ thuế VAT đầu vào
   payable_account: string;   // TK Có (phải trả NCC)
   lines: InvoiceLine[];
+  ai_upload_id: string | null;
+  file_hash: string | null;
   status: "idle" | "sending" | "done" | "error";
   error?: string;
+  created_id?: string;
+  // lookup state
+  lookup_state?: "idle" | "loading" | "found" | "missing" | "duplicate";
+  lookup_msg?: string;
+  expense_from_history?: boolean;
 };
 
 type VoucherDraft = {
