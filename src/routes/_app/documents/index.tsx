@@ -1039,7 +1039,7 @@ function PurchaseInvoicesTable({
               const hasLines = lines.length > 0;
               const isOpen = !!expanded[doc.id];
               return (
-                <>
+                <Fragment key={doc.id}>
                   <TableRow
                     key={doc.id}
                     className="cursor-pointer"
