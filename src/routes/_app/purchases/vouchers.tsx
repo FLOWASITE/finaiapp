@@ -542,18 +542,18 @@ function CreateVoucherDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1200px] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-[96vw] sm:w-[95vw] sm:max-w-[1200px] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Tạo phiếu mua hàng</DialogTitle>
         </DialogHeader>
 
         {/* Top toggle row */}
-        <div className="flex flex-wrap items-center gap-4 border-b pb-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Trạng thái TT</Label>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 border-b pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Label className="text-xs whitespace-nowrap">Trạng thái TT</Label>
             <Select value={header.payment_status}
               onValueChange={(v: any) => setHeader({ ...header, payment_status: v })}>
-              <SelectTrigger className="w-44 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-36 sm:w-44 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="unpaid">Chưa thanh toán</SelectItem>
                 <SelectItem value="partial">Thanh toán một phần</SelectItem>
@@ -561,11 +561,11 @@ function CreateVoucherDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Hình thức HĐ</Label>
+          <div className="flex items-center gap-2 min-w-0">
+            <Label className="text-xs whitespace-nowrap">Hình thức HĐ</Label>
             <Select value={header.invoice_receipt_type}
               onValueChange={(v: any) => setHeader({ ...header, invoice_receipt_type: v })}>
-              <SelectTrigger className="w-48 h-8"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40 sm:w-48 h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="with_invoice">Nhận kèm hoá đơn</SelectItem>
                 <SelectItem value="without_invoice">Nhận chưa kèm hoá đơn</SelectItem>
@@ -591,14 +591,14 @@ function CreateVoucherDialog({
         </div>
 
         <Tabs defaultValue="pmh" className="mt-2">
-          <TabsList>
-            <TabsTrigger value="pmh">Phiếu mua hàng</TabsTrigger>
-            <TabsTrigger value="hd">Hoá đơn</TabsTrigger>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="pmh" className="flex-1 sm:flex-none">Phiếu mua hàng</TabsTrigger>
+            <TabsTrigger value="hd" className="flex-1 sm:flex-none">Hoá đơn</TabsTrigger>
           </TabsList>
 
           {/* === Tab 1: PMH header === */}
           <TabsContent value="pmh" className="space-y-4">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <Label>Nhà cung cấp *</Label>
                 <Select value={header.supplier_id || "none"}
@@ -644,7 +644,7 @@ function CreateVoucherDialog({
                   onChange={(e) => setHeader({ ...header, voucher_no: e.target.value })} />
               </div>
 
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <Label>Địa chỉ</Label>
                 <Input value={header.supplier_address}
                   onChange={(e) => setHeader({ ...header, supplier_address: e.target.value })} />
@@ -680,12 +680,12 @@ function CreateVoucherDialog({
                   onChange={(e) => setHeader({ ...header, exchange_rate: Number(e.target.value) })}
                   disabled={header.currency === "VND"} />
               </div>
-              <div className="col-span-2 text-right">
+              <div className="sm:col-span-2 text-right">
                 <div className="text-sm text-muted-foreground">Tổng</div>
-                <div className="text-3xl font-semibold text-primary">{fmtMoney(totals.total)}</div>
+                <div className="text-2xl sm:text-3xl font-semibold text-primary break-all">{fmtMoney(totals.total)}</div>
               </div>
 
-              <div className="col-span-4">
+              <div className="sm:col-span-2 lg:col-span-4">
                 <Label>Diễn giải</Label>
                 <Input value={header.reason}
                   onChange={(e) => setHeader({ ...header, reason: e.target.value })}
@@ -704,19 +704,19 @@ function CreateVoucherDialog({
                   Tự phân bổ chi phí mua hàng
                 </label>
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs">Chiết khấu (%)</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">Chiết khấu (%)</Label>
                 <Input type="number" className="w-20 h-8" value={header.discount_pct}
                   onChange={(e) => setHeader({ ...header, discount_pct: Number(e.target.value), discount_amount: 0 })} />
-                <Label className="text-xs">Chiết khấu</Label>
-                <Input type="number" className="w-32 h-8" value={header.discount_amount}
+                <Label className="text-xs whitespace-nowrap">Chiết khấu</Label>
+                <Input type="number" className="w-28 sm:w-32 h-8" value={header.discount_amount}
                   onChange={(e) => setHeader({ ...header, discount_amount: Number(e.target.value), discount_pct: 0 })} />
               </div>
             </div>
 
             {/* Lines table */}
             <div className="overflow-x-auto border rounded-md">
-              <Table>
+              <Table className="min-w-[1100px] text-xs sm:text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
@@ -823,7 +823,7 @@ function CreateVoucherDialog({
               </Table>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="default" size="sm" onClick={addLine}>
                 <PlusCircle className="h-3 w-3 mr-1" /> Thêm
               </Button>
@@ -836,7 +836,7 @@ function CreateVoucherDialog({
             </div>
 
             {/* Payment row */}
-            <div className="grid grid-cols-4 gap-3 border-t pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t pt-3">
               <div>
                 <Label>Phương thức TT</Label>
                 <Select value={header.payment_method}
@@ -870,8 +870,8 @@ function CreateVoucherDialog({
 
           {/* === Tab 2: Hoá đơn === */}
           <TabsContent value="hd" className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-3">
                 <Label>Link tới Hoá đơn mua đã có</Label>
                 <Select value={header.invoice_id || "none"}
                   onValueChange={(v) => {
@@ -917,10 +917,11 @@ function CreateVoucherDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Huỷ</Button>
           <Button onClick={() => mut.mutate()}
-            disabled={mut.isPending || !header.voucher_no}>
+            disabled={mut.isPending || !header.voucher_no}
+            className="w-full sm:w-auto">
             Lưu phiếu nháp
           </Button>
         </DialogFooter>
