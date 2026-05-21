@@ -41,6 +41,22 @@ function ThreadPage() {
   const appendFn = useServerFn(appendMessage);
   const askFn = useServerFn(askAccountingStream);
   const deleteLastFn = useServerFn(deleteLastAssistantMessage);
+  const { setOpen: setAppSidebarOpen } = useSidebar();
+
+  // Khi vào thread từ ChatDock (có autostart) trên Desktop: đóng AppSidebar
+  // (Mode AI) + mở History sidebar. Chỉ chạy 1 lần khi mount.
+  useEffect(() => {
+    if (!autostart) return;
+    if (typeof window === "undefined") return;
+    const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+    if (!isDesktop) return;
+    setAppSidebarOpen(false);
+    try {
+      localStorage.setItem("chat:sidebar-collapsed", "0");
+    } catch {}
+    window.dispatchEvent(new Event("chat-sidebar-toggle"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
