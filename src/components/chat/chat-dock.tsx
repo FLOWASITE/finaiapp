@@ -278,11 +278,49 @@ export function ChatDock() {
       );
       return;
     }
-    startOptimistic(content, {
-      title: payloads[0].name,
-      metadata: { attachments: metaAttachments },
-      payloadsForStash: payloads,
-    });
+    const handoffId =
+      typeof (crypto as any).randomUUID === "function"
+        ? (crypto as any).randomUUID()
+        : Math.random().toString(36).slice(2);
+    stashChatAttachments(handoffId, payloads);
+    setLoading(true);
+    try {
+      const res = await createWithMsgFn({
+        data: {
+          title: payloads[0].name,
+          content,
+          metadata: { attachments: metaAttachments },
+        },
+      });
+      qc.setQueryData(["chat", "thread", res.thread.id], {
+        thread: res.thread,
+        messages: [res.message],
+      });
+      qc.setQueryData(
+        ["chat", "threads", "recent", "all"],
+        (prev: any) => {
+          const list = Array.isArray(prev)
+            ? prev.filter((t: any) => t.id !== res.thread.id)
+            : [];
+          return [res.thread, ...list];
+        },
+      );
+      collapseChatSidebar();
+      navigate({
+        to: "/chat/$threadId",
+        params: { threadId: res.thread.id },
+        search: {
+          autostart: "1",
+          handoff: handoffId,
+          ...(fromHref ? { from: fromHref } : {}),
+        },
+      });
+    } catch (e: any) {
+      takeChatAttachments(handoffId);
+      toast.error(e?.message || "Không tạo được cuộc trò chuyện");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
