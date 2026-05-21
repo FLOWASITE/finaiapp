@@ -86,27 +86,35 @@ function classifyGroup(mime: string, filename: string): {
         group: "sales_invoice",
         kind: "purchase_invoice",
         bucket: "review",
-        confidence: 0.7,
-        reason: "Có vẻ là HĐ ra — cần xem lại tài khoản doanh thu",
+        confidence: 0.55,
+        reason: "Tên file gợi ý HĐ ra — chờ AI xác nhận",
       };
     }
+    if (RX_INVOICE_IN.test(lc)) {
+      return {
+        group: "purchase_invoice",
+        kind: "purchase_invoice",
+        bucket: "review",
+        confidence: 0.6,
+        reason: "Tên file gợi ý HĐ vào — chờ AI xác nhận",
+      };
+    }
+    // PDF không có gợi ý từ tên → KHÔNG mặc định là HĐ vào nữa
     return {
-      group: "purchase_invoice",
-      kind: "purchase_invoice",
-      bucket: "auto",
-      confidence: RX_INVOICE_IN.test(lc) ? 0.97 : 0.85,
-      reason: RX_INVOICE_IN.test(lc)
-        ? "Hoá đơn vào, tin cậy cao"
-        : "PDF — coi như hoá đơn vào",
+      group: "other",
+      kind: "auto",
+      bucket: "ask",
+      confidence: 0.25,
+      reason: "PDF chưa rõ loại — chờ AI phân loại",
     };
   }
   if (isImg) {
     return {
       group: "invoice_image",
       kind: "purchase_invoice",
-      bucket: "review",
-      confidence: 0.6,
-      reason: "Ảnh chụp — OCR có thể không chắc chắn",
+      bucket: "ask",
+      confidence: 0.4,
+      reason: "Ảnh chụp — chờ AI xác nhận có phải HĐ không",
     };
   }
   if (isXlsx || isCsv) {
