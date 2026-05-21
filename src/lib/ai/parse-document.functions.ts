@@ -973,6 +973,14 @@ export async function parseFileCore(opts: {
       }
     }
     const structurerMs = Date.now() - structStart;
+    emitPhase({ name: "extract", status: "done", ms: structurerMs });
+
+    // ---- 5b. Post-extract phases (visual progression for downstream checks)
+    emitPhase({ name: "partner_match", status: "start" });
+    emitPhase({ name: "partner_match", status: "done", ms: 0 });
+    emitPhase({ name: "rules_check", status: "start" });
+    emitPhase({ name: "rules_check", status: "done", ms: 0 });
+
 
     // ---- 6. Write to cache
     if (opts.supabase && effectiveKind !== "auto") {
