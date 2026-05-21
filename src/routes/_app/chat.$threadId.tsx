@@ -2,8 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowDown } from "lucide-react";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { AlertTriangle, ArrowDown, PanelLeft } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -42,22 +41,20 @@ function ThreadPage() {
   const appendFn = useServerFn(appendMessage);
   const askFn = useServerFn(askAccountingStream);
   const deleteLastFn = useServerFn(deleteLastAssistantMessage);
-  const { setOpen: setAppSidebarOpen } = useSidebar();
-
-  // Khi vào thread từ ChatDock (có autostart) trên Desktop: đóng AppSidebar
-  // (Mode AI) + mở History sidebar. Chỉ chạy 1 lần khi mount.
+  // Khi vào thread từ ChatDock (có autostart) trên Desktop: mở History sidebar
+  // cho chat. KHÔNG dùng useSidebar() vì route có thể bị mount trong layout
+  // chromeless (ví dụ điều hướng từ /inbox) — sẽ crash thread + làm mất
+  // ngữ cảnh file attach trong sessionStorage.
   useEffect(() => {
     if (!autostart) return;
     if (typeof window === "undefined") return;
     const isDesktop = window.matchMedia("(min-width: 768px)").matches;
     if (!isDesktop) return;
-    setAppSidebarOpen(false);
     try {
       localStorage.setItem("chat:sidebar-collapsed", "0");
     } catch {}
     window.dispatchEvent(new Event("chat-sidebar-toggle"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autostart]);
 
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -391,19 +388,48 @@ function ThreadPage() {
       }));
       let pendingAttachments: any[] | undefined;
       try {
-        // Ưu tiên key theo handoffId (bền: không bị rename khi swap temp→real id).
-        const stashKey = handoff
-          ? `__attach:h:${handoff}`
-          : `__attach:${threadId}`;
-        const raw = sessionStorage.getItem(stashKey);
-        if (raw) {
-          pendingAttachments = JSON.parse(raw);
-          sessionStorage.removeItem(stashKey);
+        // Thử lần lượt: handoff key (bền qua swap temp→real id), rồi
+        // thread key. Nếu vẫn không có (route từng remount/crash mất tham
+        // chiếu handoff), quét sessionStorage tìm key `__attach:h:*` duy
+        // nhất còn sót để tránh mất file.
+        const candidates: string[] = [];
+        if (handoff) candidates.push(`__attach:h:${handoff}`);
+        candidates.push(`__attach:${threadId}`);
+        for (const key of candidates) {
+          const raw = sessionStorage.getItem(key);
+          if (raw) {
+            pendingAttachments = JSON.parse(raw);
+            sessionStorage.removeItem(key);
+            break;
+          }
+        }
+        if (!pendingAttachments?.length) {
+          const handoffKeys: string[] = [];
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i);
+            if (k && k.startsWith("__attach:h:")) handoffKeys.push(k);
+          }
+          if (handoffKeys.length === 1) {
+            const raw = sessionStorage.getItem(handoffKeys[0]);
+            if (raw) {
+              pendingAttachments = JSON.parse(raw);
+              sessionStorage.removeItem(handoffKeys[0]);
+            }
+          }
         }
       } catch {}
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
       if (declaredAttachments?.length && !pendingAttachments?.length) {
-        toast.warning("Đã mất nội dung file đính kèm, vui lòng gửi lại file.");
+        toast.error("Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.");
+        setLocalMsgs((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Tôi không nhận được nội dung file vì dữ liệu bị mất khi chuyển trang. Sếp đính kèm lại file ở đây giúp em nhé.",
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        return;
       }
       runAssistant(hist, pendingAttachments);
       // KHÔNG navigate replace để xoá autostart ở đây — sẽ gây re-render +
@@ -609,7 +635,14 @@ function ThreadPage() {
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
       <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-4">
-          <SidebarTrigger className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" />
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("chat-sidebar-toggle"))}
+            aria-label="Mở/đóng danh sách hội thoại"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-semibold text-slate-800">
               {query.data?.thread.title ?? "Cuộc trò chuyện"}

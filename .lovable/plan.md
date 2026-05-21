@@ -1,48 +1,33 @@
-# Hiển thị tiến trình xử lý chứng từ inline trong khung chat
+## Mục tiêu
+Giữ nguyên payload file attach (bao gồm base64) khi gửi từ ChatDock sang trang chat thread, để thread tự động stream parse OCR → extract → match → check và AI nhận đúng ngữ cảnh file.
 
-## Vấn đề
-Hiện tại khi attach file, tiến trình parse → phân loại → sẵn sàng đang hiển thị qua `ParseProgressDialog` — một **modal popup phủ toàn màn hình**, che mất khung chat và danh sách thread (như ảnh chụp).
+## Vấn đề tìm thấy
+1. Route `/chat/$threadId` đang gọi `useSidebar()` và render `SidebarTrigger`, nhưng khi đi từ `/inbox` layout đang ở chế độ chromeless không bọc `SidebarProvider`.
+2. Console đang có lỗi runtime: `useSidebar must be used within a SidebarProvider.` Lỗi này có thể làm thread crash trước khi effect `autostart` đọc `sessionStorage` key `__attach:h:<handoff>` và gọi `runAssistant(...)`.
+3. Luồng handoff hiện dựa vào `sessionStorage`; nếu route crash/remount hoặc event resolve xảy ra lệch nhịp, payload dễ bị mất dù metadata file vẫn còn.
 
-Bạn muốn UI này hiện **inline trong khung chat**, để cảm giác như một bước tự nhiên của cuộc trò chuyện, không phải popup chặn ngữ cảnh.
+## Kế hoạch sửa
+1. **Làm chat thread chạy được trong mọi layout**
+   - Bỏ dependency bắt buộc vào `useSidebar()` trong `src/routes/_app/chat.$threadId.tsx`.
+   - Thay `SidebarTrigger` bằng nút local chỉ dispatch `chat-sidebar-toggle` cho chat history, không cần `SidebarProvider`.
+   - Việc đóng app sidebar khi `autostart` chỉ thực hiện an toàn khi provider tồn tại, hoặc bỏ hẳn để không crash.
 
-## Giải pháp
+2. **Ổn định handoff file attach từ ChatDock**
+   - Giữ cơ chế `handoffId` độc lập với temp/real threadId.
+   - Bổ sung helper đọc attachment theo thứ tự ưu tiên:
+     - `__attach:h:<handoff>`
+     - `__attach:<threadId>`
+     - với optimistic thread, fallback thêm key handoff còn tồn tại nếu có.
+   - Chỉ remove stash sau khi parse JSON thành công và đã truyền vào `runAssistant`.
 
-### 1. Tách `ParseProgressDialog` thành 2 lớp
-- **`ParseProgressPanel`** (mới): toàn bộ phần nội dung hiện tại (stepper 3 phase, chips tóm tắt, danh sách bucket, nút Huỷ / Tiếp tục) — render thuần, không có `Dialog` wrapper.
-- **`ParseProgressDialog`**: giữ lại như shim cũ (cho tương thích) nhưng chỉ wrap `ParseProgressPanel` trong `Dialog`. Không file nào khác cần đổi nếu vẫn muốn modal.
+3. **Chặn chạy assistant khi metadata có file nhưng payload base64 chưa sẵn sàng**
+   - Trong autostart, nếu user message có metadata attachments nhưng chưa lấy được full payload base64, hiển thị lỗi rõ ràng và không gọi AI với attachment metadata rỗng.
+   - Như vậy không còn tình trạng AI trả lời “không thấy nội dung file”.
 
-### 2. Đổi cách `Composer` render panel
-Trong `src/components/chat/composer.tsx`:
-- Bỏ `<ParseProgressDialog open=...>` (modal) ở cuối JSX.
-- Thay bằng `<ParseProgressPanel ... />` **render ngay phía trên thanh nhập liệu** (inline trong khung composer), chỉ hiện khi `parsePhase !== null`.
-- Panel có:
-  - Nền card mềm `bg-card/80 backdrop-blur` + viền + bo góc.
-  - `max-h` hạn chế chiều cao (vd 60vh), nội dung scroll trong panel.
-  - Nút "×" thu nhỏ ở góc để đóng/huỷ — thay cho thao tác đóng modal.
-- Khi phase = `ready` và auto-continue đã chạy → panel tự ẩn (logic cũ giữ nguyên).
+4. **Đảm bảo gửi trong thread hiện tại vẫn hoạt động**
+   - Giữ `handleAttach` trong thread dùng payload trực tiếp qua `sendUserMessage(..., payloads)`.
+   - Dọn stash thread-local sau khi dùng để tránh gửi lặp.
 
-### 3. Vị trí render
-Vì `Composer` được dùng ở 2 nơi (`chat-dock` và `chat.$threadId.tsx`), đặt panel **bên trong** `Composer` nghĩa là cả 2 chỗ đều có inline tự động — không cần sửa caller.
-
-```text
-┌─ Khung chat ───────────────┐
-│ Tin nhắn 1                  │
-│ Tin nhắn 2                  │
-│ ...                         │
-├────────────────────────────┤
-│ ┌ ParseProgressPanel ───┐  │  ← inline, không che
-│ │ Trích xuất ✓ → Phân  │  │
-│ │ loại ⟳ → Sẵn sàng    │  │
-│ │ [Huỷ]  [Tiếp tục]    │  │
-│ └──────────────────────┘  │
-│ [+] [Nhập tin nhắn...] [▶]│  ← composer
-└────────────────────────────┘
-```
-
-## Files thay đổi
-- `src/components/chat/parse-progress-dialog.tsx` — tách `ParseProgressPanel` ra, `ParseProgressDialog` thành wrapper mỏng.
-- `src/components/chat/composer.tsx` — thay modal bằng inline panel phía trên input.
-
-## Không thay đổi
-- Toàn bộ logic parse/classify/decisions giữ nguyên.
-- Không động đến `message-list`, `chat-dock`, server functions, hay luồng streaming.
+5. **Xác minh**
+   - Kiểm tra lại bằng console/runtime signal: không còn lỗi `useSidebar must be used within a SidebarProvider`.
+   - Kiểm tra luồng logic: ChatDock attach 1 file → tạo temp thread → navigate với `handoff` → thread đọc đúng full payload → stream parseDocument xuất hiện.
