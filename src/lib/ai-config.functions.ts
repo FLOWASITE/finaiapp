@@ -54,6 +54,7 @@ const SaveSchema = z.object({
   model_chat: z.string().max(200).optional().nullable(),
   model_parse: z.string().max(200).optional().nullable(),
   model_reasoning: z.string().max(200).optional().nullable(),
+  model_classify: z.string().max(200).optional().nullable(),
   extra_headers: z.record(z.string().max(200), z.string().max(2000)).optional(),
   notes: z.string().max(2000).optional().nullable(),
   // Nếu undefined: giữ key cũ. Nếu chuỗi rỗng: xoá key.
