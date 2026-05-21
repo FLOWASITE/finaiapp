@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -37,8 +37,7 @@ export const Route = createFileRoute("/_app/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
-  const { autostart, from, handoff } = Route.useSearch();
-  const navigate = useNavigate();
+  const { autostart, handoff } = Route.useSearch();
   const qc = useQueryClient();
   const getFn = useServerFn(getThread);
   const appendFn = useServerFn(appendMessage);
@@ -71,103 +70,23 @@ function ThreadPage() {
   const [atBottom, setAtBottom] = useState(true);
   const [hasNew, setHasNew] = useState(false);
 
-  // Khi đang ở optimistic thread (id `temp-...`), ta chưa có bản ghi DB nên
-  // bỏ qua getThread; localMsgs/cache đã được ChatDock prime sẵn.
-  const isOptimistic = threadId.startsWith("temp-");
-
-  // Lưu id thật khi ChatDock resolve xong. Dùng cho appendFn để persist đúng id.
-  const realThreadIdRef = useRef<string | null>(isOptimistic ? null : threadId);
-  const realThreadIdResolveRef = useRef<((id: string) => void) | null>(null);
-  const realThreadIdPromiseRef = useRef<Promise<string> | null>(null);
-  // Bỏ qua reset effect khi navigate replace từ temp -> real id.
-  const skipResetRef = useRef(false);
-
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
-    enabled: !isOptimistic,
   });
 
   useEffect(() => {
-    if (skipResetRef.current) {
-      skipResetRef.current = false;
-      return;
-    }
     setLocalMsgs([]);
     setInput("");
     startedRef.current = null;
     userStoppedRef.current = false;
     abortRef.current?.abort();
     abortRef.current = null;
-    realThreadIdRef.current = threadId.startsWith("temp-") ? null : threadId;
-    if (threadId.startsWith("temp-")) {
-      realThreadIdPromiseRef.current = new Promise<string>((res) => {
-        realThreadIdResolveRef.current = res;
-      });
-    } else {
-      realThreadIdPromiseRef.current = null;
-      realThreadIdResolveRef.current = null;
-    }
   }, [threadId]);
 
-  // Lắng nghe ChatDock báo đã tạo thread thật → swap id.
-  useEffect(() => {
-    if (!isOptimistic) return;
-    const onResolved = (e: Event) => {
-      const detail = (e as CustomEvent<{
-        tempId: string;
-        realThreadId: string;
-        realUserMsgId?: string;
-        realThread?: any;
-      }>).detail;
-      if (!detail || detail.tempId !== threadId) return;
-      realThreadIdRef.current = detail.realThreadId;
-      realThreadIdResolveRef.current?.(detail.realThreadId);
-      // Cập nhật id của user message tạm để không trùng key khi swap cache.
-      if (detail.realUserMsgId) {
-        setLocalMsgs((prev) => {
-          if (!prev.length) return prev;
-          const copy = [...prev];
-          for (let i = 0; i < copy.length; i++) {
-            if (copy[i].role === "user" && copy[i].id?.startsWith("temp-msg-")) {
-              copy[i] = { ...copy[i], id: detail.realUserMsgId };
-              break;
-            }
-          }
-          return copy;
-        });
-      }
-      // Mark startedRef đã chạy cho temp id, đồng thời cho real id để
-      // autostart không chạy lại.
-      startedRef.current = detail.realThreadId;
-      // Không đổi URL khi đang stream: đổi threadId sẽ trigger reset effect,
-      // abort request và tạo cảm giác trang bị reload giữa câu trả lời.
-    };
-    const onFailed = (e: Event) => {
-      const detail = (e as CustomEvent<{ tempId: string; error?: string }>).detail;
-      if (!detail || detail.tempId !== threadId) return;
-      abortRef.current?.abort();
-      // Quay lại trang trước đó — dùng navigate (SPA) thay vì window.location
-      // để không full reload.
-      if (from && from.startsWith("/")) {
-        navigate({ to: from });
-      } else {
-        navigate({ to: "/chat" });
-      }
-    };
-    window.addEventListener("chat:thread-resolved", onResolved as EventListener);
-    window.addEventListener("chat:thread-failed", onFailed as EventListener);
-    return () => {
-      window.removeEventListener("chat:thread-resolved", onResolved as EventListener);
-      window.removeEventListener("chat:thread-failed", onFailed as EventListener);
-    };
-  }, [threadId, isOptimistic, from, handoff, navigate]);
-
-  /** Trả về threadId dùng để persist message (đợi nếu đang optimistic). */
+  /** Trả về threadId dùng để persist message. ChatDock đã tạo thread thật trước khi mở route. */
   const getEffectiveThreadId = async (): Promise<string> => {
-    if (realThreadIdRef.current) return realThreadIdRef.current;
-    if (realThreadIdPromiseRef.current) return realThreadIdPromiseRef.current;
     return threadId;
   };
 
@@ -401,7 +320,7 @@ function ThreadPage() {
       // Route.useSearch đổi → trông như refresh. startedRef đã chặn chạy lại.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autostart, query.data, threadId, isOptimistic]);
+  }, [autostart, query.data, threadId, handoff]);
 
   const sendUserMessage = async (content: string, attachments?: any[]) => {
     const q = content.trim();
@@ -426,7 +345,7 @@ function ThreadPage() {
       },
     ];
     setLocalMsgs(next);
-    // Persist user message vào DB (đợi threadId thật nếu đang optimistic).
+    // Persist user message vào DB.
     void (async () => {
       try {
         const persistId = await getEffectiveThreadId();
