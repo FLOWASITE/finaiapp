@@ -936,11 +936,15 @@ export const getUploadSignedUrl = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error || !row) throw new Error("Không tìm thấy file");
     if (row.user_id !== userId) throw new Error("Không có quyền");
-    if (!row.file_path) throw new Error("File chưa được lưu trên Storage");
+    if (!row.file_path) {
+      return { url: null, filename: row.filename, documentId: null };
+    }
     const { data: signed, error: sErr } = await supabase.storage
       .from("invoices")
       .createSignedUrl(row.file_path, 3600);
-    if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "Không tạo được link");
+    if (sErr || !signed?.signedUrl) {
+      return { url: null, filename: row.filename, documentId: null };
+    }
     const { data: doc } = await supabase
       .from("documents")
       .select("id")
