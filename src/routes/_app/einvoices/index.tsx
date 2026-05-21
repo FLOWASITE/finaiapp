@@ -128,6 +128,7 @@ function EInvoicesPage() {
   const [matched, setMatched] = React.useState<"all" | "matched" | "unmatched">(
     "all",
   );
+  const [xmlStatus, setXmlStatus] = React.useState<string>("all");
   const [dateRange, setDateRange] = React.useState<{
     from?: string;
     to?: string;
