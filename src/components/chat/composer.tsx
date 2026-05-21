@@ -88,6 +88,8 @@ export function Composer({
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [decisions, setDecisions] = useState<Record<number, ClassifyDecision>>({});
   const [parsedItems, setParsedItems] = useState<Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; uploadId: string | null }>>([]);
+  const [pending, setPending] = useState<AttachmentPayload[]>([]);
+
   const navigate = useNavigate();
   const parseFn = useServerFn(parseDocument);
   const classifyFn = useServerFn(classifyImports);
