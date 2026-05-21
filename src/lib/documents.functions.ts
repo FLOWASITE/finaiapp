@@ -132,7 +132,7 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
       invoicesById = Object.fromEntries((invs ?? []).map((i: any) => [i.id, i]));
       const { data: lines } = await context.supabase
         .from("invoice_lines")
-        .select("invoice_id, description")
+        .select("invoice_id, description, qty, unit_price, amount, vat_rate")
         .in("invoice_id", invIds);
       for (const l of lines ?? []) {
         (linesByInvoice[l.invoice_id] ||= []).push(l);
@@ -145,15 +145,31 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
     const rows = docList.map((d: any) => {
       const invId = docToInv[d.id];
       const inv = invId ? invoicesById[invId] : null;
-      const lines = invId ? (linesByInvoice[invId] ?? []) : [];
-      const firstDesc = lines[0]?.description ?? null;
+      const dbLines = invId ? (linesByInvoice[invId] ?? []) : [];
+      const ocr = d.ocr_extracted ?? {};
+      const ocrLines: any[] = Array.isArray(ocr.lines) ? ocr.lines : [];
+      const finalLines =
+        dbLines.length > 0
+          ? dbLines.map((l: any) => ({
+              description: l.description,
+              qty: l.qty,
+              unit_price: l.unit_price,
+              amount: l.amount,
+              vat_rate: l.vat_rate,
+            }))
+          : ocrLines.map((l: any) => ({
+              description: l.description ?? "",
+              qty: l.qty ?? null,
+              unit_price: l.unit_price ?? null,
+              amount: l.amount ?? null,
+              vat_rate: l.vat_rate ?? null,
+            }));
+      const firstDesc = finalLines[0]?.description ?? null;
       const lines_summary = firstDesc
-        ? lines.length > 1
-          ? `${firstDesc} +${lines.length - 1} dòng`
+        ? finalLines.length > 1
+          ? `${firstDesc} +${finalLines.length - 1} dòng`
           : firstDesc
         : null;
-      // Fallback to ocr_extracted JSON when no linked invoice
-      const ocr = d.ocr_extracted ?? {};
       return {
         doc: d,
         invoice: inv
@@ -170,13 +186,8 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
               status: null,
               payment_status: null,
             },
-        lines_summary:
-          lines_summary ??
-          (Array.isArray(ocr.lines) && ocr.lines[0]?.description
-            ? ocr.lines.length > 1
-              ? `${ocr.lines[0].description} +${ocr.lines.length - 1} dòng`
-              : ocr.lines[0].description
-            : null),
+        lines: finalLines,
+        lines_summary,
       };
     });
 
