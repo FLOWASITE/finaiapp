@@ -178,7 +178,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight tracking-tight text-white">Trợ lý kế toán</div>
+                <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">Trợ lý kế toán</div>
                 <div className="text-[10px] text-slate-500">AI assistant</div>
               </div>
               {onToggle && (
