@@ -446,7 +446,7 @@ export function Composer({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {pending.length > 0 && (
+          {pending.length > 0 && pending.length < 6 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {pending.map((p, i) => {
                 const isImg = p.mime.startsWith("image/");
@@ -483,6 +483,62 @@ export function Composer({
                   </div>
                 );
               })}
+            </div>
+          )}
+          {pending.length >= 6 && (
+            <div className="pt-1">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {pending.length} file đính kèm
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPending([])}
+                  className="text-muted-foreground/70 hover:text-destructive"
+                >
+                  Bỏ tất cả
+                </button>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-9">
+                {pending.slice(0, 9).map((p, i) => {
+                  const isImg = p.mime.startsWith("image/");
+                  return (
+                    <div
+                      key={`${p.name}-${i}`}
+                      title={p.name}
+                      className="group/chip relative aspect-square overflow-hidden rounded-md border border-border/60 bg-background/80"
+                    >
+                      {isImg && previewUrl[i] ? (
+                        <img
+                          src={previewUrl[i] as string}
+                          alt={p.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-muted/60 px-1 text-muted-foreground">
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="w-full truncate text-center text-[9px] leading-none">
+                            {(p.mime.split("/")[1] || "file").toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removePending(i)}
+                        aria-label={`Bỏ ${p.name}`}
+                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background/90 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive hover:text-destructive-foreground group-hover/chip:opacity-100"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {pending.length > 9 && (
+                  <div className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/40 text-[11px] font-semibold text-muted-foreground">
+                    +{pending.length - 9}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <textarea
