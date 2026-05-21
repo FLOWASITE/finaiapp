@@ -302,6 +302,7 @@ function ThreadPage() {
             content: m.content,
           })),
           ...(attachments && attachments.length ? { attachments } : {}),
+          ...(bulkRun ? { bulkRun } : {}),
         },
         // TanStack serverFn không forward `signal` trực tiếp — phải override fetch
         // để gắn AbortSignal vào request, nhờ đó server `getRequest()?.signal`
