@@ -1,8 +1,9 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2 } from "lucide-react";
+import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2, X, FileText } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
