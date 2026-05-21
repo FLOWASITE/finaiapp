@@ -35,6 +35,38 @@ function formatSize(n?: number) {
 }
 
 function AttachmentChips({ items }: { items: ChatAttachmentMeta[] }) {
+  if (items.length >= 6) {
+    const shown = items.slice(0, 9);
+    return (
+      <div>
+        <div className="mb-1 text-[11px] font-medium opacity-80">
+          {items.length} file đính kèm
+        </div>
+        <div className="grid grid-cols-5 gap-1 sm:grid-cols-9">
+          {shown.map((a, idx) => {
+            const isImg = a.mime?.startsWith("image/");
+            return (
+              <div
+                key={`${a.name}-${idx}`}
+                title={a.name}
+                className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md bg-primary-foreground/15 px-1 text-primary-foreground"
+              >
+                {isImg ? <ImageIcon className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                <span className="w-full truncate text-center text-[9px] leading-none opacity-90">
+                  {(a.mime?.split("/")[1] || "file").toUpperCase()}
+                </span>
+              </div>
+            );
+          })}
+          {items.length > 9 && (
+            <div className="flex aspect-square items-center justify-center rounded-md border border-dashed border-primary-foreground/30 text-[10px] font-semibold">
+              +{items.length - 9}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((a, idx) => {
