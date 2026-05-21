@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveActiveModel } from "@/lib/ai-gateway.server";
 import {
@@ -118,6 +118,48 @@ function extractJSON(raw: string): any | null {
   } catch {
     return null;
   }
+}
+
+function appendJsonOnlyInstruction(messages: any[]): any[] {
+  return messages.map((message, index) => {
+    if (index !== messages.length - 1) return message;
+    const reminder =
+      "\n\nBẮT BUỘC chỉ trả về một JSON object hợp lệ, không markdown, không giải thích, không thêm chữ ngoài JSON.";
+    if (Array.isArray(message.content)) {
+      return { ...message, content: [...message.content, { type: "text", text: reminder }] };
+    }
+    return { ...message, content: `${message.content || ""}${reminder}` };
+  });
+}
+
+function withSchemaWarning(value: any, warning: string, rawText?: string) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return { ...value, _schemaWarning: warning, ...(rawText ? { _rawText: rawText.slice(0, 12000) } : {}) };
+  }
+  return { raw: value ?? rawText ?? null, _schemaWarning: warning };
+}
+
+async function generateJsonBestEffort(opts: {
+  model: any;
+  messages: any[];
+  schema?: z.ZodTypeAny | null;
+  fallback: any;
+  label: string;
+}) {
+  const r = await generateText({
+    model: opts.model,
+    messages: appendJsonOnlyInstruction(opts.messages),
+  });
+  const json = extractJSON(r.text);
+  if (json == null) {
+    console.warn(`[parse-document] ${opts.label} returned no JSON`);
+    return withSchemaWarning(opts.fallback, "AI returned no valid JSON", r.text);
+  }
+  if (!opts.schema) return json;
+  const checked = opts.schema.safeParse(json);
+  if (checked.success) return checked.data;
+  console.warn(`[parse-document] ${opts.label} schema mismatch:`, checked.error.message);
+  return withSchemaWarning(json, checked.error.message);
 }
 
 function schemaFor(kind: string) {
