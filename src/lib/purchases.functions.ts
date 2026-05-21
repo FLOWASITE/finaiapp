@@ -192,11 +192,23 @@ export const createManualInvoice = createServerFn({ method: "POST" })
     );
     const total = subtotal + vat_amount;
 
+    // Resolve file_path from ai_uploads when available, otherwise placeholder
+    let file_path = `manual/${Date.now()}`;
+    if (data.ai_upload_id) {
+      const { data: up } = await supabase
+        .from("ai_uploads")
+        .select("file_path")
+        .eq("id", data.ai_upload_id)
+        .maybeSingle();
+      if (up?.file_path) file_path = up.file_path;
+    }
+
     const { data: inv, error } = await supabase
       .from("invoices")
       .insert({
         user_id: userId,
-        file_path: `manual/${Date.now()}`,
+        file_path,
+        file_hash: data.file_hash ?? null,
         supplier_id: data.supplier_id,
         supplier_name: data.supplier_name,
         supplier_tax_id: data.supplier_tax_id,
