@@ -305,21 +305,37 @@ export async function buildBulkPlan(opts: {
           base64: att.base64,
           fileHash,
         });
-        // Ưu tiên AI khi confidence >= 0.5; nếu thấp hơn, giữ heuristic
-        if (ai.confidence >= 0.5) {
-          finalGroup = kindToGroup(ai.kind);
-          finalKind = kindToItemKind(ai.kind);
-          finalBucket = decideBucket(ai.kind, ai.confidence);
-          finalConfidence = ai.confidence;
-          finalReason =
-            ai.kind === "other"
-              ? `Không liên quan kế toán — ${ai.reason}`
-              : ai.kind === "sales_invoice"
-                ? `Hoá đơn đầu ra — ${ai.reason}`
-                : ai.reason;
+        // AI là nguồn chính. Heuristic chỉ giữ khi AI lỗi.
+        finalGroup = kindToGroup(ai.kind);
+        finalKind = kindToItemKind(ai.kind);
+        finalConfidence = ai.confidence;
+        finalReason =
+          ai.kind === "other"
+            ? `Không phải chứng từ kế toán — ${ai.reason}`
+            : ai.kind === "sales_invoice"
+              ? `HĐ đầu ra — ${ai.reason}`
+              : ai.kind === "bank_statement"
+                ? `Sao kê NH — ${ai.reason}`
+                : ai.kind === "cash_voucher"
+                  ? `Phiếu thu/chi — ${ai.reason}`
+                  : ai.reason;
+
+        // Bucket: AI conf cao → auto, trung bình → review, thấp → ask
+        if (ai.kind === "other") {
+          finalBucket = "ask";
+        } else if (ai.kind === "sales_invoice" || ai.kind === "bank_statement" || ai.kind === "cash_voucher") {
+          // Các loại này luôn cần sếp xem lại (chưa có flow auto-post)
+          finalBucket = "review";
+        } else if (ai.kind === "purchase_invoice") {
+          if (ai.confidence >= 0.85) finalBucket = "auto";
+          else if (ai.confidence >= 0.5) finalBucket = "review";
+          else finalBucket = "ask";
         }
       } catch (e: any) {
         console.warn("[bulk-intake] classify err:", e?.message);
+        // AI lỗi → hạ bucket xuống ask để sếp xác nhận, không tin heuristic
+        finalBucket = "ask";
+        finalReason = `${cls.reason} (AI phân loại lỗi — cần sếp xác nhận)`;
       }
     }
 
