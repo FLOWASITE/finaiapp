@@ -323,6 +323,9 @@ function ThreadPage() {
           toolEvents.push(ev);
           if (ev.toolName === "proposeAction") sawProposeAction = true;
           updateLast({ toolEvents: [...toolEvents] });
+        } else if (ev.type === "tool-progress") {
+          toolEvents.push(ev);
+          updateLast({ toolEvents: [...toolEvents] });
         } else if (ev.type === "tool-result") {
           toolEvents.push(ev);
           updateLast({ toolEvents: [...toolEvents] });
