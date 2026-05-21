@@ -1,8 +1,9 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2 } from "lucide-react";
+import { ArrowUp, Square, Paperclip, Mic, MicOff, Loader2, X, FileText } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -56,7 +57,7 @@ export type ComposerProps = {
    * thay vì tự parse + điều hướng /import/preview.
    * Dùng để xử lý chứng từ NGAY TRONG phòng hội thoại.
    */
-  onAttach?: (files: AttachmentPayload[]) => void;
+  onAttach?: (files: AttachmentPayload[], note?: string) => void;
 };
 
 export function Composer({
@@ -87,6 +88,8 @@ export function Composer({
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [decisions, setDecisions] = useState<Record<number, ClassifyDecision>>({});
   const [parsedItems, setParsedItems] = useState<Array<{ filename: string; kind: ImportKind; parsed: any; file_hash: string | null; uploadId: string | null }>>([]);
+  const [pending, setPending] = useState<AttachmentPayload[]>([]);
+
   const navigate = useNavigate();
   const parseFn = useServerFn(parseDocument);
   const classifyFn = useServerFn(classifyImports);
@@ -106,12 +109,45 @@ export function Composer({
     el.style.height = Math.min(el.scrollHeight, max) + "px";
   }, [value, compact]);
 
+  const canSubmit = () => !disabled && !loading && !uploading && (value.trim().length > 0 || pending.length > 0);
+
+  const doSubmit = () => {
+    if (!canSubmit()) return;
+    if (pending.length > 0 && onAttach) {
+      const note = value.trim();
+      const files = pending;
+      setPending([]);
+      onChange("");
+      onAttach(files, note || undefined);
+      return;
+    }
+    onSubmit();
+  };
+
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (!disabled && !loading && value.trim()) onSubmit();
+      doSubmit();
     }
   };
+
+  const removePending = (idx: number) =>
+    setPending((prev) => prev.filter((_, i) => i !== idx));
+
+  const previewUrl = useMemo(
+    () =>
+      pending.map((p) =>
+        p.mime.startsWith("image/") ? `data:${p.mime};base64,${p.base64}` : null,
+      ),
+    [pending],
+  );
+
+  const formatSize = (n: number) => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  };
+
 
   // ----- Mic (Web Speech API) -----
   const toggleVoice = () => {
@@ -190,7 +226,7 @@ export function Composer({
     const valid = validateFiles(files);
     if (!valid.length) return;
 
-    // --- New path: hand off to parent (xử lý ngay trong phòng chat) ---
+    // --- New path: stash as pending chips, gửi cùng message khi user bấm Gửi ---
     if (onAttach) {
       setUploading(true);
       const toastId = toast.loading(`Đang đọc ${valid.length} file…`);
@@ -200,8 +236,10 @@ export function Composer({
           const base64 = await readBase64(f);
           payloads.push({ name: f.name, mime: f.type, size: f.size, base64, kind });
         }
+        setPending((prev) => [...prev, ...payloads]);
         toast.success(`Đã đính kèm ${payloads.length} file`, { id: toastId });
-        onAttach(payloads);
+        // Focus lại textarea để user gõ ghi chú.
+        setTimeout(() => ref.current?.focus(), 0);
       } catch (e: any) {
         toast.error(e?.message || "Không đọc được file", { id: toastId });
       } finally {
@@ -210,6 +248,7 @@ export function Composer({
       }
       return;
     }
+
 
     // --- Legacy path: parse client-side + show 2-phase dialog ---
     setUploading(true);
@@ -406,17 +445,65 @@ export function Composer({
           compact ? "min-h-[48px]" : "min-h-[60px]",
         )}
       >
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKey}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder={recording ? "Đang nghe…" : placeholder}
-          rows={1}
-          className="flex-1 resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
-        />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {pending.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {pending.map((p, i) => {
+                const isImg = p.mime.startsWith("image/");
+                return (
+                  <div
+                    key={`${p.name}-${i}`}
+                    className="group/chip relative flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 py-1.5 pl-1.5 pr-7 shadow-sm"
+                  >
+                    {isImg && previewUrl[i] ? (
+                      <img
+                        src={previewUrl[i] as string}
+                        alt={p.name}
+                        className="h-9 w-9 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div className="min-w-0 max-w-[180px]">
+                      <div className="truncate text-xs font-medium text-foreground">{p.name}</div>
+                      <div className="text-[10px] uppercase text-muted-foreground">
+                        {(p.mime.split("/")[1] || "file").toUpperCase()} · {formatSize(p.size)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePending(i)}
+                      aria-label={`Bỏ ${p.name}`}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <textarea
+            ref={ref}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKey}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={
+              recording
+                ? "Đang nghe…"
+                : pending.length > 0
+                  ? "Thêm ghi chú cho file (tuỳ chọn)…"
+                  : placeholder
+            }
+            rows={1}
+            className="w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60"
+          />
+        </div>
+
 
         {enableAttach && (
           <Button
@@ -473,8 +560,9 @@ export function Composer({
           <Button
             type="button"
             size="icon"
-            onClick={onSubmit}
-            disabled={disabled || busy || !value.trim()}
+            onClick={doSubmit}
+            disabled={!canSubmit()}
+
             className={cn(
               "h-9 w-9 shrink-0 rounded-2xl transition-transform",
               "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95",

@@ -282,14 +282,15 @@ function ThreadPage() {
     await sendUserMessage(q);
   };
 
-  const handleAttach = (payloads: any[]) => {
+  const handleAttach = (payloads: any[], note?: string) => {
     if (!payloads.length || streaming) return;
     try {
       sessionStorage.setItem(`__attach:${threadId}`, JSON.stringify(payloads));
     } catch {}
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
+    const fallback = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     void sendUserMessage(
-      `Xử lý ${payloads.length} chứng từ:\n${summary}`,
+      note && note.trim() ? note.trim() : fallback,
       payloads.map((p) => ({
         name: p.name,
         mime: p.mime,
@@ -298,6 +299,7 @@ function ThreadPage() {
       })),
     );
   };
+
 
   useEffect(() => {
     const onDockSend = (e: Event) => {
