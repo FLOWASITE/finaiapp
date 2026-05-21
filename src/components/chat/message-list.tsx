@@ -138,6 +138,7 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
               </div>
             )}
           </div>
+          </div>
         );
       })}
     </div>
