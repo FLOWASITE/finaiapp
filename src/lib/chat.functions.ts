@@ -265,16 +265,17 @@ export const askAccountingStream = createServerFn({ method: "POST" })
           }
         }
         await parsePromise; // ensure settled
+        const settled = finished as { ok?: any; err?: any };
 
-        if (finished!.err) {
+        if (settled.err) {
           yield {
             type: "tool-result",
             toolCallId: callId,
-            output: { error: finished!.err?.message || "parse error", filename: att.name },
+            output: { error: settled.err?.message || "parse error", filename: att.name },
             isError: true,
           } as AskStreamEvent;
         } else {
-          const r = finished!.ok;
+          const r = settled.ok;
           parsedAttachments.push({ name: att.name, kind: att.kind, parsed: r.parsed });
           const t = (r as any).timings ?? {};
           const phases = [
