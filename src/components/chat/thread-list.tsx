@@ -142,7 +142,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-white/5 bg-[oklch(0.09_0.02_260)] transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-slate-200/70 bg-white transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
