@@ -335,6 +335,8 @@ function ThreadPage() {
       mime: a.mime,
       size: a.size,
       kind: a.kind,
+      uploadId: a.uploadId ?? null,
+      file_hash: a.file_hash ?? null,
     }));
     const next: ChatMsg[] = [
       ...baseMsgs,
@@ -363,8 +365,10 @@ function ThreadPage() {
         toast.error(e?.message || "Không lưu được tin nhắn");
       }
     })();
-    const withBase64 = attachments?.filter((a) => typeof a.base64 === "string" && a.base64);
-    runAssistant(next, withBase64 && withBase64.length ? withBase64 : undefined);
+    const runnableAttachments = attachments?.filter(
+      (a) => (typeof a.base64 === "string" && a.base64) || a.uploadId,
+    );
+    runAssistant(next, runnableAttachments && runnableAttachments.length ? runnableAttachments : undefined);
   };
 
   const send = async () => {
