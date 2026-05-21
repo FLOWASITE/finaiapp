@@ -137,33 +137,42 @@ export function XmlInvoicePreview({
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
+      <div className={cn("flex items-start justify-between gap-2 pt-3 pb-2", px)}>
         <div>
           <div
-            className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+            className={cn("font-semibold uppercase tracking-[0.22em]", titleCls)}
             style={{ color: RED }}
           >
             Hoá đơn GTGT
           </div>
-          <div className="mt-0.5 text-[9px] text-muted-foreground">
+          <div className={cn("mt-0.5 text-muted-foreground", isLarge ? "text-[11px]" : "text-[9.5px]")}>
             VAT Invoice · Bản thể hiện
           </div>
           {adjustLabel && (
-            <div className="mt-1 inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <div className={cn(
+              "mt-1 inline-block rounded bg-amber-500/10 px-1.5 py-0.5 font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400",
+              isLarge ? "text-[10px]" : "text-[9px]",
+            )}>
               {adjustLabel}
             </div>
           )}
         </div>
         <div className="flex flex-col items-end gap-1">
           {data.seller_signed && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              <ShieldCheck className="h-2.5 w-2.5" />
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400",
+              isLarge ? "text-[10px]" : "text-[9px]",
+            )}>
+              <ShieldCheck className="h-3 w-3" />
               Đã ký số
             </span>
           )}
           {data.cqt_signed && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-sky-600 dark:text-sky-400">
-              <BadgeCheck className="h-2.5 w-2.5" />
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-1.5 py-0.5 font-medium uppercase tracking-wider text-sky-600 dark:text-sky-400",
+              isLarge ? "text-[10px]" : "text-[9px]",
+            )}>
+              <BadgeCheck className="h-3 w-3" />
               Mã CQT
             </span>
           )}
@@ -171,52 +180,52 @@ export function XmlInvoicePreview({
       </div>
 
       {/* Meta row */}
-      <div className="grid grid-cols-3 gap-2 border-t border-border/60 px-3.5 py-2">
-        <MetaCell label="Số" value={data.invoice_no || "—"} accent />
-        <MetaCell label="Ký hiệu" value={data.series || "—"} mono />
-        <MetaCell label="Ngày" value={fmtDate(data.issue_date)} />
+      <div className={cn("grid grid-cols-3 gap-2 border-t border-border/60 py-2.5", px)}>
+        <MetaCell label="Số" value={data.invoice_no || "—"} valueCls={metaValCls} accent />
+        <MetaCell label="Ký hiệu" value={data.series || "—"} valueCls={metaValCls} mono />
+        <MetaCell label="Ngày" value={fmtDate(data.issue_date)} valueCls={metaValCls} />
         {seriesLabel && (
-          <div className="col-span-3 -mt-1 text-[9px] text-muted-foreground">
+          <div className={cn("col-span-3 -mt-1 text-muted-foreground", isLarge ? "text-[10px]" : "text-[9px]")}>
             {seriesLabel}
           </div>
         )}
       </div>
 
       {/* Seller */}
-      <section className="border-t border-border/60 px-3.5 py-2">
-        <SectionLabel>Người bán</SectionLabel>
-        <div className="mt-0.5 text-[12px] font-semibold text-foreground">
+      <section className={cn("border-t border-border/60 py-2.5", px)}>
+        <SectionLabel large={isLarge}>Người bán</SectionLabel>
+        <div className={cn("mt-0.5 font-semibold text-foreground", partyNameCls)}>
           {seller.name || "—"}
         </div>
-        <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+        <div className={cn("mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-muted-foreground", partyMetaCls)}>
           {seller.tax_id && (
             <span>
               MST <span className="font-mono font-semibold text-foreground">{seller.tax_id}</span>
             </span>
           )}
           {seller.address && (
-            <span className="line-clamp-1 flex-1 min-w-0">{seller.address}</span>
+            <span className={cn("flex-1 min-w-0", isLarge ? "" : "line-clamp-1")}>{seller.address}</span>
           )}
         </div>
       </section>
 
       {/* Buyer */}
       {(buyer.name || buyer.tax_id || buyer.address) && (
-        <section className="border-t border-border/60 px-3.5 py-2">
-          <SectionLabel>Người mua</SectionLabel>
+        <section className={cn("border-t border-border/60 py-2.5", px)}>
+          <SectionLabel large={isLarge}>Người mua</SectionLabel>
           {buyer.name && (
-            <div className="mt-0.5 text-[12px] font-semibold text-foreground">
+            <div className={cn("mt-0.5 font-semibold text-foreground", partyNameCls)}>
               {buyer.name}
             </div>
           )}
-          <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+          <div className={cn("mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-muted-foreground", partyMetaCls)}>
             {buyer.tax_id && (
               <span>
                 MST <span className="font-mono font-semibold text-foreground">{buyer.tax_id}</span>
               </span>
             )}
             {buyer.address && (
-              <span className="line-clamp-1 flex-1 min-w-0">{buyer.address}</span>
+              <span className={cn("flex-1 min-w-0", isLarge ? "" : "line-clamp-1")}>{buyer.address}</span>
             )}
           </div>
         </section>
@@ -224,18 +233,18 @@ export function XmlInvoicePreview({
 
       {/* Lines */}
       {visible.length > 0 && (
-        <section className="border-t border-border/60 px-3.5 py-2">
-          <SectionLabel>Chi tiết</SectionLabel>
-          <table className="mt-1 w-full table-fixed border-collapse text-[10px]">
+        <section className={cn("border-t border-border/60 py-2.5", px)}>
+          <SectionLabel large={isLarge}>Chi tiết</SectionLabel>
+          <table className={cn("mt-1.5 w-full table-fixed border-collapse", tableCls)}>
             <thead>
-              <tr className="text-left text-[9px] uppercase tracking-wider text-muted-foreground">
-                <th className="w-5 pb-1 font-medium">#</th>
+              <tr className={cn("text-left uppercase tracking-wider text-muted-foreground", tableHeadCls)}>
+                <th className="w-6 pb-1 font-medium">#</th>
                 <th className="pb-1 font-medium">Hàng hoá</th>
-                <th className="w-9 pb-1 text-right font-medium">SL</th>
-                <th className="w-16 pb-1 text-right font-medium">Đơn giá</th>
-                <th className="w-16 pb-1 text-right font-medium">T.tiền</th>
+                <th className={cn("pb-1 text-right font-medium", isLarge ? "w-14" : "w-10")}>SL</th>
+                <th className={cn("pb-1 text-right font-medium", isLarge ? "w-24" : "w-20")}>Đơn giá</th>
+                <th className={cn("pb-1 text-right font-medium", isLarge ? "w-28" : "w-20")}>T.tiền</th>
                 {hasAnyVatRate && (
-                  <th className="w-10 pb-1 text-right font-medium">VAT</th>
+                  <th className={cn("pb-1 text-right font-medium", isLarge ? "w-14" : "w-12")}>VAT</th>
                 )}
               </tr>
             </thead>
@@ -245,24 +254,24 @@ export function XmlInvoicePreview({
                   key={i}
                   className="border-t border-border/40 align-top even:bg-muted/30"
                 >
-                  <td className="py-1 text-muted-foreground">{i + 1}</td>
-                  <td className="py-1 pr-1">
-                    <div className="line-clamp-2 text-foreground">
+                  <td className="py-1.5 text-muted-foreground">{i + 1}</td>
+                  <td className="py-1.5 pr-2">
+                    <div className={cn("text-foreground", isLarge ? "" : "line-clamp-2")}>
                       {l.description || "—"}
                     </div>
                     {l.unit && (
-                      <div className="text-[9px] text-muted-foreground">
+                      <div className={cn("text-muted-foreground", isLarge ? "text-[11px]" : "text-[9.5px]")}>
                         ĐVT: {l.unit}
                       </div>
                     )}
                   </td>
-                  <td className="py-1 text-right font-mono">
+                  <td className="py-1.5 text-right font-mono">
                     {l.qty != null ? fmt(l.qty) : "—"}
                   </td>
-                  <td className="py-1 text-right font-mono">{fmt(l.unit_price)}</td>
-                  <td className="py-1 text-right font-mono">{fmt(l.amount)}</td>
+                  <td className="py-1.5 text-right font-mono">{fmt(l.unit_price)}</td>
+                  <td className="py-1.5 text-right font-mono">{fmt(l.amount)}</td>
                   {hasAnyVatRate && (
-                    <td className="py-1 text-right font-mono text-muted-foreground">
+                    <td className="py-1.5 text-right font-mono text-muted-foreground">
                       {fmtVatRate(l.vat_rate) || "—"}
                     </td>
                   )}
@@ -271,7 +280,7 @@ export function XmlInvoicePreview({
             </tbody>
           </table>
           {moreCount > 0 && (
-            <div className="mt-1 text-center text-[9px] italic text-muted-foreground">
+            <div className="mt-1 text-center text-[10px] italic text-muted-foreground">
               … +{moreCount} dòng khác
             </div>
           )}
@@ -279,8 +288,8 @@ export function XmlInvoicePreview({
       )}
 
       {/* Totals */}
-      <section className="border-t border-border/60 px-3.5 py-2">
-        <dl className="grid grid-cols-[1fr_auto] gap-y-0.5 text-[10.5px]">
+      <section className={cn("border-t border-border/60 py-2.5", px)}>
+        <dl className={cn("grid grid-cols-[1fr_auto] gap-y-0.5", totalsCls)}>
           <dt className="text-muted-foreground">Cộng tiền hàng</dt>
           <dd className="font-mono text-foreground">{fmt(t.subtotal)}</dd>
           {t.discount_total ? (
@@ -292,39 +301,48 @@ export function XmlInvoicePreview({
           <dt className="text-muted-foreground">Thuế GTGT</dt>
           <dd className="font-mono text-foreground">{fmt(t.vat_amount)}</dd>
           <dt
-            className="mt-1 border-t-2 border-border pt-1 text-[10.5px] font-semibold uppercase tracking-wider"
+            className={cn(
+              "mt-1.5 border-t-2 border-border pt-1.5 font-semibold uppercase tracking-wider",
+              grandLabelCls,
+            )}
             style={{ color: RED }}
           >
             Tổng thanh toán
           </dt>
           <dd
-            className="mt-1 border-t-2 border-border pt-1 font-mono text-[14px] font-bold"
+            className={cn(
+              "mt-1.5 border-t-2 border-border pt-1.5 font-mono font-bold",
+              grandCls,
+            )}
             style={{ color: RED }}
           >
             {fmt(t.total)} {data.currency || "₫"}
           </dd>
         </dl>
         {t.total_in_words && (
-          <div className="mt-1 line-clamp-2 text-[9px] italic text-muted-foreground">
+          <div className={cn("mt-1 italic text-muted-foreground", isLarge ? "text-[11px]" : "text-[10px]")}>
             Bằng chữ: {t.total_in_words}
           </div>
         )}
       </section>
 
       {/* Footer */}
-      <section className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/30 px-3.5 py-1.5">
+      <section className={cn("flex items-center justify-between gap-2 border-t border-border/60 bg-muted/30 py-2", px)}>
         {data.cqt_code ? (
           <button
             type="button"
             onClick={onCopyCqt}
-            className="group flex min-w-0 items-center gap-1 truncate text-left text-[9px] text-muted-foreground hover:text-foreground"
+            className={cn(
+              "group flex min-w-0 items-center gap-1 truncate text-left text-muted-foreground hover:text-foreground",
+              footerCls,
+            )}
             title={`Mã CQT: ${data.cqt_code} — bấm để copy`}
           >
             <Copy className="h-3 w-3 shrink-0 opacity-60 group-hover:opacity-100" />
             <span className="truncate font-mono">CQT: {data.cqt_code}</span>
           </button>
         ) : (
-          <span className="text-[9px] text-muted-foreground">Hoá đơn điện tử</span>
+          <span className={cn("text-muted-foreground", footerCls)}>Hoá đơn điện tử</span>
         )}
         {signedUrl ? (
           <a
@@ -333,8 +351,8 @@ export function XmlInvoicePreview({
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-wider",
-              "hover:underline",
+              "inline-flex shrink-0 items-center gap-1 font-semibold uppercase tracking-wider hover:underline",
+              footerCls,
             )}
             style={{ color: RED }}
           >
@@ -352,20 +370,23 @@ function MetaCell({
   value,
   mono,
   accent,
+  valueCls,
 }: {
   label: string;
   value: string;
   mono?: boolean;
   accent?: boolean;
+  valueCls?: string;
 }) {
   return (
     <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div
         className={cn(
-          "truncate text-[11px] font-semibold",
+          "truncate font-semibold",
+          valueCls ?? "text-[12.5px]",
           mono || accent ? "font-mono" : "",
         )}
         style={accent ? { color: RED } : undefined}
@@ -377,9 +398,12 @@ function MetaCell({
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children, large }: { children: React.ReactNode; large?: boolean }) {
   return (
-    <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className={cn(
+      "font-semibold uppercase tracking-wider text-muted-foreground",
+      large ? "text-[10.5px]" : "text-[9.5px]",
+    )}>
       {children}
     </div>
   );
