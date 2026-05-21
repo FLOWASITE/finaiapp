@@ -209,7 +209,7 @@ export const createManualInvoice = createServerFn({ method: "POST" })
         department_id: data.department_id || null,
         project_id: data.project_id || null,
         cost_center_id: data.cost_center_id || null,
-        status: "extracted",
+        status: "ai_read",
       })
       .select("id")
       .single();
