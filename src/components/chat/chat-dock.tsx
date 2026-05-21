@@ -16,6 +16,14 @@ function currentThreadId(pathname: string): string | null {
   return m ? m[1] : null;
 }
 
+function collapseChatSidebar() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("chat:sidebar-collapsed", "1");
+  } catch {}
+  window.dispatchEvent(new Event("chat-sidebar-toggle"));
+}
+
 /**
  * Khung chat dock ở footer các trang trong Mode AI.
  * Composer đã tích hợp sẵn Paperclip (parse chứng từ) và Mic (Web Speech).
@@ -137,6 +145,7 @@ export function ChatDock() {
           ["chat", "threads", "recent", "all"],
           (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
         );
+        collapseChatSidebar();
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
@@ -203,6 +212,7 @@ export function ChatDock() {
           ["chat", "threads", "recent", "all"],
           (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
         );
+        collapseChatSidebar();
         navigate({
           to: "/chat/$threadId",
           params: { threadId: res.thread.id },
