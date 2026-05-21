@@ -757,7 +757,7 @@ function CreateVoucherDialog({
                         ...header,
                         invoice_id: v,
                         invoice_no: inv.invoice_no ?? "",
-                        invoice_date: inv.invoice_date ?? "",
+                        invoice_date: inv.issue_date ?? "",
                         supplier_id: inv.supplier_id ?? header.supplier_id,
                         supplier_name: inv.supplier_name ?? header.supplier_name,
                       });
