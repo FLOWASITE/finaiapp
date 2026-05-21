@@ -2,8 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowDown } from "lucide-react";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { AlertTriangle, ArrowDown, PanelLeft } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
@@ -42,22 +41,20 @@ function ThreadPage() {
   const appendFn = useServerFn(appendMessage);
   const askFn = useServerFn(askAccountingStream);
   const deleteLastFn = useServerFn(deleteLastAssistantMessage);
-  const { setOpen: setAppSidebarOpen } = useSidebar();
-
-  // Khi vào thread từ ChatDock (có autostart) trên Desktop: đóng AppSidebar
-  // (Mode AI) + mở History sidebar. Chỉ chạy 1 lần khi mount.
+  // Khi vào thread từ ChatDock (có autostart) trên Desktop: mở History sidebar
+  // cho chat. KHÔNG dùng useSidebar() vì route có thể bị mount trong layout
+  // chromeless (ví dụ điều hướng từ /inbox) — sẽ crash thread + làm mất
+  // ngữ cảnh file attach trong sessionStorage.
   useEffect(() => {
     if (!autostart) return;
     if (typeof window === "undefined") return;
     const isDesktop = window.matchMedia("(min-width: 768px)").matches;
     if (!isDesktop) return;
-    setAppSidebarOpen(false);
     try {
       localStorage.setItem("chat:sidebar-collapsed", "0");
     } catch {}
     window.dispatchEvent(new Event("chat-sidebar-toggle"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autostart]);
 
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -609,7 +606,14 @@ function ThreadPage() {
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
       <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-4">
-          <SidebarTrigger className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900" />
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("chat-sidebar-toggle"))}
+            aria-label="Mở/đóng danh sách hội thoại"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-semibold text-slate-800">
               {query.data?.thread.title ?? "Cuộc trò chuyện"}
