@@ -147,6 +147,63 @@ function withSchemaWarning(value: any, warning: string, rawText?: string) {
   return { raw: value ?? rawText ?? null, _schemaWarning: warning };
 }
 
+function normalizeFileMime(mimeType: string, filename?: string): string {
+  const name = (filename || "").toLowerCase();
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".xml") && !mimeType.toLowerCase().includes("xml")) return "application/xml";
+  return mimeType || "application/octet-stream";
+}
+
+function toNullableString(value: any): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function toNullableNumber(value: any): number | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNote?: string | null) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const lines = Array.isArray(source.lines)
+    ? source.lines.map((line: any) => ({
+        description: toNullableString(line?.description) || "Hàng hoá / dịch vụ",
+        qty: toNullableNumber(line?.qty),
+        unit_price: toNullableNumber(line?.unit_price),
+        amount: toNullableNumber(line?.amount),
+        vat_rate: toNullableNumber(line?.vat_rate),
+      }))
+    : [];
+  return {
+    ...source,
+    vendor_name: toNullableString(source.vendor_name),
+    vendor_tax_id: toNullableString(source.vendor_tax_id),
+    invoice_no: toNullableString(source.invoice_no),
+    issue_date: toNullableString(source.issue_date),
+    currency: toNullableString(source.currency) || "VND",
+    subtotal: toNullableNumber(source.subtotal),
+    vat_amount: toNullableNumber(source.vat_amount),
+    total: toNullableNumber(source.total),
+    lines,
+    notes: toNullableString(source.notes),
+    ...(rawText ? { _rawText: rawText.slice(0, 12000) } : {}),
+    ...(parserNote ? { _parserNotes: parserNote } : {}),
+  };
+}
+
+function isEmptyPurchaseInvoice(parsed: any): boolean {
+  return !parsed?.vendor_name && !parsed?.invoice_no && !parsed?.issue_date &&
+    !(Number(parsed?.subtotal) > 0) && !(Number(parsed?.total) > 0) &&
+    !(Array.isArray(parsed?.lines) && parsed.lines.length > 0);
+}
+
 async function generateJsonBestEffort(opts: {
   model: any;
   messages: any[];
@@ -163,11 +220,12 @@ async function generateJsonBestEffort(opts: {
     console.warn(`[parse-document] ${opts.label} returned no JSON`);
     return withSchemaWarning(opts.fallback, "AI returned no valid JSON", r.text);
   }
+  const normalized = opts.label === "purchase_invoice" ? normalizePurchaseInvoice(json) : json;
   if (!opts.schema) return json;
-  const checked = opts.schema.safeParse(json);
+  const checked = opts.schema.safeParse(normalized);
   if (checked.success) return checked.data;
   console.warn(`[parse-document] ${opts.label} schema mismatch:`, checked.error.message);
-  return withSchemaWarning(json, checked.error.message);
+  return withSchemaWarning(normalized, "Kết quả AI chưa khớp hoàn toàn schema, đã chuẩn hóa dữ liệu tốt nhất có thể.");
 }
 
 function schemaFor(kind: string) {
@@ -319,7 +377,8 @@ async function acquireSource(
   kind: "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto",
 ): Promise<{ source: Source; parserMs: number; tierChoice?: TierChoice }> {
   const start = Date.now();
-  const isPdf = mimeType === "application/pdf";
+  const normalizedMimeType = normalizeFileMime(mimeType, filename);
+  const isPdf = normalizedMimeType === "application/pdf";
   const fileBytes = Math.floor((fileBase64.length * 3) / 4);
   let knownPageCount: number | null = null;
 
@@ -352,12 +411,12 @@ async function acquireSource(
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   if (llamaCandidate && isLlamaParseEnabled()) {
-    const tierChoice = pickLlamaTier(kind, mimeType, fileBytes, knownPageCount);
+      const tierChoice = pickLlamaTier(kind, normalizedMimeType, fileBytes, knownPageCount);
     console.log(`[parse-document] LlamaParse tier=${tierChoice.tier} — ${tierChoice.reason}`);
     try {
       const r = await llamaParseDocument({
         fileBase64,
-        mimeType,
+          mimeType: normalizedMimeType,
         filename,
         tier: tierChoice.tier,
       });
@@ -757,6 +816,7 @@ export async function parseFileCore(opts: {
     try { opts.onPhase?.(p); } catch {}
   };
   const fileBuf = Buffer.from(opts.fileBase64, "base64");
+  const mimeType = normalizeFileMime(opts.mimeType, opts.filename);
   const fileHash = await hashBase64(opts.fileBase64);
 
   // ---- 0. Upload file gốc NGAY (trước parse) - luôn có audit trail dù parse fail/cache hit.
@@ -768,7 +828,7 @@ export async function parseFileCore(opts: {
       fileBuf,
       fileHash,
       filename: opts.filename,
-      mimeType: opts.mimeType,
+      mimeType,
       kind: opts.kind,
     });
   }
@@ -787,7 +847,7 @@ export async function parseFileCore(opts: {
   };
 
   try {
-    if (isXmlFile(opts.mimeType, opts.filename)) {
+    if (isXmlFile(mimeType, opts.filename)) {
       try {
         const parsedXml = parseEinvoiceXml(fileBuf.toString("utf8"));
         const parsed = parsedXmlToPurchaseInvoice(parsedXml);
@@ -829,12 +889,18 @@ export async function parseFileCore(opts: {
     if (opts.supabase && opts.kind !== "auto") {
       const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
       if (cached) {
+        const cachedParsed = opts.kind === "purchase_invoice"
+          ? normalizePurchaseInvoice(cached.parsed, null, "Đọc từ cache parse trước đó.")
+          : cached.parsed;
+        if (opts.kind === "purchase_invoice" && mimeType === "application/pdf" && isEmptyPurchaseInvoice(cachedParsed)) {
+          console.warn("[parse-document] ignoring empty invoice cache for PDF, retrying parser");
+        } else {
         if (uploadId) {
           try {
             await opts.supabase
               .from("ai_uploads")
               .update({
-                parsed: typeof cached.parsed === "string" ? { raw: cached.parsed } : cached.parsed,
+                parsed: typeof cachedParsed === "string" ? { raw: cachedParsed } : cachedParsed,
                 parser_used: cached.parser_used || "cache",
                 pages: cached.pages,
                 status: "parsed",
@@ -845,19 +911,20 @@ export async function parseFileCore(opts: {
               supabase: opts.supabase,
               uploadId,
               status: "done",
-              parsed: typeof cached.parsed === "string" ? { raw: cached.parsed } : cached.parsed,
+              parsed: typeof cachedParsed === "string" ? { raw: cachedParsed } : cachedParsed,
             });
           } catch {}
         }
         return {
           kind: opts.kind,
           uploadId,
-          parsed: cached.parsed,
+          parsed: cachedParsed,
           parser: cached.parser_used || "cache",
           cached: true,
           pages: cached.pages,
           file_hash: fileHash,
         };
+        }
       }
     }
 
@@ -865,7 +932,7 @@ export async function parseFileCore(opts: {
     emitPhase({ name: "ocr", status: "start" });
     const { source, parserMs } = await acquireSource(
       opts.fileBase64,
-      opts.mimeType,
+      mimeType,
       opts.filename,
       opts.kind,
     );
@@ -906,7 +973,7 @@ export async function parseFileCore(opts: {
                       text:
                         "Phân loại tài liệu là: purchase_invoice / bank_statement / cash_voucher / unknown.",
                     },
-                    { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                    { type: "file" as const, data: fileBuf, mediaType: mimeType } as any,
                   ],
                 },
               ];
@@ -934,7 +1001,7 @@ export async function parseFileCore(opts: {
         fileBuf,
         fileHash,
         filename: opts.filename,
-        mimeType: opts.mimeType,
+        mimeType,
         kind: effectiveKind,
       });
       if (reUp?.uploadId) uploadId = reUp.uploadId;
@@ -947,7 +1014,7 @@ export async function parseFileCore(opts: {
 
     try {
       if (effectiveKind === "bank_statement") {
-        parsed = await structureBankStatement(source, textModel, visionModel, fileBuf, opts.mimeType);
+        parsed = await structureBankStatement(source, textModel, visionModel, fileBuf, mimeType);
       } else {
         const schema = schemaFor(effectiveKind);
         const promptHead = PROMPTS[effectiveKind] || "Trích xuất dữ liệu từ tài liệu.";
@@ -974,7 +1041,7 @@ export async function parseFileCore(opts: {
                   role: "user" as const,
                   content: [
                     { type: "text" as const, text: promptHead + PROMPT_TAIL },
-                    { type: "file" as const, data: fileBuf, mediaType: opts.mimeType } as any,
+                    { type: "file" as const, data: fileBuf, mediaType: mimeType } as any,
                   ],
                 },
               ];
@@ -1003,7 +1070,7 @@ export async function parseFileCore(opts: {
               role: "user",
               content: [
                 { type: "text", text: (PROMPTS[effectiveKind] || "") + PROMPT_TAIL },
-                { type: "file", data: fileBuf, mediaType: opts.mimeType } as any,
+                { type: "file", data: fileBuf, mediaType: mimeType } as any,
               ],
             },
           ],
@@ -1011,6 +1078,51 @@ export async function parseFileCore(opts: {
         parsed = extractJSON(r.text) ?? { raw: r.text, _schemaError: err?.message };
       } catch (err2: any) {
         parsed = { raw: null, _schemaError: err?.message, _fallbackError: err2?.message };
+      }
+    }
+    let parserUsed = source.parser;
+    if (effectiveKind === "purchase_invoice") {
+      const rawText = source.kind === "markdown" ? source.markdown : null;
+      parsed = normalizePurchaseInvoice(parsed, rawText, `Đã đọc bằng ${source.parser}.`);
+
+      if (mimeType === "application/pdf" && source.kind === "markdown" && isEmptyPurchaseInvoice(parsed)) {
+        try {
+          const retry = await generateJsonBestEffort({
+            model: visionModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      PROMPTS.purchase_invoice +
+                      PROMPT_TAIL +
+                      "\n\nPDF này có thể là bản scan hoặc text-layer nghèo. Hãy OCR trực tiếp từ file gốc và ưu tiên lấy NCC, MST, số hóa đơn, ngày, tổng tiền, dòng hàng.",
+                  },
+                  { type: "file", data: fileBuf, mediaType: mimeType } as any,
+                ],
+              },
+            ],
+            schema: PurchaseInvoiceSchema,
+            fallback: parsed,
+            label: "purchase_invoice",
+          });
+          const normalizedRetry = normalizePurchaseInvoice(
+            retry,
+            rawText,
+            `Kết quả ${source.parser} thiếu dữ liệu chính, đã retry bằng Vision trên PDF gốc.`,
+          );
+          if (!isEmptyPurchaseInvoice(normalizedRetry)) {
+            parsed = normalizedRetry;
+            parserUsed = `${source.parser}+vision`;
+          }
+        } catch (retryErr: any) {
+          parsed = {
+            ...parsed,
+            _parserNotes: `Đã đọc bằng ${source.parser}; retry Vision không thành công: ${retryErr?.message || "unknown"}`,
+          };
+        }
       }
     }
     const structurerMs = Date.now() - structStart;
@@ -1025,7 +1137,7 @@ export async function parseFileCore(opts: {
 
     // ---- 6. Write to cache
     if (opts.supabase && effectiveKind !== "auto") {
-      await writeParseCache(opts.supabase, fileHash, effectiveKind, parsed, source.parser, source.pageCount || null);
+      await writeParseCache(opts.supabase, fileHash, effectiveKind, parsed, parserUsed, source.pageCount || null);
     }
 
     // ---- 7. Update ai_uploads với kết quả parse
@@ -1036,7 +1148,7 @@ export async function parseFileCore(opts: {
           .update({
             kind: effectiveKind,
             parsed: typeof parsed === "string" ? { raw: parsed } : parsed,
-            parser_used: source.parser,
+            parser_used: parserUsed,
             parser_ms: parserMs,
             structurer_ms: structurerMs,
             pages: source.pageCount || null,
@@ -1059,7 +1171,7 @@ export async function parseFileCore(opts: {
       kind: effectiveKind,
       uploadId,
       parsed,
-      parser: source.parser,
+      parser: parserUsed,
       cached: false,
       pages: source.pageCount || null,
       timings: { parserMs, structurerMs },
@@ -1087,13 +1199,14 @@ export const uploadChatAttachment = createServerFn({ method: "POST" })
     const { supabase, userId } = context as { supabase: any; userId: string };
     const fileBuf = Buffer.from(data.fileBase64, "base64");
     const fileHash = await hashBase64(data.fileBase64);
+    const mimeType = normalizeFileMime(data.mimeType, data.filename);
     const uploadInfo = await ensureUploadRow({
       supabase,
       userId,
       fileBuf,
       fileHash,
       filename: data.filename,
-      mimeType: data.mimeType,
+      mimeType,
       kind: data.kind,
     });
     if (!uploadInfo?.uploadId) throw new Error("Không lưu được file đính kèm");

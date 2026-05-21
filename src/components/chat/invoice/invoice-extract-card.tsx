@@ -1,16 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
 import { JournalProposalCard } from "./journal-proposal-card";
 
@@ -24,6 +20,119 @@ function fmtDate(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("vi-VN");
+}
+
+function PdfPagePreview({
+  url,
+  filename,
+  large = false,
+}: {
+  url: string;
+  filename?: string;
+  large?: boolean;
+}) {
+  type PdfViewport = { width: number; height: number };
+  type PdfPage = {
+    getViewport: (opts: { scale: number }) => PdfViewport;
+    render: (opts: { canvasContext: CanvasRenderingContext2D; viewport: PdfViewport }) => {
+      promise: Promise<void>;
+    };
+  };
+  type PdfDocument = { getPage: (pageNumber: number) => Promise<PdfPage> };
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    let task: { promise: Promise<unknown>; destroy?: () => void } | null = null;
+
+    async function renderFirstPage() {
+      setStatus("loading");
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        task = pdfjs.getDocument({ url, withCredentials: false });
+        const pdf = (await task.promise) as PdfDocument;
+        const page = await pdf.getPage(1);
+        if (cancelled) return;
+
+        const baseViewport = page.getViewport({ scale: large ? 1.45 : 1.15 });
+        const canvas = canvasRef.current;
+        const context = canvas?.getContext("2d");
+        if (!canvas || !context) return;
+
+        const maxCssWidth = large ? 920 : 520;
+        const cssWidth = Math.min(baseViewport.width, maxCssWidth);
+        const scale = cssWidth / baseViewport.width;
+        const viewport = page.getViewport({ scale: (large ? 1.45 : 1.15) * scale });
+        const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (!cancelled) setStatus("ready");
+      } catch (error) {
+        console.warn("[InvoiceExtractCard] PDF preview failed", error);
+        if (!cancelled) setStatus("error");
+      }
+    }
+
+    renderFirstPage();
+    return () => {
+      cancelled = true;
+      try {
+        task?.destroy?.();
+      } catch (error) {
+        console.warn("[InvoiceExtractCard] PDF preview cleanup failed", error);
+      }
+    };
+  }, [large, url]);
+
+  if (status === "error") {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/60 bg-background/60 p-6 text-center transition hover:border-primary/40 hover:bg-background"
+      >
+        <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <FileText className="h-7 w-7" />
+        </div>
+        <div className="text-sm font-semibold text-foreground">Mở hoá đơn PDF</div>
+        <div className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+          <ExternalLink className="h-3 w-3" />
+          Trình duyệt không render được preview
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <div className="relative flex w-full justify-center overflow-auto rounded-md border border-border/40 bg-background p-2">
+      {status === "loading" ? (
+        <div
+          className={cn(
+            "w-full animate-pulse rounded-md bg-muted",
+            large ? "h-[70vh]" : "h-[360px]",
+          )}
+        />
+      ) : null}
+      <canvas
+        ref={canvasRef}
+        aria-label={filename ?? "PDF preview"}
+        className={cn(
+          "max-w-full rounded bg-background shadow-sm",
+          status === "loading" && "absolute opacity-0",
+        )}
+      />
+    </div>
+  );
 }
 
 type Field = { label: string; value: React.ReactNode };
@@ -56,9 +165,7 @@ export function InvoiceExtractCard({
     staleTime: 50 * 60 * 1000,
   });
 
-  const isImageByName = filename
-    ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename)
-    : false;
+  const isImageByName = filename ? /\.(jpe?g|png|webp|gif|heic|bmp|tiff?)$/i.test(filename) : false;
   const isPdfByName = filename ? /\.pdf$/i.test(filename) : false;
   const isXmlByName = filename ? /\.xml$/i.test(filename) : false;
   const mime = (urlData as any)?.mimeType as string | null | undefined;
@@ -66,7 +173,8 @@ export function InvoiceExtractCard({
   const isPdf = isPdfByName || mime === "application/pdf";
   const isXml = isXmlByName || (mime ?? "").includes("xml") || !!parsed?._einvoice;
 
-  const isInvoice = kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf || isXml;
+  const isInvoice =
+    kind === "purchase_invoice" || !!parsed?.vendor_name || isImage || isPdf || isXml;
 
   const [zoomOpen, setZoomOpen] = useState(false);
 
@@ -92,7 +200,10 @@ export function InvoiceExtractCard({
 
   const rawText: string | null = parsed?._rawText ?? null;
   const notes: string | null = parsed?.notes ?? null;
-  const schemaWarn: string | null = parsed?._schemaWarning ?? null;
+  const schemaWarn: string | null = parsed?._schemaWarning
+    ? "Dữ liệu PDF chưa đầy đủ, hệ thống đã chuẩn hóa phần đọc được."
+    : null;
+  const parserNotes: string | null = parsed?._parserNotes ?? null;
 
   const fields: Field[] = [
     { label: "Số HĐ", value: <span className="font-semibold">{invNo}</span> },
@@ -114,9 +225,7 @@ export function InvoiceExtractCard({
       : null,
     firstLine ? { label: "Mặt hàng", value: firstLine } : null,
     { label: "Giá trước thuế", value: <span className="font-mono">{fmtVND(subtotal)}</span> },
-    vat
-      ? { label: "VAT", value: <span className="font-mono">{fmtVND(vat)}</span> }
-      : null,
+    vat ? { label: "VAT", value: <span className="font-mono">{fmtVND(vat)}</span> } : null,
     {
       label: "Tổng",
       value: <span className="font-mono text-base font-bold">{fmtVND(total)}</span>,
@@ -124,19 +233,10 @@ export function InvoiceExtractCard({
   ].filter(Boolean) as Field[];
 
   // Determine whether the left preview can be zoomed
-  const canZoom = (isXml && !!parsed?._einvoice) || (isPdf && !!urlData?.url) || (isImage && !!urlData?.url);
+  const canZoom =
+    (isXml && !!parsed?._einvoice) || (isPdf && !!urlData?.url) || (isImage && !!urlData?.url);
 
-  // Mobile browsers (Android Chrome, iOS Safari trong WebView) thường không
-  // render PDF qua <iframe>. Nếu là PDF + đang ở mobile → mở thẳng URL gốc
-  // trong tab mới thay vì mở dialog iframe rỗng.
-  const isMobile =
-    typeof window !== "undefined" &&
-    !window.matchMedia("(min-width: 768px)").matches;
   const openZoom = () => {
-    if (isPdf && isMobile && urlData?.url) {
-      window.open(urlData.url, "_blank", "noopener,noreferrer");
-      return;
-    }
     setZoomOpen(true);
   };
 
@@ -182,29 +282,7 @@ export function InvoiceExtractCard({
               <div className="h-[420px] w-full animate-pulse rounded-md bg-muted" />
             ) : isPdf && urlData?.url ? (
               <div className="flex w-full flex-col items-stretch gap-2">
-                {/* Desktop: inline iframe preview. Most desktop browsers render PDFs in iframes;
-                    mobile browsers usually don't, so we hide the iframe on small screens
-                    and rely on the tappable tile + actions below. */}
-                <iframe
-                  src={`${urlData.url}#toolbar=0&navpanes=0&view=FitH`}
-                  title={filename ?? "pdf"}
-                  className="hidden h-[440px] w-full rounded-md border border-border/40 bg-background md:block"
-                />
-                <a
-                  href={urlData.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/60 bg-background/60 p-6 text-center transition hover:border-primary/40 hover:bg-background md:hidden"
-                >
-                  <div className="flex h-14 w-12 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <FileText className="h-7 w-7" />
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">Xem hoá đơn PDF</div>
-                  <div className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
-                    <ExternalLink className="h-3 w-3" />
-                    Mở trong tab mới
-                  </div>
-                </a>
+                <PdfPagePreview url={urlData.url} filename={filename} />
                 <div className="flex items-center justify-between gap-2">
                   <a
                     href={urlData.url}
@@ -277,8 +355,12 @@ export function InvoiceExtractCard({
             ) : isEmptyExtract ? (
               <div className="space-y-2 p-4">
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
-                  Chưa đọc được dữ liệu hoá đơn từ {isPdf ? "PDF" : "tệp"} này — bạn có thể mở file gốc để kiểm tra.
-                  {schemaWarn ? <div className="mt-1 opacity-80">Chi tiết: {schemaWarn}</div> : null}
+                  Chưa đọc được dữ liệu hoá đơn từ {isPdf ? "PDF" : "tệp"} này — bạn có thể mở file
+                  gốc để kiểm tra.
+                  {schemaWarn ? (
+                    <div className="mt-1 opacity-80">Chi tiết: {schemaWarn}</div>
+                  ) : null}
+                  {parserNotes ? <div className="mt-1 opacity-80">{parserNotes}</div> : null}
                 </div>
                 {rawText ? (
                   <details className="text-xs">
@@ -302,6 +384,9 @@ export function InvoiceExtractCard({
                   <div className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
                     {notes}
                   </div>
+                ) : null}
+                {parserNotes ? (
+                  <div className="mt-2 text-[11px] text-muted-foreground">{parserNotes}</div>
                 ) : null}
                 {rawText && isPdf ? (
                   <details className="mt-3 text-xs">
@@ -335,9 +420,7 @@ export function InvoiceExtractCard({
       <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
         <DialogContent className="max-w-5xl max-h-[92vh] overflow-auto p-0">
           <DialogHeader className="px-5 pt-4 pb-2">
-            <DialogTitle className="text-sm font-semibold">
-              {filename ?? "Hoá đơn"}
-            </DialogTitle>
+            <DialogTitle className="text-sm font-semibold">{filename ?? "Hoá đơn"}</DialogTitle>
           </DialogHeader>
           <div className="px-5 pb-5">
             {isXml && parsed?._einvoice ? (
@@ -348,11 +431,7 @@ export function InvoiceExtractCard({
               />
             ) : isPdf && urlData?.url ? (
               <div className="flex flex-col gap-2">
-                <iframe
-                  src={`${urlData.url}#toolbar=1&view=FitH`}
-                  title={filename ?? "pdf"}
-                  className="h-[78vh] w-full rounded-md border border-border/40 bg-background"
-                />
+                <PdfPagePreview url={urlData.url} filename={filename} large />
                 <a
                   href={urlData.url}
                   target="_blank"
@@ -363,7 +442,6 @@ export function InvoiceExtractCard({
                   Mở PDF trong tab mới
                 </a>
               </div>
-
             ) : isImage && urlData?.url ? (
               <img
                 src={urlData.url}
