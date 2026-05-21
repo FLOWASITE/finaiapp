@@ -23,6 +23,7 @@ import { toast } from "sonner";
 const searchSchema = z.object({
   autostart: z.string().optional(),
   from: z.string().optional(),
+  optimistic: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/chat/$threadId")({
@@ -47,22 +48,119 @@ function ThreadPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Đánh dấu lần abort kế tiếp là do user nhấn Stop (giữ partial + marker)
+  // hay do replacement (huỷ và bỏ partial).
+  const userStoppedRef = useRef(false);
   const [atBottom, setAtBottom] = useState(true);
   const [hasNew, setHasNew] = useState(false);
+
+  // Khi đang ở optimistic thread (id `temp-...`), ta chưa có bản ghi DB nên
+  // bỏ qua getThread; localMsgs/cache đã được ChatDock prime sẵn.
+  const isOptimistic = threadId.startsWith("temp-");
+
+  // Lưu id thật khi ChatDock resolve xong. Dùng cho appendFn để persist đúng id.
+  const realThreadIdRef = useRef<string | null>(isOptimistic ? null : threadId);
+  const realThreadIdResolveRef = useRef<((id: string) => void) | null>(null);
+  const realThreadIdPromiseRef = useRef<Promise<string> | null>(null);
+  // Bỏ qua reset effect khi navigate replace từ temp -> real id.
+  const skipResetRef = useRef(false);
 
   const query = useQuery({
     queryKey: ["chat", "thread", threadId],
     queryFn: () => getFn({ data: { threadId } }),
     staleTime: 30_000,
+    enabled: !isOptimistic,
   });
 
   useEffect(() => {
+    if (skipResetRef.current) {
+      skipResetRef.current = false;
+      return;
+    }
     setLocalMsgs([]);
     setInput("");
     startedRef.current = null;
+    userStoppedRef.current = false;
     abortRef.current?.abort();
     abortRef.current = null;
+    realThreadIdRef.current = threadId.startsWith("temp-") ? null : threadId;
+    if (threadId.startsWith("temp-")) {
+      realThreadIdPromiseRef.current = new Promise<string>((res) => {
+        realThreadIdResolveRef.current = res;
+      });
+    } else {
+      realThreadIdPromiseRef.current = null;
+      realThreadIdResolveRef.current = null;
+    }
   }, [threadId]);
+
+  // Lắng nghe ChatDock báo đã tạo thread thật → swap id.
+  useEffect(() => {
+    if (!isOptimistic) return;
+    const onResolved = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        tempId: string;
+        realThreadId: string;
+        realUserMsgId?: string;
+        realThread?: any;
+      }>).detail;
+      if (!detail || detail.tempId !== threadId) return;
+      realThreadIdRef.current = detail.realThreadId;
+      realThreadIdResolveRef.current?.(detail.realThreadId);
+      // Cập nhật id của user message tạm để không trùng key khi swap cache.
+      if (detail.realUserMsgId) {
+        setLocalMsgs((prev) => {
+          if (!prev.length) return prev;
+          const copy = [...prev];
+          for (let i = 0; i < copy.length; i++) {
+            if (copy[i].role === "user" && copy[i].id?.startsWith("temp-msg-")) {
+              copy[i] = { ...copy[i], id: detail.realUserMsgId };
+              break;
+            }
+          }
+          return copy;
+        });
+      }
+      // Mark startedRef đã chạy cho temp id, đồng thời cho real id để
+      // autostart không chạy lại sau khi navigate replace.
+      startedRef.current = detail.realThreadId;
+      // Navigate replace sang URL thật, giữ nguyên view (skipReset).
+      skipResetRef.current = true;
+      navigate({
+        to: "/chat/$threadId",
+        params: { threadId: detail.realThreadId },
+        search: from ? { from } : {},
+        replace: true,
+      });
+    };
+    const onFailed = (e: Event) => {
+      const detail = (e as CustomEvent<{ tempId: string; error?: string }>).detail;
+      if (!detail || detail.tempId !== threadId) return;
+      abortRef.current?.abort();
+      // Quay lại trang trước đó.
+      if (from) {
+        try {
+          window.location.href = from;
+        } catch {}
+      } else {
+        navigate({ to: "/chat" });
+      }
+    };
+    window.addEventListener("chat:thread-resolved", onResolved as EventListener);
+    window.addEventListener("chat:thread-failed", onFailed as EventListener);
+    return () => {
+      window.removeEventListener("chat:thread-resolved", onResolved as EventListener);
+      window.removeEventListener("chat:thread-failed", onFailed as EventListener);
+    };
+  }, [threadId, isOptimistic, from, navigate]);
+
+  /** Trả về threadId dùng để persist message (đợi nếu đang optimistic). */
+  const getEffectiveThreadId = async (): Promise<string> => {
+    if (realThreadIdRef.current) return realThreadIdRef.current;
+    if (realThreadIdPromiseRef.current) return realThreadIdPromiseRef.current;
+    return threadId;
+  };
+
 
   const messages: ChatMsg[] =
     localMsgs.length > 0
@@ -141,6 +239,15 @@ function ThreadPage() {
   }, [messages, streaming, SCROLL_KEY]);
 
   const runAssistant = async (history: ChatMsg[], attachments?: any[]) => {
+    // Hủy stream cũ (nếu có) trước khi bắt đầu, KHÔNG đánh dấu user stop
+    // → coi như replacement: bỏ partial assistant cũ.
+    if (abortRef.current) {
+      const prev = abortRef.current;
+      abortRef.current = null;
+      try {
+        prev.abort();
+      } catch {}
+    }
     setStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -153,7 +260,10 @@ function ThreadPage() {
     const toolEvents: ToolEvent[] = [];
     let sawProposeAction = false;
 
+    const isCurrent = () => abortRef.current === controller;
+
     const updateLast = (patch: Partial<ChatMsg>) => {
+      if (!isCurrent()) return; // tránh ghi đè khi đã bị replace
       setLocalMsgs((prev) => {
         const copy = [...prev];
         copy[copy.length - 1] = { ...copy[copy.length - 1], ...patch };
@@ -189,21 +299,29 @@ function ThreadPage() {
         }
       }
 
-      if (controller.signal.aborted) {
+      const wasAborted = controller.signal.aborted;
+      const wasUserStop = wasAborted && userStoppedRef.current && isCurrent();
+      const wasReplaced = wasAborted && !isCurrent();
+
+      if (wasReplaced) return; // bỏ partial, không persist
+
+      if (wasUserStop) {
         buffer = buffer + "\n\n_Đã dừng._";
         updateLast({ content: buffer });
+        userStoppedRef.current = false;
       }
 
+      const persistId = await getEffectiveThreadId();
       await appendFn({
         data: {
-          threadId,
+          threadId: persistId,
           role: "assistant",
           content: buffer,
           metadata: toolEvents.length ? { toolEvents } : undefined,
         },
       });
       qc.invalidateQueries({ queryKey: ["chat", "threads"] });
-      qc.invalidateQueries({ queryKey: ["chat", "thread", threadId] });
+      qc.invalidateQueries({ queryKey: ["chat", "thread", persistId] });
       if (sawProposeAction) {
         qc.invalidateQueries({ queryKey: ["ai_actions_pending"] });
       }
@@ -213,19 +331,27 @@ function ThreadPage() {
       updateLast({ content: errText });
       toast.error(errText);
     } finally {
-      setStreaming(false);
-      abortRef.current = null;
+      if (isCurrent()) {
+        setStreaming(false);
+        abortRef.current = null;
+      }
     }
   };
 
   useEffect(() => {
-    if (!autostart || streaming) return;
+    if (!autostart) return;
     if (startedRef.current === threadId) return;
-    // Use either freshly-loaded data or cache-primed data.
-    const msgs = query.data?.messages ?? [];
+    // Đọc messages từ cache (đã prime) hoặc từ getThread.
+    const cached: any =
+      qc.getQueryData(["chat", "thread", threadId]) ?? query.data ?? null;
+    const msgs = cached?.messages ?? [];
     if (msgs.length === 1 && msgs[0].role === "user") {
       startedRef.current = threadId;
-      const hist: ChatMsg[] = msgs.map((m) => ({ id: m.id, role: m.role, content: m.content }));
+      const hist: ChatMsg[] = msgs.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+      }));
       let pendingAttachments: any[] | undefined;
       try {
         const raw = sessionStorage.getItem(`__attach:${threadId}`);
@@ -235,6 +361,7 @@ function ThreadPage() {
         }
       } catch {}
       runAssistant(hist, pendingAttachments);
+      // Xoá autostart/optimistic khỏi URL (giữ nguyên id hiện tại, kể cả temp).
       navigate({
         to: "/chat/$threadId",
         params: { threadId },
@@ -243,12 +370,16 @@ function ThreadPage() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autostart, query.data, threadId]);
+  }, [autostart, query.data, threadId, isOptimistic]);
 
   const sendUserMessage = async (content: string, attachments?: any[]) => {
     const q = content.trim();
-    if (!q || streaming) return;
-    const next: ChatMsg[] = [...messages, { role: "user", content: q }];
+    if (!q) return;
+    // Cho phép gửi ngay cả khi đang stream — runAssistant sẽ abort & thay thế.
+    const baseMsgs = messages.filter(
+      (m, i) => !(i === messages.length - 1 && m.role === "assistant"),
+    );
+    const next: ChatMsg[] = [...baseMsgs, { role: "user", content: q }];
     setLocalMsgs(next);
     const metaAttachments = attachments?.map((a) => ({
       name: a.name,
@@ -256,34 +387,36 @@ function ThreadPage() {
       size: a.size,
       kind: a.kind,
     }));
-    try {
-      await appendFn({
-        data: {
-          threadId,
-          role: "user",
-          content: q,
-          updateTitleIfBlank: true,
-          metadata: metaAttachments ? { attachments: metaAttachments } : undefined,
-        },
-      });
-    } catch (e: any) {
-      toast.error(e?.message || "Không gửi được");
-      return;
-    }
-    // Only forward attachments with base64 to the LLM stream.
+    // Persist user message vào DB (đợi threadId thật nếu đang optimistic).
+    void (async () => {
+      try {
+        const persistId = await getEffectiveThreadId();
+        await appendFn({
+          data: {
+            threadId: persistId,
+            role: "user",
+            content: q,
+            updateTitleIfBlank: true,
+            metadata: metaAttachments ? { attachments: metaAttachments } : undefined,
+          },
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Không lưu được tin nhắn");
+      }
+    })();
     const withBase64 = attachments?.filter((a) => typeof a.base64 === "string" && a.base64);
     runAssistant(next, withBase64 && withBase64.length ? withBase64 : undefined);
   };
 
   const send = async () => {
     const q = input.trim();
-    if (!q || streaming) return;
+    if (!q) return;
     setInput("");
     await sendUserMessage(q);
   };
 
   const handleAttach = (payloads: any[], note?: string) => {
-    if (!payloads.length || streaming) return;
+    if (!payloads.length) return;
     try {
       sessionStorage.setItem(`__attach:${threadId}`, JSON.stringify(payloads));
     } catch {}
@@ -309,11 +442,6 @@ function ThreadPage() {
         attachments?: any[];
       }>).detail;
       if (!detail || detail.threadId !== threadId) return;
-      if (streaming) {
-        toast.error("Đang xử lý câu hỏi trước, vui lòng đợi.");
-        return;
-      }
-      // Prefer full payloads (with base64) stashed by the dock before dispatch.
       let fullAttachments: any[] | undefined;
       try {
         const raw = sessionStorage.getItem(`__attach:${threadId}`);
@@ -327,11 +455,15 @@ function ThreadPage() {
     window.addEventListener("chat:dock-send", onDockSend as EventListener);
     return () => window.removeEventListener("chat:dock-send", onDockSend as EventListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, streaming, messages]);
+  }, [threadId, messages]);
 
   const stop = () => {
-    abortRef.current?.abort();
+    if (abortRef.current) {
+      userStoppedRef.current = true;
+      abortRef.current.abort();
+    }
   };
+
 
   const regenerate = async () => {
     if (streaming) return;

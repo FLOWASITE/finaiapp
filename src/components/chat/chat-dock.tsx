@@ -117,9 +117,120 @@ export function ChatDock() {
     };
   }, []);
 
+  /**
+   * Tạo threadId tạm thời và navigate ngay; sau đó gọi server tạo thread thật ở
+   * background rồi dispatch event để thread page swap sang id thật. Mang lại
+   * cảm giác liền mạch, không có khoảng trống chờ network khi mở thread.
+   */
+  const startOptimistic = (
+    q: string,
+    opts?: {
+      title?: string;
+      metadata?: any;
+      payloadsForStash?: any[];
+    },
+  ) => {
+    const rid =
+      typeof (crypto as any).randomUUID === "function"
+        ? (crypto as any).randomUUID()
+        : Math.random().toString(36).slice(2);
+    const tempId = `temp-${rid}`;
+    const tempMsgId = `temp-msg-${Math.random().toString(36).slice(2)}`;
+    const nowIso = new Date().toISOString();
+    const tempThread = {
+      id: tempId,
+      title: (opts?.title ?? q).slice(0, 60) || "(Đang tạo…)",
+      last_message_at: nowIso,
+      created_at: nowIso,
+      kind: "general" as const,
+    };
+    const tempMessage = {
+      id: tempMsgId,
+      role: "user" as const,
+      content: q,
+      created_at: nowIso,
+      metadata: opts?.metadata,
+    };
+    qc.setQueryData(["chat", "thread", tempId], {
+      thread: tempThread,
+      messages: [tempMessage],
+    });
+    qc.setQueryData(
+      ["chat", "threads", "recent", "all"],
+      (prev: any) => (Array.isArray(prev) ? [tempThread, ...prev] : [tempThread]),
+    );
+    if (opts?.payloadsForStash?.length) {
+      try {
+        sessionStorage.setItem(`__attach:${tempId}`, JSON.stringify(opts.payloadsForStash));
+      } catch {}
+    }
+    collapseChatSidebar();
+    navigate({
+      to: "/chat/$threadId",
+      params: { threadId: tempId },
+      search: fromHref
+        ? { autostart: "1", optimistic: "1", from: fromHref }
+        : { autostart: "1", optimistic: "1" },
+    });
+
+    createWithMsgFn({
+      data: {
+        title: (opts?.title ?? q).slice(0, 60),
+        content: q,
+        ...(opts?.metadata ? { metadata: opts.metadata } : {}),
+      },
+    })
+      .then((res) => {
+        qc.setQueryData(["chat", "thread", res.thread.id], {
+          thread: res.thread,
+          messages: [res.message],
+        });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) => {
+            const list = Array.isArray(prev) ? prev.filter((t: any) => t.id !== tempId) : [];
+            return [res.thread, ...list];
+          },
+        );
+        try {
+          const raw = sessionStorage.getItem(`__attach:${tempId}`);
+          if (raw) {
+            sessionStorage.setItem(`__attach:${res.thread.id}`, raw);
+            sessionStorage.removeItem(`__attach:${tempId}`);
+          }
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("chat:thread-resolved", {
+            detail: {
+              tempId,
+              realThreadId: res.thread.id,
+              realUserMsgId: res.message.id,
+              realThread: res.thread,
+              realMessage: res.message,
+            },
+          }),
+        );
+      })
+      .catch((e: any) => {
+        toast.error(e?.message || "Không tạo được cuộc trò chuyện");
+        qc.removeQueries({ queryKey: ["chat", "thread", tempId] });
+        qc.setQueryData(
+          ["chat", "threads", "recent", "all"],
+          (prev: any) =>
+            Array.isArray(prev) ? prev.filter((t: any) => t.id !== tempId) : prev,
+        );
+        try {
+          sessionStorage.removeItem(`__attach:${tempId}`);
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("chat:thread-failed", { detail: { tempId, error: e?.message } }),
+        );
+      });
+  };
+
   const submit = async (override?: string) => {
     const q = (override ?? input).trim();
-    if (!q || loading) return;
+    if (!q) return;
     const existingThreadId = currentThreadId(location.pathname);
     if (existingThreadId) {
       setInput("");
@@ -130,40 +241,21 @@ export function ChatDock() {
       );
       return;
     }
-    // No active thread: clear input + show loading IMMEDIATELY,
-    // then create thread in background and navigate when ready.
     setInput("");
-    setLoading(true);
-    createWithMsgFn({ data: { title: q.slice(0, 60), content: q } })
-      .then((res) => {
-        // Prime caches so the thread page renders instantly (no spinner, no refetch).
-        qc.setQueryData(["chat", "thread", res.thread.id], {
-          thread: res.thread,
-          messages: [res.message],
-        });
-        qc.setQueryData(
-          ["chat", "threads", "recent", "all"],
-          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
-        );
-        collapseChatSidebar();
-        navigate({
-          to: "/chat/$threadId",
-          params: { threadId: res.thread.id },
-          search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
-        });
-      })
-      .catch((e: any) => {
-        setInput(q); // rollback draft
-        toast.error(e?.message || "Không gửi được");
-      })
-      .finally(() => setLoading(false));
+    startOptimistic(q);
   };
 
   const handleAttach = async (payloads: any[], note?: string) => {
-    if (!payloads.length || loading) return;
+    if (!payloads.length) return;
     const existingThreadId = currentThreadId(location.pathname);
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${payloads.map((p) => `📎 ${p.name}`).join("\n")}`;
     const content = note && note.trim() ? note.trim() : fallback;
+    const metaAttachments = payloads.map((p) => ({
+      name: p.name,
+      mime: p.mime,
+      size: p.size,
+      kind: p.kind,
+    }));
     if (existingThreadId) {
       try {
         sessionStorage.setItem(`__attach:${existingThreadId}`, JSON.stringify(payloads));
@@ -173,56 +265,17 @@ export function ChatDock() {
           detail: {
             threadId: existingThreadId,
             content,
-            attachments: payloads.map((p) => ({
-              name: p.name,
-              mime: p.mime,
-              size: p.size,
-              kind: p.kind,
-            })),
+            attachments: metaAttachments,
           },
         }),
       );
       return;
     }
-    setLoading(true);
-
-    const metaAttachments = payloads.map((p) => ({
-
-      name: p.name,
-      mime: p.mime,
-      size: p.size,
-      kind: p.kind,
-    }));
-    createWithMsgFn({
-      data: {
-        title: payloads[0].name.slice(0, 60),
-        content,
-        metadata: { attachments: metaAttachments },
-      },
-    })
-      .then((res) => {
-        try {
-          sessionStorage.setItem(`__attach:${res.thread.id}`, JSON.stringify(payloads));
-        } catch {}
-        qc.setQueryData(["chat", "thread", res.thread.id], {
-          thread: res.thread,
-          messages: [res.message],
-        });
-        qc.setQueryData(
-          ["chat", "threads", "recent", "all"],
-          (prev: any) => (Array.isArray(prev) ? [res.thread, ...prev] : [res.thread]),
-        );
-        collapseChatSidebar();
-        navigate({
-          to: "/chat/$threadId",
-          params: { threadId: res.thread.id },
-          search: fromHref ? { autostart: "1", from: fromHref } : { autostart: "1" },
-        });
-      })
-      .catch((e: any) => {
-        toast.error(e?.message || "Không gửi được");
-      })
-      .finally(() => setLoading(false));
+    startOptimistic(content, {
+      title: payloads[0].name,
+      metadata: { attachments: metaAttachments },
+      payloadsForStash: payloads,
+    });
   };
 
   return (
