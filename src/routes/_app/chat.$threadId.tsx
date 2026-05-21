@@ -19,7 +19,6 @@ import { askAccountingStream } from "@/lib/chat.functions";
 import type { ToolEvent } from "@/components/chat/tool-calls";
 import { toast } from "sonner";
 import {
-  stashChatAttachments,
   takeAnyChatAttachmentHandoff,
   takeChatAttachments,
 } from "@/lib/chat-attachment-handoff";
@@ -466,7 +465,6 @@ function ThreadPage() {
 
   const handleAttach = (payloads: any[], note?: string) => {
     if (!payloads.length) return;
-    stashChatAttachments(threadId, payloads, `__attach:${threadId}`);
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     // Truyền nguyên payloads (kèm base64) để runAssistant gửi file lên server parse.
