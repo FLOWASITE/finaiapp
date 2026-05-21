@@ -776,9 +776,9 @@ function CreateVoucherDialog({
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Lines table */}
-            <div className="overflow-x-auto border rounded-md">
-              <Table className="min-w-[1100px] text-xs sm:text-sm">
+            {/* Lines — desktop table */}
+            <div className="hidden sm:block overflow-x-auto border rounded-md">
+              <Table className="min-w-[1100px] text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
@@ -883,6 +883,124 @@ function CreateVoucherDialog({
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Lines — mobile cards */}
+            <div className="block sm:hidden space-y-3">
+              {lines.map((l, i) => (
+                <Card key={l.key} className="overflow-hidden">
+                  <CardHeader className="p-3 pb-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Dòng {i + 1}</span>
+                      <Button size="sm" variant="ghost" onClick={() => removeLine(l.key)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-2">
+                    <ProductPickerCell
+                      value={l.product_name}
+                      onPick={(p) => updateLine(l.key, {
+                        product_id: p.id,
+                        product_code: p.code ?? "",
+                        product_name: p.name ?? "",
+                        unit: p.unit ?? "",
+                        unit_price: Number(p.unit_cost ?? 0),
+                        vat_rate: Number(p.vat_rate ?? 10),
+                        debit_account: p.stock_account ?? l.debit_account,
+                        line_type: p.item_type === "service" ? "service" : "goods",
+                      })}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Mã</Label>
+                        <Input value={l.product_code}
+                          onChange={(e) => updateLine(l.key, { product_code: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Hoá đơn</Label>
+                        <Input value={l.invoice_no}
+                          onChange={(e) => updateLine(l.key, { invoice_no: e.target.value })}
+                          placeholder="Số HĐ" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">TK nợ</Label>
+                        <Input value={l.debit_account}
+                          onChange={(e) => updateLine(l.key, { debit_account: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">ĐVT</Label>
+                        <Input value={l.unit}
+                          onChange={(e) => updateLine(l.key, { unit: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">SL</Label>
+                        <Input type="number" value={l.qty}
+                          onChange={(e) => updateLine(l.key, { qty: Number(e.target.value) })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Đơn giá</Label>
+                        <Input type="number" value={l.unit_price}
+                          onChange={(e) => updateLine(l.key, { unit_price: Number(e.target.value) })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">CK %</Label>
+                        <Input type="number" value={l.discount_pct}
+                          onChange={(e) => updateLine(l.key, { discount_pct: Number(e.target.value), discount_amount: 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">CK (đ)</Label>
+                        <Input type="number" value={l.discount_amount}
+                          onChange={(e) => updateLine(l.key, { discount_amount: Number(e.target.value), discount_pct: 0 })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">VAT %</Label>
+                        <Input type="number" value={l.vat_rate}
+                          onChange={(e) => updateLine(l.key, { vat_rate: Number(e.target.value) })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">TK thuế</Label>
+                        <Input value={l.vat_account}
+                          onChange={(e) => updateLine(l.key, { vat_account: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-dashed">
+                      <div className="text-center">
+                        <div className="text-muted-foreground">Trước thuế</div>
+                        <div className="font-medium tabular-nums">{fmtMoney(l.amount)}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-muted-foreground">Tiền thuế</div>
+                        <div className="font-medium tabular-nums">{fmtMoney(l.vat_amount)}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-muted-foreground">Thành tiền</div>
+                        <div className="font-semibold tabular-nums text-primary">{fmtMoney(l.total)}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Mobile totals */}
+              <div className="border rounded-md p-3 bg-muted/30 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tổng SL</span>
+                  <span className="font-medium tabular-nums">{fmtMoney(lines.reduce((s, l) => s + Number(l.qty || 0), 0))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Trước thuế</span>
+                  <span className="font-medium tabular-nums">{fmtMoney(totals.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tiền thuế</span>
+                  <span className="font-medium tabular-nums">{fmtMoney(totals.vat_amount)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold pt-1 border-t border-dashed">
+                  <span>Thành tiền</span>
+                  <span className="tabular-nums text-primary">{fmtMoney(totals.subtotal + totals.vat_amount)}</span>
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
