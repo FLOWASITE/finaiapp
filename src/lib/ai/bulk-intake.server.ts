@@ -10,12 +10,39 @@
  *   5. Assign a bucket (auto / review / ask) per item
  */
 import { hashBase64 } from "@/lib/ai/parse-cache.server";
+import { classifyFile, type ClassifyKind } from "@/lib/ai/classify-file.server";
 import type {
   BulkItem,
   BulkItemKindGroup,
   BulkPlan,
   BulkBucket,
 } from "@/components/chat/bulk/types";
+
+function kindToGroup(kind: ClassifyKind): BulkItemKindGroup {
+  if (kind === "purchase_invoice") return "purchase_invoice";
+  if (kind === "sales_invoice") return "sales_invoice";
+  if (kind === "bank_statement") return "bank_statement";
+  if (kind === "cash_voucher") return "other"; // chưa có group riêng
+  return "other";
+}
+
+function kindToItemKind(kind: ClassifyKind): BulkItem["kind"] {
+  if (kind === "purchase_invoice") return "purchase_invoice";
+  if (kind === "bank_statement") return "bank_statement";
+  if (kind === "cash_voucher") return "cash_voucher";
+  // sales_invoice & other → giữ "auto", sẽ ép bucket review/ask
+  return "auto";
+}
+
+function decideBucket(kind: ClassifyKind, confidence: number): BulkBucket {
+  if (kind === "other") return "ask";
+  if (kind === "sales_invoice") return "review";
+  if (kind === "bank_statement") return "review";
+  if (kind === "cash_voucher") return "review";
+  if (confidence >= 0.85) return "auto";
+  if (confidence >= 0.5) return "review";
+  return "ask";
+}
 
 type Att = {
   name: string;
