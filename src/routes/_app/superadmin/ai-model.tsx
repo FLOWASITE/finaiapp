@@ -85,6 +85,7 @@ const OPENROUTER_PRESET = {
   model_chat: "openai/gpt-4o-mini",
   model_parse: "google/gemini-2.5-flash",
   model_reasoning: "deepseek/deepseek-r1",
+  model_classify: "google/gemini-2.5-flash-lite",
   extra_headers_json: JSON.stringify(
     {
       "HTTP-Referer": "https://app.finai.one",
