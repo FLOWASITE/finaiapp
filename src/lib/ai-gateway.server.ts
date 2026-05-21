@@ -21,6 +21,7 @@ type CachedConfig = {
   model_chat: string | null;
   model_parse: string | null;
   model_reasoning: string | null;
+  model_classify: string | null;
   provider_label: string;
 };
 
