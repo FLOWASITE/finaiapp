@@ -474,6 +474,7 @@ async function enrichEinvoiceFromTct(
       .update({
         xml_fetch_status: "failed",
         xml_fetch_error: msg.slice(0, 500),
+        xml_fetched_at: new Date().toISOString(),
       })
       .eq("id", args.einvoiceId);
     return { ok: false, error: msg };
