@@ -107,14 +107,19 @@ export const getPurchaseVoucher = createServerFn({ method: "POST" })
       .single();
     if (error || !voucher) throw new Error("Không tìm thấy phiếu");
 
-    let journal: unknown = null;
+    let journal: {
+      id: string;
+      entry_date: string;
+      description: string | null;
+      journal_lines: Array<{ account_code: string; debit: number; credit: number; line_order: number }>;
+    } | null = null;
     if (voucher.journal_entry_id) {
       const { data: je } = await supabase
         .from("journal_entries")
         .select("id, entry_date, description, journal_lines(account_code, debit, credit, line_order)")
         .eq("id", voucher.journal_entry_id)
         .single();
-      journal = je;
+      journal = je as typeof journal;
     }
     return { voucher, journal };
   });
