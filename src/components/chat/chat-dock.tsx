@@ -168,9 +168,10 @@ export function ChatDock() {
       ["chat", "threads", "recent", "all"],
       (prev: any) => (Array.isArray(prev) ? [tempThread, ...prev] : [tempThread]),
     );
-    const hasPayloads = !!opts?.payloadsForStash?.length;
+    const payloadsForStash = opts?.payloadsForStash ?? [];
+    const hasPayloads = payloadsForStash.length > 0;
     if (hasPayloads) {
-      stashChatAttachments(handoffId, opts!.payloadsForStash);
+      stashChatAttachments(handoffId, payloadsForStash);
     }
     collapseChatSidebar();
     navigate({
