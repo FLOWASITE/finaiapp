@@ -560,8 +560,9 @@ export function Composer({
           <Button
             type="button"
             size="icon"
-            onClick={onSubmit}
-            disabled={disabled || busy || !value.trim()}
+            onClick={doSubmit}
+            disabled={!canSubmit()}
+
             className={cn(
               "h-9 w-9 shrink-0 rounded-2xl transition-transform",
               "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95",
