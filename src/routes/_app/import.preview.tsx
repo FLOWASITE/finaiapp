@@ -181,9 +181,60 @@ function toVoucherDraft(item: { filename: string; parsed: any }): VoucherDraft {
 }
 
 function ImportPreviewPage() {
-  const propose = useServerFn(proposeActionFn);
+  const createInvoice = useServerFn(createManualInvoice);
+  const lookupSupplier = useServerFn(lookupSupplierByTaxId);
+  const createSupplier = useServerFn(quickCreateSupplier);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [source, setSource] = useState<string>("");
+  const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
+  const lookupCache = useRef<Map<string, any>>(new Map());
+
+  const applyLookup = (idx: number, res: any) => {
+    setDrafts((prev) => prev.map((d, i) => {
+      if (i !== idx || d.kind !== "purchase_invoice") return d;
+      const next: InvoiceDraft = { ...d };
+      if (res?.supplier) {
+        next.supplier_id = res.supplier.id;
+        next.supplier_code = res.supplier.code ?? null;
+        next.lookup_state = res.duplicates > 0 ? "duplicate" : "found";
+        next.lookup_msg = res.duplicates > 0 ? `${res.duplicates + 1} NCC trùng MST` : `NCC: ${res.supplier.name}`;
+        if (!d.supplier_name.trim()) next.supplier_name = res.supplier.name;
+      } else {
+        next.supplier_id = null;
+        next.supplier_code = null;
+        next.lookup_state = "missing";
+        next.lookup_msg = "Chưa có NCC này";
+      }
+      if (res?.suggestedExpenseAccount && d.expense_account === "1561") {
+        next.expense_account = res.suggestedExpenseAccount;
+        next.expense_from_history = true;
+      }
+      if (res?.suggestedPayableAccount && d.payable_account === "331") {
+        next.payable_account = res.suggestedPayableAccount;
+      }
+      if (res?.suggestedVatRate != null) {
+        next.lines = d.lines.map((l) => (l.vat_rate === 0 ? { ...l, vat_rate: res.suggestedVatRate } : l));
+      }
+      return next;
+    }));
+  };
+
+  const runLookup = async (idx: number, taxId: string) => {
+    const tax = normalizeTaxId(taxId);
+    if (!tax) return;
+    if (lookupCache.current.has(tax)) {
+      applyLookup(idx, lookupCache.current.get(tax));
+      return;
+    }
+    setDrafts((prev) => prev.map((d, i) => (i === idx && d.kind === "purchase_invoice" ? { ...d, lookup_state: "loading" } : d)));
+    try {
+      const res = await lookupSupplier({ data: { tax_id: tax } });
+      lookupCache.current.set(tax, res);
+      applyLookup(idx, res);
+    } catch (e: any) {
+      setDrafts((prev) => prev.map((d, i) => (i === idx && d.kind === "purchase_invoice" ? { ...d, lookup_state: "idle", lookup_msg: e?.message } : d)));
+    }
+  };
 
   useEffect(() => {
     const batch = readBatch();
@@ -193,11 +244,18 @@ function ImportPreviewPage() {
       return;
     }
     const items = Array.isArray(batch.items) ? batch.items : [];
-    const built: Draft[] = items.map((it) =>
+    const built: Draft[] = items.map((it: any) =>
       it.kind === "cash_voucher" ? toVoucherDraft(it) : toInvoiceDraft(it),
     );
     setDrafts(built);
     setSource(batch.kind);
+    // Kick off lookups
+    built.forEach((d, i) => {
+      if (d.kind === "purchase_invoice" && d.supplier_tax_id) {
+        runLookup(i, d.supplier_tax_id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const patch = (idx: number, p: Partial<Draft>) =>
