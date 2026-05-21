@@ -191,8 +191,8 @@ export function ChatDock() {
       },
     });
 
-    // Background server insert.
-    const creation = (async () => {
+    // Background server insert (idempotent qua threadId — có thể retry nguyên trạng).
+    const runInsert = async () => {
       try {
         const res = await createWithMsgFn({
           data: {
@@ -217,8 +217,8 @@ export function ChatDock() {
         toast.error(e?.message || "Không tạo được cuộc trò chuyện");
         throw e;
       }
-    })();
-    registerThreadCreation(threadId, creation);
+    };
+    registerThreadCreation(threadId, runInsert(), runInsert);
   };
 
   const submit = async (override?: string) => {
