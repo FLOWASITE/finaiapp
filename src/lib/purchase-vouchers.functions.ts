@@ -309,10 +309,19 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // 1) Tạo bút toán
-    const subtotal = Number(v.subtotal || 0);
-    const vat = Number(v.vat_amount || 0);
-    const total = Number(v.total || subtotal + vat);
+    // 1) Tạo bút toán — mỗi line 1 dòng Nợ TK kho/CP + tổng VAT 1 dòng Nợ 133* + 1 dòng Có
+    const allLines: any[] = v.purchase_voucher_lines ?? [];
+    const hasLines = allLines.length > 0;
+
+    const subtotal = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.amount || 0), 0)
+      : Number(v.subtotal || 0);
+    const vat = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.vat_amount || 0), 0)
+      : Number(v.vat_amount || 0);
+    const total = hasLines
+      ? allLines.reduce((s, l) => s + Number(l.total || 0), 0)
+      : Number(v.total || subtotal + vat);
 
     const creditAcc =
       v.payment_method === "credit"
@@ -320,12 +329,36 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
         : v.payment_account ||
           (v.payment_method === "cash" ? "1111" : "1121");
 
-    const lines: Array<{ account_code: string; debit: number; credit: number }> = [];
-    lines.push({ account_code: v.debit_account, debit: subtotal, credit: 0 });
-    if (vat > 0 && v.vat_account) {
-      lines.push({ account_code: v.vat_account, debit: vat, credit: 0 });
+    const jLines: Array<{ account_code: string; debit: number; credit: number }> = [];
+
+    if (hasLines) {
+      // gộp theo TK nợ
+      const byDebit = new Map<string, number>();
+      for (const l of allLines) {
+        const acc = l.debit_account || v.debit_account;
+        byDebit.set(acc, (byDebit.get(acc) || 0) + Number(l.amount || 0));
+      }
+      for (const [acc, amt] of byDebit) {
+        if (amt > 0) jLines.push({ account_code: acc, debit: amt, credit: 0 });
+      }
+      // gộp VAT theo TK thuế
+      const byVat = new Map<string, number>();
+      for (const l of allLines) {
+        const va = Number(l.vat_amount || 0);
+        if (va <= 0) continue;
+        const acc = l.vat_account || v.vat_account || "1331";
+        byVat.set(acc, (byVat.get(acc) || 0) + va);
+      }
+      for (const [acc, amt] of byVat) {
+        jLines.push({ account_code: acc, debit: amt, credit: 0 });
+      }
+    } else {
+      jLines.push({ account_code: v.debit_account, debit: subtotal, credit: 0 });
+      if (vat > 0 && v.vat_account) {
+        jLines.push({ account_code: v.vat_account, debit: vat, credit: 0 });
+      }
     }
-    lines.push({ account_code: creditAcc, debit: 0, credit: total });
+    jLines.push({ account_code: creditAcc, debit: 0, credit: total });
 
     const { data: entry, error: e1 } = await supabase
       .from("journal_entries")
@@ -343,7 +376,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     if (e1 || !entry) throw new Error(e1?.message || "Không tạo được bút toán");
 
     const { error: e2 } = await supabase.from("journal_lines").insert(
-      lines.map((l, i) => ({
+      jLines.map((l, i) => ({
         entry_id: entry.id,
         account_code: l.account_code,
         debit: l.debit,
