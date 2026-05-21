@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createThreadWithFirstMessage, listThreads } from "@/lib/chat-threads.functions";
 import { countUnreadDigests } from "@/lib/digest-prefs.functions";
 import { stashChatAttachments, takeChatAttachments } from "@/lib/chat-attachment-handoff";
+import { uploadChatAttachment } from "@/lib/ai/parse-document.functions";
 
 function currentThreadId(pathname: string): string | null {
   const m = pathname.match(/^\/chat\/([^/]+)$/);
@@ -53,6 +54,7 @@ export function ChatDock() {
   const qc = useQueryClient();
   const createWithMsgFn = useServerFn(createThreadWithFirstMessage);
   const listFn = useServerFn(listThreads);
+  const uploadAttachmentFn = useServerFn(uploadChatAttachment);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"all" | "general" | "inbox">("all");
@@ -180,21 +182,47 @@ export function ChatDock() {
 
   const handleAttach = async (payloads: any[], note?: string) => {
     if (!payloads.length) return;
+    setLoading(true);
+    const toastId = toast.loading(`Đang lưu ${payloads.length} file đính kèm…`);
     const existingThreadId = currentThreadId(location.pathname);
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${payloads.map((p) => `📎 ${p.name}`).join("\n")}`;
     const content = note && note.trim() ? note.trim() : fallback;
-    const metaAttachments = payloads.map((p) => ({
+    let fullPayloads = payloads;
+    try {
+      fullPayloads = await Promise.all(
+        payloads.map(async (p) => {
+          if (p.uploadId) return p;
+          const uploaded = await uploadAttachmentFn({
+            data: {
+              fileBase64: p.base64,
+              mimeType: p.mime,
+              filename: p.name,
+              kind: p.kind ?? "auto",
+            },
+          });
+          return { ...p, uploadId: uploaded.uploadId, file_hash: uploaded.file_hash };
+        }),
+      );
+      toast.success("Đã lưu file đính kèm", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Không lưu được file đính kèm", { id: toastId });
+      setLoading(false);
+      return;
+    }
+    const metaAttachments = fullPayloads.map((p) => ({
       name: p.name,
       mime: p.mime,
       size: p.size,
       kind: p.kind,
+      uploadId: p.uploadId ?? null,
+      file_hash: p.file_hash ?? null,
     }));
     if (existingThreadId) {
       const handoffId =
         typeof (crypto as any).randomUUID === "function"
           ? (crypto as any).randomUUID()
           : Math.random().toString(36).slice(2);
-      stashChatAttachments(handoffId, payloads, `__attach:${existingThreadId}`);
+      stashChatAttachments(handoffId, fullPayloads, `__attach:${existingThreadId}`);
       window.dispatchEvent(
         new CustomEvent("chat:dock-send", {
           detail: {
@@ -205,15 +233,16 @@ export function ChatDock() {
           },
         }),
       );
+      setLoading(false);
       return;
     }
     const handoffId =
       typeof (crypto as any).randomUUID === "function"
         ? (crypto as any).randomUUID()
         : Math.random().toString(36).slice(2);
-    stashChatAttachments(handoffId, payloads);
+    stashChatAttachments(handoffId, fullPayloads);
     await openPersistedThread(content, {
-      title: payloads[0].name,
+      title: fullPayloads[0].name,
       metadata: { attachments: metaAttachments },
       handoff: handoffId,
     });
