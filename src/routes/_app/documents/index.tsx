@@ -572,6 +572,11 @@ function DocumentsPage() {
               filters={purchaseFilters}
               onOpenDoc={(id: string) => setOpenId(id)}
             />
+          ) : currentTab === "sales" ? (
+            <SalesInvoicesTable
+              filters={salesFilters}
+              onOpenDoc={(id: string) => setOpenId(id)}
+            />
           ) : isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
