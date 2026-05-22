@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink } from "lucide-react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -62,6 +63,69 @@ function statusBadge(s: string) {
 function fmtMoney(n: number | string | null | undefined) {
   return new Intl.NumberFormat("vi-VN").format(Number(n ?? 0));
 }
+
+const firstOfYearISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-01-01`;
+};
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const fmtDateVN = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "amber" | "emerald" | "sky" | "rose";
+}) {
+  const toneCls = {
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
+  } as const;
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+      <Check className="h-3 w-3" />
+    </span>
+  ) : (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400">
+      <X className="h-3 w-3" />
+    </span>
+  );
+}
+
+const PURCHASE_TABS: Array<{ label: string; to?: string; disabled?: boolean }> = [
+  { label: "Đơn đặt hàng", disabled: true },
+  { label: "Phiếu mua hàng", to: "/purchases/vouchers" },
+  { label: "Hoá đơn", to: "/invoices" },
+  { label: "Phiếu nhập kho", disabled: true },
+  { label: "Trả lại hàng mua", disabled: true },
+];
 
 // ---------- product picker ----------
 
@@ -252,11 +316,22 @@ function PurchaseVouchersPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [fFrom, setFFrom] = useState<string>(firstOfYearISO());
+  const [fTo, setFTo] = useState<string>(todayISO());
+  const [dateOpen, setDateOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data, refetch, isLoading, isError, error } = useQuery({
-    queryKey: ["purchase-vouchers", search, status],
+    queryKey: ["purchase-vouchers", search, status, fFrom, fTo],
     queryFn: () =>
-      listFn({ data: { search: search || undefined, status: status === "all" ? undefined : status } }),
+      listFn({
+        data: {
+          search: search || undefined,
+          status: status === "all" ? undefined : status,
+          from: fFrom || undefined,
+          to: fTo || undefined,
+        },
+      }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
@@ -295,33 +370,141 @@ function PurchaseVouchersPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi xoá"),
   });
 
-  const rows = data?.rows ?? [];
+  const rows: any[] = data?.rows ?? [];
+
+  // Heuristic: phiếu xem là "đã thanh toán đủ" nếu có cash_voucher_id hoặc bank_voucher_id
+  const isPaidRow = (r: any) =>
+    !!(r.cash_voucher_id || r.bank_voucher_id) || r.payment_method === "cash" || r.payment_method === "bank";
+
+  const kpi = useMemo(() => {
+    let noInvoice = 0;
+    let revenue = 0;
+    let paid = 0;
+    let payable = 0;
+    for (const r of rows) {
+      if (r.status === "void") continue;
+      const total = Number(r.total || 0);
+      const p = isPaidRow(r) ? total : 0;
+      if (!r.invoice_id) noInvoice += 1;
+      revenue += total;
+      paid += p;
+      payable += Math.max(0, total - p);
+    }
+    return { noInvoice, revenue, paid, payable };
+  }, [rows]);
+
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someSelected = rows.some((r) => selected.has(r.id));
+  function toggleAll() {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map((r) => r.id)));
+  }
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Phiếu mua hàng</h1>
-          <p className="text-sm text-muted-foreground">
-            Chứng từ kế toán ghi nhận nghiệp vụ mua. Hỗ trợ nhiều dòng hàng, link tới Hoá đơn mua, tự sinh bút toán / phiếu nhập kho / phiếu chi.
-          </p>
-        </div>
-        <Button
-          onClick={() => setOpenCreate(true)}
-          onMouseEnter={prefetchCreate}
-          onFocus={prefetchCreate}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Tạo phiếu mới
-        </Button>
+      {/* Top tabs */}
+      <div className="border-b">
+        <nav className="flex flex-wrap items-center gap-1">
+          {PURCHASE_TABS.map((t) => {
+            const isActive = t.to === "/purchases/vouchers";
+            if (t.disabled || !t.to) {
+              return (
+                <span
+                  key={t.label}
+                  title="Sắp có"
+                  className="px-3 py-2 text-sm text-muted-foreground/60 cursor-not-allowed select-none"
+                >
+                  {t.label}
+                </span>
+              );
+            }
+            return (
+              <Link
+                key={t.label}
+                to={t.to}
+                className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                  isActive
+                    ? "border-primary text-primary font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<FileX className="h-5 w-5" />}
+          label="Chưa nhận hoá đơn"
+          value={kpi.noInvoice.toLocaleString("vi-VN")}
+          tone="amber"
+        />
+        <KpiCard
+          icon={<TrendingDown className="h-5 w-5" />}
+          label="Giá trị mua (trong bộ lọc)"
+          value={fmtMoney(kpi.revenue)}
+          tone="emerald"
+        />
+        <KpiCard
+          icon={<Wallet className="h-5 w-5" />}
+          label="Đã thanh toán"
+          value={fmtMoney(kpi.paid)}
+          tone="sky"
+        />
+        <KpiCard
+          icon={<FileText className="h-5 w-5" />}
+          label="Tổng nợ phải trả"
+          value={fmtMoney(kpi.payable)}
+          tone="rose"
+        />
+      </div>
+
+      {/* Toolbar */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap gap-2">
-            <Input placeholder="Tìm số phiếu, NCC, diễn giải…" value={search}
-              onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <Calendar className="h-4 w-4 mr-1.5" />
+                  Từ {fmtDateVN(fFrom)} đến {fmtDateVN(fTo)}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 p-3 space-y-2">
+                <div>
+                  <Label className="text-xs mb-1 block">Từ ngày</Label>
+                  <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Đến ngày</Label>
+                  <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button size="sm" onClick={() => setDateOpen(false)}>Áp dụng</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Input
+              placeholder="Tìm số phiếu, NCC, diễn giải…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 max-w-xs"
+            />
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
                 <SelectItem value="uploaded">Nháp</SelectItem>
@@ -330,100 +513,289 @@ function PurchaseVouchersPage() {
                 <SelectItem value="void">Đã huỷ</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={selected.size === 0}
+                onClick={() => toast.info("Thanh toán nhanh — đang phát triển")}
+              >
+                <CircleDollarSign className="h-4 w-4 mr-1.5" /> Thanh toán nhanh ({selected.size})
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    Phiếu đã chọn ({selected.size}) <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem
+                    disabled={selected.size === 0}
+                    onClick={() => {
+                      selected.forEach((id) => {
+                        const r = rows.find((x) => x.id === id);
+                        if (r && r.status !== "posted" && r.status !== "void") postMut.mutate(id);
+                      });
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-2" /> Ghi sổ hàng loạt
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={selected.size === 0}
+                    onClick={() => selected.forEach((id) => voidMut.mutate(id))}
+                  >
+                    <X className="h-4 w-4 mr-2" /> Huỷ hàng loạt
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    disabled={selected.size === 0}
+                    onClick={() => {
+                      if (!confirm(`Xoá ${selected.size} phiếu đã chọn?`)) return;
+                      selected.forEach((id) => delMut.mutate(id));
+                      setSelected(new Set());
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Xoá đã chọn
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="inline-flex rounded-md shadow-sm">
+                <Button
+                  size="sm"
+                  className="h-9 rounded-r-none border-r border-primary-foreground/20"
+                  onClick={() => setOpenCreate(true)}
+                  onMouseEnter={prefetchCreate}
+                  onFocus={prefetchCreate}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Phiếu MH trong nước
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="h-9 rounded-l-none px-2" aria-label="Tuỳ chọn thêm">
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setOpenCreate(true)}>
+                      <Plus className="h-4 w-4 mr-2" /> Phiếu MH trong nước
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toast.info("Tính năng đang phát triển")}>
+                      <Upload className="h-4 w-4 mr-2" /> Phiếu MH nhập khẩu
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => toast.info("Tính năng đang phát triển")}>
+                      <Upload className="h-4 w-4 mr-2" /> Import từ Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => toast.info("Cấu hình cột — đang phát triển")}
+                aria-label="Cấu hình cột"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                Tổng: <span className="font-semibold text-foreground">{rows.length}</span>
+              </span>
+            </div>
           </div>
-        </CardHeader>
+        </CardContent>
+      </Card>
+
+      {/* Data table */}
+      <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[960px] text-sm">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap">Số phiếu</TableHead>
-                  <TableHead className="whitespace-nowrap">Ngày</TableHead>
-                  <TableHead className="min-w-[220px]">Nhà cung cấp</TableHead>
-                  <TableHead className="min-w-[240px]">Diễn giải</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Tổng tiền</TableHead>
-                  <TableHead className="whitespace-nowrap">PT TT</TableHead>
-                  <TableHead className="whitespace-nowrap">Trạng thái</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <TableRow key={`sk-${i}`}>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : isError ? (
-                  <TableRow>
-                    <TableCell colSpan={8}>
-                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
-                        <p className="text-sm font-medium text-foreground">Không tải được dữ liệu</p>
-                        <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm">{error instanceof Error ? error.message : "Đã xảy ra lỗi khi tải danh sách phiếu mua hàng."}</p>
-                        <Button size="sm" variant="outline" onClick={() => refetch()}>
-                          <Loader2 className="mr-2 h-3 w-3" />
-                          Thử lại
-                        </Button>
-                      </div>
-                    </TableCell>
+          {isLoading ? (
+            <div className="p-4 space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : isError ? (
+            <div className="p-8 text-center">
+              <AlertCircle className="h-10 w-10 text-destructive mx-auto mb-3" />
+              <p className="text-sm font-medium">Không tải được dữ liệu</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-4">{error instanceof Error ? error.message : ""}</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                <Loader2 className="mr-2 h-3 w-3" /> Thử lại
+              </Button>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-12 text-center text-muted-foreground">
+              <Inbox className="h-10 w-10 mx-auto mb-3 opacity-50" />
+              <p className="mb-2">Chưa có phiếu mua hàng nào.</p>
+              <Button variant="outline" onClick={() => setOpenCreate(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="text-[13px]">
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-9 px-2">
+                      <Checkbox
+                        checked={allSelected || (someSelected && "indeterminate")}
+                        onCheckedChange={toggleAll}
+                        aria-label="Chọn tất cả"
+                      />
+                    </TableHead>
+                    <TableHead className="w-10 text-center">STT</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
+                    <TableHead className="whitespace-nowrap">Ký hiệu</TableHead>
+                    <TableHead className="min-w-[200px]">Nhà cung cấp</TableHead>
+                    <TableHead className="min-w-[260px]">Mô tả</TableHead>
+                    <TableHead className="whitespace-nowrap">Loại</TableHead>
+                    <TableHead className="whitespace-nowrap">Chi nhánh</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Chi phí MH</TableHead>
+                    <TableHead className="whitespace-nowrap">Phiếu nhập kho</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT nhập kho</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Chiết khấu</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Còn phải trả</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ) : rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8}>
-                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                        <Inbox className="h-10 w-10 text-muted-foreground mb-3" />
-                        <p className="text-sm font-medium text-foreground">Chưa có phiếu mua hàng</p>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-sm">Nhấn "Tạo phiếu mới" để thêm phiếu mua hàng đầu tiên.</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : rows.map((r: any) => (
-                  <TableRow key={r.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono text-xs whitespace-nowrap">{r.voucher_no}</TableCell>
-                    <TableCell className="whitespace-nowrap">{r.voucher_date}</TableCell>
-                    <TableCell className="max-w-[260px] truncate" title={r.supplier_name ?? ""}>{r.supplier_name ?? "—"}</TableCell>
-                    <TableCell className="max-w-[320px] truncate text-muted-foreground" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
-                    <TableCell className="text-right font-medium whitespace-nowrap">{fmtMoney(r.total)}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {r.payment_method === "cash" ? "Tiền mặt"
-                        : r.payment_method === "bank" ? "Ngân hàng" : "Công nợ"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{statusBadge(r.status)}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap space-x-1">
-                      {r.status !== "posted" && r.status !== "void" && (
-                        <Button size="sm" variant="default" onClick={() => postMut.mutate(r.id)}>
-                          <Check className="h-3 w-3 mr-1" /> Ghi sổ
-                        </Button>
-                      )}
-                      {r.status === "posted" && (
-                        <Button size="sm" variant="outline" onClick={() => voidMut.mutate(r.id)}>
-                          <X className="h-3 w-3 mr-1" /> Huỷ
-                        </Button>
-                      )}
-                      {r.status !== "posted" && (
-                        <Button size="sm" variant="ghost" onClick={() => delMut.mutate(r.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                      {r.journal_entry_id && (
-                        <Link to="/journal" className="inline-flex">
-                          <Button size="sm" variant="ghost"><FileText className="h-3 w-3" /></Button>
-                        </Link>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r: any, idx: number) => {
+                    const total = Number(r.total || 0);
+                    const paid = isPaidRow(r) ? total : 0;
+                    const remain = Math.max(0, total - paid);
+                    const isSel = selected.has(r.id);
+                    const isPosted = r.status === "posted";
+                    const isVoid = r.status === "void";
+                    return (
+                      <TableRow
+                        key={r.id}
+                        className={`cursor-pointer hover:bg-accent/60 ${isSel ? "bg-primary/5" : ""}`}
+                        style={{ height: 40 }}
+                      >
+                        <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSel}
+                            onCheckedChange={() => toggleOne(r.id)}
+                            aria-label="Chọn dòng"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground tabular-nums">{idx + 1}</TableCell>
+                        <TableCell className="whitespace-nowrap">{fmtDateVN(r.voucher_date)}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">{r.voucher_no}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">{r.invoice_no ?? "—"}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">{r.invoice_series ?? "—"}</TableCell>
+                        <TableCell className="truncate max-w-[260px]" title={r.supplier_name ?? ""}>{r.supplier_name ?? "—"}</TableCell>
+                        <TableCell className="truncate max-w-[320px]" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">Trong nước</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{r.branch_name ?? "—"}</TableCell>
+                        <TableCell className="text-center"><StatusDot ok={!!r.is_purchase_cost} /></TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-muted-foreground">{r.stock_voucher_no ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{r.invoice_date ? fmtDateVN(r.invoice_date) : "—"}</TableCell>
+                        <TableCell className="text-center"><StatusDot ok={!!r.stock_voucher_id} /></TableCell>
+                        <TableCell className="text-center">
+                          {isVoid ? (
+                            <Badge variant="destructive" className="text-[11px] px-1.5 py-0">Đã huỷ</Badge>
+                          ) : (
+                            <StatusDot ok={isPosted} />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{total > 0 ? fmtMoney(total) : "0"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{fmtMoney(Number(r.discount_amount || 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {paid > 0 ? <span className="text-emerald-600 dark:text-emerald-400">{fmtMoney(paid)}</span> : "0"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {remain > 0 ? <span className="text-rose-600 dark:text-rose-400">{fmtMoney(remain)}</span> : "0"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.invoice_id ? (
+                            <Paperclip className="h-3.5 w-3.5 inline text-muted-foreground" />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {paid >= total && total > 0 ? (
+                            <StatusDot ok />
+                          ) : isPosted && !isVoid ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => toast.info("Thanh toán tiền mặt — đang phát triển")}
+                                title="Tạo phiếu chi tiền mặt"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <CircleDollarSign className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toast.info("Báo nợ ngân hàng — đang phát triển")}
+                                title="Tạo báo nợ ngân hàng"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <Landmark className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <StatusDot ok={false} />
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              {!isPosted && !isVoid && (
+                                <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
+                                  <Check className="h-4 w-4 mr-2" /> Ghi sổ
+                                </DropdownMenuItem>
+                              )}
+                              {isPosted && (
+                                <DropdownMenuItem onClick={() => voidMut.mutate(r.id)}>
+                                  <X className="h-4 w-4 mr-2" /> Huỷ phiếu
+                                </DropdownMenuItem>
+                              )}
+                              {r.journal_entry_id && (
+                                <DropdownMenuItem asChild>
+                                  <Link to="/journal">
+                                    <FileText className="h-4 w-4 mr-2" /> Xem bút toán
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                disabled={isPosted}
+                                onClick={() => delMut.mutate(r.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Xoá
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
