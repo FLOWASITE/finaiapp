@@ -337,6 +337,7 @@ function PurchasesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 
