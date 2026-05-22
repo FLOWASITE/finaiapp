@@ -1144,10 +1144,21 @@ function VoucherDialog({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Input
-                    placeholder="Tên sản phẩm"
+                  <ProductPickerCell
                     value={l.product_name}
-                    onChange={(e) => updateLine(i, { product_name: e.target.value })}
+                    products={(products ?? []) as any[]}
+                    onPick={(p) => {
+                      updateLine(i, {
+                        product_id: p.id,
+                        product_code: p.code ?? "",
+                        product_name: p.name ?? "",
+                        unit: p.unit ?? "",
+                        unit_price: Number(p.unit_price ?? 0),
+                        vat_rate: Number(p.vat_rate ?? 10),
+                        credit_account: p.revenue_account ?? l.credit_account,
+                        line_type: p.item_type === "service" ? "service" : "goods",
+                      });
+                    }}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
