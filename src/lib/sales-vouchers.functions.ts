@@ -413,7 +413,7 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
       const einvId = await upsertSalesEinvoice(
         supabase,
         userId,
-        cur.tenant_id,
+        cur.tenant_id as string,
         id,
         header,
         einvoice,
