@@ -237,6 +237,8 @@ const REPORTS_SECTIONS: NavSection[] = [
       { to: "/reports/ap-summary", label: "Phải trả", icon: Coins },
       { to: "/reports/stock-ios", label: "Hàng tồn kho", icon: Warehouse },
       { to: "/assets/reports", label: "Tài sản cố định", icon: Briefcase },
+      { to: "/assets/depreciation", label: "Bảng tính khấu hao", icon: TrendingDown },
+      { to: "/assets/books", label: "Sổ khấu hao", icon: BookOpen },
       { to: "/reports/allocation-schedule", label: "Tài sản phân bổ", icon: Boxes },
       { to: "/payroll/reports", label: "Lương", icon: Wallet },
     ],
