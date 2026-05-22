@@ -194,6 +194,8 @@ function InvoicesList() {
   const totals = data?.totals;
 
   return (
+    <>
+      <SalesTabs />
     <div className="p-8 space-y-5">
       <div className="flex items-center justify-between">
         <div>
