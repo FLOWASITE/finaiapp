@@ -616,7 +616,8 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
     const goodsLines = allLines.filter(
       (l: any) => l.product_id && l.line_type === "goods",
     );
-    if (v.create_stock_voucher && goodsLines.length > 0 && v.warehouse_id) {
+    if (v.create_stock_voucher && goodsLines.length > 0) {
+      const warehouseId = v.warehouse_id ?? (await ensureDefaultWarehouseId(supabase, userId));
       const { data: sv, error: e3 } = await supabase
         .from("stock_vouchers")
         .insert({
