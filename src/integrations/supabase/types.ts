@@ -6330,6 +6330,7 @@ export type Database = {
       stock_movements: {
         Row: {
           conversion_factor: number
+          costing_method: string | null
           created_at: string
           id: string
           movement_date: string
@@ -6350,6 +6351,7 @@ export type Database = {
         }
         Insert: {
           conversion_factor?: number
+          costing_method?: string | null
           created_at?: string
           id?: string
           movement_date?: string
@@ -6370,6 +6372,7 @@ export type Database = {
         }
         Update: {
           conversion_factor?: number
+          costing_method?: string | null
           created_at?: string
           id?: string
           movement_date?: string
@@ -6600,13 +6603,25 @@ export type Database = {
       }
       stock_vouchers: {
         Row: {
+          attachments_count: number | null
+          branch_id: string | null
           counter_account: string
           created_at: string
+          deliverer_name: string | null
           id: string
           journal_entry_id: string | null
+          kind: string | null
+          party_address: string | null
+          party_id: string | null
+          party_name: string | null
+          party_phone: string | null
           reason: string | null
+          receiver_name: string | null
+          source_doc_date: string | null
+          source_doc_no: string | null
           target_warehouse_id: string | null
           tenant_id: string | null
+          transfer_doc_no: string | null
           user_id: string
           voucher_date: string
           voucher_no: string
@@ -6614,13 +6629,25 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          attachments_count?: number | null
+          branch_id?: string | null
           counter_account: string
           created_at?: string
+          deliverer_name?: string | null
           id?: string
           journal_entry_id?: string | null
+          kind?: string | null
+          party_address?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          party_phone?: string | null
           reason?: string | null
+          receiver_name?: string | null
+          source_doc_date?: string | null
+          source_doc_no?: string | null
           target_warehouse_id?: string | null
           tenant_id?: string | null
+          transfer_doc_no?: string | null
           user_id: string
           voucher_date?: string
           voucher_no: string
@@ -6628,13 +6655,25 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          attachments_count?: number | null
+          branch_id?: string | null
           counter_account?: string
           created_at?: string
+          deliverer_name?: string | null
           id?: string
           journal_entry_id?: string | null
+          kind?: string | null
+          party_address?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          party_phone?: string | null
           reason?: string | null
+          receiver_name?: string | null
+          source_doc_date?: string | null
+          source_doc_no?: string | null
           target_warehouse_id?: string | null
           tenant_id?: string | null
+          transfer_doc_no?: string | null
           user_id?: string
           voucher_date?: string
           voucher_no?: string
@@ -6642,6 +6681,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_vouchers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_vouchers_journal_entry_id_fkey"
             columns: ["journal_entry_id"]
