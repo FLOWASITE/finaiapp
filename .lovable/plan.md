@@ -1,58 +1,86 @@
 ## Mục tiêu
 
-Khi user tick checkbox **Xuất HĐ** trong form Phiếu bán hàng, hiện thêm một block UI để nhập thông tin tờ hoá đơn đầu ra (e-invoice) gắn với phiếu bán hàng này. Khi lưu phiếu, tự động tạo bản ghi trong bảng `einvoices` (direction = `out`) và link vào phiếu qua `matched_sales_invoice_id`.
+Làm lại UI **danh sách** trang `/purchases/vouchers` (Phiếu mua hàng) theo bố cục trong ảnh, lấy `/sales/vouchers` làm khuôn mẫu. Không đổi logic backend, không động vào form Tạo/Sửa phiếu (Dialog hiện tại giữ nguyên).
 
-## Phạm vi UI (file `src/routes/_app/sales/vouchers.tsx`)
+## Phạm vi (chỉ frontend)
 
-Khi `form.issue_einvoice === true`, render một section mới ngay sau block "Phiếu bán hàng" (trước "Giá trị hàng"), tiêu đề **"Thông tin hoá đơn đầu ra"**, layout `grid grid-cols-2 md:grid-cols-4 gap-3` đồng bộ với các block khác:
+- File chỉnh: `src/routes/_app/purchases/vouchers.tsx` (phần render danh sách — khoảng dòng 300–436).
+- Không sửa: `purchase-vouchers.functions.ts`, `CreateVoucherDialog`, các route khác.
 
-Các trường nhập (theo schema bảng `einvoices`):
-- **Mẫu số** (`invoice_template`) — text, ví dụ `1/001`
-- **Ký hiệu** (`invoice_series`) — text, ví dụ `K25TAA`
-- **Số hoá đơn** (`invoice_no`) — text, *bắt buộc*
-- **Ngày hoá đơn** (`issue_date`) — date, mặc định bằng `voucher_date`
-- **Mã tra cứu CQT** (`tct_lookup_code`) — text, optional
-- **Ghi chú HĐĐT** (`notes`) — text, optional
+## Bố cục mới (4 khối, theo ảnh)
 
-Các field còn lại tự lấy từ phiếu bán hàng khi submit:
-- `direction = 'out'`, `source = 'manual'`
-- `buyer_*` ← `customer_*`
-- `seller_*` ← thông tin tenant (lấy từ settings hiện có)
-- `currency`, `subtotal`, `vat_amount`, `total` ← tổng tiền phiếu
-- `branch_id`, `department_id`, `project_id`, `cost_center_id` ← từ phiếu
+### 1. Thanh tab điều hướng (trên cùng)
+`Đơn đặt hàng | Phiếu mua hàng | Hoá đơn | Phiếu nhập kho | Trả lại hàng mua`
+- Dùng `Link` của TanStack Router. Tab đang hoạt động: **Phiếu mua hàng**.
+- Các tab khác trỏ tới route tương ứng nếu đã tồn tại; tab chưa có route hiển thị disable + tooltip "Sắp có" (không tạo route mới).
 
-## Phạm vi state & form
+### 2. KPI strip (4 thẻ)
+Tính từ `rows` ở client (giống `kpi` trong `sales/vouchers.tsx`):
+- **Chưa xuất hoá đơn** — đếm phiếu chưa có `invoice_id`.
+- **Doanh thu trong năm** (đổi nhãn cho mua hàng: *"Giá trị mua trong kỳ"*) — tổng `total` các phiếu không huỷ trong filter.
+- **Đã thanh toán** — tổng `paid_amount`.
+- **Tổng nợ phải trả** — tổng `max(0, total − paid_amount)`.
+- Tái dùng helper `KpiCard` + `StatusDot` (copy nội bộ hoặc tách dùng chung; ưu tiên copy nội bộ trong file để giữ scope nhỏ).
 
-Thêm vào `FormState` (line 277-299) và `blankForm` (301-324):
-```
-einvoice: {
-  invoice_template: string;
-  invoice_series: string;
-  invoice_no: string;
-  issue_date: string;
-  tct_lookup_code: string;
-  notes: string;
-}
-```
-Khi load voucher edit (line ~480-500), nếu có einvoice đã link (qua `matched_sales_invoice_id`) thì prefill và set `issue_einvoice = true`.
+### 3. Toolbar
+Một hàng gồm:
+- Chip ngày: `Từ {from} đến {to}` (mở Popover chọn khoảng — dùng `Input[type=date]` đơn giản như sales).
+- Bộ lọc trạng thái + ô tìm kiếm (giữ logic `search`, `status` hiện có).
+- Cụm nút bên phải: **Thanh toán nhanh** (disabled nếu chưa chọn dòng), **Phiếu đã chọn ({n})** dropdown (Xoá/Ghi sổ/Huỷ hàng loạt), **Phiếu MH trong nước** (= nút "Tạo phiếu mới" hiện tại, kèm dropdown caret như sales), nút ⚙ cấu hình cột (placeholder), và `Tổng: {rows.length}`.
 
-## Phạm vi server (file `src/lib/sales-vouchers.functions.ts`)
+### 4. Bảng dữ liệu
+Cột (theo ảnh, dùng đúng các trường đã có từ `listPurchaseVouchers`):
 
-1. Mở rộng schema input của `createSalesVoucher` / `updateSalesVoucher` để nhận thêm object `einvoice` (optional).
-2. Trong handler, sau khi insert/update phiếu bán hàng:
-   - Nếu `issue_einvoice = true` và có `einvoice.invoice_no`:
-     - Tạo (hoặc update nếu đã có) row trong `einvoices` với `direction = 'out'`, các field map như mô tả ở trên.
-     - Set `matched_sales_invoice_id = <voucher.id>`, `matched_at = now()`.
-   - Nếu user bỏ tick `issue_einvoice` khi edit: unlink (set `matched_sales_invoice_id = null` trên einvoice cũ) — không xoá hẳn để giữ lịch sử.
-3. Khi `getSalesVoucher`, trả thêm einvoice đã link (lookup theo `matched_sales_invoice_id = voucher.id`).
+| # | Cột | Nguồn |
+|---|---|---|
+| ☐ | Checkbox chọn dòng | local `selected: Set<string>` |
+| STT | index+1 | |
+| Ngày chứng từ | `voucher_date` | |
+| Số chứng từ | `voucher_no` | |
+| Số hoá đơn | `invoice_no` (từ join invoices nếu có; fallback "—") | |
+| Ký hiệu | `invoice_series` (fallback "—") | |
+| Nhà cung cấp* | `supplier_name` | |
+| Mô tả* | `reason` | |
+| Loại | "Trong nước" (cố định) | |
+| Chi nhánh | `branch_name` (fallback "—") | |
+| Chi phí MH | dot ✓/✗ theo `is_purchase_cost` | |
+| Phiếu nhập kho | `stock_voucher_no` (fallback "—") | |
+| Ngày HĐ | `invoice_date` nếu có | |
+| TT nhập kho | dot theo `stock_voucher_id` | |
+| Trạng thái | badge/dot theo `status` (`posted`/`void`/draft) | |
+| Giá trị đơn hàng | `total` (right-aligned, tabular-nums) | |
+| Chiết khấu | `discount_amount` | |
+| Đã thanh toán | `paid_amount` (xanh nếu >0) | |
+| Còn phải trả | `total - paid_amount` (đỏ nếu >0) | |
+| Tài liệu | icon 📎 nếu `invoice_id` | |
+| TT thanh toán | 2 nút tròn nhỏ: tiền mặt / ngân hàng (mở dialog thu/chi nhanh) — nếu đã thanh toán đủ thì hiện dot ✓ | |
+| ⋯ | DropdownMenu hành động (Sửa / Ghi sổ / Huỷ / Xoá / Xem bút toán) | |
 
-## Validation
+- Hàng cao 40px, font 13px (`text-[13px]`), sticky header `bg-muted/40`, hover `bg-accent/60`.
+- Click dòng (trừ checkbox / cụm action) mở dialog edit hiện có.
+- Trường nào backend chưa trả thì hiển thị "—"; không thêm migration/đổi server fn trong lần này.
 
-- Nếu tick "Xuất HĐ" mà không nhập `invoice_no` → toast lỗi, không submit.
-- Số HĐ trùng (unique constraint `tenant_id + direction + seller_tax_id + series + no`) → bắt error và hiện toast tiếng Việt rõ ràng.
+### Thanh toán nhanh
+- Nút tiền mặt/ngân hàng trên mỗi dòng và nút "Thanh toán nhanh" trên toolbar đều mở **Dialog thu/chi nhanh** (chỉ frontend stub gọi mutation hiện có nếu tương thích, nếu không có thì hiển thị `toast.info("Đang phát triển")` — tránh thay đổi backend).
 
-## Không thay đổi
+## Cấu trúc kỹ thuật
 
-- Không động đến luồng "Xuất kho" hay phần Thu tiền/Phiếu ngân hàng đã có.
-- Không tạo trang/route mới — toàn bộ trong dialog hiện tại.
-- Không gọi API TCT — chỉ lưu metadata thủ công ở bước này.
+- Giữ nguyên các `useQuery`, `useMutation`, `useServerFn` đã có.
+- Thêm state: `selected: Set<string>`, `fFrom`, `fTo` (mặc định đầu năm → hôm nay).
+- Filter client-side bổ sung theo `fFrom`/`fTo` trên `rows` nếu server chưa nhận tham số này.
+- Tách 2 helper component nội bộ trong file: `KpiCard`, `StatusDot` (sao chép từ `sales/vouchers.tsx`).
+- Đảm bảo `Checkbox`, `DropdownMenu`, `Popover` đã import (bổ sung nếu thiếu).
+
+## Ngoài phạm vi (sẽ làm sau nếu cần)
+
+- Filter row dưới mỗi header cột (ô "Tìm kiếm" per-column trong ảnh) — giữ chỗ bằng UI hiện tại, có thể thêm sau.
+- Sort menu (≡) mỗi cột — sau.
+- Resize/hide cột (nút ⚙) — sau.
+- Tạo route mới cho các tab "Đơn đặt hàng / Hoá đơn / Phiếu nhập kho / Trả lại hàng mua".
+- Thay đổi backend / migration.
+
+## Verify
+
+- Build/typecheck pass.
+- Mở `/purchases/vouchers` đối chiếu trực quan với `/sales/vouchers` (cùng pattern KPI + table).
+- Test: tạo phiếu mới (dialog cũ vẫn hoạt động), checkbox chọn dòng, nút ⋯ ghi sổ/huỷ/xoá, dot trạng thái đúng.
