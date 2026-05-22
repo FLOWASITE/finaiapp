@@ -680,7 +680,7 @@ function PurchaseVouchersPage() {
                 <TableBody>
                   {rows.map((r: any, idx: number) => {
                     const total = Number(r.total || 0);
-                    const paid = isPaidRow(r) ? total : 0;
+                    const paid = paidOf(r);
                     const remain = Math.max(0, total - paid);
                     const isSel = selected.has(r.id);
                     const isPosted = r.status === "posted";
