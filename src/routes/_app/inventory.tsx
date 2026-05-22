@@ -4,20 +4,20 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_app/inventory")({ component: InventoryLayout });
 
 const TABS = [
-  { to: "/inventory", label: "Tồn kho", exact: true },
-  { to: "/inventory/vouchers-in", label: "Phiếu nhập" },
-  { to: "/inventory/vouchers-out", label: "Phiếu xuất" },
-  { to: "/inventory/stock-card", label: "Thẻ kho" },
-  { to: "/inventory/stock-takes", label: "Kiểm kê" },
-  { to: "/inventory/warehouses", label: "Danh mục kho" },
-];
+  { to: "/inventory", label: "Hàng tồn kho", exact: true },
+  { to: "/inventory/unposted", label: "Phiếu chưa nhập/xuất kho" },
+  { to: "/inventory/vouchers", label: "Phiếu nhập/xuất kho" },
+  { to: "/inventory/transfers", label: "Chuyển kho" },
+  { to: "/inventory/warehouses", label: "Kho hàng" },
+  { to: "/inventory/stock-takes", label: "Kiểm kho" },
+] as const;
 
 function InventoryLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <div>
       <div className="border-b border-border bg-card/40">
-        <div className="flex gap-1 px-8 pt-4">
+        <div className="flex gap-1 px-8 pt-4 overflow-x-auto">
           {TABS.map((t) => {
             const active = t.exact ? path === t.to : path.startsWith(t.to);
             return (
@@ -25,7 +25,7 @@ function InventoryLayout() {
                 key={t.to}
                 to={t.to}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                  "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                   active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
