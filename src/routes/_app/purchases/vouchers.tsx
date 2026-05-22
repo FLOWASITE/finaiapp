@@ -19,6 +19,7 @@ import {
   deletePurchaseVoucher,
   suggestVoucherNo,
   listLinkablePurchaseInvoices,
+  recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
