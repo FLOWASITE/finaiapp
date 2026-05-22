@@ -270,7 +270,7 @@ function LoginPage() {
                   errors.email && "ring-destructive/50 focus-within:ring-destructive/50",
                 )}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.92_0.04_240)] text-[oklch(0.5_0.15_240)]">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
                   <Mail className="h-5 w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
@@ -307,7 +307,7 @@ function LoginPage() {
                   errors.password && "ring-destructive/50 focus-within:ring-destructive/50",
                 )}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.92_0.04_240)] text-[oklch(0.5_0.15_240)]">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
                   <Lock className="h-5 w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
