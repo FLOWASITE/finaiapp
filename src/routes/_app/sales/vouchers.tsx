@@ -175,7 +175,7 @@ function KpiCard({
   value,
   tone,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
   tone: "amber" | "emerald" | "sky" | "rose";
