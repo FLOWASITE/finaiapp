@@ -663,6 +663,37 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
   });
 
+  // Quick payment dialog
+  const [payDlg, setPayDlg] = useState<
+    | { open: false }
+    | { open: true; voucherId: string; voucherNo: string; method: "cash" | "bank"; remain: number }
+  >({ open: false });
+  const [payAmount, setPayAmount] = useState<string>("");
+  const [payDate, setPayDate] = useState<string>(todayISO());
+
+  const receiptMut = useMutation({
+    mutationFn: async (input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date: string }) =>
+      receiptFn({ data: input }),
+    onSuccess: () => {
+      toast.success("Đã ghi nhận thu tiền");
+      setPayDlg({ open: false });
+      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Ghi nhận thu tiền thất bại"),
+  });
+
+  const openPay = (v: any, method: "cash" | "bank") => {
+    const remain = Math.max(0, Number(v.total || 0) - Number(v.paid_amount || 0));
+    if (remain <= 0) {
+      toast.info("Phiếu đã thanh toán đủ");
+      return;
+    }
+    setPayAmount(String(Math.round(remain)));
+    setPayDate(todayISO());
+    setPayDlg({ open: true, voucherId: v.id, voucherNo: v.voucher_no, method, remain });
+  };
+
   return (
     <div className="container mx-auto py-6 px-4 space-y-4">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
