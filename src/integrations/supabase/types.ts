@@ -969,6 +969,7 @@ export type Database = {
           last_sync_error: string | null
           last_sync_status: string | null
           last_synced_at: string | null
+          mb_corporate_id: string | null
           mb_password_enc: string | null
           mb_password_iv: string | null
           mb_username: string | null
@@ -991,6 +992,7 @@ export type Database = {
           last_sync_error?: string | null
           last_sync_status?: string | null
           last_synced_at?: string | null
+          mb_corporate_id?: string | null
           mb_password_enc?: string | null
           mb_password_iv?: string | null
           mb_username?: string | null
@@ -1013,6 +1015,7 @@ export type Database = {
           last_sync_error?: string | null
           last_sync_status?: string | null
           last_synced_at?: string | null
+          mb_corporate_id?: string | null
           mb_password_enc?: string | null
           mb_password_iv?: string | null
           mb_username?: string | null
