@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBankAccounts, getBankBook } from "@/lib/bank.functions";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/bank/book")({ component: BookPage });
 
@@ -46,14 +46,8 @@ function BookPage() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">Từ ngày</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </div>
-        <div>
-          <Label className="text-xs">Đến ngày</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </div>
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
+
       </div>
 
       {book && (

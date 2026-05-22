@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { DateRangeFilter } from "@/components/date-range-filter";
+import { getPresetRange } from "@/lib/date-presets";
 
 export const Route = createFileRoute("/_app/journal")({
   component: Journal,
@@ -12,6 +14,10 @@ export const Route = createFileRoute("/_app/journal")({
 
 function Journal() {
   const [highlight, setHighlight] = useState<string | null>(null);
+  const defaultRange = useMemo(() => getPresetRange("thisMonth"), []);
+  const [from, setFrom] = useState(defaultRange.from);
+  const [to, setTo] = useState(defaultRange.to);
+
   useEffect(() => {
     const h = window.location.hash;
     if (h.startsWith("#entry-")) {
@@ -21,13 +27,15 @@ function Journal() {
     }
   }, []);
   const { data: entries } = useQuery({
-    queryKey: ["journal"],
+    queryKey: ["journal", from, to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("journal_entries")
         .select("id, entry_date, description, journal_lines(account_code, debit, credit, line_order)")
+        .gte("entry_date", from)
+        .lte("entry_date", to)
         .order("entry_date", { ascending: false })
-        .limit(200);
+        .limit(500);
       if (error) throw error;
       return data;
     },
@@ -53,14 +61,17 @@ function Journal() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sổ nhật ký chung</h1>
           <p className="text-sm text-muted-foreground">Toàn bộ bút toán đã được duyệt</p>
         </div>
-        <Button variant="outline" onClick={exportCsv}>
-          <Download className="mr-2 h-4 w-4" /> Xuất CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
+          <Button variant="outline" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" /> Xuất CSV
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6 space-y-4">
@@ -93,7 +104,7 @@ function Journal() {
         ))}
         {(entries ?? []).length === 0 && (
           <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-            Chưa có bút toán. Duyệt hóa đơn để ghi vào sổ.
+            Chưa có bút toán trong kỳ.
           </div>
         )}
       </div>

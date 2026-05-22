@@ -1,86 +1,91 @@
 ## Mục tiêu
 
-Làm lại UI **danh sách** trang `/purchases/vouchers` (Phiếu mua hàng) theo bố cục trong ảnh, lấy `/sales/vouchers` làm khuôn mẫu. Không đổi logic backend, không động vào form Tạo/Sửa phiếu (Dialog hiện tại giữ nguyên).
+Áp dụng đồng nhất component `DateRangeFilter` (như đang dùng ở tab **Sổ quỹ tiền mặt** — `/cash`) cho mọi màn hình có dữ liệu theo thời gian nhưng hiện chưa có bộ lọc kỳ. Với những trang đã có ô `Input[type="date"]` thủ công, **thay** bằng `DateRangeFilter` để giữ trải nghiệm thống nhất (preset "Hôm nay / Tuần này / Tháng này / Quý / Năm…" + ô tuỳ chọn).
 
-## Phạm vi (chỉ frontend)
+Không động vào logic backend, không đổi cấu trúc bảng/sửa server functions — chỉ thay/cắm UI filter và truyền `from`/`to` vào query đã có sẵn.
 
-- File chỉnh: `src/routes/_app/purchases/vouchers.tsx` (phần render danh sách — khoảng dòng 300–436).
-- Không sửa: `purchase-vouchers.functions.ts`, `CreateVoucherDialog`, các route khác.
+## Trạng thái hiện tại
 
-## Bố cục mới (4 khối, theo ảnh)
+**Đã có `DateRangeFilter`** (giữ nguyên):
+- `/cash` (tab Sổ quỹ), `/tax`, `/einvoices`, `/invoices`
+- `/reports/*` (index, voucher-list, ar-summary, ap-summary, ledgers, stock-ios, trial-balance)
 
-### 1. Thanh tab điều hướng (trên cùng)
-`Đơn đặt hàng | Phiếu mua hàng | Hoá đơn | Phiếu nhập kho | Trả lại hàng mua`
-- Dùng `Link` của TanStack Router. Tab đang hoạt động: **Phiếu mua hàng**.
-- Các tab khác trỏ tới route tương ứng nếu đã tồn tại; tab chưa có route hiển thị disable + tooltip "Sắp có" (không tạo route mới).
+**Có ô date thủ công → cần thay bằng `DateRangeFilter`:**
+- `bank.book.tsx`, `bank.vouchers.tsx`, `bank.reconcile.tsx`
+- `purchases/vouchers.tsx`, `sales/vouchers.tsx`, `sales/orders.tsx`
+- `admin/audit.tsx`, `einvoices/digest.tsx`
 
-### 2. KPI strip (4 thẻ)
-Tính từ `rows` ở client (giống `kpi` trong `sales/vouchers.tsx`):
-- **Chưa xuất hoá đơn** — đếm phiếu chưa có `invoice_id`.
-- **Doanh thu trong năm** (đổi nhãn cho mua hàng: *"Giá trị mua trong kỳ"*) — tổng `total` các phiếu không huỷ trong filter.
-- **Đã thanh toán** — tổng `paid_amount`.
-- **Tổng nợ phải trả** — tổng `max(0, total − paid_amount)`.
-- Tái dùng helper `KpiCard` + `StatusDot` (copy nội bộ hoặc tách dùng chung; ưu tiên copy nội bộ trong file để giữ scope nhỏ).
+**Chưa có bộ lọc kỳ nào → cần thêm `DateRangeFilter`:**
+- `journal.tsx` (Sổ nhật ký chung)
+- `cashflow.tsx` (Dòng tiền)
+- `payables/index.tsx`, `receivables/index.tsx`, `receipts/index.tsx`
+- `inventory/movements.tsx`, `inventory/stock-card.tsx`, `inventory/vouchers-in.tsx`, `inventory/vouchers-out.tsx`, `inventory/stock-takes.tsx`
+- `purchases/index.tsx`, `purchases/reports.detail.tsx`, `purchases/reports.by-item.tsx`
+- `sales/index.tsx`
+- `reports/allocation-schedule.tsx`
+- `documents/index.tsx`, `inbox.tsx`
+- `superadmin/audit.tsx`
+- `assets/events.tsx`, `assets/disposal.tsx`, `assets/reclassify.tsx`, `assets/inventory.tsx`, `assets/reports.tsx`
 
-### 3. Toolbar
-Một hàng gồm:
-- Chip ngày: `Từ {from} đến {to}` (mở Popover chọn khoảng — dùng `Input[type=date]` đơn giản như sales).
-- Bộ lọc trạng thái + ô tìm kiếm (giữ logic `search`, `status` hiện có).
-- Cụm nút bên phải: **Thanh toán nhanh** (disabled nếu chưa chọn dòng), **Phiếu đã chọn ({n})** dropdown (Xoá/Ghi sổ/Huỷ hàng loạt), **Phiếu MH trong nước** (= nút "Tạo phiếu mới" hiện tại, kèm dropdown caret như sales), nút ⚙ cấu hình cột (placeholder), và `Tổng: {rows.length}`.
+**Ngoài phạm vi (không thêm):**
+- Form Tạo/Sửa phiếu (ô ngày là 1 ngày, không phải khoảng).
+- `dashboard.tsx`, `setup.tsx`, `settings/*`, `chat/*`, `coa/*`, `customers/*`, `suppliers/*`, `items/*` — không phải báo cáo/giao dịch theo kỳ.
+- `bank.import-statement.tsx` — chỉ là wizard upload, không liệt kê theo kỳ.
 
-### 4. Bảng dữ liệu
-Cột (theo ảnh, dùng đúng các trường đã có từ `listPurchaseVouchers`):
+## Pattern áp dụng
 
-| # | Cột | Nguồn |
-|---|---|---|
-| ☐ | Checkbox chọn dòng | local `selected: Set<string>` |
-| STT | index+1 | |
-| Ngày chứng từ | `voucher_date` | |
-| Số chứng từ | `voucher_no` | |
-| Số hoá đơn | `invoice_no` (từ join invoices nếu có; fallback "—") | |
-| Ký hiệu | `invoice_series` (fallback "—") | |
-| Nhà cung cấp* | `supplier_name` | |
-| Mô tả* | `reason` | |
-| Loại | "Trong nước" (cố định) | |
-| Chi nhánh | `branch_name` (fallback "—") | |
-| Chi phí MH | dot ✓/✗ theo `is_purchase_cost` | |
-| Phiếu nhập kho | `stock_voucher_no` (fallback "—") | |
-| Ngày HĐ | `invoice_date` nếu có | |
-| TT nhập kho | dot theo `stock_voucher_id` | |
-| Trạng thái | badge/dot theo `status` (`posted`/`void`/draft) | |
-| Giá trị đơn hàng | `total` (right-aligned, tabular-nums) | |
-| Chiết khấu | `discount_amount` | |
-| Đã thanh toán | `paid_amount` (xanh nếu >0) | |
-| Còn phải trả | `total - paid_amount` (đỏ nếu >0) | |
-| Tài liệu | icon 📎 nếu `invoice_id` | |
-| TT thanh toán | 2 nút tròn nhỏ: tiền mặt / ngân hàng (mở dialog thu/chi nhanh) — nếu đã thanh toán đủ thì hiện dot ✓ | |
-| ⋯ | DropdownMenu hành động (Sửa / Ghi sổ / Huỷ / Xoá / Xem bút toán) | |
+Mỗi trang dùng cùng 1 khuôn:
 
-- Hàng cao 40px, font 13px (`text-[13px]`), sticky header `bg-muted/40`, hover `bg-accent/60`.
-- Click dòng (trừ checkbox / cụm action) mở dialog edit hiện có.
-- Trường nào backend chưa trả thì hiển thị "—"; không thêm migration/đổi server fn trong lần này.
+```tsx
+import { DateRangeFilter } from "@/components/date-range-filter";
+import { firstOfMonthISO, todayISO } from "@/lib/date-presets"; // hoặc inline
 
-### Thanh toán nhanh
-- Nút tiền mặt/ngân hàng trên mỗi dòng và nút "Thanh toán nhanh" trên toolbar đều mở **Dialog thu/chi nhanh** (chỉ frontend stub gọi mutation hiện có nếu tương thích, nếu không có thì hiển thị `toast.info("Đang phát triển")` — tránh thay đổi backend).
+const [from, setFrom] = useState(firstOfMonthISO());
+const [to, setTo] = useState(todayISO());
 
-## Cấu trúc kỹ thuật
+// trên toolbar
+<DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
 
-- Giữ nguyên các `useQuery`, `useMutation`, `useServerFn` đã có.
-- Thêm state: `selected: Set<string>`, `fFrom`, `fTo` (mặc định đầu năm → hôm nay).
-- Filter client-side bổ sung theo `fFrom`/`fTo` trên `rows` nếu server chưa nhận tham số này.
-- Tách 2 helper component nội bộ trong file: `KpiCard`, `StatusDot` (sao chép từ `sales/vouchers.tsx`).
-- Đảm bảo `Checkbox`, `DropdownMenu`, `Popover` đã import (bổ sung nếu thiếu).
+// queryKey include from/to để re-fetch khi đổi kỳ
+useQuery({ queryKey: ["xxx", from, to], queryFn: () => fn({ data: { from, to } }) })
+```
 
-## Ngoài phạm vi (sẽ làm sau nếu cần)
+Quy tắc preset mặc định theo loại trang:
+- **Sổ / nhật ký / giao dịch trong kỳ** → "Tháng này" (`firstOfMonthISO → todayISO`).
+- **Báo cáo / phân tích** → "Năm nay" (giữ giống `/reports/*` hiện tại).
+- **Audit log** → "7 ngày gần nhất".
 
-- Filter row dưới mỗi header cột (ô "Tìm kiếm" per-column trong ảnh) — giữ chỗ bằng UI hiện tại, có thể thêm sau.
-- Sort menu (≡) mỗi cột — sau.
-- Resize/hide cột (nút ⚙) — sau.
-- Tạo route mới cho các tab "Đơn đặt hàng / Hoá đơn / Phiếu nhập kho / Trả lại hàng mua".
-- Thay đổi backend / migration.
+## Phân nhóm công việc
+
+### Nhóm A — Thay ô date có sẵn (8 file)
+Refactor: bỏ 2 `<Input type="date">`, dùng `DateRangeFilter` chiếm 1 vị trí trong toolbar.
+- `bank.book.tsx`, `bank.vouchers.tsx`, `bank.reconcile.tsx`
+- `purchases/vouchers.tsx`, `sales/vouchers.tsx`, `sales/orders.tsx`
+- `admin/audit.tsx`, `einvoices/digest.tsx`
+
+### Nhóm B — Thêm filter + bind vào server fn đã hỗ trợ `from/to` (cần kiểm tra signature)
+- `journal.tsx` → lọc client trên `entry_date`, hoặc thêm tham số nếu server fn cho phép.
+- `cashflow.tsx`
+- `inventory/movements.tsx`, `inventory/stock-card.tsx`, `inventory/vouchers-in.tsx`, `inventory/vouchers-out.tsx`, `inventory/stock-takes.tsx`
+- `purchases/index.tsx`, `purchases/reports.detail.tsx`, `purchases/reports.by-item.tsx`
+- `sales/index.tsx`
+- `reports/allocation-schedule.tsx`
+- `payables/index.tsx`, `receivables/index.tsx`, `receipts/index.tsx`
+- `assets/events.tsx`, `assets/disposal.tsx`, `assets/reclassify.tsx`, `assets/inventory.tsx`, `assets/reports.tsx`
+- `documents/index.tsx`, `inbox.tsx`, `superadmin/audit.tsx`
+
+Với trang nào server fn **chưa nhận** `from/to`: lọc **client-side** trên kết quả (tạm thời), không sửa backend trong lần này. Khi trang dùng `useSuspenseQuery` / loader của TanStack, vẫn để bộ lọc cập nhật state local (không đổi loader signature).
 
 ## Verify
 
 - Build/typecheck pass.
-- Mở `/purchases/vouchers` đối chiếu trực quan với `/sales/vouchers` (cùng pattern KPI + table).
-- Test: tạo phiếu mới (dialog cũ vẫn hoạt động), checkbox chọn dòng, nút ⋯ ghi sổ/huỷ/xoá, dot trạng thái đúng.
+- Mở từng trang trong danh sách, đảm bảo:
+  - Nút chip `Từ {dd/MM/yyyy} đến {dd/MM/yyyy}` hiển thị giống `/cash` tab Sổ quỹ.
+  - Đổi preset → bảng/biểu cập nhật.
+  - Không vỡ layout toolbar hiện có (filter, search, nút Tạo mới).
+
+## Ngoài phạm vi (lần sau)
+
+- Lưu kỳ đã chọn vào URL (search params) hoặc localStorage.
+- Đồng bộ kỳ giữa các trang qua context chung.
+- Mở rộng `DateRangeFilter` để hỗ trợ so sánh 2 kỳ.
