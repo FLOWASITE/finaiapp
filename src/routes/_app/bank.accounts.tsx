@@ -64,6 +64,7 @@ function AccountsPage() {
 });
   const [editing, setEditing] = useState<any | null>(null);
   const [open, setOpen] = useState(false);
+  const [mbAccount, setMbAccount] = useState<any | null>(null);
 
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
