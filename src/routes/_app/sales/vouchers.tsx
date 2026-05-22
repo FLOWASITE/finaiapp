@@ -975,34 +975,22 @@ function VoucherDialog({
                     <tr key={l.key} className="border-t">
                       <td className="px-2 py-1 text-center">{i + 1}</td>
                       <td className="px-1 py-1">
-                        <Select
-                          value={l.product_id ?? ""}
-                          onValueChange={(v) => {
-                            const p = (products ?? []).find((x: any) => x.id === v);
-                            if (p) {
-                              updateLine(i, {
-                                product_id: p.id,
-                                product_code: p.code,
-                                product_name: p.name,
-                                unit: p.unit ?? "",
-                                unit_price: Number(p.unit_price ?? 0),
-                              });
-                            }
+                        <ProductPickerCell
+                          value={l.product_name}
+                          products={(products ?? []) as any[]}
+                          onPick={(p) => {
+                            updateLine(i, {
+                              product_id: p.id,
+                              product_code: p.code ?? "",
+                              product_name: p.name ?? "",
+                              unit: p.unit ?? "",
+                              unit_price: Number(p.unit_price ?? 0),
+                              vat_rate: Number(p.vat_rate ?? 10),
+                              credit_account: p.revenue_account ?? l.credit_account,
+                              line_type: p.item_type === "service" ? "service" : "goods",
+                            });
                           }}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Vui lòng chọn">
-                              {l.product_name || "Vui lòng chọn"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(products ?? []).map((p: any) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.code} — {p.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </td>
                       <td className="px-1 py-1">
                         <Input
