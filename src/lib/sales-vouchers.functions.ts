@@ -684,3 +684,109 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ RECORD PAYMENT (cash/bank) ============
+// Tạo phiếu thu tiền mặt / báo có NH cho 1 phiếu bán hàng đã ghi sổ.
+// Nợ 111/112 — Có 131 (theo voucher.credit_account/customer A/R).
+export const recordSalesVoucherReceipt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date?: string; reference?: string }) =>
+    z.object({
+      voucher_id: z.string().uuid(),
+      method: z.enum(["cash", "bank"]),
+      amount: z.number().positive(),
+      pay_date: z.string().optional(),
+      reference: z.string().max(255).optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: v, error: e0 } = await supabase
+      .from("sales_vouchers")
+      .select("id, tenant_id, voucher_no, voucher_date, customer_name, status, total, paid_amount, credit_account")
+      .eq("id", data.voucher_id)
+      .single();
+    if (e0 || !v) throw new Error("Không tìm thấy phiếu");
+    if (v.status !== "posted") throw new Error("Phiếu chưa ghi sổ — không thu được tiền");
+
+    const total = Number(v.total || 0);
+    const paid = Number(v.paid_amount || 0);
+    const remain = Math.max(0, total - paid);
+    if (data.amount > remain + 0.01)
+      throw new Error(`Số tiền vượt công nợ còn lại (${remain.toLocaleString("vi-VN")})`);
+
+    const payDate = data.pay_date || new Date().toISOString().slice(0, 10);
+    const debitAcc = data.method === "cash" ? "1111" : "1121";
+    const creditAcc = v.credit_account || "131";
+
+    // 1) Journal entry
+    const { data: entry, error: e1 } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        entry_date: payDate,
+        description: `Thu tiền phiếu bán ${v.voucher_no} — ${v.customer_name ?? ""}`,
+      })
+      .select("id")
+      .single();
+    if (e1 || !entry) throw new Error(e1?.message || "Không tạo được bút toán");
+
+    await supabase.from("journal_lines").insert([
+      { entry_id: entry.id, account_code: debitAcc, debit: data.amount, credit: 0, line_order: 0 },
+      { entry_id: entry.id, account_code: creditAcc, debit: 0, credit: data.amount, line_order: 1 },
+    ]);
+
+    // 2) Cash / bank voucher
+    if (data.method === "cash") {
+      await supabase.from("cash_vouchers").insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        voucher_no: `PT-${v.voucher_no}`,
+        voucher_type: "receipt",
+        voucher_date: payDate,
+        amount: data.amount,
+        cash_account: debitAcc,
+        counter_account: creditAcc,
+        party_name: v.customer_name,
+        reason: `Thu tiền phiếu bán ${v.voucher_no}`,
+        journal_entry_id: entry.id,
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      });
+    } else {
+      const { data: ba } = await supabase
+        .from("bank_accounts")
+        .select("id")
+        .eq("tenant_id", v.tenant_id)
+        .limit(1)
+        .maybeSingle();
+      await supabase.from("bank_vouchers").insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        bank_account_id: ba?.id ?? null,
+        voucher_no: `BC-${v.voucher_no}`,
+        voucher_type: "receipt",
+        voucher_date: payDate,
+        amount: data.amount,
+        counter_account: creditAcc,
+        party_name: v.customer_name,
+        reference: data.reference || null,
+        reason: `Thu tiền phiếu bán ${v.voucher_no}`,
+        journal_entry_id: entry.id,
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      });
+    }
+
+    // 3) Update paid_amount + payment_status
+    const newPaid = paid + data.amount;
+    const newStatus = newPaid >= total - 0.01 ? "paid" : "partial";
+    const { error: e3 } = await supabase
+      .from("sales_vouchers")
+      .update({ paid_amount: newPaid, payment_status: newStatus })
+      .eq("id", v.id);
+    if (e3) throw new Error(e3.message);
+
+    return { ok: true };
+  });
