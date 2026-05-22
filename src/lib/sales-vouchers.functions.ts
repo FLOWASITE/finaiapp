@@ -72,6 +72,8 @@ const VoucherUpsertSchema = z.object({
       issue_date: z.string().nullable().optional(),
       tct_lookup_code: z.string().max(128).nullable().optional(),
       notes: z.string().max(1000).nullable().optional(),
+      pdf_path: z.string().max(500).nullable().optional(),
+      xml_path: z.string().max(500).nullable().optional(),
     })
     .nullable()
     .optional(),
