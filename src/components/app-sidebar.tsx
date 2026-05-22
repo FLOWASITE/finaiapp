@@ -49,12 +49,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Bắt đầu mọi việc",
-    entries: [
-      { to: "/documents", label: "Trung tâm chứng từ", icon: Inbox, badge: "MỚI", badgeTone: "new" },
-    ],
-  },
-  {
     label: "Vận hành",
     entries: [
       {
