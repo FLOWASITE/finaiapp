@@ -1,91 +1,89 @@
-## Vấn đề phát hiện sau khi review
+## Mục tiêu
 
-Tôi đã đọc lại worker hiện tại + tài liệu chính thức của thư viện [`mbbank` (CookieGMVN)](https://github.com/CookieGMVN/MBBank). Có **6 lỗi nghiêm trọng** khiến đồng bộ không thể hoạt động ổn định:
+Làm lại UI của **Dialog Kết nối MB Bank** (`src/components/mbbank-connect-dialog.tsx`) để hiện đại, dễ hiểu, dẫn dắt người dùng theo từng bước rõ ràng — thay vì gom tất cả trạng thái/credentials/lịch sử vào một khối dày đặc như hiện tại.
 
-### 1. Sai định dạng ngày (chắc chắn fail)
-- Thư viện yêu cầu `fromDate`/`toDate` dạng **`dd/mm/yyyy`**.
-- Worker đang gửi `yyyymmdd` (`fmtDate` strip dấu `-`). → MB trả lỗi/empty.
+Phạm vi: **chỉ UI/UX của dialog**, không đổi server functions, schema, hay luồng đồng bộ Worker.
 
-### 2. Thiếu cấu hình OCR captcha (login fail ~100%)
-MB Bank chặn login bằng captcha. Thư viện cần khai báo:
-- `preferredOCRMethod: "default"` (tự dùng WASM model)
-- `saveWasm: true` (cache model, login nhanh hơn từ lần 2)
+## Vấn đề của UI hiện tại
 
-Worker hiện tại `new MB({ username, password })` thiếu hẳn → login lần đầu rất chậm, lần sau tải lại WASM, dễ timeout.
+- Mọi thông tin (trạng thái sync, toggle, form mật khẩu, log) xếp dọc trong 1 dialog hẹp → trông rối.
+- Khi chưa kết nối, người dùng vẫn thấy block "trạng thái rỗng" mơ hồ.
+- Không có hướng dẫn bảo mật/giải thích MB OTP/Captcha → người dùng e ngại nhập mật khẩu.
+- Badge trạng thái, lịch sử log nhỏ, khó scan.
+- Nút "Đồng bộ ngay" và toggle chen chúc cùng khối.
 
-### 3. Worker KHÔNG có HTTP server → nút "Đồng bộ ngay" không bao giờ chạy được
-- `triggerMbSyncNow` ở Lovable gọi `POST {WORKER_URL}/sync-now`.
-- Nhưng `external/mbbank-worker/index.mjs` chỉ có `cron.schedule(...)` — **không listen port nào**.
-- → mọi request `/sync-now` đều fail. Đây là lý do user gặp lỗi Cloudflare 1003 / không kết nối được.
+## Hướng thiết kế đề xuất
 
-### 4. Không gửi `sync_log_id` ⇒ không tạo được audit trail mỗi lần chạy
-Endpoint `/ingest` và `/sync-error` đã hỗ trợ field `sync_log_id` nhưng worker không tạo & truyền vào. UI "Lịch sử gần đây" sẽ trống.
+Chuyển sang **dialog 2 trạng thái rõ ràng** + **Sheet rộng hơn** thay cho Dialog hẹp:
 
-### 5. Parse response chưa khớp shape thực
-- `balance.acct_list` / `acctNo` / `currentBalance`: tên field thư viện trả là `acctList` (camelCase) — `find` bằng `acctNo` đúng nhưng cần fallback.
-- `running_balance` thư viện trả `availableBalance` chứ không phải `runningBalance`.
+```text
+┌──────────────────────────────────────────────┐
+│  [MB logo]  Kết nối MB Bank      [ x ]       │
+│  TK: Vietcombank 123***  •  TT133            │
+├──────────────────────────────────────────────┤
+│  ● Stepper:  1 Đăng nhập → 2 Tự động → 3 Sẵn │
+├──────────────────────────────────────────────┤
+│   <Nội dung theo trạng thái>                 │
+└──────────────────────────────────────────────┘
+```
 
-### 6. Login mỗi tick (5 phút/lần) → MB block tài khoản
-Theo cảnh báo trong README: spam login dễ bị **suspended account**. Cần cache session/`mb` instance, chỉ relogin khi 401.
+### Trạng thái A — Chưa kết nối (empty state)
+- Hero nhỏ: icon shield + 1 dòng "Đồng bộ sao kê tự động 5 phút/lần".
+- 3 bullet trust-signal có icon: mã hoá AES-256-GCM · Không lưu OTP · Có thể tắt bất cứ lúc nào.
+- Form 2 trường (username + password có show/hide) trong **Card** riêng.
+- Nút primary lớn: "Kết nối & bật đồng bộ".
+- Link nhỏ: "MB Bank yêu cầu gì? →" mở popover giải thích captcha/OCR.
 
----
+### Trạng thái B — Đã kết nối
+Chia thành **3 vùng** rõ ràng (tab hoặc section):
 
-## Kế hoạch sửa
+1. **Tổng quan** (mặc định)
+   - Card lớn: tên user MB, badge trạng thái lần sync cuối (success/error/running) với màu nền nhẹ.
+   - 2 metric ngang: "Lần cuối" (timestamp tương đối — "2 phút trước") · "Số dư hiện tại".
+   - Hàng action: Toggle "Tự động đồng bộ" + Button "Đồng bộ ngay" (icon refresh, có animation khi pending).
+   - Nếu `last_sync_error`: Alert đỏ inline + nút "Xem chi tiết".
 
-### A. Viết lại `external/mbbank-worker/index.mjs`
+2. **Lịch sử** (tab)
+   - Bảng gọn: Thời gian · Trạng thái · GD mới/GD lấy · (Lỗi rút gọn nếu có).
+   - Empty state: "Chưa có lần đồng bộ nào".
 
-Cấu trúc mới: **Fastify HTTP server + cron job nội bộ**, expose 2 endpoint:
-- `GET  /healthz` — health-check cho reverse proxy.
-- `POST /sync-now` — ký HMAC, body `{ bank_account_id }`. Đẩy account đó vào queue chạy ngay.
+3. **Bảo mật** (tab)
+   - Hiện username MB (mask: `09xx•••234`).
+   - Nút "Cập nhật mật khẩu" → mở inline form (collapsible).
+   - Nút "Ngắt kết nối" (destructive, có confirm) — clear creds + tắt sync.
 
-Sửa logic:
-1. Khởi tạo `new MB({ username, password, preferredOCRMethod: "default", saveWasm: true })`.
-2. **Cache MB instance** theo `account_no` trong `Map`, TTL 30 phút; chỉ relogin khi expired hoặc bắt lỗi auth.
-3. Đổi `fmtDate` → `dd/MM/yyyy`.
-4. Trước mỗi lần sync: `POST /api/public/mbbank/sync-log-start` (endpoint mới) để lấy `sync_log_id`, rồi gửi kèm khi gọi `/ingest` hoặc `/sync-error`.
-5. Mapping mới cho transaction:
-   - `external_ref`: `refNo` → fallback `transactionId` → fallback hash.
-   - `txn_date`: parse `dd/MM/yyyy HH:mm:ss` → ISO date.
-   - `amount = creditAmount - debitAmount`.
-   - `running_balance`: `availableBalance ?? runningBalance ?? null`.
-6. Backoff: nếu account fail 3 lần liên tiếp → `last_sync_status='error'` và skip cron đến khi user can thiệp.
-7. Concurrency: queue tuần tự, delay 5s giữa account để tránh rate-limit.
+### Tinh chỉnh visual
 
-### B. Thêm endpoint Lovable `src/routes/api/public/mbbank/sync-log-start.ts`
+- Dùng **Sheet** (`side="right"`, `w-[480px]`) thay `Dialog max-w-lg` → đủ chỗ thở, không che bảng tài khoản.
+- Header có icon MB Bank (dùng `Banknote` lucide hoặc text "MB" trên nền đỏ MB `#E60012` để brand-aware).
+- Badge trạng thái dùng dot + label thay vì pill nặng:
+  - success: `bg-emerald-500` dot + "Thành công"
+  - error: `bg-destructive` dot + "Lỗi"
+  - running: dot có animate-pulse + "Đang chạy"
+- Timestamp dùng `formatDistanceToNow` (date-fns vi) thay vì datetime đầy đủ → ngắn gọn, dễ đọc.
+- Toggle "Tự động đồng bộ" có sub-label: "Chạy mỗi 5 phút qua Worker an toàn".
+- Spacing dùng `space-y-5`, card padding `p-4`, không dồn quá sát.
 
-`POST { bank_account_id }` → tạo row `bank_sync_logs(status='running')` và trả `{ sync_log_id }`. Worker gọi trước mỗi lần sync.
+### Tiểu tiết UX
 
-### C. Cập nhật `src/lib/mbbank.functions.ts` (`triggerMbSyncNow`)
+- Khi `saveCreds` thành công → tự động chuyển sang trạng thái B mà không cần đóng dialog.
+- Sau khi bấm "Đồng bộ ngay", thay vì toast + setTimeout, **poll** `getMbSyncStatus` mỗi 2s trong 30s đến khi status đổi → cập nhật real-time. Hiển thị spinner inline trên card trạng thái.
+- Nút "Đồng bộ ngay" disable khi `last_sync_status === "running"`.
+- Có ô tooltip giải thích "Worker là gì?" để user không kỹ thuật hiểu.
 
-Giữ nguyên logic, chỉ thêm timeout 15s + thông báo rõ ràng khi worker không phản hồi.
+## Files sẽ thay đổi
 
-### D. Cập nhật `external/mbbank-worker/package.json` + README
+| File | Thay đổi |
+|---|---|
+| `src/components/mbbank-connect-dialog.tsx` | Viết lại toàn bộ UI theo cấu trúc 2 trạng thái + 3 tab. Dùng `Sheet` thay `Dialog`. Thêm polling sau "Đồng bộ ngay". |
+| `src/components/mbbank-status-badge.tsx` (mới) | Tách `StatusBadge` ra component riêng có dot+label+animate-pulse. |
 
-- Thêm `fastify`, `pino` deps.
-- README mới gồm:
-  - Cài đặt VPS Ubuntu (Node 20+).
-  - **Cài tesseract optional** (chỉ khi chọn OCR mode tesseract).
-  - Mẫu config Nginx reverse-proxy + Let's Encrypt → để `MBBANK_WORKER_URL` là domain HTTPS (giải quyết luôn lỗi Cloudflare 1003 trước đó).
-  - Mẫu `systemd` service để auto-restart.
-  - Lệnh kiểm tra: `curl https://your-domain/healthz`.
+Không đổi: server functions, API endpoints, schema, Worker.
 
-### E. Migration nhỏ (nếu chưa có)
+## Không bao gồm trong phạm vi này
 
-Đảm bảo `bank_sync_logs` có `status` chấp nhận `'running'` (hiện đã free-text → OK, không cần sửa).
+- Không thêm OAuth/OTP flow MB (MB chưa có Open Banking công khai cho cá nhân).
+- Không đổi logic mã hoá / Worker / cron.
+- Không thêm trang riêng — vẫn dùng dialog/sheet mở từ trang `/bank/accounts`.
 
----
-
-## Technical details
-
-**File mới/sửa:**
-- `external/mbbank-worker/index.mjs` — viết lại hoàn toàn (~200 dòng): Fastify + cron + cache + queue.
-- `external/mbbank-worker/package.json` — thêm `fastify@^4`.
-- `external/mbbank-worker/README.md` — guide deploy mới có Nginx + systemd.
-- `src/routes/api/public/mbbank/sync-log-start.ts` — endpoint mới (HMAC-protected).
-- `src/lib/mbbank.functions.ts` — thêm `AbortSignal.timeout(15000)` trong `triggerMbSyncNow`.
-
-**Không động đến:** schema DB, RLS, UI dialog, crypto helpers, `/ingest`, `/accounts`, `/sync-error`.
-
----
-
-Bấm **Implement plan** để mình bắt tay vào sửa.
+Bấm **Implement plan** để mình thực hiện.
