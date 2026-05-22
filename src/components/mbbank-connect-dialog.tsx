@@ -535,20 +535,26 @@ function ConnectedView({
                 <Power className="h-3.5 w-3.5" /> Tự động đồng bộ
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Chạy mỗi 5 phút qua Worker an toàn
+                {isBiz
+                  ? "Sắp ra mắt cho tài khoản BIZ MBBank"
+                  : "Chạy mỗi 5 phút qua Worker an toàn"}
               </div>
             </div>
-            <Switch checked={!!acc?.sync_enabled} onCheckedChange={onToggle} />
+            <Switch
+              checked={!!acc?.sync_enabled}
+              onCheckedChange={onToggle}
+              disabled={isBiz}
+            />
           </div>
           <Button
             variant="outline"
             size="sm"
             className="w-full"
             onClick={onSyncNow}
-            disabled={running || !acc?.sync_enabled}
+            disabled={isBiz || running || !acc?.sync_enabled}
           >
             <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", running && "animate-spin")} />
-            {running ? "Đang đồng bộ…" : "Đồng bộ ngay"}
+            {isBiz ? "Đồng bộ BIZ — đang phát triển" : running ? "Đang đồng bộ…" : "Đồng bộ ngay"}
           </Button>
         </div>
 
