@@ -119,6 +119,8 @@ function VouchersPage() {
               <th className="px-4 py-2 text-left">TK đối ứng</th>
               <th className="px-4 py-2 text-left">Diễn giải</th>
               <th className="px-4 py-2 text-right">Số tiền</th>
+              <th className="px-4 py-2 text-center">Trạng thái</th>
+              <th className="px-4 py-2 text-center">Tài liệu</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -139,12 +141,28 @@ function VouchersPage() {
                   <td className={"px-4 py-2 text-right font-mono " + (isIn ? "text-emerald-600" : "text-rose-600")}>
                     {(isIn ? "+" : "−")}{fmt(Number(v.amount))}
                   </td>
-                  <td className="px-4 py-2 text-right">
-                    <Button size="sm" variant="ghost" onClick={() => {
-                      if (confirm(`Xoá phiếu ${v.voucher_no}? Bút toán liên quan cũng sẽ bị xoá.`)) del.mutate(v.id);
-                    }}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
+                  <td className="px-4 py-2 text-center">
+                    <PostedBadge posted={!!v.journal_entry_id} />
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <AttachmentsCell
+                      attachments={v.attachments ?? []}
+                      entityTable="bank_vouchers"
+                      entityId={v.id}
+                      docKind="bank_voucher"
+                      invalidateKeys={[["bank-vouchers"]]}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <VoucherRowActions
+                      onView={() => toast.info("Xem chi tiết — đang phát triển")}
+                      onEdit={() => toast.info("Chỉnh sửa — đang phát triển")}
+                      onPrint={() => toast.info("In phiếu — đang phát triển")}
+                      onDuplicate={() => toast.info("Nhân bản — đang phát triển")}
+                      onDelete={() => {
+                        if (confirm(`Xoá phiếu ${v.voucher_no}? Bút toán liên quan cũng sẽ bị xoá.`)) del.mutate(v.id);
+                      }}
+                    />
                   </td>
                 </tr>
               );
