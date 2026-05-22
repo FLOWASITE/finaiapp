@@ -289,7 +289,7 @@ export const getSalesVoucher = createServerFn({ method: "POST" })
       const { data: e } = await supabase
         .from("einvoices")
         .select(
-          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes",
+          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes, pdf_path, xml_path",
         )
         .eq("id", voucher.einvoice_id)
         .maybeSingle();
