@@ -332,7 +332,7 @@ export const createSalesVoucher = createServerFn({ method: "POST" })
     const tenantId = profile?.active_tenant_id;
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
-    const { lines, id: _ignore, ...header } = data;
+    const { lines, einvoice, id: _ignore, ...header } = data;
 
     const { data: row, error } = await supabase
       .from("sales_vouchers")
@@ -349,6 +349,24 @@ export const createSalesVoucher = createServerFn({ method: "POST" })
       const ins = lines.map((l, i) => ({ ...l, voucher_id: row.id, line_order: i }));
       const { error: e2 } = await supabase.from("sales_voucher_lines").insert(ins);
       if (e2) throw new Error(e2.message);
+    }
+
+    if (header.issue_einvoice && einvoice) {
+      const einvId = await upsertSalesEinvoice(
+        supabase,
+        userId,
+        tenantId,
+        row.id,
+        header,
+        einvoice,
+        null,
+      );
+      if (einvId) {
+        await supabase
+          .from("sales_vouchers")
+          .update({ einvoice_id: einvId })
+          .eq("id", row.id);
+      }
     }
 
     return { id: row.id };
