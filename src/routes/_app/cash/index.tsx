@@ -164,9 +164,11 @@ function CashPage() {
               )}
             </tbody>
           </table>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="book" className="rounded-lg border border-border bg-card">
+      {tab === "book" && (
+        <div className="rounded-lg border border-border bg-card">
           <div className="flex items-center gap-3 border-b border-border p-3">
             <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
           </div>
@@ -195,8 +197,8 @@ function CashPage() {
               )}
             </tbody>
           </table>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }
