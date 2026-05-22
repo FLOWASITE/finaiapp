@@ -628,10 +628,7 @@ function SalesVouchersPage() {
         addLine={addLine}
         updateLine={updateLine}
         removeLine={removeLine}
-        onSave={() => saveMut.mutate()}
-        saving={saveMut.isPending}
-        onPostNew={async () => {
-          // Save first then post
+        onSave={async () => {
           try {
             const payload = buildPayload();
             if (!payload.customer_id && !payload.customer_name)
@@ -642,16 +639,20 @@ function SalesVouchersPage() {
               ? form.id
               : (await create({ data: payload })).id;
             if (form.id) await update({ data: { id: form.id, ...payload } });
-            await post({ data: { id } });
-            toast.success("Đã lưu và ghi sổ");
+            try {
+              await post({ data: { id } });
+              toast.success("Đã lưu và ghi sổ");
+            } catch (e: any) {
+              toast.error(e?.message || "Đã lưu nhưng ghi sổ thất bại");
+            }
             qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
             invalidateLedgers(qc);
             setOpen(false);
           } catch (e: any) {
-            toast.error(e?.message || "Ghi sổ thất bại");
+            toast.error(e?.message || "Lưu phiếu thất bại");
           }
         }}
-        posting={postMut.isPending}
+        saving={saveMut.isPending || postMut.isPending}
       />
     </div>
   );
