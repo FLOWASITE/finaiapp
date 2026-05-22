@@ -737,13 +737,13 @@ function PurchaseVouchersPage() {
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           {paid >= total && total > 0 ? (
                             <StatusDot ok />
-                          ) : isPosted && !isVoid ? (
+                          ) : !isVoid ? (
                             <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => openPayCash(r, remain)}
                                 title="Tạo phiếu chi tiền mặt"
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-white hover:bg-rose-700 transition shadow-sm"
                               >
                                 <CircleDollarSign className="h-4 w-4" />
                               </button>
@@ -751,7 +751,7 @@ function PurchaseVouchersPage() {
                                 type="button"
                                 onClick={() => openPayBank(r, remain)}
                                 title="Tạo phiếu chi ngân hàng"
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-white hover:bg-rose-700 transition shadow-sm"
                               >
                                 <Landmark className="h-4 w-4" />
                               </button>
