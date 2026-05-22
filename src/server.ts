@@ -77,6 +77,8 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
+      // Redirect sớm bằng HTML (không phụ thuộc JS hydrate) cho trang gốc
+      // và "/index" — tránh màn hình "Đang mở FinAI" treo khi vite-deps fail.
       if (url.pathname === "/" || url.pathname === "/index") {
         return redirectHtml("/login");
       }
@@ -84,6 +86,9 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
+
+
+
     } catch (error) {
       console.error(error);
       return brandedErrorResponse();

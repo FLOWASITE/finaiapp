@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,19 @@ function LoginPage() {
 
   const dest = next && next.startsWith("/") ? next : "/dashboard";
   const strength = useMemo(() => scorePassword(password), [password]);
+
+  // Nếu user đã đăng nhập sẵn, tự chuyển sang dashboard (xảy ra khi redirect
+  // "/" → "/login" nhưng vẫn còn session hợp lệ).
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) navigate({ to: dest, replace: true });
+    });
+    return () => {
+      active = false;
+    };
+  }, [dest, navigate]);
+
 
   function validate() {
     const next: typeof errors = {};
