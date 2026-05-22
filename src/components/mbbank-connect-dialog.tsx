@@ -107,6 +107,7 @@ export function MbBankConnectDialog({
   const acc = data?.account as any;
   const logs = (data?.logs ?? []) as any[];
   const hasCreds = !!acc?.mb_username;
+  const isBiz = !!acc?.mb_corporate_id;
 
   // Stop polling when status changes from running to terminal
   useEffect(() => {
