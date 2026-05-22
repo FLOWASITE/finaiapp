@@ -182,7 +182,7 @@ function LoginPage() {
             className="absolute inset-0 opacity-50"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 20% 15%, oklch(1 0 0 / 0.18) 0%, transparent 45%), radial-gradient(circle at 85% 85%, oklch(0.7 0.18 230 / 0.35) 0%, transparent 50%)",
+                "radial-gradient(circle at 20% 15%, oklch(1 0 0 / 0.15) 0%, transparent 45%), radial-gradient(circle at 85% 85%, oklch(0.72 0.16 162 / 0.35) 0%, transparent 50%)",
             }}
           />
           <svg
@@ -193,11 +193,11 @@ function LoginPage() {
           >
             <path
               d="M0,160 L120,90 L220,140 L320,60 L420,120 L520,80 L600,130 L600,200 L0,200 Z"
-              fill="oklch(0.85 0.12 220 / 0.5)"
+              fill="oklch(0.72 0.16 162 / 0.55)"
             />
             <path
               d="M0,180 L100,130 L200,170 L300,110 L400,160 L500,120 L600,170 L600,200 L0,200 Z"
-              fill="oklch(0.5 0.15 240 / 0.6)"
+              fill="oklch(0.45 0.10 260 / 0.6)"
             />
           </svg>
 
