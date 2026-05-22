@@ -722,25 +722,8 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
   });
 
-  // Quick payment dialog
-  const [payDlg, setPayDlg] = useState<
-    | { open: false }
-    | { open: true; voucherId: string; voucherNo: string; method: "cash" | "bank"; remain: number }
-  >({ open: false });
-  const [payAmount, setPayAmount] = useState<string>("");
-  const [payDate, setPayDate] = useState<string>(todayISO());
+  // (Quick-pay dialog removed — replaced by full VoucherFormDialog / BankVoucherFormDialog below.)
 
-  const receiptMut = useMutation({
-    mutationFn: async (input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date: string }) =>
-      receiptFn({ data: input }),
-    onSuccess: () => {
-      toast.success("Đã ghi nhận thu tiền");
-      setPayDlg({ open: false });
-      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
-      invalidateLedgers(qc);
-    },
-    onError: (e: any) => toast.error(e?.message || "Ghi nhận thu tiền thất bại"),
-  });
 
   // Cash/Bank receipt dialogs (replaces the old quick-pay dialog)
   const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
