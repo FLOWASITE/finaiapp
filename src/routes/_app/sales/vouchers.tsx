@@ -492,7 +492,7 @@ function SalesVouchersPage() {
   }
 
   async function openEdit(id: string) {
-    const { voucher } = await get({ data: { id } });
+    const { voucher, einvoice } = await get({ data: { id } });
     setForm({
       id: voucher.id,
       voucher_no: voucher.voucher_no,
@@ -538,6 +538,16 @@ function SalesVouchersPage() {
             vat_account: l.vat_account ?? "33311",
             line_type: l.line_type,
           })) || [emptyLine()],
+      einvoice: einvoice
+        ? {
+            invoice_template: einvoice.invoice_template ?? "",
+            invoice_series: einvoice.invoice_series ?? "",
+            invoice_no: einvoice.invoice_no ?? "",
+            issue_date: einvoice.issue_date ?? "",
+            tct_lookup_code: einvoice.tct_lookup_code ?? "",
+            notes: einvoice.notes ?? "",
+          }
+        : blankEinvoice(),
     });
     setOpen(true);
   }
