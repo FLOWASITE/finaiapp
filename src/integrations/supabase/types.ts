@@ -4670,10 +4670,13 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          can_be_purchased: boolean
+          can_be_sold: boolean
           category_id: string | null
           code: string
           cogs_account: string
           created_at: string
+          expense_account: string | null
           id: string
           is_active: boolean
           item_type: string
@@ -4693,10 +4696,13 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          can_be_purchased?: boolean
+          can_be_sold?: boolean
           category_id?: string | null
           code: string
           cogs_account?: string
           created_at?: string
+          expense_account?: string | null
           id?: string
           is_active?: boolean
           item_type?: string
@@ -4716,10 +4722,13 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          can_be_purchased?: boolean
+          can_be_sold?: boolean
           category_id?: string | null
           code?: string
           cogs_account?: string
           created_at?: string
+          expense_account?: string | null
           id?: string
           is_active?: boolean
           item_type?: string
