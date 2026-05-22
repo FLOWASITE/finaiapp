@@ -6605,6 +6605,7 @@ export type Database = {
           id: string
           journal_entry_id: string | null
           reason: string | null
+          target_warehouse_id: string | null
           tenant_id: string | null
           user_id: string
           voucher_date: string
@@ -6618,6 +6619,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           reason?: string | null
+          target_warehouse_id?: string | null
           tenant_id?: string | null
           user_id: string
           voucher_date?: string
@@ -6631,6 +6633,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           reason?: string | null
+          target_warehouse_id?: string | null
           tenant_id?: string | null
           user_id?: string
           voucher_date?: string
@@ -6644,6 +6647,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_vouchers_target_warehouse_id_fkey"
+            columns: ["target_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
           {
