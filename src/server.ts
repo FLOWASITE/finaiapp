@@ -77,15 +77,16 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
-      // Preview tĩnh đôi khi mở "/index" — chuyển sớm về "/login" để tránh
-      // 404 / màn hình trắng (route /index không tồn tại trong app).
-      if (url.pathname === "/index") {
+      // Redirect sớm bằng HTML (không phụ thuộc JS hydrate) cho trang gốc
+      // và "/index" — tránh màn hình "Đang mở FinAI" treo khi vite-deps fail.
+      if (url.pathname === "/" || url.pathname === "/index") {
         return redirectHtml("/login");
       }
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
+
 
 
     } catch (error) {
