@@ -206,13 +206,22 @@ function KpiCard({
   );
 }
 
-function StatusDot({ ok }: { ok: boolean }) {
+function StatusDot({ ok, label }: { ok: boolean; label?: string }) {
+  const text = label ?? (ok ? "Có" : "Không");
   return ok ? (
-    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+    <span
+      title={text}
+      aria-label={text}
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+    >
       <Check className="h-3 w-3" />
     </span>
   ) : (
-    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+    <span
+      title={text}
+      aria-label={text}
+      className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30"
+    />
   );
 }
 
