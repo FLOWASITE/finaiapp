@@ -380,12 +380,12 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
     VoucherUpsertSchema.extend({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { id, lines, ...header } = data;
+    const { supabase, userId } = context;
+    const { id, lines, einvoice, ...header } = data;
 
     const { data: cur } = await supabase
       .from("sales_vouchers")
-      .select("status")
+      .select("status, tenant_id, einvoice_id")
       .eq("id", id)
       .single();
     if (!cur) throw new Error("Không tìm thấy phiếu");
@@ -407,6 +407,29 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
         );
         if (e2) throw new Error(e2.message);
       }
+    }
+
+    if (header.issue_einvoice && einvoice) {
+      const einvId = await upsertSalesEinvoice(
+        supabase,
+        userId,
+        cur.tenant_id,
+        id,
+        header,
+        einvoice,
+        cur.einvoice_id ?? null,
+      );
+      if (einvId && einvId !== cur.einvoice_id) {
+        await supabase
+          .from("sales_vouchers")
+          .update({ einvoice_id: einvId })
+          .eq("id", id);
+      }
+    } else if (!header.issue_einvoice && cur.einvoice_id) {
+      await supabase
+        .from("sales_vouchers")
+        .update({ einvoice_id: null })
+        .eq("id", id);
     }
     return { ok: true };
   });
