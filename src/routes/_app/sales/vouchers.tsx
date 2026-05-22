@@ -1,9 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X } from "lucide-react";
+import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip } from "lucide-react";
 
 import {
   listSalesVouchers,
@@ -168,6 +168,49 @@ const fmtMoney = (n: number) =>
   new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Math.round(n || 0));
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  tone: "amber" | "emerald" | "sky" | "rose";
+}) {
+  const toneCls = {
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    emerald:
+      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
+  } as const;
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+      <Check className="h-3 w-3" />
+    </span>
+  ) : (
+    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+  );
+}
 
 type Line = {
   key: string;
@@ -361,6 +404,42 @@ function SalesVouchersPage() {
     setFCustomerId(null);
     setFSearch("");
   }
+
+  // ---------- Selection ----------
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const rows = (vouchers?.rows ?? []) as any[];
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someSelected = !allSelected && rows.some((r) => selected.has(r.id));
+  function toggleAll() {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map((r) => r.id)));
+  }
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // ---------- KPI ----------
+  const kpi = useMemo(() => {
+    let noInvoice = 0;
+    let revenue = 0;
+    let paid = 0;
+    let receivable = 0;
+    for (const r of rows) {
+      if (r.status === "void") continue;
+      const total = Number(r.total || 0);
+      const pAmt = Number(r.paid_amount || 0);
+      if (!r.einvoice_id) noInvoice += 1;
+      revenue += total;
+      paid += pAmt;
+      receivable += Math.max(0, total - pAmt);
+    }
+    return { noInvoice, revenue, paid, receivable };
+  }, [rows]);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
@@ -596,6 +675,35 @@ function SalesVouchersPage() {
         </Button>
       </div>
 
+      {/* KPI bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<FileX className="h-5 w-5" />}
+          label="Chưa xuất hoá đơn"
+          value={kpi.noInvoice.toLocaleString("vi-VN")}
+          tone="amber"
+        />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          label="Doanh thu (trong bộ lọc)"
+          value={fmtMoney(kpi.revenue)}
+          tone="emerald"
+        />
+        <KpiCard
+          icon={<Wallet className="h-5 w-5" />}
+          label="Đã thanh toán"
+          value={fmtMoney(kpi.paid)}
+          tone="sky"
+        />
+        <KpiCard
+          icon={<FileText className="h-5 w-5" />}
+          label="Tổng nợ phải thu"
+          value={fmtMoney(kpi.receivable)}
+          tone="rose"
+        />
+      </div>
+
+
       <Card>
         <CardContent className="p-3 sm:p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
@@ -683,89 +791,172 @@ function SalesVouchersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Số phiếu</TableHead>
-                    <TableHead>Ngày</TableHead>
-                    <TableHead>Khách hàng</TableHead>
-                    <TableHead>Mô tả</TableHead>
-                    <TableHead className="text-right">Tổng tiền</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead></TableHead>
+              <Table className="text-[13px]">
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-9 px-2">
+                      <Checkbox
+                        checked={allSelected || (someSelected && "indeterminate")}
+                        onCheckedChange={toggleAll}
+                        aria-label="Chọn tất cả"
+                      />
+                    </TableHead>
+                    <TableHead className="w-10 text-center">STT</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
+                    <TableHead className="whitespace-nowrap">Kỳ hạch toán</TableHead>
+                    <TableHead className="min-w-[200px]">Khách hàng</TableHead>
+                    <TableHead className="min-w-[260px]">Mô tả</TableHead>
+                    <TableHead className="whitespace-nowrap">Loại phiếu</TableHead>
+                    <TableHead className="whitespace-nowrap">Phiếu xuất kho</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT xuất kho</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Chiết khấu</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Còn phải thu</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(vouchers?.rows ?? []).map((v: any) => (
-                    <TableRow
-                      key={v.id}
-                      className="cursor-pointer hover:bg-accent"
-                      onClick={() => openEdit(v.id)}
-                    >
-                      <TableCell className="font-mono">{v.voucher_no}</TableCell>
-                      <TableCell>{v.voucher_date}</TableCell>
-                      <TableCell>{v.customer_name ?? "—"}</TableCell>
-                      <TableCell className="max-w-[280px] truncate">{v.reason}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtMoney(Number(v.total))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            v.status === "posted"
-                              ? "default"
-                              : v.status === "void"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
-                          {v.status === "posted"
-                            ? "Đã ghi sổ"
-                            : v.status === "void"
-                              ? "Đã huỷ"
-                              : "Nháp"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(v.id)}>
-                              Mở phiếu
-                            </DropdownMenuItem>
-                            {v.status !== "posted" && v.status !== "void" && (
-                              <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
-                                <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                  {rows.map((v: any, idx: number) => {
+                    const total = Number(v.total || 0);
+                    const paid = Number(v.paid_amount || 0);
+                    const remain = Math.max(0, total - paid);
+                    const period = v.voucher_date
+                      ? `T${String(new Date(v.voucher_date).getMonth() + 1).padStart(2, "0")}/${new Date(v.voucher_date).getFullYear()}`
+                      : "—";
+                    const isSel = selected.has(v.id);
+                    const isPosted = v.status === "posted";
+                    const isVoid = v.status === "void";
+                    const isPaid = v.payment_status === "paid";
+                    return (
+                      <TableRow
+                        key={v.id}
+                        className={`cursor-pointer hover:bg-accent/60 ${isSel ? "bg-primary/5" : ""}`}
+                        onClick={() => openEdit(v.id)}
+                        style={{ height: 40 }}
+                      >
+                        <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSel}
+                            onCheckedChange={() => toggleOne(v.id)}
+                            aria-label="Chọn dòng"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground tabular-nums">
+                          {idx + 1}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{v.voucher_date}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">
+                          {v.voucher_no}
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                          {v.einvoice_no ?? "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {period}
+                        </TableCell>
+                        <TableCell className="truncate max-w-[260px]">
+                          {v.customer_name ?? "—"}
+                        </TableCell>
+                        <TableCell className="truncate max-w-[320px]">{v.reason}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          Trong nước
+                        </TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-muted-foreground">
+                          {v.stock_voucher_no ?? "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {v.einvoice_no ? v.voucher_date : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusDot ok={!!v.stock_voucher_id} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isVoid ? (
+                            <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
+                              Đã huỷ
+                            </Badge>
+                          ) : (
+                            <StatusDot ok={isPosted} />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {total > 0 ? fmtMoney(total) : "0"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {fmtMoney(Number(v.discount_amount || 0))}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {paid > 0 ? (
+                            <span className="text-emerald-600 dark:text-emerald-400">{fmtMoney(paid)}</span>
+                          ) : (
+                            "0"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {remain > 0 ? (
+                            <span className="text-rose-600 dark:text-rose-400">{fmtMoney(remain)}</span>
+                          ) : (
+                            "0"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {v.einvoice_id ? (
+                            <Paperclip className="h-3.5 w-3.5 inline text-muted-foreground" />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusDot ok={isPaid} />
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(v.id)}>
+                                Mở phiếu
                               </DropdownMenuItem>
-                            )}
-                            {v.status === "posted" && (
-                              <DropdownMenuItem
-                                onClick={() => voidMut.mutate(v.id)}
-                                className="text-destructive"
-                              >
-                                Huỷ ghi sổ
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            {v.status !== "posted" && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Xoá
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                              {!isPosted && !isVoid && (
+                                <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
+                                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                                </DropdownMenuItem>
+                              )}
+                              {isPosted && (
+                                <DropdownMenuItem
+                                  onClick={() => voidMut.mutate(v.id)}
+                                  className="text-destructive"
+                                >
+                                  Huỷ ghi sổ
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              {!isPosted && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Xoá
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
