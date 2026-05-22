@@ -17,36 +17,48 @@ const TABS = [
 function BankLayout() {
   const loc = useLocation();
   return (
-    <div className="p-6 md:p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Ngân hàng</h1>
-        <p className="text-sm text-muted-foreground">
-          Quản lý tài khoản ngân hàng, phiếu thu/chi qua NH, chuyển khoản nội bộ và đối chiếu sao kê
-        </p>
+    <div>
+      <div className="border-b bg-background sticky top-0 z-10">
+        <nav className="flex gap-1 overflow-x-auto px-4">
+          {TABS.map((t) => {
+            const active = t.exact ? loc.pathname === t.to : loc.pathname === t.to || loc.pathname.startsWith(t.to + "/");
+            const Icon = t.icon;
+            return (
+              <Link
+                key={t.to}
+                to={t.to}
+                className={cn(
+                  "group relative shrink-0 inline-flex items-center gap-2 px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {t.label}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none absolute left-2 right-2 -bottom-px h-[3px] rounded-full transition-all duration-300 ease-out",
+                    active
+                      ? "opacity-100 scale-x-100 bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[0_0_10px_hsl(var(--primary)/0.45)]"
+                      : "opacity-0 scale-x-50 bg-muted-foreground/40 group-hover:opacity-60 group-hover:scale-x-90",
+                  )}
+                />
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-      <nav className="inline-flex items-center gap-1 rounded-2xl border border-white/5 bg-background/60 p-1 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 overflow-x-auto max-w-full">
-        {TABS.map((t) => {
-          const active = t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to);
-          const Icon = t.icon;
-          return (
-            <Link
-              key={t.to}
-              to={t.to}
-              className={cn(
-                "inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap",
-                active
-                  ? "bg-gradient-to-br from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
 
-      <Outlet />
+      <div className="p-6 md:p-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Ngân hàng</h1>
+          <p className="text-sm text-muted-foreground">
+            Quản lý tài khoản ngân hàng, phiếu thu/chi qua NH, chuyển khoản nội bộ và đối chiếu sao kê
+          </p>
+        </div>
+
+        <Outlet />
+      </div>
     </div>
   );
 }
