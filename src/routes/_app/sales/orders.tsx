@@ -323,6 +323,7 @@ function SalesOrdersPage() {
         submitting={upsertMut.isPending}
       />
     </div>
+    </>
   );
 }
 
