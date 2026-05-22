@@ -71,7 +71,7 @@ const SECTIONS: NavSection[] = [
         items: [
           { to: "/sales-dashboard", label: "Tổng quan" },
           { to: "/sales/orders", label: "Đơn đặt hàng" },
-          { to: "/sales", label: "Phiếu bán hàng" },
+          { to: "/sales/vouchers", label: "Phiếu bán hàng" },
           { to: "/invoices", label: "Hoá đơn bán" },
           { to: "/receipts", label: "Phiếu thu" },
           { to: "/receivables", label: "Công nợ phải thu" },
