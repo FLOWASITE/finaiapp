@@ -247,7 +247,12 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
     form.code.trim().length > 0 &&
     form.name.trim().length > 0 &&
     !codeDuplicate &&
+    (form.can_be_sold || form.can_be_purchased) &&
+    (!form.can_be_sold || form.revenue_account.trim().length > 0) &&
+    (!(form.can_be_purchased && form.item_type === "service") ||
+      (form.expense_account ?? "").trim().length > 0) &&
     !m.isPending;
+
 
   const setType = (t: ItemType) => {
     setForm((f) => ({
