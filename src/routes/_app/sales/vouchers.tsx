@@ -58,6 +58,105 @@ import {
 } from "@/components/ui/table";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { AccountCombobox } from "@/components/ui/account-combobox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+function normalizeVi(s: string) {
+  return (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase();
+}
+
+function ProductPickerCell({
+  value,
+  onPick,
+  products,
+}: {
+  value: string;
+  onPick: (p: any) => void;
+  products: any[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    if (!q.trim()) return products;
+    const nq = normalizeVi(q);
+    return products.filter(
+      (p) => normalizeVi(p.code).includes(nq) || normalizeVi(p.name).includes(nq),
+    );
+  }, [products, q]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Input
+          value={value}
+          onChange={() => {}}
+          onClick={() => setOpen(true)}
+          readOnly
+          placeholder="Vui lòng chọn"
+          className="h-8 cursor-pointer"
+        />
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={4} className="w-[680px] p-0">
+        <div className="p-2 border-b">
+          <Input
+            autoFocus
+            placeholder="Tìm theo mã hoặc tên sản phẩm…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        <div className="max-h-[420px] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/60 sticky top-0">
+              <tr className="text-left">
+                <th className="px-2 py-1.5 font-medium">Mã</th>
+                <th className="px-2 py-1.5 font-medium">Tên</th>
+                <th className="px-2 py-1.5 font-medium">ĐVT</th>
+                <th className="px-2 py-1.5 font-medium text-right">Giá bán</th>
+                <th className="px-2 py-1.5 font-medium text-right">Tồn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-2 py-6 text-center text-muted-foreground">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((p: any) => (
+                  <tr
+                    key={p.id}
+                    className="border-t hover:bg-accent cursor-pointer"
+                    onClick={() => {
+                      onPick(p);
+                      setOpen(false);
+                      setQ("");
+                    }}
+                  >
+                    <td className="px-2 py-1.5 font-mono">{p.code}</td>
+                    <td className="px-2 py-1.5">{p.name}</td>
+                    <td className="px-2 py-1.5">{p.unit ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">
+                      {new Intl.NumberFormat("vi-VN").format(Number(p.unit_price ?? 0))}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">
+                      {new Intl.NumberFormat("vi-VN").format(Number(p.on_hand ?? 0))}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const Route = createFileRoute("/_app/sales/vouchers")({
   component: SalesVouchersPage,
@@ -876,34 +975,22 @@ function VoucherDialog({
                     <tr key={l.key} className="border-t">
                       <td className="px-2 py-1 text-center">{i + 1}</td>
                       <td className="px-1 py-1">
-                        <Select
-                          value={l.product_id ?? ""}
-                          onValueChange={(v) => {
-                            const p = (products ?? []).find((x: any) => x.id === v);
-                            if (p) {
-                              updateLine(i, {
-                                product_id: p.id,
-                                product_code: p.code,
-                                product_name: p.name,
-                                unit: p.unit ?? "",
-                                unit_price: Number(p.unit_price ?? 0),
-                              });
-                            }
+                        <ProductPickerCell
+                          value={l.product_name}
+                          products={(products ?? []) as any[]}
+                          onPick={(p) => {
+                            updateLine(i, {
+                              product_id: p.id,
+                              product_code: p.code ?? "",
+                              product_name: p.name ?? "",
+                              unit: p.unit ?? "",
+                              unit_price: Number(p.unit_price ?? 0),
+                              vat_rate: Number(p.vat_rate ?? 10),
+                              credit_account: p.revenue_account ?? l.credit_account,
+                              line_type: p.item_type === "service" ? "service" : "goods",
+                            });
                           }}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Vui lòng chọn">
-                              {l.product_name || "Vui lòng chọn"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(products ?? []).map((p: any) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.code} — {p.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </td>
                       <td className="px-1 py-1">
                         <Input
@@ -1057,10 +1144,21 @@ function VoucherDialog({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Input
-                    placeholder="Tên sản phẩm"
+                  <ProductPickerCell
                     value={l.product_name}
-                    onChange={(e) => updateLine(i, { product_name: e.target.value })}
+                    products={(products ?? []) as any[]}
+                    onPick={(p) => {
+                      updateLine(i, {
+                        product_id: p.id,
+                        product_code: p.code ?? "",
+                        product_name: p.name ?? "",
+                        unit: p.unit ?? "",
+                        unit_price: Number(p.unit_price ?? 0),
+                        vat_rate: Number(p.vat_rate ?? 10),
+                        credit_account: p.revenue_account ?? l.credit_account,
+                        line_type: p.item_type === "service" ? "service" : "goods",
+                      });
+                    }}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <div>
