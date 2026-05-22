@@ -549,6 +549,7 @@ function InvoicesList() {
         invalidateKeys={["purchase-invoices"]}
       />
     </div>
+    </>
   );
 }
 
