@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { SalesTabs } from "@/components/sales/SalesTabs";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark } from "lucide-react";
 
@@ -745,6 +746,8 @@ function SalesVouchersPage() {
   };
 
   return (
+    <>
+      <SalesTabs />
     <div className="py-6 px-4 space-y-4">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
@@ -1132,6 +1135,7 @@ function SalesVouchersPage() {
         onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
       />
     </div>
+    </>
   );
 }
 

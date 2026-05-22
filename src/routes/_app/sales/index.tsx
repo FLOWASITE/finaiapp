@@ -86,6 +86,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { SalesTabs } from "@/components/sales/SalesTabs";
 import { CustomerCombobox, type CustomerLite } from "@/components/customer-combobox";
 import { VAT_CODES, type VatCode, calcLineTax } from "@/lib/vat-codes";
 
@@ -173,6 +174,8 @@ function SalesHubPage() {
     setTab("invoices", { status: s });
 
   return (
+    <>
+      <SalesTabs />
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -344,6 +347,7 @@ function SalesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 
