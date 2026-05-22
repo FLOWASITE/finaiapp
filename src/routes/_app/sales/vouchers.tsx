@@ -742,15 +742,25 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Ghi nhận thu tiền thất bại"),
   });
 
+  // Cash/Bank receipt dialogs (replaces the old quick-pay dialog)
+  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
+
   const openPay = (v: any, method: "cash" | "bank") => {
     const remain = Math.max(0, Number(v.total || 0) - Number(v.paid_amount || 0));
     if (remain <= 0) {
       toast.info("Phiếu đã thanh toán đủ");
       return;
     }
-    setPayAmount(String(Math.round(remain)));
-    setPayDate(todayISO());
-    setPayDlg({ open: true, voucherId: v.id, voucherNo: v.voucher_no, method, remain });
+    const prefill = {
+      partyId: v.customer_id ?? null,
+      partyName: v.customer_name ?? "",
+      amount: remain,
+      reason: `Thu tiền phiếu bán ${v.voucher_no}`,
+      counterAccount: "131",
+    };
+    if (method === "cash") setPayCash({ open: true, prefill });
+    else setPayBank({ open: true, prefill });
   };
 
   return (
