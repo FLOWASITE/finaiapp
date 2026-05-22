@@ -276,7 +276,19 @@ export const getSalesVoucher = createServerFn({ method: "POST" })
         .single();
       journal = je as typeof journal;
     }
-    return { voucher, journal };
+
+    let einvoice: any = null;
+    if (voucher.einvoice_id) {
+      const { data: e } = await supabase
+        .from("einvoices")
+        .select(
+          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes",
+        )
+        .eq("id", voucher.einvoice_id)
+        .maybeSingle();
+      einvoice = e ?? null;
+    }
+    return { voucher, journal, einvoice };
   });
 
 // ============ AUTO VOUCHER NO ============
