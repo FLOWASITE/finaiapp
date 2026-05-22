@@ -180,13 +180,13 @@ function KpiCard({
   value: string;
   tone: "amber" | "emerald" | "sky" | "rose";
 }) {
-  const toneCls: Record<typeof tone, string> = {
+  const toneCls = {
     amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
     emerald:
       "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
     sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
     rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
-  };
+  } as const;
   return (
     <Card>
       <CardContent className="p-4 flex items-center gap-3">
