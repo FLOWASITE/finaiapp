@@ -993,8 +993,31 @@ function SalesVouchersPage() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <StatusDot ok={isPaid} />
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {isPaid ? (
+                            <StatusDot ok />
+                          ) : isPosted && !isVoid ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openPay(v, "cash")}
+                                title="Tạo phiếu thu tiền mặt"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <CircleDollarSign className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openPay(v, "bank")}
+                                title="Tạo báo có ngân hàng"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <Landmark className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <StatusDot ok={false} />
+                          )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
