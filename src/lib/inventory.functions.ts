@@ -94,9 +94,9 @@ const MovementSchema = z.object({
   post_journal: z.boolean().optional().default(true),
 });
 
-function yyyymm(dateStr?: string): string {
+function yyyy(dateStr?: string): string {
   const d = dateStr ? new Date(dateStr) : new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return String(d.getFullYear());
 }
 
 async function nextStockVoucherNo(
@@ -106,29 +106,26 @@ async function nextStockVoucherNo(
   type: "in" | "out",
   movementDate: string,
 ) {
-  const prefix = `${type === "in" ? "PN" : "PX"}${yyyymm(movementDate)}/`;
-  // Look in both stock_vouchers (new) and stock_movements.note (legacy single-line)
+  // New format: PNK{YYYY}-{00001} or PXK{YYYY}-{00001}
+  const prefix = `${type === "in" ? "PNK" : "PXK"}${yyyy(movementDate)}-`;
+  // Legacy formats also scanned to keep numbering monotonic
+  const legacyPrefix = `${type === "in" ? "PN" : "PX"}${yyyy(movementDate)}${String(new Date(movementDate).getMonth() + 1).padStart(2, "0")}/`;
   let qv = supabase.from("stock_vouchers").select("voucher_no")
-    .eq("voucher_type", type).ilike("voucher_no", `${prefix}%`);
+    .eq("voucher_type", type)
+    .or(`voucher_no.ilike.${prefix}%,voucher_no.ilike.${legacyPrefix}%`);
   qv = tenantId ? qv.eq("tenant_id", tenantId) : qv.eq("user_id", userId);
-  let qm = supabase.from("stock_movements").select("note")
-    .eq("movement_type", type).ilike("note", `${prefix}%`);
-  qm = tenantId ? qm.eq("tenant_id", tenantId) : qm.eq("user_id", userId);
-  const [{ data: vs, error: vErr }, { data: ms, error: mErr }] = await Promise.all([qv, qm]);
+  const { data: vs, error: vErr } = await qv;
   if (vErr) throw new Error(vErr.message);
-  if (mErr) throw new Error(mErr.message);
-  const re = new RegExp(`^${prefix.replace("/", "\\/")}(\\d+)`);
+  const reNew = new RegExp(`^${prefix.replace("-", "\\-")}(\\d+)`);
+  const reLegacy = new RegExp(`^${legacyPrefix.replace("/", "\\/")}(\\d+)`);
   let max = 0;
   for (const r of (vs as any[]) ?? []) {
-    const m = re.exec(r?.voucher_no ?? "");
-    if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
-  }
-  for (const r of (ms as any[]) ?? []) {
-    const m = re.exec(r?.note ?? "");
+    const m = reNew.exec(r?.voucher_no ?? "") || reLegacy.exec(r?.voucher_no ?? "");
     if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
   }
   return `${prefix}${String(max + 1).padStart(5, "0")}`;
 }
+
 
 export const previewStockVoucherNo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -642,7 +639,23 @@ const VoucherLineSchema = z.object({
   // Optional transaction-time unit. If omitted or equal to the product's base unit,
   // the factor defaults to 1 and qty/unit_cost are stored as-is.
   unit: z.string().max(20).optional(),
+  costing_method: z.string().max(20).optional(),
 });
+
+const HeaderExtraSchema = {
+  kind: z.string().max(40).nullish(),
+  branch_id: z.string().uuid().nullish(),
+  party_id: z.string().uuid().nullish(),
+  party_name: z.string().max(255).nullish(),
+  party_phone: z.string().max(50).nullish(),
+  party_address: z.string().max(500).nullish(),
+  deliverer_name: z.string().max(255).nullish(),
+  receiver_name: z.string().max(255).nullish(),
+  source_doc_no: z.string().max(100).nullish(),
+  source_doc_date: z.string().nullish(),
+  transfer_doc_no: z.string().max(100).nullish(),
+  attachments_count: z.number().int().min(0).nullish(),
+};
 
 const VoucherCreateSchema = z.object({
   voucher_type: z.enum(["in", "out"]),
@@ -653,11 +666,13 @@ const VoucherCreateSchema = z.object({
   reason: z.string().max(500).optional(),
   post_journal: z.boolean().optional().default(true),
   lines: z.array(VoucherLineSchema).min(1).max(200),
+  ...HeaderExtraSchema,
 });
 
 const VoucherUpdateSchema = VoucherCreateSchema.extend({
   id: z.string().uuid(),
 }).omit({ voucher_type: true });
+
 
 type Ctx = { supabase: any; userId: string };
 
@@ -880,9 +895,22 @@ export const createStockVoucher = createServerFn({ method: "POST" })
         warehouse_id: data.warehouse_id ?? null,
         counter_account: data.counter_account,
         reason: data.reason ?? null,
+        kind: data.kind ?? null,
+        branch_id: data.branch_id ?? null,
+        party_id: data.party_id ?? null,
+        party_name: data.party_name ?? null,
+        party_phone: data.party_phone ?? null,
+        party_address: data.party_address ?? null,
+        deliverer_name: data.deliverer_name ?? null,
+        receiver_name: data.receiver_name ?? null,
+        source_doc_no: data.source_doc_no ?? null,
+        source_doc_date: data.source_doc_date || null,
+        transfer_doc_no: data.transfer_doc_no ?? null,
+        attachments_count: data.attachments_count ?? 0,
       })
       .select("id")
       .single();
+
     if (hErr || !hdr) throw new Error(hErr?.message || "Không tạo được phiếu");
 
     try {
@@ -939,9 +967,22 @@ export const updateStockVoucher = createServerFn({ method: "POST" })
         warehouse_id: data.warehouse_id ?? null,
         counter_account: data.counter_account,
         reason: data.reason ?? null,
+        kind: data.kind ?? null,
+        branch_id: data.branch_id ?? null,
+        party_id: data.party_id ?? null,
+        party_name: data.party_name ?? null,
+        party_phone: data.party_phone ?? null,
+        party_address: data.party_address ?? null,
+        deliverer_name: data.deliverer_name ?? null,
+        receiver_name: data.receiver_name ?? null,
+        source_doc_no: data.source_doc_no ?? null,
+        source_doc_date: data.source_doc_date || null,
+        transfer_doc_no: data.transfer_doc_no ?? null,
+        attachments_count: data.attachments_count ?? 0,
       })
       .select("id")
       .single();
+
     if (hErr || !hdr) throw new Error(hErr?.message || "Không tạo lại được phiếu");
 
     const res = await applyVoucherLines(
@@ -980,7 +1021,7 @@ export const listStockVouchers = createServerFn({ method: "POST" })
     const { supabase } = context;
     let q = supabase
       .from("stock_vouchers")
-      .select("*, warehouses(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
+      .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
@@ -1014,7 +1055,7 @@ export const getStockVoucher = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: voucher, error } = await supabase
       .from("stock_vouchers")
-      .select("*, warehouses(code, name)")
+      .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), branches(code, name, address)")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
