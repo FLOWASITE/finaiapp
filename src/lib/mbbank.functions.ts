@@ -62,6 +62,7 @@ export const disconnectMb = createServerFn({ method: "POST" })
         mb_username: null,
         mb_password_enc: null,
         mb_password_iv: null,
+        mb_corporate_id: null,
         sync_enabled: false,
       } as any)
       .eq("id", data.bank_account_id);
