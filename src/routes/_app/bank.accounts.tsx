@@ -109,6 +109,33 @@ function AccountsPage() {
                 <td className="px-4 py-2 text-right font-mono">{fmt(Number(a.opening_balance ?? 0))}</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(a.current_balance ?? 0)}</td>
                 <td className="px-4 py-2 text-right text-xs text-muted-foreground">{a.txn_count ?? 0}</td>
+                <td className="px-4 py-2 text-center">
+                  {(a.bank_name || "").toLowerCase().includes("mb") ? (
+                    <Button
+                      size="sm"
+                      variant={a.mb_username ? "secondary" : "outline"}
+                      onClick={() => setMbAccount(a)}
+                      className="h-7 text-xs"
+                    >
+                      {a.mb_username ? (
+                        <>
+                          {a.sync_enabled ? (
+                            <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
+                          ) : (
+                            <Link2 className="h-3 w-3 mr-1" />
+                          )}
+                          {a.sync_enabled ? "Đang đồng bộ" : "Đã kết nối"}
+                        </>
+                      ) : (
+                        <>
+                          <Link2 className="h-3 w-3 mr-1" /> Kết nối
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right space-x-1">
                   <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setOpen(true); }}>
                     <Pencil className="h-3.5 w-3.5" />
