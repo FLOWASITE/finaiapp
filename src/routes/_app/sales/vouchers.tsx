@@ -1134,6 +1134,7 @@ function SalesVouchersPage() {
         onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
       />
     </div>
+    </>
   );
 }
 
