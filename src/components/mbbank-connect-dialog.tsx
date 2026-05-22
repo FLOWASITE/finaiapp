@@ -154,6 +154,7 @@ export function MbBankConnectDialog({
             <ConnectedView
               acc={acc}
               logs={logs}
+              isBiz={isBiz}
               isFetching={isFetching}
               polling={polling}
               onSyncNow={async () => {
@@ -177,7 +178,12 @@ export function MbBankConnectDialog({
               }}
               onUpdatePassword={async (username, password) => {
                 await setCreds({
-                  data: { bank_account_id: account.id, username, password },
+                  data: {
+                    bank_account_id: account.id,
+                    username,
+                    password,
+                    corporate_id: acc?.mb_corporate_id ?? null,
+                  },
                 });
                 toast.success("Đã cập nhật mật khẩu");
                 refetch();
@@ -195,12 +201,24 @@ export function MbBankConnectDialog({
             />
           ) : (
             <EmptyConnectView
-              onSubmit={async (username, password) => {
+              onSubmit={async ({ corporateId, username, password, biz }) => {
                 await setCreds({
-                  data: { bank_account_id: account.id, username, password },
+                  data: {
+                    bank_account_id: account.id,
+                    username,
+                    password,
+                    corporate_id: biz ? corporateId : null,
+                  },
                 });
-                toast.success("Đã kết nối MB Bank");
-                await toggle({ data: { bank_account_id: account.id, enabled: true } });
+                toast.success(
+                  biz
+                    ? "Đã lưu thông tin BIZ MBBank"
+                    : "Đã kết nối MB Bank",
+                );
+                // BIZ chưa có worker hỗ trợ → không bật auto-sync
+                if (!biz) {
+                  await toggle({ data: { bank_account_id: account.id, enabled: true } });
+                }
                 refetch();
                 qc.invalidateQueries({ queryKey: ["bank-accounts"] });
               }}
