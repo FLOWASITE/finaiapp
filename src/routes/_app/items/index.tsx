@@ -306,9 +306,24 @@ function ItemsListPage() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>
-                        {ITEM_TYPE_LABEL[t]}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>
+                          {ITEM_TYPE_LABEL[t]}
+                        </Badge>
+                        {p.can_be_sold && (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <Tag className="h-2.5 w-2.5 mr-0.5" />Bán
+                          </Badge>
+                        )}
+                        {p.can_be_purchased && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />Mua
+                          </Badge>
+                        )}
+                        {!p.can_be_sold && !p.can_be_purchased && (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
                       {p.product_categories?.name ?? "—"}
