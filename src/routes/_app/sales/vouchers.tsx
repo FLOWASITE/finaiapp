@@ -16,6 +16,7 @@ import {
   postSalesVoucher,
   voidSalesVoucher,
   suggestSalesVoucherNo,
+  recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listBranches } from "@/lib/dimensions.functions";
