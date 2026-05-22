@@ -122,16 +122,17 @@ export function VoucherFormDialog({
     setVoucherNo(fallbackVoucherNo(type, d));
     setVoucherNoTouched(false);
     setCashAccount("1111");
-    setCounterAccount(type === "receipt" ? "131" : "331");
-    setPartyId(null);
-    setPartyName("");
+    setCounterAccount(prefill?.counterAccount ?? (type === "receipt" ? "131" : "331"));
+    setPartyId(prefill?.partyId ?? null);
+    setPartyName(prefill?.partyName ?? "");
     setAddress("");
     setIdNumber("");
-    setReason(type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp");
-    setAmountStr("");
+    setReason(prefill?.reason ?? (type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp"));
+    setAmountStr(prefill?.amount ? String(Math.round(prefill.amount)) : "");
     setAttachments("");
     setDims({});
     setCreatedId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, type]);
 
   useEffect(() => {
