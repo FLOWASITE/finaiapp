@@ -1,21 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { toast } from "sonner";
 import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, TrendingDown, Receipt, FileText } from "lucide-react";
-import { listCashVouchers, getCashBook } from "@/lib/cash.functions";
+import { listCashVouchers, getCashBook, deleteCashVoucher } from "@/lib/cash.functions";
+import { invalidateLedgers } from "@/lib/query-invalidation";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
+import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
 
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
 function CashPage() {
+  const qc = useQueryClient();
   const list = useServerFn(listCashVouchers);
   const book = useServerFn(getCashBook);
+  const delFn = useServerFn(deleteCashVoucher);
   const [from, setFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
@@ -26,6 +31,17 @@ function CashPage() {
   const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }),
  ...QUERY_PRESETS.TRANSACTIONAL,
 });
+
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá phiếu");
+      qc.invalidateQueries({ queryKey: ["vouchers"] });
+      qc.invalidateQueries({ queryKey: ["cashbook"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi xoá"),
+  });
 
   return (
     <div className="p-8 space-y-6">
@@ -66,10 +82,13 @@ function CashPage() {
                 <th className="px-4 py-2 text-left">Lý do</th>
                 <th className="px-4 py-2 text-left">TK đối ứng</th>
                 <th className="px-4 py-2 text-right">Số tiền</th>
+                <th className="px-4 py-2 text-center">Trạng thái</th>
+                <th className="px-4 py-2 text-center">Tài liệu</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {(vouchers ?? []).map((v) => (
+              {(vouchers ?? []).map((v: any) => (
                 <tr key={v.id} className="border-t border-border">
                   <td className="px-4 py-2">{v.voucher_date}</td>
                   <td className="px-4 py-2 font-mono">{v.voucher_no}</td>
@@ -82,10 +101,33 @@ function CashPage() {
                   <td className="px-4 py-2">{v.reason}</td>
                   <td className="px-4 py-2 font-mono">{v.counter_account}</td>
                   <td className="px-4 py-2 text-right font-mono">{Number(v.amount).toLocaleString("vi-VN")}</td>
+                  <td className="px-4 py-2 text-center">
+                    <PostedBadge posted={!!v.journal_entry_id} />
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <AttachmentsCell
+                      attachments={v.attachments ?? []}
+                      entityTable="cash_vouchers"
+                      entityId={v.id}
+                      docKind="cash_voucher"
+                      invalidateKeys={[["vouchers"]]}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <VoucherRowActions
+                      onView={() => toast.info("Xem chi tiết — đang phát triển")}
+                      onEdit={() => toast.info("Chỉnh sửa — đang phát triển")}
+                      onPrint={() => toast.info("In phiếu — đang phát triển")}
+                      onDuplicate={() => toast.info("Nhân bản — đang phát triển")}
+                      onDelete={() => {
+                        if (confirm(`Xoá phiếu ${v.voucher_no}? Bút toán liên quan cũng sẽ bị xoá.`)) del.mutate(v.id);
+                      }}
+                    />
+                  </td>
                 </tr>
               ))}
               {(vouchers ?? []).length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
               )}
             </tbody>
           </table>

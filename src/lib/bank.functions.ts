@@ -162,7 +162,25 @@ export const listBankVouchers = createServerFn({ method: "POST" })
         .in("id", ids);
       accMap = new Map((accs ?? []).map((a: any) => [a.id, a]));
     }
-    return (rows ?? []).map((r: any) => ({ ...r, bank_accounts: accMap.get(r.bank_account_id) ?? null }));
+    const vIds = (rows ?? []).map((r: any) => r.id);
+    const attMap = new Map<string, any[]>();
+    if (vIds.length) {
+      const { data: links } = await supabase
+        .from("document_links")
+        .select("entity_id, documents!inner(id, original_filename, storage_bucket, storage_path, mime_type)")
+        .eq("entity_table", "bank_vouchers")
+        .in("entity_id", vIds);
+      for (const l of (links ?? []) as any[]) {
+        const arr = attMap.get(l.entity_id) ?? [];
+        arr.push(l.documents);
+        attMap.set(l.entity_id, arr);
+      }
+    }
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      bank_accounts: accMap.get(r.bank_account_id) ?? null,
+      attachments: attMap.get(r.id) ?? [],
+    }));
   });
 
 export const createBankVoucher = createServerFn({ method: "POST" })
