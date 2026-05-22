@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Plus, Pencil, Trash2, Landmark, AlertCircle, Link2, CheckCircle2 } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
 import { MbBankConnectDialog } from "@/components/mbbank-connect-dialog";
+import { BankCombobox, BankLogo, VN_BANK_LIST } from "@/components/bank-combobox";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
