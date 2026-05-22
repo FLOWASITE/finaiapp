@@ -695,7 +695,7 @@ function SalesVouchersPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 space-y-4">
+    <div className="py-6 px-4 space-y-4">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">Phiếu bán hàng</h1>
