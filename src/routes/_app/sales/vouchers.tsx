@@ -459,11 +459,17 @@ function SalesVouchersPage() {
       .catch(() => {});
   }
 
-  // Warm-up cache cho dialog tạo phiếu (gọi khi hover nút)
+  // Warm-up cache cho dialog tạo phiếu (gọi khi hover/focus nút)
   function prefetchCreate() {
     qc.prefetchQuery({
       queryKey: ["branches"],
-      queryFn: () => (useServerFn as any), // placeholder, replaced below
+      queryFn: () => branchFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["products-picker"],
+      queryFn: () => productsFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
     }).catch(() => {});
   }
 
