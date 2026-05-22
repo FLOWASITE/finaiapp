@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AutoCodeInput } from "@/components/ui/auto-code-input";
+import { DateRangeFilter } from "@/components/date-range-filter";
+import { getPresetRange } from "@/lib/date-presets";
 import { numberToVietnameseWords } from "@/lib/number-to-words-vi";
 
 export const Route = createFileRoute("/_app/bank/vouchers")({ component: VouchersPage });
@@ -57,15 +59,18 @@ function VouchersPage() {
   const fetchAccounts = useServerFn(listBankAccounts);
   const fetchVouchers = useServerFn(listBankVouchers);
   const delFn = useServerFn(deleteBankVoucher);
+  const defaultRange = useMemo(() => getPresetRange("thisMonth"), []);
   const [filterAccount, setFilterAccount] = useState<string>("all");
+  const [from, setFrom] = useState(defaultRange.from);
+  const [to, setTo] = useState(defaultRange.to);
   const [mode, setMode] = useState<Mode>(null);
 
   const { data: accounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => fetchAccounts({}),
  ...QUERY_PRESETS.TRANSACTIONAL,
 });
   const { data: vouchers = [] } = useQuery({
-    queryKey: ["bank-vouchers", filterAccount],
-    queryFn: () => fetchVouchers({ data: filterAccount === "all" ? {} : { bankAccountId: filterAccount } }),
+    queryKey: ["bank-vouchers", filterAccount, from, to],
+    queryFn: () => fetchVouchers({ data: { ...(filterAccount === "all" ? {} : { bankAccountId: filterAccount }), from, to } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
@@ -91,6 +96,7 @@ function VouchersPage() {
             ))}
           </SelectContent>
         </Select>
+        <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         <div className="ml-auto flex items-center gap-2">
           <AddNew label="Báo có (Thu)" icon={ArrowDownToLine} onClick={() => setMode("receipt")} />
           <AddNew label="Báo nợ (Chi)" icon={ArrowUpFromLine} onClick={() => setMode("payment")} />
