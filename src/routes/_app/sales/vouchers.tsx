@@ -296,7 +296,24 @@ type FormState = {
   discount_amount: number;
   notes: string;
   lines: Line[];
+  einvoice: {
+    invoice_template: string;
+    invoice_series: string;
+    invoice_no: string;
+    issue_date: string;
+    tct_lookup_code: string;
+    notes: string;
+  };
 };
+
+const blankEinvoice = () => ({
+  invoice_template: "",
+  invoice_series: "",
+  invoice_no: "",
+  issue_date: "",
+  tct_lookup_code: "",
+  notes: "",
+});
 
 const blankForm = (no = ""): FormState => ({
   voucher_no: no,
@@ -321,6 +338,7 @@ const blankForm = (no = ""): FormState => ({
   discount_amount: 0,
   notes: "",
   lines: [emptyLine()],
+  einvoice: blankEinvoice(),
 });
 
 function SalesVouchersPage() {
