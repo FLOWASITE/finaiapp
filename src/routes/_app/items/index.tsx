@@ -179,11 +179,15 @@ const emptyForm = () => ({
   stock_account: "156",
   revenue_account: "511",
   cogs_account: "632",
+  expense_account: "642",
   vat_rate: 10,
   category_id: null as string | null,
   is_active: true,
+  can_be_sold: true,
+  can_be_purchased: true,
   notes: "",
 });
+
 
 function ProductDialog({ categories, existingCodes, units }: { categories: any[]; existingCodes: string[]; units: any[] }) {
   const upsert = useServerFn(upsertProduct);
