@@ -291,16 +291,76 @@ function SalesVouchersPage() {
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
 
+  // ---------- Filters ----------
+  type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
+  const [fStatus, setFStatus] = useState<string>("all");
+  const [fPeriod, setFPeriod] = useState<Period>("this_month");
+  const [fFrom, setFFrom] = useState<string>("");
+  const [fTo, setFTo] = useState<string>("");
+  const [fCustomerId, setFCustomerId] = useState<string | null>(null);
+  const [fSearch, setFSearch] = useState<string>("");
+
+  const periodRange = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const startOfMonth = (yy: number, mm: number) => new Date(yy, mm, 1);
+    const endOfMonth = (yy: number, mm: number) => new Date(yy, mm + 1, 0);
+    switch (fPeriod) {
+      case "this_month":
+        return { from: iso(startOfMonth(y, m)), to: iso(endOfMonth(y, m)) };
+      case "last_month":
+        return { from: iso(startOfMonth(y, m - 1)), to: iso(endOfMonth(y, m - 1)) };
+      case "this_quarter": {
+        const qStart = Math.floor(m / 3) * 3;
+        return { from: iso(startOfMonth(y, qStart)), to: iso(endOfMonth(y, qStart + 2)) };
+      }
+      case "this_year":
+        return { from: `${y}-01-01`, to: `${y}-12-31` };
+      case "custom":
+        return { from: fFrom || undefined, to: fTo || undefined };
+      default:
+        return { from: undefined, to: undefined };
+    }
+  }, [fPeriod, fFrom, fTo]);
+
+  const listInput = useMemo(
+    () => ({
+      status: fStatus !== "all" ? fStatus : undefined,
+      customerId: fCustomerId || undefined,
+      from: periodRange.from,
+      to: periodRange.to,
+      search: fSearch.trim() || undefined,
+    }),
+    [fStatus, fCustomerId, periodRange, fSearch],
+  );
+
   const {
     data: vouchers,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["sales-vouchers"],
-    queryFn: () => list({ data: {} }),
+    queryKey: ["sales-vouchers", listInput],
+    queryFn: () => list({ data: listInput }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
+  const hasActiveFilters =
+    fStatus !== "all" ||
+    fPeriod !== "this_month" ||
+    !!fCustomerId ||
+    !!fSearch.trim();
+
+  function resetFilters() {
+    setFStatus("all");
+    setFPeriod("this_month");
+    setFFrom("");
+    setFTo("");
+    setFCustomerId(null);
+    setFSearch("");
+  }
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
@@ -507,6 +567,72 @@ function SalesVouchersPage() {
           <Plus className="h-4 w-4 mr-1" /> Thêm phiếu
         </Button>
       </div>
+
+      <Card>
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
+            <div>
+              <Label className="text-xs mb-1 block">Trạng thái</Label>
+              <Select value={fStatus} onValueChange={setFStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="draft">Nháp</SelectItem>
+                  <SelectItem value="posted">Đã ghi sổ</SelectItem>
+                  <SelectItem value="void">Đã huỷ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Kỳ</Label>
+              <Select value={fPeriod} onValueChange={(v) => setFPeriod(v as Period)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="this_month">Tháng này</SelectItem>
+                  <SelectItem value="last_month">Tháng trước</SelectItem>
+                  <SelectItem value="this_quarter">Quý này</SelectItem>
+                  <SelectItem value="this_year">Năm nay</SelectItem>
+                  <SelectItem value="custom">Tuỳ chọn…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="lg:col-span-1">
+              <Label className="text-xs mb-1 block">Khách hàng</Label>
+              <CustomerCombobox value={fCustomerId} onChange={(c) => setFCustomerId(c?.id ?? null)} />
+            </div>
+            <div className="lg:col-span-1">
+              <Label className="text-xs mb-1 block">Mã phiếu / mô tả</Label>
+              <Input
+                value={fSearch}
+                onChange={(e) => setFSearch(e.target.value)}
+                placeholder="VD: PBH001"
+              />
+            </div>
+            <div className="flex gap-2">
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" onClick={resetFilters} className="w-full">
+                  <X className="h-4 w-4 mr-1" /> Xoá lọc
+                </Button>
+              )}
+            </div>
+            {fPeriod === "custom" && (
+              <>
+                <div>
+                  <Label className="text-xs mb-1 block">Từ ngày</Label>
+                  <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Đến ngày</Label>
+                  <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+
 
       <Card>
         <CardContent className="p-0">
