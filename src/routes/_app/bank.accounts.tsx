@@ -94,7 +94,21 @@ function AccountsPage() {
             {accounts.map((a: any) => (
               <tr key={a.id} className="border-t border-border hover:bg-muted/30">
                 <td className="px-4 py-2 font-medium">{a.name}</td>
-                <td className="px-4 py-2">{a.bank_name || "—"}</td>
+                <td className="px-4 py-2">
+                  {a.bank_name ? (
+                    <span className="flex items-center gap-2">
+                      {(() => {
+                        const m = VN_BANK_LIST.find(
+                          (b) => b.name.toLowerCase() === (a.bank_name || "").toLowerCase(),
+                        );
+                        return m ? <BankLogo bank={m} size={22} /> : null;
+                      })()}
+                      <span>{a.bank_name}</span>
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-4 py-2 font-mono text-xs">{a.account_no || "—"}</td>
                 <td className="px-4 py-2">{a.currency}</td>
                 <td className="px-4 py-2 font-mono text-xs">{a.gl_account_code}</td>
