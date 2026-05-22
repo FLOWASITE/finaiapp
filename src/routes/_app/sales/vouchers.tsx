@@ -670,9 +670,56 @@ function SalesVouchersPage() {
             Lập phiếu bán hàng, ghi sổ doanh thu và công nợ phải thu.
           </p>
         </div>
-        <Button onClick={openCreate} className="shrink-0">
-          <Plus className="h-4 w-4 mr-1" /> Thêm phiếu
-        </Button>
+        <div className="shrink-0 inline-flex rounded-md shadow-sm">
+          <Button
+            onClick={openCreate}
+            className="rounded-r-none border-r border-primary-foreground/20"
+          >
+            <Plus className="h-4 w-4 mr-1" /> Phiếu BH trong nước
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="rounded-l-none px-2" aria-label="Tuỳ chọn thêm phiếu">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" /> Phiếu BH trong nước
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openCreate}>
+                <Globe2 className="h-4 w-4 mr-2" /> Phiếu BH xuất khẩu
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => toast.info("Tính năng import đang phát triển")}>
+                <Upload className="h-4 w-4 mr-2" /> Import phiếu BH trong nước
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Tính năng import đang phát triển")}>
+                <Upload className="h-4 w-4 mr-2" /> Import phiếu BH xuất khẩu
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-2" /> Tải danh sách (PDF)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Đang chuẩn bị file Excel...")}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Tải Excel
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  if (selected.size === 0) {
+                    toast.info("Chưa chọn phiếu nào để xoá");
+                    return;
+                  }
+                  toast.info(`Đã chọn ${selected.size} phiếu — dùng nút Xoá ở thanh hành động.`);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Xoá tất cả đã chọn
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* KPI bar */}
