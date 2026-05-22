@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBankAccounts, listBankVouchers } from "@/lib/bank.functions";
-import { Building2, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wallet, Receipt, TrendingUp, TrendingDown, CalendarClock, Scale } from "lucide-react";
+import { Building2, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wallet, TrendingUp, TrendingDown, CalendarClock, Scale } from "lucide-react";
 
 export const Route = createFileRoute("/_app/bank/")({ component: BankIndex });
 
