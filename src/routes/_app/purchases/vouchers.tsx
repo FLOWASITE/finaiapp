@@ -821,6 +821,7 @@ function PurchaseVouchersPage() {
         onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
       />
     </div>
+    </>
   );
 }
 
