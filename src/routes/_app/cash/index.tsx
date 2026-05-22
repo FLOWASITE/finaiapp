@@ -40,11 +40,14 @@ function CashPage() {
         </div>
       </div>
 
+      <KpiStrip vouchers={vouchers ?? []} cashbook={cashbook ?? []} />
+
       <VoucherFormDialog
         type={openType ?? "receipt"}
         open={openType !== null}
         onOpenChange={(o) => !o && setOpenType(null)}
       />
+
 
       <Tabs defaultValue="vouchers">
         <TabsList>
