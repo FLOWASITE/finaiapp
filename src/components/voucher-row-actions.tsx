@@ -23,14 +23,23 @@ export type AttachmentRef = {
   mime_type?: string | null;
 };
 
-export function PostedBadge({ posted }: { posted: boolean }) {
+export function PostedBadge({ posted, label }: { posted: boolean; label?: string }) {
+  const text = label ?? (posted ? "Đã hạch toán" : "Chưa hạch toán");
   return posted ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-      <CheckCircle2 className="h-3.5 w-3.5" /> Đã hạch toán
+    <span
+      title={text}
+      aria-label={text}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+    >
+      <CheckCircle2 className="h-3.5 w-3.5" />
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-      <Circle className="h-3.5 w-3.5" /> Chưa hạch toán
+    <span
+      title={text}
+      aria-label={text}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground"
+    >
+      <Circle className="h-3.5 w-3.5" />
     </span>
   );
 }
