@@ -91,6 +91,8 @@ import { Route as AppItemsCategoriesRouteImport } from './routes/_app/items/cate
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppInventoryWarehousesRouteImport } from './routes/_app/inventory/warehouses'
 import { Route as AppInventoryVouchersRouteImport } from './routes/_app/inventory/vouchers'
+import { Route as AppInventoryUnpostedRouteImport } from './routes/_app/inventory/unposted'
+import { Route as AppInventoryTransfersRouteImport } from './routes/_app/inventory/transfers'
 import { Route as AppInventoryStockTakesRouteImport } from './routes/_app/inventory/stock-takes'
 import { Route as AppInventoryStockCardRouteImport } from './routes/_app/inventory/stock-card'
 import { Route as AppInventoryMovementsRouteImport } from './routes/_app/inventory/movements'
@@ -560,6 +562,16 @@ const AppInventoryVouchersRoute = AppInventoryVouchersRouteImport.update({
   path: '/vouchers',
   getParentRoute: () => AppInventoryRoute,
 } as any)
+const AppInventoryUnpostedRoute = AppInventoryUnpostedRouteImport.update({
+  id: '/unposted',
+  path: '/unposted',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppInventoryTransfersRoute = AppInventoryTransfersRouteImport.update({
+  id: '/transfers',
+  path: '/transfers',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
 const AppInventoryStockTakesRoute = AppInventoryStockTakesRouteImport.update({
   id: '/stock-takes',
   path: '/stock-takes',
@@ -902,6 +914,8 @@ export interface FileRoutesByFullPath {
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/transfers': typeof AppInventoryTransfersRoute
+  '/inventory/unposted': typeof AppInventoryUnpostedRoute
   '/inventory/vouchers': typeof AppInventoryVouchersRoute
   '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
@@ -1035,6 +1049,8 @@ export interface FileRoutesByTo {
   '/inventory/movements': typeof AppInventoryMovementsRoute
   '/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/inventory/transfers': typeof AppInventoryTransfersRoute
+  '/inventory/unposted': typeof AppInventoryUnpostedRoute
   '/inventory/vouchers': typeof AppInventoryVouchersRoute
   '/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
@@ -1176,6 +1192,8 @@ export interface FileRoutesById {
   '/_app/inventory/movements': typeof AppInventoryMovementsRoute
   '/_app/inventory/stock-card': typeof AppInventoryStockCardRoute
   '/_app/inventory/stock-takes': typeof AppInventoryStockTakesRoute
+  '/_app/inventory/transfers': typeof AppInventoryTransfersRoute
+  '/_app/inventory/unposted': typeof AppInventoryUnpostedRoute
   '/_app/inventory/vouchers': typeof AppInventoryVouchersRoute
   '/_app/inventory/warehouses': typeof AppInventoryWarehousesRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
@@ -1317,6 +1335,8 @@ export interface FileRouteTypes {
     | '/inventory/movements'
     | '/inventory/stock-card'
     | '/inventory/stock-takes'
+    | '/inventory/transfers'
+    | '/inventory/unposted'
     | '/inventory/vouchers'
     | '/inventory/warehouses'
     | '/invoices/$id'
@@ -1450,6 +1470,8 @@ export interface FileRouteTypes {
     | '/inventory/movements'
     | '/inventory/stock-card'
     | '/inventory/stock-takes'
+    | '/inventory/transfers'
+    | '/inventory/unposted'
     | '/inventory/vouchers'
     | '/inventory/warehouses'
     | '/invoices/$id'
@@ -1590,6 +1612,8 @@ export interface FileRouteTypes {
     | '/_app/inventory/movements'
     | '/_app/inventory/stock-card'
     | '/_app/inventory/stock-takes'
+    | '/_app/inventory/transfers'
+    | '/_app/inventory/unposted'
     | '/_app/inventory/vouchers'
     | '/_app/inventory/warehouses'
     | '/_app/invoices/$id'
@@ -2265,6 +2289,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryVouchersRouteImport
       parentRoute: typeof AppInventoryRoute
     }
+    '/_app/inventory/unposted': {
+      id: '/_app/inventory/unposted'
+      path: '/unposted'
+      fullPath: '/inventory/unposted'
+      preLoaderRoute: typeof AppInventoryUnpostedRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/inventory/transfers': {
+      id: '/_app/inventory/transfers'
+      path: '/transfers'
+      fullPath: '/inventory/transfers'
+      preLoaderRoute: typeof AppInventoryTransfersRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
     '/_app/inventory/stock-takes': {
       id: '/_app/inventory/stock-takes'
       path: '/stock-takes'
@@ -2719,6 +2757,8 @@ interface AppInventoryRouteChildren {
   AppInventoryMovementsRoute: typeof AppInventoryMovementsRoute
   AppInventoryStockCardRoute: typeof AppInventoryStockCardRoute
   AppInventoryStockTakesRoute: typeof AppInventoryStockTakesRoute
+  AppInventoryTransfersRoute: typeof AppInventoryTransfersRoute
+  AppInventoryUnpostedRoute: typeof AppInventoryUnpostedRoute
   AppInventoryVouchersRoute: typeof AppInventoryVouchersRoute
   AppInventoryWarehousesRoute: typeof AppInventoryWarehousesRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
@@ -2729,6 +2769,8 @@ const AppInventoryRouteChildren: AppInventoryRouteChildren = {
   AppInventoryMovementsRoute: AppInventoryMovementsRoute,
   AppInventoryStockCardRoute: AppInventoryStockCardRoute,
   AppInventoryStockTakesRoute: AppInventoryStockTakesRoute,
+  AppInventoryTransfersRoute: AppInventoryTransfersRoute,
+  AppInventoryUnpostedRoute: AppInventoryUnpostedRoute,
   AppInventoryVouchersRoute: AppInventoryVouchersRoute,
   AppInventoryWarehousesRoute: AppInventoryWarehousesRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
@@ -3062,13 +3104,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
