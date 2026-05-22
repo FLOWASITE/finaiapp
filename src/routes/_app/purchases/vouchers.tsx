@@ -1155,7 +1155,7 @@ function CreateVoucherDialog({
               <div className="sm:col-span-3">
                 <AttachInvoiceFile
                   filePath={header.invoice_file_path}
-                  onUploaded={async (path) => {
+                  onUploaded={async (path: string) => {
                     // If there is no linked invoice yet → create one with this file
                     if (!header.invoice_id) {
                       const { data: userData } = await supabase.auth.getUser();
