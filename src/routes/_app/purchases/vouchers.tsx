@@ -575,14 +575,21 @@ function CreateVoucherDialog({
             line_type: l.line_type,
           })),
       };
-      return createFn({ data: payload });
+      const created = await createFn({ data: payload });
+      try {
+        await postFn({ data: { id: created.id } });
+      } catch (e: any) {
+        toast.error(e?.message || "Đã lưu nháp nhưng ghi sổ thất bại");
+      }
+      return created;
     },
     onSuccess: () => {
-      toast.success("Đã tạo phiếu nháp");
-      // reset
+      toast.success("Đã lưu và ghi sổ");
+      invalidateLedgers(qc);
       setHeader((h) => ({ ...h, voucher_no: "", reason: "" }));
       setLines([emptyLine()]);
       onCreated();
+      onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi tạo phiếu"),
   });
