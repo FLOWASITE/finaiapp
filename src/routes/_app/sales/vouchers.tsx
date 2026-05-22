@@ -15,7 +15,6 @@ import {
   postSalesVoucher,
   voidSalesVoucher,
   suggestSalesVoucherNo,
-  recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listBranches } from "@/lib/dimensions.functions";
@@ -63,6 +62,8 @@ import { AccountCombobox } from "@/components/ui/account-combobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { getPresetRange } from "@/lib/date-presets";
+import { VoucherFormDialog } from "@/components/voucher-form";
+import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 
 function normalizeVi(s: string) {
   return (s ?? "")
@@ -368,7 +369,6 @@ function SalesVouchersPage() {
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
-  const receiptFn = useServerFn(recordSalesVoucherReceipt);
   const branchFnPage = useServerFn(listBranches);
   const productsFnPage = useServerFn(listProducts);
 
@@ -720,25 +720,12 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
   });
 
-  // Quick payment dialog
-  const [payDlg, setPayDlg] = useState<
-    | { open: false }
-    | { open: true; voucherId: string; voucherNo: string; method: "cash" | "bank"; remain: number }
-  >({ open: false });
-  const [payAmount, setPayAmount] = useState<string>("");
-  const [payDate, setPayDate] = useState<string>(todayISO());
+  // (Quick-pay dialog removed — replaced by full VoucherFormDialog / BankVoucherFormDialog below.)
 
-  const receiptMut = useMutation({
-    mutationFn: async (input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date: string }) =>
-      receiptFn({ data: input }),
-    onSuccess: () => {
-      toast.success("Đã ghi nhận thu tiền");
-      setPayDlg({ open: false });
-      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
-      invalidateLedgers(qc);
-    },
-    onError: (e: any) => toast.error(e?.message || "Ghi nhận thu tiền thất bại"),
-  });
+
+  // Cash/Bank receipt dialogs (replaces the old quick-pay dialog)
+  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
 
   const openPay = (v: any, method: "cash" | "bank") => {
     const remain = Math.max(0, Number(v.total || 0) - Number(v.paid_amount || 0));
@@ -746,9 +733,15 @@ function SalesVouchersPage() {
       toast.info("Phiếu đã thanh toán đủ");
       return;
     }
-    setPayAmount(String(Math.round(remain)));
-    setPayDate(todayISO());
-    setPayDlg({ open: true, voucherId: v.id, voucherNo: v.voucher_no, method, remain });
+    const prefill = {
+      partyId: v.customer_id ?? null,
+      partyName: v.customer_name ?? "",
+      amount: remain,
+      reason: `Thu tiền phiếu bán ${v.voucher_no}`,
+      counterAccount: "131",
+    };
+    if (method === "cash") setPayCash({ open: true, prefill });
+    else setPayBank({ open: true, prefill });
   };
 
   return (
@@ -1124,60 +1117,20 @@ function SalesVouchersPage() {
         saving={saveAndPostMut.isPending}
       />
 
-      <Dialog open={payDlg.open} onOpenChange={(o) => !o && setPayDlg({ open: false })}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {payDlg.open && payDlg.method === "cash" ? "Tạo phiếu thu tiền mặt" : "Tạo báo có ngân hàng"}
-            </DialogTitle>
-          </DialogHeader>
-          {payDlg.open && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                Phiếu <span className="font-mono text-foreground">{payDlg.voucherNo}</span> — Còn phải thu:{" "}
-                <span className="font-semibold text-rose-600">{fmtMoney(payDlg.remain)}</span>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Ngày thu</Label>
-                <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Số tiền</Label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setPayDlg({ open: false })}>
-                  Huỷ
-                </Button>
-                <Button
-                  disabled={receiptMut.isPending}
-                  onClick={() => {
-                    const amt = Number(payAmount);
-                    if (!amt || amt <= 0) {
-                      toast.error("Số tiền không hợp lệ");
-                      return;
-                    }
-                    receiptMut.mutate({
-                      voucher_id: payDlg.voucherId,
-                      method: payDlg.method,
-                      amount: amt,
-                      pay_date: payDate,
-                    });
-                  }}
-                >
-                  {receiptMut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                  Ghi nhận
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <VoucherFormDialog
+        type="receipt"
+        open={payCash.open}
+        onOpenChange={(o) => setPayCash((s) => ({ ...s, open: o }))}
+        prefill={payCash.prefill}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
+      />
+      <BankVoucherFormDialog
+        type="receipt"
+        open={payBank.open}
+        onOpenChange={(o) => setPayBank((s) => ({ ...s, open: o }))}
+        prefill={payBank.prefill}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
+      />
     </div>
   );
 }

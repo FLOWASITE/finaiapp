@@ -64,14 +64,26 @@ const fmtThousand = (n: number) =>
   n ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(n) : "";
 const parseAmount = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
 
+export type CashVoucherPrefill = {
+  partyId?: string | null;
+  partyName?: string;
+  amount?: number;
+  reason?: string;
+  counterAccount?: string;
+};
+
 export function VoucherFormDialog({
   type,
   open,
   onOpenChange,
+  prefill,
+  onSaved,
 }: {
   type: VoucherType;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  prefill?: CashVoucherPrefill;
+  onSaved?: () => void;
 }) {
   const qc = useQueryClient();
   const create = useServerFn(createCashVoucher);
@@ -110,16 +122,17 @@ export function VoucherFormDialog({
     setVoucherNo(fallbackVoucherNo(type, d));
     setVoucherNoTouched(false);
     setCashAccount("1111");
-    setCounterAccount(type === "receipt" ? "131" : "331");
-    setPartyId(null);
-    setPartyName("");
+    setCounterAccount(prefill?.counterAccount ?? (type === "receipt" ? "131" : "331"));
+    setPartyId(prefill?.partyId ?? null);
+    setPartyName(prefill?.partyName ?? "");
     setAddress("");
     setIdNumber("");
-    setReason(type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp");
-    setAmountStr("");
+    setReason(prefill?.reason ?? (type === "receipt" ? "Thu tiền khách hàng" : "Chi thanh toán nhà cung cấp"));
+    setAmountStr(prefill?.amount ? String(Math.round(prefill.amount)) : "");
     setAttachments("");
     setDims({});
     setCreatedId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, type]);
 
   useEffect(() => {
@@ -175,6 +188,7 @@ export function VoucherFormDialog({
       toast.success(`Đã tạo ${type === "receipt" ? "phiếu thu" : "phiếu chi"} & bút toán`);
       qc.invalidateQueries({ queryKey: ["vouchers"] });
       invalidateLedgers(qc);
+      onSaved?.();
       if (res?.id) setCreatedId(res.id);
       else onOpenChange(false);
     },

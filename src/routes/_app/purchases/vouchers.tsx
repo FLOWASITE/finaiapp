@@ -38,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { VoucherFormDialog } from "@/components/voucher-form";
+import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
@@ -330,6 +332,37 @@ function PurchaseVouchersPage() {
   const [fTo, setFTo] = useState<string>(todayISO());
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Pay dialogs for the "Thanh toán" column icons
+  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
+
+  const openPayCash = (r: any, remain: number) => {
+    if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
+    setPayCash({
+      open: true,
+      prefill: {
+        partyId: r.supplier_id ?? null,
+        partyName: r.supplier_name ?? "",
+        amount: remain,
+        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
+        counterAccount: "331",
+      },
+    });
+  };
+  const openPayBank = (r: any, remain: number) => {
+    if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
+    setPayBank({
+      open: true,
+      prefill: {
+        partyId: r.supplier_id ?? null,
+        partyName: r.supplier_name ?? "",
+        amount: remain,
+        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
+        counterAccount: "331",
+      },
+    });
+  };
 
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ["purchase-vouchers", search, status, fFrom, fTo],
@@ -658,7 +691,7 @@ function PurchaseVouchersPage() {
                     <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Còn phải trả</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Thanh toán</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -731,7 +764,7 @@ function PurchaseVouchersPage() {
                             <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => toast.info("Thanh toán tiền mặt — đang phát triển")}
+                                onClick={() => openPayCash(r, remain)}
                                 title="Tạo phiếu chi tiền mặt"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
                               >
@@ -739,8 +772,8 @@ function PurchaseVouchersPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => toast.info("Báo nợ ngân hàng — đang phát triển")}
-                                title="Tạo báo nợ ngân hàng"
+                                onClick={() => openPayBank(r, remain)}
+                                title="Tạo phiếu chi ngân hàng"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
                               >
                                 <Landmark className="h-4 w-4" />
@@ -800,6 +833,21 @@ function PurchaseVouchersPage() {
         open={openCreate}
         onOpenChange={setOpenCreate}
         onCreated={() => { refetch(); setOpenCreate(false); }}
+      />
+
+      <VoucherFormDialog
+        type="payment"
+        open={payCash.open}
+        onOpenChange={(o) => setPayCash((s) => ({ ...s, open: o }))}
+        prefill={payCash.prefill}
+        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
+      />
+      <BankVoucherFormDialog
+        type="payment"
+        open={payBank.open}
+        onOpenChange={(o) => setPayBank((s) => ({ ...s, open: o }))}
+        prefill={payBank.prefill}
+        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
       />
     </div>
   );
