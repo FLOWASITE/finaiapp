@@ -23,13 +23,20 @@ export function PurchaseTabs() {
               key={t.to}
               to={t.to}
               className={cn(
-                "shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
-                active
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted",
+                "group relative shrink-0 px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label}
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute left-2 right-2 -bottom-px h-[3px] rounded-full transition-all duration-300 ease-out",
+                  active
+                    ? "opacity-100 scale-x-100 bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[0_0_10px_hsl(var(--primary)/0.45)]"
+                    : "opacity-0 scale-x-50 bg-muted-foreground/40 group-hover:opacity-60 group-hover:scale-x-90",
+                )}
+              />
             </Link>
           );
         })}
@@ -37,3 +44,4 @@ export function PurchaseTabs() {
     </div>
   );
 }
+
