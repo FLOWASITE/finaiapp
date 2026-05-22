@@ -834,6 +834,21 @@ function PurchaseVouchersPage() {
         onOpenChange={setOpenCreate}
         onCreated={() => { refetch(); setOpenCreate(false); }}
       />
+
+      <VoucherFormDialog
+        type="payment"
+        open={payCash.open}
+        onOpenChange={(o) => setPayCash((s) => ({ ...s, open: o }))}
+        prefill={payCash.prefill}
+        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
+      />
+      <BankVoucherFormDialog
+        type="payment"
+        open={payBank.open}
+        onOpenChange={(o) => setPayBank((s) => ({ ...s, open: o }))}
+        prefill={payBank.prefill}
+        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
+      />
     </div>
   );
 }
