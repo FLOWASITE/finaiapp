@@ -76,9 +76,17 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      // Preview tĩnh đôi khi mở "/index" — chuyển sớm về "/login" để tránh
+      // 404 / màn hình trắng (route /index không tồn tại trong app).
+      if (url.pathname === "/index") {
+        return redirectHtml("/login");
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
+
 
     } catch (error) {
       console.error(error);
