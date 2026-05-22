@@ -242,6 +242,9 @@ function PurchaseVouchersPage() {
   const postFn = useServerFn(postPurchaseVoucher);
   const voidFn = useServerFn(voidPurchaseVoucher);
   const delFn = useServerFn(deletePurchaseVoucher);
+  const suppliersFnPage = useServerFn(listSuppliers);
+  const linkInvFnPage = useServerFn(listLinkablePurchaseInvoices);
+  const suggestNoFnPage = useServerFn(suggestVoucherNo);
 
   const [openCreate, setOpenCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -253,6 +256,25 @@ function PurchaseVouchersPage() {
       listFn({ data: { search: search || undefined, status: status === "all" ? undefined : status } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
+  function prefetchCreate() {
+    const today = new Date().toISOString().slice(0, 10);
+    qc.prefetchQuery({
+      queryKey: ["suppliers-list"],
+      queryFn: () => suppliersFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["linkable-purchase-invoices", ""],
+      queryFn: () => linkInvFnPage({ data: { supplierId: undefined } }),
+      ...QUERY_PRESETS.TRANSACTIONAL,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["pv-suggest-no", today],
+      queryFn: () => suggestNoFnPage({ data: { voucher_date: today } }),
+      ...QUERY_PRESETS.TRANSACTIONAL,
+    }).catch(() => {});
+  }
 
   const postMut = useMutation({
     mutationFn: (id: string) => postFn({ data: { id } }),
