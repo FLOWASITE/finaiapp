@@ -64,7 +64,106 @@ const VoucherUpsertSchema = z.object({
   cost_center_id: z.string().uuid().nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
   lines: z.array(LineSchema).optional(),
+  einvoice: z
+    .object({
+      invoice_template: z.string().max(64).nullable().optional(),
+      invoice_series: z.string().max(64).nullable().optional(),
+      invoice_no: z.string().max(64).nullable().optional(),
+      issue_date: z.string().nullable().optional(),
+      tct_lookup_code: z.string().max(128).nullable().optional(),
+      notes: z.string().max(1000).nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
+
+// ============ EINVOICE UPSERT HELPER ============
+async function upsertSalesEinvoice(
+  supabase: any,
+  userId: string,
+  tenantId: string,
+  voucherId: string,
+  voucher: {
+    voucher_date: string;
+    customer_name?: string | null;
+    customer_tax_id?: string | null;
+    customer_address?: string | null;
+    currency?: string | null;
+    subtotal?: number;
+    vat_amount?: number;
+    total?: number;
+    branch_id?: string | null;
+    department_id?: string | null;
+    project_id?: string | null;
+    cost_center_id?: string | null;
+  },
+  einvoice: {
+    invoice_template?: string | null;
+    invoice_series?: string | null;
+    invoice_no?: string | null;
+    issue_date?: string | null;
+    tct_lookup_code?: string | null;
+    notes?: string | null;
+  },
+  existingEinvoiceId: string | null,
+): Promise<string | null> {
+  if (!einvoice.invoice_no || !einvoice.invoice_no.trim()) {
+    throw new Error("Vui lòng nhập Số hoá đơn để xuất HĐ");
+  }
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name, company_name, tax_id, address")
+    .eq("id", tenantId)
+    .maybeSingle();
+
+  const payload = {
+    tenant_id: tenantId,
+    user_id: userId,
+    direction: "out" as const,
+    source: "manual",
+    seller_name: tenant?.company_name || tenant?.name || null,
+    seller_tax_id: tenant?.tax_id || null,
+    seller_address: tenant?.address || null,
+    buyer_name: voucher.customer_name || null,
+    buyer_tax_id: voucher.customer_tax_id || null,
+    buyer_address: voucher.customer_address || null,
+    invoice_template: einvoice.invoice_template || null,
+    invoice_series: einvoice.invoice_series || null,
+    invoice_no: einvoice.invoice_no.trim(),
+    issue_date: einvoice.issue_date || voucher.voucher_date,
+    currency: voucher.currency || "VND",
+    exchange_rate: 1,
+    subtotal: Number(voucher.subtotal || 0),
+    vat_amount: Number(voucher.vat_amount || 0),
+    total: Number(voucher.total || 0),
+    tct_lookup_code: einvoice.tct_lookup_code || null,
+    notes: einvoice.notes || null,
+    branch_id: voucher.branch_id || null,
+    department_id: voucher.department_id || null,
+    project_id: voucher.project_id || null,
+    cost_center_id: voucher.cost_center_id || null,
+  };
+
+  if (existingEinvoiceId) {
+    const { error } = await supabase
+      .from("einvoices")
+      .update(payload)
+      .eq("id", existingEinvoiceId);
+    if (error) throw new Error("Lỗi cập nhật HĐĐT: " + error.message);
+    return existingEinvoiceId;
+  }
+  const { data: row, error } = await supabase
+    .from("einvoices")
+    .insert(payload)
+    .select("id")
+    .single();
+  if (error) {
+    if ((error.message || "").toLowerCase().includes("duplicate"))
+      throw new Error(`Số hoá đơn "${einvoice.invoice_no}" đã tồn tại`);
+    throw new Error("Lỗi tạo HĐĐT: " + error.message);
+  }
+  return row?.id ?? null;
+}
 
 // ============ LIST ============
 
@@ -177,7 +276,19 @@ export const getSalesVoucher = createServerFn({ method: "POST" })
         .single();
       journal = je as typeof journal;
     }
-    return { voucher, journal };
+
+    let einvoice: any = null;
+    if (voucher.einvoice_id) {
+      const { data: e } = await supabase
+        .from("einvoices")
+        .select(
+          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes",
+        )
+        .eq("id", voucher.einvoice_id)
+        .maybeSingle();
+      einvoice = e ?? null;
+    }
+    return { voucher, journal, einvoice };
   });
 
 // ============ AUTO VOUCHER NO ============
@@ -233,7 +344,7 @@ export const createSalesVoucher = createServerFn({ method: "POST" })
     const tenantId = profile?.active_tenant_id;
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
-    const { lines, id: _ignore, ...header } = data;
+    const { lines, einvoice, id: _ignore, ...header } = data;
 
     const { data: row, error } = await supabase
       .from("sales_vouchers")
@@ -252,6 +363,24 @@ export const createSalesVoucher = createServerFn({ method: "POST" })
       if (e2) throw new Error(e2.message);
     }
 
+    if (header.issue_einvoice && einvoice) {
+      const einvId = await upsertSalesEinvoice(
+        supabase,
+        userId,
+        tenantId,
+        row.id,
+        header,
+        einvoice,
+        null,
+      );
+      if (einvId) {
+        await supabase
+          .from("sales_vouchers")
+          .update({ einvoice_id: einvId })
+          .eq("id", row.id);
+      }
+    }
+
     return { id: row.id };
   });
 
@@ -263,12 +392,12 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
     VoucherUpsertSchema.extend({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { id, lines, ...header } = data;
+    const { supabase, userId } = context;
+    const { id, lines, einvoice, ...header } = data;
 
     const { data: cur } = await supabase
       .from("sales_vouchers")
-      .select("status")
+      .select("status, tenant_id, einvoice_id")
       .eq("id", id)
       .single();
     if (!cur) throw new Error("Không tìm thấy phiếu");
@@ -290,6 +419,29 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
         );
         if (e2) throw new Error(e2.message);
       }
+    }
+
+    if (header.issue_einvoice && einvoice) {
+      const einvId = await upsertSalesEinvoice(
+        supabase,
+        userId,
+        cur.tenant_id as string,
+        id,
+        header,
+        einvoice,
+        cur.einvoice_id ?? null,
+      );
+      if (einvId && einvId !== cur.einvoice_id) {
+        await supabase
+          .from("sales_vouchers")
+          .update({ einvoice_id: einvId })
+          .eq("id", id);
+      }
+    } else if (!header.issue_einvoice && cur.einvoice_id) {
+      await supabase
+        .from("sales_vouchers")
+        .update({ einvoice_id: null })
+        .eq("id", id);
     }
     return { ok: true };
   });

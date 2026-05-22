@@ -296,7 +296,24 @@ type FormState = {
   discount_amount: number;
   notes: string;
   lines: Line[];
+  einvoice: {
+    invoice_template: string;
+    invoice_series: string;
+    invoice_no: string;
+    issue_date: string;
+    tct_lookup_code: string;
+    notes: string;
+  };
 };
+
+const blankEinvoice = () => ({
+  invoice_template: "",
+  invoice_series: "",
+  invoice_no: "",
+  issue_date: "",
+  tct_lookup_code: "",
+  notes: "",
+});
 
 const blankForm = (no = ""): FormState => ({
   voucher_no: no,
@@ -321,6 +338,7 @@ const blankForm = (no = ""): FormState => ({
   discount_amount: 0,
   notes: "",
   lines: [emptyLine()],
+  einvoice: blankEinvoice(),
 });
 
 function SalesVouchersPage() {
@@ -474,7 +492,7 @@ function SalesVouchersPage() {
   }
 
   async function openEdit(id: string) {
-    const { voucher } = await get({ data: { id } });
+    const { voucher, einvoice } = await get({ data: { id } });
     setForm({
       id: voucher.id,
       voucher_no: voucher.voucher_no,
@@ -520,6 +538,16 @@ function SalesVouchersPage() {
             vat_account: l.vat_account ?? "33311",
             line_type: l.line_type,
           })) || [emptyLine()],
+      einvoice: einvoice
+        ? {
+            invoice_template: einvoice.invoice_template ?? "",
+            invoice_series: einvoice.invoice_series ?? "",
+            invoice_no: einvoice.invoice_no ?? "",
+            issue_date: einvoice.issue_date ?? "",
+            tct_lookup_code: einvoice.tct_lookup_code ?? "",
+            notes: einvoice.notes ?? "",
+          }
+        : blankEinvoice(),
     });
     setOpen(true);
   }
@@ -601,6 +629,16 @@ function SalesVouchersPage() {
           vat_account: l.vat_account,
           line_type: l.line_type,
         })),
+      einvoice: form.issue_einvoice
+        ? {
+            invoice_template: form.einvoice.invoice_template || null,
+            invoice_series: form.einvoice.invoice_series || null,
+            invoice_no: form.einvoice.invoice_no || null,
+            issue_date: form.einvoice.issue_date || null,
+            tct_lookup_code: form.einvoice.tct_lookup_code || null,
+            notes: form.einvoice.notes || null,
+          }
+        : null,
     };
   }
 
@@ -612,6 +650,9 @@ function SalesVouchersPage() {
       }
       if (!payload.reason) throw new Error("Vui lòng nhập mô tả");
       if (payload.lines.length === 0) throw new Error("Cần ít nhất 1 dòng hàng");
+      if (form.issue_einvoice && !form.einvoice.invoice_no.trim()) {
+        throw new Error("Vui lòng nhập Số hoá đơn cho HĐĐT đầu ra");
+      }
       if (form.id) {
         return update({ data: { id: form.id, ...payload } });
       }
@@ -1408,8 +1449,98 @@ function VoucherDialog({
             </div>
           </div>
 
+          {form.issue_einvoice && (
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <h3 className="text-primary font-semibold border-b border-primary/20 pb-1">
+                Thông tin hoá đơn đầu ra
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs">Mẫu số</Label>
+                  <Input
+                    value={form.einvoice.invoice_template}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, invoice_template: e.target.value },
+                      }))
+                    }
+                    placeholder="VD: 1/001"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Ký hiệu</Label>
+                  <Input
+                    value={form.einvoice.invoice_series}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, invoice_series: e.target.value },
+                      }))
+                    }
+                    placeholder="VD: K25TAA"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    <span className="text-destructive">*</span> Số hoá đơn
+                  </Label>
+                  <Input
+                    value={form.einvoice.invoice_no}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, invoice_no: e.target.value },
+                      }))
+                    }
+                    placeholder="VD: 00000123"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Ngày hoá đơn</Label>
+                  <Input
+                    type="date"
+                    value={form.einvoice.issue_date || form.voucher_date}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, issue_date: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Mã tra cứu CQT</Label>
+                  <Input
+                    value={form.einvoice.tct_lookup_code}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, tct_lookup_code: e.target.value },
+                      }))
+                    }
+                    placeholder="Mã tra cứu trên hoá đơn điện tử"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Ghi chú HĐĐT</Label>
+                  <Input
+                    value={form.einvoice.notes}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        einvoice: { ...f.einvoice, notes: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lines */}
           <div className="space-y-2">
+
             <div className="flex items-center justify-between border-b pb-1">
               <h3 className="text-primary font-semibold">Giá trị hàng</h3>
               <div className="flex items-center gap-2">

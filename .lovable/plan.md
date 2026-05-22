@@ -1,51 +1,58 @@
 ## Mục tiêu
 
-Mọi dialog tạo/sửa phiếu giao dịch trong hệ thống dùng chung 1 cặp nút ở footer:
+Khi user tick checkbox **Xuất HĐ** trong form Phiếu bán hàng, hiện thêm một block UI để nhập thông tin tờ hoá đơn đầu ra (e-invoice) gắn với phiếu bán hàng này. Khi lưu phiếu, tự động tạo bản ghi trong bảng `einvoices` (direction = `out`) và link vào phiếu qua `matched_sales_invoice_id`.
 
-- **Huỷ** — `variant="outline"`, đóng dialog không lưu.
-- **Lưu và thoát** — primary, thực hiện **lưu phiếu + ghi sổ + đóng dialog** trong 1 click. Khi đang chạy: `"Đang lưu…"` + spinner, disable nút.
+## Phạm vi UI (file `src/routes/_app/sales/vouchers.tsx`)
 
-Không còn các biến thể "Thoát", "Hủy" (dấu hỏi), "Lưu", "Lưu & sinh bút toán", "Tạo hoá đơn", "Lưu và thoát + Ghi sổ tách rời".
+Khi `form.issue_einvoice === true`, render một section mới ngay sau block "Phiếu bán hàng" (trước "Giá trị hàng"), tiêu đề **"Thông tin hoá đơn đầu ra"**, layout `grid grid-cols-2 md:grid-cols-4 gap-3` đồng bộ với các block khác:
 
-## Phạm vi (5 file)
+Các trường nhập (theo schema bảng `einvoices`):
+- **Mẫu số** (`invoice_template`) — text, ví dụ `1/001`
+- **Ký hiệu** (`invoice_series`) — text, ví dụ `K25TAA`
+- **Số hoá đơn** (`invoice_no`) — text, *bắt buộc*
+- **Ngày hoá đơn** (`issue_date`) — date, mặc định bằng `voucher_date`
+- **Mã tra cứu CQT** (`tct_lookup_code`) — text, optional
+- **Ghi chú HĐĐT** (`notes`) — text, optional
 
-| File | Dialog | Hiện tại | Đổi thành |
-|---|---|---|---|
-| `src/routes/_app/purchases/vouchers.tsx` | Phiếu mua hàng | Thoát · Lưu | Huỷ · Lưu và thoát (chain post sau save) |
-| `src/routes/_app/sales/vouchers.tsx` | Phiếu bán hàng | Huỷ · Lưu và thoát + dropdown Ghi sổ | Huỷ · Lưu và thoát (gộp save+post, bỏ dropdown Ghi sổ trong dialog) |
-| `src/routes/_app/invoices/index.tsx` | Tạo hoá đơn thủ công | Huỷ · Tạo hoá đơn | Huỷ · Lưu và thoát |
-| `src/routes/_app/bank.vouchers.tsx` | BankReceiptDialog + TransferDialog | Huỷ · Lưu & sinh bút toán | Huỷ · Lưu và thoát (×2) |
-| `src/components/voucher-form.tsx` | Phiếu thu/chi tiền mặt (dùng ở `cash/`, `receipts/`) | Hủy · Lưu & sinh bút toán | Huỷ · Lưu và thoát |
+Các field còn lại tự lấy từ phiếu bán hàng khi submit:
+- `direction = 'out'`, `source = 'manual'`
+- `buyer_*` ← `customer_*`
+- `seller_*` ← thông tin tenant (lấy từ settings hiện có)
+- `currency`, `subtotal`, `vat_amount`, `total` ← tổng tiền phiếu
+- `branch_id`, `department_id`, `project_id`, `cost_center_id` ← từ phiếu
 
-## Chi tiết kỹ thuật
+## Phạm vi state & form
 
-### 1. Hành vi "Lưu và thoát = ghi sổ luôn"
-
-- **purchases/vouchers.tsx**: trong handler nút, sau khi `mut.mutateAsync()` thành công lấy `voucher.id` rồi gọi tiếp server fn ghi sổ (đã dùng cho nút "Ghi sổ" ở danh sách); chỉ đóng dialog khi cả 2 OK. Nếu post fail → toast lỗi nhưng vẫn đóng (phiếu đã lưu draft).
-- **sales/vouchers.tsx**: gộp `onSave` + `onPostNew` thành 1 handler `onSaveAndPost`; xoá `DropdownMenu` "Ghi sổ" khỏi footer dialog.
-- **invoices/index.tsx** (manual): hoá đơn thủ công vốn đã ghi sổ ngay khi tạo — chỉ đổi label.
-- **bank.vouchers.tsx** + **voucher-form.tsx**: các phiếu này vốn đã "sinh bút toán" ngay khi lưu — chỉ đổi label, không đổi logic.
-
-### 2. Markup chuẩn (copy nguyên xi vào mỗi DialogFooter)
-
-```tsx
-<Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-  Huỷ
-</Button>
-<Button onClick={handleSaveAndPost} disabled={saving || !canSave}>
-  {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-  {saving ? "Đang lưu…" : "Lưu và thoát"}
-</Button>
+Thêm vào `FormState` (line 277-299) và `blankForm` (301-324):
 ```
+einvoice: {
+  invoice_template: string;
+  invoice_series: string;
+  invoice_no: string;
+  issue_date: string;
+  tct_lookup_code: string;
+  notes: string;
+}
+```
+Khi load voucher edit (line ~480-500), nếu có einvoice đã link (qua `matched_sales_invoice_id`) thì prefill và set `issue_einvoice = true`.
 
-Giữ nguyên các class responsive (`w-full sm:w-auto`, sticky footer ở mobile) đã có sẵn ở từng file.
+## Phạm vi server (file `src/lib/sales-vouchers.functions.ts`)
 
-### 3. Không động vào
+1. Mở rộng schema input của `createSalesVoucher` / `updateSalesVoucher` để nhận thêm object `einvoice` (optional).
+2. Trong handler, sau khi insert/update phiếu bán hàng:
+   - Nếu `issue_einvoice = true` và có `einvoice.invoice_no`:
+     - Tạo (hoặc update nếu đã có) row trong `einvoices` với `direction = 'out'`, các field map như mô tả ở trên.
+     - Set `matched_sales_invoice_id = <voucher.id>`, `matched_at = now()`.
+   - Nếu user bỏ tick `issue_einvoice` khi edit: unlink (set `matched_sales_invoice_id = null` trên einvoice cũ) — không xoá hẳn để giữ lịch sử.
+3. Khi `getSalesVoucher`, trả thêm einvoice đã link (lookup theo `matched_sales_invoice_id = voucher.id`).
 
-- Nút "Ghi sổ" / "Bỏ ghi sổ" ở trang danh sách (ngoài dialog) — giữ nguyên cho phiếu đã lưu trước đó.
-- Các dialog xem chi tiết (`voucher-detail-dialog.tsx`), import XML, link e-invoice — không thuộc luồng tạo/sửa phiếu.
+## Validation
 
-## Kiểm thử nhanh sau khi sửa
+- Nếu tick "Xuất HĐ" mà không nhập `invoice_no` → toast lỗi, không submit.
+- Số HĐ trùng (unique constraint `tenant_id + direction + seller_tax_id + series + no`) → bắt error và hiện toast tiếng Việt rõ ràng.
 
-- Tạo 1 phiếu mua, 1 phiếu bán, 1 phiếu thu, 1 phiếu chi NH, 1 chuyển khoản NH, 1 hoá đơn thủ công → mỗi cái chỉ 1 nút "Lưu và thoát" → kiểm tra phiếu xuất hiện ở danh sách với trạng thái **đã ghi sổ**.
-- Nhấn "Huỷ" trên mỗi dialog → đóng, không tạo bản ghi.
+## Không thay đổi
+
+- Không động đến luồng "Xuất kho" hay phần Thu tiền/Phiếu ngân hàng đã có.
+- Không tạo trang/route mới — toàn bộ trong dialog hiện tại.
+- Không gọi API TCT — chỉ lưu metadata thủ công ở bước này.
