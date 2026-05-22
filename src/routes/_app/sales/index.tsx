@@ -173,6 +173,8 @@ function SalesHubPage() {
     setTab("invoices", { status: s });
 
   return (
+    <>
+      <SalesTabs />
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
