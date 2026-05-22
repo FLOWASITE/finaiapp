@@ -691,7 +691,7 @@ function PurchaseVouchersPage() {
                     <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Còn phải trả</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Thanh toán</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
