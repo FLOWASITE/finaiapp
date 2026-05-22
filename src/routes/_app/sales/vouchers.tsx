@@ -782,31 +782,11 @@ function SalesVouchersPage() {
         addLine={addLine}
         updateLine={updateLine}
         removeLine={removeLine}
-        onSave={async () => {
-          try {
-            const payload = buildPayload();
-            if (!payload.customer_id && !payload.customer_name)
-              throw new Error("Vui lòng chọn khách hàng");
-            if (!payload.reason) throw new Error("Vui lòng nhập mô tả");
-            if (payload.lines.length === 0) throw new Error("Cần ít nhất 1 dòng hàng");
-            const id = form.id
-              ? form.id
-              : (await create({ data: payload })).id;
-            if (form.id) await update({ data: { id: form.id, ...payload } });
-            try {
-              await post({ data: { id } });
-              toast.success("Đã lưu và ghi sổ");
-            } catch (e: any) {
-              toast.error(e?.message || "Đã lưu nhưng ghi sổ thất bại");
-            }
-            qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
-            invalidateLedgers(qc);
-            setOpen(false);
-          } catch (e: any) {
-            toast.error(e?.message || "Lưu phiếu thất bại");
-          }
+        onSave={() => {
+          if (saveAndPostMut.isPending) return;
+          saveAndPostMut.mutate();
         }}
-        saving={saveMut.isPending || postMut.isPending}
+        saving={saveAndPostMut.isPending}
       />
     </div>
   );
