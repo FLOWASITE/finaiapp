@@ -446,10 +446,23 @@ function SalesVouchersPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
 
-  async function openCreate() {
-    const r = await suggest({ data: { voucher_date: todayISO() } });
-    setForm(blankForm(r.voucher_no));
+  function openCreate() {
+    // Mở dialog ngay; số phiếu fetch song song và patch sau khi có
+    setForm(blankForm());
     setOpen(true);
+    suggest({ data: { voucher_date: todayISO() } })
+      .then((r) => {
+        setForm((f) => (f.voucher_no ? f : { ...f, voucher_no: r.voucher_no }));
+      })
+      .catch(() => {});
+  }
+
+  // Warm-up cache cho dialog tạo phiếu (gọi khi hover nút)
+  function prefetchCreate() {
+    qc.prefetchQuery({
+      queryKey: ["branches"],
+      queryFn: () => (useServerFn as any), // placeholder, replaced below
+    }).catch(() => {});
   }
 
   async function openEdit(id: string) {
