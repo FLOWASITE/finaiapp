@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { PurchaseTabs } from "@/components/purchases/PurchaseTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 
