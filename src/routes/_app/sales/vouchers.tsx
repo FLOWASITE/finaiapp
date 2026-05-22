@@ -955,7 +955,9 @@ function SalesVouchersPage() {
                     const isSel = selected.has(v.id);
                     const isPosted = v.status === "posted";
                     const isVoid = v.status === "void";
-                    const isPaid = v.payment_status === "paid";
+                    const isPaid =
+                      v.payment_status === "paid" ||
+                      Number(v.paid_amount || 0) >= Number(v.total || 0) - 0.01;
                     return (
                       <TableRow
                         key={v.id}
