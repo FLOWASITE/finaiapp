@@ -1245,25 +1245,13 @@ function VoucherDialog({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Huỷ
             </Button>
             <Button variant="default" onClick={onSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Lưu và thoát
+              {saving ? "Đang lưu…" : "Lưu và thoát"}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onPostNew} disabled={posting}>
-                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </DialogContent>
