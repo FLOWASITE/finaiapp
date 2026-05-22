@@ -12,13 +12,11 @@ import {
   Loader2,
   Mail,
   Lock,
-  ShieldCheck,
   Sparkles,
   CheckCircle2,
-  BarChart3,
-  Wallet,
   AlertCircle,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
