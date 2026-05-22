@@ -650,6 +650,9 @@ function SalesVouchersPage() {
       }
       if (!payload.reason) throw new Error("Vui lòng nhập mô tả");
       if (payload.lines.length === 0) throw new Error("Cần ít nhất 1 dòng hàng");
+      if (form.issue_einvoice && !form.einvoice.invoice_no.trim()) {
+        throw new Error("Vui lòng nhập Số hoá đơn cho HĐĐT đầu ra");
+      }
       if (form.id) {
         return update({ data: { id: form.id, ...payload } });
       }
