@@ -87,12 +87,14 @@ function ProductPickerCell({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
-    if (!q.trim()) return products;
+    const base = (products ?? []).filter((p) => p.can_be_sold !== false);
+    if (!q.trim()) return base;
     const nq = normalizeVi(q);
-    return products.filter(
+    return base.filter(
       (p) => normalizeVi(p.code).includes(nq) || normalizeVi(p.name).includes(nq),
     );
   }, [products, q]);
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

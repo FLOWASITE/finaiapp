@@ -13,14 +13,27 @@ const ProductSchema = z.object({
   stock_account: z.string().default("156"),
   revenue_account: z.string().default("511"),
   cogs_account: z.string().default("632"),
+  expense_account: z.string().nullable().optional(),
   vat_rate: z.number().min(0).max(100).default(10),
   category_id: z.string().uuid().nullable().optional(),
   barcode: z.string().max(100).nullable().optional(),
   min_stock: z.number().min(0).default(0),
   max_stock: z.number().min(0).default(0),
   is_active: z.boolean().default(true),
+  can_be_sold: z.boolean().default(true),
+  can_be_purchased: z.boolean().default(true),
   notes: z.string().max(1000).nullable().optional(),
-});
+}).refine((d) => d.can_be_sold || d.can_be_purchased, {
+  message: "Mặt hàng phải có thể bán hoặc có thể mua",
+  path: ["can_be_sold"],
+}).refine((d) => !d.can_be_sold || !!d.revenue_account?.trim(), {
+  message: "Cần khai báo TK doanh thu khi cho phép bán",
+  path: ["revenue_account"],
+}).refine(
+  (d) => !(d.can_be_purchased && d.item_type === "service") || !!d.expense_account?.toString().trim(),
+  { message: "Cần khai báo TK chi phí khi mua dịch vụ", path: ["expense_account"] },
+);
+
 
 export const listProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

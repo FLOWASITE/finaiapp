@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NumberInput } from "@/components/ui/number-input";
@@ -179,11 +181,15 @@ const emptyForm = () => ({
   stock_account: "156",
   revenue_account: "511",
   cogs_account: "632",
+  expense_account: "642",
   vat_rate: 10,
   category_id: null as string | null,
   is_active: true,
+  can_be_sold: true,
+  can_be_purchased: true,
   notes: "",
 });
+
 
 function ProductDialog({ categories, existingCodes, units }: { categories: any[]; existingCodes: string[]; units: any[] }) {
   const upsert = useServerFn(upsertProduct);
@@ -243,7 +249,12 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
     form.code.trim().length > 0 &&
     form.name.trim().length > 0 &&
     !codeDuplicate &&
+    (form.can_be_sold || form.can_be_purchased) &&
+    (!form.can_be_sold || form.revenue_account.trim().length > 0) &&
+    (!(form.can_be_purchased && form.item_type === "service") ||
+      (form.expense_account ?? "").trim().length > 0) &&
     !m.isPending;
+
 
   const setType = (t: ItemType) => {
     setForm((f) => ({
@@ -354,8 +365,41 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
                   placeholder="Thông tin bổ sung..."
                 />
               </Field>
+              <div className="col-span-2 rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tính chất sử dụng {isService && <span className="text-emerald-600 normal-case">· quan trọng với dịch vụ</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Checkbox
+                      checked={form.can_be_sold}
+                      onCheckedChange={(v) => setForm({ ...form, can_be_sold: !!v })}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Có thể bán</div>
+                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn bán, phiếu bán</div>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Checkbox
+                      checked={form.can_be_purchased}
+                      onCheckedChange={(v) => setForm({ ...form, can_be_purchased: !!v })}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Có thể mua</div>
+                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn mua, phiếu mua</div>
+                    </div>
+                  </label>
+                </div>
+                {!form.can_be_sold && !form.can_be_purchased && (
+                  <div className="text-[11px] text-destructive">Chọn ít nhất một tính chất</div>
+                )}
+              </div>
             </div>
           </TabsContent>
+
 
           {/* TAB 2 — Pricing */}
           <TabsContent value="pricing" className="space-y-3 pt-4 min-h-[280px]">
@@ -419,9 +463,16 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
 
             <Section title="Tài khoản kế toán">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="TK doanh thu" hint="TT133/TT200: 511x">
-                  <Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} placeholder="511" />
-                </Field>
+                {form.can_be_sold && (
+                  <Field label="TK doanh thu *" hint="TT133/TT200: 511x">
+                    <Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} placeholder="511" />
+                  </Field>
+                )}
+                {form.can_be_purchased && isService && (
+                  <Field label="TK chi phí khi mua *" hint="154 / 627 / 642">
+                    <Input value={form.expense_account ?? ""} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} placeholder="642" />
+                  </Field>
+                )}
                 {hasStock && (
                   <>
                     <Field label="TK kho" hint="156 - Hàng hoá / 155 - Thành phẩm">
@@ -435,6 +486,7 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
               </div>
             </Section>
           </TabsContent>
+
         </Tabs>
 
         <DialogFooter className="px-6 py-4 border-t mt-4 flex-row sm:justify-between gap-2">

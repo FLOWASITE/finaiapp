@@ -161,9 +161,11 @@ function productTypeLabel(p: any): string {
 function ProductPickerCell({
   value,
   onPick,
+  mode = "purchase",
 }: {
   value: string;
   onPick: (p: any) => void;
+  mode?: "purchase" | "sales";
 }) {
   const fn = useServerFn(listProducts);
   const [open, setOpen] = useState(false);
@@ -177,13 +179,17 @@ function ProductPickerCell({
   });
 
   const filtered = useMemo(() => {
-    const list = (products ?? []) as any[];
+    let list = (products ?? []) as any[];
+    list = list.filter((p) =>
+      mode === "purchase" ? p.can_be_purchased !== false : p.can_be_sold !== false,
+    );
     if (!q.trim()) return list;
     const nq = normalizeVi(q);
     return list.filter((p) =>
       normalizeVi(p.code).includes(nq) || normalizeVi(p.name).includes(nq),
     );
-  }, [products, q]);
+  }, [products, q, mode]);
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -1245,9 +1251,13 @@ function CreateVoucherDialog({
                             unit: p.unit ?? "",
                             unit_price: Number(p.unit_cost ?? 0),
                             vat_rate: Number(p.vat_rate ?? 10),
-                            debit_account: p.stock_account ?? l.debit_account,
+                            debit_account:
+                              p.item_type === "service"
+                                ? (p.expense_account || "642")
+                                : (p.stock_account ?? l.debit_account),
                             line_type: p.item_type === "service" ? "service" : "goods",
                           })}
+
                         />
                       </TableCell>
                       <TableCell>
@@ -1339,9 +1349,13 @@ function CreateVoucherDialog({
                         unit: p.unit ?? "",
                         unit_price: Number(p.unit_cost ?? 0),
                         vat_rate: Number(p.vat_rate ?? 10),
-                        debit_account: p.stock_account ?? l.debit_account,
+                        debit_account:
+                          p.item_type === "service"
+                            ? (p.expense_account || "642")
+                            : (p.stock_account ?? l.debit_account),
                         line_type: p.item_type === "service" ? "service" : "goods",
                       })}
+
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
