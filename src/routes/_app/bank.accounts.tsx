@@ -5,8 +5,9 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Landmark, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, AlertCircle, Link2, CheckCircle2 } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
+import { MbBankConnectDialog } from "@/components/mbbank-connect-dialog";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,7 @@ function AccountsPage() {
 });
   const [editing, setEditing] = useState<any | null>(null);
   const [open, setOpen] = useState(false);
+  const [mbAccount, setMbAccount] = useState<any | null>(null);
 
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
@@ -92,6 +94,7 @@ function AccountsPage() {
               <th className="px-4 py-2 text-right">Số dư đầu</th>
               <th className="px-4 py-2 text-right">Số dư hiện tại</th>
               <th className="px-4 py-2 text-right">GD</th>
+              <th className="px-4 py-2 text-center">MB Bank</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -106,6 +109,33 @@ function AccountsPage() {
                 <td className="px-4 py-2 text-right font-mono">{fmt(Number(a.opening_balance ?? 0))}</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(a.current_balance ?? 0)}</td>
                 <td className="px-4 py-2 text-right text-xs text-muted-foreground">{a.txn_count ?? 0}</td>
+                <td className="px-4 py-2 text-center">
+                  {(a.bank_name || "").toLowerCase().includes("mb") ? (
+                    <Button
+                      size="sm"
+                      variant={a.mb_username ? "secondary" : "outline"}
+                      onClick={() => setMbAccount(a)}
+                      className="h-7 text-xs"
+                    >
+                      {a.mb_username ? (
+                        <>
+                          {a.sync_enabled ? (
+                            <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
+                          ) : (
+                            <Link2 className="h-3 w-3 mr-1" />
+                          )}
+                          {a.sync_enabled ? "Đang đồng bộ" : "Đã kết nối"}
+                        </>
+                      ) : (
+                        <>
+                          <Link2 className="h-3 w-3 mr-1" /> Kết nối
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right space-x-1">
                   <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setOpen(true); }}>
                     <Pencil className="h-3.5 w-3.5" />
@@ -126,7 +156,7 @@ function AccountsPage() {
             ))}
             {accounts.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-muted-foreground">
+                <td colSpan={10} className="py-12 text-center text-muted-foreground">
                   Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
                 </td>
               </tr>
@@ -136,6 +166,13 @@ function AccountsPage() {
       </div>
 
       <AccountDialog open={open} onOpenChange={setOpen} editing={editing} />
+      {mbAccount && (
+        <MbBankConnectDialog
+          open={!!mbAccount}
+          onOpenChange={(o) => !o && setMbAccount(null)}
+          account={{ id: mbAccount.id, name: mbAccount.name }}
+        />
+      )}
     </div>
   );
 }
