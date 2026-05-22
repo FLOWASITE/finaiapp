@@ -959,41 +959,118 @@ export type Database = {
       bank_accounts: {
         Row: {
           account_no: string | null
+          balance_synced_at: string | null
           bank_name: string | null
           created_at: string
           currency: string
+          current_balance: number | null
           gl_account_code: string
           id: string
+          last_sync_error: string | null
+          last_sync_status: string | null
+          last_synced_at: string | null
+          mb_password_enc: string | null
+          mb_password_iv: string | null
+          mb_username: string | null
           name: string
           opening_balance: number
+          sync_enabled: boolean
+          sync_interval_minutes: number
           tenant_id: string | null
           user_id: string
         }
         Insert: {
           account_no?: string | null
+          balance_synced_at?: string | null
           bank_name?: string | null
           created_at?: string
           currency?: string
+          current_balance?: number | null
           gl_account_code?: string
           id?: string
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          mb_password_enc?: string | null
+          mb_password_iv?: string | null
+          mb_username?: string | null
           name: string
           opening_balance?: number
+          sync_enabled?: boolean
+          sync_interval_minutes?: number
           tenant_id?: string | null
           user_id: string
         }
         Update: {
           account_no?: string | null
+          balance_synced_at?: string | null
           bank_name?: string | null
           created_at?: string
           currency?: string
+          current_balance?: number | null
           gl_account_code?: string
           id?: string
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          mb_password_enc?: string | null
+          mb_password_iv?: string | null
+          mb_username?: string | null
           name?: string
           opening_balance?: number
+          sync_enabled?: boolean
+          sync_interval_minutes?: number
           tenant_id?: string | null
           user_id?: string
         }
         Relationships: []
+      }
+      bank_sync_logs: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          error_text: string | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          tenant_id: string | null
+          txn_fetched: number
+          txn_new: number
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          error_text?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          tenant_id?: string | null
+          txn_fetched?: number
+          txn_new?: number
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          error_text?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          tenant_id?: string | null
+          txn_fetched?: number
+          txn_new?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_sync_logs_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bank_transactions: {
         Row: {
@@ -1003,6 +1080,7 @@ export type Database = {
           counterparty: string | null
           created_at: string
           description: string | null
+          external_ref: string | null
           id: string
           match_confidence: number | null
           match_reason: string | null
@@ -1020,6 +1098,7 @@ export type Database = {
           counterparty?: string | null
           created_at?: string
           description?: string | null
+          external_ref?: string | null
           id?: string
           match_confidence?: number | null
           match_reason?: string | null
@@ -1037,6 +1116,7 @@ export type Database = {
           counterparty?: string | null
           created_at?: string
           description?: string | null
+          external_ref?: string | null
           id?: string
           match_confidence?: number | null
           match_reason?: string | null
@@ -7723,6 +7803,7 @@ export type Database = {
         Returns: undefined
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_auto_match_bank_txn: { Args: { p_txn_id: string }; Returns: undefined }
       fn_product_available_qty: {
         Args: { p_product: string; p_warehouse: string }
         Returns: number
