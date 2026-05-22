@@ -254,7 +254,6 @@ function Assets() {
         <Button variant="outline" size="sm" asChild><Link to="/assets/disposal">Thanh lý / Nhượng bán</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to="/assets/reclassify">Chuyển TSCĐ ↔ CCDC</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to="/assets/inventory">Kiểm kê tài sản</Link></Button>
-        <Button variant="outline" size="sm" asChild><Link to="/assets/allocations">Tài sản phân bổ</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to="/assets/depreciation">Bảng tính khấu hao</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to="/assets/books">Sổ khấu hao</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to="/assets/reports">Báo cáo TSCĐ</Link></Button>
