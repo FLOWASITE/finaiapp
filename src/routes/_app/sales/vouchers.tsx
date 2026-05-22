@@ -727,6 +727,8 @@ function SalesVouchersPage() {
         <div className="shrink-0 inline-flex rounded-md shadow-sm">
           <Button
             onClick={openCreate}
+            onMouseEnter={prefetchCreate}
+            onFocus={prefetchCreate}
             className="rounded-r-none border-r border-primary-foreground/20"
           >
             <Plus className="h-4 w-4 mr-1" /> Phiếu BH trong nước
