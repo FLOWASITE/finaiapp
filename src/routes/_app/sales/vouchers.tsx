@@ -335,6 +335,8 @@ function SalesVouchersPage() {
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
   const receiptFn = useServerFn(recordSalesVoucherReceipt);
+  const branchFnPage = useServerFn(listBranches);
+  const productsFnPage = useServerFn(listProducts);
 
   // ---------- Filters ----------
   type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
