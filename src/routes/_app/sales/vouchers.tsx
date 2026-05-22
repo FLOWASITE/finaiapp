@@ -1542,9 +1542,40 @@ function VoucherDialog({
                     }
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <AttachInvoiceFile
+                    bucket="einvoices"
+                    filePath={form.einvoice.pdf_path}
+                    label="File PDF hoá đơn điện tử"
+                    accept="application/pdf,image/*"
+                    allowClear
+                    onUploaded={(path) =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, pdf_path: path } }))
+                    }
+                    onClear={() =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, pdf_path: "" } }))
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <AttachInvoiceFile
+                    bucket="einvoices"
+                    filePath={form.einvoice.xml_path}
+                    label="File XML hoá đơn điện tử"
+                    accept=".xml,text/xml,application/xml"
+                    allowClear
+                    onUploaded={(path) =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, xml_path: path } }))
+                    }
+                    onClear={() =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, xml_path: "" } }))
+                    }
+                  />
+                </div>
               </div>
             </div>
           )}
+
 
           {/* Lines */}
           <div className="space-y-2">
