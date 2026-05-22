@@ -629,6 +629,16 @@ function SalesVouchersPage() {
           vat_account: l.vat_account,
           line_type: l.line_type,
         })),
+      einvoice: form.issue_einvoice
+        ? {
+            invoice_template: form.einvoice.invoice_template || null,
+            invoice_series: form.einvoice.invoice_series || null,
+            invoice_no: form.einvoice.invoice_no || null,
+            issue_date: form.einvoice.issue_date || null,
+            tct_lookup_code: form.einvoice.tct_lookup_code || null,
+            notes: form.einvoice.notes || null,
+          }
+        : null,
     };
   }
 
