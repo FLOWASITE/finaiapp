@@ -199,8 +199,8 @@ function SalesVouchersPage() {
     error,
   } = useQuery({
     queryKey: ["sales-vouchers"],
-    queryFn: () => list({}),
-    ...QUERY_PRESETS.LIVE,
+    queryFn: () => list({ data: {} }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const [open, setOpen] = useState(false);
