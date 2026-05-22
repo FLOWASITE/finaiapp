@@ -777,3 +777,111 @@ export const listLinkablePurchaseInvoices = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { rows: rows ?? [] };
   });
+
+// ============ RECORD PAYMENT (cash/bank) ============
+// Tạo phiếu chi tiền mặt / báo nợ NH cho 1 phiếu mua hàng đã ghi sổ.
+// Nợ 331 / Có 111 (hoặc 112).
+export const recordPurchaseVoucherPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date?: string; reference?: string }) =>
+    z.object({
+      voucher_id: z.string().uuid(),
+      method: z.enum(["cash", "bank"]),
+      amount: z.number().positive(),
+      pay_date: z.string().optional(),
+      reference: z.string().max(255).optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: v, error: e0 } = await supabase
+      .from("purchase_vouchers")
+      .select("id, tenant_id, voucher_no, voucher_date, supplier_name, status, total, paid_amount, credit_account")
+      .eq("id", data.voucher_id)
+      .single();
+    if (e0 || !v) throw new Error("Không tìm thấy phiếu");
+    if (v.status !== "posted") throw new Error("Phiếu chưa ghi sổ — không chi tiền được");
+
+    const total = Number(v.total || 0);
+    const paid = Number(v.paid_amount || 0);
+    const remain = Math.max(0, total - paid);
+    if (data.amount > remain + 0.01)
+      throw new Error(`Số tiền vượt công nợ còn lại (${remain.toLocaleString("vi-VN")})`);
+
+    const payDate = data.pay_date || new Date().toISOString().slice(0, 10);
+    const creditAcc = data.method === "cash" ? "1111" : "1121";
+    const debitAcc = v.credit_account || "331";
+
+    // 1) Journal entry
+    const { data: entry, error: e1 } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        entry_date: payDate,
+        description: `Chi tiền phiếu mua ${v.voucher_no} — ${v.supplier_name ?? ""}`,
+      })
+      .select("id")
+      .single();
+    if (e1 || !entry) throw new Error(e1?.message || "Không tạo được bút toán");
+
+    await supabase.from("journal_lines").insert([
+      { entry_id: entry.id, account_code: debitAcc, debit: data.amount, credit: 0, line_order: 0 },
+      { entry_id: entry.id, account_code: creditAcc, debit: 0, credit: data.amount, line_order: 1 },
+    ]);
+
+    // 2) Cash / bank voucher
+    if (data.method === "cash") {
+      await supabase.from("cash_vouchers").insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        voucher_no: `PC-${v.voucher_no}`,
+        voucher_type: "payment",
+        voucher_date: payDate,
+        amount: data.amount,
+        cash_account: creditAcc,
+        counter_account: debitAcc,
+        party_name: v.supplier_name,
+        reason: `Chi tiền phiếu mua ${v.voucher_no}`,
+        journal_entry_id: entry.id,
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      });
+    } else {
+      if (!v.tenant_id) throw new Error("Phiếu chưa gắn với chi nhánh/tenant");
+      const { data: ba } = await supabase
+        .from("bank_accounts")
+        .select("id")
+        .eq("tenant_id", v.tenant_id as string)
+        .limit(1)
+        .maybeSingle();
+      if (!ba?.id) throw new Error("Chưa có tài khoản ngân hàng. Vui lòng thêm trong mục Ngân hàng.");
+      await supabase.from("bank_vouchers").insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        bank_account_id: ba.id,
+        voucher_no: `BN-${v.voucher_no}`,
+        voucher_type: "payment",
+        voucher_date: payDate,
+        amount: data.amount,
+        counter_account: debitAcc,
+        party_name: v.supplier_name,
+        reference: data.reference || null,
+        reason: `Chi tiền phiếu mua ${v.voucher_no}`,
+        journal_entry_id: entry.id,
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      });
+    }
+
+    // 3) Update paid_amount + payment_status
+    const newPaid = paid + data.amount;
+    const newStatus = newPaid >= total - 0.01 ? "paid" : "partial";
+    const { error: e3 } = await supabase
+      .from("purchase_vouchers")
+      .update({ paid_amount: newPaid, payment_status: newStatus })
+      .eq("id", v.id);
+    if (e3) throw new Error(e3.message);
+
+    return { ok: true };
+  });
