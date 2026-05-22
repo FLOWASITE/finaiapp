@@ -82,10 +82,13 @@ function CashPage() {
                 <th className="px-4 py-2 text-left">Lý do</th>
                 <th className="px-4 py-2 text-left">TK đối ứng</th>
                 <th className="px-4 py-2 text-right">Số tiền</th>
+                <th className="px-4 py-2 text-center">Trạng thái</th>
+                <th className="px-4 py-2 text-center">Tài liệu</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {(vouchers ?? []).map((v) => (
+              {(vouchers ?? []).map((v: any) => (
                 <tr key={v.id} className="border-t border-border">
                   <td className="px-4 py-2">{v.voucher_date}</td>
                   <td className="px-4 py-2 font-mono">{v.voucher_no}</td>
@@ -98,10 +101,33 @@ function CashPage() {
                   <td className="px-4 py-2">{v.reason}</td>
                   <td className="px-4 py-2 font-mono">{v.counter_account}</td>
                   <td className="px-4 py-2 text-right font-mono">{Number(v.amount).toLocaleString("vi-VN")}</td>
+                  <td className="px-4 py-2 text-center">
+                    <PostedBadge posted={!!v.journal_entry_id} />
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <AttachmentsCell
+                      attachments={v.attachments ?? []}
+                      entityTable="cash_vouchers"
+                      entityId={v.id}
+                      docKind="cash_voucher"
+                      invalidateKeys={[["vouchers"]]}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <VoucherRowActions
+                      onView={() => toast.info("Xem chi tiết — đang phát triển")}
+                      onEdit={() => toast.info("Chỉnh sửa — đang phát triển")}
+                      onPrint={() => toast.info("In phiếu — đang phát triển")}
+                      onDuplicate={() => toast.info("Nhân bản — đang phát triển")}
+                      onDelete={() => {
+                        if (confirm(`Xoá phiếu ${v.voucher_no}? Bút toán liên quan cũng sẽ bị xoá.`)) del.mutate(v.id);
+                      }}
+                    />
+                  </td>
                 </tr>
               ))}
               {(vouchers ?? []).length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
               )}
             </tbody>
           </table>
