@@ -1251,9 +1251,13 @@ function CreateVoucherDialog({
                             unit: p.unit ?? "",
                             unit_price: Number(p.unit_cost ?? 0),
                             vat_rate: Number(p.vat_rate ?? 10),
-                            debit_account: p.stock_account ?? l.debit_account,
+                            debit_account:
+                              p.item_type === "service"
+                                ? (p.expense_account || "642")
+                                : (p.stock_account ?? l.debit_account),
                             line_type: p.item_type === "service" ? "service" : "goods",
                           })}
+
                         />
                       </TableCell>
                       <TableCell>
