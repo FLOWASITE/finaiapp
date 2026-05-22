@@ -1,14 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
-const TABS = [
+const TABS: { to: string; label: string; exact?: boolean }[] = [
   { to: "/sales", label: "Tổng quan", exact: true },
   { to: "/sales/orders", label: "Đơn đặt hàng" },
   { to: "/sales/vouchers", label: "Phiếu bán hàng" },
   { to: "/invoices", label: "Hoá đơn bán" },
   { to: "/sales/returns", label: "Hàng bán bị trả lại" },
   { to: "/receivables", label: "Công nợ phải thu" },
-] as const;
+];
 
 export function SalesTabs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
