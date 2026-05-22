@@ -446,6 +446,7 @@ function WorkerInfoTooltip() {
 function ConnectedView({
   acc,
   logs,
+  isBiz,
   isFetching,
   polling,
   onSyncNow,
@@ -455,6 +456,7 @@ function ConnectedView({
 }: {
   acc: any;
   logs: any[];
+  isBiz: boolean;
   isFetching: boolean;
   polling: boolean;
   onSyncNow: () => Promise<void>;
@@ -463,6 +465,8 @@ function ConnectedView({
   onDisconnect: () => Promise<void>;
 }) {
   const running = polling || acc?.last_sync_status === "running";
+  const bizMask = (s?: string | null) =>
+    !s ? "—" : s.length <= 3 ? s : `${s.slice(0, 3)}${"•".repeat(Math.max(2, s.length - 3))}`;
 
   return (
     <Tabs defaultValue="overview" className="w-full">
