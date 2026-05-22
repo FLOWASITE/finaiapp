@@ -368,11 +368,11 @@ export function VoucherFormDialog({
             <Button onClick={() => onOpenChange(false)}>Hoàn tất</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Hủy
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={m.isPending}>
+                Huỷ
               </Button>
               <Button onClick={() => m.mutate()} disabled={!canSubmit || m.isPending}>
-                {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
+                {m.isPending ? "Đang lưu…" : "Lưu và thoát"}
               </Button>
             </>
           )}

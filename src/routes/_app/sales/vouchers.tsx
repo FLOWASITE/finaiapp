@@ -628,10 +628,7 @@ function SalesVouchersPage() {
         addLine={addLine}
         updateLine={updateLine}
         removeLine={removeLine}
-        onSave={() => saveMut.mutate()}
-        saving={saveMut.isPending}
-        onPostNew={async () => {
-          // Save first then post
+        onSave={async () => {
           try {
             const payload = buildPayload();
             if (!payload.customer_id && !payload.customer_name)
@@ -642,16 +639,20 @@ function SalesVouchersPage() {
               ? form.id
               : (await create({ data: payload })).id;
             if (form.id) await update({ data: { id: form.id, ...payload } });
-            await post({ data: { id } });
-            toast.success("Đã lưu và ghi sổ");
+            try {
+              await post({ data: { id } });
+              toast.success("Đã lưu và ghi sổ");
+            } catch (e: any) {
+              toast.error(e?.message || "Đã lưu nhưng ghi sổ thất bại");
+            }
             qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
             invalidateLedgers(qc);
             setOpen(false);
           } catch (e: any) {
-            toast.error(e?.message || "Ghi sổ thất bại");
+            toast.error(e?.message || "Lưu phiếu thất bại");
           }
         }}
-        posting={postMut.isPending}
+        saving={saveMut.isPending || postMut.isPending}
       />
     </div>
   );
@@ -670,8 +671,6 @@ function VoucherDialog({
   removeLine,
   onSave,
   saving,
-  onPostNew,
-  posting,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
@@ -683,8 +682,6 @@ function VoucherDialog({
   removeLine: (i: number) => void;
   onSave: () => void;
   saving: boolean;
-  onPostNew: () => void;
-  posting: boolean;
 }) {
   const branchFn = useServerFn(listBranches);
   const { data: branches } = useQuery({
@@ -1248,25 +1245,13 @@ function VoucherDialog({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Huỷ
             </Button>
             <Button variant="default" onClick={onSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Lưu và thoát
+              {saving ? "Đang lưu…" : "Lưu và thoát"}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onPostNew} disabled={posting}>
-                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </DialogContent>

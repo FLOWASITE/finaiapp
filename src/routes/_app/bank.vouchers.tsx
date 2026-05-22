@@ -355,9 +355,9 @@ function VoucherDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Huỷ</Button>
+          <Button variant="outline" onClick={onClose} disabled={m.isPending}>Huỷ</Button>
           <Button disabled={!canSave || m.isPending} onClick={() => m.mutate()}>
-            {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
+            {m.isPending ? "Đang lưu…" : "Lưu và thoát"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -465,9 +465,9 @@ function TransferDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Huỷ</Button>
+          <Button variant="outline" onClick={onClose} disabled={m.isPending}>Huỷ</Button>
           <Button disabled={!canSave || m.isPending} onClick={() => m.mutate()}>
-            {m.isPending ? "Đang lưu…" : "Lưu & sinh bút toán"}
+            {m.isPending ? "Đang lưu…" : "Lưu và thoát"}
           </Button>
         </DialogFooter>
       </DialogContent>

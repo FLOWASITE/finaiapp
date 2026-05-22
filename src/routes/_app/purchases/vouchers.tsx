@@ -417,9 +417,11 @@ function CreateVoucherDialog({
   onCreated: () => void;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
+  const postFn = useServerFn(postPurchaseVoucher);
   const suggestNoFn = useServerFn(suggestVoucherNo);
   const linkInvFn = useServerFn(listLinkablePurchaseInvoices);
   const suppliersFn = useServerFn(listSuppliers);
+  const qc = useQueryClient();
 
   const today = new Date().toISOString().slice(0, 10);
   const isMobile = useIsMobile();
@@ -575,14 +577,21 @@ function CreateVoucherDialog({
             line_type: l.line_type,
           })),
       };
-      return createFn({ data: payload });
+      const created = await createFn({ data: payload });
+      try {
+        await postFn({ data: { id: created.id } });
+      } catch (e: any) {
+        toast.error(e?.message || "Đã lưu nháp nhưng ghi sổ thất bại");
+      }
+      return created;
     },
     onSuccess: () => {
-      toast.success("Đã tạo phiếu nháp");
-      // reset
+      toast.success("Đã lưu và ghi sổ");
+      invalidateLedgers(qc);
       setHeader((h) => ({ ...h, voucher_no: "", reason: "" }));
       setLines([emptyLine()]);
       onCreated();
+      onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi tạo phiếu"),
   });
@@ -1113,11 +1122,12 @@ function CreateVoucherDialog({
         </Tabs>
 
         <DialogFooter className="sticky bottom-0 -mx-4 -mb-4 sm:mx-0 sm:mb-0 sm:static z-10 flex-col-reverse sm:flex-row gap-2 border-t bg-background/95 backdrop-blur px-4 py-3 sm:border-0 sm:bg-transparent sm:backdrop-blur-none sm:p-0 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)] sm:[padding-bottom:0]">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Thoát</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mut.isPending} className="w-full sm:w-auto">Huỷ</Button>
           <Button onClick={() => mut.mutate()}
             disabled={mut.isPending || !header.voucher_no}
             className="w-full sm:w-auto">
-            Lưu
+            {mut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            {mut.isPending ? "Đang lưu…" : "Lưu và thoát"}
           </Button>
         </DialogFooter>
       </DialogContent>

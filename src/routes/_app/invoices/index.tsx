@@ -523,12 +523,12 @@ function InvoicesList() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setManualOpen(false)}>Huỷ</Button>
+            <Button variant="outline" onClick={() => setManualOpen(false)} disabled={manualMut.isPending}>Huỷ</Button>
             <Button
               onClick={() => manualMut.mutate()}
               disabled={manualMut.isPending || manual.lines.some((l) => !l.description && !l.product_id)}
             >
-              {manualMut.isPending ? "Đang lưu..." : "Tạo hoá đơn"}
+              {manualMut.isPending ? "Đang lưu…" : "Lưu và thoát"}
             </Button>
           </DialogFooter>
         </DialogContent>
