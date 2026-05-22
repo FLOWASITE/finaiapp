@@ -764,7 +764,7 @@ function PurchaseVouchersPage() {
                             <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => toast.info("Thanh toán tiền mặt — đang phát triển")}
+                                onClick={() => openPayCash(r, remain)}
                                 title="Tạo phiếu chi tiền mặt"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
                               >
@@ -772,8 +772,8 @@ function PurchaseVouchersPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => toast.info("Báo nợ ngân hàng — đang phát triển")}
-                                title="Tạo báo nợ ngân hàng"
+                                onClick={() => openPayBank(r, remain)}
+                                title="Tạo phiếu chi ngân hàng"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
                               >
                                 <Landmark className="h-4 w-4" />
