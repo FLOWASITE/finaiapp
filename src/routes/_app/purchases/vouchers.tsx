@@ -333,6 +333,37 @@ function PurchaseVouchersPage() {
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Pay dialogs for the "Thanh toán" column icons
+  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
+
+  const openPayCash = (r: any, remain: number) => {
+    if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
+    setPayCash({
+      open: true,
+      prefill: {
+        partyId: r.supplier_id ?? null,
+        partyName: r.supplier_name ?? "",
+        amount: remain,
+        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
+        counterAccount: "331",
+      },
+    });
+  };
+  const openPayBank = (r: any, remain: number) => {
+    if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
+    setPayBank({
+      open: true,
+      prefill: {
+        partyId: r.supplier_id ?? null,
+        partyName: r.supplier_name ?? "",
+        amount: remain,
+        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
+        counterAccount: "331",
+      },
+    });
+  };
+
   const { data, refetch, isLoading, isError, error } = useQuery({
     queryKey: ["purchase-vouchers", search, status, fFrom, fTo],
     queryFn: () =>
