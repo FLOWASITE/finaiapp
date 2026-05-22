@@ -632,6 +632,35 @@ function SalesVouchersPage() {
         </Button>
       </div>
 
+      {/* KPI bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<FileX className="h-5 w-5" />}
+          label="Chưa xuất hoá đơn"
+          value={kpi.noInvoice.toLocaleString("vi-VN")}
+          tone="amber"
+        />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          label="Doanh thu (trong bộ lọc)"
+          value={fmtMoney(kpi.revenue)}
+          tone="emerald"
+        />
+        <KpiCard
+          icon={<Wallet className="h-5 w-5" />}
+          label="Đã thanh toán"
+          value={fmtMoney(kpi.paid)}
+          tone="sky"
+        />
+        <KpiCard
+          icon={<FileText className="h-5 w-5" />}
+          label="Tổng nợ phải thu"
+          value={fmtMoney(kpi.receivable)}
+          tone="rose"
+        />
+      </div>
+
+
       <Card>
         <CardContent className="p-3 sm:p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
