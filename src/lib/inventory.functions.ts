@@ -975,16 +975,16 @@ export const cancelStockVoucher = createServerFn({ method: "POST" })
 
 export const listStockVouchers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { type: "in" | "out"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
+  .inputValidator((i: { type?: "in" | "out" | "transfer" | "all"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     let q = supabase
       .from("stock_vouchers")
       .select("*, warehouses(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
-      .eq("voucher_type", data.type)
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
+    if (data.type && data.type !== "all") q = q.eq("voucher_type", data.type);
     if (data.from) q = q.gte("voucher_date", data.from);
     if (data.to) q = q.lte("voucher_date", data.to);
     if (data.warehouse_id && data.warehouse_id !== "all") {
@@ -1257,4 +1257,211 @@ export const exportStockIOSummaryXlsx = createServerFn({ method: "POST" })
       filename: `BaoCao_NXT_${data.from}_${data.to}.xlsx`,
       base64,
     };
+  });
+
+// ============ Inventory Report (2-level: warehouse → product, with cumulative) ============
+export type InventoryReportProductRow = {
+  product_id: string;
+  code: string;
+  name: string;
+  unit: string;
+  category_name: string | null;
+  warehouse_id: string | null;
+  warehouse_name: string;
+  opening_qty: number;
+  opening_value: number;
+  in_qty: number;
+  in_value: number;
+  out_qty: number;
+  out_value: number;
+  closing_qty: number;
+  closing_value: number;
+  cum_in_qty: number;
+  cum_in_value: number;
+  cum_out_qty: number;
+  cum_out_value: number;
+};
+
+export type InventoryReportWarehouseRow = {
+  warehouse_id: string | null;
+  warehouse_name: string;
+  opening_qty: number;
+  opening_value: number;
+  in_qty: number;
+  in_value: number;
+  out_qty: number;
+  out_value: number;
+  closing_qty: number;
+  closing_value: number;
+  cum_in_qty: number;
+  cum_in_value: number;
+  cum_out_qty: number;
+  cum_out_value: number;
+};
+
+export const getInventoryReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: {
+      from: string;
+      to: string;
+      warehouse_ids?: string[];
+      unit?: string;
+      only_with_activity?: boolean;
+    }) => i,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const yearStart = `${data.to.slice(0, 4)}-01-01`;
+
+    let q = supabase
+      .from("stock_movements")
+      .select(
+        "product_id, warehouse_id, movement_type, movement_date, qty, unit_cost, products(code, name, unit, item_type, product_categories(name)), warehouses(name)",
+      )
+      .lte("movement_date", data.to);
+    if (data.warehouse_ids && data.warehouse_ids.length > 0) {
+      q = q.in("warehouse_id", data.warehouse_ids);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const products = new Map<string, InventoryReportProductRow>();
+    const keyOf = (m: any) => `${m.product_id}|${m.warehouse_id ?? ""}`;
+
+    for (const m of (rows ?? []) as any[]) {
+      if (m.products?.item_type === "service") continue;
+      if (data.unit && m.products?.unit !== data.unit) continue;
+      const k = keyOf(m);
+      const cur =
+        products.get(k) ?? {
+          product_id: m.product_id,
+          code: m.products?.code ?? "",
+          name: m.products?.name ?? "",
+          unit: m.products?.unit ?? "",
+          category_name: m.products?.product_categories?.name ?? null,
+          warehouse_id: m.warehouse_id ?? null,
+          warehouse_name: m.warehouses?.name ?? "(Không kho)",
+          opening_qty: 0,
+          opening_value: 0,
+          in_qty: 0,
+          in_value: 0,
+          out_qty: 0,
+          out_value: 0,
+          closing_qty: 0,
+          closing_value: 0,
+          cum_in_qty: 0,
+          cum_in_value: 0,
+          cum_out_qty: 0,
+          cum_out_value: 0,
+        };
+      const qty = Number(m.qty) || 0;
+      const cost = Number(m.unit_cost) || 0;
+      const value = qty * cost;
+      const isIn = m.movement_type === "in";
+      const dt = m.movement_date as string;
+
+      if (dt < data.from) {
+        cur.opening_qty += isIn ? qty : -qty;
+        cur.opening_value += isIn ? value : -value;
+      } else {
+        if (isIn) {
+          cur.in_qty += qty;
+          cur.in_value += value;
+        } else {
+          cur.out_qty += qty;
+          cur.out_value += value;
+        }
+      }
+      cur.closing_qty += isIn ? qty : -qty;
+      cur.closing_value += isIn ? value : -value;
+
+      // Cumulative from start of year
+      if (dt >= yearStart) {
+        if (isIn) {
+          cur.cum_in_qty += qty;
+          cur.cum_in_value += value;
+        } else {
+          cur.cum_out_qty += qty;
+          cur.cum_out_value += value;
+        }
+      }
+      products.set(k, cur);
+    }
+
+    const productRows = Array.from(products.values())
+      .filter((r) => {
+        if (!data.only_with_activity) return true;
+        return (
+          Math.abs(r.opening_qty) +
+            Math.abs(r.in_qty) +
+            Math.abs(r.out_qty) +
+            Math.abs(r.closing_qty) >
+          0.0001
+        );
+      })
+      .sort((a, b) => (a.warehouse_name || "").localeCompare(b.warehouse_name || "") || a.code.localeCompare(b.code));
+
+    // Warehouse rollup
+    const whMap = new Map<string, InventoryReportWarehouseRow>();
+    for (const r of productRows) {
+      const wk = r.warehouse_id ?? "__none__";
+      const cur =
+        whMap.get(wk) ?? {
+          warehouse_id: r.warehouse_id,
+          warehouse_name: r.warehouse_name,
+          opening_qty: 0,
+          opening_value: 0,
+          in_qty: 0,
+          in_value: 0,
+          out_qty: 0,
+          out_value: 0,
+          closing_qty: 0,
+          closing_value: 0,
+          cum_in_qty: 0,
+          cum_in_value: 0,
+          cum_out_qty: 0,
+          cum_out_value: 0,
+        };
+      cur.opening_qty += r.opening_qty;
+      cur.opening_value += r.opening_value;
+      cur.in_qty += r.in_qty;
+      cur.in_value += r.in_value;
+      cur.out_qty += r.out_qty;
+      cur.out_value += r.out_value;
+      cur.closing_qty += r.closing_qty;
+      cur.closing_value += r.closing_value;
+      cur.cum_in_qty += r.cum_in_qty;
+      cur.cum_in_value += r.cum_in_value;
+      cur.cum_out_qty += r.cum_out_qty;
+      cur.cum_out_value += r.cum_out_value;
+      whMap.set(wk, cur);
+    }
+
+    const warehouses = Array.from(whMap.values()).sort((a, b) =>
+      a.warehouse_name.localeCompare(b.warehouse_name),
+    );
+
+    return { warehouses, products: productRows, from: data.from, to: data.to };
+  });
+
+export const recomputeInventoryValuation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id")
+      .neq("item_type", "service");
+    if (error) throw new Error(error.message);
+    let count = 0;
+    for (const p of (products ?? []) as { id: string }[]) {
+      try {
+        await recomputeProductStock(supabase, p.id);
+        count++;
+      } catch {
+        // Skip products that would go negative
+      }
+    }
+    return { ok: true, count };
   });

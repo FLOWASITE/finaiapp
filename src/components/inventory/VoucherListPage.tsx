@@ -26,7 +26,7 @@ const monthStart = () => {
 };
 
 interface Props {
-  type: "in" | "out";
+  type: "in" | "out" | "all";
 }
 
 export function VoucherListPage({ type }: Props) {
@@ -66,9 +66,9 @@ export function VoucherListPage({ type }: Props) {
     };
   }, [filtered]);
 
-  const title = type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho";
-  const Icon = type === "in" ? ArrowDownToLine : ArrowUpFromLine;
-  const accent = type === "in" ? "text-emerald-600" : "text-orange-600";
+  const title = type === "in" ? "Phiếu nhập kho" : type === "out" ? "Phiếu xuất kho" : "Phiếu nhập/xuất kho";
+  const Icon = type === "out" ? ArrowUpFromLine : ArrowDownToLine;
+  const accent = type === "in" ? "text-emerald-600" : type === "out" ? "text-orange-600" : "text-primary";
 
   return (
     <div className="p-8 space-y-6">
@@ -136,6 +136,7 @@ export function VoucherListPage({ type }: Props) {
                 <tr>
                   <th className="p-3">Ngày</th>
                   <th className="p-3">Số phiếu</th>
+                  {type === "all" && <th className="p-3">Loại</th>}
                   <th className="p-3">Kho</th>
                   <th className="p-3">Lý do</th>
                   <th className="p-3 text-right">Số dòng</th>
@@ -145,14 +146,27 @@ export function VoucherListPage({ type }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {isLoading && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>}
+                {isLoading && <tr><td colSpan={type === "all" ? 9 : 8} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>}
                 {!isLoading && filtered.length === 0 && (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
+                  <tr><td colSpan={type === "all" ? 9 : 8} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
                 )}
                 {filtered.map((r: any) => (
                   <tr key={r.id} className="border-t hover:bg-muted/30">
                     <td className="p-3 whitespace-nowrap">{r.voucher_date}</td>
                     <td className="p-3 font-mono text-xs">{r.voucher_no}</td>
+                    {type === "all" && (
+                      <td className="p-3">
+                        {r.voucher_type === "in" ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                            <ArrowDownToLine className="h-3 w-3 mr-1" /> Nhập
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
+                            <ArrowUpFromLine className="h-3 w-3 mr-1" /> Xuất
+                          </Badge>
+                        )}
+                      </td>
+                    )}
                     <td className="p-3">
                       {r.warehouses ? (
                         <span className="inline-flex items-center gap-1 text-xs">
@@ -178,7 +192,7 @@ export function VoucherListPage({ type }: Props) {
                           voucher: full.voucher as any,
                           lines: full.lines as any,
                           journal_lines: full.journal_lines as any,
-                          type,
+                          type: (r.voucher_type === "out" ? "out" : "in"),
                         });
                       }}>
                         <Printer className="h-4 w-4" />
@@ -192,7 +206,7 @@ export function VoucherListPage({ type }: Props) {
         </CardContent>
       </Card>
 
-      <VoucherDetailDialog id={openId} onClose={() => setOpenId(null)} type={type} />
+      <VoucherDetailDialog id={openId} onClose={() => setOpenId(null)} type={type === "all" ? "in" : type} />
     </div>
   );
 }

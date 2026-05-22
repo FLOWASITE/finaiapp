@@ -9,7 +9,7 @@ function MovementsPage() {
     <div className="p-8 space-y-4">
       <h1 className="text-2xl font-bold tracking-tight">Phiếu nhập / xuất kho</h1>
       <div className="grid gap-4 md:grid-cols-2">
-        <Link to="/inventory/vouchers-in">
+        <Link to="/inventory/vouchers" search={{ type: "in" } as any}>
           <Card className="hover:border-primary transition">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-emerald-600">
@@ -21,7 +21,7 @@ function MovementsPage() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/inventory/vouchers-out">
+        <Link to="/inventory/vouchers" search={{ type: "out" } as any}>
           <Card className="hover:border-primary transition">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-orange-600">
