@@ -470,6 +470,8 @@ function CreateVoucherDialog({
     invoice_id: "",
     invoice_no: "",
     invoice_date: "",
+    invoice_file_path: "",
+
     reason: "",
     currency: "VND",
     exchange_rate: 1,
