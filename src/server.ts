@@ -25,6 +25,13 @@ function brandedErrorResponse(): Response {
   });
 }
 
+function redirectHtml(to: string): Response {
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${JSON.stringify(to)})</script></head><body></body></html>`,
+    { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
+  );
+}
+
 function isCatastrophicSsrErrorBody(body: string, responseStatus: number): boolean {
   let payload: unknown;
   try {
@@ -69,6 +76,11 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (url.pathname === "/" || url.pathname === "/index") {
+        return redirectHtml("/login");
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

@@ -15,6 +15,20 @@ import { supabase } from "../integrations/supabase/client";
 import { ThemeProvider, themeInitScript } from "@/hooks/use-theme";
 
 function NotFoundComponent() {
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.pathname !== "/index") return;
+
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      window.location.replace(data.session ? "/dashboard" : "/login");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
