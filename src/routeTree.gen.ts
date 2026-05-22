@@ -70,6 +70,7 @@ import { Route as AppSettingsDepartmentsRouteImport } from './routes/_app/settin
 import { Route as AppSettingsCostCentersRouteImport } from './routes/_app/settings/cost-centers'
 import { Route as AppSettingsBranchesRouteImport } from './routes/_app/settings/branches'
 import { Route as AppSalesVouchersRouteImport } from './routes/_app/sales/vouchers'
+import { Route as AppSalesReturnsRouteImport } from './routes/_app/sales/returns'
 import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
 import { Route as AppSalesIdRouteImport } from './routes/_app/sales/$id'
 import { Route as AppReportsVoucherListRouteImport } from './routes/_app/reports/voucher-list'
@@ -454,6 +455,11 @@ const AppSettingsBranchesRoute = AppSettingsBranchesRouteImport.update({
 const AppSalesVouchersRoute = AppSalesVouchersRouteImport.update({
   id: '/sales/vouchers',
   path: '/sales/vouchers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalesReturnsRoute = AppSalesReturnsRouteImport.update({
+  id: '/sales/returns',
+  path: '/sales/returns',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSalesOrdersRoute = AppSalesOrdersRouteImport.update({
@@ -937,6 +943,7 @@ export interface FileRoutesByFullPath {
   '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRouteWithChildren
+  '/sales/returns': typeof AppSalesReturnsRoute
   '/sales/vouchers': typeof AppSalesVouchersRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
@@ -1072,6 +1079,7 @@ export interface FileRoutesByTo {
   '/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/orders': typeof AppSalesOrdersRouteWithChildren
+  '/sales/returns': typeof AppSalesReturnsRoute
   '/sales/vouchers': typeof AppSalesVouchersRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
@@ -1215,6 +1223,7 @@ export interface FileRoutesById {
   '/_app/reports/voucher-list': typeof AppReportsVoucherListRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/sales/orders': typeof AppSalesOrdersRouteWithChildren
+  '/_app/sales/returns': typeof AppSalesReturnsRoute
   '/_app/sales/vouchers': typeof AppSalesVouchersRoute
   '/_app/settings/branches': typeof AppSettingsBranchesRoute
   '/_app/settings/cost-centers': typeof AppSettingsCostCentersRoute
@@ -1358,6 +1367,7 @@ export interface FileRouteTypes {
     | '/reports/voucher-list'
     | '/sales/$id'
     | '/sales/orders'
+    | '/sales/returns'
     | '/sales/vouchers'
     | '/settings/branches'
     | '/settings/cost-centers'
@@ -1493,6 +1503,7 @@ export interface FileRouteTypes {
     | '/reports/voucher-list'
     | '/sales/$id'
     | '/sales/orders'
+    | '/sales/returns'
     | '/sales/vouchers'
     | '/settings/branches'
     | '/settings/cost-centers'
@@ -1635,6 +1646,7 @@ export interface FileRouteTypes {
     | '/_app/reports/voucher-list'
     | '/_app/sales/$id'
     | '/_app/sales/orders'
+    | '/_app/sales/returns'
     | '/_app/sales/vouchers'
     | '/_app/settings/branches'
     | '/_app/settings/cost-centers'
@@ -2140,6 +2152,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/vouchers'
       fullPath: '/sales/vouchers'
       preLoaderRoute: typeof AppSalesVouchersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales/returns': {
+      id: '/_app/sales/returns'
+      path: '/sales/returns'
+      fullPath: '/sales/returns'
+      preLoaderRoute: typeof AppSalesReturnsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sales/orders': {
@@ -2945,6 +2964,7 @@ interface AppRouteChildren {
   AppReportsVoucherListRoute: typeof AppReportsVoucherListRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesOrdersRoute: typeof AppSalesOrdersRouteWithChildren
+  AppSalesReturnsRoute: typeof AppSalesReturnsRoute
   AppSalesVouchersRoute: typeof AppSalesVouchersRoute
   AppSettingsBranchesRoute: typeof AppSettingsBranchesRoute
   AppSettingsCostCentersRoute: typeof AppSettingsCostCentersRoute
@@ -3040,6 +3060,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsVoucherListRoute: AppReportsVoucherListRoute,
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesOrdersRoute: AppSalesOrdersRouteWithChildren,
+  AppSalesReturnsRoute: AppSalesReturnsRoute,
   AppSalesVouchersRoute: AppSalesVouchersRoute,
   AppSettingsBranchesRoute: AppSettingsBranchesRoute,
   AppSettingsCostCentersRoute: AppSettingsCostCentersRoute,
