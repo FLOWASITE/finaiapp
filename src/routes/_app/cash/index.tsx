@@ -17,8 +17,10 @@ import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/vo
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
 function CashPage() {
+  const qc = useQueryClient();
   const list = useServerFn(listCashVouchers);
   const book = useServerFn(getCashBook);
+  const delFn = useServerFn(deleteCashVoucher);
   const [from, setFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
@@ -29,6 +31,17 @@ function CashPage() {
   const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }),
  ...QUERY_PRESETS.TRANSACTIONAL,
 });
+
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá phiếu");
+      qc.invalidateQueries({ queryKey: ["vouchers"] });
+      qc.invalidateQueries({ queryKey: ["cashbook"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi xoá"),
+  });
 
   return (
     <div className="p-8 space-y-6">
