@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, TrendingDown, Receipt, FileText } from "lucide-react";
 import { listCashVouchers, getCashBook } from "@/lib/cash.functions";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
