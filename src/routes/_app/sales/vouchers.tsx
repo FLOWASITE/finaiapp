@@ -1550,7 +1550,7 @@ function VoucherDialog({
                     label="File PDF hoá đơn điện tử"
                     accept="application/pdf,image/*"
                     allowClear
-                    onUploaded={(path) =>
+                    onUploaded={(path: string) =>
                       setForm((f) => ({ ...f, einvoice: { ...f.einvoice, pdf_path: path } }))
                     }
                     onClear={() =>
@@ -1565,7 +1565,7 @@ function VoucherDialog({
                     label="File XML hoá đơn điện tử"
                     accept=".xml,text/xml,application/xml"
                     allowClear
-                    onUploaded={(path) =>
+                    onUploaded={(path: string) =>
                       setForm((f) => ({ ...f, einvoice: { ...f.einvoice, xml_path: path } }))
                     }
                     onClear={() =>
