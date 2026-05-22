@@ -365,8 +365,41 @@ function ProductDialog({ categories, existingCodes, units }: { categories: any[]
                   placeholder="Thông tin bổ sung..."
                 />
               </Field>
+              <div className="col-span-2 rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tính chất sử dụng {isService && <span className="text-emerald-600 normal-case">· quan trọng với dịch vụ</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Checkbox
+                      checked={form.can_be_sold}
+                      onCheckedChange={(v) => setForm({ ...form, can_be_sold: !!v })}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Có thể bán</div>
+                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn bán, phiếu bán</div>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Checkbox
+                      checked={form.can_be_purchased}
+                      onCheckedChange={(v) => setForm({ ...form, can_be_purchased: !!v })}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">Có thể mua</div>
+                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn mua, phiếu mua</div>
+                    </div>
+                  </label>
+                </div>
+                {!form.can_be_sold && !form.can_be_purchased && (
+                  <div className="text-[11px] text-destructive">Chọn ít nhất một tính chất</div>
+                )}
+              </div>
             </div>
           </TabsContent>
+
 
           {/* TAB 2 — Pricing */}
           <TabsContent value="pricing" className="space-y-3 pt-4 min-h-[280px]">
