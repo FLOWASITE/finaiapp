@@ -81,6 +81,9 @@ import { Route as AppReportsArSummaryRouteImport } from './routes/_app/reports/a
 import { Route as AppReportsApSummaryRouteImport } from './routes/_app/reports/ap-summary'
 import { Route as AppReportsAllocationScheduleRouteImport } from './routes/_app/reports/allocation-schedule'
 import { Route as AppPurchasesVouchersRouteImport } from './routes/_app/purchases/vouchers'
+import { Route as AppPurchasesReturnsRouteImport } from './routes/_app/purchases/returns'
+import { Route as AppPurchasesOrdersRouteImport } from './routes/_app/purchases/orders'
+import { Route as AppPurchasesInvoicesRouteImport } from './routes/_app/purchases/invoices'
 import { Route as AppPayrollTimesheetsRouteImport } from './routes/_app/payroll/timesheets'
 import { Route as AppPayrollReportsRouteImport } from './routes/_app/payroll/reports'
 import { Route as AppPayrollPoliciesRouteImport } from './routes/_app/payroll/policies'
@@ -513,6 +516,21 @@ const AppPurchasesVouchersRoute = AppPurchasesVouchersRouteImport.update({
   path: '/purchases/vouchers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPurchasesReturnsRoute = AppPurchasesReturnsRouteImport.update({
+  id: '/purchases/returns',
+  path: '/purchases/returns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesOrdersRoute = AppPurchasesOrdersRouteImport.update({
+  id: '/purchases/orders',
+  path: '/purchases/orders',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesInvoicesRoute = AppPurchasesInvoicesRouteImport.update({
+  id: '/purchases/invoices',
+  path: '/purchases/invoices',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollTimesheetsRoute = AppPayrollTimesheetsRouteImport.update({
   id: '/payroll/timesheets',
   path: '/payroll/timesheets',
@@ -933,6 +951,9 @@ export interface FileRoutesByFullPath {
   '/payroll/policies': typeof AppPayrollPoliciesRoute
   '/payroll/reports': typeof AppPayrollReportsRoute
   '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
+  '/purchases/invoices': typeof AppPurchasesInvoicesRoute
+  '/purchases/orders': typeof AppPurchasesOrdersRoute
+  '/purchases/returns': typeof AppPurchasesReturnsRoute
   '/purchases/vouchers': typeof AppPurchasesVouchersRoute
   '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
@@ -1069,6 +1090,9 @@ export interface FileRoutesByTo {
   '/payroll/policies': typeof AppPayrollPoliciesRoute
   '/payroll/reports': typeof AppPayrollReportsRoute
   '/payroll/timesheets': typeof AppPayrollTimesheetsRoute
+  '/purchases/invoices': typeof AppPurchasesInvoicesRoute
+  '/purchases/orders': typeof AppPurchasesOrdersRoute
+  '/purchases/returns': typeof AppPurchasesReturnsRoute
   '/purchases/vouchers': typeof AppPurchasesVouchersRoute
   '/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/reports/ap-summary': typeof AppReportsApSummaryRoute
@@ -1213,6 +1237,9 @@ export interface FileRoutesById {
   '/_app/payroll/policies': typeof AppPayrollPoliciesRoute
   '/_app/payroll/reports': typeof AppPayrollReportsRoute
   '/_app/payroll/timesheets': typeof AppPayrollTimesheetsRoute
+  '/_app/purchases/invoices': typeof AppPurchasesInvoicesRoute
+  '/_app/purchases/orders': typeof AppPurchasesOrdersRoute
+  '/_app/purchases/returns': typeof AppPurchasesReturnsRoute
   '/_app/purchases/vouchers': typeof AppPurchasesVouchersRoute
   '/_app/reports/allocation-schedule': typeof AppReportsAllocationScheduleRoute
   '/_app/reports/ap-summary': typeof AppReportsApSummaryRoute
@@ -1357,6 +1384,9 @@ export interface FileRouteTypes {
     | '/payroll/policies'
     | '/payroll/reports'
     | '/payroll/timesheets'
+    | '/purchases/invoices'
+    | '/purchases/orders'
+    | '/purchases/returns'
     | '/purchases/vouchers'
     | '/reports/allocation-schedule'
     | '/reports/ap-summary'
@@ -1493,6 +1523,9 @@ export interface FileRouteTypes {
     | '/payroll/policies'
     | '/payroll/reports'
     | '/payroll/timesheets'
+    | '/purchases/invoices'
+    | '/purchases/orders'
+    | '/purchases/returns'
     | '/purchases/vouchers'
     | '/reports/allocation-schedule'
     | '/reports/ap-summary'
@@ -1636,6 +1669,9 @@ export interface FileRouteTypes {
     | '/_app/payroll/policies'
     | '/_app/payroll/reports'
     | '/_app/payroll/timesheets'
+    | '/_app/purchases/invoices'
+    | '/_app/purchases/orders'
+    | '/_app/purchases/returns'
     | '/_app/purchases/vouchers'
     | '/_app/reports/allocation-schedule'
     | '/_app/reports/ap-summary'
@@ -2229,6 +2265,27 @@ declare module '@tanstack/react-router' {
       path: '/purchases/vouchers'
       fullPath: '/purchases/vouchers'
       preLoaderRoute: typeof AppPurchasesVouchersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/returns': {
+      id: '/_app/purchases/returns'
+      path: '/purchases/returns'
+      fullPath: '/purchases/returns'
+      preLoaderRoute: typeof AppPurchasesReturnsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/orders': {
+      id: '/_app/purchases/orders'
+      path: '/purchases/orders'
+      fullPath: '/purchases/orders'
+      preLoaderRoute: typeof AppPurchasesOrdersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/invoices': {
+      id: '/_app/purchases/invoices'
+      path: '/purchases/invoices'
+      fullPath: '/purchases/invoices'
+      preLoaderRoute: typeof AppPurchasesInvoicesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/payroll/timesheets': {
@@ -2954,6 +3011,9 @@ interface AppRouteChildren {
   AppPayrollPoliciesRoute: typeof AppPayrollPoliciesRoute
   AppPayrollReportsRoute: typeof AppPayrollReportsRoute
   AppPayrollTimesheetsRoute: typeof AppPayrollTimesheetsRoute
+  AppPurchasesInvoicesRoute: typeof AppPurchasesInvoicesRoute
+  AppPurchasesOrdersRoute: typeof AppPurchasesOrdersRoute
+  AppPurchasesReturnsRoute: typeof AppPurchasesReturnsRoute
   AppPurchasesVouchersRoute: typeof AppPurchasesVouchersRoute
   AppReportsAllocationScheduleRoute: typeof AppReportsAllocationScheduleRoute
   AppReportsApSummaryRoute: typeof AppReportsApSummaryRoute
@@ -3050,6 +3110,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppPayrollPoliciesRoute: AppPayrollPoliciesRoute,
   AppPayrollReportsRoute: AppPayrollReportsRoute,
   AppPayrollTimesheetsRoute: AppPayrollTimesheetsRoute,
+  AppPurchasesInvoicesRoute: AppPurchasesInvoicesRoute,
+  AppPurchasesOrdersRoute: AppPurchasesOrdersRoute,
+  AppPurchasesReturnsRoute: AppPurchasesReturnsRoute,
   AppPurchasesVouchersRoute: AppPurchasesVouchersRoute,
   AppReportsAllocationScheduleRoute: AppReportsAllocationScheduleRoute,
   AppReportsApSummaryRoute: AppReportsApSummaryRoute,

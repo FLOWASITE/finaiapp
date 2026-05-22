@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { PurchaseTabs } from "@/components/purchases/PurchaseTabs";
 import { supabase } from "@/integrations/supabase/client";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 
@@ -452,39 +453,9 @@ function PurchaseVouchersPage() {
   }
 
   return (
+    <>
+      <PurchaseTabs />
     <div className="space-y-4 p-4">
-      {/* Top tabs */}
-      <div className="border-b">
-        <nav className="flex flex-wrap items-center gap-1">
-          {PURCHASE_TABS.map((t) => {
-            const isActive = t.to === "/purchases/vouchers";
-            if (t.disabled || !t.to) {
-              return (
-                <span
-                  key={t.label}
-                  title="Sắp có"
-                  className="px-3 py-2 text-sm text-muted-foreground/60 cursor-not-allowed select-none"
-                >
-                  {t.label}
-                </span>
-              );
-            }
-            return (
-              <Link
-                key={t.label}
-                to={t.to}
-                className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
-                  isActive
-                    ? "border-primary text-primary font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -850,6 +821,7 @@ function PurchaseVouchersPage() {
         onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
       />
     </div>
+    </>
   );
 }
 

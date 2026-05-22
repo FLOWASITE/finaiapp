@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
+import { PurchaseTabs } from "@/components/purchases/PurchaseTabs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
@@ -156,6 +157,8 @@ function PurchasesHubPage() {
     setTab("invoices", { status: s });
 
   return (
+    <>
+      <PurchaseTabs />
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -334,6 +337,7 @@ function PurchasesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 

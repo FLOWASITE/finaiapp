@@ -60,15 +60,7 @@ const SECTIONS: NavSection[] = [
         ],
       },
       { to: "/sales", label: "Bán hàng", icon: ShoppingCart },
-      {
-        label: "Mua hàng",
-        icon: ShoppingCart,
-        items: [
-          { to: "/purchases", label: "Tổng quan" },
-          { to: "/purchases/vouchers", label: "Phiếu mua hàng" },
-          { to: "/payables", label: "Công nợ phải trả" },
-        ],
-      },
+      { to: "/purchases", label: "Mua hàng", icon: ShoppingCart },
       {
         label: "Đối tác",
         icon: ContactIcon,
