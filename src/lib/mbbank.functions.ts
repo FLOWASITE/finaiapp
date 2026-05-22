@@ -111,7 +111,7 @@ export const getMbSyncStatus = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: acc } = await context.supabase
       .from("bank_accounts")
-      .select("sync_enabled, last_synced_at, last_sync_status, last_sync_error, current_balance, balance_synced_at, mb_username")
+      .select("sync_enabled, last_synced_at, last_sync_status, last_sync_error, current_balance, balance_synced_at, mb_username, mb_corporate_id")
       .eq("id", data.bank_account_id).maybeSingle();
     const { data: logs } = await context.supabase
       .from("bank_sync_logs")
