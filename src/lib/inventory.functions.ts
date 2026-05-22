@@ -975,16 +975,16 @@ export const cancelStockVoucher = createServerFn({ method: "POST" })
 
 export const listStockVouchers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { type: "in" | "out"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
+  .inputValidator((i: { type?: "in" | "out" | "transfer" | "all"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     let q = supabase
       .from("stock_vouchers")
       .select("*, warehouses(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
-      .eq("voucher_type", data.type)
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
+    if (data.type && data.type !== "all") q = q.eq("voucher_type", data.type);
     if (data.from) q = q.gte("voucher_date", data.from);
     if (data.to) q = q.lte("voucher_date", data.to);
     if (data.warehouse_id && data.warehouse_id !== "all") {
