@@ -62,6 +62,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { MbStatusBadge } from "./mbbank-status-badge";
+import { MbBizBrandBar } from "./mbbank-biz-brand-bar";
 import { cn } from "@/lib/utils";
 
 const VND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
