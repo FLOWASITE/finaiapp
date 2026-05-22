@@ -269,7 +269,7 @@ function ItemsListPage() {
                 </th>
                 <th className="px-3 py-2 text-left">Mã</th>
                 <th className="px-3 py-2 text-left">Tên</th>
-                <th className="px-3 py-2 text-left">Loại</th>
+                <th className="px-3 py-2 text-left">Loại / Dùng cho</th>
                 <th className="px-3 py-2 text-left">Nhóm</th>
                 <th className="px-3 py-2 text-left">ĐVT</th>
                 <th className="px-3 py-2 text-left">Mã vạch</th>
@@ -277,7 +277,6 @@ function ItemsListPage() {
                 <th className="px-3 py-2 text-right">Giá vốn</th>
                 <th className="px-3 py-2 text-right">Tồn</th>
                 <th className="px-3 py-2 text-right">VAT</th>
-                <th className="px-3 py-2 text-left">Dùng cho</th>
                 <th className="px-3 py-2 text-left">TK DT / CP / Kho</th>
                 <th className="px-3 py-2 text-left">Trạng thái</th>
                 <th className="px-3 py-2 w-10"></th>
