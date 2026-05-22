@@ -64,14 +64,26 @@ const fmtThousand = (n: number) =>
   n ? new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(n) : "";
 const parseAmount = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
 
+export type CashVoucherPrefill = {
+  partyId?: string | null;
+  partyName?: string;
+  amount?: number;
+  reason?: string;
+  counterAccount?: string;
+};
+
 export function VoucherFormDialog({
   type,
   open,
   onOpenChange,
+  prefill,
+  onSaved,
 }: {
   type: VoucherType;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  prefill?: CashVoucherPrefill;
+  onSaved?: () => void;
 }) {
   const qc = useQueryClient();
   const create = useServerFn(createCashVoucher);
