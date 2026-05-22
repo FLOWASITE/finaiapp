@@ -94,6 +94,7 @@ function AccountsPage() {
               <th className="px-4 py-2 text-right">Số dư đầu</th>
               <th className="px-4 py-2 text-right">Số dư hiện tại</th>
               <th className="px-4 py-2 text-right">GD</th>
+              <th className="px-4 py-2 text-center">MB Bank</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
