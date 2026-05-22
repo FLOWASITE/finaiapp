@@ -200,6 +200,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses-active"],
     queryFn: () => listWh(),
+    enabled: open,
     ...QUERY_PRESETS.REFERENCE,
   });
   const activeWhs = useMemo(
@@ -226,7 +227,7 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const { data: convMap } = useQuery({
     queryKey: ["unit-conversions-bulk", productIdsAll.join(",")],
     queryFn: () => convFn({ data: { product_ids: productIdsAll } }),
-    enabled: productIdsAll.length > 0,
+    enabled: open && productIdsAll.length > 0,
     ...QUERY_PRESETS.REFERENCE,
   });
   const getConversions = (pid: string): any[] => ((convMap as any)?.[pid] ?? []);
@@ -359,10 +360,21 @@ function StockVoucherDialog({ type, products }: { type: "in" | "out"; products: 
   const title = type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho";
   const Icon = type === "in" ? ArrowDownToLine : ArrowUpFromLine;
 
+  const prefetch = () => {
+    qc.prefetchQuery({ queryKey: ["warehouses-active"], queryFn: () => listWh(), ...QUERY_PRESETS.REFERENCE });
+    if (productIdsAll.length > 0) {
+      qc.prefetchQuery({
+        queryKey: ["unit-conversions-bulk", productIdsAll.join(",")],
+        queryFn: () => convFn({ data: { product_ids: productIdsAll } }),
+        ...QUERY_PRESETS.REFERENCE,
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={type === "in" ? "default" : "outline"}>
+        <Button variant={type === "in" ? "default" : "outline"} onMouseEnter={prefetch} onFocus={prefetch}>
           <Icon className="mr-2 h-4 w-4" />{title}
         </Button>
       </DialogTrigger>
