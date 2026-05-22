@@ -569,6 +569,72 @@ function SalesVouchersPage() {
       </div>
 
       <Card>
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
+            <div>
+              <Label className="text-xs mb-1 block">Trạng thái</Label>
+              <Select value={fStatus} onValueChange={setFStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="draft">Nháp</SelectItem>
+                  <SelectItem value="posted">Đã ghi sổ</SelectItem>
+                  <SelectItem value="void">Đã huỷ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Kỳ</Label>
+              <Select value={fPeriod} onValueChange={(v) => setFPeriod(v as Period)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="this_month">Tháng này</SelectItem>
+                  <SelectItem value="last_month">Tháng trước</SelectItem>
+                  <SelectItem value="this_quarter">Quý này</SelectItem>
+                  <SelectItem value="this_year">Năm nay</SelectItem>
+                  <SelectItem value="custom">Tuỳ chọn…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="lg:col-span-1">
+              <Label className="text-xs mb-1 block">Khách hàng</Label>
+              <CustomerCombobox value={fCustomerId} onChange={(c) => setFCustomerId(c?.id ?? null)} />
+            </div>
+            <div className="lg:col-span-1">
+              <Label className="text-xs mb-1 block">Mã phiếu / mô tả</Label>
+              <Input
+                value={fSearch}
+                onChange={(e) => setFSearch(e.target.value)}
+                placeholder="VD: PBH001"
+              />
+            </div>
+            <div className="flex gap-2">
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" onClick={resetFilters} className="w-full">
+                  <X className="h-4 w-4 mr-1" /> Xoá lọc
+                </Button>
+              )}
+            </div>
+            {fPeriod === "custom" && (
+              <>
+                <div>
+                  <Label className="text-xs mb-1 block">Từ ngày</Label>
+                  <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Đến ngày</Label>
+                  <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+
+
+      <Card>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-2">
