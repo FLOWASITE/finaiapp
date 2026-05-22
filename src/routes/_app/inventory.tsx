@@ -3,14 +3,14 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/inventory")({ component: InventoryLayout });
 
-const TABS = [
+const TABS: { to: string; label: string; exact?: boolean }[] = [
   { to: "/inventory", label: "Hàng tồn kho", exact: true },
   { to: "/inventory/unposted", label: "Phiếu chưa nhập/xuất kho" },
   { to: "/inventory/vouchers", label: "Phiếu nhập/xuất kho" },
   { to: "/inventory/transfers", label: "Chuyển kho" },
   { to: "/inventory/warehouses", label: "Kho hàng" },
   { to: "/inventory/stock-takes", label: "Kiểm kho" },
-] as const;
+];
 
 function InventoryLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
