@@ -550,6 +550,8 @@ function SalesVouchersPage() {
             issue_date: einvoice.issue_date ?? "",
             tct_lookup_code: einvoice.tct_lookup_code ?? "",
             notes: einvoice.notes ?? "",
+            pdf_path: einvoice.pdf_path ?? "",
+            xml_path: einvoice.xml_path ?? "",
           }
         : blankEinvoice(),
     });
