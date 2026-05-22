@@ -58,7 +58,7 @@ function AppLayout() {
             </header>
           )}
           <main className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}>
-            {!onChatRoute && <PageBreadcrumbs />}
+            
             <Outlet />
           </main>
           {showDock ? <ChatDock /> : null}
