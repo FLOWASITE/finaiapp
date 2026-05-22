@@ -286,17 +286,11 @@ function AccountForm({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Ngân hàng" hint="Chọn hoặc gõ tự do">
-          <Input
-            list="vn-banks"
+        <Field label="Ngân hàng" hint="Tìm hoặc gõ tên tự do">
+          <BankCombobox
             value={form.bank_name ?? ""}
-            onChange={(e) => update("bank_name", e.target.value)}
-            placeholder="Vietcombank, BIDV, MB Bank..."
-            maxLength={120}
+            onChange={(v) => update("bank_name", v)}
           />
-          <datalist id="vn-banks">
-            {VN_BANKS.map((b) => <option key={b} value={b} />)}
-          </datalist>
         </Field>
         <Field label="Số tài khoản" error={errors.account_no}>
           <Input
