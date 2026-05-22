@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useMemo, useEffect } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
+
 import {
   listPurchaseVouchers,
   createPurchaseVoucher,
@@ -468,6 +471,8 @@ function CreateVoucherDialog({
     invoice_id: "",
     invoice_no: "",
     invoice_date: "",
+    invoice_file_path: "",
+
     reason: "",
     currency: "VND",
     exchange_rate: 1,
@@ -1107,7 +1112,7 @@ function CreateVoucherDialog({
                 ) : (
                   <Select value={header.invoice_id || "none"}
                     onValueChange={(v) => {
-                      if (v === "none") { setHeader({ ...header, invoice_id: "" }); return; }
+                      if (v === "none") { setHeader({ ...header, invoice_id: "", invoice_file_path: "" }); return; }
                       const inv = invoices?.rows?.find((x: any) => x.id === v);
                       if (inv) {
                         setHeader({
@@ -1115,6 +1120,7 @@ function CreateVoucherDialog({
                           invoice_id: v,
                           invoice_no: inv.invoice_no ?? "",
                           invoice_date: inv.issue_date ?? "",
+                          invoice_file_path: inv.file_path ?? "",
                           supplier_id: inv.supplier_id ?? header.supplier_id,
                           supplier_name: inv.supplier_name ?? header.supplier_name,
                         });
@@ -1146,6 +1152,46 @@ function CreateVoucherDialog({
                 <Label>MST NCC</Label>
                 <Input placeholder="Auto từ NCC" disabled />
               </div>
+              <div className="sm:col-span-3">
+                <AttachInvoiceFile
+                  filePath={header.invoice_file_path}
+                  onUploaded={async (path: string) => {
+                    // If there is no linked invoice yet → create one with this file
+                    if (!header.invoice_id) {
+                      const { data: userData } = await supabase.auth.getUser();
+                      const uid = userData.user?.id;
+                      if (!uid) { toast.error("Chưa đăng nhập"); return; }
+                      const { data: inv, error } = await supabase
+                        .from("invoices")
+                        .insert({
+                          user_id: uid,
+                          file_path: path,
+                          supplier_id: header.supplier_id || null,
+                          supplier_name: header.supplier_name || null,
+                          invoice_no: header.invoice_no || null,
+                          issue_date: header.invoice_date || null,
+                          status: "uploaded",
+                        })
+                        .select("id")
+                        .single();
+                      if (error || !inv) { toast.error("Lỗi tạo hoá đơn: " + (error?.message ?? "")); return; }
+                      setHeader((h) => ({ ...h, invoice_id: inv.id, invoice_file_path: path }));
+                      qc.invalidateQueries({ queryKey: ["linkable-purchase-invoices"] });
+                      toast.success("Đã đính kèm & tạo hoá đơn");
+                    } else {
+                      // Update file_path on existing linked invoice
+                      const { error } = await supabase
+                        .from("invoices")
+                        .update({ file_path: path })
+                        .eq("id", header.invoice_id);
+                      if (error) { toast.error("Lỗi cập nhật: " + error.message); return; }
+                      setHeader((h) => ({ ...h, invoice_file_path: path }));
+                      toast.success("Đã cập nhật file hoá đơn");
+                    }
+                  }}
+                />
+              </div>
+
             </div>
           </TabsContent>
         </Tabs>

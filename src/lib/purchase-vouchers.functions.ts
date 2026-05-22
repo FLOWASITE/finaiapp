@@ -760,7 +760,7 @@ export const listLinkablePurchaseInvoices = createServerFn({ method: "POST" })
     const { supabase } = context;
     let q = supabase
       .from("invoices")
-      .select("id, invoice_no, issue_date, supplier_name, subtotal, vat_amount, total, supplier_id")
+      .select("id, invoice_no, issue_date, supplier_name, subtotal, vat_amount, total, supplier_id, file_path")
       .neq("status", "void")
       .order("issue_date", { ascending: false })
       .limit(50);

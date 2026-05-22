@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark } from "lucide-react";
 
 import {
@@ -303,6 +304,8 @@ type FormState = {
     issue_date: string;
     tct_lookup_code: string;
     notes: string;
+    pdf_path: string;
+    xml_path: string;
   };
 };
 
@@ -313,6 +316,8 @@ const blankEinvoice = () => ({
   issue_date: "",
   tct_lookup_code: "",
   notes: "",
+  pdf_path: "",
+  xml_path: "",
 });
 
 const blankForm = (no = ""): FormState => ({
@@ -546,6 +551,8 @@ function SalesVouchersPage() {
             issue_date: einvoice.issue_date ?? "",
             tct_lookup_code: einvoice.tct_lookup_code ?? "",
             notes: einvoice.notes ?? "",
+            pdf_path: einvoice.pdf_path ?? "",
+            xml_path: einvoice.xml_path ?? "",
           }
         : blankEinvoice(),
     });
@@ -637,6 +644,8 @@ function SalesVouchersPage() {
             issue_date: form.einvoice.issue_date || null,
             tct_lookup_code: form.einvoice.tct_lookup_code || null,
             notes: form.einvoice.notes || null,
+            pdf_path: form.einvoice.pdf_path || null,
+            xml_path: form.einvoice.xml_path || null,
           }
         : null,
     };
@@ -1534,9 +1543,40 @@ function VoucherDialog({
                     }
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <AttachInvoiceFile
+                    bucket="einvoices"
+                    filePath={form.einvoice.pdf_path}
+                    label="File PDF hoá đơn điện tử"
+                    accept="application/pdf,image/*"
+                    allowClear
+                    onUploaded={(path: string) =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, pdf_path: path } }))
+                    }
+                    onClear={() =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, pdf_path: "" } }))
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <AttachInvoiceFile
+                    bucket="einvoices"
+                    filePath={form.einvoice.xml_path}
+                    label="File XML hoá đơn điện tử"
+                    accept=".xml,text/xml,application/xml"
+                    allowClear
+                    onUploaded={(path: string) =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, xml_path: path } }))
+                    }
+                    onClear={() =>
+                      setForm((f) => ({ ...f, einvoice: { ...f.einvoice, xml_path: "" } }))
+                    }
+                  />
+                </div>
               </div>
             </div>
           )}
+
 
           {/* Lines */}
           <div className="space-y-2">

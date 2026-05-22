@@ -72,6 +72,8 @@ const VoucherUpsertSchema = z.object({
       issue_date: z.string().nullable().optional(),
       tct_lookup_code: z.string().max(128).nullable().optional(),
       notes: z.string().max(1000).nullable().optional(),
+      pdf_path: z.string().max(500).nullable().optional(),
+      xml_path: z.string().max(500).nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -104,6 +106,8 @@ async function upsertSalesEinvoice(
     issue_date?: string | null;
     tct_lookup_code?: string | null;
     notes?: string | null;
+    pdf_path?: string | null;
+    xml_path?: string | null;
   },
   existingEinvoiceId: string | null,
 ): Promise<string | null> {
@@ -138,11 +142,14 @@ async function upsertSalesEinvoice(
     total: Number(voucher.total || 0),
     tct_lookup_code: einvoice.tct_lookup_code || null,
     notes: einvoice.notes || null,
+    pdf_path: einvoice.pdf_path || null,
+    xml_path: einvoice.xml_path || null,
     branch_id: voucher.branch_id || null,
     department_id: voucher.department_id || null,
     project_id: voucher.project_id || null,
     cost_center_id: voucher.cost_center_id || null,
   };
+
 
   if (existingEinvoiceId) {
     const { error } = await supabase
@@ -282,7 +289,7 @@ export const getSalesVoucher = createServerFn({ method: "POST" })
       const { data: e } = await supabase
         .from("einvoices")
         .select(
-          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes",
+          "id, invoice_template, invoice_series, invoice_no, issue_date, tct_lookup_code, notes, pdf_path, xml_path",
         )
         .eq("id", voucher.einvoice_id)
         .maybeSingle();
