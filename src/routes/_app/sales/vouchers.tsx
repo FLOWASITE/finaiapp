@@ -1684,5 +1684,61 @@ function VoucherDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={payDlg.open} onOpenChange={(o) => !o && setPayDlg({ open: false })}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {payDlg.open && payDlg.method === "cash" ? "Tạo phiếu thu tiền mặt" : "Tạo báo có ngân hàng"}
+          </DialogTitle>
+        </DialogHeader>
+        {payDlg.open && (
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Phiếu <span className="font-mono text-foreground">{payDlg.voucherNo}</span> — Còn phải thu:{" "}
+              <span className="font-semibold text-rose-600">{fmtMoney(payDlg.remain)}</span>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ngày thu</Label>
+              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Số tiền</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setPayDlg({ open: false })}>
+                Huỷ
+              </Button>
+              <Button
+                disabled={receiptMut.isPending}
+                onClick={() => {
+                  const amt = Number(payAmount);
+                  if (!amt || amt <= 0) {
+                    toast.error("Số tiền không hợp lệ");
+                    return;
+                  }
+                  receiptMut.mutate({
+                    voucher_id: payDlg.voucherId,
+                    method: payDlg.method,
+                    amount: amt,
+                    pay_date: payDate,
+                  });
+                }}
+              >
+                {receiptMut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                Ghi nhận
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
