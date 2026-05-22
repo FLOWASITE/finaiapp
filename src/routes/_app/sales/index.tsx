@@ -346,6 +346,7 @@ function SalesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 
