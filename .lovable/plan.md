@@ -1,89 +1,87 @@
 ## Mục tiêu
 
-Làm lại UI của **Dialog Kết nối MB Bank** (`src/components/mbbank-connect-dialog.tsx`) để hiện đại, dễ hiểu, dẫn dắt người dùng theo từng bước rõ ràng — thay vì gom tất cả trạng thái/credentials/lịch sử vào một khối dày đặc như hiện tại.
+Làm cho luồng "Thông tin đăng nhập MB" **đúng với BIZ MBBank doanh nghiệp**: form 3 trường (Mã công ty · Tên đăng nhập · Mật khẩu), bố cục & màu sắc gần với trang đăng nhập gốc của BIZ MBBank để người dùng nhận diện ngay và nhập đúng thông tin.
 
-Phạm vi: **chỉ UI/UX của dialog**, không đổi server functions, schema, hay luồng đồng bộ Worker.
+## Bối cảnh kỹ thuật quan trọng
 
-## Vấn đề của UI hiện tại
+Thư viện `mbbank` npm (Worker hiện đang dùng) **chỉ hỗ trợ MB App cá nhân** — không có endpoint cho BIZ MBBank corporate. BIZ MBBank dùng API khác (`api.biz.mbbank.com.vn`) với:
+- 3 trường đăng nhập + captcha ảnh (không có OCR sẵn)
+- Token/session cơ chế riêng, có thể yêu cầu OTP/SmartOTP từ thiết bị đã đăng ký
 
-- Mọi thông tin (trạng thái sync, toggle, form mật khẩu, log) xếp dọc trong 1 dialog hẹp → trông rối.
-- Khi chưa kết nối, người dùng vẫn thấy block "trạng thái rỗng" mơ hồ.
-- Không có hướng dẫn bảo mật/giải thích MB OTP/Captcha → người dùng e ngại nhập mật khẩu.
-- Badge trạng thái, lịch sử log nhỏ, khó scan.
-- Nút "Đồng bộ ngay" và toggle chen chúc cùng khối.
+⇒ **Phần backend tự động đồng bộ BIZ MBBank cần một worker riêng mới**, không nằm trong phạm vi PR này (rủi ro cao, cần reverse-engineer API, có thể vi phạm điều khoản — nên thảo luận riêng).
 
-## Hướng thiết kế đề xuất
+Phạm vi PR này:
+- **UI form đăng nhập** đúng 3 trường, brand BIZ MBBank.
+- **Schema + server fn** lưu được `mb_corporate_id` cùng credentials hiện tại.
+- Đồng bộ tự động qua Worker hiện tại sẽ **tạm tắt mặc định** cho tài khoản BIZ và hiển thị banner "Đang phát triển" — không gọi Worker cá nhân nhầm.
 
-Chuyển sang **dialog 2 trạng thái rõ ràng** + **Sheet rộng hơn** thay cho Dialog hẹp:
+## Thay đổi cụ thể
+
+### 1. Database (migration)
+`ALTER TABLE public.bank_accounts ADD COLUMN mb_corporate_id text;`
+- Cột nullable để tương thích tài khoản cá nhân đã lưu.
+- Không thêm index (truy vấn không lọc theo).
+
+### 2. Server functions (`src/lib/mbbank.functions.ts`)
+- `setMbCredentials` nhận thêm `corporate_id: string (1..50)` (optional cho cá nhân, **bắt buộc** với BIZ — validate phía UI).
+- Lưu vào `mb_corporate_id`.
+- `getMbSyncStatus` trả thêm `mb_corporate_id` để UI hiển thị mask.
+- `disconnectMb` clear thêm `mb_corporate_id`.
+
+### 3. UI — `src/components/mbbank-connect-dialog.tsx`
+Thiết kế lại block "Empty state" (chưa kết nối) thành **2 chế độ** trên cùng 1 form, có toggle tab nhỏ:
 
 ```text
-┌──────────────────────────────────────────────┐
-│  [MB logo]  Kết nối MB Bank      [ x ]       │
-│  TK: Vietcombank 123***  •  TT133            │
-├──────────────────────────────────────────────┤
-│  ● Stepper:  1 Đăng nhập → 2 Tự động → 3 Sẵn │
-├──────────────────────────────────────────────┤
-│   <Nội dung theo trạng thái>                 │
-└──────────────────────────────────────────────┘
+┌─ Loại tài khoản:  [ Doanh nghiệp (BIZ) ] [ Cá nhân ] ─┐
+│                                                       │
+│  [BIZ MBBank logo bar]                                │
+│  Ngân hàng số dành cho khách hàng doanh nghiệp       │
+│                                                       │
+│  Mã công ty *           Tên đăng nhập *               │
+│  [ ____________ ]       [ ______________ ]            │
+│                                                       │
+│  Mật khẩu *                                           │
+│  [ ____________ ] 👁                                  │
+│                                                       │
+│  ☐ Tự động đồng bộ sau khi kết nối                    │
+│  [   Kết nối & lưu thông tin   ]                      │
+│                                                       │
+│  ℹ️  BIZ MBBank đang trong giai đoạn thử nghiệm —     │
+│      đồng bộ tự động chưa khả dụng                    │
+└───────────────────────────────────────────────────────┘
 ```
 
-### Trạng thái A — Chưa kết nối (empty state)
-- Hero nhỏ: icon shield + 1 dòng "Đồng bộ sao kê tự động 5 phút/lần".
-- 3 bullet trust-signal có icon: mã hoá AES-256-GCM · Không lưu OTP · Có thể tắt bất cứ lúc nào.
-- Form 2 trường (username + password có show/hide) trong **Card** riêng.
-- Nút primary lớn: "Kết nối & bật đồng bộ".
-- Link nhỏ: "MB Bank yêu cầu gì? →" mở popover giải thích captcha/OCR.
+Chi tiết:
+- **Header brand bar**: dải gradient xanh BIZ (`#0046b8 → #003d9e`) với chữ "BIZ MBBank" trắng + tag "Ngân hàng số doanh nghiệp" — không dùng logo gốc (tránh vấn đề bản quyền), dùng typography để gợi nhớ.
+- **Toggle Doanh nghiệp / Cá nhân**: dùng `Tabs` (shadcn) ở đầu, mặc định "Doanh nghiệp (BIZ)". Khi chuyển sang "Cá nhân" thì ẩn trường `Mã công ty` và đổi label "Tên đăng nhập" → "Số điện thoại / Username".
+- **Inputs**: cao 44px (`h-11`), bo `rounded-md`, focus ring xanh BIZ. Label uppercase nhỏ + `*` đỏ cho bắt buộc — đúng style BIZ.
+- **Validation client**:
+  - BIZ: cả 3 trường bắt buộc, `corporate_id` regex `^[A-Za-z0-9]{3,20}$`.
+  - Cá nhân: username + password bắt buộc.
+- **Banner "Đang phát triển"**: chỉ hiện khi chế độ BIZ — text `bg-amber-50 text-amber-900 border-amber-200` với icon `Construction`.
+- **Auto-disable sync cho BIZ**: sau khi save creds BIZ, **không** gọi `toggleMbSync(true)` (khác cá nhân). Người dùng phải tự bật sau khi worker BIZ sẵn sàng.
+- **Connected state cho BIZ**: tab "Tổng quan" hiển thị thêm dòng "Mã công ty: `ABC***`" (mask 3 ký tự đầu + sao). Toggle "Tự động đồng bộ" bị disable, có tooltip "Sắp ra mắt cho BIZ MBBank".
 
-### Trạng thái B — Đã kết nối
-Chia thành **3 vùng** rõ ràng (tab hoặc section):
+### 4. Component nhỏ tách ra
+`src/components/mbbank-biz-brand-bar.tsx` — dải header brand BIZ tái sử dụng trong cả empty state và header Sheet.
 
-1. **Tổng quan** (mặc định)
-   - Card lớn: tên user MB, badge trạng thái lần sync cuối (success/error/running) với màu nền nhẹ.
-   - 2 metric ngang: "Lần cuối" (timestamp tương đối — "2 phút trước") · "Số dư hiện tại".
-   - Hàng action: Toggle "Tự động đồng bộ" + Button "Đồng bộ ngay" (icon refresh, có animation khi pending).
-   - Nếu `last_sync_error`: Alert đỏ inline + nút "Xem chi tiết".
-
-2. **Lịch sử** (tab)
-   - Bảng gọn: Thời gian · Trạng thái · GD mới/GD lấy · (Lỗi rút gọn nếu có).
-   - Empty state: "Chưa có lần đồng bộ nào".
-
-3. **Bảo mật** (tab)
-   - Hiện username MB (mask: `09xx•••234`).
-   - Nút "Cập nhật mật khẩu" → mở inline form (collapsible).
-   - Nút "Ngắt kết nối" (destructive, có confirm) — clear creds + tắt sync.
-
-### Tinh chỉnh visual
-
-- Dùng **Sheet** (`side="right"`, `w-[480px]`) thay `Dialog max-w-lg` → đủ chỗ thở, không che bảng tài khoản.
-- Header có icon MB Bank (dùng `Banknote` lucide hoặc text "MB" trên nền đỏ MB `#E60012` để brand-aware).
-- Badge trạng thái dùng dot + label thay vì pill nặng:
-  - success: `bg-emerald-500` dot + "Thành công"
-  - error: `bg-destructive` dot + "Lỗi"
-  - running: dot có animate-pulse + "Đang chạy"
-- Timestamp dùng `formatDistanceToNow` (date-fns vi) thay vì datetime đầy đủ → ngắn gọn, dễ đọc.
-- Toggle "Tự động đồng bộ" có sub-label: "Chạy mỗi 5 phút qua Worker an toàn".
-- Spacing dùng `space-y-5`, card padding `p-4`, không dồn quá sát.
-
-### Tiểu tiết UX
-
-- Khi `saveCreds` thành công → tự động chuyển sang trạng thái B mà không cần đóng dialog.
-- Sau khi bấm "Đồng bộ ngay", thay vì toast + setTimeout, **poll** `getMbSyncStatus` mỗi 2s trong 30s đến khi status đổi → cập nhật real-time. Hiển thị spinner inline trên card trạng thái.
-- Nút "Đồng bộ ngay" disable khi `last_sync_status === "running"`.
-- Có ô tooltip giải thích "Worker là gì?" để user không kỹ thuật hiểu.
-
-## Files sẽ thay đổi
+## Files thay đổi
 
 | File | Thay đổi |
 |---|---|
-| `src/components/mbbank-connect-dialog.tsx` | Viết lại toàn bộ UI theo cấu trúc 2 trạng thái + 3 tab. Dùng `Sheet` thay `Dialog`. Thêm polling sau "Đồng bộ ngay". |
-| `src/components/mbbank-status-badge.tsx` (mới) | Tách `StatusBadge` ra component riêng có dot+label+animate-pulse. |
+| migration | Thêm cột `mb_corporate_id` |
+| `src/lib/mbbank.functions.ts` | `setMbCredentials` nhận corporate_id; `disconnectMb` clear; `getMbSyncStatus` trả thêm |
+| `src/components/mbbank-connect-dialog.tsx` | Tabs BIZ/Cá nhân, 3 trường BIZ, banner "đang phát triển", auto-disable sync cho BIZ |
+| `src/components/mbbank-biz-brand-bar.tsx` (mới) | Dải brand BIZ |
 
-Không đổi: server functions, API endpoints, schema, Worker.
+Không đổi: Worker, endpoints `/ingest`, `/sync-error`, `/accounts`, `/sync-log-start`.
 
-## Không bao gồm trong phạm vi này
+## Không bao gồm (cần PR riêng)
 
-- Không thêm OAuth/OTP flow MB (MB chưa có Open Banking công khai cho cá nhân).
-- Không đổi logic mã hoá / Worker / cron.
-- Không thêm trang riêng — vẫn dùng dialog/sheet mở từ trang `/bank/accounts`.
+- Reverse-engineer API BIZ MBBank (đăng nhập, lấy số dư, lấy giao dịch).
+- Worker mới `external/mbbank-biz-worker/` chạy puppeteer/playwright headless để giải captcha + SmartOTP.
+- Xử lý OTP push từ app BIZ MBBank.
 
-Bấm **Implement plan** để mình thực hiện.
+Đây là một dự án ~2-5 ngày tách biệt, có rủi ro pháp lý/khoá tài khoản — nên xác nhận lại trước khi làm.
+
+Bấm **Implement plan** để mình thực hiện phần UI + schema ngay.

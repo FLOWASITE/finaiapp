@@ -21,6 +21,9 @@ import {
   Wallet,
   Clock,
   Loader2,
+  Construction,
+  Building2,
+  User as UserIcon,
 } from "lucide-react";
 import {
   setMbCredentials,
@@ -59,6 +62,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { MbStatusBadge } from "./mbbank-status-badge";
+import { MbBizBrandBar } from "./mbbank-biz-brand-bar";
 import { cn } from "@/lib/utils";
 
 const VND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
@@ -103,6 +107,7 @@ export function MbBankConnectDialog({
   const acc = data?.account as any;
   const logs = (data?.logs ?? []) as any[];
   const hasCreds = !!acc?.mb_username;
+  const isBiz = !!acc?.mb_corporate_id;
 
   // Stop polling when status changes from running to terminal
   useEffect(() => {
@@ -149,6 +154,7 @@ export function MbBankConnectDialog({
             <ConnectedView
               acc={acc}
               logs={logs}
+              isBiz={isBiz}
               isFetching={isFetching}
               polling={polling}
               onSyncNow={async () => {
@@ -172,7 +178,12 @@ export function MbBankConnectDialog({
               }}
               onUpdatePassword={async (username, password) => {
                 await setCreds({
-                  data: { bank_account_id: account.id, username, password },
+                  data: {
+                    bank_account_id: account.id,
+                    username,
+                    password,
+                    corporate_id: acc?.mb_corporate_id ?? null,
+                  },
                 });
                 toast.success("Đã cập nhật mật khẩu");
                 refetch();
@@ -190,12 +201,24 @@ export function MbBankConnectDialog({
             />
           ) : (
             <EmptyConnectView
-              onSubmit={async (username, password) => {
+              onSubmit={async ({ corporateId, username, password, biz }) => {
                 await setCreds({
-                  data: { bank_account_id: account.id, username, password },
+                  data: {
+                    bank_account_id: account.id,
+                    username,
+                    password,
+                    corporate_id: biz ? corporateId : null,
+                  },
                 });
-                toast.success("Đã kết nối MB Bank");
-                await toggle({ data: { bank_account_id: account.id, enabled: true } });
+                toast.success(
+                  biz
+                    ? "Đã lưu thông tin BIZ MBBank"
+                    : "Đã kết nối MB Bank",
+                );
+                // BIZ chưa có worker hỗ trợ → không bật auto-sync
+                if (!biz) {
+                  await toggle({ data: { bank_account_id: account.id, enabled: true } });
+                }
                 refetch();
                 qc.invalidateQueries({ queryKey: ["bank-accounts"] });
               }}
@@ -211,52 +234,74 @@ export function MbBankConnectDialog({
 /* Empty state — chưa kết nối                                                 */
 /* -------------------------------------------------------------------------- */
 
+type EmptySubmit = {
+  biz: boolean;
+  corporateId: string;
+  username: string;
+  password: string;
+};
+
 function EmptyConnectView({
   onSubmit,
 }: {
-  onSubmit: (username: string, password: string) => Promise<void>;
+  onSubmit: (v: EmptySubmit) => Promise<void>;
 }) {
+  const [mode, setMode] = useState<"biz" | "personal">("biz");
+  const [corporateId, setCorporateId] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
   const m = useMutation({
-    mutationFn: () => onSubmit(username, password),
+    mutationFn: () =>
+      onSubmit({
+        biz: mode === "biz",
+        corporateId: corporateId.trim(),
+        username: username.trim(),
+        password,
+      }),
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
     onSuccess: () => {
+      setCorporateId("");
       setUsername("");
       setPassword("");
     },
   });
 
-  const canSubmit = username.trim().length > 0 && password.length > 0 && !m.isPending;
+  const corpValid = /^[A-Za-z0-9._-]{1,50}$/.test(corporateId.trim());
+  const canSubmit =
+    username.trim().length > 0 &&
+    password.length > 0 &&
+    (mode === "personal" || corpValid) &&
+    !m.isPending;
 
   return (
     <div className="px-6 py-5 space-y-5">
-      {/* Hero */}
-      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-background p-4">
-        <div className="flex items-start gap-3">
-          <div className="h-9 w-9 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold leading-tight">
-              Đồng bộ sao kê MB Bank tự động
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Kết nối một lần — hệ thống tự lấy giao dịch & số dư mỗi 5 phút,
-              gợi ý đối chiếu với phiếu thu/chi.
-            </p>
+      {/* Brand bar — gợi nhớ trang đăng nhập BIZ MBBank */}
+      <MbBizBrandBar />
+
+      {/* Tabs chọn loại tài khoản */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-9">
+          <TabsTrigger value="biz" className="text-xs gap-1.5">
+            <Building2 className="h-3.5 w-3.5" /> Doanh nghiệp
+          </TabsTrigger>
+          <TabsTrigger value="personal" className="text-xs gap-1.5">
+            <UserIcon className="h-3.5 w-3.5" /> Cá nhân
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Banner BIZ đang phát triển */}
+      {mode === "biz" && (
+        <div className="flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-200">
+          <Construction className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="text-[11px] leading-relaxed">
+            BIZ MBBank đang trong giai đoạn thử nghiệm. Bạn có thể lưu thông tin
+            đăng nhập, <strong>đồng bộ tự động sẽ sớm được kích hoạt</strong>.
           </div>
         </div>
-      </div>
-
-      {/* Trust signals */}
-      <ul className="space-y-2 text-xs text-muted-foreground">
-        <TrustItem icon={Lock} text="Mật khẩu được mã hoá AES-256-GCM trước khi lưu" />
-        <TrustItem icon={ShieldCheck} text="Worker an toàn chỉ giải mã trong RAM khi đăng nhập" />
-        <TrustItem icon={PowerOff} text="Có thể tắt đồng bộ hoặc ngắt kết nối bất cứ lúc nào" />
-      </ul>
+      )}
 
       {/* Form */}
       <form
@@ -267,33 +312,61 @@ function EmptyConnectView({
         }}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Thông tin đăng nhập MB Bank</h3>
+          <h3 className="text-sm font-medium">
+            {mode === "biz" ? "Đăng nhập BIZ MBBank" : "Đăng nhập MB App"}
+          </h3>
           <WorkerInfoTooltip />
         </div>
 
+        {mode === "biz" && (
+          <div className="space-y-1.5">
+            <Label htmlFor="mb-corp" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Mã công ty <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="mb-corp"
+              value={corporateId}
+              onChange={(e) => setCorporateId(e.target.value)}
+              placeholder="Nhập mã công ty"
+              autoComplete="off"
+              className="h-11 focus-visible:ring-[#0046b8]"
+            />
+            {corporateId.length > 0 && !corpValid && (
+              <p className="text-[11px] text-destructive">
+                Chỉ chữ, số, dấu chấm, gạch dưới hoặc gạch ngang (tối đa 50 ký tự)
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="space-y-1.5">
-          <Label htmlFor="mb-user" className="text-xs">Tên đăng nhập / Số điện thoại</Label>
+          <Label htmlFor="mb-user" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            {mode === "biz" ? "Tên đăng nhập" : "Tên đăng nhập / Số điện thoại"}{" "}
+            <span className="text-destructive">*</span>
+          </Label>
           <Input
             id="mb-user"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="0901xxxxxx"
+            placeholder={mode === "biz" ? "Nhập tên đăng nhập" : "0901xxxxxx"}
             autoComplete="off"
-            className="h-10"
+            className="h-11 focus-visible:ring-[#0046b8]"
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="mb-pw" className="text-xs">Mật khẩu</Label>
+          <Label htmlFor="mb-pw" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Mật khẩu <span className="text-destructive">*</span>
+          </Label>
           <div className="relative">
             <Input
               id="mb-pw"
               type={showPw ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Nhập mật khẩu"
               autoComplete="new-password"
-              className="h-10 pr-10"
+              className="h-11 pr-10 focus-visible:ring-[#0046b8]"
             />
             <button
               type="button"
@@ -307,10 +380,19 @@ function EmptyConnectView({
           </div>
         </div>
 
-        <Button type="submit" className="w-full h-10 mt-1" disabled={!canSubmit}>
+        <Button
+          type="submit"
+          className="w-full h-11 mt-1 text-white"
+          style={{ backgroundColor: "#0046b8" }}
+          disabled={!canSubmit}
+        >
           {m.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Đang kết nối…
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Đang xử lý…
+            </>
+          ) : mode === "biz" ? (
+            <>
+              <KeyRound className="h-4 w-4 mr-2" /> Lưu thông tin đăng nhập
             </>
           ) : (
             <>
@@ -319,6 +401,13 @@ function EmptyConnectView({
           )}
         </Button>
       </form>
+
+      {/* Trust signals */}
+      <ul className="space-y-2 text-xs text-muted-foreground">
+        <TrustItem icon={Lock} text="Mật khẩu được mã hoá AES-256-GCM trước khi lưu" />
+        <TrustItem icon={ShieldCheck} text="Chỉ giải mã trong RAM khi worker đăng nhập MB" />
+        <TrustItem icon={PowerOff} text="Có thể tắt đồng bộ hoặc ngắt kết nối bất cứ lúc nào" />
+      </ul>
     </div>
   );
 }
@@ -357,6 +446,7 @@ function WorkerInfoTooltip() {
 function ConnectedView({
   acc,
   logs,
+  isBiz,
   isFetching,
   polling,
   onSyncNow,
@@ -366,6 +456,7 @@ function ConnectedView({
 }: {
   acc: any;
   logs: any[];
+  isBiz: boolean;
   isFetching: boolean;
   polling: boolean;
   onSyncNow: () => Promise<void>;
@@ -374,6 +465,8 @@ function ConnectedView({
   onDisconnect: () => Promise<void>;
 }) {
   const running = polling || acc?.last_sync_status === "running";
+  const bizMask = (s?: string | null) =>
+    !s ? "—" : s.length <= 3 ? s : `${s.slice(0, 3)}${"•".repeat(Math.max(2, s.length - 3))}`;
 
   return (
     <Tabs defaultValue="overview" className="w-full">
@@ -395,11 +488,16 @@ function ConnectedView({
       <TabsContent value="overview" className="px-6 py-5 space-y-4 mt-0">
         <div className="rounded-xl border bg-card p-4 space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Tài khoản MB
+                {isBiz ? "Tài khoản BIZ MBBank" : "Tài khoản MB"}
               </div>
-              <div className="font-medium text-sm mt-0.5">{acc.mb_username}</div>
+              <div className="font-medium text-sm mt-0.5 truncate">{acc.mb_username}</div>
+              {isBiz && acc?.mb_corporate_id && (
+                <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                  Mã công ty: {bizMask(acc.mb_corporate_id)}
+                </div>
+              )}
             </div>
             <MbStatusBadge status={running ? "running" : acc?.last_sync_status} />
           </div>
@@ -437,20 +535,26 @@ function ConnectedView({
                 <Power className="h-3.5 w-3.5" /> Tự động đồng bộ
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Chạy mỗi 5 phút qua Worker an toàn
+                {isBiz
+                  ? "Sắp ra mắt cho tài khoản BIZ MBBank"
+                  : "Chạy mỗi 5 phút qua Worker an toàn"}
               </div>
             </div>
-            <Switch checked={!!acc?.sync_enabled} onCheckedChange={onToggle} />
+            <Switch
+              checked={!!acc?.sync_enabled}
+              onCheckedChange={onToggle}
+              disabled={isBiz}
+            />
           </div>
           <Button
             variant="outline"
             size="sm"
             className="w-full"
             onClick={onSyncNow}
-            disabled={running || !acc?.sync_enabled}
+            disabled={isBiz || running || !acc?.sync_enabled}
           >
             <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", running && "animate-spin")} />
-            {running ? "Đang đồng bộ…" : "Đồng bộ ngay"}
+            {isBiz ? "Đồng bộ BIZ — đang phát triển" : running ? "Đang đồng bộ…" : "Đồng bộ ngay"}
           </Button>
         </div>
 
