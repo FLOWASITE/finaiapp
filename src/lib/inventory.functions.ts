@@ -623,6 +623,99 @@ export const bulkAssignCategory = createServerFn({ method: "POST" })
     return { ok: true, count: data.product_ids.length };
   });
 
+// Tables tham chiếu product_id — dùng cho Xoá & Gộp
+const PRODUCT_REF_TABLES = [
+  "invoice_lines",
+  "purchase_voucher_lines",
+  "sales_invoice_lines",
+  "sales_order_lines",
+  "sales_voucher_lines",
+  "stock_movements",
+  "stock_reservations",
+  "stock_take_lines",
+  "product_unit_conversions",
+] as const;
+
+async function countProductUsage(supabase: any, productId: string) {
+  const counts: Record<string, number> = {};
+  let total = 0;
+  for (const t of PRODUCT_REF_TABLES) {
+    const { count } = await supabase
+      .from(t)
+      .select("product_id", { count: "exact", head: true })
+      .eq("product_id", productId);
+    const n = count ?? 0;
+    counts[t] = n;
+    total += n;
+  }
+  return { counts, total };
+}
+
+export const getProductUsage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    return await countProductUsage(context.supabase, data.id);
+  });
+
+export const deleteProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const usage = await countProductUsage(supabase, data.id);
+    if (usage.total > 0) {
+      const used = Object.entries(usage.counts)
+        .filter(([, n]) => n > 0)
+        .map(([t, n]) => `${t}: ${n}`)
+        .join(", ");
+      throw new Error(
+        `Không thể xoá: mặt hàng đang được sử dụng (${used}). Hãy dùng chức năng Gộp để chuyển sang mặt hàng khác.`,
+      );
+    }
+    const { error } = await supabase.from("products").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const MergeSchema = z.object({
+  target_id: z.string().uuid(),
+  source_ids: z.array(z.string().uuid()).min(1).max(50),
+});
+
+export const mergeProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => MergeSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const sources = data.source_ids.filter((id) => id !== data.target_id);
+    if (sources.length === 0) throw new Error("Phải chọn ít nhất 1 mặt hàng nguồn khác mặt hàng đích");
+
+    // Re-point references in all tables
+    let moved = 0;
+    for (const t of PRODUCT_REF_TABLES) {
+      const { error, count } = await supabase
+        .from(t)
+        .update({ product_id: data.target_id }, { count: "exact" })
+        .in("product_id", sources);
+      if (error) throw new Error(`${t}: ${error.message}`);
+      moved += count ?? 0;
+    }
+
+    // Recompute target stock from movements
+    try {
+      await recomputeProductStock(supabase, data.target_id);
+    } catch {
+      // ignore — nếu tồn âm thì giữ nguyên
+    }
+
+    // Delete source products
+    const { error: dErr } = await supabase.from("products").delete().in("id", sources);
+    if (dErr) throw new Error(dErr.message);
+
+    return { ok: true, merged: sources.length, references_moved: moved };
+  });
+
 export const listProductsByCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { category_id: string | null }) => i)
