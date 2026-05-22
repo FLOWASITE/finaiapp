@@ -16,6 +16,7 @@ import {
   postSalesVoucher,
   voidSalesVoucher,
   suggestSalesVoucherNo,
+  recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listBranches } from "@/lib/dimensions.functions";
@@ -730,22 +731,28 @@ function SalesVouchersPage() {
   const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
   const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
 
+  const recordReceipt = useServerFn(recordSalesVoucherReceipt);
+  const payMut = useMutation({
+    mutationFn: (input: { voucher_id: string; method: "cash" | "bank"; amount: number }) =>
+      recordReceipt({ data: input }),
+    onSuccess: () => {
+      toast.success("Đã thu tiền & cập nhật công nợ");
+      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không thu được tiền"),
+  });
+
   const openPay = (v: any, method: "cash" | "bank") => {
     const remain = Math.max(0, Number(v.total || 0) - Number(v.paid_amount || 0));
     if (remain <= 0) {
       toast.info("Phiếu đã thanh toán đủ");
       return;
     }
-    const prefill = {
-      partyId: v.customer_id ?? null,
-      partyName: v.customer_name ?? "",
-      amount: remain,
-      reason: `Thu tiền phiếu bán ${v.voucher_no}`,
-      counterAccount: "131",
-    };
-    if (method === "cash") setPayCash({ open: true, prefill });
-    else setPayBank({ open: true, prefill });
+    // Thu nhanh: tạo cash/bank voucher + cập nhật paid_amount của phiếu bán trong 1 lần
+    payMut.mutate({ voucher_id: v.id, method, amount: remain });
   };
+
 
   return (
     <div>
