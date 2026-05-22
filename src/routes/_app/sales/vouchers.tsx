@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X } from "lucide-react";
+import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip } from "lucide-react";
 
 import {
   listSalesVouchers,
