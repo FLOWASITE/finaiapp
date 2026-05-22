@@ -87,18 +87,6 @@ const SECTIONS: NavSection[] = [
         ],
       },
       {
-        label: "Chứng từ & Tài liệu",
-        icon: Inbox,
-        items: [
-          { to: "/documents", label: "Trung tâm tài liệu" },
-          { to: "/documents?tab=purchase", label: "Hoá đơn mua" },
-          { to: "/documents?tab=sales", label: "Hoá đơn bán" },
-          { to: "/documents?tab=einvoice", label: "Hoá đơn điện tử" },
-          { to: "/documents?tab=files", label: "Tài liệu khác" },
-          { to: "/einvoices", label: "↳ Trang HĐĐT đầy đủ" },
-        ],
-      },
-      {
         label: "Đối tác",
         icon: ContactIcon,
         items: [
