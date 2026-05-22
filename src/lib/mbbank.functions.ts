@@ -58,6 +58,7 @@ export const triggerMbSyncNow = createServerFn({ method: "POST" })
         method: "POST",
         headers: { "content-type": "application/json", "x-mb-signature": signHmac(body, secret) },
         body,
+        signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -66,6 +67,9 @@ export const triggerMbSyncNow = createServerFn({ method: "POST" })
       return { ok: true };
     } catch (e: any) {
       if (e?.message?.startsWith("Worker trả về")) throw e;
+      if (e?.name === "TimeoutError" || e?.name === "AbortError") {
+        throw new Error(`Worker MB Bank không phản hồi sau 15s (${url}). Kiểm tra worker còn chạy và domain HTTPS hợp lệ.`);
+      }
       throw new Error(`Không kết nối được Worker MB Bank (${url}). Kiểm tra URL hoặc Worker đang chạy. Chi tiết: ${e?.message || e}`);
     }
   });

@@ -131,6 +131,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as ApiPublicMbbankSyncLogStartRouteImport } from './routes/api/public/mbbank/sync-log-start'
 import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/public/mbbank/sync-error'
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
@@ -769,6 +770,12 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const ApiPublicMbbankSyncLogStartRoute =
+  ApiPublicMbbankSyncLogStartRouteImport.update({
+    id: '/api/public/mbbank/sync-log-start',
+    path: '/api/public/mbbank/sync-log-start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMbbankSyncErrorRoute =
   ApiPublicMbbankSyncErrorRouteImport.update({
     id: '/api/public/mbbank/sync-error',
@@ -1051,6 +1058,7 @@ export interface FileRoutesByFullPath {
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
+  '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1193,6 +1201,7 @@ export interface FileRoutesByTo {
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
+  '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1343,6 +1352,7 @@ export interface FileRoutesById {
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
+  '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1493,6 +1503,7 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
+    | '/api/public/mbbank/sync-log-start'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1635,6 +1646,7 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
+    | '/api/public/mbbank/sync-log-start'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1784,6 +1796,7 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
+    | '/api/public/mbbank/sync-log-start'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
     | '/_app/sales/orders/$id/print'
@@ -1799,6 +1812,7 @@ export interface RootRouteChildren {
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
   ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
   ApiPublicMbbankSyncErrorRoute: typeof ApiPublicMbbankSyncErrorRoute
+  ApiPublicMbbankSyncLogStartRoute: typeof ApiPublicMbbankSyncLogStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2657,6 +2671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/api/public/mbbank/sync-log-start': {
+      id: '/api/public/mbbank/sync-log-start'
+      path: '/api/public/mbbank/sync-log-start'
+      fullPath: '/api/public/mbbank/sync-log-start'
+      preLoaderRoute: typeof ApiPublicMbbankSyncLogStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/mbbank/sync-error': {
       id: '/api/public/mbbank/sync-error'
       path: '/api/public/mbbank/sync-error'
@@ -3248,6 +3269,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
   ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,
   ApiPublicMbbankSyncErrorRoute: ApiPublicMbbankSyncErrorRoute,
+  ApiPublicMbbankSyncLogStartRoute: ApiPublicMbbankSyncLogStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
