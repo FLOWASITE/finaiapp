@@ -417,9 +417,11 @@ function CreateVoucherDialog({
   onCreated: () => void;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
+  const postFn = useServerFn(postPurchaseVoucher);
   const suggestNoFn = useServerFn(suggestVoucherNo);
   const linkInvFn = useServerFn(listLinkablePurchaseInvoices);
   const suppliersFn = useServerFn(listSuppliers);
+  const qc = useQueryClient();
 
   const today = new Date().toISOString().slice(0, 10);
   const isMobile = useIsMobile();
