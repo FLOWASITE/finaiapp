@@ -9,7 +9,7 @@ import { listCashVouchers, getCashBook, deleteCashVoucher } from "@/lib/cash.fun
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
