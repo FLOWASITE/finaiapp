@@ -303,7 +303,11 @@ function PurchaseVouchersPage() {
             Chứng từ kế toán ghi nhận nghiệp vụ mua. Hỗ trợ nhiều dòng hàng, link tới Hoá đơn mua, tự sinh bút toán / phiếu nhập kho / phiếu chi.
           </p>
         </div>
-        <Button onClick={() => setOpenCreate(true)}>
+        <Button
+          onClick={() => setOpenCreate(true)}
+          onMouseEnter={prefetchCreate}
+          onFocus={prefetchCreate}
+        >
           <Plus className="mr-2 h-4 w-4" /> Tạo phiếu mới
         </Button>
       </div>
