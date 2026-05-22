@@ -347,20 +347,6 @@ function ItemsListPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{p.vat_rate ?? 0}%</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {p.can_be_sold && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
-                            <Tag className="h-2.5 w-2.5 mr-0.5" />Bán
-                          </Badge>
-                        )}
-                        {p.can_be_purchased && (
-                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />Mua
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
                     <td className="px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                       {(p.can_be_sold ? p.revenue_account || "—" : "—")}
                       {" / "}
