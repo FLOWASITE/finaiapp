@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { toast } from "sonner";
+import { SalesTabs } from "@/components/sales/SalesTabs";
 import { Plus, Search, Trash2, FileText, CheckCircle2, XCircle, MoreHorizontal, Pencil } from "lucide-react";
 import {
   listSalesOrders,
