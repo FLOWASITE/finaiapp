@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listBankAccounts, listBankVouchers } from "@/lib/bank.functions";
-import { Building2, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wallet } from "lucide-react";
+import { Building2, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Wallet, TrendingUp, TrendingDown, CalendarClock, Scale } from "lucide-react";
 
 export const Route = createFileRoute("/_app/bank/")({ component: BankIndex });
 
@@ -29,14 +29,36 @@ function BankIndex() {
     .filter((v: any) => v.voucher_type === "payment" || v.voucher_type === "transfer_out")
     .reduce((s: number, v: any) => s + Number(v.amount), 0);
 
+  const now = new Date();
+  const ym = (d: string) => d?.slice(0, 7);
+  const curYm = now.toISOString().slice(0, 7);
+  const monthVouchers = vouchers.filter((v: any) => ym(v.voucher_date) === curYm);
+  const monthIn = monthVouchers
+    .filter((v: any) => v.voucher_type === "receipt" || v.voucher_type === "transfer_in")
+    .reduce((s: number, v: any) => s + Number(v.amount), 0);
+  const monthOut = monthVouchers
+    .filter((v: any) => v.voucher_type === "payment" || v.voucher_type === "transfer_out")
+    .reduce((s: number, v: any) => s + Number(v.amount), 0);
+  const transferCount = vouchers.filter((v: any) => v.voucher_type === "transfer_in" || v.voucher_type === "transfer_out").length;
+  const activeAccounts = accounts.filter((a: any) => (a.current_balance ?? 0) > 0).length;
+  const netFlow = totalIn - totalOut;
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3">
         <Card title="Số dư tổng" value={fmt(totalBalance) + " ₫"} icon={Wallet} tone="primary" />
         <Card title="Số TK đang quản lý" value={String(accounts.length)} icon={Building2} />
         <Card title="Tổng báo có" value={fmt(totalIn) + " ₫"} icon={ArrowDownToLine} tone="success" />
-        <Card title="Tổng báo nợ" value={fmt(totalOut) + " ₫"} icon={ArrowUpFromLine} tone="danger" />
       </div>
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <Card title="Tổng báo nợ" value={fmt(totalOut) + " ₫"} icon={ArrowUpFromLine} tone="danger" />
+        <Card title="Dòng tiền ròng" value={fmt(netFlow) + " ₫"} icon={Scale} tone={netFlow >= 0 ? "success" : "danger"} />
+        <Card title="Báo có tháng này" value={fmt(monthIn) + " ₫"} icon={TrendingUp} tone="success" />
+        <Card title="Báo nợ tháng này" value={fmt(monthOut) + " ₫"} icon={TrendingDown} tone="danger" />
+        <Card title="Số phiếu CK nội bộ" value={String(transferCount)} icon={ArrowLeftRight} />
+        <Card title="TK có số dư" value={`${activeAccounts}/${accounts.length}`} icon={CalendarClock} />
+      </div>
+
 
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-3">
