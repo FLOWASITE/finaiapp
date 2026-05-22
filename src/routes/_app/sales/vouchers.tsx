@@ -169,6 +169,49 @@ const fmtMoney = (n: number) =>
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+function KpiCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "amber" | "emerald" | "sky" | "rose";
+}) {
+  const toneCls: Record<typeof tone, string> = {
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    emerald:
+      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
+  };
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+      <Check className="h-3 w-3" />
+    </span>
+  ) : (
+    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+  );
+}
+
 type Line = {
   key: string;
   product_id: string | null;
