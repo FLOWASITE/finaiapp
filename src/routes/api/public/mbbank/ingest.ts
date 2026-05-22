@@ -69,16 +69,16 @@ export const Route = createFileRoute("/api/public/mbbank/ingest")({
         }
 
         // Update account snapshot
-        const accUpdate: Record<string, any> = {
-          last_synced_at: new Date().toISOString(),
+        const now = new Date().toISOString();
+        const accUpdate = {
+          last_synced_at: now,
           last_sync_status: "ok",
           last_sync_error: null,
+          ...(typeof payload.balance === "number"
+            ? { current_balance: payload.balance, balance_synced_at: now }
+            : {}),
         };
-        if (typeof payload.balance === "number") {
-          accUpdate.current_balance = payload.balance;
-          accUpdate.balance_synced_at = new Date().toISOString();
-        }
-        await supabaseAdmin.from("bank_accounts").update(accUpdate).eq("id", acc.id);
+        await supabaseAdmin.from("bank_accounts").update(accUpdate as any).eq("id", acc.id);
 
         // Finalize sync log
         if (payload.sync_log_id) {

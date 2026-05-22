@@ -131,6 +131,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
@@ -766,6 +767,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const ApiPublicMbbankIngestRoute = ApiPublicMbbankIngestRouteImport.update({
+  id: '/api/public/mbbank/ingest',
+  path: '/api/public/mbbank/ingest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksDailyDigestRoute =
   ApiPublicHooksDailyDigestRouteImport.update({
     id: '/api/public/hooks/daily-digest',
@@ -1029,6 +1035,7 @@ export interface FileRoutesByFullPath {
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1168,6 +1175,7 @@ export interface FileRoutesByTo {
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1315,6 +1323,7 @@ export interface FileRoutesById {
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1462,6 +1471,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/mbbank/ingest'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1601,6 +1611,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/mbbank/ingest'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1747,6 +1758,7 @@ export interface FileRouteTypes {
     | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/mbbank/ingest'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
     | '/_app/sales/orders/$id/print'
@@ -1759,6 +1771,7 @@ export interface RootRouteChildren {
   InviteTokenRoute: typeof InviteTokenRoute
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
+  ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2617,6 +2630,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/api/public/mbbank/ingest': {
+      id: '/api/public/mbbank/ingest'
+      path: '/api/public/mbbank/ingest'
+      fullPath: '/api/public/mbbank/ingest'
+      preLoaderRoute: typeof ApiPublicMbbankIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-digest': {
       id: '/api/public/hooks/daily-digest'
       path: '/api/public/hooks/daily-digest'
@@ -3184,6 +3204,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteTokenRoute: InviteTokenRoute,
   ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
+  ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
