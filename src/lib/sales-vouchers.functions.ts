@@ -302,8 +302,8 @@ export const getSalesVoucher = createServerFn({ method: "POST" })
 
 async function nextVoucherNo(supabase: any, tenantId: string, voucherDate: string) {
   const d = new Date(voucherDate);
-  const yy = String(d.getFullYear()).slice(-2);
-  const prefix = `BH${yy}-`;
+  const yyyy = String(d.getFullYear());
+  const prefix = `BH${yyyy}-`;
   const { data: last } = await supabase
     .from("sales_vouchers")
     .select("voucher_no")
@@ -317,7 +317,7 @@ async function nextVoucherNo(supabase: any, tenantId: string, voucherDate: strin
     const m = /(\d+)$/.exec(last.voucher_no);
     if (m) next = parseInt(m[1], 10) + 1;
   }
-  return `${prefix}${String(next).padStart(6, "0")}`;
+  return `${prefix}${String(next).padStart(5, "0")}`;
 }
 
 export const suggestSalesVoucherNo = createServerFn({ method: "POST" })
