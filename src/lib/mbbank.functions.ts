@@ -49,15 +49,25 @@ export const triggerMbSyncNow = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const url = process.env.MBBANK_WORKER_URL;
     const secret = process.env.MBBANK_WORKER_SECRET;
-    if (!url || !secret) throw new Error("Worker MB Bank chưa được cấu hình (cần MBBANK_WORKER_URL + MBBANK_WORKER_SECRET)");
+    if (!url || !secret) {
+      throw new Error("Worker MB Bank chưa được cấu hình. Vui lòng triển khai Worker (xem external/mbbank-worker/README.md) và thêm secret MBBANK_WORKER_URL + MBBANK_WORKER_SECRET.");
+    }
     const body = JSON.stringify({ bank_account_id: data.bank_account_id });
-    const res = await fetch(`${url.replace(/\/$/, "")}/sync-now`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-mb-signature": signHmac(body, secret) },
-      body,
-    });
-    if (!res.ok) throw new Error(`Worker trả về ${res.status}: ${await res.text()}`);
-    return { ok: true };
+    try {
+      const res = await fetch(`${url.replace(/\/$/, "")}/sync-now`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-mb-signature": signHmac(body, secret) },
+        body,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Worker trả về ${res.status}: ${text || res.statusText}`);
+      }
+      return { ok: true };
+    } catch (e: any) {
+      if (e?.message?.startsWith("Worker trả về")) throw e;
+      throw new Error(`Không kết nối được Worker MB Bank (${url}). Kiểm tra URL hoặc Worker đang chạy. Chi tiết: ${e?.message || e}`);
+    }
   });
 
 export const getMbSyncStatus = createServerFn({ method: "GET" })
