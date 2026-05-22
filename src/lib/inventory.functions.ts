@@ -1055,7 +1055,7 @@ export const getStockVoucher = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: voucher, error } = await supabase
       .from("stock_vouchers")
-      .select("*, warehouses(code, name)")
+      .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), branches(code, name, address)")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
