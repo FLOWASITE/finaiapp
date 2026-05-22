@@ -30,6 +30,7 @@ function CashPage() {
   const [from, setFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
+  const [tab, setTab] = useState<CashTabValue>("vouchers");
 
   const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}),
  ...QUERY_PRESETS.TRANSACTIONAL,
