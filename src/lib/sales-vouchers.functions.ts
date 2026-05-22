@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
 
 // ============ Schemas ============
 
@@ -615,7 +616,8 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
     const goodsLines = allLines.filter(
       (l: any) => l.product_id && l.line_type === "goods",
     );
-    if (v.create_stock_voucher && goodsLines.length > 0 && v.warehouse_id) {
+    if (v.create_stock_voucher && goodsLines.length > 0) {
+      const warehouseId = v.warehouse_id ?? (await ensureDefaultWarehouseId(supabase, userId));
       const { data: sv, error: e3 } = await supabase
         .from("stock_vouchers")
         .insert({
@@ -624,7 +626,7 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
           voucher_no: `XK-${v.voucher_no}`,
           voucher_type: "out",
           voucher_date: v.voucher_date,
-          warehouse_id: v.warehouse_id,
+          warehouse_id: warehouseId,
           counter_account: "632",
           reason: `Xuất kho bán hàng ${v.voucher_no}`,
           journal_entry_id: entry.id,
@@ -651,7 +653,7 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
           user_id: userId,
           tenant_id: v.tenant_id,
           product_id: productId,
-          warehouse_id: v.warehouse_id,
+          warehouse_id: warehouseId,
           voucher_id: stockVoucherId,
           movement_type: "out",
           qty: -qty,

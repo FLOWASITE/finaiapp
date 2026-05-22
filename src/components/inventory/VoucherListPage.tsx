@@ -256,9 +256,13 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
 
   useEffect(() => {
     if (v) {
+      const defaultWhId =
+        ((warehouses ?? []) as any[]).find((w: any) => w.is_default)?.id ??
+        ((warehouses ?? []) as any[])[0]?.id ??
+        null;
       setForm({
         voucher_date: v.voucher_date,
-        warehouse_id: v.warehouse_id ?? "none",
+        warehouse_id: v.warehouse_id ?? defaultWhId ?? "none",
         counter_account: v.counter_account,
         reason: v.reason ?? "",
         lines: lines.map((l) => ({
@@ -270,7 +274,7 @@ function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose
       });
       setEditing(false);
     }
-  }, [v?.id, lines.length]);
+  }, [v?.id, lines.length, warehouses]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["vouchers-list"] });
