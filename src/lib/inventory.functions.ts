@@ -94,9 +94,9 @@ const MovementSchema = z.object({
   post_journal: z.boolean().optional().default(true),
 });
 
-function yyyymm(dateStr?: string): string {
+function yyyy(dateStr?: string): string {
   const d = dateStr ? new Date(dateStr) : new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return String(d.getFullYear());
 }
 
 async function nextStockVoucherNo(
@@ -106,29 +106,26 @@ async function nextStockVoucherNo(
   type: "in" | "out",
   movementDate: string,
 ) {
-  const prefix = `${type === "in" ? "PN" : "PX"}${yyyymm(movementDate)}/`;
-  // Look in both stock_vouchers (new) and stock_movements.note (legacy single-line)
+  // New format: PNK{YYYY}-{00001} or PXK{YYYY}-{00001}
+  const prefix = `${type === "in" ? "PNK" : "PXK"}${yyyy(movementDate)}-`;
+  // Legacy formats also scanned to keep numbering monotonic
+  const legacyPrefix = `${type === "in" ? "PN" : "PX"}${yyyy(movementDate)}${String(new Date(movementDate).getMonth() + 1).padStart(2, "0")}/`;
   let qv = supabase.from("stock_vouchers").select("voucher_no")
-    .eq("voucher_type", type).ilike("voucher_no", `${prefix}%`);
+    .eq("voucher_type", type)
+    .or(`voucher_no.ilike.${prefix}%,voucher_no.ilike.${legacyPrefix}%`);
   qv = tenantId ? qv.eq("tenant_id", tenantId) : qv.eq("user_id", userId);
-  let qm = supabase.from("stock_movements").select("note")
-    .eq("movement_type", type).ilike("note", `${prefix}%`);
-  qm = tenantId ? qm.eq("tenant_id", tenantId) : qm.eq("user_id", userId);
-  const [{ data: vs, error: vErr }, { data: ms, error: mErr }] = await Promise.all([qv, qm]);
+  const { data: vs, error: vErr } = await qv;
   if (vErr) throw new Error(vErr.message);
-  if (mErr) throw new Error(mErr.message);
-  const re = new RegExp(`^${prefix.replace("/", "\\/")}(\\d+)`);
+  const reNew = new RegExp(`^${prefix.replace("-", "\\-")}(\\d+)`);
+  const reLegacy = new RegExp(`^${legacyPrefix.replace("/", "\\/")}(\\d+)`);
   let max = 0;
   for (const r of (vs as any[]) ?? []) {
-    const m = re.exec(r?.voucher_no ?? "");
-    if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
-  }
-  for (const r of (ms as any[]) ?? []) {
-    const m = re.exec(r?.note ?? "");
+    const m = reNew.exec(r?.voucher_no ?? "") || reLegacy.exec(r?.voucher_no ?? "");
     if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
   }
   return `${prefix}${String(max + 1).padStart(5, "0")}`;
 }
+
 
 export const previewStockVoucherNo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
