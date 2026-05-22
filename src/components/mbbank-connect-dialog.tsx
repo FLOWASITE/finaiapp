@@ -488,11 +488,16 @@ function ConnectedView({
       <TabsContent value="overview" className="px-6 py-5 space-y-4 mt-0">
         <div className="rounded-xl border bg-card p-4 space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Tài khoản MB
+                {isBiz ? "Tài khoản BIZ MBBank" : "Tài khoản MB"}
               </div>
-              <div className="font-medium text-sm mt-0.5">{acc.mb_username}</div>
+              <div className="font-medium text-sm mt-0.5 truncate">{acc.mb_username}</div>
+              {isBiz && acc?.mb_corporate_id && (
+                <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                  Mã công ty: {bizMask(acc.mb_corporate_id)}
+                </div>
+              )}
             </div>
             <MbStatusBadge status={running ? "running" : acc?.last_sync_status} />
           </div>
