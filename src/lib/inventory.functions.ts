@@ -639,7 +639,23 @@ const VoucherLineSchema = z.object({
   // Optional transaction-time unit. If omitted or equal to the product's base unit,
   // the factor defaults to 1 and qty/unit_cost are stored as-is.
   unit: z.string().max(20).optional(),
+  costing_method: z.string().max(20).optional(),
 });
+
+const HeaderExtraSchema = {
+  kind: z.string().max(40).nullish(),
+  branch_id: z.string().uuid().nullish(),
+  party_id: z.string().uuid().nullish(),
+  party_name: z.string().max(255).nullish(),
+  party_phone: z.string().max(50).nullish(),
+  party_address: z.string().max(500).nullish(),
+  deliverer_name: z.string().max(255).nullish(),
+  receiver_name: z.string().max(255).nullish(),
+  source_doc_no: z.string().max(100).nullish(),
+  source_doc_date: z.string().nullish(),
+  transfer_doc_no: z.string().max(100).nullish(),
+  attachments_count: z.number().int().min(0).nullish(),
+};
 
 const VoucherCreateSchema = z.object({
   voucher_type: z.enum(["in", "out"]),
@@ -650,11 +666,13 @@ const VoucherCreateSchema = z.object({
   reason: z.string().max(500).optional(),
   post_journal: z.boolean().optional().default(true),
   lines: z.array(VoucherLineSchema).min(1).max(200),
+  ...HeaderExtraSchema,
 });
 
 const VoucherUpdateSchema = VoucherCreateSchema.extend({
   id: z.string().uuid(),
 }).omit({ voucher_type: true });
+
 
 type Ctx = { supabase: any; userId: string };
 
