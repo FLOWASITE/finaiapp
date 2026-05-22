@@ -92,7 +92,12 @@ export const listSalesVouchers = createServerFn({ method: "POST" })
     let q = supabase
       .from("sales_vouchers")
       .select(
-        "id, voucher_no, voucher_date, customer_id, customer_name, reason, total, payment_method, payment_status, status, journal_entry_id, stock_voucher_id, cash_voucher_id, bank_voucher_id, created_at",
+        `id, voucher_no, voucher_date, due_date, customer_id, customer_name, reason,
+         subtotal, discount_amount, vat_amount, total, paid_amount,
+         payment_method, payment_status, status, posted_at,
+         journal_entry_id, einvoice_id, stock_voucher_id, cash_voucher_id, bank_voucher_id, created_at,
+         einvoice:einvoices!sales_vouchers_einvoice_id_fkey(invoice_no),
+         stock_voucher:stock_vouchers!sales_vouchers_stock_voucher_id_fkey(voucher_no)`,
       )
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
