@@ -1,52 +1,58 @@
 ## Mục tiêu
 
-Bổ sung 3 cột cuối cho bảng phiếu của 2 màn hình:
-- `/cash` — tab "Phiếu thu / chi"
-- `/bank/vouchers` — bảng phiếu thu/chi/CK ngân hàng
+Đồng bộ cột "Thanh toán" giữa **Mua hàng** và **Bán hàng**, và kết nối 2 icon (Tiền mặt / Ngân hàng) tới đúng form tạo **Phiếu thu/chi tiền mặt** và **Phiếu thu/chi ngân hàng** (thay vì hiện toast hoặc mở dialog quick-pay rút gọn).
 
-Mỗi dòng có:
-1. **Trạng thái hạch toán** — badge "Đã hạch toán" (xanh, check) / "Chưa hạch toán" (xám) dựa trên `journal_entry_id`.
-2. **Tài liệu đính kèm** — icon kẹp giấy + số lượng file. Click mở popover liệt kê file (tên + nút tải về). Nếu chưa có → icon mờ + nút "+ Đính kèm".
-3. **Nhóm hành động cuối dòng** — nút mắt (Xem phiếu) + menu 3-chấm với: Chỉnh sửa, In phiếu chi/thu, Nhân bản, Xóa (giống mockup).
+---
 
-## Thay đổi chi tiết
+## 1. Mua hàng (`src/routes/_app/purchases/vouchers.tsx`)
 
-### Backend (server functions)
+- Đổi tiêu đề cột `TT thanh toán` → **`Thanh toán`** (dòng 661) cho khớp với Bán hàng.
+- 2 icon ở cột này hiện chỉ hiện toast "đang phát triển" (dòng 734, 742). Sẽ wire để mở form thật:
+  - Icon `CircleDollarSign` → mở **Phiếu chi tiền mặt** (`VoucherFormDialog` với `type="payment"`).
+  - Icon `Landmark` → mở **Phiếu chi ngân hàng** (bank `VoucherDialog` với `type="payment"`).
+- Prefill từ dòng phiếu mua: nhà cung cấp, số tiền còn phải trả, lý do "Thanh toán phiếu mua {voucher_no}".
 
-**`src/lib/cash.functions.ts`** — `listCashVouchers`:
-- Sau khi lấy `cash_vouchers`, query `document_links` với `entity_table='cash_vouchers'` và `entity_id IN (...)`, gom theo voucher_id.
-- Join `documents` lấy `id, original_filename, storage_path, mime_type` để có thể tải về.
-- Trả về thêm `attachments: Array<{id, filename, storage_path, mime_type}>` cho mỗi voucher. `journal_entry_id` đã có sẵn.
+## 2. Bán hàng (`src/routes/_app/sales/vouchers.tsx`)
 
-**`src/lib/bank.functions.ts`** — `listBankVouchers`: tương tự với `entity_table='bank_vouchers'`.
+- Hiện 2 icon đang gọi `openPay()` → mở `payDlg` (quick-pay tự build). Sẽ thay bằng mở đúng form **Phiếu thu tiền mặt** / **Phiếu thu ngân hàng** giống Mua hàng.
+- Prefill: khách hàng, số tiền còn phải thu, lý do "Thu tiền phiếu bán {voucher_no}".
+- Có thể dọn dẹp `payDlg` + `receiptMut` cũ nếu không còn dùng (giữ lại nếu vẫn cần ở nơi khác — kiểm tra rồi mới xoá).
 
-### Frontend
+## 3. Tái sử dụng Bank dialog
 
-**Component mới `src/components/voucher-row-actions.tsx`**:
-- Props: `attachments`, `entityTable`, `entityId`, `voucherNo`, `onView`, `onEdit`, `onDuplicate`, `onDelete`, `onPrint`.
-- Render:
-  - Cột Trạng thái: `<PostedBadge posted={!!journalEntryId} />`
-  - Cột Tài liệu: Popover với danh sách file (link tải qua signed URL của Supabase storage hoặc `documents.functions.ts` helper hiện có) + nút đính kèm thêm (mở `AttachInvoiceFile`).
-  - Cột Hành động: Button icon `Eye` (xanh) + DropdownMenu (3-chấm) với Chỉnh sửa / In phiếu / Nhân bản / Xóa.
+Bank form (`VoucherDialog`) hiện đang **khai báo nội bộ** trong `src/routes/_app/bank.vouchers.tsx` (không export). Phương án:
 
-**`src/routes/_app/cash/index.tsx`**:
-- Thêm 3 `<th>` cuối: "Trạng thái", "Tài liệu", "" (actions).
-- Render component mới cho mỗi dòng.
-- Wiring: Xem/Chỉnh sửa mở `VoucherFormDialog` ở chế độ view/edit (nếu chưa hỗ trợ thì chỉ mở dialog readonly cho v1); Xóa gọi `deleteCashVoucher` (đã có hay tạo mới nếu chưa); In + Nhân bản hiển thị toast "đang phát triển" để khớp pattern hiện tại trong `purchases/vouchers.tsx`.
+- **Tách ra component dùng chung** `src/components/bank-voucher-form.tsx` export `BankVoucherFormDialog({ type, open, onOpenChange, prefill? })`.
+- Giữ nguyên logic hiện tại (chọn tài khoản NH, đối ứng, amount, sinh bút toán). Thêm prop `prefill` để truyền sẵn party, amount, reason.
+- `bank.vouchers.tsx` import lại từ component dùng chung (không đổi behavior cũ).
 
-**`src/routes/_app/bank.vouchers.tsx`**:
-- Tương tự: thêm 3 `<th>` (cập nhật `colSpan` empty state từ 9 → 12).
-- Thay nút Xóa hiện tại bằng dropdown đầy đủ; mutation xóa đã có (`deleteBankVoucher`).
+Tương tự, `VoucherFormDialog` (cash, đã export ở `src/components/voucher-form.tsx`) sẽ nhận thêm prop `prefill?: { partyId?, partyName?, amount?, reason?, counterAccount? }` để Mua/Bán hàng truyền dữ liệu vào.
 
-### Phạm vi giới hạn (v1)
-- **Tải file**: dùng `supabase.storage.from(bucket).createSignedUrl(...)` ở client; nếu cấu trúc khác (đã có helper `getDocumentSignedUrl`) sẽ tái sử dụng.
-- **Xem/Chỉnh sửa/Nhân bản/In** ở bank: trước mắt mở dialog read-only hoặc toast "đang phát triển" — không xây mới form edit trong phạm vi này.
-- Không đổi schema DB, không thêm trường mới.
+## 4. Mở form từ Mua/Bán hàng
 
-## Files sẽ chỉnh
+Trong cả 2 trang thêm state:
+```ts
+const [cashDlg, setCashDlg] = useState<{ open:boolean; type:"receipt"|"payment"; prefill?:any }>({ open:false, type:"receipt" });
+const [bankDlg, setBankDlg] = useState<{ open:boolean; type:"receipt"|"payment"; prefill?:any }>({ open:false, type:"receipt" });
+```
 
-- `src/lib/cash.functions.ts` (mở rộng `listCashVouchers`)
-- `src/lib/bank.functions.ts` (mở rộng `listBankVouchers`)
-- `src/components/voucher-row-actions.tsx` (mới)
-- `src/routes/_app/cash/index.tsx`
-- `src/routes/_app/bank.vouchers.tsx`
+Render `<VoucherFormDialog .../>` và `<BankVoucherFormDialog .../>` ngoài bảng. Click icon set state mở dialog với prefill phù hợp:
+- Mua hàng → `type:"payment"`, counterAccount `331`, partyId = `supplier_id`.
+- Bán hàng → `type:"receipt"`, counterAccount `131`, partyId = `customer_id`.
+
+Sau khi lưu thành công, invalidate `["sales-vouchers"]` / `["purchase-vouchers"]` và ledgers để cột "Đã thanh toán / Còn phải thu/trả" cập nhật.
+
+---
+
+## Files sẽ chỉnh sửa / tạo
+
+- (mới) `src/components/bank-voucher-form.tsx` — tách `VoucherDialog` bank thành component export, thêm prop `prefill`.
+- `src/components/voucher-form.tsx` — thêm prop `prefill` (optional) cho cash dialog.
+- `src/routes/_app/bank.vouchers.tsx` — dùng lại component dùng chung.
+- `src/routes/_app/purchases/vouchers.tsx` — đổi tên cột; wire 2 icon mở dialog thật; render dialogs.
+- `src/routes/_app/sales/vouchers.tsx` — thay `openPay`/`payDlg` cũ bằng mở `VoucherFormDialog`/`BankVoucherFormDialog`.
+
+## Không nằm trong phạm vi (v1)
+
+- Không thay đổi schema DB, không sửa server functions `createCashVoucher` / `createBankVoucher`.
+- Không tự ghi sổ "đã thanh toán bao nhiêu" ngược lại phiếu mua/bán — phần này phụ thuộc backend đối soát hiện có (giữ nguyên cơ chế).
