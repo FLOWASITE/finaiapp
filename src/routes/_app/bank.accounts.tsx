@@ -382,7 +382,7 @@ function AccountForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Ngân hàng" hint="Tìm hoặc gõ tên tự do">
           <BankCombobox
             value={form.bank_name ?? ""}
