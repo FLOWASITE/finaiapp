@@ -24,7 +24,7 @@ function BankLayout() {
           Quản lý tài khoản ngân hàng, phiếu thu/chi qua NH, chuyển khoản nội bộ và đối chiếu sao kê
         </p>
       </div>
-      <nav className="flex flex-wrap gap-1 border-b border-border">
+      <nav className="inline-flex items-center gap-1 rounded-2xl border border-white/5 bg-background/60 p-1 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 overflow-x-auto max-w-full">
         {TABS.map((t) => {
           const active = t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to);
           const Icon = t.icon;
@@ -33,10 +33,10 @@ function BankLayout() {
               key={t.to}
               to={t.to}
               className={cn(
-                "inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap",
                 active
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-br from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -45,6 +45,7 @@ function BankLayout() {
           );
         })}
       </nav>
+
       <Outlet />
     </div>
   );

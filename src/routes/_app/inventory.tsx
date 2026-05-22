@@ -16,8 +16,8 @@ function InventoryLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <div>
-      <div className="border-b border-border bg-card/40">
-        <div className="flex gap-1 px-8 pt-4 overflow-x-auto">
+      <div className="px-8 pt-5 pb-3">
+        <div className="inline-flex items-center gap-1 rounded-2xl border border-white/5 bg-background/60 p-1 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 overflow-x-auto max-w-full">
           {TABS.map((t) => {
             const active = t.exact ? path === t.to : path.startsWith(t.to);
             return (
@@ -25,8 +25,10 @@ function InventoryLayout() {
                 key={t.to}
                 to={t.to as any}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                  active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                  "relative px-4 py-1.5 text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap",
+                  active
+                    ? "bg-gradient-to-br from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5",
                 )}
               >
                 {t.label}
@@ -37,5 +39,6 @@ function InventoryLayout() {
       </div>
       <Outlet />
     </div>
+
   );
 }
