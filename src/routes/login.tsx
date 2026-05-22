@@ -166,152 +166,128 @@ function LoginPage() {
     }
   }
 
+  const submitLogin = !isSignup;
+
   return (
-    <div className="min-h-screen w-full bg-background">
-      <div className="grid min-h-screen w-full lg:grid-cols-2">
-        {/* Brand panel */}
-        <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/80 p-10 text-primary-foreground">
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8"
+      style={{ background: "var(--gradient-login-bg)" }}
+    >
+      <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-black/5 grid lg:grid-cols-2">
+        {/* Left brand panel */}
+        <aside
+          className="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden"
+          style={{ background: "var(--gradient-login-panel)" }}
+        >
           <div
-            className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_20%_20%,white_0%,transparent_40%),radial-gradient(circle_at_80%_70%,white_0%,transparent_35%)]"
             aria-hidden
+            className="absolute inset-0 opacity-50"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 20% 15%, oklch(1 0 0 / 0.18) 0%, transparent 45%), radial-gradient(circle at 85% 85%, oklch(0.7 0.18 230 / 0.35) 0%, transparent 50%)",
+            }}
           />
+          <svg
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 w-full opacity-30"
+            viewBox="0 0 600 200"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0,160 L120,90 L220,140 L320,60 L420,120 L520,80 L600,130 L600,200 L0,200 Z"
+              fill="oklch(0.85 0.12 220 / 0.5)"
+            />
+            <path
+              d="M0,180 L100,130 L200,170 L300,110 L400,160 L500,120 L600,170 L600,200 L0,200 Z"
+              fill="oklch(0.5 0.15 240 / 0.6)"
+            />
+          </svg>
+
           <div className="relative z-10 flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-foreground/15 backdrop-blur-sm font-bold ring-1 ring-primary-foreground/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm font-bold ring-1 ring-white/25">
               A
             </div>
             <span className="font-semibold tracking-tight text-lg">FinAI</span>
           </div>
 
           <div className="relative z-10 space-y-6 max-w-md">
-            <h2 className="text-3xl font-semibold leading-tight">
-              Phần mềm kế toán dành cho doanh nghiệp Việt.
+            <h2 className="text-5xl font-bold leading-[1.05] tracking-tight">
+              Xin chào,
+              <br />
+              mừng bạn!
             </h2>
-            <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              Quản lý hóa đơn, công nợ, thuế và báo cáo tài chính theo chuẩn
-              TT133 / TT200 — tất cả trên một nền tảng hiện đại.
+            <p className="text-sm leading-relaxed text-white/80 max-w-xs">
+              FinAI — phần mềm kế toán AI cho doanh nghiệp Việt. Bóc tách hóa
+              đơn, định khoản tự động theo Thông tư 133.
             </p>
-            <ul className="space-y-3 text-sm">
-              {[
-                { icon: BarChart3, text: "Báo cáo tài chính tức thời" },
-                { icon: Wallet, text: "Tự động đối chiếu sao kê ngân hàng" },
-                { icon: ShieldCheck, text: "Bảo mật chuẩn doanh nghiệp" },
-              ].map((f) => (
-                <li key={f.text} className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-foreground/15 ring-1 ring-primary-foreground/20">
-                    <f.icon className="h-3.5 w-3.5" />
-                  </span>
-                  {f.text}
-                </li>
-              ))}
-            </ul>
+            <Button
+              asChild
+              variant="secondary"
+              className="rounded-full px-6 h-10 bg-white/95 text-foreground hover:bg-white border-0"
+            >
+              <Link to="/welcome">Tìm hiểu thêm</Link>
+            </Button>
           </div>
 
-          <p className="relative z-10 text-xs text-primary-foreground/60">
+          <p className="relative z-10 text-xs text-white/60">
             © {new Date().getFullYear()} FinAI. Mọi quyền được bảo lưu.
           </p>
         </aside>
 
-        {/* Form panel */}
-        <main className="flex items-center justify-center px-4 py-10 sm:px-8">
-          <div className="w-full max-w-md">
-            <Link to="/" className="mb-8 inline-flex items-center gap-2 lg:hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-                A
-              </div>
-              <span className="font-semibold tracking-tight">FinAI</span>
-            </Link>
-
-            {/* Mode switcher */}
-            <div
-              role="tablist"
-              className="mb-6 inline-flex rounded-full border border-border bg-muted/50 p-1 text-sm"
-            >
-              <button
-                role="tab"
-                aria-selected={!isSignup}
-                onClick={() => setIsSignup(false)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all",
-                  !isSignup
-                    ? "bg-background shadow-sm text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Đăng nhập
-              </button>
-              <button
-                role="tab"
-                aria-selected={isSignup}
-                onClick={() => setIsSignup(true)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all",
-                  isSignup
-                    ? "bg-background shadow-sm text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Tạo tài khoản
-              </button>
+        {/* Right form panel */}
+        <main className="bg-card px-6 py-10 sm:px-10 sm:py-12 flex flex-col justify-center">
+          <Link to="/" className="mb-6 inline-flex items-center gap-2 lg:hidden">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
+              A
             </div>
+            <span className="font-semibold tracking-tight">FinAI</span>
+          </Link>
 
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-              {isSignup ? "Tạo tài khoản mới" : "Chào mừng trở lại"}
-            </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {isSignup ? (
-                <>
-                  Đã có tài khoản?{" "}
-                  <button
-                    type="button"
-                    className="font-medium text-primary hover:underline"
-                    onClick={() => setIsSignup(false)}
-                  >
-                    Đăng nhập
-                  </button>
-                </>
-              ) : (
-                <>
-                  Chưa có tài khoản?{" "}
-                  <button
-                    type="button"
-                    className="font-medium text-primary hover:underline"
-                    onClick={() => setIsSignup(true)}
-                  >
-                    Tạo mới miễn phí
-                  </button>
-                </>
-              )}
-            </p>
+          <h1 className="lg:hidden text-2xl font-semibold tracking-tight mb-6">
+            Xin chào, mừng bạn!
+          </h1>
 
-            <form onSubmit={onSubmit} className="mt-7 space-y-4" noValidate>
-              {formError && (
-                <div
-                  role="alert"
-                  aria-live="assertive"
-                  className="flex gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-                >
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="space-y-0.5">
-                    <p className="font-medium">{formError.title}</p>
-                    {formError.detail && (
-                      <p className="text-xs text-destructive/85">{formError.detail}</p>
-                    )}
-                  </div>
+          <form onSubmit={onSubmit} className="space-y-4" noValidate>
+            {formError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="space-y-0.5">
+                  <p className="font-medium">{formError.title}</p>
+                  {formError.detail && (
+                    <p className="text-xs text-destructive/85">{formError.detail}</p>
+                  )}
                 </div>
-              )}
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+              </div>
+            )}
+
+            {/* Email field — pill with pastel icon box */}
+            <div>
+              <div
+                className={cn(
+                  "group flex items-center gap-3 rounded-2xl bg-muted/40 pl-2 pr-4 h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
+                  errors.email && "ring-destructive/50 focus-within:ring-destructive/50",
+                )}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.92_0.04_240)] text-[oklch(0.5_0.15_240)]">
+                  <Mail className="h-5 w-5" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <Label
+                    htmlFor="email"
+                    className="block text-[11px] font-medium text-muted-foreground"
+                  >
+                    Địa chỉ email
+                  </Label>
+                  <input
                     id="email"
                     type="email"
                     autoComplete="email"
-                    placeholder="ban@congty.com"
-                    className={cn(
-                      "pl-9 h-11",
-                      errors.email && "border-destructive focus-visible:ring-destructive/40",
-                    )}
+                    placeholder="ten@congty.com"
+                    className="w-full bg-transparent border-0 p-0 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -319,111 +295,170 @@ function LoginPage() {
                     }}
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                )}
               </div>
+              {errors.email && (
+                <p className="mt-1 ml-2 text-xs text-destructive">{errors.email}</p>
+              )}
+            </div>
 
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Mật khẩu</Label>
-                  {!isSignup && (
-                    <button
-                      type="button"
-                      onClick={handleForgot}
-                      disabled={resetting}
-                      className="text-xs font-medium text-primary hover:underline disabled:opacity-60"
-                    >
-                      {resetting ? "Đang gửi..." : "Quên mật khẩu?"}
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+            {/* Password field */}
+            <div>
+              <div
+                className={cn(
+                  "group flex items-center gap-3 rounded-2xl bg-muted/40 pl-2 pr-2 h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
+                  errors.password && "ring-destructive/50 focus-within:ring-destructive/50",
+                )}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.92_0.04_240)] text-[oklch(0.5_0.15_240)]">
+                  <Lock className="h-5 w-5" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <Label
+                    htmlFor="password"
+                    className="block text-[11px] font-medium text-muted-foreground"
+                  >
+                    Mật khẩu
+                  </Label>
+                  <input
                     id="password"
                     type={showPw ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
-                    placeholder={isSignup ? "Tối thiểu 6 ký tự" : "••••••••"}
-                    className={cn(
-                      "pl-9 pr-10 h-11",
-                      errors.password && "border-destructive focus-visible:ring-destructive/40",
-                    )}
+                    placeholder="••••••••"
+                    className="w-full bg-transparent border-0 p-0 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
                       if (errors.password) setErrors((p) => ({ ...p, password: undefined }));
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    tabIndex={-1}
-                  >
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
-                )}
-                {isSignup && password.length > 0 && (
-                  <div className="space-y-1 pt-1">
-                    <div className="flex gap-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-1 flex-1 rounded-full transition-colors",
-                            i < strength.score ? strength.tone : "bg-muted",
-                          )}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Độ mạnh: <span className="font-medium text-foreground">{strength.label}</span>
-                    </p>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  tabIndex={-1}
+                >
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-
-              <Button type="submit" className="w-full h-11 text-sm font-medium" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Đang xử lý...
-                  </>
-                ) : isSignup ? (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Tạo tài khoản
-                  </>
-                ) : (
-                  "Đăng nhập"
-                )}
-              </Button>
-
-              {isSignup && (
-                <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
-                  <span>
-                    Bằng việc tạo tài khoản, bạn đồng ý với{" "}
-                    <Link to="/" className="underline hover:text-foreground">
-                      Điều khoản
-                    </Link>{" "}
-                    và{" "}
-                    <Link to="/" className="underline hover:text-foreground">
-                      Chính sách bảo mật
-                    </Link>{" "}
-                    của FinAI.
-                  </span>
-                </p>
+              {errors.password && (
+                <p className="mt-1 ml-2 text-xs text-destructive">{errors.password}</p>
               )}
-            </form>
-          </div>
+              {isSignup && password.length > 0 && (
+                <div className="space-y-1 pt-2 px-2">
+                  <div className="flex gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-colors",
+                          i < strength.score ? strength.tone : "bg-muted",
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Độ mạnh:{" "}
+                    <span className="font-medium text-foreground">{strength.label}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Remember + Forgot row */}
+            {!isSignup && (
+              <div className="flex items-center justify-between px-1 text-xs">
+                <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/40"
+                  />
+                  Ghi nhớ đăng nhập
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgot}
+                  disabled={resetting}
+                  className="font-medium text-primary hover:underline disabled:opacity-60"
+                >
+                  {resetting ? "Đang gửi..." : "Quên mật khẩu?"}
+                </button>
+              </div>
+            )}
+
+            {/* Login button — white with primary text */}
+            <button
+              type={submitLogin ? "submit" : "button"}
+              onClick={submitLogin ? undefined : () => setIsSignup(false)}
+              disabled={loading && submitLogin}
+              className={cn(
+                "w-full h-14 rounded-2xl bg-card text-primary font-semibold text-base ring-1 ring-border shadow-[0_10px_30px_-10px_oklch(0.3_0.08_260/0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.3_0.08_260/0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+              )}
+            >
+              {loading && submitLogin ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "Đăng nhập"
+              )}
+            </button>
+
+            <p className="text-center text-xs text-muted-foreground pt-1">
+              {isSignup ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
+            </p>
+
+            {/* Signup button — gradient cyan→blue */}
+            <button
+              type={!submitLogin ? "submit" : "button"}
+              onClick={!submitLogin ? undefined : () => setIsSignup(true)}
+              disabled={loading && !submitLogin}
+              className={cn(
+                "w-full h-14 rounded-2xl text-white font-semibold text-base shadow-[0_10px_30px_-10px_oklch(0.55_0.18_240/0.55)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.55_0.18_240/0.7)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+              )}
+              style={{
+                background: !submitLogin
+                  ? "var(--gradient-signup-btn-hover)"
+                  : "var(--gradient-signup-btn)",
+              }}
+            >
+              {loading && !submitLogin ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : isSignup ? (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Tạo tài khoản
+                </>
+              ) : (
+                "Đăng ký"
+              )}
+            </button>
+
+            {isSignup && (
+              <p className="flex items-start gap-2 text-[11px] text-muted-foreground pt-1">
+                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                <span>
+                  Bằng việc tạo tài khoản, bạn đồng ý với{" "}
+                  <Link to="/welcome" className="underline hover:text-foreground">
+                    Điều khoản
+                  </Link>{" "}
+                  và{" "}
+                  <Link to="/welcome" className="underline hover:text-foreground">
+                    Chính sách bảo mật
+                  </Link>{" "}
+                  của FinAI.
+                </span>
+              </p>
+            )}
+          </form>
         </main>
       </div>
     </div>
   );
 }
+
