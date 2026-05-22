@@ -6045,6 +6045,261 @@ export type Database = {
           },
         ]
       }
+      sales_voucher_lines: {
+        Row: {
+          amount: number
+          cost_amount: number
+          created_at: string
+          credit_account: string | null
+          debit_account: string | null
+          description: string | null
+          discount_amount: number
+          discount_pct: number
+          id: string
+          line_order: number
+          line_type: string
+          note: string | null
+          product_code: string | null
+          product_id: string | null
+          product_name: string | null
+          qty: number
+          sales_order_line_id: string | null
+          total: number
+          unit: string | null
+          unit_price: number
+          vat_account: string | null
+          vat_amount: number
+          vat_rate: number
+          voucher_id: string
+        }
+        Insert: {
+          amount?: number
+          cost_amount?: number
+          created_at?: string
+          credit_account?: string | null
+          debit_account?: string | null
+          description?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          id?: string
+          line_order?: number
+          line_type?: string
+          note?: string | null
+          product_code?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          qty?: number
+          sales_order_line_id?: string | null
+          total?: number
+          unit?: string | null
+          unit_price?: number
+          vat_account?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          voucher_id: string
+        }
+        Update: {
+          amount?: number
+          cost_amount?: number
+          created_at?: string
+          credit_account?: string | null
+          debit_account?: string | null
+          description?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          id?: string
+          line_order?: number
+          line_type?: string
+          note?: string | null
+          product_code?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          qty?: number
+          sales_order_line_id?: string | null
+          total?: number
+          unit?: string | null
+          unit_price?: number
+          vat_account?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_voucher_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_voucher_lines_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "sales_vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_vouchers: {
+        Row: {
+          bank_voucher_id: string | null
+          branch_id: string | null
+          buyer_name: string | null
+          cash_voucher_id: string | null
+          cost_center_id: string | null
+          create_stock_voucher: boolean
+          created_at: string
+          credit_account: string
+          currency: string | null
+          customer_address: string | null
+          customer_group: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_tax_id: string | null
+          debit_account: string
+          department_id: string | null
+          discount_amount: number
+          discount_pct: number
+          due_date: string | null
+          einvoice_id: string | null
+          exchange_rate: number
+          id: string
+          issue_einvoice: boolean
+          journal_entry_id: string | null
+          notes: string | null
+          paid_amount: number
+          pay_now: boolean
+          payment_account: string | null
+          payment_method: string
+          payment_status: string
+          posted_at: string | null
+          project_id: string | null
+          reason: string | null
+          sales_order_id: string | null
+          salesperson_id: string | null
+          salesperson_name: string | null
+          status: string
+          stock_voucher_id: string | null
+          subtotal: number
+          tenant_id: string | null
+          total: number
+          updated_at: string
+          user_id: string
+          vat_account: string | null
+          vat_amount: number
+          void_reason: string | null
+          voided_at: string | null
+          voucher_date: string
+          voucher_no: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          bank_voucher_id?: string | null
+          branch_id?: string | null
+          buyer_name?: string | null
+          cash_voucher_id?: string | null
+          cost_center_id?: string | null
+          create_stock_voucher?: boolean
+          created_at?: string
+          credit_account?: string
+          currency?: string | null
+          customer_address?: string | null
+          customer_group?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          debit_account?: string
+          department_id?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          due_date?: string | null
+          einvoice_id?: string | null
+          exchange_rate?: number
+          id?: string
+          issue_einvoice?: boolean
+          journal_entry_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          pay_now?: boolean
+          payment_account?: string | null
+          payment_method?: string
+          payment_status?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reason?: string | null
+          sales_order_id?: string | null
+          salesperson_id?: string | null
+          salesperson_name?: string | null
+          status?: string
+          stock_voucher_id?: string | null
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id: string
+          vat_account?: string | null
+          vat_amount?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voucher_date?: string
+          voucher_no: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          bank_voucher_id?: string | null
+          branch_id?: string | null
+          buyer_name?: string | null
+          cash_voucher_id?: string | null
+          cost_center_id?: string | null
+          create_stock_voucher?: boolean
+          created_at?: string
+          credit_account?: string
+          currency?: string | null
+          customer_address?: string | null
+          customer_group?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_tax_id?: string | null
+          debit_account?: string
+          department_id?: string | null
+          discount_amount?: number
+          discount_pct?: number
+          due_date?: string | null
+          einvoice_id?: string | null
+          exchange_rate?: number
+          id?: string
+          issue_einvoice?: boolean
+          journal_entry_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          pay_now?: boolean
+          payment_account?: string | null
+          payment_method?: string
+          payment_status?: string
+          posted_at?: string | null
+          project_id?: string | null
+          reason?: string | null
+          sales_order_id?: string | null
+          salesperson_id?: string | null
+          salesperson_name?: string | null
+          status?: string
+          stock_voucher_id?: string | null
+          subtotal?: number
+          tenant_id?: string | null
+          total?: number
+          updated_at?: string
+          user_id?: string
+          vat_account?: string | null
+          vat_amount?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voucher_date?: string
+          voucher_no?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
       security_policies: {
         Row: {
           id: number
