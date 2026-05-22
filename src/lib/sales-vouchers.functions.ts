@@ -755,16 +755,18 @@ export const recordSalesVoucherReceipt = createServerFn({ method: "POST" })
         posted_at: new Date().toISOString(),
       });
     } else {
+      if (!v.tenant_id) throw new Error("Phiếu chưa gắn với chi nhánh/tenant");
       const { data: ba } = await supabase
         .from("bank_accounts")
         .select("id")
-        .eq("tenant_id", v.tenant_id)
+        .eq("tenant_id", v.tenant_id as string)
         .limit(1)
         .maybeSingle();
+      if (!ba?.id) throw new Error("Chưa có tài khoản ngân hàng. Vui lòng thêm trong mục Ngân hàng.");
       await supabase.from("bank_vouchers").insert({
         user_id: userId,
         tenant_id: v.tenant_id,
-        bank_account_id: ba?.id ?? null,
+        bank_account_id: ba.id,
         voucher_no: `BC-${v.voucher_no}`,
         voucher_type: "receipt",
         voucher_date: payDate,
