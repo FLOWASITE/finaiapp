@@ -29,6 +29,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { invalidateLedgers } from "@/lib/query-invalidation";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/bank/reconcile")({ component: ReconcilePage });
 
@@ -262,12 +263,8 @@ function ReconcilePage() {
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Từ ngày</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Đến ngày</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
+          <Label className="text-xs">Kỳ</Label>
+          <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Trạng thái</Label>
