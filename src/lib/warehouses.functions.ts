@@ -14,10 +14,64 @@ const WarehouseSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
+// Server-side helper: returns the default warehouse id for the current user.
+// If the tenant has no warehouses at all, auto-seeds a "Kho Chính" marked as default.
+// If warehouses exist but none is default, promotes the first one to default.
+export async function ensureDefaultWarehouseId(
+  supabase: any,
+  userId: string,
+): Promise<string> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_tenant_id")
+    .eq("id", userId)
+    .maybeSingle();
+  const tenant_id = profile?.active_tenant_id ?? null;
+
+  let scoped = supabase.from("warehouses").select("id, is_default, code").order("code");
+  scoped = tenant_id ? scoped.eq("tenant_id", tenant_id) : scoped.eq("user_id", userId);
+  const { data: rows } = await scoped;
+
+  const list = (rows ?? []) as { id: string; is_default: boolean; code: string }[];
+  const existingDefault = list.find((w) => w.is_default);
+  if (existingDefault) return existingDefault.id;
+
+  if (list.length > 0) {
+    await supabase.from("warehouses").update({ is_default: true }).eq("id", list[0].id);
+    return list[0].id;
+  }
+
+  // Seed "Kho Chính"
+  const { data: created, error: cerr } = await supabase
+    .from("warehouses")
+    .insert({
+      user_id: userId,
+      tenant_id,
+      code: "KC",
+      name: "Kho Chính",
+      is_default: true,
+      is_active: true,
+    })
+    .select("id")
+    .single();
+  if (cerr || !created) throw new Error(cerr?.message || "Không tạo được kho mặc định");
+  return created.id;
+}
+
+export const getDefaultWarehouseId = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const id = await ensureDefaultWarehouseId(context.supabase, context.userId);
+    return { id };
+  });
+
 export const listWarehouses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    // Make sure tenant has at least one warehouse — auto-seed "Kho Chính" if missing.
+    await ensureDefaultWarehouseId(supabase, userId);
+
     const [{ data: whs, error }, { data: movs }] = await Promise.all([
       supabase.from("warehouses").select("*").order("code"),
       supabase
