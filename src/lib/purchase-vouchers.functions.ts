@@ -360,6 +360,35 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     }
     jLines.push({ account_code: creditAcc, debit: 0, credit: total });
 
+    // Resolve TK: nếu mã không có trong Hệ thống TK, lùi về TK cha (cắt ký tự cuối)
+    const uniqueCodes = Array.from(new Set(jLines.map((l) => l.account_code).filter(Boolean)));
+    const { data: existing } = await supabase
+      .from("chart_of_accounts")
+      .select("code")
+      .in("code", uniqueCodes);
+    const existingSet = new Set((existing ?? []).map((r: any) => r.code));
+    const missing = uniqueCodes.filter((c) => !existingSet.has(c));
+    const resolveMap = new Map<string, string>();
+    if (missing.length > 0) {
+      const { data: allCoa } = await supabase.from("chart_of_accounts").select("code");
+      const allSet = new Set((allCoa ?? []).map((r: any) => r.code));
+      for (const code of missing) {
+        let p = code;
+        while (p.length > 1) {
+          p = p.slice(0, -1);
+          if (allSet.has(p)) {
+            resolveMap.set(code, p);
+            break;
+          }
+        }
+        if (!resolveMap.has(code)) {
+          throw new Error(
+            `Tài khoản "${code}" chưa có trong Hệ thống tài khoản. Vui lòng thêm trước khi ghi sổ.`,
+          );
+        }
+      }
+    }
+
     const { data: entry, error: e1 } = await supabase
       .from("journal_entries")
       .insert({
@@ -378,7 +407,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     const { error: e2 } = await supabase.from("journal_lines").insert(
       jLines.map((l, i) => ({
         entry_id: entry.id,
-        account_code: l.account_code,
+        account_code: resolveMap.get(l.account_code) ?? l.account_code,
         debit: l.debit,
         credit: l.credit,
         line_order: i,
