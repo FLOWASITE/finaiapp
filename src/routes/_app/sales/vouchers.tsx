@@ -303,6 +303,8 @@ type FormState = {
     issue_date: string;
     tct_lookup_code: string;
     notes: string;
+    pdf_path: string;
+    xml_path: string;
   };
 };
 
@@ -313,6 +315,8 @@ const blankEinvoice = () => ({
   issue_date: "",
   tct_lookup_code: "",
   notes: "",
+  pdf_path: "",
+  xml_path: "",
 });
 
 const blankForm = (no = ""): FormState => ({
