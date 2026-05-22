@@ -533,7 +533,14 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
       }
     }
 
-    // 4) Cập nhật phiếu → posted
+    // 4) Cập nhật phiếu → posted (qua trạng thái reviewed nếu cần để hợp lệ với trigger)
+    if (v.status !== "reviewed") {
+      const { error: ePre } = await supabase
+        .from("purchase_vouchers")
+        .update({ status: "reviewed" })
+        .eq("id", v.id);
+      if (ePre) throw new Error(ePre.message);
+    }
     const { error: e6 } = await supabase
       .from("purchase_vouchers")
       .update({
@@ -546,6 +553,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
       })
       .eq("id", v.id);
     if (e6) throw new Error(e6.message);
+
 
     return { ok: true, entryId: entry.id };
   });
