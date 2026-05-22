@@ -156,7 +156,7 @@ function AccountsPage() {
             ))}
             {accounts.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-muted-foreground">
+                <td colSpan={10} className="py-12 text-center text-muted-foreground">
                   Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
                 </td>
               </tr>
@@ -166,6 +166,13 @@ function AccountsPage() {
       </div>
 
       <AccountDialog open={open} onOpenChange={setOpen} editing={editing} />
+      {mbAccount && (
+        <MbBankConnectDialog
+          open={!!mbAccount}
+          onOpenChange={(o) => !o && setMbAccount(null)}
+          account={{ id: mbAccount.id, name: mbAccount.name }}
+        />
+      )}
     </div>
   );
 }
