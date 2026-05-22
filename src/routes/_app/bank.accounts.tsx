@@ -21,16 +21,7 @@ export const Route = createFileRoute("/_app/bank/accounts")({ component: Account
 
 const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
 
-// Common Vietnamese banks for quick selection
-const VN_BANKS = [
-  "Vietcombank", "VietinBank", "BIDV", "Agribank", "Techcombank", "MB Bank",
-  "ACB", "VPBank", "Sacombank", "TPBank", "HDBank", "SHB", "VIB", "OCB",
-  "SeABank", "MSB", "Eximbank", "LienVietPostBank", "PVcomBank", "ABBank",
-  "Nam A Bank", "Bac A Bank", "KienlongBank", "Saigonbank", "BaoVietBank",
-  "PG Bank", "VietCapitalBank", "DongA Bank", "NCB", "VietABank",
-  "Public Bank Vietnam", "Shinhan Bank", "Standard Chartered", "HSBC",
-  "Citibank", "UOB", "ANZ", "Woori Bank",
-];
+// Bank list moved to bank-combobox component
 
 const GL_OPTIONS = [
   { code: "1121", label: "1121 — Tiền gửi NH (VND)" },
