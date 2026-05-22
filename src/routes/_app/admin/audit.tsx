@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 export const Route = createFileRoute("/_app/admin/audit")({ component: AuditPage });
 
@@ -101,18 +102,19 @@ function AuditPage() {
             </SelectContent>
           </Select>
 
-          <Input
-            type="date"
-            className="w-40"
-            value={filter.from?.slice(0, 10) ?? ""}
-            onChange={(e) => { setFilter({ ...filter, from: e.target.value || undefined }); setPage(0); }}
+          <DateRangeFilter
+            from={filter.from?.slice(0, 10) ?? ""}
+            to={filter.to?.slice(0, 10) ?? ""}
+            onChange={(r) => {
+              setFilter({
+                ...filter,
+                from: r.from || undefined,
+                to: r.to ? r.to + "T23:59:59" : undefined,
+              });
+              setPage(0);
+            }}
           />
-          <Input
-            type="date"
-            className="w-40"
-            value={filter.to?.slice(0, 10) ?? ""}
-            onChange={(e) => { setFilter({ ...filter, to: e.target.value ? e.target.value + "T23:59:59" : undefined }); setPage(0); }}
-          />
+
           <Input
             placeholder="Tìm email người dùng"
             className="w-56"
