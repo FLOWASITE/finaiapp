@@ -319,7 +319,7 @@ function PurchaseVouchersPage() {
   const [status, setStatus] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>(firstOfYearISO());
   const [fTo, setFTo] = useState<string>(todayISO());
-  const [dateOpen, setDateOpen] = useState(false);
+  
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data, refetch, isLoading, isError, error } = useQuery({
