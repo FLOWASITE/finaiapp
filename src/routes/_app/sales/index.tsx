@@ -174,7 +174,7 @@ function SalesHubPage() {
     setTab("invoices", { status: s });
 
   return (
-    <>
+    <div>
       <SalesTabs />
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
@@ -347,7 +347,7 @@ function SalesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
-    </>
+    </div>
   );
 }
 

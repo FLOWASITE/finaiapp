@@ -157,7 +157,7 @@ function PurchasesHubPage() {
     setTab("invoices", { status: s });
 
   return (
-    <>
+    <div>
       <PurchaseTabs />
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
@@ -337,7 +337,7 @@ function PurchasesHubPage() {
         </TabsContent>
       </Tabs>
     </div>
-    </>
+    </div>
   );
 }
 

@@ -161,7 +161,7 @@ function SalesOrdersPage() {
   });
 
   return (
-    <>
+    <div>
       <SalesTabs />
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -323,7 +323,7 @@ function SalesOrdersPage() {
         submitting={upsertMut.isPending}
       />
     </div>
-    </>
+    </div>
   );
 }
 

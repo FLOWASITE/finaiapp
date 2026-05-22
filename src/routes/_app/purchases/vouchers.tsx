@@ -453,7 +453,7 @@ function PurchaseVouchersPage() {
   }
 
   return (
-    <>
+    <div>
       <PurchaseTabs />
     <div className="space-y-4 p-4">
 
@@ -821,7 +821,7 @@ function PurchaseVouchersPage() {
         onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
       />
     </div>
-    </>
+    </div>
   );
 }
 

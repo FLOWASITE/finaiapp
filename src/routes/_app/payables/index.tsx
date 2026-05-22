@@ -30,7 +30,7 @@ function PayablesPage() {
   );
 
   return (
-    <>
+    <div>
       <PurchaseTabs />
       <div className="p-8 space-y-6">
         <div>
@@ -86,6 +86,6 @@ function PayablesPage() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   );
 }
