@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -158,6 +159,11 @@ import { Route as AppSalesOrdersIdPrintRouteImport } from './routes/_app/sales/o
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
 import { Route as AppAssetsEventIdPrintRouteImport } from './routes/_app/assets/event.$id.print'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -917,6 +923,7 @@ const AppAssetsEventIdPrintRoute = AppAssetsEventIdPrintRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/welcome': typeof WelcomeRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/alerts': typeof AppAlertsRoute
   '/bank': typeof AppBankRouteWithChildren
@@ -1066,6 +1073,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/welcome': typeof WelcomeRoute
   '/alerts': typeof AppAlertsRoute
   '/cashflow': typeof AppCashflowRoute
   '/dashboard': typeof AppDashboardRoute
@@ -1211,6 +1219,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/welcome': typeof WelcomeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/bank': typeof AppBankRouteWithChildren
@@ -1362,6 +1371,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/welcome'
     | '/admin'
     | '/alerts'
     | '/bank'
@@ -1511,6 +1521,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/welcome'
     | '/alerts'
     | '/cashflow'
     | '/dashboard'
@@ -1655,6 +1666,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/welcome'
     | '/_app/admin'
     | '/_app/alerts'
     | '/_app/bank'
@@ -1806,6 +1818,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  WelcomeRoute: typeof WelcomeRoute
   InviteTokenRoute: typeof InviteTokenRoute
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
@@ -1817,6 +1830,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -3263,6 +3283,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  WelcomeRoute: WelcomeRoute,
   InviteTokenRoute: InviteTokenRoute,
   ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
