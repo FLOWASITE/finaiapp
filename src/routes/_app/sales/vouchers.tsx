@@ -746,7 +746,7 @@ function SalesVouchersPage() {
   };
 
   return (
-    <>
+    <div>
       <SalesTabs />
     <div className="py-6 px-4 space-y-4">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
@@ -1135,7 +1135,7 @@ function SalesVouchersPage() {
         onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
       />
     </div>
-    </>
+    </div>
   );
 }
 

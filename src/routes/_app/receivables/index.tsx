@@ -28,7 +28,7 @@ function ReceivablesPage() {
   );
 
   return (
-    <>
+    <div>
       <SalesTabs />
     <div className="p-8 space-y-6">
       <div>
@@ -90,6 +90,6 @@ function ReceivablesPage() {
         </TabsContent>
       </Tabs>
     </div>
-    </>
+    </div>
   );
 }
