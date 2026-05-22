@@ -671,8 +671,6 @@ function VoucherDialog({
   removeLine,
   onSave,
   saving,
-  onPostNew,
-  posting,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
@@ -684,8 +682,6 @@ function VoucherDialog({
   removeLine: (i: number) => void;
   onSave: () => void;
   saving: boolean;
-  onPostNew: () => void;
-  posting: boolean;
 }) {
   const branchFn = useServerFn(listBranches);
   const { data: branches } = useQuery({
