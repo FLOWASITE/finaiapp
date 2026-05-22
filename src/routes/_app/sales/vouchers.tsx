@@ -643,6 +643,8 @@ function SalesVouchersPage() {
             issue_date: form.einvoice.issue_date || null,
             tct_lookup_code: form.einvoice.tct_lookup_code || null,
             notes: form.einvoice.notes || null,
+            pdf_path: form.einvoice.pdf_path || null,
+            xml_path: form.einvoice.xml_path || null,
           }
         : null,
     };
