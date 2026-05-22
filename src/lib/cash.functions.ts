@@ -48,7 +48,41 @@ export const listCashVouchers = createServerFn({ method: "GET" })
       .order("voucher_date", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    return data;
+    const rows = data ?? [];
+    const ids = rows.map((r: any) => r.id);
+    const attMap = new Map<string, any[]>();
+    if (ids.length) {
+      const { data: links } = await supabase
+        .from("document_links")
+        .select("entity_id, documents!inner(id, original_filename, storage_bucket, storage_path, mime_type)")
+        .eq("entity_table", "cash_vouchers")
+        .in("entity_id", ids);
+      for (const l of (links ?? []) as any[]) {
+        const arr = attMap.get(l.entity_id) ?? [];
+        arr.push(l.documents);
+        attMap.set(l.entity_id, arr);
+      }
+    }
+    return rows.map((r: any) => ({ ...r, attachments: attMap.get(r.id) ?? [] }));
+  });
+
+export const deleteCashVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: v } = await supabase
+      .from("cash_vouchers")
+      .select("journal_entry_id")
+      .eq("id", data.id)
+      .single();
+    if (!v) throw new Error("Không tìm thấy phiếu");
+    await supabase.from("cash_vouchers").delete().eq("id", data.id);
+    if (v.journal_entry_id) {
+      await supabase.from("journal_lines").delete().eq("entry_id", v.journal_entry_id);
+      await supabase.from("journal_entries").delete().eq("id", v.journal_entry_id);
+    }
+    return { ok: true };
   });
 
 export const createCashVoucher = createServerFn({ method: "POST" })
