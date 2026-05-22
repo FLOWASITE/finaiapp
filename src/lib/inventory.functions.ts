@@ -1021,7 +1021,7 @@ export const listStockVouchers = createServerFn({ method: "POST" })
     const { supabase } = context;
     let q = supabase
       .from("stock_vouchers")
-      .select("*, warehouses(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
+      .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
