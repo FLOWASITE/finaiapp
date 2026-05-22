@@ -16,7 +16,7 @@ import {
   suggestSalesVoucherNo,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
-import { listBranches } from "@/lib/branches.functions";
+import { listBranches } from "@/lib/dimensions.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 
@@ -199,8 +199,8 @@ function SalesVouchersPage() {
     error,
   } = useQuery({
     queryKey: ["sales-vouchers"],
-    queryFn: () => list({}),
-    ...QUERY_PRESETS.LIVE,
+    queryFn: () => list({ data: {} }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   const [open, setOpen] = useState(false);
@@ -229,8 +229,8 @@ function SalesVouchersPage() {
       currency: voucher.currency ?? "VND",
       debit_account: voucher.debit_account ?? "1311",
       branch_id: voucher.branch_id,
-      payment_method: voucher.payment_method,
-      payment_status: voucher.payment_status,
+      payment_method: voucher.payment_method as "credit" | "cash" | "bank",
+      payment_status: voucher.payment_status as "unpaid" | "partial" | "paid",
       pay_now: voucher.pay_now,
       issue_einvoice: voucher.issue_einvoice,
       create_stock_voucher: voucher.create_stock_voucher,
