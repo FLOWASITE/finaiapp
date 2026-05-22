@@ -341,35 +341,27 @@ function PurchaseVouchersPage() {
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Pay dialogs for the "Thanh toán" column icons
-  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
-  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const payFn = useServerFn(recordPurchaseVoucherPayment);
+  const payMut = useMutation({
+    mutationFn: (v: { voucher_id: string; method: "cash" | "bank"; amount: number }) =>
+      payFn({ data: v }),
+    onSuccess: (_d, v) => {
+      toast.success(v.method === "cash" ? "Đã chi tiền mặt" : "Đã chi qua ngân hàng");
+      qc.invalidateQueries({ queryKey: ["purchase-vouchers"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi chi tiền"),
+  });
 
   const openPayCash = (r: any, remain: number) => {
+    if (r.status !== "posted") { toast.info("Cần ghi sổ phiếu trước khi chi tiền"); return; }
     if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
-    setPayCash({
-      open: true,
-      prefill: {
-        partyId: r.supplier_id ?? null,
-        partyName: r.supplier_name ?? "",
-        amount: remain,
-        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
-        counterAccount: "331",
-      },
-    });
+    payMut.mutate({ voucher_id: r.id, method: "cash", amount: remain });
   };
   const openPayBank = (r: any, remain: number) => {
+    if (r.status !== "posted") { toast.info("Cần ghi sổ phiếu trước khi chi tiền"); return; }
     if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
-    setPayBank({
-      open: true,
-      prefill: {
-        partyId: r.supplier_id ?? null,
-        partyName: r.supplier_name ?? "",
-        amount: remain,
-        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
-        counterAccount: "331",
-      },
-    });
+    payMut.mutate({ voucher_id: r.id, method: "bank", amount: remain });
   };
 
   const { data, refetch, isLoading, isError, error } = useQuery({
