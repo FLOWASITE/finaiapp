@@ -910,9 +910,10 @@ function SalesVouchersPage() {
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
