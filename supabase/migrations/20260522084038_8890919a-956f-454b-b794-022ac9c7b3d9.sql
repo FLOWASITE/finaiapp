@@ -1,0 +1,1 @@
+ALTER TABLE public.purchase_vouchers ADD COLUMN IF NOT EXISTS paid_amount numeric NOT NULL DEFAULT 0;

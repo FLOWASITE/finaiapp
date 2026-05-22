@@ -19,6 +19,7 @@ import {
   deletePurchaseVoucher,
   suggestVoucherNo,
   listLinkablePurchaseInvoices,
+  recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
@@ -340,35 +341,27 @@ function PurchaseVouchersPage() {
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Pay dialogs for the "Thanh toán" column icons
-  const [payCash, setPayCash] = useState<{ open: boolean; prefill?: any }>({ open: false });
-  const [payBank, setPayBank] = useState<{ open: boolean; prefill?: any }>({ open: false });
+  const payFn = useServerFn(recordPurchaseVoucherPayment);
+  const payMut = useMutation({
+    mutationFn: (v: { voucher_id: string; method: "cash" | "bank"; amount: number }) =>
+      payFn({ data: v }),
+    onSuccess: (_d, v) => {
+      toast.success(v.method === "cash" ? "Đã chi tiền mặt" : "Đã chi qua ngân hàng");
+      qc.invalidateQueries({ queryKey: ["purchase-vouchers"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Lỗi chi tiền"),
+  });
 
   const openPayCash = (r: any, remain: number) => {
+    if (r.status !== "posted") { toast.info("Cần ghi sổ phiếu trước khi chi tiền"); return; }
     if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
-    setPayCash({
-      open: true,
-      prefill: {
-        partyId: r.supplier_id ?? null,
-        partyName: r.supplier_name ?? "",
-        amount: remain,
-        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
-        counterAccount: "331",
-      },
-    });
+    payMut.mutate({ voucher_id: r.id, method: "cash", amount: remain });
   };
   const openPayBank = (r: any, remain: number) => {
+    if (r.status !== "posted") { toast.info("Cần ghi sổ phiếu trước khi chi tiền"); return; }
     if (remain <= 0) { toast.info("Phiếu đã thanh toán đủ"); return; }
-    setPayBank({
-      open: true,
-      prefill: {
-        partyId: r.supplier_id ?? null,
-        partyName: r.supplier_name ?? "",
-        amount: remain,
-        reason: `Thanh toán phiếu mua ${r.voucher_no}`,
-        counterAccount: "331",
-      },
-    });
+    payMut.mutate({ voucher_id: r.id, method: "bank", amount: remain });
   };
 
   const { data, refetch, isLoading, isError, error } = useQuery({
@@ -422,9 +415,21 @@ function PurchaseVouchersPage() {
 
   const rows: any[] = data?.rows ?? [];
 
-  // Heuristic: phiếu xem là "đã thanh toán đủ" nếu có cash_voucher_id hoặc bank_voucher_id
-  const isPaidRow = (r: any) =>
-    !!(r.cash_voucher_id || r.bank_voucher_id) || r.payment_method === "cash" || r.payment_method === "bank";
+  // Phiếu xem là "đã thanh toán đủ" khi paid_amount >= total, hoặc payment_status='paid',
+  // hoặc thanh toán ngay khi tạo (cash/bank với cash_voucher_id/bank_voucher_id).
+  const isPaidRow = (r: any) => {
+    const total = Number(r.total || 0);
+    const paid = Number(r.paid_amount || 0);
+    if (r.payment_status === "paid") return true;
+    if (total > 0 && paid >= total - 0.01) return true;
+    return !!(r.cash_voucher_id || r.bank_voucher_id);
+  };
+  const paidOf = (r: any) => {
+    const total = Number(r.total || 0);
+    const paid = Number(r.paid_amount || 0);
+    if (paid > 0) return Math.min(paid, total);
+    return isPaidRow(r) ? total : 0;
+  };
 
   const kpi = useMemo(() => {
     let noInvoice = 0;
@@ -675,7 +680,7 @@ function PurchaseVouchersPage() {
                 <TableBody>
                   {rows.map((r: any, idx: number) => {
                     const total = Number(r.total || 0);
-                    const paid = isPaidRow(r) ? total : 0;
+                    const paid = paidOf(r);
                     const remain = Math.max(0, total - paid);
                     const isSel = selected.has(r.id);
                     const isPosted = r.status === "posted";
@@ -812,20 +817,6 @@ function PurchaseVouchersPage() {
         onCreated={() => { refetch(); setOpenCreate(false); }}
       />
 
-      <VoucherFormDialog
-        type="payment"
-        open={payCash.open}
-        onOpenChange={(o) => setPayCash((s) => ({ ...s, open: o }))}
-        prefill={payCash.prefill}
-        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
-      />
-      <BankVoucherFormDialog
-        type="payment"
-        open={payBank.open}
-        onOpenChange={(o) => setPayBank((s) => ({ ...s, open: o }))}
-        prefill={payBank.prefill}
-        onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["purchase-vouchers"] }); }}
-      />
     </div>
     </div>
   );
