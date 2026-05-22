@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus } from "lucide-react";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
 
@@ -85,13 +86,9 @@ export function VoucherListPage({ type }: Props) {
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-6">
-          <div className="space-y-1">
-            <Label className="text-xs">Từ ngày</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <div className="space-y-1 md:col-span-2">
+            <Label className="text-xs">Kỳ</Label>
+            <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} className="w-full justify-start" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Kho</Label>
