@@ -168,10 +168,10 @@ function LoginPage() {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8"
+      className="min-h-screen w-full flex items-start sm:items-center justify-center p-0 sm:p-8"
       style={{ background: "var(--gradient-login-bg)" }}
     >
-      <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-black/5 grid lg:grid-cols-2">
+      <div className="w-full max-w-5xl overflow-hidden rounded-none sm:rounded-2xl bg-card shadow-none sm:shadow-2xl ring-1 ring-black/5 grid lg:grid-cols-2 min-h-screen sm:min-h-0">
         {/* Left brand panel */}
         <aside
           className="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden"
@@ -233,19 +233,19 @@ function LoginPage() {
         </aside>
 
         {/* Right form panel */}
-        <main className="bg-card px-6 py-10 sm:px-10 sm:py-12 flex flex-col justify-center">
-          <Link to="/" className="mb-6 inline-flex items-center gap-2 lg:hidden">
+        <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
+          <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center gap-2 lg:hidden">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
               A
             </div>
             <span className="font-semibold tracking-tight">FinAI</span>
           </Link>
 
-          <h1 className="lg:hidden text-2xl font-semibold tracking-tight mb-6">
+          <h1 className="lg:hidden text-3xl font-bold tracking-tight mb-6 text-center">
             Xin chào, mừng bạn!
           </h1>
 
-          <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4" noValidate>
             {formError && (
               <div
                 role="alert"
@@ -266,12 +266,12 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-3 rounded-2xl bg-muted/40 pl-2 pr-4 h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
                   errors.email && "ring-destructive/50 focus-within:ring-destructive/50",
                 )}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
-                  <Mail className="h-5 w-5" />
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
@@ -285,7 +285,7 @@ function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="ten@congty.com"
-                    className="w-full bg-transparent border-0 p-0 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -303,12 +303,12 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-3 rounded-2xl bg-muted/40 pl-2 pr-2 h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-2 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
                   errors.password && "ring-destructive/50 focus-within:ring-destructive/50",
                 )}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
-                  <Lock className="h-5 w-5" />
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
@@ -322,7 +322,7 @@ function LoginPage() {
                     type={showPw ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
                     placeholder="••••••••"
-                    className="w-full bg-transparent border-0 p-0 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -333,7 +333,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   tabIndex={-1}
                 >
@@ -366,11 +366,11 @@ function LoginPage() {
 
             {/* Remember + Forgot row */}
             {!isSignup && (
-              <div className="flex items-center justify-between px-1 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs sm:text-sm">
                 <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/40"
+                    className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-border text-primary focus:ring-primary/40"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -391,7 +391,7 @@ function LoginPage() {
               onClick={submitLogin ? undefined : () => setIsSignup(false)}
               disabled={loading && submitLogin}
               className={cn(
-                "w-full h-14 rounded-2xl bg-card text-primary font-semibold text-base ring-1 ring-border shadow-[0_10px_30px_-10px_oklch(0.3_0.08_260/0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.3_0.08_260/0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-card text-primary font-semibold text-sm sm:text-base ring-1 ring-border shadow-[0_10px_30px_-10px_oklch(0.3_0.08_260/0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.3_0.08_260/0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
               )}
             >
               {loading && submitLogin ? (
@@ -414,7 +414,7 @@ function LoginPage() {
               onClick={!submitLogin ? undefined : () => setIsSignup(true)}
               disabled={loading && !submitLogin}
               className={cn(
-                "w-full h-14 rounded-2xl text-white font-semibold text-base shadow-[0_10px_30px_-10px_oklch(0.55_0.18_240/0.55)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.55_0.18_240/0.7)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl text-white font-semibold text-sm sm:text-base shadow-[0_10px_30px_-10px_oklch(0.55_0.18_240/0.55)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.55_0.18_240/0.7)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
               )}
               style={{
                 background: !submitLogin
