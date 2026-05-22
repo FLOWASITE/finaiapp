@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark } from "lucide-react";
 
 import {
   listSalesVouchers,
@@ -14,6 +14,7 @@ import {
   postSalesVoucher,
   voidSalesVoucher,
   suggestSalesVoucherNo,
+  recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listBranches } from "@/lib/dimensions.functions";
@@ -333,6 +334,7 @@ function SalesVouchersPage() {
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
+  const receiptFn = useServerFn(recordSalesVoucherReceipt);
 
   // ---------- Filters ----------
   type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
@@ -661,6 +663,37 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
   });
 
+  // Quick payment dialog
+  const [payDlg, setPayDlg] = useState<
+    | { open: false }
+    | { open: true; voucherId: string; voucherNo: string; method: "cash" | "bank"; remain: number }
+  >({ open: false });
+  const [payAmount, setPayAmount] = useState<string>("");
+  const [payDate, setPayDate] = useState<string>(todayISO());
+
+  const receiptMut = useMutation({
+    mutationFn: async (input: { voucher_id: string; method: "cash" | "bank"; amount: number; pay_date: string }) =>
+      receiptFn({ data: input }),
+    onSuccess: () => {
+      toast.success("Đã ghi nhận thu tiền");
+      setPayDlg({ open: false });
+      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
+      invalidateLedgers(qc);
+    },
+    onError: (e: any) => toast.error(e?.message || "Ghi nhận thu tiền thất bại"),
+  });
+
+  const openPay = (v: any, method: "cash" | "bank") => {
+    const remain = Math.max(0, Number(v.total || 0) - Number(v.paid_amount || 0));
+    if (remain <= 0) {
+      toast.info("Phiếu đã thanh toán đủ");
+      return;
+    }
+    setPayAmount(String(Math.round(remain)));
+    setPayDate(todayISO());
+    setPayDlg({ open: true, voucherId: v.id, voucherNo: v.voucher_no, method, remain });
+  };
+
   return (
     <div className="container mx-auto py-6 px-4 space-y-4">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
@@ -865,7 +898,7 @@ function SalesVouchersPage() {
                     <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Còn phải thu</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Thanh toán</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -960,8 +993,31 @@ function SalesVouchersPage() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <StatusDot ok={isPaid} />
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {isPaid ? (
+                            <StatusDot ok />
+                          ) : isPosted && !isVoid ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openPay(v, "cash")}
+                                title="Tạo phiếu thu tiền mặt"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <CircleDollarSign className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openPay(v, "bank")}
+                                title="Tạo báo có ngân hàng"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              >
+                                <Landmark className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <StatusDot ok={false} />
+                          )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
@@ -1026,6 +1082,61 @@ function SalesVouchersPage() {
         }}
         saving={saveAndPostMut.isPending}
       />
+
+      <Dialog open={payDlg.open} onOpenChange={(o) => !o && setPayDlg({ open: false })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {payDlg.open && payDlg.method === "cash" ? "Tạo phiếu thu tiền mặt" : "Tạo báo có ngân hàng"}
+            </DialogTitle>
+          </DialogHeader>
+          {payDlg.open && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Phiếu <span className="font-mono text-foreground">{payDlg.voucherNo}</span> — Còn phải thu:{" "}
+                <span className="font-semibold text-rose-600">{fmtMoney(payDlg.remain)}</span>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ngày thu</Label>
+                <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Số tiền</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setPayDlg({ open: false })}>
+                  Huỷ
+                </Button>
+                <Button
+                  disabled={receiptMut.isPending}
+                  onClick={() => {
+                    const amt = Number(payAmount);
+                    if (!amt || amt <= 0) {
+                      toast.error("Số tiền không hợp lệ");
+                      return;
+                    }
+                    receiptMut.mutate({
+                      voucher_id: payDlg.voucherId,
+                      method: payDlg.method,
+                      amount: amt,
+                      pay_date: payDate,
+                    });
+                  }}
+                >
+                  {receiptMut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                  Ghi nhận
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
