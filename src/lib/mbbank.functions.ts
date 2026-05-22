@@ -6,11 +6,12 @@ import { encryptAesGcm, signHmac } from "@/lib/crypto.server";
 
 export const setMbCredentials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { bank_account_id: string; username: string; password: string }) =>
+  .inputValidator((d: { bank_account_id: string; username: string; password: string; corporate_id?: string | null }) =>
     z.object({
       bank_account_id: z.string().uuid(),
       username: z.string().min(1).max(100),
       password: z.string().min(1).max(200),
+      corporate_id: z.string().trim().min(1).max(50).regex(/^[A-Za-z0-9._-]+$/).nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -19,9 +20,17 @@ export const setMbCredentials = createServerFn({ method: "POST" })
       .from("bank_accounts").select("id").eq("id", data.bank_account_id).maybeSingle();
     if (e1 || !acc) throw new Error("Không tìm thấy tài khoản");
     const { cipher, iv } = encryptAesGcm(data.password);
+    const patch: Record<string, unknown> = {
+      mb_username: data.username,
+      mb_password_enc: cipher,
+      mb_password_iv: iv,
+    };
+    if (data.corporate_id !== undefined) {
+      patch.mb_corporate_id = data.corporate_id ? data.corporate_id.trim() : null;
+    }
     const { error } = await supabase
       .from("bank_accounts")
-      .update({ mb_username: data.username, mb_password_enc: cipher, mb_password_iv: iv } as any)
+      .update(patch as any)
       .eq("id", data.bank_account_id);
     if (error) throw new Error(error.message);
     return { ok: true };
