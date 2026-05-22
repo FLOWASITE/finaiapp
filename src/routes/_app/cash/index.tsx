@@ -16,6 +16,12 @@ import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/vo
 
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
+const CASH_TABS = [
+  { value: "vouchers", label: "Phiếu thu / chi" },
+  { value: "book", label: "Sổ quỹ tiền mặt" },
+] as const;
+type CashTabValue = (typeof CASH_TABS)[number]["value"];
+
 function CashPage() {
   const qc = useQueryClient();
   const list = useServerFn(listCashVouchers);
