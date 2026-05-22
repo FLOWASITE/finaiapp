@@ -748,86 +748,168 @@ function SalesVouchersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Số phiếu</TableHead>
-                    <TableHead>Ngày</TableHead>
-                    <TableHead>Khách hàng</TableHead>
-                    <TableHead>Mô tả</TableHead>
-                    <TableHead className="text-right">Tổng tiền</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead></TableHead>
+              <Table className="text-[13px]">
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-9 px-2">
+                      <Checkbox
+                        checked={allSelected || (someSelected && "indeterminate")}
+                        onCheckedChange={toggleAll}
+                        aria-label="Chọn tất cả"
+                      />
+                    </TableHead>
+                    <TableHead className="w-10 text-center">STT</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
+                    <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
+                    <TableHead className="whitespace-nowrap">Kỳ hạch toán</TableHead>
+                    <TableHead className="min-w-[200px]">Khách hàng</TableHead>
+                    <TableHead className="min-w-[260px]">Mô tả</TableHead>
+                    <TableHead className="whitespace-nowrap">Loại phiếu</TableHead>
+                    <TableHead className="whitespace-nowrap">Phiếu xuất kho</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT xuất kho</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Chiết khấu</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Đã thanh toán</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Còn phải thu</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">Tài liệu</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">TT thanh toán</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(vouchers?.rows ?? []).map((v: any) => (
-                    <TableRow
-                      key={v.id}
-                      className="cursor-pointer hover:bg-accent"
-                      onClick={() => openEdit(v.id)}
-                    >
-                      <TableCell className="font-mono">{v.voucher_no}</TableCell>
-                      <TableCell>{v.voucher_date}</TableCell>
-                      <TableCell>{v.customer_name ?? "—"}</TableCell>
-                      <TableCell className="max-w-[280px] truncate">{v.reason}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {fmtMoney(Number(v.total))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            v.status === "posted"
-                              ? "default"
-                              : v.status === "void"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
-                          {v.status === "posted"
-                            ? "Đã ghi sổ"
-                            : v.status === "void"
-                              ? "Đã huỷ"
-                              : "Nháp"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(v.id)}>
-                              Mở phiếu
-                            </DropdownMenuItem>
-                            {v.status !== "posted" && v.status !== "void" && (
-                              <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
-                                <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                  {rows.map((v: any, idx: number) => {
+                    const total = Number(v.total || 0);
+                    const paid = Number(v.paid_amount || 0);
+                    const remain = Math.max(0, total - paid);
+                    const period = v.voucher_date
+                      ? `T${String(new Date(v.voucher_date).getMonth() + 1).padStart(2, "0")}/${new Date(v.voucher_date).getFullYear()}`
+                      : "—";
+                    const isSel = selected.has(v.id);
+                    const isPosted = v.status === "posted";
+                    const isVoid = v.status === "void";
+                    const isPaid = v.payment_status === "paid";
+                    return (
+                      <TableRow
+                        key={v.id}
+                        className={`cursor-pointer hover:bg-accent/60 ${isSel ? "bg-primary/5" : ""}`}
+                        onClick={() => openEdit(v.id)}
+                        style={{ height: 40 }}
+                      >
+                        <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSel}
+                            onCheckedChange={() => toggleOne(v.id)}
+                            aria-label="Chọn dòng"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground tabular-nums">
+                          {idx + 1}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{v.voucher_date}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">
+                          {v.voucher_no}
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                          {v.einvoice_no ?? "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {period}
+                        </TableCell>
+                        <TableCell className="truncate max-w-[260px]">
+                          {v.customer_name ?? "—"}
+                        </TableCell>
+                        <TableCell className="truncate max-w-[320px]">{v.reason}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          Trong nước
+                        </TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-muted-foreground">
+                          {v.stock_voucher_no ?? "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {v.einvoice_no ? v.voucher_date : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusDot ok={!!v.stock_voucher_id} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isVoid ? (
+                            <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
+                              Đã huỷ
+                            </Badge>
+                          ) : (
+                            <StatusDot ok={isPosted} />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {total > 0 ? fmtMoney(total) : "0"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {fmtMoney(Number(v.discount_amount || 0))}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {paid > 0 ? (
+                            <span className="text-emerald-600 dark:text-emerald-400">{fmtMoney(paid)}</span>
+                          ) : (
+                            "0"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {remain > 0 ? (
+                            <span className="text-rose-600 dark:text-rose-400">{fmtMoney(remain)}</span>
+                          ) : (
+                            "0"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {v.einvoice_id ? (
+                            <Paperclip className="h-3.5 w-3.5 inline text-muted-foreground" />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusDot ok={isPaid} />
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(v.id)}>
+                                Mở phiếu
                               </DropdownMenuItem>
-                            )}
-                            {v.status === "posted" && (
-                              <DropdownMenuItem
-                                onClick={() => voidMut.mutate(v.id)}
-                                className="text-destructive"
-                              >
-                                Huỷ ghi sổ
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            {v.status !== "posted" && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Xoá
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {!isPosted && !isVoid && (
+                                <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
+                                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                                </DropdownMenuItem>
+                              )}
+                              {isPosted && (
+                                <DropdownMenuItem
+                                  onClick={() => voidMut.mutate(v.id)}
+                                  className="text-destructive"
+                                >
+                                  Huỷ ghi sổ
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              {!isPosted && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Xoá
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
