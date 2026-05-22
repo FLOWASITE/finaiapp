@@ -72,13 +72,39 @@ function CashPage() {
       />
 
 
-      <Tabs defaultValue="vouchers">
-        <TabsList>
-          <TabsTrigger value="vouchers">Phiếu thu / chi</TabsTrigger>
-          <TabsTrigger value="book">Sổ quỹ tiền mặt</TabsTrigger>
-        </TabsList>
+      <div className="border-b border-border">
+        <nav className="flex gap-1 overflow-x-auto">
+          {CASH_TABS.map((t) => {
+            const active = tab === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTab(t.value)}
+                className={cn(
+                  "group relative shrink-0 px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.label}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none absolute left-2 right-2 -bottom-px h-[3px] rounded-full transition-all duration-300 ease-out",
+                    active
+                      ? "opacity-100 scale-x-100 bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[0_0_10px_hsl(var(--primary)/0.45)]"
+                      : "opacity-0 scale-x-50 bg-muted-foreground/40 group-hover:opacity-60 group-hover:scale-x-90",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
-        <TabsContent value="vouchers" className="rounded-lg border border-border bg-card">
+      {tab === "vouchers" && (
+        <div className="rounded-lg border border-border bg-card">
+
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase">
               <tr>
