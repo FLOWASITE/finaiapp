@@ -248,6 +248,19 @@ function Assets() {
         </div>
       </div>
 
+      {/* Quick links */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild><Link to="/assets/events">Biến động tài sản</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/disposal">Thanh lý / Nhượng bán</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/reclassify">Chuyển TSCĐ ↔ CCDC</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/inventory">Kiểm kê tài sản</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/allocations">Tài sản phân bổ</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/depreciation">Bảng tính khấu hao</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/books">Sổ khấu hao</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/assets/reports">Báo cáo TSCĐ</Link></Button>
+      </div>
+
+
       {/* KPIs */}
       <div className="grid gap-3 md:grid-cols-4">
         <Kpi icon={<Briefcase className="h-4 w-4" />} label="Số tài sản" value={String(stats.count)} tone="bg-indigo-100 text-indigo-700" />
