@@ -1267,7 +1267,7 @@ export type InventoryReportProductRow = {
   unit: string;
   category_name: string | null;
   warehouse_id: string | null;
-  warehouse_name: string | null;
+  warehouse_name: string;
   opening_qty: number;
   opening_value: number;
   in_qty: number;
