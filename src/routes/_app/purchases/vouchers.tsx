@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -475,27 +476,8 @@ function PurchaseVouchersPage() {
       <Card>
         <CardContent className="p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Popover open={dateOpen} onOpenChange={setDateOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <Calendar className="h-4 w-4 mr-1.5" />
-                  Từ {fmtDateVN(fFrom)} đến {fmtDateVN(fTo)}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 p-3 space-y-2">
-                <div>
-                  <Label className="text-xs mb-1 block">Từ ngày</Label>
-                  <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs mb-1 block">Đến ngày</Label>
-                  <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
-                </div>
-                <div className="flex justify-end pt-1">
-                  <Button size="sm" onClick={() => setDateOpen(false)}>Áp dụng</Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <DateRangeFilter from={fFrom} to={fTo} onChange={(r) => { setFFrom(r.from); setFTo(r.to); }} />
+
 
             <Input
               placeholder="Tìm số phiếu, NCC, diễn giải…"
