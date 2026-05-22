@@ -996,11 +996,15 @@ function SalesVouchersPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           {isVoid ? (
-                            <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
-                              Đã huỷ
-                            </Badge>
+                            <span
+                              title="Đã huỷ"
+                              aria-label="Đã huỷ"
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-destructive/15 text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </span>
                           ) : (
-                            <StatusDot ok={isPosted} />
+                            <StatusDot ok={isPosted} label={isPosted ? "Đã ghi sổ" : "Chưa ghi sổ"} />
                           )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
