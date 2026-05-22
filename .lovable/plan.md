@@ -1,75 +1,45 @@
 ## Mục tiêu
+- Sidebar: bỏ nhóm "Bán hàng" (không còn dropdown sub-items). Thay bằng 1 mục đơn `Bán hàng` → vào `/sales` (Tổng quan).
+- Trang Bán hàng có **tab bar** ở đầu, gồm: **Tổng quan · Đơn đặt hàng · Phiếu bán hàng · Hoá đơn bán · Hàng bán bị trả lại · Công nợ phải thu**.
+- Bỏ hẳn mục **Phiếu thu** khỏi sidebar (route `/receipts` vẫn giữ, chỉ ẩn khỏi nav).
 
-Xây 2 dialog độc lập (giống Phiếu mua hàng / bán hàng) để **Tạo & sửa Phiếu nhập kho / Phiếu xuất kho** với đầy đủ thông tin như ảnh tham chiếu, hỗ trợ nhiều dòng hàng hoá, tự sinh số phiếu `PNK{YYYY}-00001` / `PXK{YYYY}-00001`, in ra mẫu chuẩn 01-VT / 02-VT.
+## Thay đổi
 
-## Trường thông tin (theo ảnh)
+### 1. `src/components/app-sidebar.tsx`
+Thay block group "Bán hàng" hiện tại:
+```ts
+{ label: "Bán hàng", icon: ShoppingCart, items: [ ... 6 items, gồm Phiếu thu ] }
+```
+bằng 1 NavLeaf:
+```ts
+{ to: "/sales", label: "Bán hàng", icon: ShoppingCart }
+```
+Active state cho `/sales` cần match cả các route con (`/sales/*`, `/invoices`, `/receivables`, `/sales-returns`) để mục sáng đúng khi user đang ở các tab — sẽ kiểm tra trong `useRouterState().location.pathname`.
 
-**Header chung:**
-- Loại nhập/xuất (kind) — preset: Mua hàng / Trả NCC / Khác (nhập) · Bán hàng / Sản xuất / Trả lại / Khác (xuất)
-- Định khoản đối ứng (TK 331/111/621/641…) — combobox tài khoản
-- Đối tượng đối ứng (NCC / Khách hàng / Nhân viên) — combobox party
-- Số chứng từ — auto `PNK2026-00001` / `PXK2026-00001`, cho phép sửa
-- Chi nhánh — combobox `branches`
-- Ngày chứng từ
-- Số chứng từ gốc đi kèm (HĐ, hợp đồng…)
-- Số chứng từ giao nhận (nhập) / SĐT người nhận (xuất)
-- Người giao + Địa chỉ giao + Người nhận (nhập)
-- Người nhận + SĐT + Người giao hàng + Địa chỉ nhận (xuất)
-- Nội dung nhập / Lý do xuất (textarea)
+### 2. Component tab dùng chung
+Tạo `src/components/sales/SalesTabs.tsx`:
+- Render 6 tab dạng `<Link>` (TanStack Router, dùng `to` tuyệt đối, không nội suy params).
+- Tự highlight tab active dựa trên `pathname`.
+- Tabs:
+  | Label | to |
+  |---|---|
+  | Tổng quan | `/sales` |
+  | Đơn đặt hàng | `/sales/orders` |
+  | Phiếu bán hàng | `/sales/vouchers` |
+  | Hoá đơn bán | `/invoices` |
+  | Hàng bán bị trả lại | `/sales/returns` |
+  | Công nợ phải thu | `/receivables` |
 
-**Bảng dòng hàng hoá (nhiều dòng, giống phiếu mua):**
-- STT | Mặt hàng (combobox) | Mã (auto) | TK kho (152/156/155…) | Đơn vị (auto) | Kho | Số lượng | [Phương pháp giá kho – chỉ xuất] | Đơn giá / Giá xuất kho | Thành tiền | Xoá
-- Nút **Thêm** (1 dòng) và **Thêm nhiều** (chọn nhiều mặt hàng cùng lúc)
-- Hàng "Tổng" cuối bảng + chỉ báo **Tổng** ở góc phải header
+Gắn `<SalesTabs />` vào đầu các page: `_app/sales/index.tsx`, `_app/sales/orders.tsx`, `_app/sales/vouchers.tsx`, `_app/invoices/index.tsx`, `_app/receivables/index.tsx`, và route mới `_app/sales/returns.tsx`.
 
-**Footer:** Đính kèm tài liệu · In Phiếu nhập/xuất kho · Huỷ · Lưu và thoát
+### 3. Route mới `/sales/returns`
+Tạo `src/routes/_app/sales/returns.tsx` — placeholder page "Hàng bán bị trả lại" (empty state + nút "Tạo phiếu trả lại" disabled), kèm `<SalesTabs />`. Logic nghiệp vụ trả hàng sẽ phát triển sau (ngoài phạm vi turn này).
 
-## Thay đổi mã nguồn
+### 4. Không đụng
+- Backend / server functions
+- Logic của các page hiện có (chỉ thêm `<SalesTabs />` ở trên cùng)
+- Route `/receipts` vẫn còn (chỉ ẩn khỏi sidebar)
 
-**1. Migration DB** — thêm cột vào `stock_vouchers`:
-- `kind text` (loại nhập/xuất con: purchase/return_supplier/other_in · sale/production/return_customer/other_out)
-- `branch_id uuid` (FK branches), `party_id uuid`, `party_name text`, `party_phone text`, `party_address text`
-- `deliverer_name text` (người giao hàng cho phiếu xuất / người giao bên ngoài)
-- `receiver_name text` (người nhận)
-- `source_doc_no text` (số HĐ/CT gốc đi kèm), `source_doc_date date`
-- `transfer_doc_no text` (số CT giao nhận – chỉ nhập)
-- `attachments_count int`
-- Thêm cột `costing_method text` vào `stock_movements` (chỉ dùng cho dòng xuất; mặc định lấy từ product/setting)
-
-**2. Server functions** (`src/lib/inventory.functions.ts`):
-- Mở rộng `VoucherCreateSchema` & `VoucherUpdateSchema` để nhận tất cả trường mới ở header và `costing_method` ở từng dòng
-- Cập nhật `createStockVoucher`, `updateStockVoucher`, `getStockVoucher` ghi/đọc các cột mới
-- Đổi `nextStockVoucherNo`: prefix `PNK{YYYY}-` / `PXK{YYYY}-`, padStart 5
-
-**3. Component mới `src/components/inventory/StockVoucherFormDialog.tsx`**
-- Props: `type: "in" | "out"`, `open`, `onOpenChange`, `voucherId?` (sửa), `onSaved?`
-- Layout 4 cột header + bảng dòng + footer như ảnh
-- Combobox dùng lại: `AccountCombobox`, `PartyCombobox` (tách từ `voucher-form.tsx`), product picker từ `VoucherListPage`
-- "Thêm nhiều": dialog phụ chọn nhiều sản phẩm có checkbox
-- Auto-fill: Mã + Đơn vị + TK kho (từ `products.stock_account`) + Giá xuất kho (từ avg cost) khi chọn mặt hàng
-- Tự tính Thành tiền = SL × Đơn giá; ô Tổng cập nhật realtime
-- Bấm "Lưu và thoát" → gọi `createStockVoucher` / `updateStockVoucher`, toast, invalidate queries
-
-**4. Wire entry points**
-- `src/routes/_app/inventory/index.tsx`: nút "Tạo phiếu nhập kho" + "Tạo phiếu xuất kho" mở dialog tương ứng (thay vì link đến trang vouchers)
-- `src/components/inventory/VoucherListPage.tsx`:
-  - Nút "+ Tạo phiếu nhập" và "+ Tạo phiếu xuất" trên header
-  - Nút Sửa (Pencil) mở `StockVoucherFormDialog` ở chế độ edit thay vì dialog cũ
-  - Giữ dialog xem chi tiết hiện tại (read-only)
-
-**5. Cập nhật `src/lib/printVoucher.ts`** — bổ sung khối thông tin:
-- Đơn vị/Bộ phận (chi nhánh)
-- Người giao + địa chỉ + đơn vị · Người nhận
-- "Theo … số … ngày …" (số HĐ gốc)
-- Số CT kèm theo
-- 5 chữ ký: Người lập · Người giao · Người nhận · Thủ kho · Kế toán trưởng
-
-## Phạm vi không động đến
-
-- Logic tồn kho, bút toán tự sinh, giá vốn bình quân — giữ nguyên
-- Phiếu chuyển kho (transfer) — không nằm trong yêu cầu này
-- Trang Tồn kho / Thẻ kho / Báo cáo — không đổi
-
-## Sau khi xong
-
-Người dùng có thể bấm "Tạo phiếu nhập/xuất kho" → form đẹp giống ảnh → nhập nhiều dòng → Lưu → xem & in ra mẫu 01-VT/02-VT đầy đủ.
+## Ghi chú
+- Phiếu thu được gỡ khỏi nav theo yêu cầu. Nếu sau này cần truy cập, sẽ đưa vào bên trong tab "Công nợ phải thu" hoặc trang Tổng quan bán hàng.
+- "Hàng bán bị trả lại" hiện chưa có schema/UI — đợt này chỉ tạo khung tab + trang trống.
