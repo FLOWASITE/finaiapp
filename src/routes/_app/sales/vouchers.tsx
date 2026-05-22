@@ -16,7 +16,7 @@ import {
   suggestSalesVoucherNo,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
-import { listBranches } from "@/lib/branches.functions";
+import { listBranches } from "@/lib/dimensions.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 
