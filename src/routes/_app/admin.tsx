@@ -39,7 +39,7 @@ function AdminLayout() {
         </div>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-border">
+      <nav className="inline-flex items-center gap-1 rounded-2xl border border-white/5 bg-background/60 p-1 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 overflow-x-auto max-w-full">
         {TABS.map((t) => {
           const active = t.exact ? pathname === t.to : pathname === t.to || pathname.startsWith(t.to + "/");
           const Icon = t.icon;
@@ -47,10 +47,10 @@ function AdminLayout() {
             <Link
               key={t.to}
               to={t.to}
-              className={`flex items-center gap-1.5 rounded-t-md px-3 py-2 text-sm transition-colors ${
+              className={`inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap ${
                 active
-                  ? "border-b-2 border-primary text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-br from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -59,6 +59,7 @@ function AdminLayout() {
           );
         })}
       </nav>
+
 
       <Outlet />
     </div>
