@@ -86,6 +86,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { SalesTabs } from "@/components/sales/SalesTabs";
 import { CustomerCombobox, type CustomerLite } from "@/components/customer-combobox";
 import { VAT_CODES, type VatCode, calcLineTax } from "@/lib/vat-codes";
 
