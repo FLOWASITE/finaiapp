@@ -415,9 +415,21 @@ function PurchaseVouchersPage() {
 
   const rows: any[] = data?.rows ?? [];
 
-  // Heuristic: phiếu xem là "đã thanh toán đủ" nếu có cash_voucher_id hoặc bank_voucher_id
-  const isPaidRow = (r: any) =>
-    !!(r.cash_voucher_id || r.bank_voucher_id) || r.payment_method === "cash" || r.payment_method === "bank";
+  // Phiếu xem là "đã thanh toán đủ" khi paid_amount >= total, hoặc payment_status='paid',
+  // hoặc thanh toán ngay khi tạo (cash/bank với cash_voucher_id/bank_voucher_id).
+  const isPaidRow = (r: any) => {
+    const total = Number(r.total || 0);
+    const paid = Number(r.paid_amount || 0);
+    if (r.payment_status === "paid") return true;
+    if (total > 0 && paid >= total - 0.01) return true;
+    return !!(r.cash_voucher_id || r.bank_voucher_id);
+  };
+  const paidOf = (r: any) => {
+    const total = Number(r.total || 0);
+    const paid = Number(r.paid_amount || 0);
+    if (paid > 0) return Math.min(paid, total);
+    return isPaidRow(r) ? total : 0;
+  };
 
   const kpi = useMemo(() => {
     let noInvoice = 0;
