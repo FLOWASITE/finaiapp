@@ -269,7 +269,7 @@ function ItemsListPage() {
                 </th>
                 <th className="px-3 py-2 text-left">Mã</th>
                 <th className="px-3 py-2 text-left">Tên</th>
-                <th className="px-3 py-2 text-left">Loại</th>
+                <th className="px-3 py-2 text-left">Loại / Dùng cho</th>
                 <th className="px-3 py-2 text-left">Nhóm</th>
                 <th className="px-3 py-2 text-left">ĐVT</th>
                 <th className="px-3 py-2 text-left">Mã vạch</th>
@@ -277,7 +277,6 @@ function ItemsListPage() {
                 <th className="px-3 py-2 text-right">Giá vốn</th>
                 <th className="px-3 py-2 text-right">Tồn</th>
                 <th className="px-3 py-2 text-right">VAT</th>
-                <th className="px-3 py-2 text-left">Dùng cho</th>
                 <th className="px-3 py-2 text-left">TK DT / CP / Kho</th>
                 <th className="px-3 py-2 text-left">Trạng thái</th>
                 <th className="px-3 py-2 w-10"></th>
@@ -307,9 +306,24 @@ function ItemsListPage() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>
-                        {ITEM_TYPE_LABEL[t]}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant="outline" className={`${ITEM_TYPE_BADGE[t]} text-[10px]`}>
+                          {ITEM_TYPE_LABEL[t]}
+                        </Badge>
+                        {p.can_be_sold && (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <Tag className="h-2.5 w-2.5 mr-0.5" />Bán
+                          </Badge>
+                        )}
+                        {p.can_be_purchased && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />Mua
+                          </Badge>
+                        )}
+                        {!p.can_be_sold && !p.can_be_purchased && (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
                       {p.product_categories?.name ?? "—"}
@@ -333,20 +347,6 @@ function ItemsListPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{p.vat_rate ?? 0}%</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {p.can_be_sold && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
-                            <Tag className="h-2.5 w-2.5 mr-0.5" />Bán
-                          </Badge>
-                        )}
-                        {p.can_be_purchased && (
-                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />Mua
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
                     <td className="px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                       {(p.can_be_sold ? p.revenue_account || "—" : "—")}
                       {" / "}
@@ -414,7 +414,7 @@ function ItemsListPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={15} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={14} className="px-4 py-12 text-center text-muted-foreground">
                     Chưa có mặt hàng phù hợp
                   </td>
                 </tr>
