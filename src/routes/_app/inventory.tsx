@@ -23,7 +23,7 @@ function InventoryLayout() {
             return (
               <Link
                 key={t.to}
-                to={t.to}
+                to={t.to as any}
                 className={cn(
                   "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                   active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
