@@ -362,6 +362,42 @@ function SalesVouchersPage() {
     setFSearch("");
   }
 
+  // ---------- Selection ----------
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const rows = (vouchers?.rows ?? []) as any[];
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someSelected = !allSelected && rows.some((r) => selected.has(r.id));
+  function toggleAll() {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map((r) => r.id)));
+  }
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // ---------- KPI ----------
+  const kpi = useMemo(() => {
+    let noInvoice = 0;
+    let revenue = 0;
+    let paid = 0;
+    let receivable = 0;
+    for (const r of rows) {
+      if (r.status === "void") continue;
+      const total = Number(r.total || 0);
+      const pAmt = Number(r.paid_amount || 0);
+      if (!r.einvoice_id) noInvoice += 1;
+      revenue += total;
+      paid += pAmt;
+      receivable += Math.max(0, total - pAmt);
+    }
+    return { noInvoice, revenue, paid, receivable };
+  }, [rows]);
+
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
 
