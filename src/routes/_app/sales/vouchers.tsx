@@ -334,6 +334,7 @@ function SalesVouchersPage() {
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
+  const receiptFn = useServerFn(recordSalesVoucherReceipt);
 
   // ---------- Filters ----------
   type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
