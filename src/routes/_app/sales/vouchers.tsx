@@ -335,6 +335,8 @@ function SalesVouchersPage() {
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
   const receiptFn = useServerFn(recordSalesVoucherReceipt);
+  const branchFnPage = useServerFn(listBranches);
+  const productsFnPage = useServerFn(listProducts);
 
   // ---------- Filters ----------
   type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
@@ -446,10 +448,29 @@ function SalesVouchersPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
 
-  async function openCreate() {
-    const r = await suggest({ data: { voucher_date: todayISO() } });
-    setForm(blankForm(r.voucher_no));
+  function openCreate() {
+    // Mở dialog ngay; số phiếu fetch song song và patch sau khi có
+    setForm(blankForm());
     setOpen(true);
+    suggest({ data: { voucher_date: todayISO() } })
+      .then((r) => {
+        setForm((f) => (f.voucher_no ? f : { ...f, voucher_no: r.voucher_no }));
+      })
+      .catch(() => {});
+  }
+
+  // Warm-up cache cho dialog tạo phiếu (gọi khi hover/focus nút)
+  function prefetchCreate() {
+    qc.prefetchQuery({
+      queryKey: ["branches"],
+      queryFn: () => branchFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["products-picker"],
+      queryFn: () => productsFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
+    }).catch(() => {});
   }
 
   async function openEdit(id: string) {
@@ -706,6 +727,8 @@ function SalesVouchersPage() {
         <div className="shrink-0 inline-flex rounded-md shadow-sm">
           <Button
             onClick={openCreate}
+            onMouseEnter={prefetchCreate}
+            onFocus={prefetchCreate}
             className="rounded-r-none border-r border-primary-foreground/20"
           >
             <Plus className="h-4 w-4 mr-1" /> Phiếu BH trong nước

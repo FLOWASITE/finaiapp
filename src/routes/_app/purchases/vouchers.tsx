@@ -242,6 +242,9 @@ function PurchaseVouchersPage() {
   const postFn = useServerFn(postPurchaseVoucher);
   const voidFn = useServerFn(voidPurchaseVoucher);
   const delFn = useServerFn(deletePurchaseVoucher);
+  const suppliersFnPage = useServerFn(listSuppliers);
+  const linkInvFnPage = useServerFn(listLinkablePurchaseInvoices);
+  const suggestNoFnPage = useServerFn(suggestVoucherNo);
 
   const [openCreate, setOpenCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -253,6 +256,25 @@ function PurchaseVouchersPage() {
       listFn({ data: { search: search || undefined, status: status === "all" ? undefined : status } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
+  function prefetchCreate() {
+    const today = new Date().toISOString().slice(0, 10);
+    qc.prefetchQuery({
+      queryKey: ["suppliers-list"],
+      queryFn: () => suppliersFnPage(),
+      ...QUERY_PRESETS.REFERENCE,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["linkable-purchase-invoices", ""],
+      queryFn: () => linkInvFnPage({ data: { supplierId: undefined } }),
+      ...QUERY_PRESETS.TRANSACTIONAL,
+    }).catch(() => {});
+    qc.prefetchQuery({
+      queryKey: ["pv-suggest-no", today],
+      queryFn: () => suggestNoFnPage({ data: { voucher_date: today } }),
+      ...QUERY_PRESETS.TRANSACTIONAL,
+    }).catch(() => {});
+  }
 
   const postMut = useMutation({
     mutationFn: (id: string) => postFn({ data: { id } }),
@@ -281,7 +303,11 @@ function PurchaseVouchersPage() {
             Chứng từ kế toán ghi nhận nghiệp vụ mua. Hỗ trợ nhiều dòng hàng, link tới Hoá đơn mua, tự sinh bút toán / phiếu nhập kho / phiếu chi.
           </p>
         </div>
-        <Button onClick={() => setOpenCreate(true)}>
+        <Button
+          onClick={() => setOpenCreate(true)}
+          onMouseEnter={prefetchCreate}
+          onFocus={prefetchCreate}
+        >
           <Plus className="mr-2 h-4 w-4" /> Tạo phiếu mới
         </Button>
       </div>
@@ -468,16 +494,19 @@ function CreateVoucherDialog({
     queryKey: ["suppliers-list"],
     queryFn: () => suppliersFn(),
     enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
   });
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["linkable-purchase-invoices", header.supplier_id],
     queryFn: () => linkInvFn({ data: { supplierId: header.supplier_id || undefined } }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: suggested } = useQuery({
     queryKey: ["pv-suggest-no", header.voucher_date],
     queryFn: () => suggestNoFn({ data: { voucher_date: header.voucher_date } }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   useEffect(() => {
