@@ -41,6 +41,25 @@ export const toggleMbSync = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const disconnectMb = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { bank_account_id: string }) =>
+    z.object({ bank_account_id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("bank_accounts")
+      .update({
+        mb_username: null,
+        mb_password_enc: null,
+        mb_password_iv: null,
+        sync_enabled: false,
+      } as any)
+      .eq("id", data.bank_account_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const triggerMbSyncNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { bank_account_id: string }) =>
