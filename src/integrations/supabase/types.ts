@@ -5060,6 +5060,7 @@ export type Database = {
           is_purchase_cost: boolean
           journal_entry_id: string | null
           notes: string | null
+          paid_amount: number
           pay_now: boolean
           payment_account: string | null
           payment_method: string
@@ -5113,6 +5114,7 @@ export type Database = {
           is_purchase_cost?: boolean
           journal_entry_id?: string | null
           notes?: string | null
+          paid_amount?: number
           pay_now?: boolean
           payment_account?: string | null
           payment_method?: string
@@ -5166,6 +5168,7 @@ export type Database = {
           is_purchase_cost?: boolean
           journal_entry_id?: string | null
           notes?: string | null
+          paid_amount?: number
           pay_now?: boolean
           payment_account?: string | null
           payment_method?: string
