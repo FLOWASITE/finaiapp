@@ -468,16 +468,19 @@ function CreateVoucherDialog({
     queryKey: ["suppliers-list"],
     queryFn: () => suppliersFn(),
     enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
   });
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["linkable-purchase-invoices", header.supplier_id],
     queryFn: () => linkInvFn({ data: { supplierId: header.supplier_id || undefined } }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
   const { data: suggested } = useQuery({
     queryKey: ["pv-suggest-no", header.voucher_date],
     queryFn: () => suggestNoFn({ data: { voucher_date: header.voucher_date } }),
     enabled: open,
+    ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
   useEffect(() => {
