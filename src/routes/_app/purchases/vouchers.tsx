@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink } from "lucide-react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -62,6 +63,69 @@ function statusBadge(s: string) {
 function fmtMoney(n: number | string | null | undefined) {
   return new Intl.NumberFormat("vi-VN").format(Number(n ?? 0));
 }
+
+const firstOfYearISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-01-01`;
+};
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const fmtDateVN = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "amber" | "emerald" | "sky" | "rose";
+}) {
+  const toneCls = {
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
+  } as const;
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+      <Check className="h-3 w-3" />
+    </span>
+  ) : (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400">
+      <X className="h-3 w-3" />
+    </span>
+  );
+}
+
+const PURCHASE_TABS: Array<{ label: string; to?: string; disabled?: boolean }> = [
+  { label: "Đơn đặt hàng", disabled: true },
+  { label: "Phiếu mua hàng", to: "/purchases/vouchers" },
+  { label: "Hoá đơn", to: "/invoices" },
+  { label: "Phiếu nhập kho", disabled: true },
+  { label: "Trả lại hàng mua", disabled: true },
+];
 
 // ---------- product picker ----------
 
