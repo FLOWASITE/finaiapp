@@ -285,7 +285,7 @@ function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="ten@congty.com"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-人0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
