@@ -61,6 +61,8 @@ import {
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { AccountCombobox } from "@/components/ui/account-combobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangeFilter } from "@/components/date-range-filter";
+import { getPresetRange } from "@/lib/date-presets";
 
 function normalizeVi(s: string) {
   return (s ?? "")
@@ -362,48 +364,22 @@ function SalesVouchersPage() {
   const productsFnPage = useServerFn(listProducts);
 
   // ---------- Filters ----------
-  type Period = "all" | "this_month" | "last_month" | "this_quarter" | "this_year" | "custom";
+  const defaultPeriod = useMemo(() => getPresetRange("thisMonth"), []);
   const [fStatus, setFStatus] = useState<string>("all");
-  const [fPeriod, setFPeriod] = useState<Period>("this_month");
-  const [fFrom, setFFrom] = useState<string>("");
-  const [fTo, setFTo] = useState<string>("");
+  const [fFrom, setFFrom] = useState<string>(defaultPeriod.from);
+  const [fTo, setFTo] = useState<string>(defaultPeriod.to);
   const [fCustomerId, setFCustomerId] = useState<string | null>(null);
   const [fSearch, setFSearch] = useState<string>("");
-
-  const periodRange = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const startOfMonth = (yy: number, mm: number) => new Date(yy, mm, 1);
-    const endOfMonth = (yy: number, mm: number) => new Date(yy, mm + 1, 0);
-    switch (fPeriod) {
-      case "this_month":
-        return { from: iso(startOfMonth(y, m)), to: iso(endOfMonth(y, m)) };
-      case "last_month":
-        return { from: iso(startOfMonth(y, m - 1)), to: iso(endOfMonth(y, m - 1)) };
-      case "this_quarter": {
-        const qStart = Math.floor(m / 3) * 3;
-        return { from: iso(startOfMonth(y, qStart)), to: iso(endOfMonth(y, qStart + 2)) };
-      }
-      case "this_year":
-        return { from: `${y}-01-01`, to: `${y}-12-31` };
-      case "custom":
-        return { from: fFrom || undefined, to: fTo || undefined };
-      default:
-        return { from: undefined, to: undefined };
-    }
-  }, [fPeriod, fFrom, fTo]);
 
   const listInput = useMemo(
     () => ({
       status: fStatus !== "all" ? fStatus : undefined,
       customerId: fCustomerId || undefined,
-      from: periodRange.from,
-      to: periodRange.to,
+      from: fFrom || undefined,
+      to: fTo || undefined,
       search: fSearch.trim() || undefined,
     }),
-    [fStatus, fCustomerId, periodRange, fSearch],
+    [fStatus, fCustomerId, fFrom, fTo, fSearch],
   );
 
   const {
@@ -419,18 +395,19 @@ function SalesVouchersPage() {
 
   const hasActiveFilters =
     fStatus !== "all" ||
-    fPeriod !== "this_month" ||
+    fFrom !== defaultPeriod.from ||
+    fTo !== defaultPeriod.to ||
     !!fCustomerId ||
     !!fSearch.trim();
 
   function resetFilters() {
     setFStatus("all");
-    setFPeriod("this_month");
-    setFFrom("");
-    setFTo("");
+    setFFrom(defaultPeriod.from);
+    setFTo(defaultPeriod.to);
     setFCustomerId(null);
     setFSearch("");
   }
+
 
   // ---------- Selection ----------
   const [selected, setSelected] = useState<Set<string>>(new Set());
