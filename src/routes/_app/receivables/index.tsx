@@ -6,6 +6,7 @@ import { getReceivables } from "@/lib/receivables.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
+import { SalesTabs } from "@/components/sales/SalesTabs";
 
 export const Route = createFileRoute("/_app/receivables/")({ component: ReceivablesPage });
 
