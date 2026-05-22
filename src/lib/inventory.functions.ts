@@ -895,9 +895,22 @@ export const createStockVoucher = createServerFn({ method: "POST" })
         warehouse_id: data.warehouse_id ?? null,
         counter_account: data.counter_account,
         reason: data.reason ?? null,
+        kind: data.kind ?? null,
+        branch_id: data.branch_id ?? null,
+        party_id: data.party_id ?? null,
+        party_name: data.party_name ?? null,
+        party_phone: data.party_phone ?? null,
+        party_address: data.party_address ?? null,
+        deliverer_name: data.deliverer_name ?? null,
+        receiver_name: data.receiver_name ?? null,
+        source_doc_no: data.source_doc_no ?? null,
+        source_doc_date: data.source_doc_date || null,
+        transfer_doc_no: data.transfer_doc_no ?? null,
+        attachments_count: data.attachments_count ?? 0,
       })
       .select("id")
       .single();
+
     if (hErr || !hdr) throw new Error(hErr?.message || "Không tạo được phiếu");
 
     try {
