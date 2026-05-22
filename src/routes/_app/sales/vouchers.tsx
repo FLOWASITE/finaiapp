@@ -851,17 +851,7 @@ function SalesVouchersPage() {
             </div>
             <div>
               <Label className="text-xs mb-1 block">Kỳ</Label>
-              <Select value={fPeriod} onValueChange={(v) => setFPeriod(v as Period)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  <SelectItem value="this_month">Tháng này</SelectItem>
-                  <SelectItem value="last_month">Tháng trước</SelectItem>
-                  <SelectItem value="this_quarter">Quý này</SelectItem>
-                  <SelectItem value="this_year">Năm nay</SelectItem>
-                  <SelectItem value="custom">Tuỳ chọn…</SelectItem>
-                </SelectContent>
-              </Select>
+              <DateRangeFilter from={fFrom} to={fTo} onChange={(r) => { setFFrom(r.from); setFTo(r.to); }} className="w-full justify-start" />
             </div>
             <div className="lg:col-span-1">
               <Label className="text-xs mb-1 block">Khách hàng</Label>
@@ -882,18 +872,6 @@ function SalesVouchersPage() {
                 </Button>
               )}
             </div>
-            {fPeriod === "custom" && (
-              <>
-                <div>
-                  <Label className="text-xs mb-1 block">Từ ngày</Label>
-                  <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs mb-1 block">Đến ngày</Label>
-                  <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} />
-                </div>
-              </>
-            )}
           </div>
         </CardContent>
       </Card>
