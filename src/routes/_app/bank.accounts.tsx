@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Plus, Pencil, Trash2, Landmark, AlertCircle, Link2, CheckCircle2 } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
 import { MbBankConnectDialog } from "@/components/mbbank-connect-dialog";
+import { BankCombobox, BankLogo, VN_BANK_LIST } from "@/components/bank-combobox";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
@@ -20,16 +21,7 @@ export const Route = createFileRoute("/_app/bank/accounts")({ component: Account
 
 const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
 
-// Common Vietnamese banks for quick selection
-const VN_BANKS = [
-  "Vietcombank", "VietinBank", "BIDV", "Agribank", "Techcombank", "MB Bank",
-  "ACB", "VPBank", "Sacombank", "TPBank", "HDBank", "SHB", "VIB", "OCB",
-  "SeABank", "MSB", "Eximbank", "LienVietPostBank", "PVcomBank", "ABBank",
-  "Nam A Bank", "Bac A Bank", "KienlongBank", "Saigonbank", "BaoVietBank",
-  "PG Bank", "VietCapitalBank", "DongA Bank", "NCB", "VietABank",
-  "Public Bank Vietnam", "Shinhan Bank", "Standard Chartered", "HSBC",
-  "Citibank", "UOB", "ANZ", "Woori Bank",
-];
+// Bank list moved to bank-combobox component
 
 const GL_OPTIONS = [
   { code: "1121", label: "1121 — Tiền gửi NH (VND)" },
@@ -102,7 +94,21 @@ function AccountsPage() {
             {accounts.map((a: any) => (
               <tr key={a.id} className="border-t border-border hover:bg-muted/30">
                 <td className="px-4 py-2 font-medium">{a.name}</td>
-                <td className="px-4 py-2">{a.bank_name || "—"}</td>
+                <td className="px-4 py-2">
+                  {a.bank_name ? (
+                    <span className="flex items-center gap-2">
+                      {(() => {
+                        const m = VN_BANK_LIST.find(
+                          (b) => b.name.toLowerCase() === (a.bank_name || "").toLowerCase(),
+                        );
+                        return m ? <BankLogo bank={m} size={22} /> : null;
+                      })()}
+                      <span>{a.bank_name}</span>
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-4 py-2 font-mono text-xs">{a.account_no || "—"}</td>
                 <td className="px-4 py-2">{a.currency}</td>
                 <td className="px-4 py-2 font-mono text-xs">{a.gl_account_code}</td>
@@ -294,17 +300,11 @@ function AccountForm({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Ngân hàng" hint="Chọn hoặc gõ tự do">
-          <Input
-            list="vn-banks"
+        <Field label="Ngân hàng" hint="Tìm hoặc gõ tên tự do">
+          <BankCombobox
             value={form.bank_name ?? ""}
-            onChange={(e) => update("bank_name", e.target.value)}
-            placeholder="Vietcombank, BIDV, MB Bank..."
-            maxLength={120}
+            onChange={(v) => update("bank_name", v)}
           />
-          <datalist id="vn-banks">
-            {VN_BANKS.map((b) => <option key={b} value={b} />)}
-          </datalist>
         </Field>
         <Field label="Số tài khoản" error={errors.account_no}>
           <Input
