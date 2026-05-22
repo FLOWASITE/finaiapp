@@ -38,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { VoucherFormDialog } from "@/components/voucher-form";
+import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
