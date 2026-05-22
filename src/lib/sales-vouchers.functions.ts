@@ -106,6 +106,8 @@ async function upsertSalesEinvoice(
     issue_date?: string | null;
     tct_lookup_code?: string | null;
     notes?: string | null;
+    pdf_path?: string | null;
+    xml_path?: string | null;
   },
   existingEinvoiceId: string | null,
 ): Promise<string | null> {
@@ -140,11 +142,14 @@ async function upsertSalesEinvoice(
     total: Number(voucher.total || 0),
     tct_lookup_code: einvoice.tct_lookup_code || null,
     notes: einvoice.notes || null,
+    pdf_path: einvoice.pdf_path || null,
+    xml_path: einvoice.xml_path || null,
     branch_id: voucher.branch_id || null,
     department_id: voucher.department_id || null,
     project_id: voucher.project_id || null,
     cost_center_id: voucher.cost_center_id || null,
   };
+
 
   if (existingEinvoiceId) {
     const { error } = await supabase
