@@ -74,7 +74,90 @@ function AccountsPage() {
         <AddNew label="Thêm tài khoản" onClick={() => { setEditing(null); setOpen(true); }} />
       </div>
 
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Mobile: card list */}
+      <div className="md:hidden space-y-2">
+        {accounts.map((a: any) => {
+          const m = VN_BANK_LIST.find(
+            (b) => b.name.toLowerCase() === (a.bank_name || "").toLowerCase(),
+          );
+          const isMb = (a.bank_name || "").toLowerCase().includes("mb");
+          return (
+            <div key={a.id} className="rounded-lg border border-border bg-card p-3 space-y-2">
+              <div className="flex items-start gap-2.5">
+                {m ? <BankLogo bank={m} size={32} /> : <div className="h-8 w-8 rounded-md bg-muted shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{a.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {a.bank_name || "—"}{a.account_no ? ` · ${a.account_no}` : ""}
+                  </div>
+                </div>
+                <div className="flex gap-0.5 shrink-0">
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditing(a); setOpen(true); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    disabled={(a.txn_count ?? 0) > 0}
+                    title={(a.txn_count ?? 0) > 0 ? "Đã có giao dịch — không thể xoá" : "Xoá"}
+                    onClick={() => { if (confirm(`Xoá tài khoản "${a.name}"?`)) del.mutate(a.id); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div className="text-muted-foreground">Số dư hiện tại</div>
+                  <div className="font-mono font-semibold">{fmt(a.current_balance ?? 0)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Số dư đầu</div>
+                  <div className="font-mono">{fmt(Number(a.opening_balance ?? 0))}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Tiền tệ / TK</div>
+                  <div className="font-mono">{a.currency} · {a.gl_account_code}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Giao dịch</div>
+                  <div>{a.txn_count ?? 0}</div>
+                </div>
+              </div>
+              {isMb && (
+                <Button
+                  size="sm"
+                  variant={a.mb_username ? "secondary" : "outline"}
+                  onClick={() => setMbAccount(a)}
+                  className="h-8 text-xs w-full"
+                >
+                  {a.mb_username ? (
+                    <>
+                      {a.sync_enabled ? (
+                        <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
+                      ) : (
+                        <Link2 className="h-3 w-3 mr-1" />
+                      )}
+                      MB Bank · {a.sync_enabled ? "Đang đồng bộ" : "Đã kết nối"}
+                    </>
+                  ) : (
+                    <><Link2 className="h-3 w-3 mr-1" /> Kết nối MB Bank</>
+                  )}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+        {accounts.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+            Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase">
             <tr>
@@ -299,7 +382,7 @@ function AccountForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Ngân hàng" hint="Tìm hoặc gõ tên tự do">
           <BankCombobox
             value={form.bank_name ?? ""}
@@ -345,7 +428,7 @@ function AccountForm({
         </div>
       </Field>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label="Tiền tệ *">
           <Select value={form.currency} onValueChange={(v) => update("currency", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
