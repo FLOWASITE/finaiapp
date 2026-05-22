@@ -126,3 +126,44 @@ function CashPage() {
   );
 }
 
+const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
+
+function KpiStrip({ vouchers, cashbook }: { vouchers: any[]; cashbook: any[] }) {
+  const receipts = vouchers.filter((v) => v.voucher_type === "receipt");
+  const payments = vouchers.filter((v) => v.voucher_type === "payment");
+  const totalIn = receipts.reduce((s, v) => s + Number(v.amount), 0);
+  const totalOut = payments.reduce((s, v) => s + Number(v.amount), 0);
+  const balance = cashbook.length > 0 ? cashbook[cashbook.length - 1].balance : 0;
+
+  const cards = [
+    { title: "Tồn quỹ hiện tại", value: fmt(balance) + " ₫", icon: Wallet, tone: "primary" },
+    { title: "Tổng thu trong kỳ", value: fmt(totalIn) + " ₫", icon: TrendingUp, tone: "success" },
+    { title: "Tổng chi trong kỳ", value: fmt(totalOut) + " ₫", icon: TrendingDown, tone: "danger" },
+    { title: "Số phiếu thu", value: String(receipts.length), icon: Receipt, tone: "success" },
+    { title: "Số phiếu chi", value: String(payments.length), icon: FileText, tone: "danger" },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+      {cards.map((c) => {
+        const Icon = c.icon;
+        const toneClass =
+          c.tone === "primary" ? "text-primary"
+          : c.tone === "success" ? "text-emerald-600"
+          : c.tone === "danger" ? "text-rose-600"
+          : "text-muted-foreground";
+        return (
+          <div key={c.title} className="rounded-lg border border-border bg-card p-4">
+            <div className={"flex items-center gap-2 text-xs uppercase " + toneClass}>
+              <Icon className="h-3.5 w-3.5" />
+              {c.title}
+            </div>
+            <div className="mt-2 text-xl font-bold tabular-nums">{c.value}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
