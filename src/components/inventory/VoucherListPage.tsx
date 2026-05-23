@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
-import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts } from "@/lib/inventory.functions";
+import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts, createStockVoucher } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export function VoucherListPage({ type }: Props) {
   const [status, setStatus] = useState<"all" | "posted" | "unposted">("all");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [createType, setCreateType] = useState<"in" | "out" | null>(null);
 
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs(),
  ...QUERY_PRESETS.TRANSACTIONAL,
@@ -72,15 +73,26 @@ export function VoucherListPage({ type }: Props) {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Icon className={`h-6 w-6 ${accent}`} /> {title}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Mỗi phiếu nhiều dòng. Tạo phiếu mới tại{" "}
-            <Link to="/inventory" className="text-primary hover:underline">Tồn kho</Link>.
+            Mỗi phiếu nhiều dòng. Bạn có thể tạo phiếu trực tiếp tại đây.
           </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {(type === "in" || type === "all") && (
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setCreateType("in")}>
+              <Plus className="h-4 w-4 mr-1" /> <ArrowDownToLine className="h-4 w-4 mr-1" /> Phiếu nhập
+            </Button>
+          )}
+          {(type === "out" || type === "all") && (
+            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCreateType("out")}>
+              <Plus className="h-4 w-4 mr-1" /> <ArrowUpFromLine className="h-4 w-4 mr-1" /> Phiếu xuất
+            </Button>
+          )}
         </div>
       </div>
 
@@ -207,6 +219,7 @@ export function VoucherListPage({ type }: Props) {
       </Card>
 
       <VoucherDetailDialog id={openId} onClose={() => setOpenId(null)} type={type === "all" ? "in" : type} />
+      <VoucherCreateDialog type={createType} onClose={() => setCreateType(null)} />
     </div>
   );
 }
@@ -508,5 +521,185 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={mono ? "font-mono" : ""}>{value}</div>
     </div>
+  );
+}
+
+function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onClose: () => void }) {
+  const createFn = useServerFn(createStockVoucher);
+  const whsFn = useServerFn(listWarehouses);
+  const productsFn = useServerFn(listProducts);
+  const qc = useQueryClient();
+
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
+  const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
+
+  const defaultCounter = type === "in" ? "331" : "632";
+  const [form, setForm] = useState({
+    voucher_date: today(),
+    warehouse_id: "none",
+    counter_account: defaultCounter,
+    reason: "",
+    lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }] as { product_id: string; qty: number; unit_cost: number; note: string }[],
+  });
+
+  useEffect(() => {
+    if (!type) return;
+    const defaultWhId =
+      ((warehouses ?? []) as any[]).find((w: any) => w.is_default)?.id ??
+      ((warehouses ?? []) as any[])[0]?.id ?? "none";
+    setForm({
+      voucher_date: today(),
+      warehouse_id: defaultWhId,
+      counter_account: type === "in" ? "331" : "632",
+      reason: "",
+      lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }],
+    });
+  }, [type, warehouses]);
+
+  const productsList = ((products as any[]) ?? []).filter((p) => (p.item_type ?? "goods") !== "service");
+  const updateLine = (i: number, patch: any) =>
+    setForm((f) => ({ ...f, lines: f.lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) }));
+  const addLine = () => setForm((f) => ({ ...f, lines: [...f.lines, { product_id: "", qty: 0, unit_cost: 0, note: "" }] }));
+  const removeLine = (i: number) => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
+
+  const create = useMutation({
+    mutationFn: () => createFn({
+      data: {
+        voucher_type: type!,
+        voucher_date: form.voucher_date,
+        warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
+        counter_account: form.counter_account,
+        reason: form.reason || undefined,
+        lines: form.lines.filter((l) => l.product_id && l.qty > 0).map((l) => ({
+          product_id: l.product_id,
+          qty: Number(l.qty),
+          unit_cost: Number(l.unit_cost || 0),
+          note: l.note || undefined,
+        })),
+      } as any,
+    }),
+    onSuccess: (r: any) => {
+      toast.success(`Đã tạo ${type === "in" ? "phiếu nhập" : "phiếu xuất"} ${r.voucher_no}`);
+      qc.invalidateQueries({ queryKey: ["vouchers-list"] });
+      qc.invalidateQueries({ queryKey: ["stock-report"] });
+      qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không tạo được phiếu"),
+  });
+
+  const total = form.lines.reduce((s, l) => s + Number(l.qty || 0) * Number(l.unit_cost || 0), 0);
+  const valid = form.lines.some((l) => l.product_id && l.qty > 0) && form.counter_account.length >= 2;
+
+  return (
+    <Dialog open={!!type} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {type === "in"
+              ? <><ArrowDownToLine className="h-5 w-5 text-emerald-600" /> Tạo phiếu nhập kho</>
+              : <><ArrowUpFromLine className="h-5 w-5 text-orange-600" /> Tạo phiếu xuất kho</>}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Ngày</Label>
+              <Input type="date" value={form.voucher_date} onChange={(e) => setForm({ ...form, voucher_date: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Kho</Label>
+              <Select value={form.warehouse_id} onValueChange={(v) => setForm({ ...form, warehouse_id: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">(Không gán kho)</SelectItem>
+                  {(warehouses ?? []).map((w: any) => (
+                    <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">TK đối ứng</Label>
+              <Input value={form.counter_account} onChange={(e) => setForm({ ...form, counter_account: e.target.value })} className="font-mono" placeholder={type === "in" ? "331" : "632"} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">Lý do / diễn giải</Label>
+            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={type === "in" ? "Nhập kho hàng từ NCC..." : "Xuất kho cho..."} />
+          </div>
+
+          <div className="rounded-md border">
+            <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs uppercase">
+              <span>Các dòng ({form.lines.length})</span>
+              <Button size="sm" variant="ghost" onClick={addLine}><Plus className="h-3 w-3 mr-1" />Thêm dòng</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1 text-left min-w-[200px]">Mặt hàng</th>
+                    <th className="px-2 py-1 text-right w-24">SL</th>
+                    <th className="px-2 py-1 text-right w-32">Đơn giá</th>
+                    <th className="px-2 py-1 text-right w-32">Thành tiền</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.lines.map((l, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-2 py-1">
+                        <Select value={l.product_id} onValueChange={(v) => updateLine(i, { product_id: v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Chọn mặt hàng..." /></SelectTrigger>
+                          <SelectContent>
+                            {productsList.map((p: any) => (
+                              <SelectItem key={p.id} value={p.id}>{p.code} · {p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-2 py-1">
+                        <Input type="number" value={l.qty || ""} className="h-8 text-right" onChange={(e) => updateLine(i, { qty: Number(e.target.value) })} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <Input type="number" value={l.unit_cost || ""} className="h-8 text-right" disabled={type === "out"} onChange={(e) => updateLine(i, { unit_cost: Number(e.target.value) })} />
+                      </td>
+                      <td className="px-2 py-1 text-right font-medium">{fmt(Number(l.qty || 0) * Number(l.unit_cost || 0))}</td>
+                      <td className="px-2 py-1">
+                        <Button size="sm" variant="ghost" onClick={() => removeLine(i)} disabled={form.lines.length === 1}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t bg-muted/30">
+                    <td colSpan={3} className="px-2 py-2 text-right text-xs uppercase text-muted-foreground">Tổng giá trị</td>
+                    <td className="px-2 py-2 text-right font-semibold">{fmt(total)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {type === "out" && (
+              <div className="px-3 py-2 text-xs text-muted-foreground border-t">
+                Giá vốn xuất sẽ được tính theo phương pháp bình quân của hàng hoá.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Huỷ</Button>
+          <Button onClick={() => create.mutate()} disabled={!valid || create.isPending}>
+            {create.isPending ? "Đang lưu…" : "Lưu phiếu"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
