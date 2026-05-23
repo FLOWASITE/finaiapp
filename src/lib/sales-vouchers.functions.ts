@@ -621,24 +621,10 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
     );
     if (v.create_stock_voucher && goodsLines.length > 0) {
       const warehouseId = v.warehouse_id ?? (await ensureDefaultWarehouseId(supabase, userId));
-      const { data: sv, error: e3 } = await supabase
-        .from("stock_vouchers")
-        .insert({
-          user_id: userId,
-          tenant_id: v.tenant_id,
-          voucher_no: (v as any).stock_voucher_no || `XK-${v.voucher_no}`,
-          voucher_type: "out",
-          voucher_date: (v as any).stock_voucher_date || v.voucher_date,
-          warehouse_id: warehouseId,
-          counter_account: "632",
-          reason: (v as any).stock_voucher_reason || `Xuất kho bán hàng ${v.voucher_no}`,
-          journal_entry_id: entry.id,
-        })
-        .select("id")
-        .single();
-      if (e3) throw new Error(e3.message);
-      stockVoucherId = sv?.id ?? null;
+      const stockDate = (v as any).stock_voucher_date || v.voucher_date;
 
+      // Pre-compute giá vốn để biết có cần tạo bút toán riêng không
+      const cogsRows: Array<{ productId: string; qty: number; unitCost: number; cogs: number; on_hand: number }> = [];
       let totalCogs = 0;
       for (const line of goodsLines) {
         const productId = line.product_id as string;
@@ -651,48 +637,91 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
         const unitCost = Number(prod?.unit_cost || 0);
         const cogs = qty * unitCost;
         totalCogs += cogs;
+        cogsRows.push({ productId, qty, unitCost, cogs, on_hand: Number(prod?.on_hand || 0) });
+      }
 
+      // Tạo journal_entry RIÊNG cho giá vốn (gắn với Phiếu xuất kho)
+      let stockEntryId: string | null = null;
+      if (totalCogs > 0) {
+        const { data: stockEntry, error: eStk } = await supabase
+          .from("journal_entries")
+          .insert({
+            user_id: userId,
+            tenant_id: v.tenant_id,
+            entry_date: stockDate,
+            description: `Giá vốn phiếu bán ${v.voucher_no}`,
+            branch_id: v.branch_id,
+            department_id: v.department_id,
+            project_id: v.project_id,
+            cost_center_id: v.cost_center_id,
+          })
+          .select("id")
+          .single();
+        if (eStk || !stockEntry) throw new Error(eStk?.message || "Không tạo được bút toán giá vốn");
+        stockEntryId = stockEntry.id;
+      }
+
+      const { data: sv, error: e3 } = await supabase
+        .from("stock_vouchers")
+        .insert({
+          user_id: userId,
+          tenant_id: v.tenant_id,
+          voucher_no: (v as any).stock_voucher_no || `XK-${v.voucher_no}`,
+          voucher_type: "out",
+          voucher_date: stockDate,
+          warehouse_id: warehouseId,
+          counter_account: "632",
+          reason: (v as any).stock_voucher_reason || `Xuất kho bán hàng ${v.voucher_no}`,
+          journal_entry_id: stockEntryId,
+        })
+        .select("id")
+        .single();
+      if (e3) throw new Error(e3.message);
+      stockVoucherId = sv?.id ?? null;
+
+      // Stock movements + cập nhật on_hand
+      for (const r of cogsRows) {
         await supabase.from("stock_movements").insert({
           user_id: userId,
           tenant_id: v.tenant_id,
-          product_id: productId,
+          product_id: r.productId,
           warehouse_id: warehouseId,
           voucher_id: stockVoucherId,
           movement_type: "out",
-          qty: -qty,
-          unit_cost: unitCost,
+          qty: -r.qty,
+          unit_cost: r.unitCost,
           movement_date: v.voucher_date,
           ref_type: "sales_voucher",
           ref_id: v.id,
           note: `Xuất bán ${v.voucher_no}`,
         });
-        if (prod) {
-          await supabase
-            .from("products")
-            .update({ on_hand: Number(prod.on_hand || 0) - qty })
-            .eq("id", productId);
-        }
+        await supabase
+          .from("products")
+          .update({ on_hand: r.on_hand - r.qty })
+          .eq("id", r.productId);
       }
-      // Bút toán giá vốn: Nợ 632 / Có 156
-      if (totalCogs > 0) {
+
+      // Bút toán giá vốn: Nợ 632 / Có 156 — vào entry RIÊNG
+      if (totalCogs > 0 && stockEntryId) {
         await supabase.from("journal_lines").insert([
           {
-            entry_id: entry.id,
+            entry_id: stockEntryId,
             account_code: resolveMap.get("632") ?? "632",
             debit: totalCogs,
             credit: 0,
-            line_order: jLines.length,
+            line_order: 0,
           },
           {
-            entry_id: entry.id,
+            entry_id: stockEntryId,
             account_code: resolveMap.get("156") ?? "156",
             debit: 0,
             credit: totalCogs,
-            line_order: jLines.length + 1,
+            line_order: 1,
           },
         ]);
       }
     }
+
 
     // 3) Phiếu thu / báo có (nếu thu ngay)
     let cashVoucherId: string | null = null;
