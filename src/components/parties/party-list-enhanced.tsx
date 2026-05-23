@@ -606,6 +606,60 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
         }}
       />
+
+      {/* Confirm dialog: archive / restore / delete */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(o) => { if (!o) closeConfirm(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmType === "delete" ? (
+                <><AlertTriangle className="h-5 w-5 text-destructive" /> Xác nhận xoá vĩnh viễn</>
+              ) : confirmType === "archive" ? (
+                <><Archive className="h-5 w-5 text-amber-500" /> Xác nhận lưu trữ</>
+              ) : (
+                <><ArchiveRestore className="h-5 w-5 text-emerald-500" /> Xác nhận khôi phục</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                <span className="font-semibold text-foreground">{confirmParty?.name}</span>
+                {confirmParty?.code && <span className="font-mono text-xs ml-2 text-muted-foreground">({confirmParty.code})</span>}
+              </p>
+              {confirmType === "archive" && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+                  Đối tác này sẽ bị ẩn khỏi danh sách chính, nhưng <strong>toàn bộ phiếu, hoá đơn và công nợ vẫn được giữ nguyên</strong>. Bạn có thể khôi phục bất cứ lúc nào.
+                </div>
+              )}
+              {confirmType === "restore" && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+                  Đối tác này sẽ xuất hiện lại trong danh sách chính và <strong>có thể sử dụng cho các phiếu mới</strong>.
+                </div>
+              )}
+              {confirmType === "delete" && (
+                <div className="rounded-md bg-red-50 dark:bg-red-950/20 p-3 text-sm text-red-800 dark:text-red-300 space-y-1">
+                  <p><strong>Toàn bộ dữ liệu liên quan</strong> (phiếu mua hàng, hoá đơn, thanh toán, dự án, ngân hàng, kho...) sẽ bị <strong>xoá theo</strong>.</p>
+                  <p>Thao tác này <strong>không thể hoàn tác</strong>.</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeConfirm}
+              className={
+                confirmType === "delete"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : confirmType === "archive"
+                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }
+            >
+              {confirmType === "delete" ? "Xoá vĩnh viễn" : confirmType === "archive" ? "Lưu trữ" : "Khôi phục"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
   );
