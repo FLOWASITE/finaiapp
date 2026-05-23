@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { ProspectDialog } from "@/components/office/prospect-dialog";
 import { ClientLinkDialog } from "@/components/office/client-link-dialog";
+import { ProspectConvertDialog } from "@/components/office/prospect-convert-dialog";
+import { InviteStaffDialog } from "@/components/office/invite-staff-dialog";
 
 export const Route = createFileRoute("/_app/office/clients/")({ component: ClientsPage });
 
@@ -37,6 +39,7 @@ function ClientsPage() {
                 <TableHead>Phụ trách</TableHead>
                 <TableHead className="text-right">Phí/tháng</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -53,11 +56,14 @@ function ClientsPage() {
                       {l.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <InviteStaffDialog linkId={l.id} clientName={l.display_name || l.tenant?.name || ""} />
+                  </TableCell>
                 </TableRow>
               ))}
               {!links.data?.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
                     Chưa có khách hàng nào được liên kết
                   </TableCell>
                 </TableRow>
@@ -83,6 +89,7 @@ function ClientsPage() {
                 <TableHead>Liên hệ</TableHead>
                 <TableHead className="text-right">Ước tính phí</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,11 +102,16 @@ function ClientsPage() {
                     {Number(p.estimated_fee ?? 0).toLocaleString("vi-VN")}
                   </TableCell>
                   <TableCell><Badge variant="outline">{p.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    {p.status !== "won" && (
+                      <ProspectConvertDialog prospectId={p.id} prospectName={p.name} />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {!prospects.data?.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
                     Chưa có khách tiềm năng
                   </TableCell>
                 </TableRow>
