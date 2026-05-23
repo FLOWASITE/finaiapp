@@ -820,6 +820,32 @@ function PurchaseVouchersPage() {
                     );
                   })}
                 </TableBody>
+                {rows.length > 0 && (() => {
+                  const t = rows.reduce(
+                    (a: any, r: any) => {
+                      const total = Number(r.total || 0);
+                      const paid = paidOf(r);
+                      a.total += total;
+                      a.discount += Number(r.discount_amount || 0);
+                      a.paid += paid;
+                      a.remain += Math.max(0, total - paid);
+                      return a;
+                    },
+                    { total: 0, discount: 0, paid: 0, remain: 0 }
+                  );
+                  return (
+                    <tfoot className="bg-muted/40 font-semibold border-t-2 border-border">
+                      <tr style={{ height: 40 }}>
+                        <td colSpan={15} className="px-3 py-2 text-right">Tổng cộng ({rows.length} phiếu)</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(t.total)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(t.discount)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{fmtMoney(t.paid)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-400">{fmtMoney(t.remain)}</td>
+                        <td colSpan={3}></td>
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </Table>
             </div>
           )}
