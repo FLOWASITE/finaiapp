@@ -352,7 +352,7 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                   kind={kind}
                   party={p}
                   onEdit={() => setEditing(toInitial(p, kind))}
-                  onOpening={() => setEditing(toInitial(p, kind))}
+                  onOpening={() => setOpeningBalanceParty(p)}
                   onArchive={() => onArchive(p)}
                   onDelete={() => onDelete(p)}
                   onCreateVoucher={() =>
