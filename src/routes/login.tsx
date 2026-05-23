@@ -34,6 +34,9 @@ export const Route = createFileRoute("/login")({
 
 const emailSchema = z.string().trim().email("Email không hợp lệ").max(255);
 const passwordSchema = z.string().min(6, "Mật khẩu tối thiểu 6 ký tự").max(72);
+const AUTH_REQUEST_TIMEOUT_MS = 30_000;
+
+type AuthSessionResponse = Awaited<ReturnType<typeof supabase.auth.getSession>>;
 
 function scorePassword(pw: string): { score: number; label: string; tone: string } {
   let s = 0;
@@ -74,14 +77,14 @@ function LoginPage() {
   // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    withTimeoutReject(supabase.auth.getSession(), 1500)
-      .then((res: any) => {
+    withTimeoutReject(supabase.auth.getSession(), 3_000)
+      .then((res: AuthSessionResponse) => {
         if (!active) return;
         if (res?.data?.session) navigate({ to: dest, replace: true });
       })
       .catch((err) => {
         const raw = err instanceof Error ? err.message : String(err ?? "");
-        if (/failed to fetch|network|timeout/i.test(raw)) {
+        if (/refresh token|invalid refresh|jwt expired/i.test(raw)) {
           clearSupabaseAuthStorage();
         }
       });
@@ -89,8 +92,6 @@ function LoginPage() {
       active = false;
     };
   }, [dest, navigate]);
-
-
 
   function validate() {
     const next: typeof errors = {};
@@ -109,16 +110,33 @@ function LoginPage() {
     const m = raw.toLowerCase();
 
     if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
-      return { title: "Phiên đăng nhập cũ đã được dọn", detail: "FinAI đã làm sạch phiên cũ. Vui lòng bấm Đăng nhập lại." };
+      return {
+        title: "Kết nối đăng nhập bị gián đoạn",
+        detail: "Kiểm tra mạng rồi thử lại. Nếu đang dùng preview, hãy thử trên link đã publish.",
+      };
     }
 
-    if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
-      return { title: "Email hoặc mật khẩu không đúng", detail: "Vui lòng kiểm tra lại thông tin đăng nhập." };
+    if (
+      code === "invalid_credentials" ||
+      m.includes("invalid login") ||
+      m.includes("invalid credentials")
+    ) {
+      return {
+        title: "Email hoặc mật khẩu không đúng",
+        detail: "Vui lòng kiểm tra lại thông tin đăng nhập.",
+      };
     }
     if (m.includes("email not confirmed")) {
-      return { title: "Email chưa được xác nhận", detail: "Mở email và nhấn liên kết xác nhận trước khi đăng nhập." };
+      return {
+        title: "Email chưa được xác nhận",
+        detail: "Mở email và nhấn liên kết xác nhận trước khi đăng nhập.",
+      };
     }
-    if (m.includes("already registered") || m.includes("already exists") || code === "user_already_exists") {
+    if (
+      m.includes("already registered") ||
+      m.includes("already exists") ||
+      code === "user_already_exists"
+    ) {
       return { title: "Email đã được đăng ký", detail: "Hãy chuyển sang chế độ Đăng nhập." };
     }
     if (m.includes("weak password") || m.includes("password should")) {
@@ -153,7 +171,7 @@ function LoginPage() {
           password,
           options: { emailRedirectTo: `${window.location.origin}${dest}` },
         }),
-        12_000,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
     }
 
@@ -162,7 +180,7 @@ function LoginPage() {
         email: email.trim(),
         password,
       }),
-      12_000,
+      AUTH_REQUEST_TIMEOUT_MS,
     );
   }
 
@@ -172,32 +190,21 @@ function LoginPage() {
     if (!validate()) return;
     setLoading(true);
     try {
-      let result;
-      try {
-        result = await submitAuthOnce();
-      } catch (firstErr) {
-        if (!isRecoverableNetworkAuthError(firstErr)) throw firstErr;
-        clearSupabaseAuthStorage();
-        result = await submitAuthOnce();
-      }
-
-      if (result.error && isRecoverableNetworkAuthError(result.error)) {
-        clearSupabaseAuthStorage();
-        result = await submitAuthOnce();
-      }
+      const result = await submitAuthOnce();
 
       if (result.error) throw result.error;
+
+      if (!isSignup) {
+        await withTimeoutReject(supabase.auth.getSession(), 3_000).catch(() => null);
+      }
 
       if (isSignup) {
         toast.success("Tạo tài khoản thành công. Kiểm tra email để xác nhận.");
       } else {
         toast.success("Đăng nhập thành công");
       }
-      navigate({ to: dest });
+      navigate({ to: dest, replace: true });
     } catch (err) {
-      if (isRecoverableNetworkAuthError(err)) {
-        clearSupabaseAuthStorage();
-      }
       const mapped = mapAuthError(err);
       setFormError(mapped);
       toast.error(mapped.title, { description: mapped.detail });
@@ -205,7 +212,6 @@ function LoginPage() {
       setLoading(false);
     }
   };
-
 
   async function handleForgot() {
     const e = emailSchema.safeParse(email);
@@ -301,7 +307,6 @@ function LoginPage() {
             </p>
           </div>
 
-
           <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4" noValidate>
             {formError && (
               <div
@@ -351,9 +356,7 @@ function LoginPage() {
                   />
                 </div>
               </div>
-              {errors.email && (
-                <p className="mt-1 ml-2 text-xs text-destructive">{errors.email}</p>
-              )}
+              {errors.email && <p className="mt-1 ml-2 text-xs text-destructive">{errors.email}</p>}
             </div>
 
             {/* Password field */}
@@ -414,8 +417,7 @@ function LoginPage() {
                     ))}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Độ mạnh:{" "}
-                    <span className="font-medium text-foreground">{strength.label}</span>
+                    Độ mạnh: <span className="font-medium text-foreground">{strength.label}</span>
                   </p>
                 </div>
               )}
@@ -516,4 +518,3 @@ function LoginPage() {
     </div>
   );
 }
-

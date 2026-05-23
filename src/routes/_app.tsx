@@ -4,7 +4,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { CommandPalette } from "@/components/command-palette";
 
-
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,13 +16,12 @@ export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     try {
-      const { data, error } = await withTimeoutReject(supabase.auth.getUser(), 6_000);
-      if (error || !data.user) {
+      const { data, error } = await withTimeoutReject(supabase.auth.getSession(), 8_000);
+      if (error || !data.session?.access_token) {
         clearSupabaseAuthStorage();
         throw redirect({ to: "/login" });
       }
     } catch (error) {
-      clearSupabaseAuthStorage();
       if (error != null && typeof error === "object" && "isRedirect" in error) throw error;
       throw redirect({ to: "/login" });
     }
@@ -67,8 +65,9 @@ function AppLayout() {
               </div>
             </header>
           )}
-          <main className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}>
-            
+          <main
+            className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}
+          >
             <Outlet />
           </main>
           {showDock ? <ChatDock /> : null}
@@ -78,4 +77,3 @@ function AppLayout() {
     </SidebarProvider>
   );
 }
-
