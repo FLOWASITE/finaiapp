@@ -1,7 +1,8 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Info, AlertCircle, X, Sparkles } from "lucide-react";
+import { AlertTriangle, Info, AlertCircle, X } from "lucide-react";
+import { FinMascot } from "@/components/fin-mascot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
