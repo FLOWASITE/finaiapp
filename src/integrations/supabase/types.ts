@@ -7968,6 +7968,10 @@ export type Database = {
         Returns: boolean
       }
       is_tenant_suspended: { Args: { _tenant: string }; Returns: boolean }
+      merge_parties: {
+        Args: { p_kind: string; p_primary: string; p_secondary: string }
+        Returns: Json
+      }
       rebuild_account_period_balances: {
         Args: { p_tenant?: string }
         Returns: undefined
