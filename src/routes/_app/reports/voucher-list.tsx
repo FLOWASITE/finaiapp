@@ -71,6 +71,7 @@ function VoucherListPage() {
   const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [page, setPage] = useState(1);
