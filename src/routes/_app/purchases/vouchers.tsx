@@ -339,6 +339,7 @@ function PurchaseVouchersPage() {
   const [status, setStatus] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>(firstOfYearISO());
   const [fTo, setFTo] = useState<string>(todayISO());
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
