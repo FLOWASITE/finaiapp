@@ -50,3 +50,43 @@ export function withTimeoutReject<T>(promise: Promise<T>, ms: number): Promise<T
     );
   });
 }
+
+function removeAuthKeys(storage: Storage | undefined) {
+  if (!storage) return;
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const explicitKeys = [
+    projectId ? `sb-${projectId}-auth-token` : undefined,
+    "supabase.auth.token",
+  ].filter(Boolean) as string[];
+
+  const keys = new Set<string>(explicitKeys);
+  for (let i = 0; i < storage.length; i += 1) {
+    const key = storage.key(i);
+    if (!key) continue;
+    if (
+      key.startsWith("supabase.auth.") ||
+      key.includes("supabase.auth.token") ||
+      (key.startsWith("sb-") && key.endsWith("-auth-token"))
+    ) {
+      keys.add(key);
+    }
+  }
+
+  keys.forEach((key) => {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Bỏ qua storage bị khóa/quota lỗi; login vẫn tiếp tục với các key còn lại.
+    }
+  });
+}
+
+/**
+ * Dọn session auth hỏng ở trình duyệt mà không gọi network.
+ * Dùng khi refresh token cũ làm mọi request auth trả về "Failed to fetch".
+ */
+export function clearSupabaseAuthStorage() {
+  if (typeof window === "undefined") return;
+  removeAuthKeys(window.localStorage);
+  removeAuthKeys(window.sessionStorage);
+}
