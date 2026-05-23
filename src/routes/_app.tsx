@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery";
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
@@ -15,8 +16,17 @@ import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login" });
+    try {
+      const { data, error } = await withTimeoutReject(supabase.auth.getUser(), 6_000);
+      if (error || !data.user) {
+        clearSupabaseAuthStorage();
+        throw redirect({ to: "/login" });
+      }
+    } catch (error) {
+      clearSupabaseAuthStorage();
+      if (error != null && typeof error === "object" && "isRedirect" in error) throw error;
+      throw redirect({ to: "/login" });
+    }
   },
   component: AppLayout,
 });
