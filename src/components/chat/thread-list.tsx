@@ -194,12 +194,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         ) : (
           <>
             <div className="mb-3 flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center">
-                <FinMascot size="xs" mood="happy" glow={false} />
+              <div className="flex h-11 w-11 items-center justify-center">
+                <FinMascot size="md" mood="happy" glow={false} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">AI Agent Kế toán</div>
-                <div className="text-[10px] text-slate-500">Fin AI</div>
               </div>
               {onToggle && (
                 <button
