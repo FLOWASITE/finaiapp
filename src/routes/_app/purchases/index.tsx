@@ -156,6 +156,10 @@ function PurchasesHubPage() {
   const clickStatus = (s: string | undefined) =>
     setTab("invoices", { status: s });
 
+  const [openPayment, setOpenPayment] = useState(false);
+  const uploadRef = useRef<{ open: () => void }>(null);
+  const router = useRouter();
+
   return (
     <div>
       <PurchaseTabs />
@@ -168,16 +172,27 @@ function PurchasesHubPage() {
             Tổng quan chi phí, hoá đơn và phiếu chi — đối ứng công nợ TK 331
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <NewPaymentInline preselectInvoiceId={invoice} preselectSupplierId={supplier} />
-          <Button variant="outline" asChild>
-            <Link to="/invoices">
-              <Plus className="mr-2 h-4 w-4" /> Nhập tay
-            </Link>
-          </Button>
-          <UploadInvoiceButton />
-        </div>
+        <SplitActionButton
+          primary={{
+            label: "Upload HĐ",
+            icon: Upload,
+            onClick: () => uploadRef.current?.open(),
+          }}
+          items={[
+            { label: "Nhập tay HĐ mua", icon: Plus, onSelect: () => router.navigate({ to: "/invoices" }) },
+            { label: "Phiếu chi", icon: Banknote, onSelect: () => setOpenPayment(true), separatorBefore: true },
+          ]}
+        />
+        <NewPaymentInline
+          preselectInvoiceId={invoice}
+          preselectSupplierId={supplier}
+          hideTrigger
+          open={openPayment}
+          onOpenChange={setOpenPayment}
+        />
+        <UploadInvoiceButton ref={uploadRef} hideTrigger />
       </div>
+
 
       {/* Money strip */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
