@@ -165,7 +165,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r border-slate-200/70 bg-white transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
       )}
     >
@@ -177,7 +177,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               onClick={onToggle}
               title="Mở lịch sử (Cmd+\\)"
               aria-label="Mở lịch sử"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
@@ -198,7 +198,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                 <FinMascot size="md" mood="happy" glow={false} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">AI Agent Kế toán</div>
+                <div className="text-sm font-semibold leading-tight tracking-tight text-sidebar-foreground">AI Agent Kế toán</div>
               </div>
               {onToggle && (
                 <button
@@ -206,7 +206,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                   onClick={onToggle}
                   title="Ẩn lịch sử (Cmd+\\)"
                   aria-label="Ẩn lịch sử"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -215,7 +215,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
             <Button
               onClick={onNew}
               variant="outline"
-              className="w-full justify-start gap-2 rounded-xl border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+              className="w-full justify-start gap-2 rounded-xl border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground/80 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <Plus className="h-4 w-4 text-primary" />
               Cuộc trò chuyện mới
@@ -227,20 +227,20 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
       <div className="chat-scroll flex-1 overflow-auto px-2 pb-3">
         <div className="mb-2 px-2 pt-1">
           <div className="group relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-primary" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/55 transition-colors group-focus-within:text-primary" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm hội thoại…"
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-xs text-slate-800 placeholder:text-slate-400 outline-none transition-all focus:border-primary/40 focus:bg-white focus:ring-1 focus:ring-primary/30"
+              className="h-9 w-full rounded-xl border border-sidebar-border bg-sidebar-accent/40 pl-9 pr-8 text-xs text-sidebar-foreground placeholder:text-sidebar-foreground/45 outline-none transition-all focus:border-primary/40 focus:bg-sidebar focus:ring-1 focus:ring-primary/30"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
                 aria-label="Xoá tìm kiếm"
-                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground/80"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -255,7 +255,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
               "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               showStarredOnly
                 ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
+                : "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             )}
             title="Chỉ hiển thị hội thoại đã đánh dấu sao"
           >
@@ -264,19 +264,19 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
           </button>
         </div>
         {query.isLoading && (
-          <div className="px-3 py-4 text-xs text-slate-500">Đang tải…</div>
+          <div className="px-3 py-4 text-xs text-sidebar-foreground/55">Đang tải…</div>
         )}
         {query.data && query.data.length === 0 && (
           <div className="flex flex-col items-center px-4 py-12 text-center">
-            <MessageSquare className="mb-3 h-10 w-10 text-slate-300" />
-            <p className="text-xs leading-relaxed text-slate-500">
+            <MessageSquare className="mb-3 h-10 w-10 text-sidebar-foreground/30" />
+            <p className="text-xs leading-relaxed text-sidebar-foreground/55">
               Chưa có cuộc trò chuyện nào.<br />
-              Bấm <span className="font-medium text-slate-700">Cuộc trò chuyện mới</span> để bắt đầu.
+              Bấm <span className="font-medium text-sidebar-foreground">Cuộc trò chuyện mới</span> để bắt đầu.
             </p>
           </div>
         )}
         {query.data && query.data.length > 0 && buckets.length === 0 && (
-          <div className="px-4 py-8 text-center text-xs text-slate-500">
+          <div className="px-4 py-8 text-center text-xs text-sidebar-foreground/55">
             {q
               ? `Không tìm thấy hội thoại nào cho “${searchQuery.trim()}”`
               : "Không có hội thoại đánh dấu sao"}
@@ -285,7 +285,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         <div className="space-y-6">
           {buckets.map((b) => (
             <div key={b.label}>
-              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/55">
                 {b.label}
               </div>
               <ul className="space-y-0.5">
@@ -301,8 +301,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         className={cn(
                           "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
                           isActive
-                            ? "border border-primary/20 bg-primary/10 text-slate-900"
-                            : "border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                            ? "border border-primary/20 bg-primary/10 text-sidebar-foreground"
+                            : "border border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                         )}
                       >
                         {isActive && (
@@ -317,7 +317,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                             <Pin className="h-3 w-3 shrink-0 text-primary/70" />
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-sidebar-foreground/45">
                           {relativeTime(t.last_message_at)}
                         </span>
                       </Link>
@@ -325,7 +325,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="absolute right-1.5 top-2 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100 data-[state=open]:opacity-100"
+                            className="absolute right-1.5 top-2 rounded-md p-1 text-sidebar-foreground/45 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground/80 group-hover:opacity-100 data-[state=open]:opacity-100"
                             aria-label="Tuỳ chọn"
                           >
                             <MoreHorizontal className="h-3.5 w-3.5" />
