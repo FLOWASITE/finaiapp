@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import { FinAILogo } from "@/components/FinAILogo";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarGroup,
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem,
