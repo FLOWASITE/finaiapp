@@ -1024,12 +1024,14 @@ function CreateVoucherDialog({
     }));
   }, [open, initialParty]);
 
-  // When suppliers list loads, fill in group name based on supplier
+  // Fill group name once supplier list + groups are available
   useEffect(() => {
-    if (!initialParty?.id) return;
-    const s = (((typeof window !== "undefined") && null) || null);
-    void s;
-  }, [initialParty]);
+    if (!open || !initialParty?.id) return;
+    const s = ((suppliers ?? []) as any[]).find((x) => x.id === initialParty.id);
+    const groupId = (s as any)?.group_id ?? null;
+    const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+    if (groupName) setHeader((h) => (h.customer_group ? h : { ...h, customer_group: groupName }));
+  }, [open, initialParty, suppliers, supplierGroupNameById]);
 
   // Auto-update "Diễn giải" khi user chưa chỉnh tay
   const [reasonTouched, setReasonTouched] = useState(false);
