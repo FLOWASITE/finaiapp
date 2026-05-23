@@ -1256,6 +1256,13 @@ function SalesVouchersPage() {
         prefill={payBank.prefill}
         onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
       />
+      <VoidConfirmDialog
+        open={voidDlg.open}
+        onOpenChange={(o) => setVoidDlg((s) => ({ ...s, open: o }))}
+        items={voidDlg.items}
+        loading={voidMut.isPending}
+        onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
+      />
     </div>
     </div>
   );
