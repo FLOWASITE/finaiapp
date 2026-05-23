@@ -16,6 +16,7 @@ export type VoucherListRow = {
   credit: number;
   party_name: string | null;
   reference: string | null;
+  invoice_no: string | null;
   branch_id: string | null;
   branch_name: string | null;
   department_id: string | null;
@@ -29,7 +30,7 @@ export type VoucherListRow = {
 const hasDims = (d?: DimFilter) =>
   !!(d && (d.branch_id || d.department_id || d.project_id || d.cost_center_id));
 
-type Meta = { voucher_no: string; voucher_type: string; source_table: string; party_name: string | null; reference: string | null };
+type Meta = { voucher_no: string; voucher_type: string; source_table: string; party_name: string | null; reference: string | null; invoice_no: string | null };
 
 async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]): Promise<Map<string, Meta>> {
   const meta = new Map<string, Meta>();
@@ -57,35 +58,43 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
     for (const r of cash.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_CASH[r.voucher_type] ?? r.voucher_type,
       source_table: "cash_vouchers", party_name: r.party_name, reference: r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of bank.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_BANK[r.voucher_type] ?? r.voucher_type,
       source_table: "bank_vouchers", party_name: r.party_name, reference: r.reference ?? r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of cr.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu thu KH",
       source_table: "customer_receipts", party_name: r.customer_name, reference: r.method,
+      invoice_no: null,
     });
     for (const r of sp.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu chi NCC",
       source_table: "supplier_payments", party_name: r.supplier_name, reference: r.method,
+      invoice_no: null,
     });
     for (const r of si.data ?? []) set(r.journal_entry_id, {
       voucher_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" "),
       voucher_type: "Hóa đơn bán", source_table: "sales_invoices",
       party_name: r.customer_name, reference: null,
+      invoice_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" ") || null,
     });
     for (const r of sv.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: r.voucher_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho",
       source_table: "stock_vouchers", party_name: null, reference: r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of pr.data ?? []) set(r.journal_entry_id, {
       voucher_no: `Lương ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Bảng lương",
       source_table: "payroll_runs", party_name: null, reference: null,
+      invoice_no: null,
     });
     for (const r of de.data ?? []) set(r.journal_entry_id, {
       voucher_no: `KH ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Khấu hao",
       source_table: "depreciation_entries", party_name: null, reference: null,
+      invoice_no: null,
     });
   }
 
@@ -118,6 +127,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       if (info) set(entryId, {
         voucher_no: info.no, voucher_type: "Hóa đơn mua",
         source_table: "invoices", party_name: info.supplier, reference: null,
+        invoice_no: info.no,
       });
     }
   }
@@ -207,33 +217,34 @@ async function buildVoucherList(
     loadDimNames(supabase),
   ]);
 
-  const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
-    const e = l.journal_entries;
-    const m = meta.get(l.entry_id);
-    return {
-      entry_id: l.entry_id,
-      line_id: l.id,
-      line_index: Number(l.line_order) || 0,
-      entry_date: e.entry_date,
-      voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
-      voucher_type: m?.voucher_type ?? "Phiếu kế toán",
-      source_table: m?.source_table ?? "journal_entries",
-      description: e.description,
-      account_code: l.account_code,
-      debit: Number(l.debit) || 0,
-      credit: Number(l.credit) || 0,
-      party_name: m?.party_name ?? null,
-      reference: m?.reference ?? null,
-      branch_id: l.branch_id,
-      branch_name: (l.branch_id ? (dimNames.branch.get(l.branch_id) as string) : null) ?? null,
-      department_id: l.department_id,
-      department_name: (l.department_id ? (dimNames.dept.get(l.department_id) as string) : null) ?? null,
-      project_id: l.project_id,
-      project_name: (l.project_id ? (dimNames.project.get(l.project_id) as string) : null) ?? null,
-      cost_center_id: l.cost_center_id,
-      cost_center_name: (l.cost_center_id ? (dimNames.cc.get(l.cost_center_id) as string) : null) ?? null,
-    };
-  });
+    const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
+      const e = l.journal_entries;
+      const m = meta.get(l.entry_id);
+      return {
+        entry_id: l.entry_id,
+        line_id: l.id,
+        line_index: Number(l.line_order) || 0,
+        entry_date: e.entry_date,
+        voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
+        voucher_type: m?.voucher_type ?? "Phiếu kế toán",
+        source_table: m?.source_table ?? "journal_entries",
+        description: e.description,
+        account_code: l.account_code,
+        debit: Number(l.debit) || 0,
+        credit: Number(l.credit) || 0,
+        party_name: m?.party_name ?? null,
+        reference: m?.reference ?? null,
+        invoice_no: m?.invoice_no ?? null,
+        branch_id: l.branch_id,
+        branch_name: (l.branch_id ? (dimNames.branch.get(l.branch_id) as string) : null) ?? null,
+        department_id: l.department_id,
+        department_name: (l.department_id ? (dimNames.dept.get(l.department_id) as string) : null) ?? null,
+        project_id: l.project_id,
+        project_name: (l.project_id ? (dimNames.project.get(l.project_id) as string) : null) ?? null,
+        cost_center_id: l.cost_center_id,
+        cost_center_name: (l.cost_center_id ? (dimNames.cc.get(l.cost_center_id) as string) : null) ?? null,
+      };
+    });
 
   // sourceTables / voucherTypes filters are applied AFTER meta resolution;
   // for paginated mode we keep these page-local to avoid an extra full scan.
@@ -304,16 +315,16 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     ws.getCell("A1").font = { bold: true, size: 13 };
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
-    ws.mergeCells("A5:M5");
+    ws.mergeCells("A5:N5");
     ws.getCell("A5").value = "BẢNG KÊ CHỨNG TỪ";
     ws.getCell("A5").font = { bold: true, size: 14 };
     ws.getCell("A5").alignment = { horizontal: "center" };
-    ws.mergeCells("A6:M6");
+    ws.mergeCells("A6:N6");
     ws.getCell("A6").value = `Kỳ từ ${data.from} đến ${data.to}`;
     ws.getCell("A6").alignment = { horizontal: "center" };
 
     const headers = [
-      "Ngày", "Số CT", "Loại CT", "Diễn giải", "TK", "Phát sinh Nợ", "Phát sinh Có",
+      "Ngày", "Số CT", "Loại CT", "Số HĐ", "Diễn giải", "TK", "Phát sinh Nợ", "Phát sinh Có",
       "Đối tác", "Tham chiếu", "Chi nhánh", "Phòng ban", "Dự án", "TT chi phí",
     ];
     const headerRow = ws.addRow([]);
@@ -328,22 +339,22 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     let rowIdx = 9;
     for (const r of res.rows) {
       ws.getRow(rowIdx).values = [
-        r.entry_date, r.voucher_no, r.voucher_type, r.description ?? "",
+        r.entry_date, r.voucher_no, r.voucher_type, r.invoice_no ?? "", r.description ?? "",
         r.account_code, r.debit || null, r.credit || null,
         r.party_name ?? "", r.reference ?? "",
         r.branch_name ?? "", r.department_name ?? "", r.project_name ?? "", r.cost_center_name ?? "",
       ];
-      ws.getCell(`F${rowIdx}`).numFmt = "#,##0";
       ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
+      ws.getCell(`H${rowIdx}`).numFmt = "#,##0";
       rowIdx++;
     }
-    ws.getRow(rowIdx).values = ["", "", "", "TỔNG CỘNG", "", res.totals.debit, res.totals.credit];
+    ws.getRow(rowIdx).values = ["", "", "", "", "TỔNG CỘNG", "", res.totals.debit, res.totals.credit];
     ws.getRow(rowIdx).font = { bold: true };
-    ws.getCell(`F${rowIdx}`).numFmt = "#,##0";
     ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
+    ws.getCell(`H${rowIdx}`).numFmt = "#,##0";
 
     ws.columns = [
-      { width: 12 }, { width: 16 }, { width: 18 }, { width: 38 }, { width: 8 },
+      { width: 12 }, { width: 16 }, { width: 18 }, { width: 14 }, { width: 38 }, { width: 8 },
       { width: 16 }, { width: 16 }, { width: 24 }, { width: 16 },
       { width: 22 }, { width: 22 }, { width: 22 }, { width: 22 },
     ];

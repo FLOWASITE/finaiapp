@@ -119,6 +119,7 @@ function VoucherListPage() {
     return pageRows.filter((r) =>
       norm(r.voucher_no).includes(s) ||
       norm(r.voucher_type).includes(s) ||
+      norm(r.invoice_no ?? "").includes(s) ||
       norm(r.description ?? "").includes(s) ||
       norm(r.party_name ?? "").includes(s) ||
       norm(r.account_code).includes(s) ||
@@ -134,6 +135,7 @@ function VoucherListPage() {
     entry_date: string;
     voucher_no: string;
     voucher_type: string;
+    invoice_no: string | null;
     description: string | null;
     debitAccount: string | null;
     creditAccount: string | null;
@@ -173,7 +175,7 @@ function VoucherListPage() {
       };
       const base = (extra: Partial<GroupedRow>): GroupedRow => ({
         key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
-        voucher_type: meta.voucher_type, description: meta.description,
+        voucher_type: meta.voucher_type, invoice_no: meta.invoice_no ?? null, description: meta.description,
         debitAccount: null, creditAccount: null, amount: 0,
         debitParty: null, creditParty: null, reference: meta.reference,
         branch_name: meta.branch_name, department_name: meta.department_name,
@@ -424,6 +426,7 @@ function VoucherListPage() {
                       <th className="px-2 py-2 text-left">Ngày</th>
                       <th className="px-2 py-2 text-left">Số CT</th>
                       <th className="px-2 py-2 text-left">Loại CT</th>
+                      <th className="px-2 py-2 text-left">Số HĐ</th>
                       <th className="px-2 py-2 text-left">Diễn giải</th>
                       <th className="px-2 py-2 text-center">TK Nợ</th>
                       <th className="px-2 py-2 text-center">TK Có</th>
@@ -449,6 +452,7 @@ function VoucherListPage() {
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
+                          <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.invoice_no ?? ""}</td>
                           <td className="px-2 py-1.5">{g.description ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
@@ -465,7 +469,7 @@ function VoucherListPage() {
                     })}
                     {groupedRows.length === 0 && (
                       <tr>
-                        <td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">
+                        <td colSpan={15} className="px-3 py-12 text-center text-muted-foreground">
                           Không có chứng từ phù hợp bộ lọc
                         </td>
                       </tr>
@@ -475,7 +479,7 @@ function VoucherListPage() {
                   {groupedRows.length > 0 && (
                     <tfoot className="bg-muted/40 font-semibold">
                       <tr className="border-t-2 border-border">
-                        <td className="px-2 py-2" colSpan={6}>Tổng trang này</td>
+                        <td className="px-2 py-2" colSpan={7}>Tổng trang này</td>
                         <td className="px-2 py-2 text-right font-mono">{fmt(totalAmount)}</td>
                         <td colSpan={7} />
                       </tr>
