@@ -172,7 +172,7 @@ function VouchersPage() {
               );
             })}
             {vouchers.length === 0 && (
-              <tr><td colSpan={11} className="py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+              <tr><td colSpan={11} className="py-8"><EmptyState size="sm" bordered={false} title="Chưa có phiếu nào" /></td></tr>
             )}
           </tbody>
         </table>
