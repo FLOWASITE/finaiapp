@@ -34,6 +34,7 @@ export const Route = createFileRoute("/login")({
 
 const emailSchema = z.string().trim().email("Email không hợp lệ").max(255);
 const passwordSchema = z.string().min(6, "Mật khẩu tối thiểu 6 ký tự").max(72);
+const AUTH_REQUEST_TIMEOUT_MS = 30_000;
 
 function scorePassword(pw: string): { score: number; label: string; tone: string } {
   let s = 0;
@@ -74,14 +75,14 @@ function LoginPage() {
   // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    withTimeoutReject(supabase.auth.getSession(), 1500)
+    withTimeoutReject(supabase.auth.getSession(), 3_000)
       .then((res: any) => {
         if (!active) return;
         if (res?.data?.session) navigate({ to: dest, replace: true });
       })
       .catch((err) => {
         const raw = err instanceof Error ? err.message : String(err ?? "");
-        if (/failed to fetch|network|timeout/i.test(raw)) {
+        if (/refresh token|invalid refresh|jwt expired/i.test(raw)) {
           clearSupabaseAuthStorage();
         }
       });
@@ -109,7 +110,7 @@ function LoginPage() {
     const m = raw.toLowerCase();
 
     if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
-      return { title: "Phiên đăng nhập cũ đã được dọn", detail: "FinAI đã làm sạch phiên cũ. Vui lòng bấm Đăng nhập lại." };
+      return { title: "Kết nối đăng nhập bị gián đoạn", detail: "Kiểm tra mạng rồi thử lại. Nếu đang dùng preview, hãy thử trên link đã publish." };
     }
 
     if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
@@ -153,7 +154,7 @@ function LoginPage() {
           password,
           options: { emailRedirectTo: `${window.location.origin}${dest}` },
         }),
-        12_000,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
     }
 
@@ -162,7 +163,7 @@ function LoginPage() {
         email: email.trim(),
         password,
       }),
-      12_000,
+      AUTH_REQUEST_TIMEOUT_MS,
     );
   }
 
@@ -172,32 +173,21 @@ function LoginPage() {
     if (!validate()) return;
     setLoading(true);
     try {
-      let result;
-      try {
-        result = await submitAuthOnce();
-      } catch (firstErr) {
-        if (!isRecoverableNetworkAuthError(firstErr)) throw firstErr;
-        clearSupabaseAuthStorage();
-        result = await submitAuthOnce();
-      }
-
-      if (result.error && isRecoverableNetworkAuthError(result.error)) {
-        clearSupabaseAuthStorage();
-        result = await submitAuthOnce();
-      }
+      const result = await submitAuthOnce();
 
       if (result.error) throw result.error;
+
+      if (!isSignup) {
+        await withTimeoutReject(supabase.auth.getSession(), 3_000).catch(() => null);
+      }
 
       if (isSignup) {
         toast.success("Tạo tài khoản thành công. Kiểm tra email để xác nhận.");
       } else {
         toast.success("Đăng nhập thành công");
       }
-      navigate({ to: dest });
+      navigate({ to: dest, replace: true });
     } catch (err) {
-      if (isRecoverableNetworkAuthError(err)) {
-        clearSupabaseAuthStorage();
-      }
       const mapped = mapAuthError(err);
       setFormError(mapped);
       toast.error(mapped.title, { description: mapped.detail });
