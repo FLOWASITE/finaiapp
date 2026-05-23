@@ -918,6 +918,10 @@ function CreateVoucherDialog({
     auto_allocate_cost: false,
     pay_now: false,
     create_stock_voucher: false,
+    warehouse_id: "" as string,
+    stock_voucher_no: "",
+    stock_voucher_date: "",
+    stock_voucher_reason: "",
     discount_pct: 0,
     discount_amount: 0,
   });
