@@ -114,7 +114,7 @@ export function MbBankConnectDialog({
     if (!polling) return;
     if (acc?.last_sync_status && acc.last_sync_status !== "running") {
       setPolling(false);
-      if (acc.last_sync_status === "success") toast.success("Đồng bộ hoàn tất");
+      if (acc.last_sync_status === "success") finToast.success("Đồng bộ MBBank hoàn tất");
       else if (acc.last_sync_status === "error") toast.error("Đồng bộ thất bại");
       qc.invalidateQueries({ queryKey: ["bank-accounts"] });
     }
