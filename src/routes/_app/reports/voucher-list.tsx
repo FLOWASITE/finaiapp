@@ -451,6 +451,7 @@ function VoucherListPage() {
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
+                          <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.invoice_no ?? ""}</td>
                           <td className="px-2 py-1.5">{g.description ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
