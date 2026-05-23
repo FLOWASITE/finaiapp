@@ -1112,14 +1112,22 @@ function PaymentsTab({
 function NewPaymentInline({
   preselectInvoiceId,
   preselectSupplierId,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
 }: {
   preselectInvoiceId?: string;
   preselectSupplierId?: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const qc = useQueryClient();
   const recordFn = useServerFn(recordPayment);
   const outFn = useServerFn(listOutstandingPurchaseInvoices);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
 
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-purchase-invoices"],
@@ -1133,7 +1141,9 @@ function NewPaymentInline({
 
   return (
     <>
-      <AddNew label="Phiếu chi" icon={Banknote} onClick={() => setOpen(true)} />
+      {!hideTrigger && (
+        <AddNew label="Phiếu chi" icon={Banknote} onClick={() => setOpen(true)} />
+      )}
       <NewPaymentDialog
         open={open}
         onOpenChange={setOpen}
