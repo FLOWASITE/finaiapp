@@ -32,6 +32,7 @@ function CashPage() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
   const [tab, setTab] = useState<CashTabValue>("vouchers");
+  const pagination = usePagination((vouchers ?? []) as any[], 20, vouchers);
 
   const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}),
  ...QUERY_PRESETS.TRANSACTIONAL,
@@ -122,7 +123,7 @@ function CashPage() {
               </tr>
             </thead>
             <tbody>
-              {(vouchers ?? []).map((v: any) => (
+              {pagination.pageRows.map((v: any) => (
                 <tr key={v.id} className="border-t border-border">
                   <td className="px-4 py-2">{v.voucher_date}</td>
                   <td className="px-4 py-2 font-mono">{v.voucher_no}</td>
