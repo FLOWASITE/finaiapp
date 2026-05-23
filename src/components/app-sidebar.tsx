@@ -34,6 +34,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAiSidebarCounts } from "@/lib/sidebar-counts.functions";
+import { FinMascot } from "@/components/fin-mascot";
+import { openAskAi } from "@/lib/open-ask-ai";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type BadgeTone = "new" | "muted" | "danger" | "default";
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
@@ -591,6 +594,28 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="relative border-t border-sidebar-border/40 p-2">
+          {collapsed && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => openAskAi()}
+                    aria-label="Hỏi Fin"
+                    className="group relative mb-2 mx-auto flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 active:scale-95"
+                  >
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 rounded-full opacity-60 blur-md transition-opacity duration-300 group-hover:opacity-100"
+                      style={{ background: "var(--gradient-ai)" }}
+                    />
+                    <FinMascot size="xs" glow={false} className="relative" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Hỏi Fin</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
