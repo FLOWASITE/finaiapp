@@ -19,6 +19,7 @@ import {
   recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { listBranches } from "@/lib/dimensions.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
@@ -313,6 +314,10 @@ type FormState = {
   pay_now: boolean;
   issue_einvoice: boolean;
   create_stock_voucher: boolean;
+  warehouse_id: string | null;
+  stock_voucher_no: string;
+  stock_voucher_date: string;
+  stock_voucher_reason: string;
   discount_pct: number;
   discount_amount: number;
   notes: string;
@@ -359,6 +364,10 @@ const blankForm = (no = ""): FormState => ({
   pay_now: false,
   issue_einvoice: false,
   create_stock_voucher: false,
+  warehouse_id: null,
+  stock_voucher_no: "",
+  stock_voucher_date: "",
+  stock_voucher_reason: "",
   discount_pct: 0,
   discount_amount: 0,
   notes: "",
@@ -515,6 +524,10 @@ function SalesVouchersPage() {
       pay_now: voucher.pay_now,
       issue_einvoice: voucher.issue_einvoice,
       create_stock_voucher: voucher.create_stock_voucher,
+      warehouse_id: (voucher as any).warehouse_id ?? null,
+      stock_voucher_no: (voucher as any).stock_voucher_no ?? "",
+      stock_voucher_date: (voucher as any).stock_voucher_date ?? "",
+      stock_voucher_reason: (voucher as any).stock_voucher_reason ?? "",
       discount_pct: Number(voucher.discount_pct || 0),
       discount_amount: Number(voucher.discount_amount || 0),
       notes: voucher.notes ?? "",
@@ -611,6 +624,10 @@ function SalesVouchersPage() {
       pay_now: form.pay_now,
       issue_einvoice: form.issue_einvoice,
       create_stock_voucher: form.create_stock_voucher,
+      warehouse_id: form.create_stock_voucher ? (form.warehouse_id || null) : null,
+      stock_voucher_no: form.create_stock_voucher ? (form.stock_voucher_no.trim() || null) : null,
+      stock_voucher_date: form.create_stock_voucher ? (form.stock_voucher_date || null) : null,
+      stock_voucher_reason: form.create_stock_voucher ? (form.stock_voucher_reason.trim() || null) : null,
       branch_id: form.branch_id,
       notes: form.notes || null,
       lines: form.lines
@@ -1240,6 +1257,23 @@ function VoucherDialog({
     ...QUERY_PRESETS.REFERENCE,
   });
 
+  const warehousesFn = useServerFn(listWarehouses);
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses-picker"],
+    queryFn: () => warehousesFn(),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+
+  // Auto-fill default warehouse when stock voucher panel opens
+  useEffect(() => {
+    if (form.create_stock_voucher && !form.warehouse_id) {
+      const list = (warehouses ?? []) as any[];
+      const def = list.find((w) => w.is_default) ?? list[0];
+      if (def) setForm((f) => ({ ...f, warehouse_id: def.id }));
+    }
+  }, [form.create_stock_voucher, warehouses, form.warehouse_id]);
+
   const customersFn = useServerFn(listCustomers);
   const customerGroupsFn = useServerFn(listPartyGroups);
   const { data: customersAll } = useQuery({
@@ -1323,6 +1357,58 @@ function VoucherDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {/* Khu vực Phiếu xuất kho */}
+          {form.create_stock_voucher && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <h4 className="text-sm font-semibold text-primary">Phiếu xuất kho</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs"><span className="text-destructive">*</span> Kho</Label>
+                  <Select
+                    value={form.warehouse_id ?? ""}
+                    onValueChange={(v) => setForm((f) => ({ ...f, warehouse_id: v || null }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Chọn kho" /></SelectTrigger>
+                    <SelectContent>
+                      {((warehouses ?? []) as any[]).map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.code} — {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Số phiếu xuất kho</Label>
+                  <Input
+                    className="h-9"
+                    placeholder={`XK-${form.voucher_no || ""}`}
+                    value={form.stock_voucher_no}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_no: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Ngày phiếu xuất kho</Label>
+                  <Input
+                    type="date"
+                    className="h-9"
+                    value={form.stock_voucher_date || form.voucher_date}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_date: e.target.value }))}
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <Label className="text-xs">Diễn giải</Label>
+                  <Input
+                    className="h-9"
+                    placeholder={`Xuất kho theo phiếu ${form.voucher_no || ""}`}
+                    value={form.stock_voucher_reason}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_reason: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="space-y-3">
             <h3 className="text-primary font-semibold border-b pb-1">Phiếu bán hàng</h3>

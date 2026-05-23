@@ -58,6 +58,9 @@ const VoucherUpsertSchema = z.object({
   issue_einvoice: z.boolean().default(false),
   create_stock_voucher: z.boolean().default(false),
   warehouse_id: z.string().uuid().nullable().optional(),
+  stock_voucher_no: z.string().trim().max(64).nullable().optional(),
+  stock_voucher_date: z.string().nullable().optional(),
+  stock_voucher_reason: z.string().max(500).nullable().optional(),
   sales_order_id: z.string().uuid().nullable().optional(),
   branch_id: z.string().uuid().nullable().optional(),
   department_id: z.string().uuid().nullable().optional(),
@@ -623,12 +626,12 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
         .insert({
           user_id: userId,
           tenant_id: v.tenant_id,
-          voucher_no: `XK-${v.voucher_no}`,
+          voucher_no: (v as any).stock_voucher_no || `XK-${v.voucher_no}`,
           voucher_type: "out",
-          voucher_date: v.voucher_date,
+          voucher_date: (v as any).stock_voucher_date || v.voucher_date,
           warehouse_id: warehouseId,
           counter_account: "632",
-          reason: `Xuất kho bán hàng ${v.voucher_no}`,
+          reason: (v as any).stock_voucher_reason || `Xuất kho bán hàng ${v.voucher_no}`,
           journal_entry_id: entry.id,
         })
         .select("id")

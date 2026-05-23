@@ -23,6 +23,7 @@ import {
 } from "@/lib/purchase-vouchers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
@@ -917,6 +918,10 @@ function CreateVoucherDialog({
     auto_allocate_cost: false,
     pay_now: false,
     create_stock_voucher: false,
+    warehouse_id: "" as string,
+    stock_voucher_no: "",
+    stock_voucher_date: "",
+    stock_voucher_reason: "",
     discount_pct: 0,
     discount_amount: 0,
   });
@@ -941,6 +946,22 @@ function CreateVoucherDialog({
     enabled: open,
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
+  const warehousesFn = useServerFn(listWarehouses);
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses-picker"],
+    queryFn: () => warehousesFn(),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+
+  useEffect(() => {
+    if (header.create_stock_voucher && !header.warehouse_id) {
+      const list = (warehouses ?? []) as any[];
+      const def = list.find((w) => w.is_default) ?? list[0];
+      if (def) setHeader((h) => ({ ...h, warehouse_id: def.id }));
+    }
+  }, [header.create_stock_voucher, warehouses, header.warehouse_id]);
 
   useEffect(() => {
     if (open && !header.voucher_no && suggested?.voucher_no) {
@@ -1016,7 +1037,10 @@ function CreateVoucherDialog({
         auto_allocate_cost: header.auto_allocate_cost,
         pay_now: header.pay_now,
         create_stock_voucher: header.create_stock_voucher,
-        warehouse_id: null,
+        warehouse_id: header.create_stock_voucher ? (header.warehouse_id || null) : null,
+        stock_voucher_no: header.create_stock_voucher ? (header.stock_voucher_no.trim() || null) : null,
+        stock_voucher_date: header.create_stock_voucher ? (header.stock_voucher_date || null) : null,
+        stock_voucher_reason: header.create_stock_voucher ? (header.stock_voucher_reason.trim() || null) : null,
         lines: lines
           .filter((l) => l.amount > 0 || l.qty > 0 || l.product_name || l.description)
           .map((l) => ({
@@ -1107,6 +1131,58 @@ function CreateVoucherDialog({
             Chi phí không được trừ
           </label>
         </div>
+
+        {header.create_stock_voucher && (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2 mt-3">
+            <h4 className="text-sm font-semibold text-primary">Phiếu nhập kho</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs"><span className="text-destructive">*</span> Kho</Label>
+                <Select
+                  value={header.warehouse_id || ""}
+                  onValueChange={(v) => setHeader((h) => ({ ...h, warehouse_id: v }))}
+                >
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Chọn kho" /></SelectTrigger>
+                  <SelectContent>
+                    {((warehouses ?? []) as any[]).map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.code} — {w.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Số phiếu nhập kho</Label>
+                <Input
+                  className="h-9"
+                  placeholder={`NK-${header.voucher_no || ""}`}
+                  value={header.stock_voucher_no}
+                  onChange={(e) => setHeader((h) => ({ ...h, stock_voucher_no: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Ngày phiếu nhập kho</Label>
+                <Input
+                  type="date"
+                  className="h-9"
+                  value={header.stock_voucher_date || header.voucher_date}
+                  onChange={(e) => setHeader((h) => ({ ...h, stock_voucher_date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Diễn giải</Label>
+                <Input
+                  className="h-9"
+                  placeholder={`Nhập kho từ phiếu ${header.voucher_no || ""}`}
+                  value={header.stock_voucher_reason}
+                  onChange={(e) => setHeader((h) => ({ ...h, stock_voucher_reason: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
 
         <Tabs defaultValue="pmh" className="mt-2">
           <TabsList className="w-full sm:w-auto">
