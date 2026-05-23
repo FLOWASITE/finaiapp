@@ -16,7 +16,8 @@ function IndexRedirectFallback() {
     let active = true;
     const fallback = window.setTimeout(() => {
       if (active) window.location.replace("/login");
-    }, 800);
+    }, 600);
+
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
