@@ -73,6 +73,7 @@ function VoucherListPage() {
   const year = new Date().getFullYear();
   const [from, setFrom] = useState(`${year}-01-01`);
   const [to, setTo] = useState(today);
+  const [branchId, setBranchId] = useState<string>("");
   const [dims, setDims] = useState<DimensionValue>({});
   const [accountPrefix, setAccountPrefix] = useState("");
   const [sources, setSources] = useState<string[]>([]);
@@ -88,8 +89,25 @@ function VoucherListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
+  // Branches for quick filter
+  const branchesQ = useQuery({
+    queryKey: ["branches-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("branches").select("id, name, code").order("code", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({ id: r.id as string, label: r.code ? `${r.code} — ${r.name}` : r.name }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Merge branchId into dims for server call
+  const dimsWithBranch = useMemo<DimensionValue>(() => ({
+    ...dims,
+    ...(branchId ? { branch_id: branchId } : {}),
+  }), [dims, branchId]);
+
   // Reset to page 1 whenever filters change
-  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources, voucherTypes });
+  const filterKey = JSON.stringify({ from, to, branchId, dims, accountPrefix, sources, voucherTypes });
   useEffect(() => { setPage(1); }, [filterKey]);
 
 
