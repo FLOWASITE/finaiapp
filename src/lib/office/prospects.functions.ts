@@ -79,3 +79,52 @@ export const deleteProspect = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** Chuyển prospect thành khách hàng: tạo office_client_links từ tenant FinAI đã có,
+ *  cập nhật prospect status=won và converted_tenant_id. */
+export const convertProspect = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator(
+    (i: {
+      prospect_id: string;
+      client_tenant_id: string;
+      fee_per_month?: number;
+      display_name?: string | null;
+    }) => i,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId, userId } = context;
+    const { data: p, error: e1 } = await supabase
+      .from("office_prospects")
+      .select("name")
+      .eq("id", data.prospect_id)
+      .eq("agency_tenant_id", tenantId)
+      .single();
+    if (e1 || !p) throw new Error("Không tìm thấy khách tiềm năng");
+
+    const { data: link, error: e2 } = await supabase
+      .from("office_client_links")
+      .insert({
+        agency_tenant_id: tenantId,
+        client_tenant_id: data.client_tenant_id,
+        display_name: data.display_name ?? p.name,
+        fee_per_month: data.fee_per_month ?? 0,
+        status: "active",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (e2) {
+      if (e2.code === "23505") throw new Error("Khách hàng này đã được liên kết");
+      throw new Error(e2.message);
+    }
+
+    const { error: e3 } = await supabase
+      .from("office_prospects")
+      .update({ status: "won", converted_tenant_id: data.client_tenant_id })
+      .eq("id", data.prospect_id)
+      .eq("agency_tenant_id", tenantId);
+    if (e3) throw new Error(e3.message);
+
+    return { link_id: link!.id };
+  });
