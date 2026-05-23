@@ -120,7 +120,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       invoice_no: r.einvoice_id ? (einvMap.get(r.einvoice_id) ?? null) : null,
     });
     for (const r of (purchV.data ?? []) as any[]) {
-      const no = [r.invoice_series, r.invoice_no].filter(Boolean).join(" ").trim();
+      const no = (r.invoice_no ?? "").toString().trim();
       set(r.journal_entry_id, {
         voucher_no: r.voucher_no, voucher_type: "Phiếu mua hàng",
         source_table: "purchase_vouchers", party_name: r.supplier_name,
