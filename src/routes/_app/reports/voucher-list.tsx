@@ -406,7 +406,8 @@ function VoucherListPage() {
                       <th className="px-2 py-2 text-center">TK Nợ</th>
                       <th className="px-2 py-2 text-center">TK Có</th>
                       <th className="px-2 py-2 text-right">Số tiền</th>
-                      <th className="px-2 py-2 text-left">Đối tác</th>
+                      <th className="px-2 py-2 text-left">Đối tượng Nợ</th>
+                      <th className="px-2 py-2 text-left">Đối tượng Có</th>
                       <th className="px-2 py-2 text-left">Tham chiếu</th>
                       <th className="px-2 py-2 text-left">Chi nhánh</th>
                       <th className="px-2 py-2 text-left">Phòng ban</th>
