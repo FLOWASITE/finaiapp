@@ -442,6 +442,70 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   );
 }
 
+function RowActions({
+  kind, party, onEdit, onOpening, onArchive, onDelete, onCreateVoucher,
+}: {
+  kind: Kind;
+  party: any;
+  onEdit: () => void;
+  onOpening: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onCreateVoucher: () => void;
+}) {
+  const isCustomer = kind === "customer";
+  const archived = party.is_active === false;
+  const createLabel = isCustomer ? "Tạo phiếu bán hàng" : "Tạo phiếu mua hàng";
+  const mergeLabel = isCustomer ? "Gộp khách hàng" : "Gộp nhà cung cấp";
+  return (
+    <div className="inline-flex items-center gap-1">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 w-7 p-0 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white hover:text-white"
+        title={createLabel}
+        onClick={(e) => { e.stopPropagation(); onCreateVoucher(); }}
+      >
+        <FileText className="h-3.5 w-3.5" />
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={(e) => e.stopPropagation()}>
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onCreateVoucher}>
+            <FilePlus className="mr-2 h-4 w-4" /> {createLabel}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpening}>
+            <BookOpen className="mr-2 h-4 w-4" /> Khai báo công nợ đầu kỳ
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toast.info("Tính năng đang phát triển")}>
+            <GitMerge className="mr-2 h-4 w-4" /> {mergeLabel}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onArchive}>
+            {archived ? (
+              <><ArchiveRestore className="mr-2 h-4 w-4" /> Khôi phục</>
+            ) : (
+              <><Archive className="mr-2 h-4 w-4" /> Lưu trữ</>
+            )}
+          </DropdownMenuItem>
+          {!isCustomer && (
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" /> Xoá
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 function Cell({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
   return (
     <div className="rounded bg-muted/40 px-1.5 py-1">
