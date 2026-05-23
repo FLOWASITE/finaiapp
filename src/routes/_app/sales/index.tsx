@@ -173,6 +173,10 @@ function SalesHubPage() {
   const clickStatus = (s: string | undefined) =>
     setTab("invoices", { status: s });
 
+  const [openInvoice, setOpenInvoice] = useState(false);
+  const [openReceipt, setOpenReceipt] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
+
   return (
     <div>
       <SalesTabs />
@@ -185,12 +189,33 @@ function SalesHubPage() {
             Tổng quan doanh thu, hoá đơn và phiếu thu — đối ứng công nợ TK 131
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <ImportEinvoiceXmlDialog triggerLabel="Nhập XML hoá đơn" />
-          <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
-          <NewInvoiceDialog />
-        </div>
+        <SplitActionButton
+          primary={{
+            label: "Tạo HĐ bán",
+            icon: Plus,
+            onClick: () => setOpenInvoice(true),
+          }}
+          items={[
+            { label: "Phiếu thu", icon: Banknote, onSelect: () => setOpenReceipt(true) },
+            { label: "Nhập XML hoá đơn", icon: FileCode2, onSelect: () => setOpenImport(true), separatorBefore: true },
+          ]}
+        />
+        <ImportEinvoiceXmlDialog
+          triggerLabel="Nhập XML hoá đơn"
+          hideTrigger
+          open={openImport}
+          onOpenChange={setOpenImport}
+        />
+        <NewReceiptInline
+          preselectInvoiceId={invoice}
+          preselectCustomerId={customer}
+          hideTrigger
+          open={openReceipt}
+          onOpenChange={setOpenReceipt}
+        />
+        <NewInvoiceDialog hideTrigger open={openInvoice} onOpenChange={setOpenInvoice} />
       </div>
+
 
       {/* Money strip — Xero-style click-to-filter cards */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
