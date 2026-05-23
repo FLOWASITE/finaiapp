@@ -219,6 +219,7 @@ export function VoucherListPage({ type }: Props) {
       </Card>
 
       <VoucherDetailDialog id={openId} onClose={() => setOpenId(null)} type={type === "all" ? "in" : type} />
+      <VoucherCreateDialog type={createType} onClose={() => setCreateType(null)} />
     </div>
   );
 }
