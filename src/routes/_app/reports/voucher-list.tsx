@@ -169,6 +169,17 @@ function VoucherListPage() {
         project_name: meta.project_name, cost_center_name: meta.cost_center_name,
         pair_index: 0, ...extra,
       });
+      const PARTY_PREFIXES = ["131", "136", "138", "141", "144", "244", "331", "334", "336", "338"];
+      const isPartyAcc = (a: string | null) => !!a && PARTY_PREFIXES.some((p) => a.startsWith(p));
+      const partyFor = (dAcc: string | null, cAcc: string | null) => {
+        const pn = meta.party_name ?? null;
+        if (!pn) return { dp: null, cp: null };
+        const dIs = isPartyAcc(dAcc), cIs = isPartyAcc(cAcc);
+        if (dIs && !cIs) return { dp: pn, cp: null };
+        if (cIs && !dIs) return { dp: null, cp: pn };
+        if (dIs && cIs) return { dp: pn, cp: pn };
+        return { dp: pn, cp: null };
+      };
       for (const d of debits) {
         while (d.rem > EPS) {
           let cIdx = credits.findIndex((c) => c.rem > EPS && Math.abs(c.rem - d.rem) < EPS);
@@ -176,16 +187,20 @@ function VoucherListPage() {
           if (cIdx < 0) break;
           const c = credits[cIdx];
           const amt = Math.min(d.rem, c.rem);
-          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, pair_index: pairIdx }));
+          const { dp, cp } = partyFor(d.acc, c.acc);
+          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, debitParty: dp, creditParty: cp, pair_index: pairIdx }));
           d.rem -= amt; c.rem -= amt; pairIdx++;
         }
       }
       for (const d of debits.filter((x) => x.rem > EPS)) {
-        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, pair_index: pairIdx++ }));
+        const { dp } = partyFor(d.acc, null);
+        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, debitParty: dp, pair_index: pairIdx++ }));
       }
       for (const c of credits.filter((x) => x.rem > EPS)) {
-        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, pair_index: pairIdx++ }));
+        const { cp } = partyFor(null, c.acc);
+        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, creditParty: cp, pair_index: pairIdx++ }));
       }
+
     }
     return out.sort(
       (a, b) =>
