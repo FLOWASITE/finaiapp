@@ -395,6 +395,7 @@ function SalesVouchersPage() {
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
+  const previewVoidFn = useServerFn(previewVoidSalesVoucher);
   const branchFnPage = useServerFn(listBranches);
   const productsFnPage = useServerFn(listProducts);
 
