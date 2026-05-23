@@ -45,6 +45,7 @@ type SummaryRow = {
 export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const isCustomer = kind === "customer";
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const listFn = useServerFn((isCustomer ? listCustomers : listSuppliers) as any) as any;
   const summaryFn = useServerFn((isCustomer ? getArSummary : getApSummary) as any) as any;
   const groupsFn = useServerFn(listPartyGroups);
