@@ -1085,14 +1085,22 @@ function PaymentBadge({ status }: { status: string }) {
 function NewReceiptInline({
   preselectInvoiceId,
   preselectCustomerId,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
 }: {
   preselectInvoiceId?: string;
   preselectCustomerId?: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const qc = useQueryClient();
   const recordFn = useServerFn(recordReceipt);
   const outFn = useServerFn(listOutstandingInvoices);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
 
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-invoices"],
@@ -1106,7 +1114,9 @@ function NewReceiptInline({
 
   return (
     <>
-      <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
+      {!hideTrigger && (
+        <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
+      )}
       <NewReceiptDialog
         open={open}
         onOpenChange={setOpen}
