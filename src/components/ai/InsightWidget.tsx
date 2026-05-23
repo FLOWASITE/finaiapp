@@ -40,8 +40,8 @@ export function InsightWidget() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-primary" />
-          Cảnh báo từ AI
+          <FinMascot size="xs" glow={false} />
+          Fin phát hiện
         </CardTitle>
         <Button variant="ghost" size="sm" onClick={() => openAskAi()}>
           Hỏi AI
