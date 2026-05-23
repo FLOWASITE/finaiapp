@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ProspectDialog } from "@/components/office/prospect-dialog";
 
 export const Route = createFileRoute("/_app/office/clients/")({ component: ClientsPage });
 
