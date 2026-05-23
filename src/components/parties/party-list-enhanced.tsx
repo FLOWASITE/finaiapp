@@ -248,6 +248,9 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           <Button variant="outline" asChild>
             <Link to={groupsHref}><FolderTree className="mr-2 h-4 w-4" />{groupsLabel}</Link>
           </Button>
+          <Button variant="outline" onClick={() => setMergeOpen(true)}>
+            <GitMerge className="mr-2 h-4 w-4" />Gộp
+          </Button>
           <Button onClick={() => setEditing({})}>
             <Plus className="mr-2 h-4 w-4" />{addLabel}
           </Button>
