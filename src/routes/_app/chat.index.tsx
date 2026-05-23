@@ -88,26 +88,31 @@ function ChatIndex() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-6 py-10">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-4 md:px-6 md:py-10">
         <div className="mx-auto w-full max-w-3xl text-center">
           {/* Brand identity */}
-          <div className="mb-8 flex justify-center">
-            <FinMascot size="xl" mood="happy" />
+          <div className="mb-4 flex justify-center md:mb-8">
+            <span className="md:hidden">
+              <FinMascot size="lg" mood="happy" />
+            </span>
+            <span className="hidden md:inline-flex">
+              <FinMascot size="xl" mood="happy" />
+            </span>
           </div>
 
-          <h1 className="mb-3 text-4xl font-bold tracking-tight text-slate-900">
-            Trợ lý kế toán AI
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+            AI Agent Kế toán
           </h1>
           <p className="mx-auto mb-2 max-w-lg text-sm font-medium text-slate-600">
             Chào, mình là <span className="font-semibold text-slate-900">Fin</span> — hỏi mình về sổ sách nhé.
           </p>
 
-          <p className="mx-auto mb-10 max-w-lg text-base leading-relaxed text-slate-500">
+          <p className="mx-auto mb-6 hidden max-w-lg text-base leading-relaxed text-slate-500 md:mb-10 md:block">
             Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động.
           </p>
 
           {/* Suggestion grid */}
-          <div className="mb-10 grid w-full grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mb-6 grid w-full grid-cols-1 gap-2 md:mb-10 md:grid-cols-2 md:gap-4">
             {SUGGESTIONS.map((s) => {
               const Icon = s.icon;
               const tone = TONE_STYLES[s.tone];
@@ -117,24 +122,24 @@ function ChatIndex() {
                   onClick={() => start(s.text)}
                   disabled={loading}
                   className={cn(
-                    "group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white/60 p-5 text-left backdrop-blur-sm transition-all duration-300 disabled:opacity-50",
+                    "group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/60 p-3 text-left backdrop-blur-sm transition-all duration-300 disabled:opacity-50 md:p-5",
                     tone.cardHover,
                   )}
                 >
                   <span
                     className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors md:h-11 md:w-11",
                       tone.bucket,
                       tone.bucketHover,
                     )}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4 md:h-5 md:w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="mb-1 block font-semibold text-slate-900">
+                    <span className="mb-0.5 block text-sm font-semibold text-slate-900 md:mb-1 md:text-base">
                       {s.label}
                     </span>
-                    <span className="block text-sm leading-snug text-slate-500 break-words [overflow-wrap:anywhere]">
+                    <span className="block text-xs leading-snug text-slate-500 break-words [overflow-wrap:anywhere] line-clamp-1 md:line-clamp-none md:text-sm">
                       {s.text}
                     </span>
                   </span>
@@ -143,7 +148,7 @@ function ChatIndex() {
             })}
           </div>
 
-          <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
+          <p className="hidden text-xs font-medium uppercase tracking-widest text-slate-400 md:block">
             Hoặc nhập câu hỏi bên dưới để bắt đầu
           </p>
         </div>
