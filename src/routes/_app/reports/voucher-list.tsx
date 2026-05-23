@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Download, Printer, Search } from "lucide-react";
+import { Download, Printer, Search, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 import { getVoucherList, exportVoucherListXlsx } from "@/lib/vouchers.functions";
 import { getCompanyProfile } from "@/lib/reports.functions";
@@ -73,6 +73,9 @@ function VoucherListPage() {
   const [showSignature, setShowSignature] = useState(false);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  type SortConfig = { key: "entry_date" | "voucher_no" | "voucher_type" | null; direction: "asc" | "desc" };
+  const [sort, setSort] = useState<SortConfig>({ key: "entry_date", direction: "asc" });
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
@@ -239,7 +242,29 @@ function VoucherListPage() {
     [groupedRows],
   );
 
+  function toggleSort(key: "entry_date" | "voucher_no" | "voucher_type") {
+    setSort((prev) => {
+      if (prev.key !== key) return { key, direction: "asc" };
+      if (prev.direction === "asc") return { key, direction: "desc" };
+      return { key: "entry_date", direction: "asc" };
+    });
+  }
 
+  const sortedRows = useMemo(() => {
+    const rows = [...groupedRows];
+    if (!sort.key) return rows;
+    rows.sort((a, b) => {
+      const cmp = (a[sort.key!] ?? "").localeCompare(b[sort.key!] ?? "");
+      return sort.direction === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [groupedRows, sort]);
+
+  const SortIcon = ({ col }: { col: "entry_date" | "voucher_no" | "voucher_type" }) => {
+    if (sort.key !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground opacity-50" />;
+    if (sort.direction === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-primary" />;
+    return <ArrowDown className="ml-1 inline h-3 w-3 text-primary" />;
+  };
 
   async function handleExport() {
     try {
@@ -413,7 +438,7 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupedRows.length} bút toán) · Tổng số tiền ${fmt(totalAmount)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${sortedRows.length} bút toán) · Tổng số tiền ${fmt(totalAmount)}`}
         >
           {q.isLoading && !q.data ? (
             <Loading />
@@ -423,9 +448,9 @@ function VoucherListPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted uppercase sticky top-0 z-10 shadow-[0_1px_0_0_hsl(var(--border))] print:static print:shadow-none">
                     <tr>
-                      <th className="px-2 py-2 text-left">Ngày</th>
-                      <th className="px-2 py-2 text-left">Số CT</th>
-                      <th className="px-2 py-2 text-left">Loại CT</th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("entry_date")}>Ngày<SortIcon col="entry_date" /></th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("voucher_no")}>Số CT<SortIcon col="voucher_no" /></th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("voucher_type")}>Loại CT<SortIcon col="voucher_type" /></th>
                       <th className="px-2 py-2 text-left">Số HĐ</th>
                       <th className="px-2 py-2 text-left">Diễn giải</th>
                       <th className="px-2 py-2 text-center">TK Nợ</th>
@@ -441,7 +466,7 @@ function VoucherListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedRows.map((g) => {
+                    {sortedRows.map((g) => {
                       return (
                         <tr
                           key={g.key}
@@ -467,7 +492,7 @@ function VoucherListPage() {
                         </tr>
                       );
                     })}
-                    {groupedRows.length === 0 && (
+                    {sortedRows.length === 0 && (
                       <tr>
                         <td colSpan={15} className="px-3 py-12 text-center text-muted-foreground">
                           Không có chứng từ phù hợp bộ lọc
@@ -476,7 +501,7 @@ function VoucherListPage() {
                     )}
                   </tbody>
 
-                  {groupedRows.length > 0 && (
+                  {sortedRows.length > 0 && (
                     <tfoot className="bg-muted/40 font-semibold">
                       <tr className="border-t-2 border-border">
                         <td className="px-2 py-2" colSpan={7}>Tổng trang này</td>
