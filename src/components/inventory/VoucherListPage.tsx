@@ -218,6 +218,7 @@ export function VoucherListPage({ type }: Props) {
               </tbody>
             </table>
           </div>
+          <TablePagination {...pagination} />
         </CardContent>
       </Card>
 
