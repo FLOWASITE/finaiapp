@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Database, Users, FileCheck, Receipt } from "lucide-react";
+import { FinMascot } from "@/components/fin-mascot";
+
 import { Composer } from "@/components/chat/composer";
 import { createThread, appendMessage } from "@/lib/chat-threads.functions";
 import { toast } from "sonner";
@@ -90,23 +92,16 @@ function ChatIndex() {
         <div className="mx-auto w-full max-w-3xl text-center">
           {/* Brand identity */}
           <div className="mb-8 flex justify-center">
-            <div className="group relative h-20 w-20">
-              <div
-                className="absolute inset-0 rounded-2xl opacity-40 blur-xl transition-opacity duration-500 group-hover:opacity-60"
-                style={{ background: "var(--gradient-ai)" }}
-              />
-              <div
-                className="relative flex h-full w-full items-center justify-center rounded-2xl text-primary-foreground shadow-lg ring-1 ring-white/10"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                <Sparkles className="h-10 w-10" />
-              </div>
-            </div>
+            <FinMascot size="xl" mood="happy" />
           </div>
 
-          <h1 className="mb-4 text-4xl font-bold tracking-tight text-slate-900">
+          <h1 className="mb-3 text-4xl font-bold tracking-tight text-slate-900">
             Trợ lý kế toán AI
           </h1>
+          <p className="mx-auto mb-2 max-w-lg text-sm font-medium text-slate-600">
+            Chào, mình là <span className="font-semibold text-slate-900">Fin</span> — hỏi mình về sổ sách nhé.
+          </p>
+
           <p className="mx-auto mb-10 max-w-lg text-base leading-relaxed text-slate-500">
             Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động.
           </p>

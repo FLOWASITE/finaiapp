@@ -1,4 +1,6 @@
 import { Sparkles, User, FileText, Image as ImageIcon, Copy, Check, Pencil, RefreshCw } from "lucide-react";
+import { FinMascot } from "@/components/fin-mascot";
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChartBlock, parseChartBlocks } from "@/components/ai/ChartBlock";
@@ -171,20 +173,14 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
             )}
           >
             {!isUser && (
-              <div className="relative mt-0.5 shrink-0">
-                <div
-                  className="absolute inset-0 rounded-xl opacity-50 blur-md"
-                  style={{ background: "var(--gradient-ai)" }}
-                  aria-hidden
+              <div className="mt-0.5">
+                <FinMascot
+                  size="xs"
+                  mood={streaming && isLast ? "thinking" : "idle"}
                 />
-                <div
-                  className="relative flex h-9 w-9 items-center justify-center rounded-xl text-primary-foreground shadow-md ring-1 ring-white/15"
-                  style={{ background: "var(--gradient-ai)" }}
-                >
-                  <Sparkles className="h-4 w-4" />
-                </div>
               </div>
             )}
+
             {isUser ? (
               <div className="flex min-w-0 max-w-[78%] flex-col items-end">
                 <div
