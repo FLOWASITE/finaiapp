@@ -235,7 +235,7 @@ function SalesOrdersPage() {
               {isLoading ? (
                 <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Đang tải...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Chưa có đơn đặt hàng</td></tr>
+                <tr><td colSpan={7} className="p-4"><EmptyState size="sm" bordered={false} title="Chưa có đơn đặt hàng" /></td></tr>
               ) : (
                 rows.map((r: any) => {
                   const st = STATUS_LABEL[r.status] ?? STATUS_LABEL.draft;
