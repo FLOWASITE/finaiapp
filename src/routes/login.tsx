@@ -141,23 +141,39 @@ function LoginPage() {
     setLoading(true);
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { emailRedirectTo: `${window.location.origin}${dest}` },
-        });
+        const { error } = await withTimeoutReject(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: { emailRedirectTo: `${window.location.origin}${dest}` },
+          }),
+          12_000,
+        );
         if (error) throw error;
         toast.success("Tạo tài khoản thành công. Kiểm tra email để xác nhận.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+        const { error } = await withTimeoutReject(
+          supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          }),
+          12_000,
+        );
         if (error) throw error;
         toast.success("Đăng nhập thành công");
       }
       navigate({ to: dest });
     } catch (err) {
+      // Tự dọn session hỏng (refresh_token lỗi trong localStorage gây nghẽn
+      // pipeline fetch khiến mọi request auth đều "Failed to fetch").
+      const raw = err instanceof Error ? err.message : String(err ?? "");
+      if (/failed to fetch|network|timeout/i.test(raw)) {
+        try {
+          await supabase.auth.signOut({ scope: "local" });
+        } catch {
+          // ignore
+        }
+      }
       const mapped = mapAuthError(err);
       setFormError(mapped);
       toast.error(mapped.title, { description: mapped.detail });
@@ -165,6 +181,7 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
 
   async function handleForgot() {
     const e = emailSchema.safeParse(email);
