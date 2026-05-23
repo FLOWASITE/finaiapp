@@ -99,3 +99,21 @@ export const inviteStaffToClientTenant = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** Tìm tenant FinAI theo tên hoặc MST để liên kết làm khách. */
+export const searchTenantsForLink = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: { q: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const q = data.q.trim();
+    if (!q) return [];
+    const { data: rows, error } = await supabase
+      .from("tenants")
+      .select("id, name, tax_id, company_name")
+      .or(`name.ilike.%${q}%,tax_id.ilike.%${q}%,company_name.ilike.%${q}%`)
+      .neq("id", tenantId)
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });

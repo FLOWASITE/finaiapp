@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ContractDialog } from "@/components/office/contract-dialog";
 
 export const Route = createFileRoute("/_app/office/contracts/")({ component: ContractsPage });
 
@@ -16,8 +17,9 @@ function ContractsPage() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Hợp đồng dịch vụ ({data?.length ?? 0})</CardTitle>
+        <ContractDialog />
       </CardHeader>
       <CardContent>
         <Table>
