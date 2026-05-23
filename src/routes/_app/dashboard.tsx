@@ -42,6 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { dashboardOverview } from "@/lib/dashboard-overview.functions";
 import { useNavigate } from "@tanstack/react-router";
 import { InsightWidget } from "@/components/ai/InsightWidget";
+import { EmptyState as GlobalEmptyState } from "@/components/ui/empty-state";
 
 
 type Period = "month" | "quarter" | "ytd";
