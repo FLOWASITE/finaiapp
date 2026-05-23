@@ -117,12 +117,11 @@ function InboxPage() {
           ))}
         </div>
       ) : suggestions.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-12 text-center">
-          <InboxIcon className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Không có gợi ý nào. Tất cả HĐĐT đã được xử lý.
-          </p>
-        </div>
+        <EmptyState
+          mood="happy"
+          title="Đã xử lý hết HĐĐT"
+          description="Không còn gợi ý nào — Fin sẽ thông báo khi có HĐĐT mới."
+        />
       ) : (
         <div className="space-y-4">
           {suggestions.map((s) => {
