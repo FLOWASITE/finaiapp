@@ -157,6 +157,7 @@ import { Route as AppPurchasesReportsDetailRouteImport } from './routes/_app/pur
 import { Route as AppPurchasesReportsByItemRouteImport } from './routes/_app/purchases/reports.by-item'
 import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
+import { Route as AppOfficeClientsLinkIdRouteImport } from './routes/_app/office/clients/$linkId'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
 import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/disposal.$id'
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
@@ -920,6 +921,11 @@ const AppPayrollEmployeesIdRoute = AppPayrollEmployeesIdRouteImport.update({
   path: '/payroll/employees/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOfficeClientsLinkIdRoute = AppOfficeClientsLinkIdRouteImport.update({
+  id: '/clients/$linkId',
+  path: '/clients/$linkId',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
 const AppAssetsInventoryIdRoute = AppAssetsInventoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -1092,6 +1098,7 @@ export interface FileRoutesByFullPath {
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
+  '/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
@@ -1242,6 +1249,7 @@ export interface FileRoutesByTo {
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
+  '/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
@@ -1401,6 +1409,7 @@ export interface FileRoutesById {
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
   '/_app/assets/disposal/$id': typeof AppAssetsDisposalIdRoute
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
+  '/_app/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
   '/_app/purchases/reports/by-item': typeof AppPurchasesReportsByItemRoute
@@ -1560,6 +1569,7 @@ export interface FileRouteTypes {
     | '/assets/allocations/$id'
     | '/assets/disposal/$id'
     | '/assets/inventory/$id'
+    | '/office/clients/$linkId'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/purchases/reports/by-item'
@@ -1710,6 +1720,7 @@ export interface FileRouteTypes {
     | '/assets/allocations/$id'
     | '/assets/disposal/$id'
     | '/assets/inventory/$id'
+    | '/office/clients/$linkId'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
     | '/purchases/reports/by-item'
@@ -1868,6 +1879,7 @@ export interface FileRouteTypes {
     | '/_app/assets/allocations/$id'
     | '/_app/assets/disposal/$id'
     | '/_app/assets/inventory/$id'
+    | '/_app/office/clients/$linkId'
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
     | '/_app/purchases/reports/by-item'
@@ -2948,6 +2960,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollEmployeesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/office/clients/$linkId': {
+      id: '/_app/office/clients/$linkId'
+      path: '/clients/$linkId'
+      fullPath: '/office/clients/$linkId'
+      preLoaderRoute: typeof AppOfficeClientsLinkIdRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
     '/_app/assets/inventory/$id': {
       id: '/_app/assets/inventory/$id'
       path: '/$id'
@@ -3009,6 +3028,7 @@ declare module '@tanstack/react-router' {
 
 interface AppOfficeRouteRouteChildren {
   AppOfficeIndexRoute: typeof AppOfficeIndexRoute
+  AppOfficeClientsLinkIdRoute: typeof AppOfficeClientsLinkIdRoute
   AppOfficeClientsIndexRoute: typeof AppOfficeClientsIndexRoute
   AppOfficeContractsIndexRoute: typeof AppOfficeContractsIndexRoute
   AppOfficeStaffIndexRoute: typeof AppOfficeStaffIndexRoute
@@ -3018,6 +3038,7 @@ interface AppOfficeRouteRouteChildren {
 
 const AppOfficeRouteRouteChildren: AppOfficeRouteRouteChildren = {
   AppOfficeIndexRoute: AppOfficeIndexRoute,
+  AppOfficeClientsLinkIdRoute: AppOfficeClientsLinkIdRoute,
   AppOfficeClientsIndexRoute: AppOfficeClientsIndexRoute,
   AppOfficeContractsIndexRoute: AppOfficeContractsIndexRoute,
   AppOfficeStaffIndexRoute: AppOfficeStaffIndexRoute,

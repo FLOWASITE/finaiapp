@@ -6,6 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TaskDialog } from "@/components/office/task-dialog";
 import { toast } from "sonner";
+import {
+  DndContext, DragEndEvent, DragOverlay, PointerSensor, useSensor, useSensors,
+  useDraggable, useDroppable,
+} from "@dnd-kit/core";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_app/office/tasks/")({ component: TasksKanban });
 
@@ -15,6 +20,7 @@ const COLUMNS = [
   { id: "review", label: "Chờ duyệt" },
   { id: "done", label: "Hoàn thành" },
 ] as const;
+type ColId = (typeof COLUMNS)[number]["id"];
 
 const PRIORITY_COLOR: Record<string, string> = {
   urgent: "bg-red-500/15 text-red-600",
@@ -23,15 +29,66 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
 };
 
+type TaskRow = {
+  id: string; title: string; status: string; priority: string;
+  due_date: string | null;
+  link: { display_name: string | null; tenant: { name: string } | null } | null;
+};
+
+function TaskCard({ t }: { t: TaskRow }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: t.id });
+  return (
+    <div ref={setNodeRef} {...listeners} {...attributes}
+      className={`touch-none ${isDragging ? "opacity-50" : ""}`}>
+      <Card className="cursor-grab active:cursor-grabbing">
+        <CardContent className="p-3 space-y-2">
+          <p className="text-sm font-medium leading-snug">{t.title}</p>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground truncate">
+              {t.link?.display_name || t.link?.tenant?.name || "Nội bộ"}
+            </span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${PRIORITY_COLOR[t.priority] ?? ""}`}>
+              {t.priority}
+            </span>
+          </div>
+          {t.due_date && (
+            <p className="text-[11px] text-muted-foreground">Hạn: {t.due_date}</p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Column({ id, label, tasks }: { id: ColId; label: string; tasks: TaskRow[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef}
+      className={`rounded-lg border bg-muted/30 p-2 min-h-[400px] transition-colors ${isOver ? "ring-2 ring-primary" : ""}`}>
+      <div className="flex items-center justify-between px-2 py-2">
+        <h3 className="text-sm font-semibold">{label}</h3>
+        <Badge variant="secondary">{tasks.length}</Badge>
+      </div>
+      <div className="space-y-2">
+        {tasks.map((t) => <TaskCard key={t.id} t={t} />)}
+        {tasks.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4">—</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TasksKanban() {
   const qc = useQueryClient();
   const listFn = useServerFn(listTasks);
   const moveFn = useServerFn(moveTaskStatus);
   const { data } = useQuery({ queryKey: ["office", "tasks"], queryFn: () => listFn({ data: {} }) });
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const move = useMutation({
-    mutationFn: (p: { id: string; status: (typeof COLUMNS)[number]["id"] }) =>
-      moveFn({ data: p }),
+    mutationFn: (p: { id: string; status: ColId }) => moveFn({ data: p }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["office"] });
       toast.success("Đã cập nhật trạng thái");
@@ -39,59 +96,37 @@ function TasksKanban() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const byStatus = (s: string) => (data ?? []).filter((t: any) => t.status === s);
+  const tasks = (data ?? []) as TaskRow[];
+  const byStatus = (s: string) => tasks.filter((t) => t.status === s);
+  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+
+  function onDragEnd(e: DragEndEvent) {
+    setActiveId(null);
+    const status = e.over?.id as ColId | undefined;
+    if (!status) return;
+    if (!COLUMNS.some((c) => c.id === status)) return;
+    const id = e.active.id as string;
+    const current = tasks.find((t) => t.id === id);
+    if (!current || current.status === status) return;
+    move.mutate({ id, status });
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><TaskDialog /></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-      {COLUMNS.map((col) => (
-        <div
-          key={col.id}
-          className="rounded-lg border bg-muted/30 p-2 min-h-[400px]"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            const id = e.dataTransfer.getData("text/plain");
-            if (id) move.mutate({ id, status: col.id });
-          }}
-        >
-          <div className="flex items-center justify-between px-2 py-2">
-            <h3 className="text-sm font-semibold">{col.label}</h3>
-            <Badge variant="secondary">{byStatus(col.id).length}</Badge>
-          </div>
-          <div className="space-y-2">
-            {byStatus(col.id).map((t: any) => (
-              <Card
-                key={t.id}
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)}
-                className="cursor-grab active:cursor-grabbing"
-              >
-                <CardContent className="p-3 space-y-2">
-                  <p className="text-sm font-medium leading-snug">{t.title}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground truncate">
-                      {t.link?.display_name || t.link?.tenant?.name || "Nội bộ"}
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${PRIORITY_COLOR[t.priority] ?? ""}`}
-                    >
-                      {t.priority}
-                    </span>
-                  </div>
-                  {t.due_date && (
-                    <p className="text-[11px] text-muted-foreground">Hạn: {t.due_date}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-            {byStatus(col.id).length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">—</p>
-            )}
-          </div>
+      <DndContext sensors={sensors}
+        onDragStart={(e) => setActiveId(e.active.id as string)}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveId(null)}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {COLUMNS.map((col) => (
+            <Column key={col.id} id={col.id} label={col.label} tasks={byStatus(col.id)} />
+          ))}
         </div>
-      ))}
-      </div>
+        <DragOverlay>
+          {activeTask && <TaskCard t={activeTask} />}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

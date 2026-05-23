@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listClientLinks } from "@/lib/office/client-links.functions";
@@ -45,7 +45,11 @@ function ClientsPage() {
             <TableBody>
               {(links.data ?? []).map((l: any) => (
                 <TableRow key={l.id}>
-                  <TableCell className="font-medium">{l.display_name || l.tenant?.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link to="/office/clients/$linkId" params={{ linkId: l.id }} className="hover:underline">
+                      {l.display_name || l.tenant?.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{l.tenant?.tax_id ?? "—"}</TableCell>
                   <TableCell>{l.manager?.display_name || l.manager?.email || "—"}</TableCell>
                   <TableCell className="text-right">
