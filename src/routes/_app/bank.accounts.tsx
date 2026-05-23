@@ -151,9 +151,10 @@ function AccountsPage() {
           );
         })}
         {accounts.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-            Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
-          </div>
+          <EmptyState
+            title="Chưa kết nối ngân hàng"
+            description='Bấm "Thêm tài khoản" để bắt đầu theo dõi dòng tiền.'
+          />
         )}
       </div>
 
