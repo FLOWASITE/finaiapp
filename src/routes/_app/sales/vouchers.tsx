@@ -623,6 +623,10 @@ function SalesVouchersPage() {
       pay_now: form.pay_now,
       issue_einvoice: form.issue_einvoice,
       create_stock_voucher: form.create_stock_voucher,
+      warehouse_id: form.create_stock_voucher ? (form.warehouse_id || null) : null,
+      stock_voucher_no: form.create_stock_voucher ? (form.stock_voucher_no.trim() || null) : null,
+      stock_voucher_date: form.create_stock_voucher ? (form.stock_voucher_date || null) : null,
+      stock_voucher_reason: form.create_stock_voucher ? (form.stock_voucher_reason.trim() || null) : null,
       branch_id: form.branch_id,
       notes: form.notes || null,
       lines: form.lines
