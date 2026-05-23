@@ -99,7 +99,10 @@ function ClientsPage() {
             <TableBody>
               {(prospects.data ?? []).map((p: any) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link to="/office/prospects/$id" params={{ id: p.id }}
+                      className="text-primary hover:underline">{p.name}</Link>
+                  </TableCell>
                   <TableCell>{p.tax_id ?? "—"}</TableCell>
                   <TableCell>{p.contact_person ?? p.phone ?? p.email ?? "—"}</TableCell>
                   <TableCell className="text-right">

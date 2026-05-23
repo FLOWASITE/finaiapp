@@ -154,6 +154,72 @@ function TaskDetail() {
           </div>
         </CardContent>
       </Card>
+
+      <TaskComments taskId={taskId} />
     </div>
+  );
+}
+
+import { listTaskComments, addTaskComment, deleteTaskComment } from "@/lib/office/task-comments.functions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+
+function TaskComments({ taskId }: { taskId: string }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listTaskComments);
+  const addFn = useServerFn(addTaskComment);
+  const delFn = useServerFn(deleteTaskComment);
+  const [body, setBody] = useState("");
+
+  const { data } = useQuery({
+    queryKey: ["office", "task-comments", taskId],
+    queryFn: () => listFn({ data: { task_id: taskId } }),
+  });
+
+  const add = useMutation({
+    mutationFn: (b: string) => addFn({ data: { task_id: taskId, body: b } }),
+    onSuccess: () => {
+      setBody("");
+      qc.invalidateQueries({ queryKey: ["office", "task-comments", taskId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["office", "task-comments", taskId] }),
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Bình luận ({data?.length ?? 0})</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {(data ?? []).map((c: { id: string; body: string; created_at: string; author: { display_name: string | null; email: string | null; avatar_url: string | null } | null }) => (
+          <div key={c.id} className="flex gap-2">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage src={c.author?.avatar_url ?? undefined} />
+              <AvatarFallback>{(c.author?.display_name ?? c.author?.email ?? "?").charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{c.author?.display_name ?? c.author?.email ?? "?"}</span>
+                {" · "}{new Date(c.created_at).toLocaleString("vi-VN")}
+              </p>
+              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => del.mutate(c.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+        {!data?.length && <p className="text-sm text-muted-foreground">Chưa có bình luận</p>}
+        <div className="flex gap-2 pt-2">
+          <Textarea placeholder="Viết bình luận..." value={body}
+            onChange={(e) => setBody(e.target.value)} rows={2} />
+          <Button onClick={() => body.trim() && add.mutate(body.trim())} disabled={!body.trim() || add.isPending}>
+            Gửi
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
