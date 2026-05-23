@@ -82,6 +82,7 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [mergePrimary, setMergePrimary] = useState("");
   const [mergeSecondary, setMergeSecondary] = useState("");
   const [mergeConfirm, setMergeConfirm] = useState(false);
+  const [openingBalanceParty, setOpeningBalanceParty] = useState<any>(null);
 
   const mergeFn = useServerFn(mergeParties);
   const mergeMut = useMutation({
