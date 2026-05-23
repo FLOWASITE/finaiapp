@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -49,6 +49,13 @@ import { usePagination, TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: s.new === true || s.new === "1" || s.new === 1 ? true : undefined,
+    party_id: typeof s.party_id === "string" ? s.party_id : undefined,
+    party_name: typeof s.party_name === "string" ? s.party_name : undefined,
+    party_tax_id: typeof s.party_tax_id === "string" ? s.party_tax_id : undefined,
+    party_address: typeof s.party_address === "string" ? s.party_address : undefined,
+  }),
 });
 
 // ---------- helpers ----------
@@ -345,6 +352,26 @@ function PurchaseVouchersPage() {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [initialParty, setInitialParty] = useState<{ id: string; name: string; tax_id?: string; address?: string } | null>(null);
+
+  const searchParams = Route.useSearch();
+  const navigateRoute = useNavigate();
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (searchParams.new && searchParams.party_id) {
+      autoOpenedRef.current = true;
+      setInitialParty({
+        id: searchParams.party_id,
+        name: searchParams.party_name ?? "",
+        tax_id: searchParams.party_tax_id,
+        address: searchParams.party_address,
+      });
+      setOpenCreate(true);
+      navigateRoute({ to: "/purchases/vouchers", search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.new, searchParams.party_id]);
 
   const payFn = useServerFn(recordPurchaseVoucherPayment);
   const payMut = useMutation({
@@ -858,9 +885,11 @@ function PurchaseVouchersPage() {
 
       <CreateVoucherDialog
         open={openCreate}
-        onOpenChange={setOpenCreate}
-        onCreated={() => { refetch(); setOpenCreate(false); }}
+        onOpenChange={(v) => { setOpenCreate(v); if (!v) setInitialParty(null); }}
+        onCreated={() => { refetch(); setOpenCreate(false); setInitialParty(null); }}
+        initialParty={initialParty}
       />
+
 
     </div>
     </div>
@@ -870,11 +899,12 @@ function PurchaseVouchersPage() {
 // ---------- create dialog ----------
 
 function CreateVoucherDialog({
-  open, onOpenChange, onCreated,
+  open, onOpenChange, onCreated, initialParty,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
+  initialParty?: { id: string; name: string; tax_id?: string; address?: string } | null;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
   const postFn = useServerFn(postPurchaseVoucher);
@@ -978,6 +1008,30 @@ function CreateVoucherDialog({
     for (const g of (supplierGroups ?? []) as any[]) m.set(g.id, g.name);
     return m;
   }, [supplierGroups]);
+
+  // Prefill supplier from initialParty (when navigated from party list)
+  const prefilledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) { prefilledRef.current = null; return; }
+    if (!initialParty?.id) return;
+    if (prefilledRef.current === initialParty.id) return;
+    prefilledRef.current = initialParty.id;
+    setHeader((h) => ({
+      ...h,
+      supplier_id: initialParty.id,
+      supplier_name: initialParty.name ?? h.supplier_name,
+      supplier_address: initialParty.address ?? h.supplier_address,
+    }));
+  }, [open, initialParty]);
+
+  // Fill group name once supplier list + groups are available
+  useEffect(() => {
+    if (!open || !initialParty?.id) return;
+    const s = ((suppliers ?? []) as any[]).find((x) => x.id === initialParty.id);
+    const groupId = (s as any)?.group_id ?? null;
+    const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+    if (groupName) setHeader((h) => (h.customer_group ? h : { ...h, customer_group: groupName }));
+  }, [open, initialParty, suppliers, supplierGroupNameById]);
 
   // Auto-update "Diễn giải" khi user chưa chỉnh tay
   const [reasonTouched, setReasonTouched] = useState(false);

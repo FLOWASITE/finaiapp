@@ -1,5 +1,5 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -174,6 +174,13 @@ function ProductPickerCell({
 
 export const Route = createFileRoute("/_app/sales/vouchers")({
   component: SalesVouchersPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: s.new === true || s.new === "1" || s.new === 1 ? true : undefined,
+    party_id: typeof s.party_id === "string" ? s.party_id : undefined,
+    party_name: typeof s.party_name === "string" ? s.party_name : undefined,
+    party_tax_id: typeof s.party_tax_id === "string" ? s.party_tax_id : undefined,
+    party_address: typeof s.party_address === "string" ? s.party_address : undefined,
+  }),
 });
 
 // ---------------- helpers ----------------
@@ -477,9 +484,9 @@ function SalesVouchersPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
 
-  function openCreate() {
+  function openCreate(prefill?: Partial<FormState>) {
     // Mở dialog ngay; số phiếu fetch song song và patch sau khi có
-    setForm(blankForm());
+    setForm({ ...blankForm(), ...(prefill ?? {}) });
     setOpen(true);
     suggest({ data: { voucher_date: todayISO() } })
       .then((r) => {
@@ -487,6 +494,29 @@ function SalesVouchersPage() {
       })
       .catch(() => {});
   }
+
+  // Auto-open create dialog when navigated with ?new=1&party_id=...
+  const search = Route.useSearch();
+  const navigateRoute = useNavigate();
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (search.new && search.party_id) {
+      autoOpenedRef.current = true;
+      openCreate({
+        customer_id: search.party_id,
+        customer_name: search.party_name ?? "",
+        customer_tax_id: search.party_tax_id ?? "",
+        customer_address: search.party_address ?? "",
+      });
+      navigateRoute({
+        to: "/sales/vouchers",
+        search: {},
+        replace: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.new, search.party_id]);
 
   // Warm-up cache cho dialog tạo phiếu (gọi khi hover/focus nút)
   function prefetchCreate() {
@@ -791,7 +821,7 @@ function SalesVouchersPage() {
         </div>
         <div className="shrink-0 inline-flex rounded-md shadow-sm">
           <Button
-            onClick={openCreate}
+            onClick={() => openCreate()}
             onMouseEnter={prefetchCreate}
             onFocus={prefetchCreate}
             className="rounded-r-none border-r border-primary-foreground/20"
@@ -805,10 +835,10 @@ function SalesVouchersPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={openCreate}>
+              <DropdownMenuItem onClick={() => openCreate()}>
                 <Plus className="h-4 w-4 mr-2" /> Phiếu BH trong nước
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={openCreate}>
+              <DropdownMenuItem onClick={() => openCreate()}>
                 <Globe2 className="h-4 w-4 mr-2" /> Phiếu BH xuất khẩu
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -946,7 +976,7 @@ function SalesVouchersPage() {
           ) : (vouchers?.rows ?? []).length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <p className="mb-2">Chưa có phiếu bán hàng nào.</p>
-              <Button variant="outline" onClick={openCreate}>
+              <Button variant="outline" onClick={() => openCreate()}>
                 <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
               </Button>
             </div>
