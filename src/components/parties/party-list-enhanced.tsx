@@ -77,6 +77,30 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [showArchived, setShowArchived] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [editing, setEditing] = useState<PartyInitial | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergePrimary, setMergePrimary] = useState("");
+  const [mergeSecondary, setMergeSecondary] = useState("");
+  const [mergeConfirm, setMergeConfirm] = useState(false);
+
+  const mergeFn = useServerFn(mergeParties);
+  const mergeMut = useMutation({
+    mutationFn: (vars: { primaryId: string; secondaryId: string }) =>
+      mergeFn({ data: { kind, primaryId: vars.primaryId, secondaryId: vars.secondaryId } }),
+    onSuccess: (res: any) => {
+      const total = Object.values(res?.moved ?? {}).reduce(
+        (s: number, n: any) => s + Number(n || 0),
+        0,
+      );
+      toast.success(`Đã gộp thành công — ${total} bản ghi được chuyển`);
+      setMergeOpen(false);
+      setMergePrimary("");
+      setMergeSecondary("");
+      setMergeConfirm(false);
+      qc.invalidateQueries({ queryKey: [isCustomer ? "customers" : "suppliers"] });
+      qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Gộp thất bại"),
+  });
 
   const groupMap = useMemo(() => {
     const m = new Map<string, string>();
