@@ -29,7 +29,8 @@ function StaffPage() {
               <AvatarFallback>{s.full_name?.charAt(0) ?? "?"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold">{s.full_name}</p>
+              <Link to="/office/staff/$staffId" params={{ staffId: s.id }}
+                className="font-semibold hover:underline">{s.full_name}</Link>
               <p className="text-xs text-muted-foreground">
                 {s.position ?? "—"} · {s.department ?? "—"}
               </p>
