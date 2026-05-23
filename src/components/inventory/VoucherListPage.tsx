@@ -39,6 +39,7 @@ export function VoucherListPage({ type }: Props) {
   const [status, setStatus] = useState<"all" | "posted" | "unposted">("all");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [createType, setCreateType] = useState<"in" | "out" | null>(null);
 
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs(),
  ...QUERY_PRESETS.TRANSACTIONAL,
