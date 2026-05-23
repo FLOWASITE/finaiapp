@@ -99,7 +99,7 @@ export const listPurchaseVouchers = createServerFn({ method: "POST" })
     let q = supabase
       .from("purchase_vouchers")
       .select(
-        "id, voucher_no, voucher_date, supplier_id, supplier_name, reason, total, paid_amount, payment_method, payment_status, status, invoice_id, journal_entry_id, stock_voucher_id, cash_voucher_id, bank_voucher_id, credit_account, tenant_id, created_at",
+        "id, voucher_no, voucher_date, supplier_id, supplier_name, reason, total, paid_amount, payment_method, payment_status, status, invoice_id, journal_entry_id, stock_voucher_id, cash_voucher_id, bank_voucher_id, credit_account, tenant_id, created_at, posted_at",
       )
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
