@@ -1425,8 +1425,8 @@ function CreateVoucherDialog({
                           onChange={(e) => updateLine(l.key, { qty: Number(e.target.value) })} />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" className="text-right" value={l.unit_price}
-                          onChange={(e) => updateLine(l.key, { unit_price: Number(e.target.value) })} />
+                        <MoneyInput className="text-right" value={l.unit_price || 0}
+                          onChange={(n) => updateLine(l.key, { unit_price: n })} />
                       </TableCell>
                       <TableCell>
                         <Input type="number" className="text-right" value={l.discount_pct}
