@@ -626,12 +626,12 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
         .insert({
           user_id: userId,
           tenant_id: v.tenant_id,
-          voucher_no: `XK-${v.voucher_no}`,
+          voucher_no: (v as any).stock_voucher_no || `XK-${v.voucher_no}`,
           voucher_type: "out",
-          voucher_date: v.voucher_date,
+          voucher_date: (v as any).stock_voucher_date || v.voucher_date,
           warehouse_id: warehouseId,
           counter_account: "632",
-          reason: `Xuất kho bán hàng ${v.voucher_no}`,
+          reason: (v as any).stock_voucher_reason || `Xuất kho bán hàng ${v.voucher_no}`,
           journal_entry_id: entry.id,
         })
         .select("id")
