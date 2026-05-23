@@ -242,7 +242,29 @@ function VoucherListPage() {
     [groupedRows],
   );
 
+  function toggleSort(key: "entry_date" | "voucher_no" | "voucher_type") {
+    setSort((prev) => {
+      if (prev.key !== key) return { key, direction: "asc" };
+      if (prev.direction === "asc") return { key, direction: "desc" };
+      return { key: "entry_date", direction: "asc" };
+    });
+  }
 
+  const sortedRows = useMemo(() => {
+    const rows = [...groupedRows];
+    if (!sort.key) return rows;
+    rows.sort((a, b) => {
+      const cmp = (a[sort.key!] ?? "").localeCompare(b[sort.key!] ?? "");
+      return sort.direction === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [groupedRows, sort]);
+
+  const SortIcon = ({ col }: { col: "entry_date" | "voucher_no" | "voucher_type" }) => {
+    if (sort.key !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground opacity-50" />;
+    if (sort.direction === "asc") return <ArrowUp className="ml-1 inline h-3 w-3 text-primary" />;
+    return <ArrowDown className="ml-1 inline h-3 w-3 text-primary" />;
+  };
 
   async function handleExport() {
     try {
