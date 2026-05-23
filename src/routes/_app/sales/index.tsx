@@ -1384,11 +1384,21 @@ type EditorLine = {
   line_discount_amount: number;
 };
 
-function NewInvoiceDialog() {
+function NewInvoiceDialog({
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
+}: {
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
+} = {}) {
   const upsert = useServerFn(upsertSalesInvoice);
   const list = useServerFn(listProducts);
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => list({}),
