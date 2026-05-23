@@ -608,8 +608,13 @@ function DocumentsPage() {
                   ))}
                   {rows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
-                        Chưa có tài liệu nào.
+                      <TableCell colSpan={7} className="py-8">
+                        <EmptyState
+                          size="sm"
+                          bordered={false}
+                          title="Chưa có tài liệu nào"
+                          description="Tải hoá đơn, sao kê lên để Fin bắt đầu xử lý."
+                        />
                       </TableCell>
                     </TableRow>
                   )}
