@@ -77,7 +77,7 @@ function ClientDetail() {
           <CardHeader><CardTitle className="text-base">Hợp đồng ({linkContracts.length})</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {linkContracts.length === 0 && <p className="text-sm text-muted-foreground">Chưa có hợp đồng</p>}
-            {linkContracts.map((c: { id: string; contract_no: string; end_date: string | null; status: string; fee_amount: number }) => (
+            {linkContracts.map((c: { id: string; contract_no: string; end_date: string | null; status: string; fee_amount: number | null }) => (
               <div key={c.id} className="flex justify-between border-b pb-2 last:border-0 text-sm">
                 <div>
                   <p className="font-medium">{c.contract_no}</p>
