@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -242,7 +243,7 @@ function ProductPickerCell({
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-2 py-6 text-center text-muted-foreground">Không có dữ liệu</td></tr>
+                <tr><td colSpan={8} className="px-2 py-6"><EmptyState size="sm" bordered={false} title="Không có dữ liệu" /></td></tr>
               ) : filtered.map((p: any) => {
                 const onHand = Number(p.on_hand ?? 0);
                 const unitCost = Number(p.unit_cost ?? 0);
@@ -707,13 +708,15 @@ function PurchaseVouchersPage() {
               </Button>
             </div>
           ) : rows.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <Inbox className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">Chưa có phiếu mua hàng nào.</p>
-              <Button variant="outline" onClick={() => setOpenCreate(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
-              </Button>
-            </div>
+            <EmptyState
+              title="Chưa có phiếu mua hàng nào"
+              description="Tạo phiếu đầu tiên để Fin theo dõi chi phí mua hàng."
+              cta={
+                <Button variant="outline" onClick={() => setOpenCreate(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table className="text-[13px]">

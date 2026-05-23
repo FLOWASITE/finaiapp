@@ -5,6 +5,7 @@ import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight } from "lucide-react";
 import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
 import { format } from "date-fns";
@@ -171,7 +172,7 @@ function VouchersPage() {
               );
             })}
             {vouchers.length === 0 && (
-              <tr><td colSpan={11} className="py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+              <tr><td colSpan={11} className="py-8"><EmptyState size="sm" bordered={false} title="Chưa có phiếu nào" /></td></tr>
             )}
           </tbody>
         </table>

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { finToast } from "@/lib/fin-toast";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Upload, Link2, Unlink, Sparkles, ArrowLeftRight, FileText, CheckCircle2 } from "lucide-react";
 import { listBankAccounts } from "@/lib/bank.functions";
 import {
@@ -315,7 +316,7 @@ function ReconcilePage() {
             {isLoading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Đang tải...</TableCell></TableRow>
             ) : (txns as any[]).length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Không có giao dịch. Nhập sao kê để bắt đầu.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-6"><EmptyState size="sm" bordered={false} title="Chưa có giao dịch" description="Nhập sao kê để Fin bắt đầu đối soát." /></TableCell></TableRow>
             ) : (
               (txns as any[]).map((t) => {
                 const isCredit = Number(t.amount) >= 0;

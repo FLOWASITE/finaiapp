@@ -7,6 +7,7 @@ import { listBankAccounts, getBankBook } from "@/lib/bank.functions";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const Route = createFileRoute("/_app/bank/book")({ component: BookPage });
 
@@ -98,7 +99,7 @@ function BookPage() {
           </div>
         </>
       )}
-      {!acc && <div className="py-12 text-center text-muted-foreground">Chưa có tài khoản ngân hàng</div>}
+      {!acc && <EmptyState title="Chưa chọn tài khoản ngân hàng" description="Chọn một tài khoản để xem sổ chi tiết." />}
     </div>
   );
 }

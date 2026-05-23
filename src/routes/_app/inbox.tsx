@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
 import {
   AlertDialog,
@@ -1007,24 +1008,30 @@ export const INBOX_COPY = {
 
 function EmptyInbox() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted-foreground">
-      <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
-      <div className="font-medium text-foreground">{INBOX_COPY.emptyTitle}</div>
-      <div className="text-xs">{INBOX_COPY.emptyHint}</div>
+    <div className="flex h-full items-center justify-center p-6">
+      <EmptyState
+        mood="happy"
+        title={INBOX_COPY.emptyTitle}
+        description={INBOX_COPY.emptyHint}
+        bordered={false}
+      />
     </div>
   );
 }
 
 function EmptyTab({ label }: { label: string }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-1.5 p-10 text-center text-sm text-muted-foreground">
-      <div className="font-medium text-foreground">{label}</div>
-      <div className="text-xs">
-        {INBOX_COPY.wipTitle} — {INBOX_COPY.wipHint.toLowerCase()}
-      </div>
+    <div className="flex h-full items-center justify-center p-6">
+      <EmptyState
+        mood="thinking"
+        title={label}
+        description={`${INBOX_COPY.wipTitle} — ${INBOX_COPY.wipHint.toLowerCase()}`}
+        bordered={false}
+      />
     </div>
   );
 }
+
 
 
 /**

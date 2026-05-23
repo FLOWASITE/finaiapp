@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Landmark, AlertCircle, Link2, CheckCircle2 } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
@@ -150,9 +151,10 @@ function AccountsPage() {
           );
         })}
         {accounts.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-            Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
-          </div>
+          <EmptyState
+            title="Chưa kết nối ngân hàng"
+            description='Bấm "Thêm tài khoản" để bắt đầu theo dõi dòng tiền.'
+          />
         )}
       </div>
 
@@ -245,8 +247,13 @@ function AccountsPage() {
             ))}
             {accounts.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-muted-foreground">
-                  Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
+                <td colSpan={10} className="py-8">
+                  <EmptyState
+                    size="sm"
+                    bordered={false}
+                    title="Chưa kết nối ngân hàng"
+                    description='Bấm "Thêm tài khoản" để bắt đầu.'
+                  />
                 </td>
               </tr>
             )}

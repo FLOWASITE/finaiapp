@@ -42,6 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { dashboardOverview } from "@/lib/dashboard-overview.functions";
 import { useNavigate } from "@tanstack/react-router";
 import { InsightWidget } from "@/components/ai/InsightWidget";
+import { EmptyState as GlobalEmptyState } from "@/components/ui/empty-state";
 
 
 type Period = "month" | "quarter" | "ytd";
@@ -619,10 +620,6 @@ function QuickAction({ icon, label, to }: { icon: React.ReactNode; label: string
 }
 
 function EmptyState({ text, cta }: { text: string; cta?: React.ReactNode }) {
-  return (
-    <div className="py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-      {text}
-      {cta}
-    </div>
-  );
+  return <GlobalEmptyState size="sm" bordered={false} title={text} cta={cta} />;
 }
+

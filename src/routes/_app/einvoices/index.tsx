@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   RefreshCw,
   Search,
@@ -345,13 +346,13 @@ function EInvoicesPage() {
               ))
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={9}
-                  className="px-3 py-12 text-center text-muted-foreground"
-                >
-                  Chưa có HĐĐT nào. Bấm{" "}
-                  <b>Nhập XML vào kho HĐĐT</b> để bắt đầu, hoặc{" "}
-                  <b>Đồng bộ từ TCT</b> để kéo trực tiếp.
+                <td colSpan={9} className="px-3 py-8">
+                  <EmptyState
+                    size="sm"
+                    bordered={false}
+                    title="Chưa có HĐĐT nào"
+                    description="Bấm Nhập XML vào kho HĐĐT để bắt đầu, hoặc Đồng bộ từ TCT để kéo trực tiếp."
+                  />
                 </td>
               </tr>
             ) : (

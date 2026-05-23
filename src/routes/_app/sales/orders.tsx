@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { QUERY_PRESETS } from "@/lib/query-presets";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { SalesTabs } from "@/components/sales/SalesTabs";
 import { Plus, Search, Trash2, FileText, CheckCircle2, XCircle, MoreHorizontal, Pencil } from "lucide-react";
@@ -234,7 +235,7 @@ function SalesOrdersPage() {
               {isLoading ? (
                 <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Đang tải...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Chưa có đơn đặt hàng</td></tr>
+                <tr><td colSpan={7} className="p-4"><EmptyState size="sm" bordered={false} title="Chưa có đơn đặt hàng" /></td></tr>
               ) : (
                 rows.map((r: any) => {
                   const st = STATUS_LABEL[r.status] ?? STATUS_LABEL.draft;

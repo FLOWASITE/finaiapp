@@ -5,6 +5,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { finToast } from "@/lib/fin-toast";
+import { EmptyState } from "@/components/ui/empty-state";
 import { z } from "zod";
 import {
   listDocuments,
@@ -607,8 +608,13 @@ function DocumentsPage() {
                   ))}
                   {rows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
-                        Chưa có tài liệu nào.
+                      <TableCell colSpan={7} className="py-8">
+                        <EmptyState
+                          size="sm"
+                          bordered={false}
+                          title="Chưa có tài liệu nào"
+                          description="Tải hoá đơn, sao kê lên để Fin bắt đầu xử lý."
+                        />
                       </TableCell>
                     </TableRow>
                   )}
@@ -1327,8 +1333,8 @@ function PurchaseInvoicesTable({
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
-                  Chưa có hoá đơn mua nào.
+                <TableCell colSpan={10} className="py-8">
+                  <EmptyState size="sm" bordered={false} title="Chưa có hoá đơn mua nào" />
                 </TableCell>
               </TableRow>
             )}
@@ -1610,8 +1616,8 @@ function SalesInvoicesTable({
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
-                  Chưa có hoá đơn bán nào.
+                <TableCell colSpan={10} className="py-8">
+                  <EmptyState size="sm" bordered={false} title="Chưa có hoá đơn bán nào" />
                 </TableCell>
               </TableRow>
             )}

@@ -4,6 +4,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, TrendingDown, Receipt, FileText } from "lucide-react";
 import { listCashVouchers, getCashBook, deleteCashVoucher } from "@/lib/cash.functions";
 import { invalidateLedgers } from "@/lib/query-invalidation";
@@ -162,7 +163,7 @@ function CashPage() {
                 </tr>
               ))}
               {(vouchers ?? []).length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8"><EmptyState size="sm" bordered={false} title="Chưa có phiếu nào" /></td></tr>
               )}
             </tbody>
           </table>
@@ -196,7 +197,7 @@ function CashPage() {
                 </tr>
               ))}
               {(cashbook ?? []).length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Không có phát sinh trong kỳ</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8"><EmptyState size="sm" bordered={false} title="Không có phát sinh trong kỳ" /></td></tr>
               )}
             </tbody>
           </table>

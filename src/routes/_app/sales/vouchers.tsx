@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SalesTabs } from "@/components/sales/SalesTabs";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark } from "lucide-react";
@@ -139,8 +140,8 @@ function ProductPickerCell({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-2 py-6 text-center text-muted-foreground">
-                    Không có dữ liệu
+                  <td colSpan={5} className="px-2 py-6">
+                    <EmptyState size="sm" bordered={false} title="Không có dữ liệu" />
                   </td>
                 </tr>
               ) : (
@@ -989,12 +990,15 @@ function SalesVouchersPage() {
               Lỗi tải dữ liệu: {(error as any)?.message}
             </div>
           ) : (vouchers?.rows ?? []).length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <p className="mb-2">Chưa có phiếu bán hàng nào.</p>
-              <Button variant="outline" onClick={() => openCreate()}>
-                <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
-              </Button>
-            </div>
+            <EmptyState
+              title="Chưa có phiếu bán hàng nào"
+              description="Tạo phiếu đầu tiên để Fin theo dõi doanh thu."
+              cta={
+                <Button variant="outline" onClick={() => openCreate()}>
+                  <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table className="text-[13px]">
