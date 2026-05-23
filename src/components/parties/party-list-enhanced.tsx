@@ -308,13 +308,18 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                 </div>
                 {p._groupName && <div className="text-[11px] text-muted-foreground truncate">Nhóm: {p._groupName}</div>}
               </div>
-              <div className="flex gap-0.5 shrink-0">
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(toInitial(p, kind))}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onArchive(p)}>
-                  {p.is_active === false ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                </Button>
+              <div className="shrink-0">
+                <RowActions
+                  kind={kind}
+                  party={p}
+                  onEdit={() => setEditing(toInitial(p, kind))}
+                  onOpening={() => setEditing(toInitial(p, kind))}
+                  onArchive={() => onArchive(p)}
+                  onDelete={() => onDelete(p)}
+                  onCreateVoucher={() =>
+                    navigate({ to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers" })
+                  }
+                />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-1.5 text-[11px]">
