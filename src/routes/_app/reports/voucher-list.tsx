@@ -466,7 +466,7 @@ function VoucherListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedRows.map((g) => {
+                    {sortedRows.map((g) => {
                       return (
                         <tr
                           key={g.key}
@@ -492,7 +492,7 @@ function VoucherListPage() {
                         </tr>
                       );
                     })}
-                    {groupedRows.length === 0 && (
+                    {sortedRows.length === 0 && (
                       <tr>
                         <td colSpan={15} className="px-3 py-12 text-center text-muted-foreground">
                           Không có chứng từ phù hợp bộ lọc
