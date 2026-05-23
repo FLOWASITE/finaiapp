@@ -1715,14 +1715,12 @@ function VoucherDialog({
                         />
                       </td>
                       <td className="px-1 py-1 w-[110px]">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={l.unit_price || ""}
-                          onChange={(e) =>
-                            updateLine(i, { unit_price: Number(e.target.value || 0) })
-                          }
+                        <MoneyInput
+                          className="h-8"
+                          value={l.unit_price || 0}
+                          onChange={(n) => updateLine(i, { unit_price: n })}
                         />
+
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
                         {fmtMoney(l.amount)}
