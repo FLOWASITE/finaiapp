@@ -121,11 +121,11 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, voucherTypes, accountPrefix, page, pageSize],
+    queryKey: ["voucher-list", from, to, dimsWithBranch, sources, voucherTypes, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
-          from, to, dims,
+          from, to, dims: dimsWithBranch,
           sourceTables: sources.length ? sources : undefined,
           voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
