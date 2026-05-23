@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
-import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts } from "@/lib/inventory.functions";
+import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts, createStockVoucher } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
