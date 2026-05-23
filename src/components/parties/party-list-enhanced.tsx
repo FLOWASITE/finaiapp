@@ -548,6 +548,17 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <OpeningBalanceDialog
+        kind={kind}
+        party={openingBalanceParty}
+        open={!!openingBalanceParty}
+        onOpenChange={(o) => { if (!o) setOpeningBalanceParty(null); }}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: [isCustomer ? "customers" : "suppliers"] });
+          qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
+        }}
+      />
     </div>
 
   );
