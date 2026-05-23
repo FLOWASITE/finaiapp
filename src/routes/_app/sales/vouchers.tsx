@@ -770,15 +770,27 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Xoá phiếu thất bại"),
   });
 
+  const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+
+  const openVoidDialog = async (id: string) => {
+    try {
+      const res = await previewVoidFn({ data: { id } });
+      setVoidDlg({ open: true, id, items: res.items });
+    } catch (e: any) {
+      toast.error(e?.message || "Không lấy được thông tin huỷ");
+    }
+  };
+
   const voidMut = useMutation({
     mutationFn: async (id: string) =>
-      voidFn({ data: { id, reason: "Huỷ phiếu" } }),
+      voidFn({ data: { id, reason: "Huỷ ghi sổ" } }),
     onSuccess: () => {
-      toast.success("Đã huỷ phiếu");
+      toast.success("Đã huỷ ghi sổ, phiếu có thể ghi sổ lại");
+      setVoidDlg({ open: false, items: [] });
       qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
       invalidateLedgers(qc);
     },
-    onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
+    onError: (e: any) => toast.error(e?.message || "Huỷ ghi sổ thất bại"),
   });
 
   // (Quick-pay dialog removed — replaced by full VoucherFormDialog / BankVoucherFormDialog below.)
