@@ -965,11 +965,40 @@ function CreateVoucherDialog({
     }
   }, [header.create_stock_voucher, warehouses, header.warehouse_id]);
 
+  // Nhóm NCC để auto-fill khi chọn NCC
+  const supplierGroupsFn = useServerFn(listPartyGroups);
+  const { data: supplierGroups } = useQuery({
+    queryKey: ["party-groups", "supplier"],
+    queryFn: () => supplierGroupsFn({ data: { kind: "supplier" } }),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const supplierGroupNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of (supplierGroups ?? []) as any[]) m.set(g.id, g.name);
+    return m;
+  }, [supplierGroups]);
+
+  // Auto-update "Diễn giải" khi user chưa chỉnh tay
+  const [reasonTouched, setReasonTouched] = useState(false);
+  useEffect(() => {
+    if (!open) setReasonTouched(false);
+  }, [open]);
+  useEffect(() => {
+    if (!open || reasonTouched) return;
+    const next = `Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || header.voucher_no || "---"}`;
+    if (next !== header.reason) {
+      setHeader((h) => ({ ...h, reason: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reasonTouched, header.supplier_name, header.voucher_no, header.invoice_no]);
+
   useEffect(() => {
     if (open && !header.voucher_no && suggested?.voucher_no) {
       setHeader((h) => ({ ...h, voucher_no: suggested.voucher_no }));
     }
   }, [open, suggested, header.voucher_no]);
+
 
   // totals
   const totals = useMemo(() => {
