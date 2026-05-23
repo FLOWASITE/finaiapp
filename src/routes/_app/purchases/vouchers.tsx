@@ -845,7 +845,7 @@ function PurchaseVouchersPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              {!isPosted && !isVoid && (
+                              {!isPosted && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
                                   <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
