@@ -177,7 +177,10 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   };
 
   const onDelete = async (p: any) => {
-    if (isCustomer) return; // customers page doesn't expose delete
+    if (isCustomer) {
+      toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
+      return;
+    }
     if (!confirm(`Xoá ${p.name}?`)) return;
     try {
       await deleteSupplierFn({ data: { id: p.id } });
