@@ -350,8 +350,8 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     }
     ws.getRow(rowIdx).values = ["", "", "", "", "TỔNG CỘNG", "", res.totals.debit, res.totals.credit];
     ws.getRow(rowIdx).font = { bold: true };
-    ws.getCell(`F${rowIdx}`).numFmt = "#,##0";
     ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
+    ws.getCell(`H${rowIdx}`).numFmt = "#,##0";
 
     ws.columns = [
       { width: 12 }, { width: 16 }, { width: 18 }, { width: 14 }, { width: 38 }, { width: 8 },
