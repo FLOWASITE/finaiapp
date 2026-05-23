@@ -197,7 +197,7 @@ function CashPage() {
                 </tr>
               ))}
               {(cashbook ?? []).length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Không có phát sinh trong kỳ</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8"><EmptyState size="sm" bordered={false} title="Không có phát sinh trong kỳ" /></td></tr>
               )}
             </tbody>
           </table>
