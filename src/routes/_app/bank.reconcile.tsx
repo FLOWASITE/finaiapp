@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { Upload, Link2, Unlink, Sparkles, ArrowLeftRight, FileText, CheckCircle2 } from "lucide-react";
 import { listBankAccounts } from "@/lib/bank.functions";
 import {
