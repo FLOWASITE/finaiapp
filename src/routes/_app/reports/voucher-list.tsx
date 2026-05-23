@@ -400,30 +400,14 @@ function VoucherListPage() {
                   </thead>
                   <tbody>
                     {groupedRows.map((g) => {
-                      const renderAccs = (accs: string[]) =>
-                        accs.length === 0
-                          ? "—"
-                          : accs.length <= 2
-                            ? accs.join(", ")
-                            : `${accs.slice(0, 2).join(", ")} +${accs.length - 2}`;
                       return (
                         <tr key={g.key} className="border-t border-border/60 align-top">
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
                           <td className="px-2 py-1.5">{g.description ?? "—"}</td>
-                          <td
-                            className="px-2 py-1.5 text-center font-mono"
-                            title={g.debitAccounts.join(", ")}
-                          >
-                            {renderAccs(g.debitAccounts)}
-                          </td>
-                          <td
-                            className="px-2 py-1.5 text-center font-mono"
-                            title={g.creditAccounts.join(", ")}
-                          >
-                            {renderAccs(g.creditAccounts)}
-                          </td>
+                          <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{fmt(g.amount)}</td>
                           <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
