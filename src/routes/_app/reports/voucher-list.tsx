@@ -417,9 +417,9 @@ function VoucherListPage() {
             <Loading />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-340px)] print:max-h-none print:overflow-visible">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted/40 uppercase">
+                  <thead className="bg-muted uppercase sticky top-0 z-10 shadow-[0_1px_0_0_hsl(var(--border))] print:static print:shadow-none">
                     <tr>
                       <th className="px-2 py-2 text-left">Ngày</th>
                       <th className="px-2 py-2 text-left">Số CT</th>
