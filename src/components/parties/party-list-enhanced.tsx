@@ -28,6 +28,9 @@ import { listSuppliers, upsertSupplier, deleteSupplier } from "@/lib/purchases.f
 import { getArSummary } from "@/lib/receivables.functions";
 import { getApSummary } from "@/lib/payables.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
+import { mergeParties } from "@/lib/party-merge.functions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
 
@@ -74,6 +77,30 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [showArchived, setShowArchived] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [editing, setEditing] = useState<PartyInitial | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergePrimary, setMergePrimary] = useState("");
+  const [mergeSecondary, setMergeSecondary] = useState("");
+  const [mergeConfirm, setMergeConfirm] = useState(false);
+
+  const mergeFn = useServerFn(mergeParties);
+  const mergeMut = useMutation({
+    mutationFn: (vars: { primaryId: string; secondaryId: string }) =>
+      mergeFn({ data: { kind, primaryId: vars.primaryId, secondaryId: vars.secondaryId } }),
+    onSuccess: (res: any) => {
+      const total = Object.values(res?.moved ?? {}).reduce(
+        (s: number, n: any) => s + Number(n || 0),
+        0,
+      );
+      toast.success(`Đã gộp thành công — ${total} bản ghi được chuyển`);
+      setMergeOpen(false);
+      setMergePrimary("");
+      setMergeSecondary("");
+      setMergeConfirm(false);
+      qc.invalidateQueries({ queryKey: [isCustomer ? "customers" : "suppliers"] });
+      qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Gộp thất bại"),
+  });
 
   const groupMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -220,6 +247,9 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           <DateRangeFilter from={range.from} to={range.to} onChange={setRange} />
           <Button variant="outline" asChild>
             <Link to={groupsHref}><FolderTree className="mr-2 h-4 w-4" />{groupsLabel}</Link>
+          </Button>
+          <Button variant="outline" onClick={() => setMergeOpen(true)}>
+            <GitMerge className="mr-2 h-4 w-4" />Gộp
           </Button>
           <Button onClick={() => setEditing({})}>
             <Plus className="mr-2 h-4 w-4" />{addLabel}
@@ -456,7 +486,68 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           {editing && <PartyForm mode={kind} initial={editing} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+
+      {/* Merge dialog */}
+      <Dialog open={mergeOpen} onOpenChange={(o) => { if (!mergeMut.isPending) setMergeOpen(o); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitMerge className="h-5 w-5" />
+              Gộp {isCustomer ? "khách hàng" : "nhà cung cấp"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Toàn bộ phiếu, hóa đơn, thu/chi và số dư đầu kỳ của bản phụ sẽ được chuyển sang bản chính.
+              Sau khi gộp, bản phụ sẽ bị xóa vĩnh viễn.
+            </p>
+            <div className="space-y-2">
+              <Label>Bản chính (giữ lại)</Label>
+              <Select value={mergePrimary} onValueChange={setMergePrimary}>
+                <SelectTrigger><SelectValue placeholder="Chọn bản chính" /></SelectTrigger>
+                <SelectContent>
+                  {(parties ?? []).map((p: any) => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === mergeSecondary}>
+                      {p.code ? `${p.code} — ${p.name}` : p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Bản phụ (sẽ bị xóa)</Label>
+              <Select value={mergeSecondary} onValueChange={setMergeSecondary}>
+                <SelectTrigger><SelectValue placeholder="Chọn bản phụ" /></SelectTrigger>
+                <SelectContent>
+                  {(parties ?? []).map((p: any) => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === mergePrimary}>
+                      {p.code ? `${p.code} — ${p.name}` : p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox checked={mergeConfirm} onCheckedChange={(v) => setMergeConfirm(!!v)} className="mt-0.5" />
+              <span>Tôi hiểu thao tác này không thể hoàn tác.</span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setMergeOpen(false)} disabled={mergeMut.isPending}>
+                Hủy
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!mergePrimary || !mergeSecondary || mergePrimary === mergeSecondary || !mergeConfirm || mergeMut.isPending}
+                onClick={() => mergeMut.mutate({ primaryId: mergePrimary, secondaryId: mergeSecondary })}
+              >
+                {mergeMut.isPending ? "Đang gộp..." : "Gộp ngay"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
 
