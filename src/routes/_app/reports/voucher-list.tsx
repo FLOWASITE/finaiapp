@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Download, Printer, Search } from "lucide-react";
+import { Download, Printer, Search, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 import { getVoucherList, exportVoucherListXlsx } from "@/lib/vouchers.functions";
 import { getCompanyProfile } from "@/lib/reports.functions";
