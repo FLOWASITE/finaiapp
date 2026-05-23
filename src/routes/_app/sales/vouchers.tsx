@@ -1294,16 +1294,21 @@ function VoucherDialog({
                 </Label>
                 <CustomerCombobox
                   value={form.customer_id}
-                  onChange={(c) =>
+                  onChange={(c) => {
+                    const full = c?.id ? customerById.get(c.id) : null;
+                    const groupId = (full as any)?.group_id ?? null;
+                    const groupName = groupId ? (groupNameById.get(groupId) ?? "") : "";
                     setForm((f) => ({
                       ...f,
                       customer_id: c?.id ?? null,
                       customer_name: c?.name ?? "",
                       customer_tax_id: c?.tax_id ?? "",
                       customer_address: c?.address ?? "",
-                    }))
-                  }
+                      customer_group: groupName || f.customer_group,
+                    }));
+                  }}
                 />
+
               </div>
               <div>
                 <Label className="text-xs">
