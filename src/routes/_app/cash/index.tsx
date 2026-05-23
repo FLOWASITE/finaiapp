@@ -4,6 +4,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, TrendingDown, Receipt, FileText } from "lucide-react";
 import { listCashVouchers, getCashBook, deleteCashVoucher } from "@/lib/cash.functions";
 import { invalidateLedgers } from "@/lib/query-invalidation";
