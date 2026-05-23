@@ -497,7 +497,7 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
       .single();
     if (e0 || !v) throw new Error("Không tìm thấy phiếu");
     if (v.status === "posted") throw new Error("Phiếu đã ghi sổ");
-    if (v.status === "void") throw new Error("Phiếu đã huỷ");
+    
 
     const { data: locked } = await supabase.rpc("is_period_locked", {
       _user_id: userId,
