@@ -339,16 +339,16 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     let rowIdx = 9;
     for (const r of res.rows) {
       ws.getRow(rowIdx).values = [
-        r.entry_date, r.voucher_no, r.voucher_type, r.description ?? "",
+        r.entry_date, r.voucher_no, r.voucher_type, r.invoice_no ?? "", r.description ?? "",
         r.account_code, r.debit || null, r.credit || null,
         r.party_name ?? "", r.reference ?? "",
         r.branch_name ?? "", r.department_name ?? "", r.project_name ?? "", r.cost_center_name ?? "",
       ];
-      ws.getCell(`F${rowIdx}`).numFmt = "#,##0";
       ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
+      ws.getCell(`H${rowIdx}`).numFmt = "#,##0";
       rowIdx++;
     }
-    ws.getRow(rowIdx).values = ["", "", "", "TỔNG CỘNG", "", res.totals.debit, res.totals.credit];
+    ws.getRow(rowIdx).values = ["", "", "", "", "TỔNG CỘNG", "", res.totals.debit, res.totals.credit];
     ws.getRow(rowIdx).font = { bold: true };
     ws.getCell(`F${rowIdx}`).numFmt = "#,##0";
     ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
