@@ -289,20 +289,21 @@ function LoginPage() {
         </aside>
 
         {/* Right form panel */}
-        <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
+        <main className="bg-[oklch(0.13_0.025_260)] px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
           <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
             <FinAILogo height={40} />
           </Link>
 
-          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
+          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-white">
             Sổ kế toán. Phần mềm. Agent.
           </h1>
 
           <div className="hidden lg:block text-center mb-6">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
               Chào mừng đến FinAI
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-white/60 mt-1">
+
               Đăng nhập hoặc tạo tài khoản bằng email
             </p>
           </div>
