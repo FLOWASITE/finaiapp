@@ -26,6 +26,7 @@ function ClientsPage() {
           <CardTitle className="text-base">
             Khách đã sử dụng FinAI ({links.data?.length ?? 0})
           </CardTitle>
+          <ClientLinkDialog />
         </CardHeader>
         <CardContent>
           <Table>
