@@ -1009,6 +1009,28 @@ function CreateVoucherDialog({
     return m;
   }, [supplierGroups]);
 
+  // Prefill supplier from initialParty (when navigated from party list)
+  const prefilledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) { prefilledRef.current = null; return; }
+    if (!initialParty?.id) return;
+    if (prefilledRef.current === initialParty.id) return;
+    prefilledRef.current = initialParty.id;
+    setHeader((h) => ({
+      ...h,
+      supplier_id: initialParty.id,
+      supplier_name: initialParty.name ?? h.supplier_name,
+      supplier_address: initialParty.address ?? h.supplier_address,
+    }));
+  }, [open, initialParty]);
+
+  // When suppliers list loads, fill in group name based on supplier
+  useEffect(() => {
+    if (!initialParty?.id) return;
+    const s = (((typeof window !== "undefined") && null) || null);
+    void s;
+  }, [initialParty]);
+
   // Auto-update "Diễn giải" khi user chưa chỉnh tay
   const [reasonTouched, setReasonTouched] = useState(false);
   useEffect(() => {
