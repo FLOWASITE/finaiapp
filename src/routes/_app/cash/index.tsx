@@ -163,7 +163,7 @@ function CashPage() {
                 </tr>
               ))}
               {(vouchers ?? []).length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Chưa có phiếu nào</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8"><EmptyState size="sm" bordered={false} title="Chưa có phiếu nào" /></td></tr>
               )}
             </tbody>
           </table>
