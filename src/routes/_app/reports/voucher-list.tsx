@@ -136,7 +136,8 @@ function VoucherListPage() {
     debitAccount: string | null;
     creditAccount: string | null;
     amount: number;
-    party_name: string | null;
+    debitParty: string | null;
+    creditParty: string | null;
     reference: string | null;
     branch_name: string | null;
     department_name: string | null;
