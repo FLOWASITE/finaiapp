@@ -174,7 +174,7 @@ function VoucherListPage() {
       };
       const base = (extra: Partial<GroupedRow>): GroupedRow => ({
         key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
-        voucher_type: meta.voucher_type, description: meta.description,
+        voucher_type: meta.voucher_type, invoice_no: meta.invoice_no ?? null, description: meta.description,
         debitAccount: null, creditAccount: null, amount: 0,
         debitParty: null, creditParty: null, reference: meta.reference,
         branch_name: meta.branch_name, department_name: meta.department_name,
