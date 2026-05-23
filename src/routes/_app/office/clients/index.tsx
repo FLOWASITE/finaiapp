@@ -9,6 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { ProspectDialog } from "@/components/office/prospect-dialog";
+import { ClientLinkDialog } from "@/components/office/client-link-dialog";
 
 export const Route = createFileRoute("/_app/office/clients/")({ component: ClientsPage });
 
