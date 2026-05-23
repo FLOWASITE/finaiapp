@@ -100,13 +100,13 @@ function KpiCard({
   } as const;
   return (
     <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+      <CardContent className="p-2 sm:p-4 flex items-center gap-2 sm:gap-3">
+        <div className={`h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full grid place-items-center ${toneCls[tone]}`}>
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{label}</div>
-          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground truncate leading-tight">{label}</div>
+          <div className="text-sm sm:text-lg font-semibold tabular-nums truncate">{value}</div>
         </div>
       </CardContent>
     </Card>
