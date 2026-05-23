@@ -195,48 +195,63 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const upsertSupplierFn = useServerFn(upsertSupplier);
   const deleteSupplierFn = useServerFn(deleteSupplier);
 
-  const onArchive = (p: any) => {
-    if (isCustomer) {
-      archiveCustomerFn({ data: { id: p.id, archived: p.is_active !== false } })
-        .then(() => {
-          qc.invalidateQueries({ queryKey: ["customers"] });
-          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
-        })
-        .catch((e: any) => toast.error(e.message));
-    } else {
-      upsertSupplierFn({
-        data: {
-          id: p.id,
-          name: p.name,
-          tax_id: p.tax_id,
-          payment_terms_days: p.payment_terms_days ?? 30,
-          currency: p.currency ?? "VND",
-          payable_account: p.payable_account ?? "331",
-          is_active: !(p.is_active === false ? false : true),
-        } as any,
-      })
-        .then(() => {
-          qc.invalidateQueries({ queryKey: ["suppliers"] });
-          toast.success("Đã cập nhật");
-        })
-        .catch((e: any) => toast.error(e.message));
-    }
+  const openConfirm = (p: any, type: "archive" | "restore" | "delete") => {
+    setConfirmDialog({ open: true, type, party: p });
   };
 
-  const onDelete = async (p: any) => {
-    if (isCustomer) {
-      toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
-      return;
-    }
-    if (!confirm(`Xoá ${p.name}?`)) return;
-    try {
-      await deleteSupplierFn({ data: { id: p.id } });
-      qc.invalidateQueries({ queryKey: ["suppliers"] });
-      toast.success("Đã xoá");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+  const closeConfirm = () => {
+    setConfirmDialog({ open: false, type: null, party: null });
   };
+
+  const executeConfirm = async () => {
+    const p = confirmParty;
+    if (!p || !confirmType) return;
+    if (confirmType === "archive" || confirmType === "restore") {
+      if (isCustomer) {
+        try {
+          await archiveCustomerFn({ data: { id: p.id, archived: p.is_active !== false } });
+          qc.invalidateQueries({ queryKey: ["customers"] });
+          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      } else {
+        try {
+          await upsertSupplierFn({
+            data: {
+              id: p.id,
+              name: p.name,
+              tax_id: p.tax_id,
+              payment_terms_days: p.payment_terms_days ?? 30,
+              currency: p.currency ?? "VND",
+              payable_account: p.payable_account ?? "331",
+              is_active: !(p.is_active === false ? false : true),
+            } as any,
+          });
+          qc.invalidateQueries({ queryKey: ["suppliers"] });
+          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      }
+    } else if (confirmType === "delete") {
+      if (isCustomer) {
+        toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
+      } else {
+        try {
+          await deleteSupplierFn({ data: { id: p.id } });
+          qc.invalidateQueries({ queryKey: ["suppliers"] });
+          toast.success("Đã xoá");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      }
+    }
+    closeConfirm();
+  };
+
+  const onArchive = (p: any) => openConfirm(p, p.is_active === false ? "restore" : "archive");
+  const onDelete = (p: any) => openConfirm(p, "delete");
 
   const titleIcon = isCustomer ? <Users className="h-6 w-6" /> : <Truck className="h-6 w-6" />;
   const title = isCustomer ? "Khách hàng" : "Nhà cung cấp";
