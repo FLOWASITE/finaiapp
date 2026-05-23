@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
