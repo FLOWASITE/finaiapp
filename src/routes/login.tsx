@@ -530,6 +530,7 @@ function LoginPage() {
               </p>
             )}
           </form>
+          </div>
         </main>
       </div>
     </div>
