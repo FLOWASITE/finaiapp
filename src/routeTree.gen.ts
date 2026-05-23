@@ -158,6 +158,7 @@ import { Route as AppPurchasesReportsByItemRouteImport } from './routes/_app/pur
 import { Route as AppPayrollPayslipsIdRouteImport } from './routes/_app/payroll/payslips.$id'
 import { Route as AppPayrollEmployeesIdRouteImport } from './routes/_app/payroll/employees.$id'
 import { Route as AppOfficeTasksTaskIdRouteImport } from './routes/_app/office/tasks/$taskId'
+import { Route as AppOfficeStaffStaffIdRouteImport } from './routes/_app/office/staff/$staffId'
 import { Route as AppOfficeContractsContractIdRouteImport } from './routes/_app/office/contracts/$contractId'
 import { Route as AppOfficeClientsLinkIdRouteImport } from './routes/_app/office/clients/$linkId'
 import { Route as AppAssetsInventoryIdRouteImport } from './routes/_app/assets/inventory.$id'
@@ -928,6 +929,11 @@ const AppOfficeTasksTaskIdRoute = AppOfficeTasksTaskIdRouteImport.update({
   path: '/tasks/$taskId',
   getParentRoute: () => AppOfficeRouteRoute,
 } as any)
+const AppOfficeStaffStaffIdRoute = AppOfficeStaffStaffIdRouteImport.update({
+  id: '/staff/$staffId',
+  path: '/staff/$staffId',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
 const AppOfficeContractsContractIdRoute =
   AppOfficeContractsContractIdRouteImport.update({
     id: '/contracts/$contractId',
@@ -1113,6 +1119,7 @@ export interface FileRoutesByFullPath {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/office/contracts/$contractId': typeof AppOfficeContractsContractIdRoute
+  '/office/staff/$staffId': typeof AppOfficeStaffStaffIdRoute
   '/office/tasks/$taskId': typeof AppOfficeTasksTaskIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
@@ -1266,6 +1273,7 @@ export interface FileRoutesByTo {
   '/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/office/contracts/$contractId': typeof AppOfficeContractsContractIdRoute
+  '/office/staff/$staffId': typeof AppOfficeStaffStaffIdRoute
   '/office/tasks/$taskId': typeof AppOfficeTasksTaskIdRoute
   '/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
@@ -1428,6 +1436,7 @@ export interface FileRoutesById {
   '/_app/assets/inventory/$id': typeof AppAssetsInventoryIdRouteWithChildren
   '/_app/office/clients/$linkId': typeof AppOfficeClientsLinkIdRoute
   '/_app/office/contracts/$contractId': typeof AppOfficeContractsContractIdRoute
+  '/_app/office/staff/$staffId': typeof AppOfficeStaffStaffIdRoute
   '/_app/office/tasks/$taskId': typeof AppOfficeTasksTaskIdRoute
   '/_app/payroll/employees/$id': typeof AppPayrollEmployeesIdRoute
   '/_app/payroll/payslips/$id': typeof AppPayrollPayslipsIdRoute
@@ -1590,6 +1599,7 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/office/clients/$linkId'
     | '/office/contracts/$contractId'
+    | '/office/staff/$staffId'
     | '/office/tasks/$taskId'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
@@ -1743,6 +1753,7 @@ export interface FileRouteTypes {
     | '/assets/inventory/$id'
     | '/office/clients/$linkId'
     | '/office/contracts/$contractId'
+    | '/office/staff/$staffId'
     | '/office/tasks/$taskId'
     | '/payroll/employees/$id'
     | '/payroll/payslips/$id'
@@ -1904,6 +1915,7 @@ export interface FileRouteTypes {
     | '/_app/assets/inventory/$id'
     | '/_app/office/clients/$linkId'
     | '/_app/office/contracts/$contractId'
+    | '/_app/office/staff/$staffId'
     | '/_app/office/tasks/$taskId'
     | '/_app/payroll/employees/$id'
     | '/_app/payroll/payslips/$id'
@@ -2992,6 +3004,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOfficeTasksTaskIdRouteImport
       parentRoute: typeof AppOfficeRouteRoute
     }
+    '/_app/office/staff/$staffId': {
+      id: '/_app/office/staff/$staffId'
+      path: '/staff/$staffId'
+      fullPath: '/office/staff/$staffId'
+      preLoaderRoute: typeof AppOfficeStaffStaffIdRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
     '/_app/office/contracts/$contractId': {
       id: '/_app/office/contracts/$contractId'
       path: '/contracts/$contractId'
@@ -3069,6 +3088,7 @@ interface AppOfficeRouteRouteChildren {
   AppOfficeIndexRoute: typeof AppOfficeIndexRoute
   AppOfficeClientsLinkIdRoute: typeof AppOfficeClientsLinkIdRoute
   AppOfficeContractsContractIdRoute: typeof AppOfficeContractsContractIdRoute
+  AppOfficeStaffStaffIdRoute: typeof AppOfficeStaffStaffIdRoute
   AppOfficeTasksTaskIdRoute: typeof AppOfficeTasksTaskIdRoute
   AppOfficeClientsIndexRoute: typeof AppOfficeClientsIndexRoute
   AppOfficeContractsIndexRoute: typeof AppOfficeContractsIndexRoute
@@ -3081,6 +3101,7 @@ const AppOfficeRouteRouteChildren: AppOfficeRouteRouteChildren = {
   AppOfficeIndexRoute: AppOfficeIndexRoute,
   AppOfficeClientsLinkIdRoute: AppOfficeClientsLinkIdRoute,
   AppOfficeContractsContractIdRoute: AppOfficeContractsContractIdRoute,
+  AppOfficeStaffStaffIdRoute: AppOfficeStaffStaffIdRoute,
   AppOfficeTasksTaskIdRoute: AppOfficeTasksTaskIdRoute,
   AppOfficeClientsIndexRoute: AppOfficeClientsIndexRoute,
   AppOfficeContractsIndexRoute: AppOfficeContractsIndexRoute,
