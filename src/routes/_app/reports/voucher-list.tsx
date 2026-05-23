@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
+import { VoucherDetailDialog } from "@/components/voucher-detail-dialog";
 import {
   fmt, Loading, PrintHeader, ReportCard, SignatureFooter,
 } from "./index";
