@@ -440,7 +440,12 @@ function VoucherListPage() {
                   <tbody>
                     {groupedRows.map((g) => {
                       return (
-                        <tr key={g.key} className="border-t border-border/60 align-top">
+                        <tr
+                          key={g.key}
+                          onClick={() => setDetailEntryId(g.entry_id)}
+                          className="border-t border-border/60 align-top cursor-pointer hover:bg-muted/50 print:cursor-default"
+                          title="Click để xem phiếu kế toán"
+                        >
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
