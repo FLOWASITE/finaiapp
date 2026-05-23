@@ -87,6 +87,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Hệ thống",
     entries: [
+      { to: "/office", label: "Văn phòng", icon: Briefcase },
       { to: "/admin", label: "Quản trị", icon: Shield },
       { to: "/settings", label: "Cài đặt", icon: Settings },
     ],

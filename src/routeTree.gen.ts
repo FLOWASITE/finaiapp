@@ -26,6 +26,7 @@ import { Route as AppCashflowRouteImport } from './routes/_app/cashflow'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppOfficeRouteRouteImport } from './routes/_app/office/route'
 import { Route as AppTaxIndexRouteImport } from './routes/_app/tax/index'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
 import { Route as AppSuperadminIndexRouteImport } from './routes/_app/superadmin/index'
@@ -38,6 +39,7 @@ import { Route as AppReceiptsIndexRouteImport } from './routes/_app/receipts/ind
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app/purchases/index'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayablesIndexRouteImport } from './routes/_app/payables/index'
+import { Route as AppOfficeIndexRouteImport } from './routes/_app/office/index'
 import { Route as AppItemsIndexRouteImport } from './routes/_app/items/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app/inventory/index'
@@ -132,6 +134,10 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppOfficeTasksIndexRouteImport } from './routes/_app/office/tasks/index'
+import { Route as AppOfficeStaffIndexRouteImport } from './routes/_app/office/staff/index'
+import { Route as AppOfficeContractsIndexRouteImport } from './routes/_app/office/contracts/index'
+import { Route as AppOfficeClientsIndexRouteImport } from './routes/_app/office/clients/index'
 import { Route as ApiPublicMbbankSyncLogStartRouteImport } from './routes/api/public/mbbank/sync-log-start'
 import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/public/mbbank/sync-error'
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
@@ -243,6 +249,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOfficeRouteRoute = AppOfficeRouteRouteImport.update({
+  id: '/office',
+  path: '/office',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTaxIndexRoute = AppTaxIndexRouteImport.update({
   id: '/tax/',
   path: '/tax/',
@@ -302,6 +313,11 @@ const AppPayablesIndexRoute = AppPayablesIndexRouteImport.update({
   id: '/payables/',
   path: '/payables/',
   getParentRoute: () => AppRoute,
+} as any)
+const AppOfficeIndexRoute = AppOfficeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOfficeRouteRoute,
 } as any)
 const AppItemsIndexRoute = AppItemsIndexRouteImport.update({
   id: '/',
@@ -776,6 +792,26 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppOfficeTasksIndexRoute = AppOfficeTasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
+const AppOfficeStaffIndexRoute = AppOfficeStaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
+const AppOfficeContractsIndexRoute = AppOfficeContractsIndexRouteImport.update({
+  id: '/contracts/',
+  path: '/contracts/',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
+const AppOfficeClientsIndexRoute = AppOfficeClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
 const ApiPublicMbbankSyncLogStartRoute =
   ApiPublicMbbankSyncLogStartRouteImport.update({
     id: '/api/public/mbbank/sync-log-start',
@@ -924,6 +960,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/welcome': typeof WelcomeRoute
+  '/office': typeof AppOfficeRouteRouteWithChildren
   '/admin': typeof AppAdminRouteWithChildren
   '/alerts': typeof AppAlertsRoute
   '/bank': typeof AppBankRouteWithChildren
@@ -1031,6 +1068,7 @@ export interface FileRoutesByFullPath {
   '/inventory/': typeof AppInventoryIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/items/': typeof AppItemsIndexRoute
+  '/office/': typeof AppOfficeIndexRoute
   '/payables/': typeof AppPayablesIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
@@ -1066,6 +1104,10 @@ export interface FileRoutesByFullPath {
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
   '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
+  '/office/clients/': typeof AppOfficeClientsIndexRoute
+  '/office/contracts/': typeof AppOfficeContractsIndexRoute
+  '/office/staff/': typeof AppOfficeStaffIndexRoute
+  '/office/tasks/': typeof AppOfficeTasksIndexRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1175,6 +1217,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AppInventoryIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/items': typeof AppItemsIndexRoute
+  '/office': typeof AppOfficeIndexRoute
   '/payables': typeof AppPayablesIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
@@ -1210,6 +1253,10 @@ export interface FileRoutesByTo {
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
   '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
+  '/office/clients': typeof AppOfficeClientsIndexRoute
+  '/office/contracts': typeof AppOfficeContractsIndexRoute
+  '/office/staff': typeof AppOfficeStaffIndexRoute
+  '/office/tasks': typeof AppOfficeTasksIndexRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1220,6 +1267,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/welcome': typeof WelcomeRoute
+  '/_app/office': typeof AppOfficeRouteRouteWithChildren
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/bank': typeof AppBankRouteWithChildren
@@ -1327,6 +1375,7 @@ export interface FileRoutesById {
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/items/': typeof AppItemsIndexRoute
+  '/_app/office/': typeof AppOfficeIndexRoute
   '/_app/payables/': typeof AppPayablesIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
@@ -1362,6 +1411,10 @@ export interface FileRoutesById {
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
   '/api/public/mbbank/sync-log-start': typeof ApiPublicMbbankSyncLogStartRoute
+  '/_app/office/clients/': typeof AppOfficeClientsIndexRoute
+  '/_app/office/contracts/': typeof AppOfficeContractsIndexRoute
+  '/_app/office/staff/': typeof AppOfficeStaffIndexRoute
+  '/_app/office/tasks/': typeof AppOfficeTasksIndexRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1372,6 +1425,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/welcome'
+    | '/office'
     | '/admin'
     | '/alerts'
     | '/bank'
@@ -1479,6 +1533,7 @@ export interface FileRouteTypes {
     | '/inventory/'
     | '/invoices/'
     | '/items/'
+    | '/office/'
     | '/payables/'
     | '/payroll/'
     | '/purchases/'
@@ -1514,6 +1569,10 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
     | '/api/public/mbbank/sync-log-start'
+    | '/office/clients/'
+    | '/office/contracts/'
+    | '/office/staff/'
+    | '/office/tasks/'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1623,6 +1682,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoices'
     | '/items'
+    | '/office'
     | '/payables'
     | '/payroll'
     | '/purchases'
@@ -1658,6 +1718,10 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
     | '/api/public/mbbank/sync-log-start'
+    | '/office/clients'
+    | '/office/contracts'
+    | '/office/staff'
+    | '/office/tasks'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1667,6 +1731,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/welcome'
+    | '/_app/office'
     | '/_app/admin'
     | '/_app/alerts'
     | '/_app/bank'
@@ -1774,6 +1839,7 @@ export interface FileRouteTypes {
     | '/_app/inventory/'
     | '/_app/invoices/'
     | '/_app/items/'
+    | '/_app/office/'
     | '/_app/payables/'
     | '/_app/payroll/'
     | '/_app/purchases/'
@@ -1809,6 +1875,10 @@ export interface FileRouteTypes {
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
     | '/api/public/mbbank/sync-log-start'
+    | '/_app/office/clients/'
+    | '/_app/office/contracts/'
+    | '/_app/office/staff/'
+    | '/_app/office/tasks/'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
     | '/_app/sales/orders/$id/print'
@@ -1949,6 +2019,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/office': {
+      id: '/_app/office'
+      path: '/office'
+      fullPath: '/office'
+      preLoaderRoute: typeof AppOfficeRouteRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tax/': {
       id: '/_app/tax/'
       path: '/tax'
@@ -2032,6 +2109,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/payables/'
       preLoaderRoute: typeof AppPayablesIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/office/': {
+      id: '/_app/office/'
+      path: '/'
+      fullPath: '/office/'
+      preLoaderRoute: typeof AppOfficeIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
     }
     '/_app/items/': {
       id: '/_app/items/'
@@ -2691,6 +2775,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/office/tasks/': {
+      id: '/_app/office/tasks/'
+      path: '/tasks'
+      fullPath: '/office/tasks/'
+      preLoaderRoute: typeof AppOfficeTasksIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
+    '/_app/office/staff/': {
+      id: '/_app/office/staff/'
+      path: '/staff'
+      fullPath: '/office/staff/'
+      preLoaderRoute: typeof AppOfficeStaffIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
+    '/_app/office/contracts/': {
+      id: '/_app/office/contracts/'
+      path: '/contracts'
+      fullPath: '/office/contracts/'
+      preLoaderRoute: typeof AppOfficeContractsIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
+    '/_app/office/clients/': {
+      id: '/_app/office/clients/'
+      path: '/clients'
+      fullPath: '/office/clients/'
+      preLoaderRoute: typeof AppOfficeClientsIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
     '/api/public/mbbank/sync-log-start': {
       id: '/api/public/mbbank/sync-log-start'
       path: '/api/public/mbbank/sync-log-start'
@@ -2875,6 +2987,26 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppOfficeRouteRouteChildren {
+  AppOfficeIndexRoute: typeof AppOfficeIndexRoute
+  AppOfficeClientsIndexRoute: typeof AppOfficeClientsIndexRoute
+  AppOfficeContractsIndexRoute: typeof AppOfficeContractsIndexRoute
+  AppOfficeStaffIndexRoute: typeof AppOfficeStaffIndexRoute
+  AppOfficeTasksIndexRoute: typeof AppOfficeTasksIndexRoute
+}
+
+const AppOfficeRouteRouteChildren: AppOfficeRouteRouteChildren = {
+  AppOfficeIndexRoute: AppOfficeIndexRoute,
+  AppOfficeClientsIndexRoute: AppOfficeClientsIndexRoute,
+  AppOfficeContractsIndexRoute: AppOfficeContractsIndexRoute,
+  AppOfficeStaffIndexRoute: AppOfficeStaffIndexRoute,
+  AppOfficeTasksIndexRoute: AppOfficeTasksIndexRoute,
+}
+
+const AppOfficeRouteRouteWithChildren = AppOfficeRouteRoute._addFileChildren(
+  AppOfficeRouteRouteChildren,
+)
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
@@ -3074,6 +3206,7 @@ const AppSalesOrdersRouteWithChildren = AppSalesOrdersRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppOfficeRouteRoute: typeof AppOfficeRouteRouteWithChildren
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAlertsRoute: typeof AppAlertsRoute
   AppBankRoute: typeof AppBankRouteWithChildren
@@ -3173,6 +3306,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppOfficeRouteRoute: AppOfficeRouteRouteWithChildren,
   AppAdminRoute: AppAdminRouteWithChildren,
   AppAlertsRoute: AppAlertsRoute,
   AppBankRoute: AppBankRouteWithChildren,
@@ -3295,13 +3429,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
