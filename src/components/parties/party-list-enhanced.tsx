@@ -486,7 +486,68 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           {editing && <PartyForm mode={kind} initial={editing} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+
+      {/* Merge dialog */}
+      <Dialog open={mergeOpen} onOpenChange={(o) => { if (!mergeMut.isPending) setMergeOpen(o); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitMerge className="h-5 w-5" />
+              Gộp {isCustomer ? "khách hàng" : "nhà cung cấp"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Toàn bộ phiếu, hóa đơn, thu/chi và số dư đầu kỳ của bản phụ sẽ được chuyển sang bản chính.
+              Sau khi gộp, bản phụ sẽ bị xóa vĩnh viễn.
+            </p>
+            <div className="space-y-2">
+              <Label>Bản chính (giữ lại)</Label>
+              <Select value={mergePrimary} onValueChange={setMergePrimary}>
+                <SelectTrigger><SelectValue placeholder="Chọn bản chính" /></SelectTrigger>
+                <SelectContent>
+                  {(parties ?? []).map((p: any) => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === mergeSecondary}>
+                      {p.code ? `${p.code} — ${p.name}` : p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Bản phụ (sẽ bị xóa)</Label>
+              <Select value={mergeSecondary} onValueChange={setMergeSecondary}>
+                <SelectTrigger><SelectValue placeholder="Chọn bản phụ" /></SelectTrigger>
+                <SelectContent>
+                  {(parties ?? []).map((p: any) => (
+                    <SelectItem key={p.id} value={p.id} disabled={p.id === mergePrimary}>
+                      {p.code ? `${p.code} — ${p.name}` : p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox checked={mergeConfirm} onCheckedChange={(v) => setMergeConfirm(!!v)} className="mt-0.5" />
+              <span>Tôi hiểu thao tác này không thể hoàn tác.</span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setMergeOpen(false)} disabled={mergeMut.isPending}>
+                Hủy
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!mergePrimary || !mergeSecondary || mergePrimary === mergeSecondary || !mergeConfirm || mergeMut.isPending}
+                onClick={() => mergeMut.mutate({ primaryId: mergePrimary, secondaryId: mergeSecondary })}
+              >
+                {mergeMut.isPending ? "Đang gộp..." : "Gộp ngay"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
 
