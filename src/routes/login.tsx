@@ -289,7 +289,13 @@ function LoginPage() {
         </aside>
 
         {/* Right form panel */}
-        <main className="bg-[oklch(0.13_0.025_260)] px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
+        <main
+          className="relative px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-white/10 shadow-[inset_1px_0_0_oklch(1_0_0/0.06),inset_0_1px_0_oklch(1_0_0/0.05),-24px_0_60px_-30px_oklch(0_0_0/0.8)]"
+          style={{
+            background:
+              "linear-gradient(180deg, oklch(0.19 0.035 260) 0%, oklch(0.16 0.03 262) 55%, oklch(0.14 0.025 265) 100%)",
+          }}
+        >
           <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
             <FinAILogo height={40} />
           </Link>
