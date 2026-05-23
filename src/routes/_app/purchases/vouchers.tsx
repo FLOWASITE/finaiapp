@@ -1037,7 +1037,10 @@ function CreateVoucherDialog({
         auto_allocate_cost: header.auto_allocate_cost,
         pay_now: header.pay_now,
         create_stock_voucher: header.create_stock_voucher,
-        warehouse_id: null,
+        warehouse_id: header.create_stock_voucher ? (header.warehouse_id || null) : null,
+        stock_voucher_no: header.create_stock_voucher ? (header.stock_voucher_no.trim() || null) : null,
+        stock_voucher_date: header.create_stock_voucher ? (header.stock_voucher_date || null) : null,
+        stock_voucher_reason: header.create_stock_voucher ? (header.stock_voucher_reason.trim() || null) : null,
         lines: lines
           .filter((l) => l.amount > 0 || l.qty > 0 || l.product_name || l.description)
           .map((l) => ({
