@@ -364,17 +364,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-2 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
-                  errors.password && "ring-destructive/50 focus-within:ring-destructive/50",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-2 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  errors.password && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
                   <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="password"
-                    className="block text-[11px] font-medium text-muted-foreground"
+                    className="block text-[11px] font-medium text-white/55"
                   >
                     Mật khẩu
                   </Label>
@@ -383,7 +383,7 @@ function LoginPage() {
                     type={showPw ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
                     placeholder="••••••••"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -394,7 +394,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-white/55 hover:bg-white/10 hover:text-white transition-colors"
                   aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   tabIndex={-1}
                 >
