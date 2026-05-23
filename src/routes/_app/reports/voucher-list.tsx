@@ -347,12 +347,12 @@ function VoucherListPage() {
           <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
           <div className="flex flex-col gap-1 min-w-[12rem]">
             <span className="text-xs text-muted-foreground">Chi nhánh</span>
-            <Select value={branchId} onValueChange={setBranchId}>
+            <Select value={branchId || "__all__"} onValueChange={(v) => setBranchId(v === "__all__" ? "" : v)}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Tất cả chi nhánh" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tất cả chi nhánh</SelectItem>
+                <SelectItem value="__all__">Tất cả chi nhánh</SelectItem>
                 {(branchesQ.data ?? []).map((b) => (
                   <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
                 ))}
