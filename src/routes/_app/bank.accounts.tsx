@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Landmark, AlertCircle, Link2, CheckCircle2 } from "lucide-react";
 import { listBankAccounts, upsertBankAccount, deleteBankAccount } from "@/lib/bank.functions";
