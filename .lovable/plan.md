@@ -1,31 +1,36 @@
-## Vấn đề chính
+## Mục tiêu
+Thay logo "FinAI" hiện đang vẽ bằng SVG/text trong `src/components/FinAILogo.tsx` bằng ảnh logo người dùng vừa tải lên (file `ChatGPT_Image_11_48_10_23_thg_5_2026_1.png`).
 
-Backend đang hoạt động bình thường. Lỗi login hiện tại đến từ phía trình duyệt: sau build/preview, browser còn giữ session cũ hoặc refresh token hỏng trong localStorage. Supabase client tự cố refresh token này liên tục, làm cả request đăng nhập mới cũng bị `Failed to fetch`. Code hiện tại có dọn session khi lỗi, nhưng chỉ gọi `signOut({ scope: "local" })`; cách này vẫn có thể cần gọi auth API hoặc không xóa hết storage key bị hỏng, nên lỗi lặp lại.
+## Các bước thực hiện
 
-## Kế hoạch sửa dứt điểm
+1. **Copy ảnh logo vào project**
+   - Lưu bản gốc (nền trắng, full màu) vào `src/assets/finai-logo.png` — dùng cho header/mobile (nền sáng).
+   - Tạo thêm bản dành cho nền tối (panel trái màn hình login) — vì logo gốc có chữ "Fin" màu rất nhạt sẽ chìm trên nền sáng và sẽ nổi trên nền tối. Lưu bản này thành `src/assets/finai-logo-dark-bg.png` (dùng đúng ảnh gốc, vì nền trắng của ảnh sẽ bị xử lý bằng `mix-blend-mode` hoặc dùng phiên bản trong suốt).
+   - Phương án đơn giản và an toàn nhất: dùng cùng một file ảnh `finai-logo.png`, và:
+     - Trên panel nền tối (login bên trái): bọc trong khối nền trắng bo tròn nhỏ để logo hiển thị đúng màu thương hiệu.
+     - Trên mobile header / nơi nền sáng: hiển thị trực tiếp.
 
-1. **Tách helper dọn auth local thật sạch**
-   - Tạo helper client-side để xóa toàn bộ key liên quan đến auth trong `localStorage`/`sessionStorage` theo project id và prefix Supabase.
-   - Helper này không gọi network, nên vẫn chạy được ngay cả khi backend request đang fail.
+2. **Cập nhật `src/components/FinAILogo.tsx`**
+   - Bỏ phần SVG + text hiện tại.
+   - Import ảnh `@/assets/finai-logo.png`.
+   - Render `<img>` với:
+     - `height` theo prop (mặc định 40).
+     - `width` auto (`width: "auto"`).
+     - `alt="FinAI"`.
+     - `draggable={false}`, `className` truyền tiếp.
+   - Giữ nguyên signature props để không phải sửa nơi gọi (`height`, `className`). Hai props `finColor` / `aiColor` không còn tác dụng → giữ lại trong interface để tương thích nhưng không dùng (tránh phá API).
 
-2. **Sửa luồng `/login` để không bị refresh token cũ chặn**
-   - Trước khi đăng nhập bằng email/password: nếu gặp lỗi network/timeout, dọn storage cứng rồi cho user thử lại.
-   - Khi login thất bại do `Failed to fetch`, đổi thông báo rõ ràng hơn: “Đã dọn phiên cũ, bấm Đăng nhập lại”.
-   - Thêm một lần retry an toàn sau khi dọn phiên cũ, để user không phải tự bấm lại nếu lỗi do session cũ.
+3. **Cập nhật `src/routes/login.tsx`** (chỉ phần hiển thị, không đụng logic auth)
+   - **Panel trái (nền gradient tối)**: bọc `<FinAILogo height={40} />` trong một khối `rounded-xl bg-white/95 px-3 py-2 shadow-sm` để logo luôn rõ nét trên nền tối.
+   - **Header mobile (nền card sáng)**: dùng trực tiếp `<FinAILogo height={32} />`, không cần khối nền.
 
-3. **Chặn auto-redirect login phụ thuộc session hỏng**
-   - Phần kiểm tra “đã đăng nhập thì chuyển dashboard” sẽ không để refresh token cũ gây nghẽn form.
-   - Nếu phát hiện timeout/network khi `getSession`, dọn local session ngay.
+4. **Không thay đổi**
+   - Logic đăng nhập, route guard, gradient nền, typography của khối "Sổ kế toán / Phần mềm / Agent".
+   - Không xoá file `FinAILogo.tsx`, chỉ thay nội dung bên trong.
 
-4. **Ổn định guard route sau khi login**
-   - Rà soát `_app` guard: dùng `getUser()` hoặc luồng kiểm tra phiên đáng tin cậy hơn trước khi vào dashboard, tránh vừa login xong lại bị đá về `/login` vì session chưa hydrate.
+## Chi tiết kỹ thuật
 
-5. **Xác nhận bằng tín hiệu thực tế**
-   - Kiểm tra lại code sau sửa và dùng logs/network hiện có để đảm bảo luồng không còn phụ thuộc refresh token cũ.
-
-## Phạm vi không đổi
-
-- Không đổi layout login.
-- Không đổi logo FinAI.
-- Không đổi màu sắc/giao diện hiện tại.
-- Không động vào cấu hình backend hay database.
+- File mới: `src/assets/finai-logo.png` (copy từ `user-uploads://ChatGPT_Image_11_48_10_23_thg_5_2026_1.png`).
+- Sửa: `src/components/FinAILogo.tsx`, `src/routes/login.tsx` (chỉ 2 chỗ render logo).
+- Ảnh tỉ lệ ~3.4:1 (giống viewBox hiện tại) nên kích thước hiển thị sẽ tương đương, không phá layout.
+- Vì logo gốc nền trắng, cần khối nền trắng bo góc ở panel tối để tránh chữ "Fin" (vốn rất nhạt) bị chìm.
