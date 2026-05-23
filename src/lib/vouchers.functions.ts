@@ -98,6 +98,36 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       source_table: "depreciation_entries", party_name: null, reference: null,
       invoice_no: null,
     });
+
+    // Sales vouchers (Phiếu bán hàng) — invoice_no resolved via linked einvoice
+    const svRows = (salesV.data ?? []) as any[];
+    const einvIds = Array.from(new Set(svRows.map((r) => r.einvoice_id).filter(Boolean)));
+    const einvMap = new Map<string, string>();
+    if (einvIds.length > 0) {
+      const { data: einvs } = await supabase
+        .from("einvoices")
+        .select("id, invoice_series, invoice_no")
+        .in("id", einvIds);
+      for (const e of (einvs ?? []) as any[]) {
+        const no = [e.invoice_series, e.invoice_no].filter(Boolean).join(" ");
+        if (no) einvMap.set(e.id, no);
+      }
+    }
+    for (const r of svRows) set(r.journal_entry_id, {
+      voucher_no: r.voucher_no, voucher_type: "Phiếu bán hàng",
+      source_table: "sales_vouchers", party_name: r.customer_name,
+      reference: r.reason ?? null,
+      invoice_no: r.einvoice_id ? (einvMap.get(r.einvoice_id) ?? null) : null,
+    });
+    for (const r of (purchV.data ?? []) as any[]) {
+      const no = [r.invoice_series, r.invoice_no].filter(Boolean).join(" ").trim();
+      set(r.journal_entry_id, {
+        voucher_no: r.voucher_no, voucher_type: "Phiếu mua hàng",
+        source_table: "purchase_vouchers", party_name: r.supplier_name,
+        reference: r.reason ?? null,
+        invoice_no: no || null,
+      });
+    }
   }
 
   // Purchase invoices linked via journal_entries.invoice_id (not journal_entry_id)
