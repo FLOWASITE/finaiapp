@@ -172,7 +172,15 @@ function LoginPage() {
     if (!validate()) return;
     setLoading(true);
     try {
-      let result = await submitAuthOnce();
+      let result;
+      try {
+        result = await submitAuthOnce();
+      } catch (firstErr) {
+        if (!isRecoverableNetworkAuthError(firstErr)) throw firstErr;
+        clearSupabaseAuthStorage();
+        result = await submitAuthOnce();
+      }
+
       if (result.error && isRecoverableNetworkAuthError(result.error)) {
         clearSupabaseAuthStorage();
         result = await submitAuthOnce();
