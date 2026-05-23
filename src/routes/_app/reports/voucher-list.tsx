@@ -363,7 +363,7 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupByVoucher ? `${groupedRows.length} chứng từ / ${rows.length} dòng` : `${rows.length} dòng`}) · Tổng Nợ ${fmt(totals.debit)} · Tổng Có ${fmt(totals.credit)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupedRows.length} chứng từ / ${rows.length} dòng) · Tổng số tiền ${fmt(totalAmount)}`}
         >
           {q.isLoading && !q.data ? (
             <Loading />
@@ -377,9 +377,9 @@ function VoucherListPage() {
                       <th className="px-2 py-2 text-left">Số CT</th>
                       <th className="px-2 py-2 text-left">Loại CT</th>
                       <th className="px-2 py-2 text-left">Diễn giải</th>
-                      <th className="px-2 py-2 text-center">TK</th>
-                      <th className="px-2 py-2 text-right">Phát sinh Nợ</th>
-                      <th className="px-2 py-2 text-right">Phát sinh Có</th>
+                      <th className="px-2 py-2 text-center">TK Nợ</th>
+                      <th className="px-2 py-2 text-center">TK Có</th>
+                      <th className="px-2 py-2 text-right">Số tiền</th>
                       <th className="px-2 py-2 text-left">Đối tác</th>
                       <th className="px-2 py-2 text-left">Tham chiếu</th>
                       <th className="px-2 py-2 text-left">Chi nhánh</th>
@@ -389,78 +389,62 @@ function VoucherListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupByVoucher ? (
-                      <>
-                        {groupedRows.map((g) => (
-                          <tr key={g.key} className="border-t border-border/60 align-top">
-                            <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
-                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
-                            <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
-                            <td className="px-2 py-1.5">{g.description ?? "—"}</td>
-                            <td className="px-2 py-1.5 text-center font-mono text-muted-foreground" title={g.accounts.join(", ")}>
-                              {g.accounts.length <= 2 ? g.accounts.join(", ") : `${g.accounts.slice(0, 2).join(", ")} +${g.accounts.length - 2}`}
-                              <div className="text-[10px] opacity-70">({g.line_count} dòng)</div>
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.debit)}</td>
-                            <td className="px-2 py-1.5 text-right font-mono">{fmt(g.credit)}</td>
-                            <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{g.project_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{g.cost_center_name ?? ""}</td>
-                          </tr>
-                        ))}
-                        {groupedRows.length === 0 && (
-                          <tr>
-                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
-                              Không có chứng từ phù hợp bộ lọc
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {rows.map((r) => (
-                          <tr key={r.line_id} className="border-t border-border/60 align-top">
-                            <td className="px-2 py-1.5 whitespace-nowrap">{r.entry_date}</td>
-                            <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.voucher_no}</td>
-                            <td className="px-2 py-1.5 whitespace-nowrap">{r.voucher_type}</td>
-                            <td className="px-2 py-1.5">{r.description ?? "—"}</td>
-                            <td className="px-2 py-1.5 text-center font-mono">{r.account_code}</td>
-                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.debit)}</td>
-                            <td className="px-2 py-1.5 text-right font-mono">{fmt(r.credit)}</td>
-                            <td className="px-2 py-1.5">{r.party_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{r.reference ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{r.branch_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{r.department_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{r.project_name ?? ""}</td>
-                            <td className="px-2 py-1.5 text-muted-foreground">{r.cost_center_name ?? ""}</td>
-                          </tr>
-                        ))}
-                        {rows.length === 0 && (
-                          <tr>
-                            <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
-                              Không có chứng từ phù hợp bộ lọc
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                    {groupedRows.map((g) => {
+                      const renderAccs = (accs: string[]) =>
+                        accs.length === 0
+                          ? "—"
+                          : accs.length <= 2
+                            ? accs.join(", ")
+                            : `${accs.slice(0, 2).join(", ")} +${accs.length - 2}`;
+                      return (
+                        <tr key={g.key} className="border-t border-border/60 align-top">
+                          <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
+                          <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
+                          <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
+                          <td className="px-2 py-1.5">{g.description ?? "—"}</td>
+                          <td
+                            className="px-2 py-1.5 text-center font-mono"
+                            title={g.debitAccounts.join(", ")}
+                          >
+                            {renderAccs(g.debitAccounts)}
+                          </td>
+                          <td
+                            className="px-2 py-1.5 text-center font-mono"
+                            title={g.creditAccounts.join(", ")}
+                          >
+                            {renderAccs(g.creditAccounts)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono">{fmt(g.amount)}</td>
+                          <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{g.project_name ?? ""}</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">{g.cost_center_name ?? ""}</td>
+                        </tr>
+                      );
+                    })}
+                    {groupedRows.length === 0 && (
+                      <tr>
+                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                          Không có chứng từ phù hợp bộ lọc
+                        </td>
+                      </tr>
                     )}
                   </tbody>
 
-                  {rows.length > 0 && (
+                  {groupedRows.length > 0 && (
                     <tfoot className="bg-muted/40 font-semibold">
                       <tr className="border-t-2 border-border">
-                        <td className="px-2 py-2" colSpan={5}>Tổng trang này</td>
-                        <td className="px-2 py-2 text-right font-mono">{fmt(totals.debit)}</td>
-                        <td className="px-2 py-2 text-right font-mono">{fmt(totals.credit)}</td>
+                        <td className="px-2 py-2" colSpan={6}>Tổng trang này</td>
+                        <td className="px-2 py-2 text-right font-mono">{fmt(totalAmount)}</td>
                         <td colSpan={6} />
                       </tr>
                     </tfoot>
                   )}
                 </table>
               </div>
+
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2 text-xs print:hidden">
                 <div className="flex items-center gap-2 text-muted-foreground">
