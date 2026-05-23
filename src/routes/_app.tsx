@@ -4,7 +4,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { CommandPalette } from "@/components/command-palette";
 
-
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,8 +65,9 @@ function AppLayout() {
               </div>
             </header>
           )}
-          <main className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}>
-            
+          <main
+            className={`flex-1 ${onChatRoute ? "overflow-hidden" : "overflow-auto"} ${showDock ? "pb-4" : ""}`}
+          >
             <Outlet />
           </main>
           {showDock ? <ChatDock /> : null}
@@ -77,4 +77,3 @@ function AppLayout() {
     </SidebarProvider>
   );
 }
-
