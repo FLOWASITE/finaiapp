@@ -36,10 +36,10 @@ export function FinMascot({
         <div
           aria-hidden
           className={cn(
-            "absolute inset-0 rounded-full opacity-40 blur-md",
-            mood === "thinking" && "animate-pulse",
+            "absolute inset-0 rounded-full opacity-50 blur-2xl",
+            mood === "thinking" ? "animate-pulse" : "animate-pulse [animation-duration:3s]",
           )}
-          style={{ background: "var(--gradient-ai)" }}
+          style={{ background: "var(--gradient-ai, linear-gradient(135deg,#14b8a6,#3b82f6))" }}
         />
       )}
       <img
@@ -50,8 +50,9 @@ export function FinMascot({
         draggable={false}
         loading="eager"
         className={cn(
-          "relative h-full w-full object-contain",
+          "relative h-full w-full object-contain drop-shadow-xl",
           mood === "happy" && "animate-in zoom-in-50 duration-500",
+          (size === "lg" || size === "xl") && "animate-[fin-float_4s_ease-in-out_infinite]",
         )}
       />
     </div>
