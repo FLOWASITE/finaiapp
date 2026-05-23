@@ -1,22 +1,31 @@
-## Cập nhật Logo FinAI theo ảnh tham chiếu
+## Vấn đề chính
 
-Thay wordmark "FinAI" hiện tại (text thường, 1 màu trắng) bằng logo mới theo phong cách ảnh upload:
-- **"Fin"** màu trắng, font rounded (bo tròn mạnh các đầu nét)
-- **"AI"** màu xanh dương (#3B82F6 / primary), chữ "A" cách điệu thành hình đỉnh núi/tam giác không có gạch ngang, "I" là một cột dọc bo tròn 2 đầu
-- Tất cả nét có `stroke-linecap: round`, độ dày đồng đều
-- Áp dụng ở **cả 2 chỗ**: header trái desktop và header mobile
+Backend đang hoạt động bình thường. Lỗi login hiện tại đến từ phía trình duyệt: sau build/preview, browser còn giữ session cũ hoặc refresh token hỏng trong localStorage. Supabase client tự cố refresh token này liên tục, làm cả request đăng nhập mới cũng bị `Failed to fetch`. Code hiện tại có dọn session khi lỗi, nhưng chỉ gọi `signOut({ scope: "local" })`; cách này vẫn có thể cần gọi auth API hoặc không xóa hết storage key bị hỏng, nên lỗi lặp lại.
 
-### Cách thực hiện
-Tạo component `src/components/FinAILogo.tsx` — một SVG inline:
-- Vẽ "Fin" bằng path/text với font rounded (hoặc dựng bằng các đường stroke bo tròn)
-- Vẽ "A" dạng 2 nét chéo gặp nhau ở đỉnh (không có thanh ngang), "I" dạng đường thẳng đứng — cả hai stroke màu `hsl(var(--primary))` / xanh
-- Props: `className`, `height` (mặc định 40) để tái sử dụng kích thước khác nhau ở desktop vs mobile
+## Kế hoạch sửa dứt điểm
 
-Sau đó trong `src/routes/login.tsx`:
-- Thay block wordmark "FinAI" desktop (panel trái) bằng `<FinAILogo height={44} />`
-- Thay wordmark "FinAI" mobile header bằng `<FinAILogo height={32} />`
+1. **Tách helper dọn auth local thật sạch**
+   - Tạo helper client-side để xóa toàn bộ key liên quan đến auth trong `localStorage`/`sessionStorage` theo project id và prefix Supabase.
+   - Helper này không gọi network, nên vẫn chạy được ngay cả khi backend request đang fail.
 
-### Phạm vi
-- Tạo: `src/components/FinAILogo.tsx`
-- Sửa: `src/routes/login.tsx` (chỉ thay phần render logo)
-- Không đổi: layout, màu nền, form đăng nhập, logic auth, các route/file khác
+2. **Sửa luồng `/login` để không bị refresh token cũ chặn**
+   - Trước khi đăng nhập bằng email/password: nếu gặp lỗi network/timeout, dọn storage cứng rồi cho user thử lại.
+   - Khi login thất bại do `Failed to fetch`, đổi thông báo rõ ràng hơn: “Đã dọn phiên cũ, bấm Đăng nhập lại”.
+   - Thêm một lần retry an toàn sau khi dọn phiên cũ, để user không phải tự bấm lại nếu lỗi do session cũ.
+
+3. **Chặn auto-redirect login phụ thuộc session hỏng**
+   - Phần kiểm tra “đã đăng nhập thì chuyển dashboard” sẽ không để refresh token cũ gây nghẽn form.
+   - Nếu phát hiện timeout/network khi `getSession`, dọn local session ngay.
+
+4. **Ổn định guard route sau khi login**
+   - Rà soát `_app` guard: dùng `getUser()` hoặc luồng kiểm tra phiên đáng tin cậy hơn trước khi vào dashboard, tránh vừa login xong lại bị đá về `/login` vì session chưa hydrate.
+
+5. **Xác nhận bằng tín hiệu thực tế**
+   - Kiểm tra lại code sau sửa và dùng logs/network hiện có để đảm bảo luồng không còn phụ thuộc refresh token cũ.
+
+## Phạm vi không đổi
+
+- Không đổi layout login.
+- Không đổi logo FinAI.
+- Không đổi màu sắc/giao diện hiện tại.
+- Không động vào cấu hình backend hay database.

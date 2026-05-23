@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { withTimeout, withTimeoutReject } from "@/lib/auth-recovery";
+import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery";
 import {
   Eye,
   EyeOff,
@@ -74,13 +74,16 @@ function LoginPage() {
   // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    withTimeout(supabase.auth.getSession(), 1500, { data: { session: null } } as any)
+    withTimeoutReject(supabase.auth.getSession(), 1500)
       .then((res: any) => {
         if (!active) return;
         if (res?.data?.session) navigate({ to: dest, replace: true });
       })
-      .catch(() => {
-        // Lỗi mạng → bỏ qua, để user đăng nhập thủ công
+      .catch((err) => {
+        const raw = err instanceof Error ? err.message : String(err ?? "");
+        if (/failed to fetch|network|timeout/i.test(raw)) {
+          clearSupabaseAuthStorage();
+        }
       });
     return () => {
       active = false;
@@ -106,7 +109,7 @@ function LoginPage() {
     const m = raw.toLowerCase();
 
     if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
-      return { title: "Không kết nối được máy chủ", detail: "Phiên đăng nhập cũ đã được dọn. Vui lòng thử lại." };
+      return { title: "Phiên đăng nhập cũ đã được dọn", detail: "FinAI đã làm sạch phiên cũ. Vui lòng bấm Đăng nhập lại." };
     }
 
     if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
@@ -136,45 +139,64 @@ function LoginPage() {
     return { title: "Đăng nhập thất bại", detail: raw || "Có lỗi không xác định xảy ra." };
   }
 
+  function isRecoverableNetworkAuthError(err: unknown) {
+    const raw = err instanceof Error ? err.message : String(err ?? "");
+    const status = (err as { status?: number } | null)?.status;
+    return status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw);
+  }
+
+  async function submitAuthOnce() {
+    if (isSignup) {
+      return withTimeoutReject(
+        supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${window.location.origin}${dest}` },
+        }),
+        12_000,
+      );
+    }
+
+    return withTimeoutReject(
+      supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      }),
+      12_000,
+    );
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!validate()) return;
     setLoading(true);
     try {
+      let result;
+      try {
+        result = await submitAuthOnce();
+      } catch (firstErr) {
+        if (!isRecoverableNetworkAuthError(firstErr)) throw firstErr;
+        clearSupabaseAuthStorage();
+        result = await submitAuthOnce();
+      }
+
+      if (result.error && isRecoverableNetworkAuthError(result.error)) {
+        clearSupabaseAuthStorage();
+        result = await submitAuthOnce();
+      }
+
+      if (result.error) throw result.error;
+
       if (isSignup) {
-        const { error } = await withTimeoutReject(
-          supabase.auth.signUp({
-            email: email.trim(),
-            password,
-            options: { emailRedirectTo: `${window.location.origin}${dest}` },
-          }),
-          12_000,
-        );
-        if (error) throw error;
         toast.success("Tạo tài khoản thành công. Kiểm tra email để xác nhận.");
       } else {
-        const { error } = await withTimeoutReject(
-          supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password,
-          }),
-          12_000,
-        );
-        if (error) throw error;
         toast.success("Đăng nhập thành công");
       }
       navigate({ to: dest });
     } catch (err) {
-      // Tự dọn session hỏng (refresh_token lỗi trong localStorage gây nghẽn
-      // pipeline fetch khiến mọi request auth đều "Failed to fetch").
-      const raw = err instanceof Error ? err.message : String(err ?? "");
-      if (/failed to fetch|network|timeout/i.test(raw)) {
-        try {
-          await supabase.auth.signOut({ scope: "local" });
-        } catch {
-          // ignore
-        }
+      if (isRecoverableNetworkAuthError(err)) {
+        clearSupabaseAuthStorage();
       }
       const mapped = mapAuthError(err);
       setFormError(mapped);
