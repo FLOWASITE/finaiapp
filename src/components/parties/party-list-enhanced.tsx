@@ -438,7 +438,16 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                     onArchive={() => onArchive(p)}
                     onDelete={() => onDelete(p)}
                     onCreateVoucher={() =>
-                      navigate({ to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers" })
+                      navigate({
+                        to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers",
+                        search: {
+                          new: true,
+                          party_id: p.id,
+                          party_name: p.name,
+                          party_tax_id: p.tax_id ?? undefined,
+                          party_address: (p as any).address ?? undefined,
+                        } as any,
+                      })
                     }
                   />
                 </td>
