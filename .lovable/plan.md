@@ -1,49 +1,51 @@
+## Vấn đề
+
+Backend (Lovable Cloud) bình thường. Lỗi "Không kết nối được máy chủ" / "Failed to fetch" khi đăng nhập đến từ **phía client**:
+
+- `localStorage` đang giữ một `refresh_token` hỏng (`"uhutxzheunqb"` — quá ngắn so với token thật).
+- Supabase client tự động retry refresh token đó liên tục (`autoRefreshToken: true`), gây nghẽn pipeline fetch → submit login mất 30+ giây mới báo lỗi.
+- `useEffect` ở `login.tsx` gọi `supabase.auth.getSession()` ngay khi mount, tiếp tục kích hoạt refresh hỏng → trì hoãn cả màn login.
+
 ## Mục tiêu
 
-Trong Form **Tạo phiếu mua hàng** và **Tạo phiếu bán hàng**, khi user tick checkbox **Nhập kho** / **Xuất kho**, hiển thị một khu vực (panel) cho phép nhập thông tin phiếu kho liên quan. Hiện tại checkbox chỉ ngầm tạo phiếu kho với số/ngày/kho mặc định, user không xem hay sửa được.
+1. Login phản hồi tức thì (≤ 1–2s khi backend OK).
+2. Tự dọn session hỏng thay vì retry vô hạn.
+3. Không block UI khi `getSession()` chậm.
 
-## Phạm vi UI
+## Thay đổi (chỉ frontend, không đụng backend / schema)
 
-Panel chỉ hiển thị khi checkbox được bật. Gồm các trường:
+### 1. `src/integrations/supabase/client.ts` — KHÔNG sửa (file auto-generated)
 
-- **Kho** (`warehouse_id`) — Select, bắt buộc. Mặc định = kho đầu tiên / kho mặc định của tenant.
-- **Số phiếu kho** (`stock_voucher_no`) — Input text, auto-suggest `NK-{voucher_no}` cho mua hàng và `XK-{voucher_no}` cho bán hàng; user có thể sửa.
-- **Ngày phiếu kho** (`stock_voucher_date`) — Date, mặc định = ngày chứng từ của phiếu mua/bán.
-- **Diễn giải** (`stock_voucher_reason`) — Input text, mặc định "Nhập kho từ phiếu {voucher_no}" / "Xuất kho theo phiếu {voucher_no}".
+Thay vào đó, xử lý ở chỗ tiêu thụ.
 
-Panel đặt ngay dưới hàng checkbox toggle (border + bg-muted/30 nhẹ để phân vùng).
+### 2. `src/routes/login.tsx`
 
-## Phạm vi dữ liệu / Server
+- **Race `getSession()` với timeout 1500ms** để không block render màn login. Nếu quá hạn → coi như chưa đăng nhập, hiển thị form ngay.
+- **Nếu phát hiện refresh token lỗi** (event `TOKEN_REFRESHED` thất bại hoặc `getSession()` trả lỗi network kèm có session lưu cũ) → gọi `supabase.auth.signOut({ scope: 'local' })` để xoá localStorage hỏng, rồi cho user đăng nhập lại sạch.
+- **Thêm AbortController + timeout 12s** quanh `signInWithPassword` để fail nhanh thay vì chờ 30s.
+- **Disable nút khi đang loading** nhưng cho phép user huỷ (nút "Huỷ" hiện sau 5s loading).
 
-Mở rộng input của 2 serverFn create voucher để chấp nhận các trường mới (cùng với `warehouse_id` đã có):
+### 3. `src/routes/__root.tsx` (`AuthSync`)
 
-- `src/lib/purchase-vouchers.functions.ts`
-  - Thêm vào schema: `stock_voucher_no?: string`, `stock_voucher_date?: string (date)`, `stock_voucher_reason?: string`.
-  - Khi insert vào `stock_vouchers`: dùng giá trị user nhập nếu có, fallback về logic cũ (`NK-{voucher_no}`, `v.voucher_date`, `Nhập kho từ {voucher_no}`).
-- `src/lib/sales-vouchers.functions.ts`
-  - Tương tự với prefix `XK-` và reason "Xuất kho theo phiếu...".
+- Lắng nghe thêm event `TOKEN_REFRESHED` với `session == null` (refresh fail) → tự `signOut({ scope: 'local' })` và redirect `/login` nếu user đang ở route protected. Tránh loop retry âm thầm.
+- Hiện tại `invalidateQueries()` chạy cho cả `SIGNED_IN` — giữ nguyên, nhưng đảm bảo không chạy khi đang ở `/login` (không cần thiết).
 
-Không thay đổi cấu trúc DB — các giá trị này chỉ ghi vào `stock_vouchers` đã có.
+### 4. `src/routes/index.tsx` (`IndexRedirectFallback`)
 
-## Phạm vi FE form
+- Đã có fallback 800ms, OK. Giảm xuống 600ms để chuyển trang nhanh hơn khi `getSession()` treo.
 
-- `src/routes/_app/purchases/vouchers.tsx`
-  - Thêm vào `header` state: `warehouse_id`, `stock_voucher_no`, `stock_voucher_date`, `stock_voucher_reason`.
-  - Query danh sách kho (`warehouses`) khi dialog mở (reuse listWarehouses nếu có, hoặc gọi qua serverFn hiện hữu).
-  - Khi tick "Nhập kho": auto fill 4 trường từ `voucher_no`/`voucher_date` (nếu trống), render panel.
-  - Khi đổi `voucher_no` hoặc `voucher_date` mà user chưa chạm vào các field stock voucher (`*_touched` flags), cập nhật theo.
-  - Gửi 4 trường này lên server trong payload mutation.
-- `src/routes/_app/sales/vouchers.tsx`: thay đổi tương tự, dùng prefix `XK-` và nhãn "Xuất kho".
+### 5. Tiện ích nhỏ: `src/lib/auth-recovery.ts` (mới)
 
-## Edge cases
+Helper `withTimeout<T>(promise, ms)` dùng chung cho `getSession()` và `signInWithPassword()`.
 
-- Phiếu không có dòng hàng hoá (chỉ chi phí/dịch vụ): server vẫn skip tạo phiếu kho ngay cả khi tick — giữ behavior cũ, không cần xử lý FE.
-- User bỏ tick lại sau khi đã nhập: ẩn panel nhưng giữ state để khi tick lại không mất; chỉ không gửi lên payload (`create_stock_voucher=false`).
-- Số phiếu kho trùng: server tự throw lỗi DB (constraint hiện có) — toast hiển thị message.
+## Kết quả mong đợi
 
-## Files dự kiến chỉnh
+- Trang `/login` hiển thị tức thì kể cả khi có session hỏng trong localStorage.
+- Lần submit đầu tiên (sau khi tự dọn session hỏng) chạy thẳng vào Supabase Auth API, không bị nghẽn → ~500ms–1s.
+- Nếu mạng thật sự lỗi, báo lỗi sau 12s thay vì 30+s.
+- Không còn vòng lặp refresh token hỏng chạy ngầm.
 
-- `src/routes/_app/purchases/vouchers.tsx`
-- `src/routes/_app/sales/vouchers.tsx`
-- `src/lib/purchase-vouchers.functions.ts`
-- `src/lib/sales-vouchers.functions.ts`
+## Ngoài phạm vi
+
+- Không đổi schema, không đụng RLS, không thay đổi luồng OAuth.
+- Không thêm dependency mới.

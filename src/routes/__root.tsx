@@ -116,7 +116,12 @@ function AuthSync() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Refresh token hỏng → dọn localStorage để tránh loop retry âm thầm.
+      if (event === "TOKEN_REFRESHED" && !session) {
+        supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        return;
+      }
       // Chỉ invalidate khi thực sự đăng nhập/đăng xuất, tránh refetch
       // toàn bộ query mỗi lần Supabase tự refresh token.
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
@@ -128,6 +133,7 @@ function AuthSync() {
   }, [router, queryClient]);
   return null;
 }
+
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

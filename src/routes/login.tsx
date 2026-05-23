@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { withTimeout, withTimeoutReject } from "@/lib/auth-recovery";
 import {
   Eye,
   EyeOff,
@@ -67,17 +68,24 @@ function LoginPage() {
   const dest = next && next.startsWith("/") ? next : "/dashboard";
   const strength = useMemo(() => scorePassword(password), [password]);
 
-  // Nếu user đã đăng nhập sẵn, tự chuyển sang dashboard (xảy ra khi redirect
-  // "/" → "/login" nhưng vẫn còn session hợp lệ).
+  // Nếu user đã đăng nhập sẵn, tự chuyển sang dashboard.
+  // Race với timeout 1500ms để không bao giờ block UI khi Supabase auth
+  // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: dest, replace: true });
-    });
+    withTimeout(supabase.auth.getSession(), 1500, { data: { session: null } } as any)
+      .then((res: any) => {
+        if (!active) return;
+        if (res?.data?.session) navigate({ to: dest, replace: true });
+      })
+      .catch(() => {
+        // Lỗi mạng → bỏ qua, để user đăng nhập thủ công
+      });
     return () => {
       active = false;
     };
   }, [dest, navigate]);
+
 
 
   function validate() {
@@ -96,9 +104,10 @@ function LoginPage() {
     const code = (err as { code?: string } | null)?.code;
     const m = raw.toLowerCase();
 
-    if (status === 0 || /failed to fetch|network|networkerror/i.test(raw)) {
-      return { title: "Không kết nối được máy chủ", detail: "Kiểm tra kết nối mạng rồi thử lại." };
+    if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
+      return { title: "Không kết nối được máy chủ", detail: "Phiên đăng nhập cũ đã được dọn. Vui lòng thử lại." };
     }
+
     if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
       return { title: "Email hoặc mật khẩu không đúng", detail: "Vui lòng kiểm tra lại thông tin đăng nhập." };
     }
@@ -133,23 +142,39 @@ function LoginPage() {
     setLoading(true);
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { emailRedirectTo: `${window.location.origin}${dest}` },
-        });
+        const { error } = await withTimeoutReject(
+          supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: { emailRedirectTo: `${window.location.origin}${dest}` },
+          }),
+          12_000,
+        );
         if (error) throw error;
         toast.success("Tạo tài khoản thành công. Kiểm tra email để xác nhận.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+        const { error } = await withTimeoutReject(
+          supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          }),
+          12_000,
+        );
         if (error) throw error;
         toast.success("Đăng nhập thành công");
       }
       navigate({ to: dest });
     } catch (err) {
+      // Tự dọn session hỏng (refresh_token lỗi trong localStorage gây nghẽn
+      // pipeline fetch khiến mọi request auth đều "Failed to fetch").
+      const raw = err instanceof Error ? err.message : String(err ?? "");
+      if (/failed to fetch|network|timeout/i.test(raw)) {
+        try {
+          await supabase.auth.signOut({ scope: "local" });
+        } catch {
+          // ignore
+        }
+      }
       const mapped = mapAuthError(err);
       setFormError(mapped);
       toast.error(mapped.title, { description: mapped.detail });
@@ -157,6 +182,7 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
 
   async function handleForgot() {
     const e = emailSchema.safeParse(email);
