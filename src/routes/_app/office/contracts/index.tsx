@@ -38,7 +38,10 @@ function ContractsPage() {
           <TableBody>
             {(data ?? []).map((c: any) => (
               <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.contract_no}</TableCell>
+                <TableCell className="font-medium">
+                  <Link to="/office/contracts/$contractId" params={{ contractId: c.id }}
+                    className="text-primary hover:underline">{c.contract_no}</Link>
+                </TableCell>
                 <TableCell>{c.link?.display_name || c.link?.tenant?.name || "—"}</TableCell>
                 <TableCell>{c.start_date ?? "—"} → {c.end_date ?? "—"}</TableCell>
                 <TableCell className="text-right">
