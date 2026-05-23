@@ -1,36 +1,39 @@
 ## Mục tiêu
-Thay logo "FinAI" hiện đang vẽ bằng SVG/text trong `src/components/FinAILogo.tsx` bằng ảnh logo người dùng vừa tải lên (file `ChatGPT_Image_11_48_10_23_thg_5_2026_1.png`).
+Hiện tại báo cáo **Bảng kê chứng từ** (`/reports/voucher-list`) đang trả mỗi *dòng hạch toán* thành 1 dòng bảng, nên 1 phiếu (vd PT có 1 Nợ / 1 Có) hiện thành 2 dòng, với 2 cột số tiền (Phát sinh Nợ, Phát sinh Có).
 
-## Các bước thực hiện
+Yêu cầu mới: **mỗi chứng từ = 1 dòng**, với:
+- Cột **TK Nợ**
+- Cột **TK Có**
+- Cột **Số tiền** (1 cột duy nhất)
 
-1. **Copy ảnh logo vào project**
-   - Lưu bản gốc (nền trắng, full màu) vào `src/assets/finai-logo.png` — dùng cho header/mobile (nền sáng).
-   - Tạo thêm bản dành cho nền tối (panel trái màn hình login) — vì logo gốc có chữ "Fin" màu rất nhạt sẽ chìm trên nền sáng và sẽ nổi trên nền tối. Lưu bản này thành `src/assets/finai-logo-dark-bg.png` (dùng đúng ảnh gốc, vì nền trắng của ảnh sẽ bị xử lý bằng `mix-blend-mode` hoặc dùng phiên bản trong suốt).
-   - Phương án đơn giản và an toàn nhất: dùng cùng một file ảnh `finai-logo.png`, và:
-     - Trên panel nền tối (login bên trái): bọc trong khối nền trắng bo tròn nhỏ để logo hiển thị đúng màu thương hiệu.
-     - Trên mobile header / nơi nền sáng: hiển thị trực tiếp.
+## Thay đổi
+Chỉ chỉnh phần trình bày trong `src/routes/_app/reports/voucher-list.tsx`. Không sửa server function `getVoucherList` (vẫn trả về từng line) — gộp ở client để giữ nguyên dữ liệu, phân trang, dimensions, filter.
 
-2. **Cập nhật `src/components/FinAILogo.tsx`**
-   - Bỏ phần SVG + text hiện tại.
-   - Import ảnh `@/assets/finai-logo.png`.
-   - Render `<img>` với:
-     - `height` theo prop (mặc định 40).
-     - `width` auto (`width: "auto"`).
-     - `alt="FinAI"`.
-     - `draggable={false}`, `className` truyền tiếp.
-   - Giữ nguyên signature props để không phải sửa nơi gọi (`height`, `className`). Hai props `finColor` / `aiColor` không còn tác dụng → giữ lại trong interface để tương thích nhưng không dùng (tránh phá API).
+### 1. Luôn gộp theo chứng từ (entry_id)
+- Bỏ checkbox "Gộp theo số CT" + state `groupByVoucher` (mặc định luôn gộp).
+- Mở rộng cấu trúc `GroupedRow`:
+  - `debitAccounts: string[]` — tất cả TK có phát sinh Nợ > 0
+  - `creditAccounts: string[]` — tất cả TK có phát sinh Có > 0
+  - `amount: number` — `max(tổng Nợ, tổng Có)` của phiếu (cân bằng kế toán nên 2 vế bằng nhau; dùng max để an toàn nếu lệch).
+- Sắp xếp theo `entry_date`, `voucher_no` như hiện tại.
 
-3. **Cập nhật `src/routes/login.tsx`** (chỉ phần hiển thị, không đụng logic auth)
-   - **Panel trái (nền gradient tối)**: bọc `<FinAILogo height={40} />` trong một khối `rounded-xl bg-white/95 px-3 py-2 shadow-sm` để logo luôn rõ nét trên nền tối.
-   - **Header mobile (nền card sáng)**: dùng trực tiếp `<FinAILogo height={32} />`, không cần khối nền.
+### 2. Cột bảng mới
+Thay header & body:
+```
+Ngày | Số CT | Loại CT | Diễn giải | TK Nợ | TK Có | Số tiền |
+Đối tác | Tham chiếu | Chi nhánh | Phòng ban | Dự án | TT chi phí
+```
+- **TK Nợ / TK Có**: nếu phiếu có nhiều TK cùng vế (vd phân bổ chi phí), hiện TK đầu tiên kèm `+N` (giống logic hiện tại của cột TK gộp), tooltip `title` liệt kê đầy đủ.
+- **Số tiền**: font-mono, canh phải, `fmt(amount)`.
+- Bỏ 2 cột "Phát sinh Nợ" / "Phát sinh Có" cũ.
 
-4. **Không thay đổi**
-   - Logic đăng nhập, route guard, gradient nền, typography của khối "Sổ kế toán / Phần mềm / Agent".
-   - Không xoá file `FinAILogo.tsx`, chỉ thay nội dung bên trong.
+### 3. Footer tổng cộng
+Card subtitle và mọi hiển thị `Tổng Nợ / Tổng Có` đổi thành **Tổng số tiền** = tổng `amount` của các phiếu trong trang.
 
-## Chi tiết kỹ thuật
+### 4. Không đổi
+- Bộ lọc (DateRange, Dimensions, accountPrefix, source, voucherTypes, search) giữ nguyên.
+- Phân trang giữ nguyên (server vẫn trả về theo line, nhưng UI hiển thị số phiếu sau khi gộp — cập nhật subtitle để rõ).
+- Export Excel (`exportVoucherListXlsx`) **giữ nguyên định dạng cũ** (chi tiết theo line), vì đây là file kế toán cần đầy đủ — chỉ thay đổi hiển thị trên màn hình/in. (Có thể chỉnh sau nếu user yêu cầu.)
 
-- File mới: `src/assets/finai-logo.png` (copy từ `user-uploads://ChatGPT_Image_11_48_10_23_thg_5_2026_1.png`).
-- Sửa: `src/components/FinAILogo.tsx`, `src/routes/login.tsx` (chỉ 2 chỗ render logo).
-- Ảnh tỉ lệ ~3.4:1 (giống viewBox hiện tại) nên kích thước hiển thị sẽ tương đương, không phá layout.
-- Vì logo gốc nền trắng, cần khối nền trắng bo góc ở panel tối để tránh chữ "Fin" (vốn rất nhạt) bị chìm.
+## Lưu ý kỹ thuật
+- Vì server phân trang theo *line*, một phiếu có 2 line nếu rơi đúng ranh giới trang có thể bị tách. Trong thực tế cực hiếm với pageSize=100 và backend đã `ORDER BY entry_id`. Nếu cần chắc chắn 100%, có thể tăng pageSize mặc định hoặc thêm "fetch full entry" ở server — không nằm trong phạm vi sửa lần này, sẽ ghi chú TODO trong code.
