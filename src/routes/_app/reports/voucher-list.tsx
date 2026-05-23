@@ -124,12 +124,7 @@ function VoucherListPage() {
     );
   }, [pageRows, search]);
 
-  const totals = useMemo(
-    () => rows.reduce((s, r) => ({ debit: s.debit + r.debit, credit: s.credit + r.credit }), { debit: 0, credit: 0 }),
-    [rows],
-  );
-
-  // Group rows by voucher (entry_id) — aggregate debit/credit, collapse accounts
+  // Group rows by voucher (entry_id) — derive debit/credit accounts + amount
   type GroupedRow = {
     key: string;
     entry_id: string;
@@ -137,9 +132,9 @@ function VoucherListPage() {
     voucher_no: string;
     voucher_type: string;
     description: string | null;
-    accounts: string[];
-    debit: number;
-    credit: number;
+    debitAccounts: string[];
+    creditAccounts: string[];
+    amount: number;
     party_name: string | null;
     reference: string | null;
     branch_name: string | null;
@@ -149,41 +144,51 @@ function VoucherListPage() {
     line_count: number;
   };
   const groupedRows = useMemo<GroupedRow[]>(() => {
-    if (!groupByVoucher) return [];
-    const map = new Map<string, GroupedRow>();
+    const map = new Map<string, GroupedRow & { _debit: number; _credit: number }>();
     for (const r of rows) {
       const key = r.entry_id;
-      const g = map.get(key);
+      let g = map.get(key);
       if (!g) {
-        map.set(key, {
+        g = {
           key,
           entry_id: r.entry_id,
           entry_date: r.entry_date,
           voucher_no: r.voucher_no,
           voucher_type: r.voucher_type,
           description: r.description,
-          accounts: [r.account_code],
-          debit: r.debit,
-          credit: r.credit,
+          debitAccounts: [],
+          creditAccounts: [],
+          amount: 0,
           party_name: r.party_name,
           reference: r.reference,
           branch_name: r.branch_name,
           department_name: r.department_name,
           project_name: r.project_name,
           cost_center_name: r.cost_center_name,
-          line_count: 1,
-        });
-      } else {
-        if (!g.accounts.includes(r.account_code)) g.accounts.push(r.account_code);
-        g.debit += r.debit;
-        g.credit += r.credit;
-        g.line_count += 1;
+          line_count: 0,
+          _debit: 0,
+          _credit: 0,
+        };
+        map.set(key, g);
       }
+      if (r.debit > 0 && !g.debitAccounts.includes(r.account_code)) g.debitAccounts.push(r.account_code);
+      if (r.credit > 0 && !g.creditAccounts.includes(r.account_code)) g.creditAccounts.push(r.account_code);
+      g._debit += r.debit;
+      g._credit += r.credit;
+      g.line_count += 1;
     }
-    return Array.from(map.values()).sort(
-      (a, b) => a.entry_date.localeCompare(b.entry_date) || a.voucher_no.localeCompare(b.voucher_no),
-    );
-  }, [rows, groupByVoucher]);
+    return Array.from(map.values())
+      .map((g) => ({ ...g, amount: Math.max(g._debit, g._credit) }))
+      .sort(
+        (a, b) => a.entry_date.localeCompare(b.entry_date) || a.voucher_no.localeCompare(b.voucher_no),
+      );
+  }, [rows]);
+
+  const totalAmount = useMemo(
+    () => groupedRows.reduce((s, g) => s + g.amount, 0),
+    [groupedRows],
+  );
+
 
 
   async function handleExport() {
