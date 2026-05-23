@@ -265,7 +265,9 @@ function LoginPage() {
           </svg>
 
           <div className="relative z-10">
-            <FinAILogo height={44} finColor="#ffffff" />
+            <div className="inline-flex items-center rounded-xl bg-white/95 px-3 py-2 shadow-sm">
+              <FinAILogo height={36} />
+            </div>
           </div>
 
           <div className="relative z-10 mt-auto space-y-4 max-w-lg">
