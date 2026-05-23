@@ -1529,8 +1529,8 @@ function CreateVoucherDialog({
                       </div>
                       <div>
                         <Label className="text-xs">Đơn giá</Label>
-                        <Input type="number" value={l.unit_price}
-                          onChange={(e) => updateLine(l.key, { unit_price: Number(e.target.value) })} />
+                        <MoneyInput value={l.unit_price || 0}
+                          onChange={(n) => updateLine(l.key, { unit_price: n })} />
                       </div>
                       <div>
                         <Label className="text-xs">CK %</Label>
