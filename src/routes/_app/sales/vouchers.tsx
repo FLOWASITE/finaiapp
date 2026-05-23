@@ -1456,9 +1456,13 @@ function VoucherDialog({
               </Label>
               <Textarea
                 value={form.reason}
-                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                onChange={(e) => {
+                  setReasonTouched(true);
+                  setForm((f) => ({ ...f, reason: e.target.value }));
+                }}
                 rows={2}
               />
+
             </div>
           </div>
 
