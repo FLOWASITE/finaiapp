@@ -1162,7 +1162,7 @@ function SalesVouchersPage() {
                               <DropdownMenuItem onClick={() => openEdit(v.id)}>
                                 Mở phiếu
                               </DropdownMenuItem>
-                              {!isPosted && !isVoid && (
+                              {!isPosted && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
                                   <FileCheck2 className="h-4 w-4 mr-2" /> {v.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
