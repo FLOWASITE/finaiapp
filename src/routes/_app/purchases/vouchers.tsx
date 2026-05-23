@@ -341,6 +341,7 @@ function PurchaseVouchersPage() {
   const listFn = useServerFn(listPurchaseVouchers);
   const postFn = useServerFn(postPurchaseVoucher);
   const voidFn = useServerFn(voidPurchaseVoucher);
+  const previewVoidFn = useServerFn(previewVoidPurchaseVoucher);
   const delFn = useServerFn(deletePurchaseVoucher);
   const suppliersFnPage = useServerFn(listSuppliers);
   const linkInvFnPage = useServerFn(listLinkablePurchaseInvoices);
