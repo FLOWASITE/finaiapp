@@ -947,6 +947,22 @@ function CreateVoucherDialog({
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
+  const warehousesFn = useServerFn(listWarehouses);
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses-picker"],
+    queryFn: () => warehousesFn(),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+
+  useEffect(() => {
+    if (header.create_stock_voucher && !header.warehouse_id) {
+      const list = (warehouses ?? []) as any[];
+      const def = list.find((w) => w.is_default) ?? list[0];
+      if (def) setHeader((h) => ({ ...h, warehouse_id: def.id }));
+    }
+  }, [header.create_stock_voucher, warehouses, header.warehouse_id]);
+
   useEffect(() => {
     if (open && !header.voucher_no && suggested?.voucher_no) {
       setHeader((h) => ({ ...h, voucher_no: suggested.voucher_no }));
