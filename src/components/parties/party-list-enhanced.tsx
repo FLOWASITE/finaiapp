@@ -127,12 +127,16 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
     const k = {
       total: filtered.length,
       active: filtered.filter((p) => p.is_active !== false).length,
+      opening_debit: 0,
+      opening_credit: 0,
       closing_debit: 0,
       closing_credit: 0,
       debit: 0,
       credit: 0,
     };
     for (const r of filtered) {
+      k.opening_debit += r._opening_debit;
+      k.opening_credit += r._opening_credit;
       k.closing_debit += r._closing_debit;
       k.closing_credit += r._closing_credit;
       k.debit += r._debit;
@@ -403,6 +407,20 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
               <tr><td colSpan={12} className="px-4 py-12 text-center text-muted-foreground">Không có dữ liệu</td></tr>
             )}
           </tbody>
+          {filtered.length > 0 && (
+            <tfoot className="bg-muted/40 font-semibold border-t-2 border-border">
+              <tr>
+                <td className="px-2 py-2 text-right" colSpan={5}>Tổng cộng ({filtered.length})</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.opening_debit)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.opening_credit)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.debit)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.credit)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.closing_debit)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{fmt(kpi.closing_credit)}</td>
+                <td className="px-2 py-2"></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
         <TablePagination
           page={pg.page}
