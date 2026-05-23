@@ -42,7 +42,11 @@ function TaskCard({ t }: { t: TaskRow }) {
       className={`touch-none ${isDragging ? "opacity-50" : ""}`}>
       <Card className="cursor-grab active:cursor-grabbing">
         <CardContent className="p-3 space-y-2">
-          <p className="text-sm font-medium leading-snug">{t.title}</p>
+          <Link to="/office/tasks/$taskId" params={{ taskId: t.id }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="text-sm font-medium leading-snug hover:underline block">
+            {t.title}
+          </Link>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground truncate">
               {t.link?.display_name || t.link?.tenant?.name || "Nội bộ"}
