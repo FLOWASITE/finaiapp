@@ -382,17 +382,17 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                 <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{fmt(p._closing_debit)}</td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{fmt(p._closing_credit)}</td>
                 <td className="px-2 py-2 text-right whitespace-nowrap">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(toInitial(p, kind))}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onArchive(p)} title={p.is_active === false ? "Khôi phục" : "Lưu trữ"}>
-                    {p.is_active === false ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                  </Button>
-                  {!isCustomer && (
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onDelete(p)}>
-                      <X className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  )}
+                  <RowActions
+                    kind={kind}
+                    party={p}
+                    onEdit={() => setEditing(toInitial(p, kind))}
+                    onOpening={() => setEditing(toInitial(p, kind))}
+                    onArchive={() => onArchive(p)}
+                    onDelete={() => onDelete(p)}
+                    onCreateVoucher={() =>
+                      navigate({ to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers" })
+                    }
+                  />
                 </td>
               </tr>
             ))}
