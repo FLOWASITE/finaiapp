@@ -66,6 +66,7 @@ import { DateRangeFilter } from "@/components/date-range-filter";
 import { getPresetRange } from "@/lib/date-presets";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 function normalizeVi(s: string) {
   return (s ?? "")
@@ -425,6 +426,8 @@ function SalesVouchersPage() {
   // ---------- Selection ----------
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const rows = (vouchers?.rows ?? []) as any[];
+  const pagination = usePagination(rows, 20, listInput);
+  const pageRows = pagination.pageRows;
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const someSelected = !allSelected && rows.some((r) => selected.has(r.id));
   function toggleAll() {
@@ -945,7 +948,7 @@ function SalesVouchersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((v: any, idx: number) => {
+                  {pageRows.map((v: any, i: number) => { const idx = (pagination.page - 1) * pagination.pageSize + i;
                     const total = Number(v.total || 0);
                     const paid = Number(v.paid_amount || 0);
                     const remain = Math.max(0, total - paid);
@@ -1112,6 +1115,8 @@ function SalesVouchersPage() {
               </Table>
             </div>
           )}
+          <TablePagination {...pagination} />
+        </CardContent>
         </CardContent>
       </Card>
 
