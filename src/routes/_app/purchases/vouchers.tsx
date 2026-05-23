@@ -625,7 +625,7 @@ function PurchaseVouchersPage() {
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
+              <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">
                 Tổng: <span className="font-semibold text-foreground">{rows.length}</span>
               </span>
             </div>
