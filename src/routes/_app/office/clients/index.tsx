@@ -65,10 +65,11 @@ function ClientsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">
             Khách tiềm năng ({prospects.data?.length ?? 0})
           </CardTitle>
+          <ProspectDialog />
         </CardHeader>
         <CardContent>
           <Table>
