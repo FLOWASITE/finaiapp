@@ -329,3 +329,12 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
+
+@keyframes fin-bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes fin-spin {
+  to { transform: rotate(360deg); }
+}

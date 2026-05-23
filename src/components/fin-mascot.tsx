@@ -28,6 +28,7 @@ export function FinMascot({
   glow = true,
 }: FinMascotProps) {
   const px = SIZE_PX[size];
+  const isThinking = mood === "thinking";
   return (
     <div
       className={cn("relative inline-flex shrink-0", className)}
@@ -38,9 +39,22 @@ export function FinMascot({
           aria-hidden
           className={cn(
             "absolute inset-0 rounded-full opacity-50 blur-2xl",
-            mood === "thinking" ? "animate-pulse" : "animate-pulse [animation-duration:3s]",
+            isThinking ? "animate-pulse" : "animate-pulse [animation-duration:3s]",
           )}
           style={{ background: "var(--gradient-ai, linear-gradient(135deg,#14b8a6,#3b82f6))" }}
+        />
+      )}
+      {isThinking && (
+        <div
+          aria-hidden
+          className="absolute -inset-1 rounded-full animate-[fin-spin_2.5s_linear_infinite]"
+          style={{
+            background:
+              "conic-gradient(from 0deg, transparent 0deg, #14b8a6 80deg, #3b82f6 160deg, transparent 220deg, transparent 360deg)",
+            WebkitMask:
+              "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
+            mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
+          }}
         />
       )}
       <img
@@ -53,11 +67,15 @@ export function FinMascot({
         className={cn(
           "relative h-full w-full object-contain drop-shadow-xl",
           mood === "happy" && "animate-in zoom-in-50 duration-500",
-          (size === "lg" || size === "xl" || size === "2xl") && "animate-[fin-float_4s_ease-in-out_infinite]",
+          isThinking
+            ? "animate-[fin-bounce-soft_1s_ease-in-out_infinite]"
+            : (size === "lg" || size === "xl" || size === "2xl") &&
+                "animate-[fin-float_4s_ease-in-out_infinite]",
         )}
       />
     </div>
   );
 }
+
 
 export default FinMascot;
