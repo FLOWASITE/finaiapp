@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
-import { Briefcase, LayoutDashboard, Users, FileText, ListChecks, Contact } from "lucide-react";
+import { Briefcase, LayoutDashboard, Users, FileText, ListChecks, Contact, Repeat } from "lucide-react";
 
 export const Route = createFileRoute("/_app/office")({ component: OfficeLayout });
 
@@ -8,6 +8,7 @@ const TABS = [
   { to: "/office/clients", label: "Khách hàng", icon: Users },
   { to: "/office/contracts", label: "Hợp đồng", icon: FileText },
   { to: "/office/tasks", label: "Công việc", icon: ListChecks },
+  { to: "/office/templates", label: "Mẫu định kỳ", icon: Repeat },
   { to: "/office/staff", label: "Nhân sự", icon: Contact },
 ];
 
