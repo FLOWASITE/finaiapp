@@ -885,9 +885,11 @@ function PurchaseVouchersPage() {
 
       <CreateVoucherDialog
         open={openCreate}
-        onOpenChange={setOpenCreate}
-        onCreated={() => { refetch(); setOpenCreate(false); }}
+        onOpenChange={(v) => { setOpenCreate(v); if (!v) setInitialParty(null); }}
+        onCreated={() => { refetch(); setOpenCreate(false); setInitialParty(null); }}
+        initialParty={initialParty}
       />
+
 
     </div>
     </div>
