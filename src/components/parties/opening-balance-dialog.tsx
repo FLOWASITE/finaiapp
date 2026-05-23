@@ -39,9 +39,9 @@ export function OpeningBalanceDialog({
   const [error, setError] = useState<string>("");
 
   // Reset when party changes
-  useMemo(() => {
+  useEffect(() => {
     if (party) {
-      setDebit(Number(party.opening_balance_debit ??  0));
+      setDebit(Number(party.opening_balance_debit ?? 0));
       setCredit(Number(party.opening_balance_credit ?? 0));
       setError("");
     }
