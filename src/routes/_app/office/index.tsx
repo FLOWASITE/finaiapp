@@ -51,10 +51,10 @@ function OfficeDashboard() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
-              {data.expiringContracts.map((c: { id: string; contract_no: string; end_date: string }) => (
+              {data.expiringContracts.map((c: { id: string; contract_no: string; end_date: string | null }) => (
                 <li key={c.id} className="flex justify-between border-b pb-2 last:border-0">
                   <span className="font-medium">{c.contract_no}</span>
-                  <span className="text-muted-foreground">Hết hạn: {c.end_date}</span>
+                  <span className="text-muted-foreground">Hết hạn: {c.end_date ?? 'N/A'}</span>
                 </li>
               ))}
             </ul>
