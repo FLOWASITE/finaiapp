@@ -5,6 +5,7 @@ import { listStaff } from "@/lib/office/staff.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StaffDialog } from "@/components/office/staff-dialog";
 
 export const Route = createFileRoute("/_app/office/staff/")({ component: StaffPage });
 
@@ -12,10 +13,12 @@ function StaffPage() {
   const fn = useServerFn(listStaff);
   const { data } = useQuery({ queryKey: ["office", "staff"], queryFn: () => fn() });
 
-  if (!data?.length)
-    return <p className="text-sm text-muted-foreground text-center py-8">Chưa có nhân viên</p>;
-
   return (
+    <div className="space-y-3">
+      <div className="flex justify-end"><StaffDialog /></div>
+      {!data?.length ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Chưa có nhân viên</p>
+      ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {data.map((s: any) => (
         <Card key={s.id}>
