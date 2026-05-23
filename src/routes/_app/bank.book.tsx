@@ -7,6 +7,7 @@ import { listBankAccounts, getBankBook } from "@/lib/bank.functions";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const Route = createFileRoute("/_app/bank/book")({ component: BookPage });
 
