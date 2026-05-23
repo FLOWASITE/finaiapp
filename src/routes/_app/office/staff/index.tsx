@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listStaff } from "@/lib/office/staff.functions";
@@ -29,7 +29,8 @@ function StaffPage() {
               <AvatarFallback>{s.full_name?.charAt(0) ?? "?"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold">{s.full_name}</p>
+              <Link to="/office/staff/$staffId" params={{ staffId: s.id }}
+                className="font-semibold hover:underline">{s.full_name}</Link>
               <p className="text-xs text-muted-foreground">
                 {s.position ?? "—"} · {s.department ?? "—"}
               </p>

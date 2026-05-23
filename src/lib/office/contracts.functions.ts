@@ -35,6 +35,27 @@ export const listContracts = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+export const listRenewals = createServerFn({ method: "GET" })
+  .middleware([withTenant])
+  .inputValidator((i: { contract_id: string }) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase, tenantId } = context;
+    const { data: c } = await supabase
+      .from("office_contracts")
+      .select("id")
+      .eq("id", data.contract_id)
+      .eq("agency_tenant_id", tenantId)
+      .single();
+    if (!c) throw new Error("Không tìm thấy hợp đồng");
+    const { data: rows, error } = await supabase
+      .from("office_contract_renewals")
+      .select("*")
+      .eq("contract_id", data.contract_id)
+      .order("renewed_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
 export const upsertContract = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i: unknown) => ContractSchema.parse(i))
