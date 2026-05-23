@@ -615,9 +615,17 @@ function PurchaseVouchersPage() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={selected.size === 0}
-                    onClick={() => selected.forEach((id) => voidMut.mutate(id))}
+                    onClick={() => {
+                      const ids = Array.from(selected).filter((id) => {
+                        const r = rows.find((x) => x.id === id);
+                        return r && r.status === "posted";
+                      });
+                      if (ids.length === 0) { toast.info("Không có phiếu đã ghi sổ trong danh sách chọn"); return; }
+                      if (!confirm(`Huỷ ghi sổ ${ids.length} phiếu? Các phiếu chi, phiếu nhập và bút toán liên quan sẽ bị xoá.`)) return;
+                      ids.forEach((id) => voidMut.mutate(id));
+                    }}
                   >
-                    <X className="h-4 w-4 mr-2" /> Huỷ hàng loạt
+                    <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ hàng loạt
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
