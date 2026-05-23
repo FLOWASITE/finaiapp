@@ -982,7 +982,6 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
       .from("sales_vouchers")
       .update({
         status: "draft",
-        posted_at: null,
         paid_amount: 0,
         payment_status: "unpaid",
       })
