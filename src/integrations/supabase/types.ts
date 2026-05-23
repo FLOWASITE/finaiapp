@@ -5152,7 +5152,10 @@ export type Database = {
           project_id: string | null
           reason: string | null
           status: string
+          stock_voucher_date: string | null
           stock_voucher_id: string | null
+          stock_voucher_no: string | null
+          stock_voucher_reason: string | null
           subtotal: number
           supplier_address: string | null
           supplier_id: string | null
@@ -5206,7 +5209,10 @@ export type Database = {
           project_id?: string | null
           reason?: string | null
           status?: string
+          stock_voucher_date?: string | null
           stock_voucher_id?: string | null
+          stock_voucher_no?: string | null
+          stock_voucher_reason?: string | null
           subtotal?: number
           supplier_address?: string | null
           supplier_id?: string | null
@@ -5260,7 +5266,10 @@ export type Database = {
           project_id?: string | null
           reason?: string | null
           status?: string
+          stock_voucher_date?: string | null
           stock_voucher_id?: string | null
+          stock_voucher_no?: string | null
+          stock_voucher_reason?: string | null
           subtotal?: number
           supplier_address?: string | null
           supplier_id?: string | null
@@ -6275,7 +6284,10 @@ export type Database = {
           salesperson_id: string | null
           salesperson_name: string | null
           status: string
+          stock_voucher_date: string | null
           stock_voucher_id: string | null
+          stock_voucher_no: string | null
+          stock_voucher_reason: string | null
           subtotal: number
           tenant_id: string | null
           total: number
@@ -6327,7 +6339,10 @@ export type Database = {
           salesperson_id?: string | null
           salesperson_name?: string | null
           status?: string
+          stock_voucher_date?: string | null
           stock_voucher_id?: string | null
+          stock_voucher_no?: string | null
+          stock_voucher_reason?: string | null
           subtotal?: number
           tenant_id?: string | null
           total?: number
@@ -6379,7 +6394,10 @@ export type Database = {
           salesperson_id?: string | null
           salesperson_name?: string | null
           status?: string
+          stock_voucher_date?: string | null
           stock_voucher_id?: string | null
+          stock_voucher_no?: string | null
+          stock_voucher_reason?: string | null
           subtotal?: number
           tenant_id?: string | null
           total?: number
