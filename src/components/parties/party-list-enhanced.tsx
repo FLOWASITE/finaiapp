@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
+import { OpeningBalanceDialog } from "@/components/parties/opening-balance-dialog";
 import { TablePagination, usePagination } from "@/components/table-pagination";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { getPresetRange } from "@/lib/date-presets";
@@ -81,6 +82,7 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [mergePrimary, setMergePrimary] = useState("");
   const [mergeSecondary, setMergeSecondary] = useState("");
   const [mergeConfirm, setMergeConfirm] = useState(false);
+  const [openingBalanceParty, setOpeningBalanceParty] = useState<any>(null);
 
   const mergeFn = useServerFn(mergeParties);
   const mergeMut = useMutation({
@@ -350,7 +352,7 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                   kind={kind}
                   party={p}
                   onEdit={() => setEditing(toInitial(p, kind))}
-                  onOpening={() => setEditing(toInitial(p, kind))}
+                  onOpening={() => setOpeningBalanceParty(p)}
                   onArchive={() => onArchive(p)}
                   onDelete={() => onDelete(p)}
                   onCreateVoucher={() =>
@@ -423,7 +425,7 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                     kind={kind}
                     party={p}
                     onEdit={() => setEditing(toInitial(p, kind))}
-                    onOpening={() => setEditing(toInitial(p, kind))}
+                    onOpening={() => setOpeningBalanceParty(p)}
                     onArchive={() => onArchive(p)}
                     onDelete={() => onDelete(p)}
                     onCreateVoucher={() =>
@@ -546,6 +548,17 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <OpeningBalanceDialog
+        kind={kind}
+        party={openingBalanceParty}
+        open={!!openingBalanceParty}
+        onOpenChange={(o) => { if (!o) setOpeningBalanceParty(null); }}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: [isCustomer ? "customers" : "suppliers"] });
+          qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
+        }}
+      />
     </div>
 
   );
