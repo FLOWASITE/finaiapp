@@ -316,7 +316,7 @@ function ReconcilePage() {
             {isLoading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Đang tải...</TableCell></TableRow>
             ) : (txns as any[]).length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Không có giao dịch. Nhập sao kê để bắt đầu.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-6"><EmptyState size="sm" bordered={false} title="Chưa có giao dịch" description="Nhập sao kê để Fin bắt đầu đối soát." /></TableCell></TableRow>
             ) : (
               (txns as any[]).map((t) => {
                 const isCredit = Number(t.amount) >= 0;
