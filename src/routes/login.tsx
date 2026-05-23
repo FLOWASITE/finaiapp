@@ -242,9 +242,7 @@ function LoginPage() {
           </svg>
 
           <div className="relative z-10">
-            <span className="font-extrabold tracking-tight text-3xl text-white">
-              FinAI
-            </span>
+            <FinAILogo height={44} finColor="#ffffff" />
           </div>
 
           <div className="relative z-10 mt-auto space-y-4 max-w-lg">
@@ -264,9 +262,7 @@ function LoginPage() {
         {/* Right form panel */}
         <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
           <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
-            <span className="font-extrabold tracking-tight text-2xl text-foreground">
-              FinAI
-            </span>
+            <FinAILogo height={32} finColor="hsl(var(--foreground))" />
           </Link>
 
           <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
