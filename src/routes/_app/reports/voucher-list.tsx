@@ -14,6 +14,14 @@ import { DateRangeFilter } from "@/components/date-range-filter";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
 import { VoucherDetailDialog } from "@/components/voucher-detail-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import {
   fmt, Loading, PrintHeader, ReportCard, SignatureFooter,
 } from "./index";
 
@@ -65,6 +73,7 @@ function VoucherListPage() {
   const year = new Date().getFullYear();
   const [from, setFrom] = useState(`${year}-01-01`);
   const [to, setTo] = useState(today);
+  const [branchId, setBranchId] = useState<string>("");
   const [dims, setDims] = useState<DimensionValue>({});
   const [accountPrefix, setAccountPrefix] = useState("");
   const [sources, setSources] = useState<string[]>([]);
@@ -80,8 +89,25 @@ function VoucherListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
+  // Branches for quick filter
+  const branchesQ = useQuery({
+    queryKey: ["branches-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("branches").select("id, name, code").order("code", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({ id: r.id as string, label: r.code ? `${r.code} — ${r.name}` : r.name }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Merge branchId into dims for server call
+  const dimsWithBranch = useMemo<DimensionValue>(() => ({
+    ...dims,
+    ...(branchId ? { branch_id: branchId } : {}),
+  }), [dims, branchId]);
+
   // Reset to page 1 whenever filters change
-  const filterKey = JSON.stringify({ from, to, dims, accountPrefix, sources, voucherTypes });
+  const filterKey = JSON.stringify({ from, to, branchId, dims, accountPrefix, sources, voucherTypes });
   useEffect(() => { setPage(1); }, [filterKey]);
 
 
@@ -95,11 +121,11 @@ function VoucherListPage() {
   const exportFn = useServerFn(exportVoucherListXlsx);
 
   const q = useQuery({
-    queryKey: ["voucher-list", from, to, dims, sources, voucherTypes, accountPrefix, page, pageSize],
+    queryKey: ["voucher-list", from, to, dimsWithBranch, sources, voucherTypes, accountPrefix, page, pageSize],
     queryFn: () =>
       fn({
         data: {
-          from, to, dims,
+          from, to, dims: dimsWithBranch,
           sourceTables: sources.length ? sources : undefined,
           voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
@@ -271,7 +297,7 @@ function VoucherListPage() {
       toast.loading("Đang xuất Excel...", { id: "xlsx-vl" });
       const res = await exportFn({
         data: {
-          from, to, dims,
+          from, to, dims: dimsWithBranch,
           sourceTables: sources.length ? sources : undefined,
           voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
@@ -316,9 +342,23 @@ function VoucherListPage() {
       </div>
 
       <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-4 print:hidden">
+        {/* Quick filter bar */}
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
-          <DimensionFilterBar value={dims} onChange={setDims} />
+          <div className="flex flex-col gap-1 min-w-[12rem]">
+            <span className="text-xs text-muted-foreground">Chi nhánh</span>
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Tất cả chi nhánh" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Tất cả chi nhánh</SelectItem>
+                {(branchesQ.data ?? []).map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">TK (tiền tố)</span>
             <Input
@@ -355,18 +395,20 @@ function VoucherListPage() {
             className="ml-auto text-xs text-primary underline"
           >
             {showAdvanced ? "Ẩn bộ lọc nâng cao" : "Bộ lọc nâng cao"}
-            {voucherTypes.length > 0 && !showAdvanced && ` (${voucherTypes.length} loại CT)`}
+            {(sources.length > 1 || (dims.department_id || dims.project_id || dims.cost_center_id)) && !showAdvanced && " (đang lọc)"}
           </button>
         </div>
+
+        {/* Voucher type quick chips */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
-          {SOURCE_OPTIONS.map((opt) => {
-            const active = sources.includes(opt.value);
+          <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+          {VOUCHER_TYPE_OPTIONS.map((opt) => {
+            const active = voucherTypes.includes(opt.value);
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => toggleSource(opt.value)}
+                onClick={() => toggleVoucherType(opt.value)}
                 className={
                   "rounded-full border px-2.5 py-0.5 text-xs transition " +
                   (active
@@ -378,53 +420,50 @@ function VoucherListPage() {
               </button>
             );
           })}
-          {sources.length > 0 && (
+          {voucherTypes.length > 0 && (
             <button
               type="button"
-              onClick={() => setSources([])}
+              onClick={() => setVoucherTypes([])}
               className="text-xs text-muted-foreground underline ml-1"
             >
               Bỏ chọn
             </button>
           )}
         </div>
+
         {showAdvanced && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-            <span className="text-xs text-muted-foreground mr-1">Loại CT (voucher_type):</span>
-            {VOUCHER_TYPE_OPTIONS.map((opt) => {
-              const active = voucherTypes.includes(opt.value);
-              return (
+          <div className="space-y-3 border-t border-border/60 pt-3">
+            <DimensionFilterBar value={dims} onChange={setDims} show={["department","project","cost_center"]} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
+              {SOURCE_OPTIONS.map((opt) => {
+                const active = sources.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleSource(opt.value)}
+                    className={
+                      "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                      (active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              {sources.length > 0 && (
                 <button
-                  key={opt.value}
                   type="button"
-                  onClick={() => toggleVoucherType(opt.value)}
-                  className={
-                    "rounded-full border px-2.5 py-0.5 text-xs transition " +
-                    (active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground")
-                  }
+                  onClick={() => setSources([])}
+                  className="text-xs text-muted-foreground underline ml-1"
                 >
-                  {opt.label}
+                  Bỏ chọn
                 </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setVoucherTypes(VOUCHER_TYPE_OPTIONS.map((o) => o.value))}
-              className="text-xs text-muted-foreground underline ml-1"
-            >
-              Chọn tất cả
-            </button>
-            {voucherTypes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setVoucherTypes([])}
-                className="text-xs text-muted-foreground underline"
-              >
-                Bỏ chọn
-              </button>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
