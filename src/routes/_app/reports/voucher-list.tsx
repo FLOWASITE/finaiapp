@@ -74,6 +74,9 @@ function VoucherListPage() {
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  type SortConfig = { key: "entry_date" | "voucher_no" | "voucher_type" | null; direction: "asc" | "desc" };
+  const [sort, setSort] = useState<SortConfig>({ key: "entry_date", direction: "asc" });
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
