@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { withTimeout, withTimeoutReject } from "@/lib/auth-recovery";
+import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery";
 import {
   Eye,
   EyeOff,
@@ -74,13 +74,16 @@ function LoginPage() {
   // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    withTimeout(supabase.auth.getSession(), 1500, { data: { session: null } } as any)
+    withTimeoutReject(supabase.auth.getSession(), 1500)
       .then((res: any) => {
         if (!active) return;
         if (res?.data?.session) navigate({ to: dest, replace: true });
       })
-      .catch(() => {
-        // Lỗi mạng → bỏ qua, để user đăng nhập thủ công
+      .catch((err) => {
+        const raw = err instanceof Error ? err.message : String(err ?? "");
+        if (/failed to fetch|network|timeout/i.test(raw)) {
+          clearSupabaseAuthStorage();
+        }
       });
     return () => {
       active = false;
