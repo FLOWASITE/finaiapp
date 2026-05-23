@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { Upload, Link2, Unlink, Sparkles, ArrowLeftRight, FileText, CheckCircle2 } from "lucide-react";
 import { listBankAccounts } from "@/lib/bank.functions";
 import {
@@ -171,7 +172,7 @@ function ReconcilePage() {
   const detectMut = useMutation({
     mutationFn: () => detectFn({ data: { from, to } }),
     onSuccess: (r: any) => {
-      toast.success(`Phát hiện ${r.pairsFound} cặp chuyển khoản, tạo ${r.created} bút toán`);
+      finToast.success(`AI phát hiện ${r.pairsFound} cặp chuyển khoản, tạo ${r.created} bút toán`);
       refresh();
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi phát hiện"),

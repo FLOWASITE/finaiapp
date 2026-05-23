@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { Sparkles, Save, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ function InvoiceDetail() {
     mutationFn: async () => suggest({ data: { invoiceId: id } }),
     onSuccess: (data) => {
       setSuggestions(data.suggestions);
-      toast.success("AI đã gợi ý 3 phương án");
+      finToast.success("AI đã gợi ý 3 phương án");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi gợi ý"),
   });

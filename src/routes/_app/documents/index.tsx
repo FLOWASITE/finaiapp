@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { z } from "zod";
 import {
   listDocuments,
@@ -877,7 +878,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
   const reparseMut = useMutation({
     mutationFn: () => reparse({ data: { id: id! } }),
     onSuccess: (r: any) => {
-      toast.success(`Đã parse lại (${r.parser ?? "—"})`);
+      finToast.success(`AI đã parse lại chứng từ (${r.parser ?? "—"})`);
       qc.invalidateQueries({ queryKey: ["document", id] });
       qc.invalidateQueries({ queryKey: ["documents"] });
     },
