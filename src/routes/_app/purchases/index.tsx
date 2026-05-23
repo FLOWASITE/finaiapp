@@ -4,7 +4,7 @@ import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { PurchaseTabs } from "@/components/purchases/PurchaseTabs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   FileText,
@@ -48,6 +48,7 @@ import { extractInvoice } from "@/lib/invoices.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
+import { SplitActionButton } from "@/components/split-action-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -156,6 +157,10 @@ function PurchasesHubPage() {
   const clickStatus = (s: string | undefined) =>
     setTab("invoices", { status: s });
 
+  const [openPayment, setOpenPayment] = useState(false);
+  const uploadRef = useRef<{ open: () => void }>(null);
+  const router = useRouter();
+
   return (
     <div>
       <PurchaseTabs />
@@ -168,16 +173,27 @@ function PurchasesHubPage() {
             Tổng quan chi phí, hoá đơn và phiếu chi — đối ứng công nợ TK 331
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <NewPaymentInline preselectInvoiceId={invoice} preselectSupplierId={supplier} />
-          <Button variant="outline" asChild>
-            <Link to="/invoices">
-              <Plus className="mr-2 h-4 w-4" /> Nhập tay
-            </Link>
-          </Button>
-          <UploadInvoiceButton />
-        </div>
+        <SplitActionButton
+          primary={{
+            label: "Upload HĐ",
+            icon: Upload,
+            onClick: () => uploadRef.current?.open(),
+          }}
+          items={[
+            { label: "Nhập tay HĐ mua", icon: Plus, onSelect: () => router.navigate({ to: "/invoices" }) },
+            { label: "Phiếu chi", icon: Banknote, onSelect: () => setOpenPayment(true), separatorBefore: true },
+          ]}
+        />
+        <NewPaymentInline
+          preselectInvoiceId={invoice}
+          preselectSupplierId={supplier}
+          hideTrigger
+          open={openPayment}
+          onOpenChange={setOpenPayment}
+        />
+        <UploadInvoiceButton ref={uploadRef} hideTrigger />
       </div>
+
 
       {/* Money strip */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
@@ -447,11 +463,18 @@ function PayBadge({ status }: { status: string }) {
 // ============================================================
 // UPLOAD INVOICE BUTTON (OCR)
 // ============================================================
-function UploadInvoiceButton() {
+const UploadInvoiceButton = React.forwardRef<
+  { open: () => void },
+  { hideTrigger?: boolean }
+>(function UploadInvoiceButton({ hideTrigger = false }, ref) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const extract = useServerFn(extractInvoice);
+
+  React.useImperativeHandle(ref, () => ({
+    open: () => fileRef.current?.click(),
+  }));
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -492,13 +515,16 @@ function UploadInvoiceButton() {
         onChange={onUpload}
         disabled={uploading}
       />
-      <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
-        <Upload className="mr-2 h-4 w-4" />
-        {uploading ? "Đang xử lý..." : "Upload HĐ"}
-      </Button>
+      {!hideTrigger && (
+        <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Upload className="mr-2 h-4 w-4" />
+          {uploading ? "Đang xử lý..." : "Upload HĐ"}
+        </Button>
+      )}
     </>
   );
-}
+});
+
 
 // ============================================================
 // TAB: INVOICES
@@ -1112,14 +1138,22 @@ function PaymentsTab({
 function NewPaymentInline({
   preselectInvoiceId,
   preselectSupplierId,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
 }: {
   preselectInvoiceId?: string;
   preselectSupplierId?: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const qc = useQueryClient();
   const recordFn = useServerFn(recordPayment);
   const outFn = useServerFn(listOutstandingPurchaseInvoices);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
 
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-purchase-invoices"],
@@ -1133,7 +1167,9 @@ function NewPaymentInline({
 
   return (
     <>
-      <AddNew label="Phiếu chi" icon={Banknote} onClick={() => setOpen(true)} />
+      {!hideTrigger && (
+        <AddNew label="Phiếu chi" icon={Banknote} onClick={() => setOpen(true)} />
+      )}
       <NewPaymentDialog
         open={open}
         onOpenChange={setOpen}

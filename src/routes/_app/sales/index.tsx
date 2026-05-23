@@ -20,6 +20,7 @@ import {
   Clock,
   TrendingUp,
   Paperclip,
+  FileCode2,
 } from "lucide-react";
 import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
 import { DocStatusBadge } from "@/components/doc-status-badge";
@@ -51,6 +52,7 @@ import {
 } from "@/lib/receipts.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
+import { SplitActionButton } from "@/components/split-action-button";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
@@ -173,6 +175,10 @@ function SalesHubPage() {
   const clickStatus = (s: string | undefined) =>
     setTab("invoices", { status: s });
 
+  const [openInvoice, setOpenInvoice] = useState(false);
+  const [openReceipt, setOpenReceipt] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
+
   return (
     <div>
       <SalesTabs />
@@ -185,12 +191,33 @@ function SalesHubPage() {
             Tổng quan doanh thu, hoá đơn và phiếu thu — đối ứng công nợ TK 131
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <ImportEinvoiceXmlDialog triggerLabel="Nhập XML hoá đơn" />
-          <NewReceiptInline preselectInvoiceId={invoice} preselectCustomerId={customer} />
-          <NewInvoiceDialog />
-        </div>
+        <SplitActionButton
+          primary={{
+            label: "Tạo HĐ bán",
+            icon: Plus,
+            onClick: () => setOpenInvoice(true),
+          }}
+          items={[
+            { label: "Phiếu thu", icon: Banknote, onSelect: () => setOpenReceipt(true) },
+            { label: "Nhập XML hoá đơn", icon: FileCode2, onSelect: () => setOpenImport(true), separatorBefore: true },
+          ]}
+        />
+        <ImportEinvoiceXmlDialog
+          triggerLabel="Nhập XML hoá đơn"
+          hideTrigger
+          open={openImport}
+          onOpenChange={setOpenImport}
+        />
+        <NewReceiptInline
+          preselectInvoiceId={invoice}
+          preselectCustomerId={customer}
+          hideTrigger
+          open={openReceipt}
+          onOpenChange={setOpenReceipt}
+        />
+        <NewInvoiceDialog hideTrigger open={openInvoice} onOpenChange={setOpenInvoice} />
       </div>
+
 
       {/* Money strip — Xero-style click-to-filter cards */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
@@ -1085,14 +1112,22 @@ function PaymentBadge({ status }: { status: string }) {
 function NewReceiptInline({
   preselectInvoiceId,
   preselectCustomerId,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
 }: {
   preselectInvoiceId?: string;
   preselectCustomerId?: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const qc = useQueryClient();
   const recordFn = useServerFn(recordReceipt);
   const outFn = useServerFn(listOutstandingInvoices);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
 
   const { data: outstanding = [] } = useQuery({
     queryKey: ["outstanding-invoices"],
@@ -1106,7 +1141,9 @@ function NewReceiptInline({
 
   return (
     <>
-      <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
+      {!hideTrigger && (
+        <AddNew label="Phiếu thu" icon={Banknote} onClick={() => setOpen(true)} />
+      )}
       <NewReceiptDialog
         open={open}
         onOpenChange={setOpen}
@@ -1374,11 +1411,21 @@ type EditorLine = {
   line_discount_amount: number;
 };
 
-function NewInvoiceDialog() {
+function NewInvoiceDialog({
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
+}: {
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
+} = {}) {
   const upsert = useServerFn(upsertSalesInvoice);
   const list = useServerFn(listProducts);
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => list({}),
@@ -1512,12 +1559,14 @@ function NewInvoiceDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo HĐ bán
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Tạo HĐ bán
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
