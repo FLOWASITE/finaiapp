@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listTasks, moveTaskStatus } from "@/lib/office/tasks.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { TaskDialog } from "@/components/office/task-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/office/tasks/")({ component: TasksKanban });
