@@ -23,6 +23,7 @@ import {
 } from "@/lib/purchase-vouchers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
