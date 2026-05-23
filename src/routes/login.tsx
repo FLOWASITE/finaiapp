@@ -269,7 +269,7 @@ function LoginPage() {
             </span>
           </Link>
 
-          <h1 className="lg:hidden text-xl font-bold tracking-tight mb-6 text-center text-foreground">
+          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
             Sổ kế toán. Phần mềm. Agent.
           </h1>
 
