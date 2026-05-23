@@ -437,10 +437,26 @@ function PurchaseVouchersPage() {
     onSuccess: () => { toast.success("Đã ghi sổ"); invalidateLedgers(qc); refetch(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi ghi sổ"),
   });
+  const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+
+  const openVoidDialog = async (id: string) => {
+    try {
+      const res = await previewVoidFn({ data: { id } });
+      setVoidDlg({ open: true, id, items: res.items });
+    } catch (e: any) {
+      toast.error(e?.message || "Không lấy được thông tin huỷ");
+    }
+  };
+
   const voidMut = useMutation({
-    mutationFn: (id: string) => voidFn({ data: { id, reason: "Huỷ thủ công" } }),
-    onSuccess: () => { toast.success("Đã huỷ phiếu"); invalidateLedgers(qc); refetch(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi huỷ phiếu"),
+    mutationFn: (id: string) => voidFn({ data: { id, reason: "Huỷ ghi sổ" } }),
+    onSuccess: () => {
+      toast.success("Đã huỷ ghi sổ, phiếu có thể ghi sổ lại");
+      setVoidDlg({ open: false, items: [] });
+      invalidateLedgers(qc);
+      refetch();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi huỷ ghi sổ"),
   });
   const delMut = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
@@ -599,9 +615,17 @@ function PurchaseVouchersPage() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={selected.size === 0}
-                    onClick={() => selected.forEach((id) => voidMut.mutate(id))}
+                    onClick={() => {
+                      const ids = Array.from(selected).filter((id) => {
+                        const r = rows.find((x) => x.id === id);
+                        return r && r.status === "posted";
+                      });
+                      if (ids.length === 0) { toast.info("Không có phiếu đã ghi sổ trong danh sách chọn"); return; }
+                      if (!confirm(`Huỷ ghi sổ ${ids.length} phiếu? Các phiếu chi, phiếu nhập và bút toán liên quan sẽ bị xoá.`)) return;
+                      ids.forEach((id) => voidMut.mutate(id));
+                    }}
                   >
-                    <X className="h-4 w-4 mr-2" /> Huỷ hàng loạt
+                    <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ hàng loạt
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -823,12 +847,15 @@ function PurchaseVouchersPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               {!isPosted && !isVoid && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
-                                  <Check className="h-4 w-4 mr-2" /> Ghi sổ
+                                  <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
                               )}
                               {isPosted && (
-                                <DropdownMenuItem onClick={() => voidMut.mutate(r.id)}>
-                                  <X className="h-4 w-4 mr-2" /> Huỷ phiếu
+                                <DropdownMenuItem
+                                  onClick={() => openVoidDialog(r.id)}
+                                  className="text-destructive"
+                                >
+                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
                                 </DropdownMenuItem>
                               )}
                               {r.journal_entry_id && (
@@ -893,6 +920,13 @@ function PurchaseVouchersPage() {
         initialParty={initialParty}
       />
 
+      <VoidConfirmDialog
+        open={voidDlg.open}
+        onOpenChange={(o) => setVoidDlg((s) => ({ ...s, open: o }))}
+        items={voidDlg.items}
+        loading={voidMut.isPending}
+        onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
+      />
 
     </div>
     </div>
