@@ -16,6 +16,7 @@ export type VoucherListRow = {
   credit: number;
   party_name: string | null;
   reference: string | null;
+  invoice_no: string | null;
   branch_id: string | null;
   branch_name: string | null;
   department_id: string | null;
