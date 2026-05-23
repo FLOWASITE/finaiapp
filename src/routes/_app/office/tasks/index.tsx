@@ -91,6 +91,7 @@ function TasksKanban() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
