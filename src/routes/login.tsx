@@ -36,6 +36,8 @@ const emailSchema = z.string().trim().email("Email không hợp lệ").max(255);
 const passwordSchema = z.string().min(6, "Mật khẩu tối thiểu 6 ký tự").max(72);
 const AUTH_REQUEST_TIMEOUT_MS = 30_000;
 
+type AuthSessionResponse = Awaited<ReturnType<typeof supabase.auth.getSession>>;
+
 function scorePassword(pw: string): { score: number; label: string; tone: string } {
   let s = 0;
   if (pw.length >= 6) s++;
@@ -76,7 +78,7 @@ function LoginPage() {
   useEffect(() => {
     let active = true;
     withTimeoutReject(supabase.auth.getSession(), 3_000)
-      .then((res: any) => {
+      .then((res: AuthSessionResponse) => {
         if (!active) return;
         if (res?.data?.session) navigate({ to: dest, replace: true });
       })
