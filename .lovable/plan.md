@@ -1,44 +1,22 @@
-## Mục tiêu
+## Cập nhật Logo FinAI theo ảnh tham chiếu
 
-Cập nhật trang `/login` theo phong cách ảnh tham khảo: panel trái rỗng/thoáng với logo wordmark ở góc trên và khối tagline lớn ở góc dưới; panel phải giữ form đăng nhập hiện tại nhưng đổi tiêu đề. Giữ nguyên màu sắc, gradient và bố cục 2 cột (lg:grid-cols-2) hiện tại.
+Thay wordmark "FinAI" hiện tại (text thường, 1 màu trắng) bằng logo mới theo phong cách ảnh upload:
+- **"Fin"** màu trắng, font rounded (bo tròn mạnh các đầu nét)
+- **"AI"** màu xanh dương (#3B82F6 / primary), chữ "A" cách điệu thành hình đỉnh núi/tam giác không có gạch ngang, "I" là một cột dọc bo tròn 2 đầu
+- Tất cả nét có `stroke-linecap: round`, độ dày đồng đều
+- Áp dụng ở **cả 2 chỗ**: header trái desktop và header mobile
 
-## Phạm vi
+### Cách thực hiện
+Tạo component `src/components/FinAILogo.tsx` — một SVG inline:
+- Vẽ "Fin" bằng path/text với font rounded (hoặc dựng bằng các đường stroke bo tròn)
+- Vẽ "A" dạng 2 nét chéo gặp nhau ở đỉnh (không có thanh ngang), "I" dạng đường thẳng đứng — cả hai stroke màu `hsl(var(--primary))` / xanh
+- Props: `className`, `height` (mặc định 40) để tái sử dụng kích thước khác nhau ở desktop vs mobile
 
-Chỉ sửa `src/routes/login.tsx` — phần frontend/presentation. Không đụng logic auth, validate, Supabase, hay file khác.
+Sau đó trong `src/routes/login.tsx`:
+- Thay block wordmark "FinAI" desktop (panel trái) bằng `<FinAILogo height={44} />`
+- Thay wordmark "FinAI" mobile header bằng `<FinAILogo height={32} />`
 
-## Thay đổi cụ thể
-
-### 1) Logo "FinAI" kiểu wordmark Jaz
-- Thay khối logo hiện tại (ô vuông + chữ "A" + chữ "FinAI") ở cả panel trái (`lg:flex`) và header mobile (`lg:hidden`).
-- Thành **wordmark đơn**: chỉ chữ `FinAI` cỡ lớn, font-weight 700–800, tracking hơi âm, màu trắng ở panel trái và `text-foreground` ở header mobile.
-- Vị trí panel trái: góc trên-trái (đã đúng vị trí, chỉ đổi style).
-
-### 2) Khối tagline lớn ở góc dưới-trái panel trái
-Thay block `Xin chào, mừng bạn!` + mô tả + nút "Tìm hiểu thêm" bằng:
-
-```
-Sổ kế toán.
-Phần mềm.
-Agent.
-
-Kiến tạo cho những người giữ cán cân tài chính.
-```
-
-- Heading: mỗi dòng 1 line, font-bold 5xl/6xl, leading rất chặt (≈1.0), tracking-tight, màu trắng.
-- Sub-tagline: text-sm/base, `text-white/70`, đặt ngay dưới heading.
-- Bỏ nút "Tìm hiểu thêm" và copyright footer để panel sạch như ảnh.
-- Cấu trúc `justify-between` đổi thành layout: logo top-left + tagline bottom-left (dùng `mt-auto` cho khối tagline, bỏ phần tử giữa).
-- Giữ nguyên 2 lớp SVG sóng + radial gradient overlay hiện tại (giữ "màu sắc và layout").
-
-### 3) Panel phải
-- Header mobile (`lg:hidden`) "Xin chào, mừng bạn!" đổi thành `Sổ kế toán. Phần mềm. Agent.` (1 dòng, nhỏ gọn hơn).
-- Tiêu đề form: thêm dòng `Chào mừng đến FinAI` + sub `Đăng nhập hoặc tạo tài khoản bằng email` phía trên ô email (chỉ khi đang ở chế độ signin/signup mặc định — render trước `<form>`).
-- Form email + mật khẩu + Ghi nhớ + Quên mật khẩu + nút Đăng nhập: **giữ nguyên hoàn toàn**.
-
-### 4) Không thay đổi
-- Logic `onSubmit`, `validate`, `mapAuthError`, `handleForgot`, redirect, timeout.
-- Token màu trong `src/styles.css` (`--gradient-login-bg`, `--gradient-login-panel`).
-- File khác trong dự án.
-
-## Kết quả mong đợi
-Trang login giữ tông xanh đậm/gradient hiện tại, panel trái trông tối giản kiểu Jaz với wordmark "FinAI" trên cùng và tagline tiếng Việt 3 dòng lớn ở dưới; form bên phải vẫn đầy đủ chức năng email + mật khẩu.
+### Phạm vi
+- Tạo: `src/components/FinAILogo.tsx`
+- Sửa: `src/routes/login.tsx` (chỉ thay phần render logo)
+- Không đổi: layout, màu nền, form đăng nhập, logic auth, các route/file khác
