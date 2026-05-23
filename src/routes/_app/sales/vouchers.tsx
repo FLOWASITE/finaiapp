@@ -821,7 +821,7 @@ function SalesVouchersPage() {
         </div>
         <div className="shrink-0 inline-flex rounded-md shadow-sm">
           <Button
-            onClick={openCreate}
+            onClick={() => openCreate()}
             onMouseEnter={prefetchCreate}
             onFocus={prefetchCreate}
             className="rounded-r-none border-r border-primary-foreground/20"
@@ -835,10 +835,10 @@ function SalesVouchersPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={openCreate}>
+              <DropdownMenuItem onClick={() => openCreate()}>
                 <Plus className="h-4 w-4 mr-2" /> Phiếu BH trong nước
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={openCreate}>
+              <DropdownMenuItem onClick={() => openCreate()}>
                 <Globe2 className="h-4 w-4 mr-2" /> Phiếu BH xuất khẩu
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -976,7 +976,7 @@ function SalesVouchersPage() {
           ) : (vouchers?.rows ?? []).length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <p className="mb-2">Chưa có phiếu bán hàng nào.</p>
-              <Button variant="outline" onClick={openCreate}>
+              <Button variant="outline" onClick={() => openCreate()}>
                 <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
               </Button>
             </div>
