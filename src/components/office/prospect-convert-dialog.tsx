@@ -1,120 +1,184 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { convertProspect } from "@/lib/office/prospects.functions";
-import { searchTenantsForLink } from "@/lib/office/client-links.functions";
+import { convertProspect, listProspects } from "@/lib/office/prospects.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, ArrowRightCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowRightCircle, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 export function ProspectConvertDialog({
   prospectId, prospectName,
 }: { prospectId: string; prospectName: string }) {
   const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
+  const [tenantName, setTenantName] = useState(prospectName);
+  const [taxId, setTaxId] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [fee, setFee] = useState(0);
+  const [doInvite, setDoInvite] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const qc = useQueryClient();
   const convertFn = useServerFn(convertProspect);
-  const searchFn = useServerFn(searchTenantsForLink);
+  const listFn = useServerFn(listProspects);
 
-  const search = useQuery({
-    queryKey: ["office", "tenant-search", q],
-    queryFn: () => searchFn({ data: { q } }),
-    enabled: open && q.length >= 2,
+  // Prefill from prospect on open
+  const prospects = useQuery({
+    queryKey: ["office", "prospects"],
+    queryFn: () => listFn(),
+    enabled: open,
   });
+  const p = (prospects.data ?? []).find((x: { id: string }) => x.id === prospectId) as
+    | { name: string; tax_id: string | null; address: string | null; phone: string | null;
+        email: string | null; estimated_fee: number | null } | undefined;
+  if (p && tenantName === prospectName && !taxId && !address) {
+    // one-shot prefill
+    if (p.tax_id) setTaxId(p.tax_id);
+    if (p.address) setAddress(p.address);
+    if (p.phone) setPhone(p.phone);
+    if (p.email) { setEmail(p.email); setInviteEmail(p.email); }
+    if (p.estimated_fee) setFee(Number(p.estimated_fee));
+  }
 
   const mut = useMutation({
     mutationFn: () =>
       convertFn({
         data: {
           prospect_id: prospectId,
-          client_tenant_id: picked!.id,
+          tenant_name: tenantName,
+          tax_id: taxId || null,
+          address: address || null,
+          phone: phone || null,
+          email: email || null,
           fee_per_month: Number(fee) || 0,
-          display_name: prospectName,
+          display_name: tenantName,
+          invite_contact_email: doInvite && inviteEmail ? inviteEmail : null,
         },
       }),
-    onSuccess: () => {
-      toast.success("Đã chuyển thành khách hàng");
+    onSuccess: (res: { invite_token: string | null }) => {
+      toast.success("Đã tạo khách hàng FinAI");
       qc.invalidateQueries({ queryKey: ["office"] });
-      setOpen(false);
-      setQ(""); setPicked(null); setFee(0);
+      if (res.invite_token) {
+        const link = `${window.location.origin}/invite/${res.invite_token}`;
+        setInviteLink(link);
+      } else {
+        setOpen(false);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const handleCopy = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const close = () => {
+    setOpen(false);
+    setInviteLink(null);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <ArrowRightCircle className="h-4 w-4 mr-1" />Chuyển KH
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Chuyển "{prospectName}" thành khách hàng</DialogTitle>
+          <DialogTitle>Tạo khách hàng FinAI từ "{prospectName}"</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">
-          Chọn tenant FinAI tương ứng để liên kết. Prospect sẽ được đánh dấu "won".
-        </p>
-        <div className="space-y-3">
-          {!picked ? (
-            <>
+
+        {inviteLink ? (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Đã tạo tenant FinAI và lời mời đăng nhập. Gửi link sau cho khách:
+            </p>
+            <div className="flex gap-2">
+              <Input readOnly value={inviteLink} className="text-xs" />
+              <Button size="icon" variant="outline" onClick={handleCopy}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Link hiệu lực 7 ngày. Khách hàng đăng ký bằng email <b>{inviteEmail}</b> và
+              chấp nhận lời mời để truy cập FinAI.
+            </p>
+            <DialogFooter>
+              <Button onClick={close}>Đóng</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Hệ thống sẽ tạo 1 tenant FinAI mới cho khách. Văn phòng được gán làm quản lý.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Tên khách hàng *</Label>
+                <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} />
+              </div>
               <div>
-                <Label>Tìm tenant FinAI theo tên / MST</Label>
-                <div className="relative">
-                  <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="pl-9" value={q} onChange={(e) => setQ(e.target.value)}
-                    placeholder="Nhập tên hoặc mã số thuế" />
-                </div>
+                <Label>MST</Label>
+                <Input value={taxId} onChange={(e) => setTaxId(e.target.value)} />
               </div>
-              <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
-                {(search.data ?? []).map((t: { id: string; name: string; tax_id: string | null }) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setPicked({ id: t.id, name: t.name })}
-                    className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                  >
-                    <div className="font-medium">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">{t.tax_id ?? "—"}</div>
-                  </button>
-                ))}
-                {q.length >= 2 && !search.data?.length && !search.isLoading && (
-                  <p className="text-center text-xs text-muted-foreground py-4">Không có kết quả</p>
-                )}
-                {q.length < 2 && (
-                  <p className="text-center text-xs text-muted-foreground py-4">Nhập ≥ 2 ký tự</p>
-                )}
+              <div>
+                <Label>Điện thoại</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
-            </>
-          ) : (
-            <>
-              <div className="rounded-md border p-3 bg-muted/40 text-sm">
-                <div className="text-xs text-muted-foreground">Tenant đã chọn</div>
-                <div className="font-semibold">{picked.name}</div>
-                <button type="button" className="text-xs text-primary mt-1"
-                  onClick={() => setPicked(null)}>Đổi</button>
+              <div className="col-span-2">
+                <Label>Địa chỉ</Label>
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <Label>Email contact</Label>
+                <Input type="email" value={email} onChange={(e) => {
+                  setEmail(e.target.value); setInviteEmail(e.target.value);
+                }} />
               </div>
               <div>
                 <Label>Phí dịch vụ / tháng</Label>
                 <Input type="number" value={fee} onChange={(e) => setFee(Number(e.target.value))} />
               </div>
-            </>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
-          <Button onClick={() => mut.mutate()} disabled={!picked || mut.isPending}>
-            {mut.isPending ? "Đang xử lý..." : "Xác nhận chuyển"}
-          </Button>
-        </DialogFooter>
+            </div>
+
+            <div className="mt-2 space-y-2 border-t pt-3">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={doInvite} onCheckedChange={(v) => setDoInvite(!!v)} />
+                Gửi lời mời đăng nhập FinAI cho contact
+              </label>
+              {doInvite && (
+                <div>
+                  <Label className="text-xs">Email nhận lời mời</Label>
+                  <Input type="email" value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="contact@khachhang.vn" />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={close}>Huỷ</Button>
+              <Button onClick={() => mut.mutate()}
+                disabled={!tenantName.trim() || mut.isPending
+                  || (doInvite && !inviteEmail.trim())}>
+                {mut.isPending ? "Đang tạo..." : "Tạo khách hàng"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
