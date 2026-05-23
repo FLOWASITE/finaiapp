@@ -240,7 +240,7 @@ function LoginPage() {
       className="min-h-screen w-full flex items-start sm:items-center justify-center p-0 sm:p-8"
       style={{ background: "var(--gradient-login-bg)" }}
     >
-      <div className="w-full max-w-5xl overflow-hidden rounded-none sm:rounded-2xl bg-card shadow-none sm:shadow-2xl ring-1 ring-black/5 grid lg:grid-cols-2 min-h-screen sm:min-h-0">
+      <div className="w-full max-w-5xl overflow-hidden rounded-none sm:rounded-2xl bg-[oklch(0.13_0.025_260)] text-white shadow-none sm:shadow-2xl ring-1 ring-white/10 grid lg:grid-cols-2 min-h-screen sm:min-h-0">
         {/* Left brand panel */}
         <aside
           className="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden"
