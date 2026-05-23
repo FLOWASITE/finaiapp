@@ -124,7 +124,8 @@ function VoucherListPage() {
     );
   }, [pageRows, search]);
 
-  // Group rows by voucher (entry_id) — derive debit/credit accounts + amount
+  // Tách thành các "bút toán" (cặp Nợ/Có). Một chứng từ có thể có nhiều bút toán.
+  // VD: Hóa đơn bán có xuất kho → 3 bút toán: 632/156, 131/511, 131/3331.
   type GroupedRow = {
     key: string;
     entry_id: string;
@@ -132,8 +133,8 @@ function VoucherListPage() {
     voucher_no: string;
     voucher_type: string;
     description: string | null;
-    debitAccounts: string[];
-    creditAccounts: string[];
+    debitAccount: string | null;
+    creditAccount: string | null;
     amount: number;
     party_name: string | null;
     reference: string | null;
@@ -141,47 +142,56 @@ function VoucherListPage() {
     department_name: string | null;
     project_name: string | null;
     cost_center_name: string | null;
-    line_count: number;
+    pair_index: number;
   };
   const groupedRows = useMemo<GroupedRow[]>(() => {
-    const map = new Map<string, GroupedRow & { _debit: number; _credit: number }>();
+    const byEntry = new Map<string, typeof rows>();
     for (const r of rows) {
-      const key = r.entry_id;
-      let g = map.get(key);
-      if (!g) {
-        g = {
-          key,
-          entry_id: r.entry_id,
-          entry_date: r.entry_date,
-          voucher_no: r.voucher_no,
-          voucher_type: r.voucher_type,
-          description: r.description,
-          debitAccounts: [],
-          creditAccounts: [],
-          amount: 0,
-          party_name: r.party_name,
-          reference: r.reference,
-          branch_name: r.branch_name,
-          department_name: r.department_name,
-          project_name: r.project_name,
-          cost_center_name: r.cost_center_name,
-          line_count: 0,
-          _debit: 0,
-          _credit: 0,
-        };
-        map.set(key, g);
-      }
-      if (r.debit > 0 && !g.debitAccounts.includes(r.account_code)) g.debitAccounts.push(r.account_code);
-      if (r.credit > 0 && !g.creditAccounts.includes(r.account_code)) g.creditAccounts.push(r.account_code);
-      g._debit += r.debit;
-      g._credit += r.credit;
-      g.line_count += 1;
+      const arr = byEntry.get(r.entry_id) ?? [];
+      arr.push(r);
+      byEntry.set(r.entry_id, arr);
     }
-    return Array.from(map.values())
-      .map((g) => ({ ...g, amount: Math.max(g._debit, g._credit) }))
-      .sort(
-        (a, b) => a.entry_date.localeCompare(b.entry_date) || a.voucher_no.localeCompare(b.voucher_no),
-      );
+    const out: GroupedRow[] = [];
+    for (const [entryId, lines] of byEntry) {
+      const sorted = [...lines].sort((a, b) => a.line_index - b.line_index);
+      const meta = sorted[0];
+      const debits = sorted.filter((l) => l.debit > 0).map((l) => ({ acc: l.account_code, rem: l.debit, idx: l.line_index }));
+      const credits = sorted.filter((l) => l.credit > 0).map((l) => ({ acc: l.account_code, rem: l.credit, idx: l.line_index }));
+      let pairIdx = 0;
+      const EPS = 0.005;
+      const base = (extra: Partial<GroupedRow>): GroupedRow => ({
+        key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
+        voucher_type: meta.voucher_type, description: meta.description,
+        debitAccount: null, creditAccount: null, amount: 0,
+        party_name: meta.party_name, reference: meta.reference,
+        branch_name: meta.branch_name, department_name: meta.department_name,
+        project_name: meta.project_name, cost_center_name: meta.cost_center_name,
+        pair_index: 0, ...extra,
+      });
+      for (const d of debits) {
+        while (d.rem > EPS) {
+          let cIdx = credits.findIndex((c) => c.rem > EPS && Math.abs(c.rem - d.rem) < EPS);
+          if (cIdx < 0) cIdx = credits.findIndex((c) => c.rem > EPS);
+          if (cIdx < 0) break;
+          const c = credits[cIdx];
+          const amt = Math.min(d.rem, c.rem);
+          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, pair_index: pairIdx }));
+          d.rem -= amt; c.rem -= amt; pairIdx++;
+        }
+      }
+      for (const d of debits.filter((x) => x.rem > EPS)) {
+        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, pair_index: pairIdx++ }));
+      }
+      for (const c of credits.filter((x) => x.rem > EPS)) {
+        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, pair_index: pairIdx++ }));
+      }
+    }
+    return out.sort(
+      (a, b) =>
+        a.entry_date.localeCompare(b.entry_date) ||
+        a.voucher_no.localeCompare(b.voucher_no) ||
+        a.pair_index - b.pair_index,
+    );
   }, [rows]);
 
   const totalAmount = useMemo(
@@ -363,7 +373,7 @@ function VoucherListPage() {
         />
         <ReportCard
           title="Danh sách chứng từ"
-          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupedRows.length} chứng từ / ${rows.length} dòng) · Tổng số tiền ${fmt(totalAmount)}`}
+          subtitle={`${totalRows.toLocaleString("vi-VN")} dòng tổng cộng — trang ${page}/${totalPages} (${groupedRows.length} bút toán) · Tổng số tiền ${fmt(totalAmount)}`}
         >
           {q.isLoading && !q.data ? (
             <Loading />
@@ -390,30 +400,14 @@ function VoucherListPage() {
                   </thead>
                   <tbody>
                     {groupedRows.map((g) => {
-                      const renderAccs = (accs: string[]) =>
-                        accs.length === 0
-                          ? "—"
-                          : accs.length <= 2
-                            ? accs.join(", ")
-                            : `${accs.slice(0, 2).join(", ")} +${accs.length - 2}`;
                       return (
                         <tr key={g.key} className="border-t border-border/60 align-top">
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
                           <td className="px-2 py-1.5">{g.description ?? "—"}</td>
-                          <td
-                            className="px-2 py-1.5 text-center font-mono"
-                            title={g.debitAccounts.join(", ")}
-                          >
-                            {renderAccs(g.debitAccounts)}
-                          </td>
-                          <td
-                            className="px-2 py-1.5 text-center font-mono"
-                            title={g.creditAccounts.join(", ")}
-                          >
-                            {renderAccs(g.creditAccounts)}
-                          </td>
+                          <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
+                          <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{fmt(g.amount)}</td>
                           <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
