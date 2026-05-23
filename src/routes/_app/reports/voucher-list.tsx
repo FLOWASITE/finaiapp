@@ -448,9 +448,9 @@ function VoucherListPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted uppercase sticky top-0 z-10 shadow-[0_1px_0_0_hsl(var(--border))] print:static print:shadow-none">
                     <tr>
-                      <th className="px-2 py-2 text-left">Ngày</th>
-                      <th className="px-2 py-2 text-left">Số CT</th>
-                      <th className="px-2 py-2 text-left">Loại CT</th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("entry_date")}>Ngày<SortIcon col="entry_date" /></th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("voucher_no")}>Số CT<SortIcon col="voucher_no" /></th>
+                      <th className="px-2 py-2 text-left cursor-pointer select-none hover:text-primary transition-colors" onClick={() => toggleSort("voucher_type")}>Loại CT<SortIcon col="voucher_type" /></th>
                       <th className="px-2 py-2 text-left">Số HĐ</th>
                       <th className="px-2 py-2 text-left">Diễn giải</th>
                       <th className="px-2 py-2 text-center">TK Nợ</th>
