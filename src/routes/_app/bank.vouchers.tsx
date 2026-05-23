@@ -25,6 +25,7 @@ import { AutoCodeInput } from "@/components/ui/auto-code-input";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { getPresetRange } from "@/lib/date-presets";
 import { numberToVietnameseWords } from "@/lib/number-to-words-vi";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/bank/vouchers")({ component: VouchersPage });
 
@@ -85,6 +86,8 @@ function VouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Lỗi"),
   });
 
+  const pagination = usePagination(vouchers as any[], 20, `${filterAccount}|${from}|${to}`);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
@@ -125,7 +128,7 @@ function VouchersPage() {
             </tr>
           </thead>
           <tbody>
-            {vouchers.map((v: any) => {
+            {pagination.pageRows.map((v: any) => {
               const isIn = v.voucher_type === "receipt" || v.voucher_type === "transfer_in";
               return (
                 <tr key={v.id} className="border-t border-border">
@@ -172,6 +175,7 @@ function VouchersPage() {
             )}
           </tbody>
         </table>
+        <TablePagination {...pagination} />
       </div>
 
       {mode === "transfer" ? (

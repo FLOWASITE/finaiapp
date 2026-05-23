@@ -17,6 +17,7 @@ import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehou
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -66,6 +67,8 @@ export function VoucherListPage({ type }: Props) {
       value: arr.reduce((s, r) => s + Number(r.total_value || 0), 0),
     };
   }, [filtered]);
+
+  const pagination = usePagination(filtered as any[], 20, `${type}|${from}|${to}|${warehouseId}|${status}|${search}`);
 
   const title = type === "in" ? "Phiếu nhập kho" : type === "out" ? "Phiếu xuất kho" : "Phiếu nhập/xuất kho";
   const Icon = type === "out" ? ArrowUpFromLine : ArrowDownToLine;
@@ -162,7 +165,7 @@ export function VoucherListPage({ type }: Props) {
                 {!isLoading && filtered.length === 0 && (
                   <tr><td colSpan={type === "all" ? 9 : 8} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
                 )}
-                {filtered.map((r: any) => (
+                {pagination.pageRows.map((r: any) => (
                   <tr key={r.id} className="border-t hover:bg-muted/30">
                     <td className="p-3 whitespace-nowrap">{r.voucher_date}</td>
                     <td className="p-3 font-mono text-xs">{r.voucher_no}</td>
@@ -215,6 +218,7 @@ export function VoucherListPage({ type }: Props) {
               </tbody>
             </table>
           </div>
+          <TablePagination {...pagination} />
         </CardContent>
       </Card>
 

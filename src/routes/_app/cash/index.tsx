@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/cash/")({ component: CashPage });
 
@@ -38,6 +39,7 @@ function CashPage() {
   const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }),
  ...QUERY_PRESETS.TRANSACTIONAL,
 });
+  const pagination = usePagination((vouchers ?? []) as any[], 20, vouchers);
 
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
@@ -121,7 +123,7 @@ function CashPage() {
               </tr>
             </thead>
             <tbody>
-              {(vouchers ?? []).map((v: any) => (
+              {pagination.pageRows.map((v: any) => (
                 <tr key={v.id} className="border-t border-border">
                   <td className="px-4 py-2">{v.voucher_date}</td>
                   <td className="px-4 py-2 font-mono">{v.voucher_no}</td>
@@ -164,6 +166,7 @@ function CashPage() {
               )}
             </tbody>
           </table>
+          <TablePagination {...pagination} />
         </div>
       )}
 
