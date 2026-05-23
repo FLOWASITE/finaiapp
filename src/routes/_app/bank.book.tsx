@@ -99,7 +99,7 @@ function BookPage() {
           </div>
         </>
       )}
-      {!acc && <div className="py-12 text-center text-muted-foreground">Chưa có tài khoản ngân hàng</div>}
+      {!acc && <EmptyState title="Chưa chọn tài khoản ngân hàng" description="Chọn một tài khoản để xem sổ chi tiết." />}
     </div>
   );
 }
