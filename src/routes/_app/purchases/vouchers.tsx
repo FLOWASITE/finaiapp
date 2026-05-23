@@ -243,7 +243,7 @@ function ProductPickerCell({
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-2 py-6 text-center text-muted-foreground">Không có dữ liệu</td></tr>
+                <tr><td colSpan={8} className="px-2 py-6"><EmptyState size="sm" bordered={false} title="Không có dữ liệu" /></td></tr>
               ) : filtered.map((p: any) => {
                 const onHand = Number(p.on_hand ?? 0);
                 const unitCost = Number(p.unit_cost ?? 0);
