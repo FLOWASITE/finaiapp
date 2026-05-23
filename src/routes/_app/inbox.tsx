@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
 import {
   AlertDialog,
