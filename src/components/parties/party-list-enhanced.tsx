@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Users, Truck, FolderTree,
   TrendingUp, TrendingDown, Wallet, AlertCircle, ChevronDown, X,
+  MoreVertical, FilePlus, BookOpen, GitMerge, Trash2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
 import { TablePagination, usePagination } from "@/components/table-pagination";
@@ -40,6 +45,7 @@ type SummaryRow = {
 export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const isCustomer = kind === "customer";
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const listFn = useServerFn((isCustomer ? listCustomers : listSuppliers) as any) as any;
   const summaryFn = useServerFn((isCustomer ? getArSummary : getApSummary) as any) as any;
   const groupsFn = useServerFn(listPartyGroups);
@@ -171,7 +177,10 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   };
 
   const onDelete = async (p: any) => {
-    if (isCustomer) return; // customers page doesn't expose delete
+    if (isCustomer) {
+      toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
+      return;
+    }
     if (!confirm(`Xoá ${p.name}?`)) return;
     try {
       await deleteSupplierFn({ data: { id: p.id } });
@@ -302,13 +311,18 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                 </div>
                 {p._groupName && <div className="text-[11px] text-muted-foreground truncate">Nhóm: {p._groupName}</div>}
               </div>
-              <div className="flex gap-0.5 shrink-0">
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(toInitial(p, kind))}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onArchive(p)}>
-                  {p.is_active === false ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                </Button>
+              <div className="shrink-0">
+                <RowActions
+                  kind={kind}
+                  party={p}
+                  onEdit={() => setEditing(toInitial(p, kind))}
+                  onOpening={() => setEditing(toInitial(p, kind))}
+                  onArchive={() => onArchive(p)}
+                  onDelete={() => onDelete(p)}
+                  onCreateVoucher={() =>
+                    navigate({ to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers" })
+                  }
+                />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-1.5 text-[11px]">
@@ -371,17 +385,17 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
                 <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{fmt(p._closing_debit)}</td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{fmt(p._closing_credit)}</td>
                 <td className="px-2 py-2 text-right whitespace-nowrap">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(toInitial(p, kind))}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onArchive(p)} title={p.is_active === false ? "Khôi phục" : "Lưu trữ"}>
-                    {p.is_active === false ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                  </Button>
-                  {!isCustomer && (
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onDelete(p)}>
-                      <X className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  )}
+                  <RowActions
+                    kind={kind}
+                    party={p}
+                    onEdit={() => setEditing(toInitial(p, kind))}
+                    onOpening={() => setEditing(toInitial(p, kind))}
+                    onArchive={() => onArchive(p)}
+                    onDelete={() => onDelete(p)}
+                    onCreateVoucher={() =>
+                      navigate({ to: isCustomer ? "/sales/vouchers" : "/purchases/vouchers" })
+                    }
+                  />
                 </td>
               </tr>
             ))}
@@ -424,6 +438,70 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           {editing && <PartyForm mode={kind} initial={editing} onDone={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function RowActions({
+  kind, party, onEdit, onOpening, onArchive, onDelete, onCreateVoucher,
+}: {
+  kind: Kind;
+  party: any;
+  onEdit: () => void;
+  onOpening: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onCreateVoucher: () => void;
+}) {
+  const isCustomer = kind === "customer";
+  const archived = party.is_active === false;
+  const createLabel = isCustomer ? "Tạo phiếu bán hàng" : "Tạo phiếu mua hàng";
+  const mergeLabel = isCustomer ? "Gộp khách hàng" : "Gộp nhà cung cấp";
+  return (
+    <div className="inline-flex items-center gap-1">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 w-7 p-0 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white hover:text-white"
+        title={createLabel}
+        onClick={(e) => { e.stopPropagation(); onCreateVoucher(); }}
+      >
+        <FileText className="h-3.5 w-3.5" />
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={(e) => e.stopPropagation()}>
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onCreateVoucher}>
+            <FilePlus className="mr-2 h-4 w-4" /> {createLabel}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpening}>
+            <BookOpen className="mr-2 h-4 w-4" /> Khai báo công nợ đầu kỳ
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toast.info("Tính năng đang phát triển")}>
+            <GitMerge className="mr-2 h-4 w-4" /> {mergeLabel}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onArchive}>
+            {archived ? (
+              <><ArchiveRestore className="mr-2 h-4 w-4" /> Khôi phục</>
+            ) : (
+              <><Archive className="mr-2 h-4 w-4" /> Lưu trữ</>
+            )}
+          </DropdownMenuItem>
+          {!isCustomer && (
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" /> Xoá
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
