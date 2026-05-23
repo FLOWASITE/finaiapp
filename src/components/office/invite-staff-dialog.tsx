@@ -69,8 +69,8 @@ export function InviteStaffDialog({ linkId, clientName }: { linkId: string; clie
                     Chưa có nhân viên nào liên kết user
                   </div>
                 )}
-                {candidates.map((s: { id: string; user_id: string; full_name: string; position: string | null }) => (
-                  <SelectItem key={s.id} value={s.user_id}>
+                {candidates.map((s: { id: string; user_id: string | null; full_name: string; position: string | null }) => (
+                  <SelectItem key={s.id} value={s.user_id!}>
                     {s.full_name}{s.position ? ` — ${s.position}` : ""}
                   </SelectItem>
                 ))}
