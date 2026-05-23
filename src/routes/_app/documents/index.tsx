@@ -5,6 +5,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { finToast } from "@/lib/fin-toast";
+import { EmptyState } from "@/components/ui/empty-state";
 import { z } from "zod";
 import {
   listDocuments,
