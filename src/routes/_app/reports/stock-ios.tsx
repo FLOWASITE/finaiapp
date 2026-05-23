@@ -55,7 +55,7 @@ function StockIOSPage() {
   const [byWarehouse, setByWarehouse] = useState(false);
   const [search, setSearch] = useState("");
   const [hideZero, setHideZero] = useState(true);
-  const [showSignature, setShowSignature] = useState(true);
+  const [showSignature, setShowSignature] = useState(false);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({
