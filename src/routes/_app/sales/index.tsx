@@ -20,6 +20,7 @@ import {
   Clock,
   TrendingUp,
   Paperclip,
+  FileCode2,
 } from "lucide-react";
 import { ReceiptDocsSheet } from "@/components/receipt-docs-sheet";
 import { DocStatusBadge } from "@/components/doc-status-badge";
