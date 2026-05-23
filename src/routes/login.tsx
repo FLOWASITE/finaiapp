@@ -93,8 +93,6 @@ function LoginPage() {
     };
   }, [dest, navigate]);
 
-
-
   function validate() {
     const next: typeof errors = {};
     const e = emailSchema.safeParse(email);
@@ -112,16 +110,33 @@ function LoginPage() {
     const m = raw.toLowerCase();
 
     if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
-      return { title: "Kết nối đăng nhập bị gián đoạn", detail: "Kiểm tra mạng rồi thử lại. Nếu đang dùng preview, hãy thử trên link đã publish." };
+      return {
+        title: "Kết nối đăng nhập bị gián đoạn",
+        detail: "Kiểm tra mạng rồi thử lại. Nếu đang dùng preview, hãy thử trên link đã publish.",
+      };
     }
 
-    if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
-      return { title: "Email hoặc mật khẩu không đúng", detail: "Vui lòng kiểm tra lại thông tin đăng nhập." };
+    if (
+      code === "invalid_credentials" ||
+      m.includes("invalid login") ||
+      m.includes("invalid credentials")
+    ) {
+      return {
+        title: "Email hoặc mật khẩu không đúng",
+        detail: "Vui lòng kiểm tra lại thông tin đăng nhập.",
+      };
     }
     if (m.includes("email not confirmed")) {
-      return { title: "Email chưa được xác nhận", detail: "Mở email và nhấn liên kết xác nhận trước khi đăng nhập." };
+      return {
+        title: "Email chưa được xác nhận",
+        detail: "Mở email và nhấn liên kết xác nhận trước khi đăng nhập.",
+      };
     }
-    if (m.includes("already registered") || m.includes("already exists") || code === "user_already_exists") {
+    if (
+      m.includes("already registered") ||
+      m.includes("already exists") ||
+      code === "user_already_exists"
+    ) {
       return { title: "Email đã được đăng ký", detail: "Hãy chuyển sang chế độ Đăng nhập." };
     }
     if (m.includes("weak password") || m.includes("password should")) {
@@ -197,7 +212,6 @@ function LoginPage() {
       setLoading(false);
     }
   };
-
 
   async function handleForgot() {
     const e = emailSchema.safeParse(email);
@@ -293,7 +307,6 @@ function LoginPage() {
             </p>
           </div>
 
-
           <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4" noValidate>
             {formError && (
               <div
@@ -343,9 +356,7 @@ function LoginPage() {
                   />
                 </div>
               </div>
-              {errors.email && (
-                <p className="mt-1 ml-2 text-xs text-destructive">{errors.email}</p>
-              )}
+              {errors.email && <p className="mt-1 ml-2 text-xs text-destructive">{errors.email}</p>}
             </div>
 
             {/* Password field */}
@@ -406,8 +417,7 @@ function LoginPage() {
                     ))}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Độ mạnh:{" "}
-                    <span className="font-medium text-foreground">{strength.label}</span>
+                    Độ mạnh: <span className="font-medium text-foreground">{strength.label}</span>
                   </p>
                 </div>
               )}
@@ -508,4 +518,3 @@ function LoginPage() {
     </div>
   );
 }
-
