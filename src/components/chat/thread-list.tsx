@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, Sparkles, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star, Search, X } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star, Search, X } from "lucide-react";
+import { FinMascot } from "@/components/fin-mascot";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
