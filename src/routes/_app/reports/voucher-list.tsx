@@ -531,6 +531,7 @@ function VoucherListPage() {
 
         {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
       </div>
+      <VoucherDetailDialog entryId={detailEntryId} onClose={() => setDetailEntryId(null)} />
     </div>
   );
 }
