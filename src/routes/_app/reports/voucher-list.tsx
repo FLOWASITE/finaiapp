@@ -438,7 +438,7 @@ function VoucherListPage() {
                     })}
                     {groupedRows.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                        <td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">
                           Không có chứng từ phù hợp bộ lọc
                         </td>
                       </tr>
@@ -450,7 +450,7 @@ function VoucherListPage() {
                       <tr className="border-t-2 border-border">
                         <td className="px-2 py-2" colSpan={6}>Tổng trang này</td>
                         <td className="px-2 py-2 text-right font-mono">{fmt(totalAmount)}</td>
-                        <td colSpan={6} />
+                        <td colSpan={7} />
                       </tr>
                     </tfoot>
                   )}
