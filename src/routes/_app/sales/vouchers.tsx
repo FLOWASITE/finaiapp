@@ -174,6 +174,13 @@ function ProductPickerCell({
 
 export const Route = createFileRoute("/_app/sales/vouchers")({
   component: SalesVouchersPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    new: s.new === true || s.new === "1" || s.new === 1 ? true : undefined,
+    party_id: typeof s.party_id === "string" ? s.party_id : undefined,
+    party_name: typeof s.party_name === "string" ? s.party_name : undefined,
+    party_tax_id: typeof s.party_tax_id === "string" ? s.party_tax_id : undefined,
+    party_address: typeof s.party_address === "string" ? s.party_address : undefined,
+  }),
 });
 
 // ---------------- helpers ----------------
