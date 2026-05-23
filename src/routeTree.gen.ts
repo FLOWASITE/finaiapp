@@ -134,6 +134,7 @@ import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppOfficeTemplatesIndexRouteImport } from './routes/_app/office/templates/index'
 import { Route as AppOfficeTasksIndexRouteImport } from './routes/_app/office/tasks/index'
 import { Route as AppOfficeStaffIndexRouteImport } from './routes/_app/office/staff/index'
 import { Route as AppOfficeContractsIndexRouteImport } from './routes/_app/office/contracts/index'
@@ -792,6 +793,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppOfficeTemplatesIndexRoute = AppOfficeTemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => AppOfficeRouteRoute,
+} as any)
 const AppOfficeTasksIndexRoute = AppOfficeTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
@@ -1108,6 +1114,7 @@ export interface FileRoutesByFullPath {
   '/office/contracts/': typeof AppOfficeContractsIndexRoute
   '/office/staff/': typeof AppOfficeStaffIndexRoute
   '/office/tasks/': typeof AppOfficeTasksIndexRoute
+  '/office/templates/': typeof AppOfficeTemplatesIndexRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1257,6 +1264,7 @@ export interface FileRoutesByTo {
   '/office/contracts': typeof AppOfficeContractsIndexRoute
   '/office/staff': typeof AppOfficeStaffIndexRoute
   '/office/tasks': typeof AppOfficeTasksIndexRoute
+  '/office/templates': typeof AppOfficeTemplatesIndexRoute
   '/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1415,6 +1423,7 @@ export interface FileRoutesById {
   '/_app/office/contracts/': typeof AppOfficeContractsIndexRoute
   '/_app/office/staff/': typeof AppOfficeStaffIndexRoute
   '/_app/office/tasks/': typeof AppOfficeTasksIndexRoute
+  '/_app/office/templates/': typeof AppOfficeTemplatesIndexRoute
   '/_app/assets/event/$id/print': typeof AppAssetsEventIdPrintRoute
   '/_app/assets/inventory/$id/print': typeof AppAssetsInventoryIdPrintRoute
   '/_app/sales/orders/$id/print': typeof AppSalesOrdersIdPrintRoute
@@ -1573,6 +1582,7 @@ export interface FileRouteTypes {
     | '/office/contracts/'
     | '/office/staff/'
     | '/office/tasks/'
+    | '/office/templates/'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1722,6 +1732,7 @@ export interface FileRouteTypes {
     | '/office/contracts'
     | '/office/staff'
     | '/office/tasks'
+    | '/office/templates'
     | '/assets/event/$id/print'
     | '/assets/inventory/$id/print'
     | '/sales/orders/$id/print'
@@ -1879,6 +1890,7 @@ export interface FileRouteTypes {
     | '/_app/office/contracts/'
     | '/_app/office/staff/'
     | '/_app/office/tasks/'
+    | '/_app/office/templates/'
     | '/_app/assets/event/$id/print'
     | '/_app/assets/inventory/$id/print'
     | '/_app/sales/orders/$id/print'
@@ -2775,6 +2787,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/office/templates/': {
+      id: '/_app/office/templates/'
+      path: '/templates'
+      fullPath: '/office/templates/'
+      preLoaderRoute: typeof AppOfficeTemplatesIndexRouteImport
+      parentRoute: typeof AppOfficeRouteRoute
+    }
     '/_app/office/tasks/': {
       id: '/_app/office/tasks/'
       path: '/tasks'
@@ -2994,6 +3013,7 @@ interface AppOfficeRouteRouteChildren {
   AppOfficeContractsIndexRoute: typeof AppOfficeContractsIndexRoute
   AppOfficeStaffIndexRoute: typeof AppOfficeStaffIndexRoute
   AppOfficeTasksIndexRoute: typeof AppOfficeTasksIndexRoute
+  AppOfficeTemplatesIndexRoute: typeof AppOfficeTemplatesIndexRoute
 }
 
 const AppOfficeRouteRouteChildren: AppOfficeRouteRouteChildren = {
@@ -3002,6 +3022,7 @@ const AppOfficeRouteRouteChildren: AppOfficeRouteRouteChildren = {
   AppOfficeContractsIndexRoute: AppOfficeContractsIndexRoute,
   AppOfficeStaffIndexRoute: AppOfficeStaffIndexRoute,
   AppOfficeTasksIndexRoute: AppOfficeTasksIndexRoute,
+  AppOfficeTemplatesIndexRoute: AppOfficeTemplatesIndexRoute,
 }
 
 const AppOfficeRouteRouteWithChildren = AppOfficeRouteRoute._addFileChildren(
