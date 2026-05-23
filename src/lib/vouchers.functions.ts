@@ -354,7 +354,7 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     ws.getCell(`G${rowIdx}`).numFmt = "#,##0";
 
     ws.columns = [
-      { width: 12 }, { width: 16 }, { width: 18 }, { width: 38 }, { width: 8 },
+      { width: 12 }, { width: 16 }, { width: 18 }, { width: 14 }, { width: 38 }, { width: 8 },
       { width: 16 }, { width: 16 }, { width: 24 }, { width: 16 },
       { width: 22 }, { width: 22 }, { width: 22 }, { width: 22 },
     ];
