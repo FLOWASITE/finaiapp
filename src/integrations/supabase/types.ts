@@ -4305,6 +4305,697 @@ export type Database = {
         }
         Relationships: []
       }
+      office_client_links: {
+        Row: {
+          account_manager_id: string | null
+          agency_tenant_id: string
+          client_tenant_id: string
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          fee_per_month: number | null
+          id: string
+          notes: string | null
+          service_end_date: string | null
+          service_start_date: string | null
+          status: Database["public"]["Enums"]["office_link_status"]
+          updated_at: string
+        }
+        Insert: {
+          account_manager_id?: string | null
+          agency_tenant_id: string
+          client_tenant_id: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          fee_per_month?: number | null
+          id?: string
+          notes?: string | null
+          service_end_date?: string | null
+          service_start_date?: string | null
+          status?: Database["public"]["Enums"]["office_link_status"]
+          updated_at?: string
+        }
+        Update: {
+          account_manager_id?: string | null
+          agency_tenant_id?: string
+          client_tenant_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          fee_per_month?: number | null
+          id?: string
+          notes?: string | null
+          service_end_date?: string | null
+          service_start_date?: string | null
+          status?: Database["public"]["Enums"]["office_link_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_client_links_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_client_links_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_client_links_client_tenant_id_fkey"
+            columns: ["client_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_client_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_contract_renewals: {
+        Row: {
+          contract_id: string
+          created_by: string | null
+          id: string
+          new_end_date: string | null
+          new_fee_amount: number | null
+          notes: string | null
+          prev_end_date: string | null
+          renewed_at: string
+        }
+        Insert: {
+          contract_id: string
+          created_by?: string | null
+          id?: string
+          new_end_date?: string | null
+          new_fee_amount?: number | null
+          notes?: string | null
+          prev_end_date?: string | null
+          renewed_at?: string
+        }
+        Update: {
+          contract_id?: string
+          created_by?: string | null
+          id?: string
+          new_end_date?: string | null
+          new_fee_amount?: number | null
+          notes?: string | null
+          prev_end_date?: string | null
+          renewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_contract_renewals_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "office_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_contract_renewals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_contracts: {
+        Row: {
+          agency_tenant_id: string
+          billing_cycle: Database["public"]["Enums"]["office_billing_cycle"]
+          contract_no: string
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          fee_amount: number | null
+          file_url: string | null
+          id: string
+          link_id: string
+          notes: string | null
+          services: Json
+          sign_date: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["office_contract_status"]
+          updated_at: string
+        }
+        Insert: {
+          agency_tenant_id: string
+          billing_cycle?: Database["public"]["Enums"]["office_billing_cycle"]
+          contract_no: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          fee_amount?: number | null
+          file_url?: string | null
+          id?: string
+          link_id: string
+          notes?: string | null
+          services?: Json
+          sign_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["office_contract_status"]
+          updated_at?: string
+        }
+        Update: {
+          agency_tenant_id?: string
+          billing_cycle?: Database["public"]["Enums"]["office_billing_cycle"]
+          contract_no?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          fee_amount?: number | null
+          file_url?: string | null
+          id?: string
+          link_id?: string
+          notes?: string | null
+          services?: Json
+          sign_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["office_contract_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_contracts_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_contracts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "office_client_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_prospects: {
+        Row: {
+          account_manager_id: string | null
+          address: string | null
+          agency_tenant_id: string
+          code: string | null
+          contact_person: string | null
+          converted_tenant_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          estimated_fee: number | null
+          id: string
+          industry: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["office_prospect_status"]
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_manager_id?: string | null
+          address?: string | null
+          agency_tenant_id: string
+          code?: string | null
+          contact_person?: string | null
+          converted_tenant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estimated_fee?: number | null
+          id?: string
+          industry?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["office_prospect_status"]
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_manager_id?: string | null
+          address?: string | null
+          agency_tenant_id?: string
+          code?: string | null
+          contact_person?: string | null
+          converted_tenant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estimated_fee?: number | null
+          id?: string
+          industry?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["office_prospect_status"]
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_prospects_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_prospects_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_prospects_converted_tenant_id_fkey"
+            columns: ["converted_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_staff: {
+        Row: {
+          agency_tenant_id: string
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          email: string | null
+          employee_code: string | null
+          full_name: string
+          id: string
+          join_date: string | null
+          leave_date: string | null
+          notes: string | null
+          phone: string | null
+          position: string | null
+          skills: string[] | null
+          status: Database["public"]["Enums"]["office_staff_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          agency_tenant_id: string
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          employee_code?: string | null
+          full_name: string
+          id?: string
+          join_date?: string | null
+          leave_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          skills?: string[] | null
+          status?: Database["public"]["Enums"]["office_staff_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          agency_tenant_id?: string
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          employee_code?: string | null
+          full_name?: string
+          id?: string
+          join_date?: string | null
+          leave_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          skills?: string[] | null
+          status?: Database["public"]["Enums"]["office_staff_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_staff_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_staff_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_staff_assignments: {
+        Row: {
+          created_at: string
+          from_date: string | null
+          id: string
+          link_id: string
+          role: string
+          staff_id: string
+          to_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_date?: string | null
+          id?: string
+          link_id: string
+          role?: string
+          staff_id: string
+          to_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_date?: string | null
+          id?: string
+          link_id?: string
+          role?: string
+          staff_id?: string
+          to_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_staff_assignments_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "office_client_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_staff_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "office_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_task_attachments: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_url: string
+          id: string
+          task_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_url: string
+          id?: string
+          task_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_url?: string
+          id?: string
+          task_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "office_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_task_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_task_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "office_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_task_templates: {
+        Row: {
+          active: boolean
+          agency_tenant_id: string
+          category: Database["public"]["Enums"]["office_task_category"]
+          checklist: Json
+          created_at: string
+          default_assignee_id: string | null
+          id: string
+          lead_days: number
+          rule_day: number | null
+          rule_month: number | null
+          rule_type: string
+          scope: string
+          scope_link_ids: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agency_tenant_id: string
+          category?: Database["public"]["Enums"]["office_task_category"]
+          checklist?: Json
+          created_at?: string
+          default_assignee_id?: string | null
+          id?: string
+          lead_days?: number
+          rule_day?: number | null
+          rule_month?: number | null
+          rule_type?: string
+          scope?: string
+          scope_link_ids?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agency_tenant_id?: string
+          category?: Database["public"]["Enums"]["office_task_category"]
+          checklist?: Json
+          created_at?: string
+          default_assignee_id?: string | null
+          id?: string
+          lead_days?: number
+          rule_day?: number | null
+          rule_month?: number | null
+          rule_type?: string
+          scope?: string
+          scope_link_ids?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_task_templates_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_task_templates_default_assignee_id_fkey"
+            columns: ["default_assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_tasks: {
+        Row: {
+          agency_tenant_id: string
+          assignee_user_id: string | null
+          category: Database["public"]["Enums"]["office_task_category"]
+          checklist: Json
+          completed_at: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          link_id: string | null
+          period_month: number | null
+          period_year: number | null
+          position: number
+          priority: Database["public"]["Enums"]["office_task_priority"]
+          recurring_template_id: string | null
+          reviewer_user_id: string | null
+          status: Database["public"]["Enums"]["office_task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agency_tenant_id: string
+          assignee_user_id?: string | null
+          category?: Database["public"]["Enums"]["office_task_category"]
+          checklist?: Json
+          completed_at?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          link_id?: string | null
+          period_month?: number | null
+          period_year?: number | null
+          position?: number
+          priority?: Database["public"]["Enums"]["office_task_priority"]
+          recurring_template_id?: string | null
+          reviewer_user_id?: string | null
+          status?: Database["public"]["Enums"]["office_task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agency_tenant_id?: string
+          assignee_user_id?: string | null
+          category?: Database["public"]["Enums"]["office_task_category"]
+          checklist?: Json
+          completed_at?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          link_id?: string | null
+          period_month?: number | null
+          period_year?: number | null
+          position?: number
+          priority?: Database["public"]["Enums"]["office_task_priority"]
+          recurring_template_id?: string | null
+          reviewer_user_id?: string | null
+          status?: Database["public"]["Enums"]["office_task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_tasks_agency_tenant_id_fkey"
+            columns: ["agency_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_assignee_user_id_fkey"
+            columns: ["assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "office_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "office_client_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_recurring_template_id_fkey"
+            columns: ["recurring_template_id"]
+            isOneToOne: false
+            referencedRelation: "office_task_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_tasks_reviewer_user_id_fkey"
+            columns: ["reviewer_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_advances: {
         Row: {
           amount: number
@@ -8007,6 +8698,32 @@ export type Database = {
         | "viewer"
         | "approver"
         | "superadmin"
+      office_billing_cycle: "monthly" | "quarterly" | "yearly" | "one_off"
+      office_contract_status: "draft" | "active" | "expired" | "terminated"
+      office_link_status: "active" | "paused" | "terminated"
+      office_prospect_status:
+        | "new"
+        | "contacted"
+        | "negotiating"
+        | "won"
+        | "lost"
+      office_staff_status: "active" | "on_leave" | "terminated"
+      office_task_category:
+        | "vat_filing"
+        | "pit"
+        | "cit"
+        | "social_insurance"
+        | "bookkeeping"
+        | "financial_report"
+        | "internal"
+        | "other"
+      office_task_priority: "low" | "med" | "high" | "urgent"
+      office_task_status:
+        | "todo"
+        | "in_progress"
+        | "review"
+        | "done"
+        | "cancelled"
       tenant_member_status: "active" | "invited" | "disabled"
       tenant_role: "owner" | "admin" | "accountant" | "viewer"
     }
@@ -8143,6 +8860,35 @@ export const Constants = {
         "viewer",
         "approver",
         "superadmin",
+      ],
+      office_billing_cycle: ["monthly", "quarterly", "yearly", "one_off"],
+      office_contract_status: ["draft", "active", "expired", "terminated"],
+      office_link_status: ["active", "paused", "terminated"],
+      office_prospect_status: [
+        "new",
+        "contacted",
+        "negotiating",
+        "won",
+        "lost",
+      ],
+      office_staff_status: ["active", "on_leave", "terminated"],
+      office_task_category: [
+        "vat_filing",
+        "pit",
+        "cit",
+        "social_insurance",
+        "bookkeeping",
+        "financial_report",
+        "internal",
+        "other",
+      ],
+      office_task_priority: ["low", "med", "high", "urgent"],
+      office_task_status: [
+        "todo",
+        "in_progress",
+        "review",
+        "done",
+        "cancelled",
       ],
       tenant_member_status: ["active", "invited", "disabled"],
       tenant_role: ["owner", "admin", "accountant", "viewer"],
