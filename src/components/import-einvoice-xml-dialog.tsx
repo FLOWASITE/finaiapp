@@ -31,13 +31,21 @@ const vnd = (n: number | undefined) =>
 export function ImportEinvoiceXmlDialog({
   triggerLabel = "Nhập XML",
   variant = "outline",
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  hideTrigger = false,
 }: {
   triggerLabel?: string;
   variant?: "default" | "outline" | "secondary";
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const router = useRouter();
   const importFn = useServerFn(importEinvoiceXml);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = onOpenChangeProp ?? setOpenInner;
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[] | null>(null);
 
@@ -71,12 +79,14 @@ export function ImportEinvoiceXmlDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant={variant}>
-          <FileCode2 className="mr-2 h-4 w-4" />
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant={variant}>
+            <FileCode2 className="mr-2 h-4 w-4" />
+            {triggerLabel}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Nhập XML hoá đơn điện tử</DialogTitle>
