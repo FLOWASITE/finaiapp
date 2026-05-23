@@ -287,7 +287,7 @@ function LoginPage() {
         {/* Right form panel */}
         <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
           <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
-            <FinAILogo height={32} finColor="hsl(var(--foreground))" />
+            <FinAILogo height={32} />
           </Link>
 
           <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
