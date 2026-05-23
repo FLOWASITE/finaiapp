@@ -379,6 +379,33 @@ function SalesVouchersPage() {
   const voidFn = useServerFn(voidSalesVoucher);
   const branchFnPage = useServerFn(listBranches);
   const productsFnPage = useServerFn(listProducts);
+  const customersFn = useServerFn(listCustomers);
+  const customerGroupsFn = useServerFn(listPartyGroups);
+
+  // Khách hàng & nhóm khách hàng (để auto-fill nhóm khi chọn khách)
+  const { data: customersAll } = useQuery({
+    queryKey: ["customers"],
+    queryFn: () => customersFn({}),
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const { data: customerGroups } = useQuery({
+    queryKey: ["party-groups", "customer"],
+    queryFn: () => customerGroupsFn({ data: { kind: "customer" } }),
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const groupNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of (customerGroups ?? []) as any[]) m.set(g.id, g.name);
+    return m;
+  }, [customerGroups]);
+  const customerById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const c of (customersAll ?? []) as any[]) m.set(c.id, c);
+    return m;
+  }, [customersAll]);
+
+  // Tự sinh mô tả khi người dùng chưa chỉnh tay
+  const [reasonTouched, setReasonTouched] = useState(false);
 
   // ---------- Filters ----------
   const defaultPeriod = useMemo(() => getPresetRange("thisMonth"), []);
