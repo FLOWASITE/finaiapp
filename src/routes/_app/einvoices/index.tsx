@@ -346,13 +346,13 @@ function EInvoicesPage() {
               ))
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={9}
-                  className="px-3 py-12 text-center text-muted-foreground"
-                >
-                  Chưa có HĐĐT nào. Bấm{" "}
-                  <b>Nhập XML vào kho HĐĐT</b> để bắt đầu, hoặc{" "}
-                  <b>Đồng bộ từ TCT</b> để kéo trực tiếp.
+                <td colSpan={9} className="px-3 py-8">
+                  <EmptyState
+                    size="sm"
+                    bordered={false}
+                    title="Chưa có HĐĐT nào"
+                    description="Bấm Nhập XML vào kho HĐĐT để bắt đầu, hoặc Đồng bộ từ TCT để kéo trực tiếp."
+                  />
                 </td>
               </tr>
             ) : (
