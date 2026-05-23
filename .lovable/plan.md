@@ -1,39 +1,30 @@
-# Trạng thái hiện tại
+## Mục tiêu
+Toast cho các sự kiện "quan trọng" do AI/đồng bộ thực hiện sẽ hiển thị icon Fin mascot thay vì icon mặc định (✓) của sonner, để nhấn mạnh đây là việc AI Agent vừa hoàn thành.
 
-Kiểm tra `src/components/fin-mascot.tsx` và các nơi dùng `mood="thinking"` (message-list khi đang stream, chat-skeleton khi loading):
+## Phạm vi (chỉ các toast "quan trọng")
+1. MBBank sync xong → `src/components/mbbank-connect-dialog.tsx:117` ("Đồng bộ hoàn tất")
+2. AI parse lại chứng từ xong → `src/routes/_app/documents/index.tsx:880` ("Đã parse lại …")
+3. AI gợi ý hạch toán xong → `src/routes/_app/invoices/$id.tsx:66` ("AI đã gợi ý 3 phương án")
+4. AI dò cặp chuyển khoản xong → `src/routes/_app/bank.reconcile.tsx:174` ("Phát hiện … cặp chuyển khoản")
 
-- Khi `mood="thinking"` hiện **chỉ** có glow halo nhấp nháy nhanh hơn (`animate-pulse` ~2s thay vì 3s).
-- **Chưa có** hiệu ứng bounce cho Fin.
-- **Chưa có** vòng sáng (light ring) xoay quanh mascot.
-- Float animation `fin-float` chỉ áp dụng cho size lg/xl/2xl và chạy mọi lúc, không liên quan trạng thái nghĩ.
+Các toast nhỏ khác (Đã lưu, Đã xoá, lỗi…) giữ nguyên — không lạm dụng Fin.
 
-→ Vậy: **chưa xong**. Hiện tại chỉ có pulse glow, thiếu bounce + ring xoay đúng như mô tả.
-
-# Kế hoạch bổ sung
-
-Chỉnh `src/components/fin-mascot.tsx`:
-
-1. **Bounce nhẹ cho Fin khi `mood="thinking"`**
-   - Thêm class `animate-bounce` (hoặc keyframe `fin-bounce` biên độ nhỏ ~4px, 1s ease-in-out infinite) lên `<img>` khi `mood === "thinking"`.
-   - Ghi đè float để tránh xung đột animation.
-
-2. **Vòng sáng xoay (light ring) khi `mood="thinking"`**
-   - Thêm 1 `<div aria-hidden>` tuyệt đối phủ kín, `rounded-full`, border conic-gradient (teal → blue → trong suốt) tạo cảm giác vòng sáng chạy.
-   - Animate bằng keyframe `fin-spin` (rotate 0 → 360deg, 2.5s linear infinite).
-   - Chỉ render khi `mood === "thinking"`, đặt sau glow halo và trước `<img>` để nằm dưới mascot nhưng trên glow.
-
-3. **Đăng ký keyframes** trong `src/styles.css` (nếu chưa có `fin-spin` / `fin-bounce`):
-   ```css
-   @keyframes fin-spin { to { transform: rotate(360deg); } }
-   @keyframes fin-bounce-soft {
-     0%,100% { transform: translateY(0); }
-     50% { transform: translateY(-6px); }
-   }
+## Cách làm
+1. **Tạo helper `src/lib/fin-toast.tsx`** bọc `sonner` `toast()`:
+   ```ts
+   import { toast } from "sonner";
+   import { FinMascot } from "@/components/fin-mascot";
+   export const finToast = {
+     success: (msg, opts) => toast.success(msg, { icon: <FinMascot size="xs" mood="happy" />, duration: 4000, ...opts }),
+     info:    (msg, opts) => toast(msg,         { icon: <FinMascot size="xs" mood="idle"  />, ...opts }),
+   };
    ```
+   Dùng `icon` prop của sonner để override icon mặc định (giữ nguyên màu nền success/info).
 
-4. **Không thay đổi** API component (`size`, `mood`, `glow`, `className` giữ nguyên) → mọi nơi dùng `mood="thinking"` (message-list khi streaming, chat-skeleton) tự động có hiệu ứng mới.
+2. **Thay thế tại 4 vị trí trên**: `toast.success(...)` → `finToast.success(...)`. Giữ nguyên text.
 
-# Kết quả mong đợi
+3. Không động đến các toast `error` / toast UI thông thường.
 
-- Khi AI đang trả lời / skeleton loading: mascot Fin bounce nhẹ, có vòng sáng xoay quanh + glow pulse → cảm giác "đang suy nghĩ" rõ ràng.
-- Khi `mood="idle"` hoặc `"happy"`: giữ nguyên hành vi cũ.
+## Kiểm tra
+- Mở `/bank/reconcile`, `/invoices/$id`, `/documents` — verify icon Fin xuất hiện trong toast (chụp screenshot khi trigger).
+- Build pass.
