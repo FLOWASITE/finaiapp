@@ -302,7 +302,7 @@ function LoginPage() {
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Chào mừng đến FinAI
             </h2>
-            <p className="text-sm text-white/60 mt-1">
+            <p className="text-sm text-white/85 mt-1">
 
               Đăng nhập hoặc tạo tài khoản bằng email
             </p>
@@ -329,17 +329,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.07] pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-white/20 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
                   errors.email && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.30_0.10_162)] text-[oklch(0.88_0.18_162)] ring-1 ring-white/5">
                   <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="email"
-                    className="block text-[11px] font-medium text-white/55"
+                    className="block text-[11px] font-medium text-white/80"
                   >
                     Địa chỉ email
                   </Label>
@@ -348,7 +348,7 @@ function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="ten@congty.com"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/50 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -364,17 +364,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-2 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.07] pl-2 pr-2 h-14 sm:h-16 ring-1 ring-white/20 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
                   errors.password && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.30_0.10_162)] text-[oklch(0.88_0.18_162)] ring-1 ring-white/5">
                   <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="password"
-                    className="block text-[11px] font-medium text-white/55"
+                    className="block text-[11px] font-medium text-white/80"
                   >
                     Mật khẩu
                   </Label>
@@ -383,7 +383,7 @@ function LoginPage() {
                     type={showPw ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
                     placeholder="••••••••"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/50 focus:outline-none focus:ring-0"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -394,7 +394,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-white/55 hover:bg-white/10 hover:text-white transition-colors"
+                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                   aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   tabIndex={-1}
                 >
@@ -427,7 +427,7 @@ function LoginPage() {
             {/* Remember + Forgot row */}
             {!isSignup && (
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs sm:text-sm">
-                <label className="inline-flex items-center gap-2 text-white/60 cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 text-white/85 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-white/20 bg-transparent text-[oklch(0.72_0.16_162)] focus:ring-[oklch(0.72_0.16_162)]/40"
@@ -464,7 +464,7 @@ function LoginPage() {
               )}
             </button>
 
-            <p className="text-center text-xs text-white/50 pt-1">
+            <p className="text-center text-xs text-white/70 pt-1">
               {isSignup ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
             </p>
 
