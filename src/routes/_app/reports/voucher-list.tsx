@@ -426,7 +426,8 @@ function VoucherListPage() {
                           <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{fmt(g.amount)}</td>
-                          <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
+                          <td className="px-2 py-1.5">{g.debitParty ?? ""}</td>
+                          <td className="px-2 py-1.5">{g.creditParty ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
