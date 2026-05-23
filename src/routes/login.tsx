@@ -240,7 +240,7 @@ function LoginPage() {
       className="min-h-screen w-full flex items-start sm:items-center justify-center p-0 sm:p-8"
       style={{ background: "var(--gradient-login-bg)" }}
     >
-      <div className="w-full max-w-5xl overflow-hidden rounded-none sm:rounded-2xl bg-card shadow-none sm:shadow-2xl ring-1 ring-black/5 grid lg:grid-cols-2 min-h-screen sm:min-h-0">
+      <div className="w-full max-w-5xl overflow-hidden rounded-none sm:rounded-2xl bg-[oklch(0.13_0.025_260)] text-white shadow-none sm:shadow-2xl ring-1 ring-white/10 grid lg:grid-cols-2 min-h-screen sm:min-h-0">
         {/* Left brand panel */}
         <aside
           className="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden"
@@ -289,20 +289,21 @@ function LoginPage() {
         </aside>
 
         {/* Right form panel */}
-        <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
+        <main className="bg-[oklch(0.13_0.025_260)] px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
           <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
             <FinAILogo height={40} />
           </Link>
 
-          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
+          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-white">
             Sổ kế toán. Phần mềm. Agent.
           </h1>
 
           <div className="hidden lg:block text-center mb-6">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
               Chào mừng đến FinAI
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-white/60 mt-1">
+
               Đăng nhập hoặc tạo tài khoản bằng email
             </p>
           </div>
@@ -328,17 +329,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
-                  errors.email && "ring-destructive/50 focus-within:ring-destructive/50",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  errors.email && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
                   <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="email"
-                    className="block text-[11px] font-medium text-muted-foreground"
+                    className="block text-[11px] font-medium text-white/55"
                   >
                     Địa chỉ email
                   </Label>
@@ -347,7 +348,7 @@ function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="ten@congty.com"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -363,17 +364,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-2 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
-                  errors.password && "ring-destructive/50 focus-within:ring-destructive/50",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-2 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  errors.password && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
                   <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="password"
-                    className="block text-[11px] font-medium text-muted-foreground"
+                    className="block text-[11px] font-medium text-white/55"
                   >
                     Mật khẩu
                   </Label>
@@ -382,7 +383,7 @@ function LoginPage() {
                     type={showPw ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
                     placeholder="••••••••"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -393,7 +394,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="shrink-0 rounded-md p-1.5 sm:p-2 text-white/55 hover:bg-white/10 hover:text-white transition-colors"
                   aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   tabIndex={-1}
                 >
@@ -426,10 +427,10 @@ function LoginPage() {
             {/* Remember + Forgot row */}
             {!isSignup && (
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs sm:text-sm">
-                <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 text-white/60 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-border text-primary focus:ring-primary/40"
+                    className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-white/20 bg-transparent text-[oklch(0.72_0.16_162)] focus:ring-[oklch(0.72_0.16_162)]/40"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -437,20 +438,20 @@ function LoginPage() {
                   type="button"
                   onClick={handleForgot}
                   disabled={resetting}
-                  className="font-medium text-primary hover:underline disabled:opacity-60"
+                  className="font-medium text-[oklch(0.78_0.16_162)] hover:underline disabled:opacity-60"
                 >
                   {resetting ? "Đang gửi..." : "Quên mật khẩu?"}
                 </button>
               </div>
             )}
 
-            {/* Login button — white with primary text */}
+            {/* Login button — solid emerald accent */}
             <button
               type={submitLogin ? "submit" : "button"}
               onClick={submitLogin ? undefined : () => setIsSignup(false)}
               disabled={loading && submitLogin}
               className={cn(
-                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-card text-primary font-semibold text-sm sm:text-base ring-1 ring-border shadow-[0_10px_30px_-10px_oklch(0.3_0.08_260/0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.3_0.08_260/0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-white text-[oklch(0.18_0.04_260)] font-semibold text-sm sm:text-base ring-1 ring-white/20 shadow-[0_10px_30px_-10px_oklch(0_0_0/0.6)] transition-all hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-[0_14px_36px_-10px_oklch(0_0_0/0.7)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
               )}
             >
               {loading && submitLogin ? (
@@ -463,7 +464,7 @@ function LoginPage() {
               )}
             </button>
 
-            <p className="text-center text-xs text-muted-foreground pt-1">
+            <p className="text-center text-xs text-white/50 pt-1">
               {isSignup ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
             </p>
 
