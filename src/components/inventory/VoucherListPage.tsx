@@ -73,15 +73,26 @@ export function VoucherListPage({ type }: Props) {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Icon className={`h-6 w-6 ${accent}`} /> {title}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Mỗi phiếu nhiều dòng. Tạo phiếu mới tại{" "}
-            <Link to="/inventory" className="text-primary hover:underline">Tồn kho</Link>.
+            Mỗi phiếu nhiều dòng. Bạn có thể tạo phiếu trực tiếp tại đây.
           </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {(type === "in" || type === "all") && (
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setCreateType("in")}>
+              <Plus className="h-4 w-4 mr-1" /> <ArrowDownToLine className="h-4 w-4 mr-1" /> Phiếu nhập
+            </Button>
+          )}
+          {(type === "out" || type === "all") && (
+            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCreateType("out")}>
+              <Plus className="h-4 w-4 mr-1" /> <ArrowUpFromLine className="h-4 w-4 mr-1" /> Phiếu xuất
+            </Button>
+          )}
         </div>
       </div>
 
