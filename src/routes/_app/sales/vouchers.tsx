@@ -384,6 +384,7 @@ function SalesVouchersPage() {
   const [fTo, setFTo] = useState<string>(defaultPeriod.to);
   const [fCustomerId, setFCustomerId] = useState<string | null>(null);
   const [fSearch, setFSearch] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   const listInput = useMemo(
     () => ({
