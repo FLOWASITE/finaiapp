@@ -1164,15 +1164,15 @@ function SalesVouchersPage() {
                               </DropdownMenuItem>
                               {!isPosted && !isVoid && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
-                                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                                  <FileCheck2 className="h-4 w-4 mr-2" /> {v.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
                               )}
                               {isPosted && (
                                 <DropdownMenuItem
-                                  onClick={() => voidMut.mutate(v.id)}
+                                  onClick={() => openVoidDialog(v.id)}
                                   className="text-destructive"
                                 >
-                                  Huỷ ghi sổ
+                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
