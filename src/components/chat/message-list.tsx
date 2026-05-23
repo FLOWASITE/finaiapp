@@ -203,11 +203,12 @@ export function MessageList({ messages, streaming, onRegenerate }: Props) {
             ) : (
               <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-800">
                 <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Trợ lý
+                  Fin
                   <span className="h-1 w-1 rounded-full bg-slate-300" />
                   <span className="font-medium normal-case tracking-normal text-slate-400">
-                    AI kế toán
+                    AI Agent Kế toán
                   </span>
+
                 </div>
                 {m.toolEvents && m.toolEvents.length > 0 && (
                   <div className="mb-3 space-y-3">
