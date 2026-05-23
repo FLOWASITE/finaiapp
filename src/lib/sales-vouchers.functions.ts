@@ -825,74 +825,30 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    if (v.journal_entry_id) {
-      const { data: oldLines } = await supabase
-        .from("journal_lines")
-        .select("account_code, debit, credit, line_order")
-        .eq("entry_id", v.journal_entry_id);
-      const { data: rev } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: userId,
-          tenant_id: v.tenant_id,
-          entry_date: new Date().toISOString().slice(0, 10),
-          description: `Huỷ phiếu bán ${v.voucher_no}${data.reason ? " — " + data.reason : ""}`,
-        })
-        .select("id")
-        .single();
-      if (rev && oldLines) {
-        await supabase.from("journal_lines").insert(
-          oldLines.map((l) => ({
-            entry_id: rev.id,
-            account_code: l.account_code,
-            debit: l.credit,
-            credit: l.debit,
-            line_order: l.line_order,
-          })),
-        );
-      }
-    }
-
-    // Đảo bút toán giá vốn (nếu phiếu xuất kho có journal_entry riêng)
+    // Xoá bút toán giá vốn (nếu có phiếu xuất kho gắn journal_entry riêng)
     if (v.stock_voucher_id) {
       const { data: stk } = await supabase
         .from("stock_vouchers")
         .select("journal_entry_id")
         .eq("id", v.stock_voucher_id)
         .single();
-      const stkEntryId = stk?.journal_entry_id;
+      const stkEntryId = stk?.journal_entry_id ?? null;
       if (stkEntryId && stkEntryId !== v.journal_entry_id) {
-        const { data: stkLines } = await supabase
-          .from("journal_lines")
-          .select("account_code, debit, credit, line_order")
-          .eq("entry_id", stkEntryId);
-        const { data: revStk } = await supabase
-          .from("journal_entries")
-          .insert({
-            user_id: userId,
-            tenant_id: v.tenant_id,
-            entry_date: new Date().toISOString().slice(0, 10),
-            description: `Huỷ giá vốn phiếu bán ${v.voucher_no}${data.reason ? " — " + data.reason : ""}`,
-          })
-          .select("id")
-          .single();
-        if (revStk && stkLines) {
-          await supabase.from("journal_lines").insert(
-            stkLines.map((l) => ({
-              entry_id: revStk.id,
-              account_code: l.account_code,
-              debit: l.credit,
-              credit: l.debit,
-              line_order: l.line_order,
-            })),
-          );
-        }
+        // Gỡ tham chiếu trước khi xoá (FK SET NULL)
+        await supabase
+          .from("stock_vouchers")
+          .update({ journal_entry_id: null })
+          .eq("id", v.stock_voucher_id);
+        await supabase.from("journal_entries").delete().eq("id", stkEntryId);
       }
     }
 
+    // Xoá bút toán doanh thu (cascade xoá journal_lines)
+    if (v.journal_entry_id) {
+      await supabase.from("journal_entries").delete().eq("id", v.journal_entry_id);
+    }
 
-
-
+    // Huỷ phiếu thu/chi tiền đi kèm (nếu có)
     if (v.cash_voucher_id) {
       await supabase
         .from("cash_vouchers")
@@ -906,12 +862,13 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
         .eq("id", v.bank_voucher_id);
     }
 
+    // Đưa phiếu bán về trạng thái draft (chưa ghi sổ), gỡ tham chiếu bút toán
     const { error } = await supabase
       .from("sales_vouchers")
       .update({
-        status: "void",
-        voided_at: new Date().toISOString(),
-        void_reason: data.reason,
+        status: "draft",
+        journal_entry_id: null,
+        posted_at: null,
       })
       .eq("id", v.id);
     if (error) throw new Error(error.message);
