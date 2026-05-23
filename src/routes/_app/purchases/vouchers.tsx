@@ -437,10 +437,26 @@ function PurchaseVouchersPage() {
     onSuccess: () => { toast.success("Đã ghi sổ"); invalidateLedgers(qc); refetch(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi ghi sổ"),
   });
+  const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+
+  const openVoidDialog = async (id: string) => {
+    try {
+      const res = await previewVoidFn({ data: { id } });
+      setVoidDlg({ open: true, id, items: res.items });
+    } catch (e: any) {
+      toast.error(e?.message || "Không lấy được thông tin huỷ");
+    }
+  };
+
   const voidMut = useMutation({
-    mutationFn: (id: string) => voidFn({ data: { id, reason: "Huỷ thủ công" } }),
-    onSuccess: () => { toast.success("Đã huỷ phiếu"); invalidateLedgers(qc); refetch(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi huỷ phiếu"),
+    mutationFn: (id: string) => voidFn({ data: { id, reason: "Huỷ ghi sổ" } }),
+    onSuccess: () => {
+      toast.success("Đã huỷ ghi sổ, phiếu có thể ghi sổ lại");
+      setVoidDlg({ open: false, items: [] });
+      invalidateLedgers(qc);
+      refetch();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi huỷ ghi sổ"),
   });
   const delMut = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
