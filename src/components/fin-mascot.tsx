@@ -1,7 +1,7 @@
 import finSrc from "@/assets/fin-mascot.png";
 import { cn } from "@/lib/utils";
 
-export type FinSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type FinSize = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 export type FinMood = "idle" | "thinking" | "happy";
 
 const SIZE_PX: Record<FinSize, number> = {
@@ -10,6 +10,7 @@ const SIZE_PX: Record<FinSize, number> = {
   md: 64,
   lg: 120,
   xl: 200,
+  "2xl": 280,
 };
 
 interface FinMascotProps {
@@ -52,7 +53,7 @@ export function FinMascot({
         className={cn(
           "relative h-full w-full object-contain drop-shadow-xl",
           mood === "happy" && "animate-in zoom-in-50 duration-500",
-          (size === "lg" || size === "xl") && "animate-[fin-float_4s_ease-in-out_infinite]",
+          (size === "lg" || size === "xl" || size === "2xl") && "animate-[fin-float_4s_ease-in-out_infinite]",
         )}
       />
     </div>

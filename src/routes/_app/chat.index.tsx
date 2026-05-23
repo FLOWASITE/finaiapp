@@ -91,19 +91,16 @@ function ChatIndex() {
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-4 md:px-6 md:py-10">
         <div className="mx-auto w-full max-w-3xl text-center">
           {/* Brand identity */}
-          <div className="mb-4 flex justify-center md:mb-8">
+          <div className="mb-4 flex justify-center md:mb-6">
             <span className="md:hidden">
-              <FinMascot size="lg" mood="happy" />
+              <FinMascot size="xl" mood="happy" />
             </span>
             <span className="hidden md:inline-flex">
-              <FinMascot size="xl" mood="happy" />
+              <FinMascot size="2xl" mood="happy" />
             </span>
           </div>
 
-          <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-            AI Agent Kế toán
-          </h1>
-          <p className="mx-auto mb-2 max-w-lg text-sm font-medium text-slate-600">
+          <p className="mx-auto mb-2 max-w-lg text-base font-medium text-slate-600 md:text-lg">
             Chào, mình là <span className="font-semibold text-slate-900">Fin</span> — hỏi mình về sổ sách nhé.
           </p>
 
