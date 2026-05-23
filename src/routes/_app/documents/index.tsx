@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { z } from "zod";
 import {
   listDocuments,
