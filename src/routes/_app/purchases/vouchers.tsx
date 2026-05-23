@@ -1235,11 +1235,14 @@ function CreateVoucherDialog({
                   <Select value={header.supplier_id || "none"}
                     onValueChange={(v) => {
                       const s = (suppliers ?? []).find((x: any) => x.id === v);
+                      const groupId = (s as any)?.group_id ?? null;
+                      const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
                       setHeader({
                         ...header,
                         supplier_id: v === "none" ? "" : v,
                         supplier_name: s?.name ?? "",
                         supplier_address: s?.address ?? "",
+                        customer_group: groupName || header.customer_group,
                       });
                     }}>
                     <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
