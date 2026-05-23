@@ -247,15 +247,15 @@ function LoginPage() {
             </span>
           </div>
 
-          <div className="relative z-10 mt-auto space-y-5 max-w-lg">
-            <h2 className="text-6xl xl:text-7xl font-extrabold leading-[0.95] tracking-tight text-white">
+          <div className="relative z-10 mt-auto space-y-4 max-w-lg">
+            <h2 className="text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-white">
               Sổ kế toán.
               <br />
               Phần mềm.
               <br />
               Agent.
             </h2>
-            <p className="text-sm leading-relaxed text-white/70 max-w-sm">
+            <p className="text-base leading-relaxed text-white/70 max-w-sm">
               Kiến tạo cho những người giữ cán cân tài chính.
             </p>
           </div>
@@ -269,7 +269,7 @@ function LoginPage() {
             </span>
           </Link>
 
-          <h1 className="lg:hidden text-xl font-bold tracking-tight mb-6 text-center text-foreground">
+          <h1 className="lg:hidden text-lg font-bold tracking-tight mb-6 text-center text-foreground">
             Sổ kế toán. Phần mềm. Agent.
           </h1>
 
