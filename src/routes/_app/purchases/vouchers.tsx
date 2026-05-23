@@ -708,13 +708,15 @@ function PurchaseVouchersPage() {
               </Button>
             </div>
           ) : rows.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <Inbox className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">Chưa có phiếu mua hàng nào.</p>
-              <Button variant="outline" onClick={() => setOpenCreate(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
-              </Button>
-            </div>
+            <EmptyState
+              title="Chưa có phiếu mua hàng nào"
+              description="Tạo phiếu đầu tiên để Fin theo dõi chi phí mua hàng."
+              cta={
+                <Button variant="outline" onClick={() => setOpenCreate(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table className="text-[13px]">
