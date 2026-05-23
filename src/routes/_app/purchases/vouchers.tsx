@@ -1323,7 +1323,7 @@ function CreateVoucherDialog({
               <div className="sm:col-span-2 lg:col-span-4">
                 <Label>Diễn giải</Label>
                 <Input value={header.reason}
-                  onChange={(e) => setHeader({ ...header, reason: e.target.value })}
+                  onChange={(e) => { setReasonTouched(true); setHeader({ ...header, reason: e.target.value }); }}
                   placeholder={`Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || "---"}`} />
               </div>
             </div>
