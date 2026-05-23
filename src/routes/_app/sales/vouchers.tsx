@@ -484,9 +484,9 @@ function SalesVouchersPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(blankForm());
 
-  function openCreate() {
+  function openCreate(prefill?: Partial<FormState>) {
     // Mở dialog ngay; số phiếu fetch song song và patch sau khi có
-    setForm(blankForm());
+    setForm({ ...blankForm(), ...(prefill ?? {}) });
     setOpen(true);
     suggest({ data: { voucher_date: todayISO() } })
       .then((r) => {
@@ -494,6 +494,29 @@ function SalesVouchersPage() {
       })
       .catch(() => {});
   }
+
+  // Auto-open create dialog when navigated with ?new=1&party_id=...
+  const search = Route.useSearch();
+  const navigateRoute = useNavigate();
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (search.new && search.party_id) {
+      autoOpenedRef.current = true;
+      openCreate({
+        customer_id: search.party_id,
+        customer_name: search.party_name ?? "",
+        customer_tax_id: search.party_tax_id ?? "",
+        customer_address: search.party_address ?? "",
+      });
+      navigateRoute({
+        to: "/sales/vouchers",
+        search: {},
+        replace: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.new, search.party_id]);
 
   // Warm-up cache cho dialog tạo phiếu (gọi khi hover/focus nút)
   function prefetchCreate() {
