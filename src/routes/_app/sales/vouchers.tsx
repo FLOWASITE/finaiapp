@@ -1849,13 +1849,11 @@ function VoucherDialog({
                     </div>
                     <div>
                       <Label className="text-xs">Đơn giá</Label>
-                      <Input
-                        type="number"
-                        value={l.unit_price || ""}
-                        onChange={(e) =>
-                          updateLine(i, { unit_price: Number(e.target.value || 0) })
-                        }
+                      <MoneyInput
+                        value={l.unit_price || 0}
+                        onChange={(n) => updateLine(i, { unit_price: n })}
                       />
+
                     </div>
                     <div>
                       <Label className="text-xs">TK nợ</Label>
