@@ -1264,6 +1264,16 @@ function VoucherDialog({
     enabled: open,
     ...QUERY_PRESETS.REFERENCE,
   });
+
+  // Auto-fill default warehouse when stock voucher panel opens
+  useEffect(() => {
+    if (form.create_stock_voucher && !form.warehouse_id) {
+      const list = (warehouses ?? []) as any[];
+      const def = list.find((w) => w.is_default) ?? list[0];
+      if (def) setForm((f) => ({ ...f, warehouse_id: def.id }));
+    }
+  }, [form.create_stock_voucher, warehouses, form.warehouse_id]);
+
   const customersFn = useServerFn(listCustomers);
   const customerGroupsFn = useServerFn(listPartyGroups);
   const { data: customersAll } = useQuery({
