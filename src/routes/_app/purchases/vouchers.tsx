@@ -847,12 +847,15 @@ function PurchaseVouchersPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               {!isPosted && !isVoid && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
-                                  <Check className="h-4 w-4 mr-2" /> Ghi sổ
+                                  <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
                               )}
                               {isPosted && (
-                                <DropdownMenuItem onClick={() => voidMut.mutate(r.id)}>
-                                  <X className="h-4 w-4 mr-2" /> Huỷ phiếu
+                                <DropdownMenuItem
+                                  onClick={() => openVoidDialog(r.id)}
+                                  className="text-destructive"
+                                >
+                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
                                 </DropdownMenuItem>
                               )}
                               {r.journal_entry_id && (
