@@ -651,9 +651,9 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
             entry_date: stockDate,
             description: `Giá vốn phiếu bán ${v.voucher_no}`,
             branch_id: v.branch_id,
-            department_id: v.department_id,
             project_id: v.project_id,
             cost_center_id: v.cost_center_id,
+
           })
           .select("id")
           .single();
