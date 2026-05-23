@@ -89,6 +89,15 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [mergeConfirm, setMergeConfirm] = useState(false);
   const [openingBalanceParty, setOpeningBalanceParty] = useState<any>(null);
 
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    type: "archive" | "restore" | "delete" | null;
+    party: any | null;
+  }>({ open: false, type: null, party: null });
+
+  const confirmType = confirmDialog.type;
+  const confirmParty = confirmDialog.party;
+
   const mergeFn = useServerFn(mergeParties);
   const mergeMut = useMutation({
     mutationFn: (vars: { primaryId: string; secondaryId: string }) =>
