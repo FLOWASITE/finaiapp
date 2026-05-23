@@ -40,26 +40,26 @@ type SummaryRow = {
 export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const isCustomer = kind === "customer";
   const qc = useQueryClient();
-  const listFn = useServerFn(isCustomer ? listCustomers : listSuppliers);
-  const summaryFn = useServerFn(isCustomer ? getArSummary : getApSummary);
+  const listFn = useServerFn((isCustomer ? listCustomers : listSuppliers) as any) as any;
+  const summaryFn = useServerFn((isCustomer ? getArSummary : getApSummary) as any) as any;
   const groupsFn = useServerFn(listPartyGroups);
 
   // Default period: current year
   const [range, setRange] = useState(() => getPresetRange("thisYear"));
 
-  const { data: parties = [] } = useQuery({
+  const { data: parties = [] } = useQuery<any[]>({
     queryKey: [isCustomer ? "customers" : "suppliers"],
-    queryFn: () => listFn(isCustomer ? ({} as any) : (undefined as any)),
+    queryFn: () => listFn(isCustomer ? {} : undefined),
     ...QUERY_PRESETS.REFERENCE,
   });
 
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [] } = useQuery<any[]>({
     queryKey: ["party-groups", kind],
     queryFn: () => groupsFn({ data: { kind } }),
     ...QUERY_PRESETS.REFERENCE,
   });
 
-  const { data: summary = [], isFetching: loadingSummary } = useQuery({
+  const { data: summary = [], isFetching: loadingSummary } = useQuery<any[]>({
     queryKey: [isCustomer ? "ar-summary" : "ap-summary", range.from, range.to],
     queryFn: () => summaryFn({ data: { from: range.from, to: range.to } }),
   });
