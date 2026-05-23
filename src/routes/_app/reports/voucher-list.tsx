@@ -153,24 +153,13 @@ function VoucherListPage() {
       byEntry.set(r.entry_id, arr);
     }
     const out: GroupedRow[] = [];
+    const EPS = 0.005;
+    const PARTY_PREFIXES = ["131", "136", "138", "141", "144", "244", "331", "334", "336", "338"];
+    const isPartyAcc = (a: string | null) => !!a && PARTY_PREFIXES.some((p) => a.startsWith(p));
+
     for (const [entryId, lines] of byEntry) {
       const sorted = [...lines].sort((a, b) => a.line_index - b.line_index);
       const meta = sorted[0];
-      const debits = sorted.filter((l) => l.debit > 0).map((l) => ({ acc: l.account_code, rem: l.debit, idx: l.line_index }));
-      const credits = sorted.filter((l) => l.credit > 0).map((l) => ({ acc: l.account_code, rem: l.credit, idx: l.line_index }));
-      let pairIdx = 0;
-      const EPS = 0.005;
-      const base = (extra: Partial<GroupedRow>): GroupedRow => ({
-        key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
-        voucher_type: meta.voucher_type, description: meta.description,
-        debitAccount: null, creditAccount: null, amount: 0,
-        debitParty: null, creditParty: null, reference: meta.reference,
-        branch_name: meta.branch_name, department_name: meta.department_name,
-        project_name: meta.project_name, cost_center_name: meta.cost_center_name,
-        pair_index: 0, ...extra,
-      });
-      const PARTY_PREFIXES = ["131", "136", "138", "141", "144", "244", "331", "334", "336", "338"];
-      const isPartyAcc = (a: string | null) => !!a && PARTY_PREFIXES.some((p) => a.startsWith(p));
       const partyFor = (dAcc: string | null, cAcc: string | null) => {
         const pn = meta.party_name ?? null;
         if (!pn) return { dp: null, cp: null };
@@ -180,27 +169,57 @@ function VoucherListPage() {
         if (dIs && cIs) return { dp: pn, cp: pn };
         return { dp: pn, cp: null };
       };
-      for (const d of debits) {
-        while (d.rem > EPS) {
-          let cIdx = credits.findIndex((c) => c.rem > EPS && Math.abs(c.rem - d.rem) < EPS);
-          if (cIdx < 0) cIdx = credits.findIndex((c) => c.rem > EPS);
-          if (cIdx < 0) break;
-          const c = credits[cIdx];
-          const amt = Math.min(d.rem, c.rem);
-          const { dp, cp } = partyFor(d.acc, c.acc);
-          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, debitParty: dp, creditParty: cp, pair_index: pairIdx }));
-          d.rem -= amt; c.rem -= amt; pairIdx++;
+      const base = (extra: Partial<GroupedRow>): GroupedRow => ({
+        key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
+        voucher_type: meta.voucher_type, description: meta.description,
+        debitAccount: null, creditAccount: null, amount: 0,
+        debitParty: null, creditParty: null, reference: meta.reference,
+        branch_name: meta.branch_name, department_name: meta.department_name,
+        project_name: meta.project_name, cost_center_name: meta.cost_center_name,
+        pair_index: 0, ...extra,
+      });
+      let pairIdx = 0;
+
+      // Phân khối các "bút toán" trong cùng 1 phiếu theo thứ tự nhập:
+      // mỗi khi tổng Nợ chạy = tổng Có chạy (>0) → đóng 1 khối.
+      // VD phiếu bán có xuất kho: [632, 156] -> đóng; [131, 511, 3331] -> đóng.
+      type Side = { acc: string; rem: number; idx: number };
+      const blocks: { debits: Side[]; credits: Side[] }[] = [];
+      let curD: Side[] = [], curC: Side[] = [], dSum = 0, cSum = 0;
+      for (const l of sorted) {
+        if (l.debit > 0) { curD.push({ acc: l.account_code, rem: l.debit, idx: l.line_index }); dSum += l.debit; }
+        if (l.credit > 0) { curC.push({ acc: l.account_code, rem: l.credit, idx: l.line_index }); cSum += l.credit; }
+        if (dSum > EPS && cSum > EPS && Math.abs(dSum - cSum) < EPS) {
+          blocks.push({ debits: curD, credits: curC });
+          curD = []; curC = []; dSum = 0; cSum = 0;
         }
       }
-      for (const d of debits.filter((x) => x.rem > EPS)) {
-        const { dp } = partyFor(d.acc, null);
-        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, debitParty: dp, pair_index: pairIdx++ }));
-      }
-      for (const c of credits.filter((x) => x.rem > EPS)) {
-        const { cp } = partyFor(null, c.acc);
-        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, creditParty: cp, pair_index: pairIdx++ }));
-      }
+      if (curD.length || curC.length) blocks.push({ debits: curD, credits: curC });
 
+      // Trong mỗi khối: ghép Nợ/Có ưu tiên khớp đúng số tiền.
+      for (const blk of blocks) {
+        const debits = blk.debits, credits = blk.credits;
+        for (const d of debits) {
+          while (d.rem > EPS) {
+            let cIdx = credits.findIndex((c) => c.rem > EPS && Math.abs(c.rem - d.rem) < EPS);
+            if (cIdx < 0) cIdx = credits.findIndex((c) => c.rem > EPS);
+            if (cIdx < 0) break;
+            const c = credits[cIdx];
+            const amt = Math.min(d.rem, c.rem);
+            const { dp, cp } = partyFor(d.acc, c.acc);
+            out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, debitParty: dp, creditParty: cp, pair_index: pairIdx }));
+            d.rem -= amt; c.rem -= amt; pairIdx++;
+          }
+        }
+        for (const d of debits.filter((x) => x.rem > EPS)) {
+          const { dp } = partyFor(d.acc, null);
+          out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, debitParty: dp, pair_index: pairIdx++ }));
+        }
+        for (const c of credits.filter((x) => x.rem > EPS)) {
+          const { cp } = partyFor(null, c.acc);
+          out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, creditParty: cp, pair_index: pairIdx++ }));
+        }
+      }
     }
     return out.sort(
       (a, b) =>
@@ -209,6 +228,7 @@ function VoucherListPage() {
         a.pair_index - b.pair_index,
     );
   }, [rows]);
+
 
   const totalAmount = useMemo(
     () => groupedRows.reduce((s, g) => s + g.amount, 0),
