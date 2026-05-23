@@ -1616,8 +1616,8 @@ function SalesInvoicesTable({
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
-                  Chưa có hoá đơn bán nào.
+                <TableCell colSpan={10} className="py-8">
+                  <EmptyState size="sm" bordered={false} title="Chưa có hoá đơn bán nào" />
                 </TableCell>
               </TableRow>
             )}
