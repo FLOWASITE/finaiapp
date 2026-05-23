@@ -30,7 +30,7 @@ export type VoucherListRow = {
 const hasDims = (d?: DimFilter) =>
   !!(d && (d.branch_id || d.department_id || d.project_id || d.cost_center_id));
 
-type Meta = { voucher_no: string; voucher_type: string; source_table: string; party_name: string | null; reference: string | null };
+type Meta = { voucher_no: string; voucher_type: string; source_table: string; party_name: string | null; reference: string | null; invoice_no: string | null };
 
 async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]): Promise<Map<string, Meta>> {
   const meta = new Map<string, Meta>();
