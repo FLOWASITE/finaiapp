@@ -1117,7 +1117,6 @@ function SalesVouchersPage() {
           )}
           <TablePagination {...pagination} />
         </CardContent>
-        </CardContent>
       </Card>
 
       <VoucherDialog
