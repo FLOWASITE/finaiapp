@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import { FinAILogo } from "@/components/FinAILogo";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarGroup,
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem,
@@ -521,20 +522,12 @@ export function AppSidebar() {
 
         <SidebarHeader className="relative border-b border-sidebar-border/40 px-3 py-3">
           <div className="flex items-center justify-between gap-2">
-            <Link to="/dashboard" className="group/brand flex items-center gap-2.5 min-w-0">
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-sm text-primary-foreground shadow-[var(--shadow-ai-card)] ring-1 ring-sidebar-primary/30 transition-transform duration-300 group-hover/brand:rotate-3 group-hover/brand:scale-105"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                A
-              </div>
+            <Link to="/dashboard" className="group/brand flex items-center gap-2 min-w-0 transition-transform duration-300 hover:scale-[1.02]">
+              <FinAILogo height={collapsed ? 28 : 34} className="shrink-0 drop-shadow-[0_2px_8px_oklch(0.72_0.16_162/0.35)]" />
               {!collapsed && (
-                <div className="flex flex-col leading-snug animate-fade-in min-w-0">
-                  <span className="font-bold text-[15px] tracking-tight text-sidebar-foreground truncate">FinAI</span>
-                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate">
-                    AI Accounting · v3
-                  </span>
-                </div>
+                <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate animate-fade-in">
+                  AI Accounting · v3
+                </span>
               )}
             </Link>
             {!collapsed && (
