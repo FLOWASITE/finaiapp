@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { finToast } from "@/lib/fin-toast";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
