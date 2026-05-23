@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Users, Truck, FolderTree,
   TrendingUp, TrendingDown, Wallet, AlertCircle, ChevronDown, X,
+  MoreVertical, FilePlus, BookOpen, GitMerge, Trash2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
 import { TablePagination, usePagination } from "@/components/table-pagination";
