@@ -55,7 +55,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       supabase.from("payroll_runs").select("journal_entry_id, period_month").in("journal_entry_id", ch),
       supabase.from("depreciation_entries").select("journal_entry_id, period_month").in("journal_entry_id", ch),
       supabase.from("sales_vouchers").select("journal_entry_id, voucher_no, customer_name, reason, einvoice_id").in("journal_entry_id", ch),
-      supabase.from("purchase_vouchers").select("journal_entry_id, voucher_no, supplier_name, invoice_series, invoice_no, reason").in("journal_entry_id", ch),
+      supabase.from("purchase_vouchers").select("journal_entry_id, voucher_no, supplier_name, invoice_no, reason").in("journal_entry_id", ch),
     ]);
     for (const r of cash.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_CASH[r.voucher_type] ?? r.voucher_type,
