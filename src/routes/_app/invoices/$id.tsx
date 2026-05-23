@@ -64,7 +64,7 @@ function InvoiceDetail() {
     mutationFn: async () => suggest({ data: { invoiceId: id } }),
     onSuccess: (data) => {
       setSuggestions(data.suggestions);
-      toast.success("AI đã gợi ý 3 phương án");
+      finToast.success("AI đã gợi ý 3 phương án");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi gợi ý"),
   });
