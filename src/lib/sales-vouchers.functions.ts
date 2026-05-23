@@ -853,6 +853,43 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
       }
     }
 
+    // Đảo bút toán giá vốn (nếu phiếu xuất kho có journal_entry riêng)
+    if (v.stock_voucher_id) {
+      const { data: stk } = await supabase
+        .from("stock_vouchers")
+        .select("journal_entry_id")
+        .eq("id", v.stock_voucher_id)
+        .single();
+      const stkEntryId = stk?.journal_entry_id;
+      if (stkEntryId && stkEntryId !== v.journal_entry_id) {
+        const { data: stkLines } = await supabase
+          .from("journal_lines")
+          .select("account_code, debit, credit, line_order")
+          .eq("entry_id", stkEntryId);
+        const { data: revStk } = await supabase
+          .from("journal_entries")
+          .insert({
+            user_id: userId,
+            tenant_id: v.tenant_id,
+            entry_date: new Date().toISOString().slice(0, 10),
+            description: `Huỷ giá vốn phiếu bán ${v.voucher_no}${data.reason ? " — " + data.reason : ""}`,
+          })
+          .select("id")
+          .single();
+        if (revStk && stkLines) {
+          await supabase.from("journal_lines").insert(
+            stkLines.map((l) => ({
+              entry_id: revStk.id,
+              account_code: l.account_code,
+              debit: l.credit,
+              credit: l.debit,
+              line_order: l.line_order,
+            })),
+          );
+        }
+      }
+
+
     if (v.cash_voucher_id) {
       await supabase
         .from("cash_vouchers")
