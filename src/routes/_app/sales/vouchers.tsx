@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -20,6 +20,9 @@ import {
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listBranches } from "@/lib/dimensions.functions";
+import { listCustomers } from "@/lib/customers.functions";
+import { listPartyGroups } from "@/lib/partyGroups.functions";
+import { MoneyInput } from "@/components/ui/money-input";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 
@@ -1211,6 +1214,46 @@ function VoucherDialog({
     ...QUERY_PRESETS.REFERENCE,
   });
 
+  const customersFn = useServerFn(listCustomers);
+  const customerGroupsFn = useServerFn(listPartyGroups);
+  const { data: customersAll } = useQuery({
+    queryKey: ["customers"],
+    queryFn: () => customersFn({}),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const { data: customerGroups } = useQuery({
+    queryKey: ["party-groups", "customer"],
+    queryFn: () => customerGroupsFn({ data: { kind: "customer" } }),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const customerById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const c of (customersAll ?? []) as any[]) m.set(c.id, c);
+    return m;
+  }, [customersAll]);
+  const groupNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of (customerGroups ?? []) as any[]) m.set(g.id, g.name);
+    return m;
+  }, [customerGroups]);
+
+  // Auto-update "Mô tả" khi người dùng chưa chỉnh tay
+  const [reasonTouched, setReasonTouched] = useState(false);
+  useEffect(() => {
+    if (!open) setReasonTouched(false);
+  }, [open]);
+  useEffect(() => {
+    if (!open || reasonTouched) return;
+    const next = `Bán hàng cho khách hàng ${form.customer_name || "---"} theo hoá đơn số ${form.einvoice.invoice_no || form.voucher_no || "---"}`;
+    if (next !== form.reason) {
+      setForm((f) => ({ ...f, reason: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reasonTouched, form.customer_name, form.voucher_no, form.einvoice.invoice_no]);
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[95vh] flex flex-col p-0 gap-0">
@@ -1264,16 +1307,21 @@ function VoucherDialog({
                 </Label>
                 <CustomerCombobox
                   value={form.customer_id}
-                  onChange={(c) =>
+                  onChange={(c) => {
+                    const full = c?.id ? customerById.get(c.id) : null;
+                    const groupId = (full as any)?.group_id ?? null;
+                    const groupName = groupId ? (groupNameById.get(groupId) ?? "") : "";
                     setForm((f) => ({
                       ...f,
                       customer_id: c?.id ?? null,
                       customer_name: c?.name ?? "",
                       customer_tax_id: c?.tax_id ?? "",
                       customer_address: c?.address ?? "",
-                    }))
-                  }
+                      customer_group: groupName || f.customer_group,
+                    }));
+                  }}
                 />
+
               </div>
               <div>
                 <Label className="text-xs">
@@ -1408,9 +1456,13 @@ function VoucherDialog({
               </Label>
               <Textarea
                 value={form.reason}
-                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                onChange={(e) => {
+                  setReasonTouched(true);
+                  setForm((f) => ({ ...f, reason: e.target.value }));
+                }}
                 rows={2}
               />
+
             </div>
           </div>
 
@@ -1667,14 +1719,12 @@ function VoucherDialog({
                         />
                       </td>
                       <td className="px-1 py-1 w-[110px]">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={l.unit_price || ""}
-                          onChange={(e) =>
-                            updateLine(i, { unit_price: Number(e.target.value || 0) })
-                          }
+                        <MoneyInput
+                          className="h-8"
+                          value={l.unit_price || 0}
+                          onChange={(n) => updateLine(i, { unit_price: n })}
                         />
+
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
                         {fmtMoney(l.amount)}
@@ -1803,13 +1853,11 @@ function VoucherDialog({
                     </div>
                     <div>
                       <Label className="text-xs">Đơn giá</Label>
-                      <Input
-                        type="number"
-                        value={l.unit_price || ""}
-                        onChange={(e) =>
-                          updateLine(i, { unit_price: Number(e.target.value || 0) })
-                        }
+                      <MoneyInput
+                        value={l.unit_price || 0}
+                        onChange={(n) => updateLine(i, { unit_price: n })}
                       />
+
                     </div>
                     <div>
                       <Label className="text-xs">TK nợ</Label>
