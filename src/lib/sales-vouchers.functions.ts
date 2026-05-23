@@ -888,6 +888,9 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
           );
         }
       }
+    }
+
+
 
 
     if (v.cash_voucher_id) {
