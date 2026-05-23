@@ -42,6 +42,8 @@ function StaffPage() {
           </CardContent>
         </Card>
       ))}
+        </div>
+      )}
     </div>
   );
 }
