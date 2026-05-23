@@ -35,7 +35,15 @@ type Meta = { voucher_no: string; voucher_type: string; source_table: string; pa
 async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]): Promise<Map<string, Meta>> {
   const meta = new Map<string, Meta>();
   if (entryIds.length === 0) return meta;
-  const set = (id: string, m: Meta) => { if (id && !meta.has(id)) meta.set(id, m); };
+  const priority = new Map<string, number>();
+  const set = (id: string, m: Meta, p = 10) => {
+    const current = priority.get(id) ?? -1;
+    if (id && p > current) {
+      meta.set(id, m);
+      priority.set(id, p);
+    }
+  };
+  const invoiceLabel = (...parts: Array<string | null | undefined>) => parts.filter(Boolean).join(" ").trim();
 
   // Chunked .in() — Supabase limits URL length; 200 per chunk is safe.
   const chunks: string[][] = [];
@@ -48,15 +56,49 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
     const [cash, bank, cr, sp, si, sv, pr, de, salesV, purchV] = await Promise.all([
       supabase.from("cash_vouchers").select("journal_entry_id, voucher_no, voucher_type, party_name, reason").in("journal_entry_id", ch),
       supabase.from("bank_vouchers").select("journal_entry_id, voucher_no, voucher_type, party_name, reference, reason").in("journal_entry_id", ch),
-      supabase.from("customer_receipts").select("journal_entry_id, reference, customer_name, method").in("journal_entry_id", ch),
-      supabase.from("supplier_payments").select("journal_entry_id, reference, supplier_name, method").in("journal_entry_id", ch),
+      supabase.from("customer_receipts").select("journal_entry_id, reference, customer_name, method, invoice_id").in("journal_entry_id", ch),
+      supabase.from("supplier_payments").select("journal_entry_id, reference, supplier_name, method, invoice_id").in("journal_entry_id", ch),
       supabase.from("sales_invoices").select("journal_entry_id, invoice_series, invoice_no, customer_name").in("journal_entry_id", ch),
       supabase.from("stock_vouchers").select("journal_entry_id, voucher_no, voucher_type, reason").in("journal_entry_id", ch),
       supabase.from("payroll_runs").select("journal_entry_id, period_month").in("journal_entry_id", ch),
       supabase.from("depreciation_entries").select("journal_entry_id, period_month").in("journal_entry_id", ch),
       supabase.from("sales_vouchers").select("journal_entry_id, voucher_no, customer_name, reason, einvoice_id").in("journal_entry_id", ch),
-      supabase.from("purchase_vouchers").select("journal_entry_id, voucher_no, supplier_name, invoice_no, reason").in("journal_entry_id", ch),
+      supabase.from("purchase_vouchers").select("journal_entry_id, voucher_no, supplier_name, invoice_id, invoice_no, reason").in("journal_entry_id", ch),
     ]);
+
+    const salesInvoiceIds = Array.from(new Set(((cr.data ?? []) as any[]).map((r) => r.invoice_id).filter(Boolean)));
+    const purchaseInvoiceIds = Array.from(new Set([
+      ...((sp.data ?? []) as any[]).map((r) => r.invoice_id).filter(Boolean),
+      ...((purchV.data ?? []) as any[]).map((r) => r.invoice_id).filter(Boolean),
+    ]));
+    const salesInvoiceNoById = new Map<string, string>();
+    const purchaseInvoiceNoById = new Map<string, string>();
+    if (salesInvoiceIds.length > 0) {
+      const { data } = await supabase
+        .from("sales_invoices")
+        .select("id, invoice_series, invoice_no")
+        .in("id", salesInvoiceIds);
+      for (const r of (data ?? []) as any[]) {
+        const no = invoiceLabel(r.invoice_series, r.invoice_no);
+        if (no) salesInvoiceNoById.set(r.id, no);
+      }
+    }
+    if (purchaseInvoiceIds.length > 0) {
+      const [{ data: invs }, { data: einvs }] = await Promise.all([
+        supabase.from("invoices").select("id, invoice_no").in("id", purchaseInvoiceIds),
+        supabase.from("einvoices").select("matched_purchase_invoice_id, invoice_series, invoice_no").in("matched_purchase_invoice_id", purchaseInvoiceIds),
+      ]);
+      for (const r of (invs ?? []) as any[]) {
+        const no = invoiceLabel(r.invoice_no);
+        if (no) purchaseInvoiceNoById.set(r.id, no);
+      }
+      for (const r of (einvs ?? []) as any[]) {
+        const no = invoiceLabel(r.invoice_series, r.invoice_no);
+        if (r.matched_purchase_invoice_id && no && !purchaseInvoiceNoById.has(r.matched_purchase_invoice_id)) {
+          purchaseInvoiceNoById.set(r.matched_purchase_invoice_id, no);
+        }
+      }
+    }
     for (const r of cash.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_CASH[r.voucher_type] ?? r.voucher_type,
       source_table: "cash_vouchers", party_name: r.party_name, reference: r.reason ?? null,
@@ -70,24 +112,24 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
     for (const r of cr.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu thu KH",
       source_table: "customer_receipts", party_name: r.customer_name, reference: r.method,
-      invoice_no: null,
-    });
+      invoice_no: r.invoice_id ? (salesInvoiceNoById.get(r.invoice_id) ?? null) : null,
+    }, 10);
     for (const r of sp.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu chi NCC",
       source_table: "supplier_payments", party_name: r.supplier_name, reference: r.method,
-      invoice_no: null,
-    });
+      invoice_no: r.invoice_id ? (purchaseInvoiceNoById.get(r.invoice_id) ?? null) : null,
+    }, 10);
     for (const r of si.data ?? []) set(r.journal_entry_id, {
-      voucher_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" "),
+      voucher_no: invoiceLabel(r.invoice_series, r.invoice_no),
       voucher_type: "Hóa đơn bán", source_table: "sales_invoices",
       party_name: r.customer_name, reference: null,
-      invoice_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" ") || null,
-    });
+      invoice_no: invoiceLabel(r.invoice_series, r.invoice_no) || null,
+    }, 20);
     for (const r of sv.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: r.voucher_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho",
       source_table: "stock_vouchers", party_name: null, reference: r.reason ?? null,
       invoice_no: null,
-    });
+    }, 5);
     for (const r of pr.data ?? []) set(r.journal_entry_id, {
       voucher_no: `Lương ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Bảng lương",
       source_table: "payroll_runs", party_name: null, reference: null,
@@ -109,7 +151,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
         .select("id, invoice_series, invoice_no")
         .in("id", einvIds);
       for (const e of (einvs ?? []) as any[]) {
-        const no = [e.invoice_series, e.invoice_no].filter(Boolean).join(" ");
+        const no = invoiceLabel(e.invoice_series, e.invoice_no);
         if (no) einvMap.set(e.id, no);
       }
     }
@@ -118,15 +160,15 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       source_table: "sales_vouchers", party_name: r.customer_name,
       reference: r.reason ?? null,
       invoice_no: r.einvoice_id ? (einvMap.get(r.einvoice_id) ?? null) : null,
-    });
+    }, 20);
     for (const r of (purchV.data ?? []) as any[]) {
-      const no = (r.invoice_no ?? "").toString().trim();
+      const no = invoiceLabel(r.invoice_no) || (r.invoice_id ? (purchaseInvoiceNoById.get(r.invoice_id) ?? "") : "");
       set(r.journal_entry_id, {
         voucher_no: r.voucher_no, voucher_type: "Phiếu mua hàng",
         source_table: "purchase_vouchers", party_name: r.supplier_name,
         reference: r.reason ?? null,
         invoice_no: no || null,
-      });
+      }, 20);
     }
   }
 
