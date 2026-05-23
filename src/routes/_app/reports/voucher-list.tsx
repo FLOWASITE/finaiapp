@@ -71,7 +71,6 @@ function VoucherListPage() {
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [groupByVoucher, setGroupByVoucher] = useState(false);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
