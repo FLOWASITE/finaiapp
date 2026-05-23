@@ -315,16 +315,16 @@ export const exportVoucherListXlsx = createServerFn({ method: "POST" })
     ws.getCell("A1").font = { bold: true, size: 13 };
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
-    ws.mergeCells("A5:M5");
+    ws.mergeCells("A5:N5");
     ws.getCell("A5").value = "BẢNG KÊ CHỨNG TỪ";
     ws.getCell("A5").font = { bold: true, size: 14 };
     ws.getCell("A5").alignment = { horizontal: "center" };
-    ws.mergeCells("A6:M6");
+    ws.mergeCells("A6:N6");
     ws.getCell("A6").value = `Kỳ từ ${data.from} đến ${data.to}`;
     ws.getCell("A6").alignment = { horizontal: "center" };
 
     const headers = [
-      "Ngày", "Số CT", "Loại CT", "Diễn giải", "TK", "Phát sinh Nợ", "Phát sinh Có",
+      "Ngày", "Số CT", "Loại CT", "Số HĐ", "Diễn giải", "TK", "Phát sinh Nợ", "Phát sinh Có",
       "Đối tác", "Tham chiếu", "Chi nhánh", "Phòng ban", "Dự án", "TT chi phí",
     ];
     const headerRow = ws.addRow([]);
