@@ -7,6 +7,7 @@ import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Users, Truck, FolderTree,
   TrendingUp, TrendingDown, Wallet, AlertCircle, ChevronDown, X,
   MoreVertical, FilePlus, BookOpen, GitMerge, Trash2, FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,10 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
 import { OpeningBalanceDialog } from "@/components/parties/opening-balance-dialog";
