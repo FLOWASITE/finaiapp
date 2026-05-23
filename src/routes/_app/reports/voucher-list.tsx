@@ -268,14 +268,6 @@ function VoucherListPage() {
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <input
               type="checkbox"
-              checked={groupByVoucher}
-              onChange={(e) => setGroupByVoucher(e.target.checked)}
-            />
-            Gộp theo số CT
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
               checked={showSignature}
               onChange={(e) => setShowSignature(e.target.checked)}
             />
