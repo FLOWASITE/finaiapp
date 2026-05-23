@@ -19,6 +19,7 @@ import {
   recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { listProducts } from "@/lib/inventory.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { listBranches } from "@/lib/dimensions.functions";
 import { listCustomers } from "@/lib/customers.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
