@@ -119,11 +119,14 @@ export function NotificationsMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[380px] p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Thông báo</span>
-            <span className="text-[11px] text-muted-foreground">
-              {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Tất cả đã đọc"}
-            </span>
+          <div className="flex items-center gap-2">
+            <FinMascot size="xs" glow={false} />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">Thông báo</span>
+              <span className="text-[11px] text-muted-foreground">
+                {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Tất cả đã đọc"}
+              </span>
+            </div>
           </div>
           <Button
             variant="ghost"
