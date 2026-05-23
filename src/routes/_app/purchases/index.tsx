@@ -447,11 +447,18 @@ function PayBadge({ status }: { status: string }) {
 // ============================================================
 // UPLOAD INVOICE BUTTON (OCR)
 // ============================================================
-function UploadInvoiceButton() {
+const UploadInvoiceButton = React.forwardRef<
+  { open: () => void },
+  { hideTrigger?: boolean }
+>(function UploadInvoiceButton({ hideTrigger = false }, ref) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const extract = useServerFn(extractInvoice);
+
+  React.useImperativeHandle(ref, () => ({
+    open: () => fileRef.current?.click(),
+  }));
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -492,13 +499,16 @@ function UploadInvoiceButton() {
         onChange={onUpload}
         disabled={uploading}
       />
-      <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
-        <Upload className="mr-2 h-4 w-4" />
-        {uploading ? "Đang xử lý..." : "Upload HĐ"}
-      </Button>
+      {!hideTrigger && (
+        <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Upload className="mr-2 h-4 w-4" />
+          {uploading ? "Đang xử lý..." : "Upload HĐ"}
+        </Button>
+      )}
     </>
   );
-}
+});
+
 
 // ============================================================
 // TAB: INVOICES
