@@ -22,12 +22,14 @@ import {
   recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
 import { listSuppliers } from "@/lib/purchases.functions";
+import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -963,11 +965,40 @@ function CreateVoucherDialog({
     }
   }, [header.create_stock_voucher, warehouses, header.warehouse_id]);
 
+  // Nhóm NCC để auto-fill khi chọn NCC
+  const supplierGroupsFn = useServerFn(listPartyGroups);
+  const { data: supplierGroups } = useQuery({
+    queryKey: ["party-groups", "supplier"],
+    queryFn: () => supplierGroupsFn({ data: { kind: "supplier" } }),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const supplierGroupNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of (supplierGroups ?? []) as any[]) m.set(g.id, g.name);
+    return m;
+  }, [supplierGroups]);
+
+  // Auto-update "Diễn giải" khi user chưa chỉnh tay
+  const [reasonTouched, setReasonTouched] = useState(false);
+  useEffect(() => {
+    if (!open) setReasonTouched(false);
+  }, [open]);
+  useEffect(() => {
+    if (!open || reasonTouched) return;
+    const next = `Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || header.voucher_no || "---"}`;
+    if (next !== header.reason) {
+      setHeader((h) => ({ ...h, reason: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reasonTouched, header.supplier_name, header.voucher_no, header.invoice_no]);
+
   useEffect(() => {
     if (open && !header.voucher_no && suggested?.voucher_no) {
       setHeader((h) => ({ ...h, voucher_no: suggested.voucher_no }));
     }
   }, [open, suggested, header.voucher_no]);
+
 
   // totals
   const totals = useMemo(() => {
@@ -1204,11 +1235,14 @@ function CreateVoucherDialog({
                   <Select value={header.supplier_id || "none"}
                     onValueChange={(v) => {
                       const s = (suppliers ?? []).find((x: any) => x.id === v);
+                      const groupId = (s as any)?.group_id ?? null;
+                      const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
                       setHeader({
                         ...header,
                         supplier_id: v === "none" ? "" : v,
                         supplier_name: s?.name ?? "",
                         supplier_address: s?.address ?? "",
+                        customer_group: groupName || header.customer_group,
                       });
                     }}>
                     <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
@@ -1289,7 +1323,7 @@ function CreateVoucherDialog({
               <div className="sm:col-span-2 lg:col-span-4">
                 <Label>Diễn giải</Label>
                 <Input value={header.reason}
-                  onChange={(e) => setHeader({ ...header, reason: e.target.value })}
+                  onChange={(e) => { setReasonTouched(true); setHeader({ ...header, reason: e.target.value }); }}
                   placeholder={`Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || "---"}`} />
               </div>
             </div>
@@ -1391,8 +1425,8 @@ function CreateVoucherDialog({
                           onChange={(e) => updateLine(l.key, { qty: Number(e.target.value) })} />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" className="text-right" value={l.unit_price}
-                          onChange={(e) => updateLine(l.key, { unit_price: Number(e.target.value) })} />
+                        <MoneyInput className="text-right" value={l.unit_price || 0}
+                          onChange={(n) => updateLine(l.key, { unit_price: n })} />
                       </TableCell>
                       <TableCell>
                         <Input type="number" className="text-right" value={l.discount_pct}
@@ -1495,8 +1529,8 @@ function CreateVoucherDialog({
                       </div>
                       <div>
                         <Label className="text-xs">Đơn giá</Label>
-                        <Input type="number" value={l.unit_price}
-                          onChange={(e) => updateLine(l.key, { unit_price: Number(e.target.value) })} />
+                        <MoneyInput value={l.unit_price || 0}
+                          onChange={(n) => updateLine(l.key, { unit_price: n })} />
                       </div>
                       <div>
                         <Label className="text-xs">CK %</Label>
