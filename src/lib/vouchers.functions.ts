@@ -217,33 +217,34 @@ async function buildVoucherList(
     loadDimNames(supabase),
   ]);
 
-  const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
-    const e = l.journal_entries;
-    const m = meta.get(l.entry_id);
-    return {
-      entry_id: l.entry_id,
-      line_id: l.id,
-      line_index: Number(l.line_order) || 0,
-      entry_date: e.entry_date,
-      voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
-      voucher_type: m?.voucher_type ?? "Phiếu kế toán",
-      source_table: m?.source_table ?? "journal_entries",
-      description: e.description,
-      account_code: l.account_code,
-      debit: Number(l.debit) || 0,
-      credit: Number(l.credit) || 0,
-      party_name: m?.party_name ?? null,
-      reference: m?.reference ?? null,
-      branch_id: l.branch_id,
-      branch_name: (l.branch_id ? (dimNames.branch.get(l.branch_id) as string) : null) ?? null,
-      department_id: l.department_id,
-      department_name: (l.department_id ? (dimNames.dept.get(l.department_id) as string) : null) ?? null,
-      project_id: l.project_id,
-      project_name: (l.project_id ? (dimNames.project.get(l.project_id) as string) : null) ?? null,
-      cost_center_id: l.cost_center_id,
-      cost_center_name: (l.cost_center_id ? (dimNames.cc.get(l.cost_center_id) as string) : null) ?? null,
-    };
-  });
+    const rows: VoucherListRow[] = (lines ?? []).map((l: any) => {
+      const e = l.journal_entries;
+      const m = meta.get(l.entry_id);
+      return {
+        entry_id: l.entry_id,
+        line_id: l.id,
+        line_index: Number(l.line_order) || 0,
+        entry_date: e.entry_date,
+        voucher_no: m?.voucher_no ?? `PKT-${String(l.entry_id).slice(0, 8)}`,
+        voucher_type: m?.voucher_type ?? "Phiếu kế toán",
+        source_table: m?.source_table ?? "journal_entries",
+        description: e.description,
+        account_code: l.account_code,
+        debit: Number(l.debit) || 0,
+        credit: Number(l.credit) || 0,
+        party_name: m?.party_name ?? null,
+        reference: m?.reference ?? null,
+        invoice_no: m?.invoice_no ?? null,
+        branch_id: l.branch_id,
+        branch_name: (l.branch_id ? (dimNames.branch.get(l.branch_id) as string) : null) ?? null,
+        department_id: l.department_id,
+        department_name: (l.department_id ? (dimNames.dept.get(l.department_id) as string) : null) ?? null,
+        project_id: l.project_id,
+        project_name: (l.project_id ? (dimNames.project.get(l.project_id) as string) : null) ?? null,
+        cost_center_id: l.cost_center_id,
+        cost_center_name: (l.cost_center_id ? (dimNames.cc.get(l.cost_center_id) as string) : null) ?? null,
+      };
+    });
 
   // sourceTables / voucherTypes filters are applied AFTER meta resolution;
   // for paginated mode we keep these page-local to avoid an extra full scan.
