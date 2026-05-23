@@ -359,8 +359,8 @@ function InvoicesList() {
                 ))}
             {!isLoading && (data?.rows ?? []).length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
-                  Không có hoá đơn theo bộ lọc.
+                <td colSpan={8} className="px-4 py-8">
+                  <EmptyState size="sm" bordered={false} title="Không có hoá đơn theo bộ lọc" description="Thử đổi từ khoá hoặc khoảng thời gian." />
                 </td>
               </tr>
             )}
