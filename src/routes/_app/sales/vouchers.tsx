@@ -1257,6 +1257,13 @@ function VoucherDialog({
     ...QUERY_PRESETS.REFERENCE,
   });
 
+  const warehousesFn = useServerFn(listWarehouses);
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses-picker"],
+    queryFn: () => warehousesFn(),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
   const customersFn = useServerFn(listCustomers);
   const customerGroupsFn = useServerFn(listPartyGroups);
   const { data: customersAll } = useQuery({
