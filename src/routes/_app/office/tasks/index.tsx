@@ -42,7 +42,9 @@ function TasksKanban() {
   const byStatus = (s: string) => (data ?? []).filter((t: any) => t.status === s);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-3">
+      <div className="flex justify-end"><TaskDialog /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {COLUMNS.map((col) => (
         <div
           key={col.id}
