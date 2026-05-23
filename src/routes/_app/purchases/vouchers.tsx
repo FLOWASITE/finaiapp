@@ -920,6 +920,13 @@ function PurchaseVouchersPage() {
         initialParty={initialParty}
       />
 
+      <VoidConfirmDialog
+        open={voidDlg.open}
+        onOpenChange={(o) => setVoidDlg((s) => ({ ...s, open: o }))}
+        items={voidDlg.items}
+        loading={voidMut.isPending}
+        onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
+      />
 
     </div>
     </div>
