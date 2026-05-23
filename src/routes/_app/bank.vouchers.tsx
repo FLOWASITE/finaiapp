@@ -5,6 +5,7 @@ import { invalidateLedgers } from "@/lib/query-invalidation";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight } from "lucide-react";
 import { PostedBadge, AttachmentsCell, VoucherRowActions } from "@/components/voucher-row-actions";
 import { format } from "date-fns";
