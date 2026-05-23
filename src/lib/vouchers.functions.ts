@@ -58,35 +58,43 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
     for (const r of cash.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_CASH[r.voucher_type] ?? r.voucher_type,
       source_table: "cash_vouchers", party_name: r.party_name, reference: r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of bank.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: VTYPE_BANK[r.voucher_type] ?? r.voucher_type,
       source_table: "bank_vouchers", party_name: r.party_name, reference: r.reference ?? r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of cr.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu thu KH",
       source_table: "customer_receipts", party_name: r.customer_name, reference: r.method,
+      invoice_no: null,
     });
     for (const r of sp.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu chi NCC",
       source_table: "supplier_payments", party_name: r.supplier_name, reference: r.method,
+      invoice_no: null,
     });
     for (const r of si.data ?? []) set(r.journal_entry_id, {
       voucher_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" "),
       voucher_type: "Hóa đơn bán", source_table: "sales_invoices",
       party_name: r.customer_name, reference: null,
+      invoice_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" ") || null,
     });
     for (const r of sv.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: r.voucher_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho",
       source_table: "stock_vouchers", party_name: null, reference: r.reason ?? null,
+      invoice_no: null,
     });
     for (const r of pr.data ?? []) set(r.journal_entry_id, {
       voucher_no: `Lương ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Bảng lương",
       source_table: "payroll_runs", party_name: null, reference: null,
+      invoice_no: null,
     });
     for (const r of de.data ?? []) set(r.journal_entry_id, {
       voucher_no: `KH ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Khấu hao",
       source_table: "depreciation_entries", party_name: null, reference: null,
+      invoice_no: null,
     });
   }
 
@@ -119,6 +127,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       if (info) set(entryId, {
         voucher_no: info.no, voucher_type: "Hóa đơn mua",
         source_table: "invoices", party_name: info.supplier, reference: null,
+        invoice_no: info.no,
       });
     }
   }
