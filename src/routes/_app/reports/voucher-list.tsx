@@ -134,6 +134,7 @@ function VoucherListPage() {
     entry_date: string;
     voucher_no: string;
     voucher_type: string;
+    invoice_no: string | null;
     description: string | null;
     debitAccount: string | null;
     creditAccount: string | null;
