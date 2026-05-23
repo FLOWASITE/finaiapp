@@ -1347,6 +1347,58 @@ function VoucherDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {/* Khu vực Phiếu xuất kho */}
+          {form.create_stock_voucher && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <h4 className="text-sm font-semibold text-primary">Phiếu xuất kho</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs"><span className="text-destructive">*</span> Kho</Label>
+                  <Select
+                    value={form.warehouse_id ?? ""}
+                    onValueChange={(v) => setForm((f) => ({ ...f, warehouse_id: v || null }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Chọn kho" /></SelectTrigger>
+                    <SelectContent>
+                      {((warehouses ?? []) as any[]).map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.code} — {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Số phiếu xuất kho</Label>
+                  <Input
+                    className="h-9"
+                    placeholder={`XK-${form.voucher_no || ""}`}
+                    value={form.stock_voucher_no}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_no: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Ngày phiếu xuất kho</Label>
+                  <Input
+                    type="date"
+                    className="h-9"
+                    value={form.stock_voucher_date || form.voucher_date}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_date: e.target.value }))}
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <Label className="text-xs">Diễn giải</Label>
+                  <Input
+                    className="h-9"
+                    placeholder={`Xuất kho theo phiếu ${form.voucher_no || ""}`}
+                    value={form.stock_voucher_reason}
+                    onChange={(e) => setForm((f) => ({ ...f, stock_voucher_reason: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="space-y-3">
             <h3 className="text-primary font-semibold border-b pb-1">Phiếu bán hàng</h3>
