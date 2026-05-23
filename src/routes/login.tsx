@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { FinAILogo } from "@/components/FinAILogo";
 import { useEffect, useMemo, useState } from "react";
 
 import { z } from "zod";
