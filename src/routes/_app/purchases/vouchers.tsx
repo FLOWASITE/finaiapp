@@ -100,13 +100,13 @@ function KpiCard({
   } as const;
   return (
     <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+      <CardContent className="p-2 sm:p-4 flex items-center gap-2 sm:gap-3">
+        <div className={`h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full grid place-items-center ${toneCls[tone]}`}>
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{label}</div>
-          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground truncate leading-tight">{label}</div>
+          <div className="text-sm sm:text-lg font-semibold tabular-nums truncate">{value}</div>
         </div>
       </CardContent>
     </Card>
@@ -339,6 +339,7 @@ function PurchaseVouchersPage() {
   const [status, setStatus] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>(firstOfYearISO());
   const [fTo, setFTo] = useState<string>(todayISO());
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -501,27 +502,38 @@ function PurchaseVouchersPage() {
 
       {/* Toolbar */}
       <Card>
-        <CardContent className="p-3">
+        <CardContent className="p-2 sm:p-3">
+          <div className="flex items-center justify-between mb-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className="text-sm font-medium inline-flex items-center gap-1"
+            >
+              Bộ lọc
+              <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+            </button>
+            <span className="text-xs text-muted-foreground">Tổng: <span className="font-semibold text-foreground">{rows.length}</span></span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <DateRangeFilter from={fFrom} to={fTo} onChange={(r) => { setFFrom(r.from); setFTo(r.to); }} />
-
-
-            <Input
-              placeholder="Tìm số phiếu, NCC, diễn giải…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 max-w-xs"
-            />
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="uploaded">Nháp</SelectItem>
-                <SelectItem value="reviewed">Đã duyệt</SelectItem>
-                <SelectItem value="posted">Đã ghi sổ</SelectItem>
-                <SelectItem value="void">Đã huỷ</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className={`${showFilters ? "flex" : "hidden"} md:flex flex-wrap items-center gap-2 w-full md:w-auto`}>
+              <DateRangeFilter from={fFrom} to={fTo} onChange={(r) => { setFFrom(r.from); setFTo(r.to); }} />
+              <Input
+                placeholder="Tìm số phiếu, NCC, diễn giải…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 max-w-xs"
+              />
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="uploaded">Nháp</SelectItem>
+                  <SelectItem value="reviewed">Đã duyệt</SelectItem>
+                  <SelectItem value="posted">Đã ghi sổ</SelectItem>
+                  <SelectItem value="void">Đã huỷ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <Button
@@ -613,7 +625,7 @@ function PurchaseVouchersPage() {
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
+              <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">
                 Tổng: <span className="font-semibold text-foreground">{rows.length}</span>
               </span>
             </div>

@@ -199,13 +199,13 @@ function KpiCard({
   } as const;
   return (
     <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-full grid place-items-center ${toneCls[tone]}`}>
+      <CardContent className="p-2 sm:p-4 flex items-center gap-2 sm:gap-3">
+        <div className={`h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full grid place-items-center ${toneCls[tone]}`}>
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-xs text-muted-foreground truncate">{label}</div>
-          <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground truncate leading-tight">{label}</div>
+          <div className="text-sm sm:text-lg font-semibold tabular-nums truncate">{value}</div>
         </div>
       </CardContent>
     </Card>
@@ -384,6 +384,7 @@ function SalesVouchersPage() {
   const [fTo, setFTo] = useState<string>(defaultPeriod.to);
   const [fCustomerId, setFCustomerId] = useState<string | null>(null);
   const [fSearch, setFSearch] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   const listInput = useMemo(
     () => ({
@@ -852,8 +853,23 @@ function SalesVouchersPage() {
 
 
       <Card>
-        <CardContent className="p-3 sm:p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
+        <CardContent className="p-2 sm:p-4">
+          <div className="flex items-center justify-between mb-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className="text-sm font-medium inline-flex items-center gap-1"
+            >
+              Bộ lọc{hasActiveFilters ? ` (đang lọc)` : ""}
+              <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+            </button>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 px-2 text-xs">
+                <X className="h-3 w-3 mr-1" /> Xoá lọc
+              </Button>
+            )}
+          </div>
+          <div className={`${showFilters ? "grid" : "hidden"} md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end`}>
             <div>
               <Label className="text-xs mb-1 block">Trạng thái</Label>
               <Select value={fStatus} onValueChange={setFStatus}>
@@ -882,7 +898,7 @@ function SalesVouchersPage() {
                 placeholder="VD: PBH001"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="hidden md:flex gap-2">
               {hasActiveFilters && (
                 <Button variant="outline" size="sm" onClick={resetFilters} className="w-full">
                   <X className="h-4 w-4 mr-1" /> Xoá lọc
