@@ -427,10 +427,10 @@ function LoginPage() {
             {/* Remember + Forgot row */}
             {!isSignup && (
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs sm:text-sm">
-                <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 text-white/60 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-border text-primary focus:ring-primary/40"
+                    className="h-4 w-4 sm:h-3.5 sm:w-3.5 rounded border-white/20 bg-transparent text-[oklch(0.72_0.16_162)] focus:ring-[oklch(0.72_0.16_162)]/40"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -438,20 +438,20 @@ function LoginPage() {
                   type="button"
                   onClick={handleForgot}
                   disabled={resetting}
-                  className="font-medium text-primary hover:underline disabled:opacity-60"
+                  className="font-medium text-[oklch(0.78_0.16_162)] hover:underline disabled:opacity-60"
                 >
                   {resetting ? "Đang gửi..." : "Quên mật khẩu?"}
                 </button>
               </div>
             )}
 
-            {/* Login button — white with primary text */}
+            {/* Login button — solid emerald accent */}
             <button
               type={submitLogin ? "submit" : "button"}
               onClick={submitLogin ? undefined : () => setIsSignup(false)}
               disabled={loading && submitLogin}
               className={cn(
-                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-card text-primary font-semibold text-sm sm:text-base ring-1 ring-border shadow-[0_10px_30px_-10px_oklch(0.3_0.08_260/0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-10px_oklch(0.3_0.08_260/0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
+                "w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-white text-[oklch(0.18_0.04_260)] font-semibold text-sm sm:text-base ring-1 ring-white/20 shadow-[0_10px_30px_-10px_oklch(0_0_0/0.6)] transition-all hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-[0_14px_36px_-10px_oklch(0_0_0/0.7)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2",
               )}
             >
               {loading && submitLogin ? (
@@ -464,7 +464,7 @@ function LoginPage() {
               )}
             </button>
 
-            <p className="text-center text-xs text-muted-foreground pt-1">
+            <p className="text-center text-xs text-white/50 pt-1">
               {isSignup ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
             </p>
 
