@@ -412,7 +412,7 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
       .eq("id", id)
       .single();
     if (!cur) throw new Error("Không tìm thấy phiếu");
-    if (!["uploaded", "ai_read", "reviewed"].includes(cur.status)) {
+    if (!["uploaded", "ai_read", "reviewed", "draft", "void"].includes(cur.status)) {
       throw new Error("Phiếu đã ghi sổ — không thể sửa");
     }
 
