@@ -878,7 +878,7 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
   const reparseMut = useMutation({
     mutationFn: () => reparse({ data: { id: id! } }),
     onSuccess: (r: any) => {
-      toast.success(`Đã parse lại (${r.parser ?? "—"})`);
+      finToast.success(`AI đã parse lại chứng từ (${r.parser ?? "—"})`);
       qc.invalidateQueries({ queryKey: ["document", id] });
       qc.invalidateQueries({ queryKey: ["documents"] });
     },
