@@ -342,9 +342,23 @@ function VoucherListPage() {
       </div>
 
       <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-4 print:hidden">
+        {/* Quick filter bar */}
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} />
-          <DimensionFilterBar value={dims} onChange={setDims} />
+          <div className="flex flex-col gap-1 min-w-[12rem]">
+            <span className="text-xs text-muted-foreground">Chi nhánh</span>
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Tất cả chi nhánh" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Tất cả chi nhánh</SelectItem>
+                {(branchesQ.data ?? []).map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">TK (tiền tố)</span>
             <Input
@@ -381,18 +395,20 @@ function VoucherListPage() {
             className="ml-auto text-xs text-primary underline"
           >
             {showAdvanced ? "Ẩn bộ lọc nâng cao" : "Bộ lọc nâng cao"}
-            {voucherTypes.length > 0 && !showAdvanced && ` (${voucherTypes.length} loại CT)`}
+            {(sources.length > 1 || (dims.department_id || dims.project_id || dims.cost_center_id)) && !showAdvanced && " (đang lọc)"}
           </button>
         </div>
+
+        {/* Voucher type quick chips */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
-          {SOURCE_OPTIONS.map((opt) => {
-            const active = sources.includes(opt.value);
+          <span className="text-xs text-muted-foreground mr-1">Loại CT:</span>
+          {VOUCHER_TYPE_OPTIONS.map((opt) => {
+            const active = voucherTypes.includes(opt.value);
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => toggleSource(opt.value)}
+                onClick={() => toggleVoucherType(opt.value)}
                 className={
                   "rounded-full border px-2.5 py-0.5 text-xs transition " +
                   (active
@@ -404,53 +420,50 @@ function VoucherListPage() {
               </button>
             );
           })}
-          {sources.length > 0 && (
+          {voucherTypes.length > 0 && (
             <button
               type="button"
-              onClick={() => setSources([])}
+              onClick={() => setVoucherTypes([])}
               className="text-xs text-muted-foreground underline ml-1"
             >
               Bỏ chọn
             </button>
           )}
         </div>
+
         {showAdvanced && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-            <span className="text-xs text-muted-foreground mr-1">Loại CT (voucher_type):</span>
-            {VOUCHER_TYPE_OPTIONS.map((opt) => {
-              const active = voucherTypes.includes(opt.value);
-              return (
+          <div className="space-y-3 border-t border-border/60 pt-3">
+            <DimensionFilterBar value={dims} onChange={setDims} show={["department","project","cost_center"]} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground mr-1">Nguồn CT:</span>
+              {SOURCE_OPTIONS.map((opt) => {
+                const active = sources.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleSource(opt.value)}
+                    className={
+                      "rounded-full border px-2.5 py-0.5 text-xs transition " +
+                      (active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              {sources.length > 0 && (
                 <button
-                  key={opt.value}
                   type="button"
-                  onClick={() => toggleVoucherType(opt.value)}
-                  className={
-                    "rounded-full border px-2.5 py-0.5 text-xs transition " +
-                    (active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground")
-                  }
+                  onClick={() => setSources([])}
+                  className="text-xs text-muted-foreground underline ml-1"
                 >
-                  {opt.label}
+                  Bỏ chọn
                 </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setVoucherTypes(VOUCHER_TYPE_OPTIONS.map((o) => o.value))}
-              className="text-xs text-muted-foreground underline ml-1"
-            >
-              Chọn tất cả
-            </button>
-            {voucherTypes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setVoucherTypes([])}
-                className="text-xs text-muted-foreground underline"
-              >
-                Bỏ chọn
-              </button>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
