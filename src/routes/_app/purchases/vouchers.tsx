@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
+import { usePagination, TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
@@ -414,6 +415,8 @@ function PurchaseVouchersPage() {
   });
 
   const rows: any[] = data?.rows ?? [];
+  const pagination = usePagination(rows, 20, `${search}|${status}|${fFrom}|${fTo}`);
+  const pageRows = pagination.pageRows;
 
   // Phiếu xem là "đã thanh toán đủ" khi paid_amount >= total, hoặc payment_status='paid',
   // hoặc thanh toán ngay khi tạo (cash/bank với cash_voucher_id/bank_voucher_id).
@@ -678,7 +681,7 @@ function PurchaseVouchersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r: any, idx: number) => {
+                  {pageRows.map((r: any, i: number) => { const idx = (pagination.page - 1) * pagination.pageSize + i;
                     const total = Number(r.total || 0);
                     const paid = paidOf(r);
                     const remain = Math.max(0, total - paid);
@@ -808,6 +811,7 @@ function PurchaseVouchersPage() {
               </Table>
             </div>
           )}
+          <TablePagination {...pagination} />
         </CardContent>
       </Card>
 
