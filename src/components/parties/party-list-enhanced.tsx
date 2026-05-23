@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
+import { OpeningBalanceDialog } from "@/components/parties/opening-balance-dialog";
 import { TablePagination, usePagination } from "@/components/table-pagination";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { getPresetRange } from "@/lib/date-presets";
