@@ -313,6 +313,10 @@ type FormState = {
   pay_now: boolean;
   issue_einvoice: boolean;
   create_stock_voucher: boolean;
+  warehouse_id: string | null;
+  stock_voucher_no: string;
+  stock_voucher_date: string;
+  stock_voucher_reason: string;
   discount_pct: number;
   discount_amount: number;
   notes: string;
