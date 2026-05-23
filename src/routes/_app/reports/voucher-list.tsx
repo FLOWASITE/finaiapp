@@ -297,7 +297,7 @@ function VoucherListPage() {
       toast.loading("Đang xuất Excel...", { id: "xlsx-vl" });
       const res = await exportFn({
         data: {
-          from, to, dims,
+          from, to, dims: dimsWithBranch,
           sourceTables: sources.length ? sources : undefined,
           voucherTypes: voucherTypes.length ? voucherTypes : undefined,
           accountPrefix: accountPrefix.trim() || undefined,
