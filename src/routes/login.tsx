@@ -329,17 +329,17 @@ function LoginPage() {
             <div>
               <div
                 className={cn(
-                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-muted/40 pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-primary/40 transition-all",
-                  errors.email && "ring-destructive/50 focus-within:ring-destructive/50",
+                  "group flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white/[0.04] pl-2 pr-3 sm:pr-4 h-14 sm:h-16 ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[oklch(0.72_0.16_162)]/60 transition-all",
+                  errors.email && "ring-destructive/60 focus-within:ring-destructive/60",
                 )}
               >
-                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.94_0.05_165)] text-[oklch(0.38_0.12_165)]">
+                <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-[oklch(0.22_0.06_165)] text-[oklch(0.78_0.16_162)] ring-1 ring-white/5">
                   <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <Label
                     htmlFor="email"
-                    className="block text-[11px] font-medium text-muted-foreground"
+                    className="block text-[11px] font-medium text-white/55"
                   >
                     Địa chỉ email
                   </Label>
@@ -348,7 +348,7 @@ function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="ten@congty.com"
-                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-0 p-1 text-base sm:text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:ring-0"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
