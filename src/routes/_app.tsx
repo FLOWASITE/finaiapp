@@ -17,13 +17,12 @@ export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     try {
-      const { data, error } = await withTimeoutReject(supabase.auth.getUser(), 6_000);
-      if (error || !data.user) {
+      const { data, error } = await withTimeoutReject(supabase.auth.getSession(), 8_000);
+      if (error || !data.session?.access_token) {
         clearSupabaseAuthStorage();
         throw redirect({ to: "/login" });
       }
     } catch (error) {
-      clearSupabaseAuthStorage();
       if (error != null && typeof error === "object" && "isRedirect" in error) throw error;
       throw redirect({ to: "/login" });
     }
