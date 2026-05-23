@@ -104,9 +104,10 @@ function LoginPage() {
     const code = (err as { code?: string } | null)?.code;
     const m = raw.toLowerCase();
 
-    if (status === 0 || /failed to fetch|network|networkerror/i.test(raw)) {
-      return { title: "Không kết nối được máy chủ", detail: "Kiểm tra kết nối mạng rồi thử lại." };
+    if (status === 0 || /failed to fetch|network|networkerror|timeout/i.test(raw)) {
+      return { title: "Không kết nối được máy chủ", detail: "Phiên đăng nhập cũ đã được dọn. Vui lòng thử lại." };
     }
+
     if (code === "invalid_credentials" || m.includes("invalid login") || m.includes("invalid credentials")) {
       return { title: "Email hoặc mật khẩu không đúng", detail: "Vui lòng kiểm tra lại thông tin đăng nhập." };
     }
