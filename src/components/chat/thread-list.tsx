@@ -194,15 +194,12 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
         ) : (
           <>
             <div className="mb-3 flex items-center gap-2.5">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-foreground shadow-sm"
-                style={{ background: "var(--gradient-ai)" }}
-              >
-                <Sparkles className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center">
+                <FinMascot size="xs" mood="happy" glow={false} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">Trợ lý kế toán</div>
-                <div className="text-[10px] text-slate-500">AI assistant</div>
+                <div className="text-sm font-semibold leading-tight tracking-tight text-slate-900">AI Agent Kế toán</div>
+                <div className="text-[10px] text-slate-500">Fin AI</div>
               </div>
               {onToggle && (
                 <button
