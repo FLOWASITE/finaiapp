@@ -32,7 +32,6 @@ function CashPage() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openType, setOpenType] = useState<"receipt" | "payment" | null>(null);
   const [tab, setTab] = useState<CashTabValue>("vouchers");
-  const pagination = usePagination((vouchers ?? []) as any[], 20, vouchers);
 
   const { data: vouchers } = useQuery({ queryKey: ["vouchers"], queryFn: () => list({}),
  ...QUERY_PRESETS.TRANSACTIONAL,
@@ -40,6 +39,7 @@ function CashPage() {
   const { data: cashbook } = useQuery({ queryKey: ["cashbook", from, to], queryFn: () => book({ data: { from, to } }),
  ...QUERY_PRESETS.TRANSACTIONAL,
 });
+  const pagination = usePagination((vouchers ?? []) as any[], 20, vouchers);
 
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
@@ -166,6 +166,7 @@ function CashPage() {
               )}
             </tbody>
           </table>
+          <TablePagination {...pagination} />
         </div>
       )}
 
