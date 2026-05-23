@@ -119,6 +119,7 @@ function VoucherListPage() {
     return pageRows.filter((r) =>
       norm(r.voucher_no).includes(s) ||
       norm(r.voucher_type).includes(s) ||
+      norm(r.invoice_no ?? "").includes(s) ||
       norm(r.description ?? "").includes(s) ||
       norm(r.party_name ?? "").includes(s) ||
       norm(r.account_code).includes(s) ||
