@@ -52,6 +52,7 @@ import {
 } from "@/lib/receipts.functions";
 import { listProducts } from "@/lib/inventory.functions";
 import { ImportEinvoiceXmlDialog } from "@/components/import-einvoice-xml-dialog";
+import { SplitActionButton } from "@/components/split-action-button";
 import { Button } from "@/components/ui/button";
 import { AddNew } from "@/components/add-new";
 import { Input } from "@/components/ui/input";
