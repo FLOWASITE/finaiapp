@@ -34,6 +34,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAiSidebarCounts } from "@/lib/sidebar-counts.functions";
+import { FinMascot } from "@/components/fin-mascot";
+import { openAskAi } from "@/lib/open-ask-ai";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type BadgeTone = "new" | "muted" | "danger" | "default";
 type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
