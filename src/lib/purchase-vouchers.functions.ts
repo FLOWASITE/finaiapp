@@ -743,7 +743,6 @@ export const voidPurchaseVoucher = createServerFn({ method: "POST" })
       .from("purchase_vouchers")
       .update({
         status: "reviewed",
-        posted_at: null,
         paid_amount: 0,
         payment_status: "unpaid",
         voided_at: null,
