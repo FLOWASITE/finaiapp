@@ -172,7 +172,7 @@ function ReconcilePage() {
   const detectMut = useMutation({
     mutationFn: () => detectFn({ data: { from, to } }),
     onSuccess: (r: any) => {
-      toast.success(`Phát hiện ${r.pairsFound} cặp chuyển khoản, tạo ${r.created} bút toán`);
+      finToast.success(`AI phát hiện ${r.pairsFound} cặp chuyển khoản, tạo ${r.created} bút toán`);
       refresh();
     },
     onError: (e: any) => toast.error(e?.message || "Lỗi phát hiện"),
