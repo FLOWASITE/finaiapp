@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { DimensionFilterBar, type DimensionValue } from "@/components/dimension-filter-bar";
+import { VoucherDetailDialog } from "@/components/voucher-detail-dialog";
 import {
   fmt, Loading, PrintHeader, ReportCard, SignatureFooter,
 } from "./index";
@@ -70,6 +71,7 @@ function VoucherListPage() {
   const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showSignature, setShowSignature] = useState(false);
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -438,7 +440,12 @@ function VoucherListPage() {
                   <tbody>
                     {groupedRows.map((g) => {
                       return (
-                        <tr key={g.key} className="border-t border-border/60 align-top">
+                        <tr
+                          key={g.key}
+                          onClick={() => setDetailEntryId(g.entry_id)}
+                          className="border-t border-border/60 align-top cursor-pointer hover:bg-muted/50 print:cursor-default"
+                          title="Click để xem phiếu kế toán"
+                        >
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.entry_date}</td>
                           <td className="px-2 py-1.5 font-mono whitespace-nowrap">{g.voucher_no}</td>
                           <td className="px-2 py-1.5 whitespace-nowrap">{g.voucher_type}</td>
@@ -524,6 +531,7 @@ function VoucherListPage() {
 
         {showSignature && <SignatureFooter profile={profile} reportDate={to} />}
       </div>
+      <VoucherDetailDialog entryId={detailEntryId} onClose={() => setDetailEntryId(null)} />
     </div>
   );
 }
