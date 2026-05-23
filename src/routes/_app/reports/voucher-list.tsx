@@ -136,7 +136,8 @@ function VoucherListPage() {
     debitAccount: string | null;
     creditAccount: string | null;
     amount: number;
-    party_name: string | null;
+    debitParty: string | null;
+    creditParty: string | null;
     reference: string | null;
     branch_name: string | null;
     department_name: string | null;
@@ -163,11 +164,22 @@ function VoucherListPage() {
         key: "", entry_id: entryId, entry_date: meta.entry_date, voucher_no: meta.voucher_no,
         voucher_type: meta.voucher_type, description: meta.description,
         debitAccount: null, creditAccount: null, amount: 0,
-        party_name: meta.party_name, reference: meta.reference,
+        debitParty: null, creditParty: null, reference: meta.reference,
         branch_name: meta.branch_name, department_name: meta.department_name,
         project_name: meta.project_name, cost_center_name: meta.cost_center_name,
         pair_index: 0, ...extra,
       });
+      const PARTY_PREFIXES = ["131", "136", "138", "141", "144", "244", "331", "334", "336", "338"];
+      const isPartyAcc = (a: string | null) => !!a && PARTY_PREFIXES.some((p) => a.startsWith(p));
+      const partyFor = (dAcc: string | null, cAcc: string | null) => {
+        const pn = meta.party_name ?? null;
+        if (!pn) return { dp: null, cp: null };
+        const dIs = isPartyAcc(dAcc), cIs = isPartyAcc(cAcc);
+        if (dIs && !cIs) return { dp: pn, cp: null };
+        if (cIs && !dIs) return { dp: null, cp: pn };
+        if (dIs && cIs) return { dp: pn, cp: pn };
+        return { dp: pn, cp: null };
+      };
       for (const d of debits) {
         while (d.rem > EPS) {
           let cIdx = credits.findIndex((c) => c.rem > EPS && Math.abs(c.rem - d.rem) < EPS);
@@ -175,16 +187,20 @@ function VoucherListPage() {
           if (cIdx < 0) break;
           const c = credits[cIdx];
           const amt = Math.min(d.rem, c.rem);
-          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, pair_index: pairIdx }));
+          const { dp, cp } = partyFor(d.acc, c.acc);
+          out.push(base({ key: `${entryId}#${pairIdx}`, debitAccount: d.acc, creditAccount: c.acc, amount: amt, debitParty: dp, creditParty: cp, pair_index: pairIdx }));
           d.rem -= amt; c.rem -= amt; pairIdx++;
         }
       }
       for (const d of debits.filter((x) => x.rem > EPS)) {
-        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, pair_index: pairIdx++ }));
+        const { dp } = partyFor(d.acc, null);
+        out.push(base({ key: `${entryId}#d${d.idx}`, debitAccount: d.acc, amount: d.rem, debitParty: dp, pair_index: pairIdx++ }));
       }
       for (const c of credits.filter((x) => x.rem > EPS)) {
-        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, pair_index: pairIdx++ }));
+        const { cp } = partyFor(null, c.acc);
+        out.push(base({ key: `${entryId}#c${c.idx}`, creditAccount: c.acc, amount: c.rem, creditParty: cp, pair_index: pairIdx++ }));
       }
+
     }
     return out.sort(
       (a, b) =>
@@ -390,7 +406,8 @@ function VoucherListPage() {
                       <th className="px-2 py-2 text-center">TK Nợ</th>
                       <th className="px-2 py-2 text-center">TK Có</th>
                       <th className="px-2 py-2 text-right">Số tiền</th>
-                      <th className="px-2 py-2 text-left">Đối tác</th>
+                      <th className="px-2 py-2 text-left">Đối tượng Nợ</th>
+                      <th className="px-2 py-2 text-left">Đối tượng Có</th>
                       <th className="px-2 py-2 text-left">Tham chiếu</th>
                       <th className="px-2 py-2 text-left">Chi nhánh</th>
                       <th className="px-2 py-2 text-left">Phòng ban</th>
@@ -409,7 +426,8 @@ function VoucherListPage() {
                           <td className="px-2 py-1.5 text-center font-mono">{g.debitAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-center font-mono">{g.creditAccount ?? "—"}</td>
                           <td className="px-2 py-1.5 text-right font-mono">{fmt(g.amount)}</td>
-                          <td className="px-2 py-1.5">{g.party_name ?? ""}</td>
+                          <td className="px-2 py-1.5">{g.debitParty ?? ""}</td>
+                          <td className="px-2 py-1.5">{g.creditParty ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.reference ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.branch_name ?? ""}</td>
                           <td className="px-2 py-1.5 text-muted-foreground">{g.department_name ?? ""}</td>
@@ -420,7 +438,7 @@ function VoucherListPage() {
                     })}
                     {groupedRows.length === 0 && (
                       <tr>
-                        <td colSpan={13} className="px-3 py-12 text-center text-muted-foreground">
+                        <td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">
                           Không có chứng từ phù hợp bộ lọc
                         </td>
                       </tr>
@@ -432,7 +450,7 @@ function VoucherListPage() {
                       <tr className="border-t-2 border-border">
                         <td className="px-2 py-2" colSpan={6}>Tổng trang này</td>
                         <td className="px-2 py-2 text-right font-mono">{fmt(totalAmount)}</td>
-                        <td colSpan={6} />
+                        <td colSpan={7} />
                       </tr>
                     </tfoot>
                   )}
