@@ -68,17 +68,24 @@ function LoginPage() {
   const dest = next && next.startsWith("/") ? next : "/dashboard";
   const strength = useMemo(() => scorePassword(password), [password]);
 
-  // Nếu user đã đăng nhập sẵn, tự chuyển sang dashboard (xảy ra khi redirect
-  // "/" → "/login" nhưng vẫn còn session hợp lệ).
+  // Nếu user đã đăng nhập sẵn, tự chuyển sang dashboard.
+  // Race với timeout 1500ms để không bao giờ block UI khi Supabase auth
+  // bị treo do refresh token hỏng trong localStorage.
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: dest, replace: true });
-    });
+    withTimeout(supabase.auth.getSession(), 1500, { data: { session: null } } as any)
+      .then((res: any) => {
+        if (!active) return;
+        if (res?.data?.session) navigate({ to: dest, replace: true });
+      })
+      .catch(() => {
+        // Lỗi mạng → bỏ qua, để user đăng nhập thủ công
+      });
     return () => {
       active = false;
     };
   }, [dest, navigate]);
+
 
 
   function validate() {
