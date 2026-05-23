@@ -151,7 +151,7 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
         .select("id, invoice_series, invoice_no")
         .in("id", einvIds);
       for (const e of (einvs ?? []) as any[]) {
-        const no = [e.invoice_series, e.invoice_no].filter(Boolean).join(" ");
+        const no = invoiceLabel(e.invoice_series, e.invoice_no);
         if (no) einvMap.set(e.id, no);
       }
     }
@@ -160,15 +160,15 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
       source_table: "sales_vouchers", party_name: r.customer_name,
       reference: r.reason ?? null,
       invoice_no: r.einvoice_id ? (einvMap.get(r.einvoice_id) ?? null) : null,
-    });
+    }, 20);
     for (const r of (purchV.data ?? []) as any[]) {
-      const no = (r.invoice_no ?? "").toString().trim();
+      const no = invoiceLabel(r.invoice_no) || (r.invoice_id ? (purchaseInvoiceNoById.get(r.invoice_id) ?? "") : "");
       set(r.journal_entry_id, {
         voucher_no: r.voucher_no, voucher_type: "Phiếu mua hàng",
         source_table: "purchase_vouchers", party_name: r.supplier_name,
         reference: r.reason ?? null,
         invoice_no: no || null,
-      });
+      }, 20);
     }
   }
 
