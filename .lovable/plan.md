@@ -1,51 +1,48 @@
-# Rà soát module "Văn phòng"
+## Mục tiêu
 
-## Đã xong
-- Migration 4 nhóm bảng + RLS (prospects, client_links, contracts, tasks, templates, staff)
-- Layout `_app/office` + sidebar + 6 tab (Dashboard, Clients, Contracts, Tasks, Staff, Templates)
-- Server functions: prospects, client-links, contracts, tasks, task-templates, staff, dashboard
-- Dialog tạo mới: Prospect, Client Link (search tenant FinAI), Contract, Task, Staff
-- Cron sinh task định kỳ (pg_cron + function `office_generate_recurring_tasks`) + nút "Sinh ngay"
-- Dashboard KPI cơ bản
+Hiện tại convert prospect bắt phải chọn 1 tenant FinAI đã có. Đổi flow: **mỗi khách hàng mới = 1 tenant FinAI mới**, văn phòng kế toán tự động được cấp quyền truy cập, và contact của khách có thể được mời để tự đăng nhập dùng FinAI.
 
-## Còn thiếu so với plan
+## Thay đổi
 
-### 1. Convert prospect → client (quan trọng)
-- Server fn `convertToClient` chưa có
-- Nút "Chuyển thành khách hàng" trên prospect chưa có
-- Cần: cho chọn tenant FinAI có sẵn để link, hoặc đánh dấu won + lưu `converted_tenant_id`
+### 1. Server fn `convertProspect` (src/lib/office/prospects.functions.ts)
 
-### 2. Dialog "Mời nhân viên vào sổ sách khách"
-- Server fn `inviteStaffToClientTenant` đã có
-- Thiếu UI dialog gọi nó (chọn staff + role) trên trang chi tiết client link
+Đổi input — bỏ `client_tenant_id` (bắt buộc), thêm:
+- `tax_id`, `company_name`, `address`, `phone`, `email` (lấy mặc định từ prospect, cho phép sửa)
+- `invite_contact_email?: string` — nếu có sẽ gửi lời mời role `owner` cho email này
+- `fee_per_month?: number`, `display_name?: string`
 
-### 3. Kanban kéo-thả thực sự
-- Trang tasks hiện chỉ là 4 cột tĩnh, chưa có drag-drop
-- Cần cài `@dnd-kit/core` + `@dnd-kit/sortable` và bọc DndContext + gọi `moveStatus`
+Logic (dùng `supabaseAdmin` cho phần tạo tenant + invitation để bypass RLS):
+1. Lấy prospect, kiểm tra chưa converted.
+2. Tạo `tenants` mới: `name = prospect.name`, `owner_user_id = userId` (chủ văn phòng tạm thời là owner) — chuẩn theo flow tenant hiện tại.
+3. Insert `tenant_members` cho userId hiện tại (admin/owner) để văn phòng quản lý được.
+4. Insert `office_client_links` (agency_tenant_id = văn phòng, client_tenant_id = tenant mới).
+5. Nếu `invite_contact_email`: insert `user_invitations` (role `owner`, tenant_id = tenant mới, tenant_owner_id = userId). Trả về token để FE hiển thị link mời (`/invite/:token`).
+6. Update prospect: `status='won'`, `converted_tenant_id` = tenant mới.
 
-### 4. Trang chi tiết (drill-down)
-Plan yêu cầu nhưng chưa có:
-- `clients/$linkId.tsx` — info tenant + contracts + tasks + staff phụ trách + nút mời nhân viên
-- `prospects/$id.tsx` — form lead + convert
-- `contracts/$id.tsx` — chi tiết + gia hạn
-- `tasks/$taskId.tsx` — drawer chi tiết (comments, attachments, checklist)
-- `staff/$staffId.tsx` — hồ sơ + clients phụ trách + tải việc
+### 2. Dialog `ProspectConvertDialog`
 
-### 5. Staff assignments
-- Bảng `office_staff_assignments` đã có nhưng chưa có UI gán staff ↔ client link
-- Thiếu `assignment-matrix.tsx`
+Bỏ phần tìm tenant FinAI. Thay bằng form gồm:
+- Tên khách hàng (prefill từ prospect.name)
+- MST, địa chỉ, điện thoại, email contact (prefill từ prospect)
+- Phí dịch vụ / tháng
+- Checkbox "Gửi lời mời đăng nhập cho contact" → nếu bật, dùng `email` để tạo invitation
+- Sau khi thành công: toast + nếu có invitation token → hiển thị link `/invite/<token>` để chủ văn phòng copy gửi cho khách
 
-### 6. Cảnh báo hợp đồng sắp hết hạn
-- Server fn `listExpiring` chưa có
-- Widget cảnh báo trên Dashboard chưa có
-- Chức năng gia hạn (`renewContract` + bảng `office_contract_renewals`) chưa có UI
+### 3. Nút "Liên kết khách FinAI" cũ (ClientLinkDialog)
 
-## Ưu tiên đề xuất (theo thứ tự build tiếp)
-1. Convert prospect flow (#1) — đóng vòng lặp lead → khách
-2. Trang chi tiết client `clients/$linkId` + dialog mời nhân viên (#2, một phần #4)
-3. Kanban dnd-kit (#3)
-4. Trang chi tiết task drawer (phần #4)
-5. Cảnh báo hết hạn + gia hạn hợp đồng (#6)
-6. Staff assignments matrix + trang chi tiết staff (#5, phần #4)
+Giữ nguyên cho trường hợp khách đã có tenant FinAI từ trước (rare). Không xoá để tránh phá flow hiện hữu.
 
-Xác nhận thứ tự hoặc chọn hạng mục muốn làm trước, tôi sẽ chuyển sang build.
+### 4. UI prospect detail / clients list
+
+Không cần đổi route, chỉ dialog logic.
+
+## File động chạm
+
+- `src/lib/office/prospects.functions.ts` — rewrite `convertProspect`
+- `src/components/office/prospect-convert-dialog.tsx` — rewrite form
+
+## Ngoài phạm vi (không làm lần này)
+
+- Không gửi email mời tự động (chỉ tạo invitation + show link); việc gửi email cần email infra riêng.
+- Không đổi `ClientLinkDialog`.
+- Không tạo seed dữ liệu kế toán mặc định cho tenant mới (dùng setup wizard sẵn có khi khách đăng nhập).
