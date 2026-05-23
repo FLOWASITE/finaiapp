@@ -41,7 +41,7 @@ export const upsertContract = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, tenantId, userId } = context;
     const { id, ...rest } = data;
-    const payload = { ...rest, services: rest.services as unknown as object };
+    const payload = { ...rest, services: rest.services as never };
     if (id) {
       const { error } = await supabase
         .from("office_contracts")
@@ -53,7 +53,7 @@ export const upsertContract = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await supabase
       .from("office_contracts")
-      .insert({ ...payload, agency_tenant_id: tenantId, created_by: userId })
+      .insert({ ...payload, agency_tenant_id: tenantId, created_by: userId } as never)
       .select("id")
       .single();
     if (error) {

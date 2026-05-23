@@ -91,7 +91,7 @@ export const inviteStaffToClientTenant = createServerFn({ method: "POST" })
       {
         tenant_id: link.client_tenant_id,
         user_id: data.user_id,
-        role: data.role ?? "accountant",
+        role: (data.role ?? "accountant") as "accountant" | "admin" | "owner" | "viewer",
         status: "active",
       },
       { onConflict: "tenant_id,user_id" },

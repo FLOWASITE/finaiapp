@@ -61,7 +61,7 @@ export const listTasks = createServerFn({ method: "GET" })
     if (data.status) q = q.eq("status", data.status);
     if (data.assignee_user_id) q = q.eq("assignee_user_id", data.assignee_user_id);
     if (data.link_id) q = q.eq("link_id", data.link_id);
-    if (data.category) q = q.eq("category", data.category);
+    if (data.category) q = q.eq("category", data.category as never);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
@@ -73,7 +73,7 @@ export const upsertTask = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, tenantId, userId } = context;
     const { id, checklist, ...rest } = data;
-    const payload = { ...rest, checklist: checklist as unknown as object };
+    const payload = { ...rest, checklist: checklist as never };
     if (id) {
       const { error } = await supabase
         .from("office_tasks")
@@ -85,7 +85,7 @@ export const upsertTask = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await supabase
       .from("office_tasks")
-      .insert({ ...payload, agency_tenant_id: tenantId, created_by: userId })
+      .insert({ ...payload, agency_tenant_id: tenantId, created_by: userId } as never)
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -97,9 +97,10 @@ export const moveTaskStatus = createServerFn({ method: "POST" })
   .inputValidator((i: { id: string; status: (typeof TASK_STATUSES)[number] }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, tenantId } = context;
-    const patch: Record<string, unknown> = { status: data.status };
-    if (data.status === "done") patch.completed_at = new Date().toISOString();
-    if (data.status !== "done") patch.completed_at = null;
+    const patch = {
+      status: data.status,
+      completed_at: data.status === "done" ? new Date().toISOString() : null,
+    };
     const { error } = await supabase
       .from("office_tasks")
       .update(patch)
