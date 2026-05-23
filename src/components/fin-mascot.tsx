@@ -8,8 +8,8 @@ const SIZE_PX: Record<FinSize, number> = {
   xs: 28,
   sm: 40,
   md: 64,
-  lg: 96,
-  xl: 128,
+  lg: 120,
+  xl: 200,
 };
 
 interface FinMascotProps {
