@@ -140,8 +140,8 @@ function ProductPickerCell({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-2 py-6 text-center text-muted-foreground">
-                    Không có dữ liệu
+                  <td colSpan={5} className="px-2 py-6">
+                    <EmptyState size="sm" bordered={false} title="Không có dữ liệu" />
                   </td>
                 </tr>
               ) : (
