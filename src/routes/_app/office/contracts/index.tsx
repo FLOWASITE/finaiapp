@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { ContractDialog } from "@/components/office/contract-dialog";
+import { ContractRenewDialog } from "@/components/office/contract-renew-dialog";
 
 export const Route = createFileRoute("/_app/office/contracts/")({ component: ContractsPage });
 
@@ -31,6 +32,7 @@ function ContractsPage() {
               <TableHead className="text-right">Phí</TableHead>
               <TableHead>Chu kỳ</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead className="text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -46,11 +48,18 @@ function ContractsPage() {
                 <TableCell>
                   <Badge variant={c.status === "active" ? "default" : "secondary"}>{c.status}</Badge>
                 </TableCell>
+                <TableCell className="text-right">
+                  <ContractRenewDialog
+                    contractId={c.id}
+                    currentEnd={c.end_date}
+                    currentFee={Number(c.fee_amount ?? 0)}
+                  />
+                </TableCell>
               </TableRow>
             ))}
             {!data?.length && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">
                   Chưa có hợp đồng
                 </TableCell>
               </TableRow>

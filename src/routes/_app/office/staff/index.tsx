@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StaffDialog } from "@/components/office/staff-dialog";
+import { AssignmentDialog } from "@/components/office/assignment-dialog";
 
 export const Route = createFileRoute("/_app/office/staff/")({ component: StaffPage });
 
@@ -37,6 +38,9 @@ function StaffPage() {
                 {(s.skills ?? []).slice(0, 3).map((sk: string) => (
                   <Badge key={sk} variant="outline" className="text-[10px]">{sk}</Badge>
                 ))}
+              </div>
+              <div className="mt-2">
+                <AssignmentDialog staffId={s.id} staffName={s.full_name} />
               </div>
             </div>
           </CardContent>
