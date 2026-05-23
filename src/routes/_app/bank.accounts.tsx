@@ -247,8 +247,13 @@ function AccountsPage() {
             ))}
             {accounts.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-muted-foreground">
-                  Chưa có tài khoản ngân hàng. Bấm "Thêm tài khoản" để bắt đầu.
+                <td colSpan={10} className="py-8">
+                  <EmptyState
+                    size="sm"
+                    bordered={false}
+                    title="Chưa kết nối ngân hàng"
+                    description='Bấm "Thêm tài khoản" để bắt đầu.'
+                  />
                 </td>
               </tr>
             )}
