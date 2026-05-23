@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { FinMascot } from "@/components/fin-mascot";
 
 type Notification = {
   id: string;
