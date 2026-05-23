@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   RefreshCw,
   Search,
