@@ -1214,6 +1214,46 @@ function VoucherDialog({
     ...QUERY_PRESETS.REFERENCE,
   });
 
+  const customersFn = useServerFn(listCustomers);
+  const customerGroupsFn = useServerFn(listPartyGroups);
+  const { data: customersAll } = useQuery({
+    queryKey: ["customers"],
+    queryFn: () => customersFn({}),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const { data: customerGroups } = useQuery({
+    queryKey: ["party-groups", "customer"],
+    queryFn: () => customerGroupsFn({ data: { kind: "customer" } }),
+    enabled: open,
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const customerById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const c of (customersAll ?? []) as any[]) m.set(c.id, c);
+    return m;
+  }, [customersAll]);
+  const groupNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of (customerGroups ?? []) as any[]) m.set(g.id, g.name);
+    return m;
+  }, [customerGroups]);
+
+  // Auto-update "Mô tả" khi người dùng chưa chỉnh tay
+  const [reasonTouched, setReasonTouched] = useState(false);
+  useEffect(() => {
+    if (!open) setReasonTouched(false);
+  }, [open]);
+  useEffect(() => {
+    if (!open || reasonTouched) return;
+    const next = `Bán hàng cho khách hàng ${form.customer_name || "---"} theo hoá đơn số ${form.einvoice.invoice_no || form.voucher_no || "---"}`;
+    if (next !== form.reason) {
+      setForm((f) => ({ ...f, reason: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reasonTouched, form.customer_name, form.voucher_no, form.einvoice.invoice_no]);
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[95vh] flex flex-col p-0 gap-0">
