@@ -7,6 +7,7 @@ import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Users, Truck, FolderTree,
   TrendingUp, TrendingDown, Wallet, AlertCircle, ChevronDown, X,
   MoreVertical, FilePlus, BookOpen, GitMerge, Trash2, FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,10 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { PartyForm, type PartyInitial } from "@/components/party-form";
 import { OpeningBalanceDialog } from "@/components/parties/opening-balance-dialog";
@@ -83,6 +88,15 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const [mergeSecondary, setMergeSecondary] = useState("");
   const [mergeConfirm, setMergeConfirm] = useState(false);
   const [openingBalanceParty, setOpeningBalanceParty] = useState<any>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    type: "archive" | "restore" | "delete" | null;
+    party: any | null;
+  }>({ open: false, type: null, party: null });
+
+  const confirmType = confirmDialog.type;
+  const confirmParty = confirmDialog.party;
 
   const mergeFn = useServerFn(mergeParties);
   const mergeMut = useMutation({
@@ -181,48 +195,63 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
   const upsertSupplierFn = useServerFn(upsertSupplier);
   const deleteSupplierFn = useServerFn(deleteSupplier);
 
-  const onArchive = (p: any) => {
-    if (isCustomer) {
-      archiveCustomerFn({ data: { id: p.id, archived: p.is_active !== false } })
-        .then(() => {
-          qc.invalidateQueries({ queryKey: ["customers"] });
-          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
-        })
-        .catch((e: any) => toast.error(e.message));
-    } else {
-      upsertSupplierFn({
-        data: {
-          id: p.id,
-          name: p.name,
-          tax_id: p.tax_id,
-          payment_terms_days: p.payment_terms_days ?? 30,
-          currency: p.currency ?? "VND",
-          payable_account: p.payable_account ?? "331",
-          is_active: !(p.is_active === false ? false : true),
-        } as any,
-      })
-        .then(() => {
-          qc.invalidateQueries({ queryKey: ["suppliers"] });
-          toast.success("Đã cập nhật");
-        })
-        .catch((e: any) => toast.error(e.message));
-    }
+  const openConfirm = (p: any, type: "archive" | "restore" | "delete") => {
+    setConfirmDialog({ open: true, type, party: p });
   };
 
-  const onDelete = async (p: any) => {
-    if (isCustomer) {
-      toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
-      return;
-    }
-    if (!confirm(`Xoá ${p.name}?`)) return;
-    try {
-      await deleteSupplierFn({ data: { id: p.id } });
-      qc.invalidateQueries({ queryKey: ["suppliers"] });
-      toast.success("Đã xoá");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+  const closeConfirm = () => {
+    setConfirmDialog({ open: false, type: null, party: null });
   };
+
+  const executeConfirm = async () => {
+    const p = confirmParty;
+    if (!p || !confirmType) return;
+    if (confirmType === "archive" || confirmType === "restore") {
+      if (isCustomer) {
+        try {
+          await archiveCustomerFn({ data: { id: p.id, archived: p.is_active !== false } });
+          qc.invalidateQueries({ queryKey: ["customers"] });
+          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      } else {
+        try {
+          await upsertSupplierFn({
+            data: {
+              id: p.id,
+              name: p.name,
+              tax_id: p.tax_id,
+              payment_terms_days: p.payment_terms_days ?? 30,
+              currency: p.currency ?? "VND",
+              payable_account: p.payable_account ?? "331",
+              is_active: !(p.is_active === false ? false : true),
+            } as any,
+          });
+          qc.invalidateQueries({ queryKey: ["suppliers"] });
+          toast.success(p.is_active === false ? "Đã khôi phục" : "Đã lưu trữ");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      }
+    } else if (confirmType === "delete") {
+      if (isCustomer) {
+        toast.info("Khách hàng chỉ có thể lưu trữ, không thể xoá vĩnh viễn.");
+      } else {
+        try {
+          await deleteSupplierFn({ data: { id: p.id } });
+          qc.invalidateQueries({ queryKey: ["suppliers"] });
+          toast.success("Đã xoá");
+        } catch (e: any) {
+          toast.error(e.message);
+        }
+      }
+    }
+    closeConfirm();
+  };
+
+  const onArchive = (p: any) => openConfirm(p, p.is_active === false ? "restore" : "archive");
+  const onDelete = (p: any) => openConfirm(p, "delete");
 
   const titleIcon = isCustomer ? <Users className="h-6 w-6" /> : <Truck className="h-6 w-6" />;
   const title = isCustomer ? "Khách hàng" : "Nhà cung cấp";
@@ -577,6 +606,60 @@ export function PartyListEnhanced({ kind }: { kind: Kind }) {
           qc.invalidateQueries({ queryKey: [isCustomer ? "ar-summary" : "ap-summary"] });
         }}
       />
+
+      {/* Confirm dialog: archive / restore / delete */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(o) => { if (!o) closeConfirm(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmType === "delete" ? (
+                <><AlertTriangle className="h-5 w-5 text-destructive" /> Xác nhận xoá vĩnh viễn</>
+              ) : confirmType === "archive" ? (
+                <><Archive className="h-5 w-5 text-amber-500" /> Xác nhận lưu trữ</>
+              ) : (
+                <><ArchiveRestore className="h-5 w-5 text-emerald-500" /> Xác nhận khôi phục</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                <span className="font-semibold text-foreground">{confirmParty?.name}</span>
+                {confirmParty?.code && <span className="font-mono text-xs ml-2 text-muted-foreground">({confirmParty.code})</span>}
+              </p>
+              {confirmType === "archive" && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+                  Đối tác này sẽ bị ẩn khỏi danh sách chính, nhưng <strong>toàn bộ phiếu, hoá đơn và công nợ vẫn được giữ nguyên</strong>. Bạn có thể khôi phục bất cứ lúc nào.
+                </div>
+              )}
+              {confirmType === "restore" && (
+                <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+                  Đối tác này sẽ xuất hiện lại trong danh sách chính và <strong>có thể sử dụng cho các phiếu mới</strong>.
+                </div>
+              )}
+              {confirmType === "delete" && (
+                <div className="rounded-md bg-red-50 dark:bg-red-950/20 p-3 text-sm text-red-800 dark:text-red-300 space-y-1">
+                  <p><strong>Toàn bộ dữ liệu liên quan</strong> (phiếu mua hàng, hoá đơn, thanh toán, dự án, ngân hàng, kho...) sẽ bị <strong>xoá theo</strong>.</p>
+                  <p>Thao tác này <strong>không thể hoàn tác</strong>.</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeConfirm}>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeConfirm}
+              className={
+                confirmType === "delete"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : confirmType === "archive"
+                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }
+            >
+              {confirmType === "delete" ? "Xoá vĩnh viễn" : confirmType === "archive" ? "Lưu trữ" : "Khôi phục"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
   );
