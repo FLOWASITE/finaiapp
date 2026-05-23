@@ -799,6 +799,79 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
     return { ok: true, entryId: entry.id };
   });
 
+// ============ PREVIEW VOID ============
+
+export const previewVoidSalesVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: v } = await supabase
+      .from("sales_vouchers")
+      .select(
+        "id, voucher_no, voucher_date, total, journal_entry_id, stock_voucher_id, cash_voucher_id, bank_voucher_id",
+      )
+      .eq("id", data.id)
+      .single();
+    if (!v) throw new Error("Không tìm thấy phiếu");
+
+    const items: Array<{ type: string; label: string; detail?: string }> = [];
+    items.push({
+      type: "sales_voucher",
+      label: `Phiếu bán hàng ${v.voucher_no}`,
+      detail: "Sẽ quay về trạng thái Chưa ghi sổ (có thể ghi sổ lại)",
+    });
+    if (v.journal_entry_id) {
+      items.push({ type: "journal_entry", label: "Bút toán doanh thu", detail: "Sẽ bị xoá" });
+    }
+    if (v.stock_voucher_id) {
+      const { data: sv } = await supabase
+        .from("stock_vouchers")
+        .select("voucher_no, journal_entry_id")
+        .eq("id", v.stock_voucher_id)
+        .maybeSingle();
+      if (sv) {
+        items.push({
+          type: "stock_voucher",
+          label: `Phiếu xuất kho ${sv.voucher_no}`,
+          detail: "Sẽ bị xoá, tồn kho được hoàn lại",
+        });
+        if (sv.journal_entry_id) {
+          items.push({ type: "journal_entry", label: "Bút toán giá vốn", detail: "Sẽ bị xoá" });
+        }
+      }
+    }
+    if (v.cash_voucher_id) {
+      const { data: cv } = await supabase
+        .from("cash_vouchers")
+        .select("voucher_no, amount")
+        .eq("id", v.cash_voucher_id)
+        .maybeSingle();
+      if (cv)
+        items.push({
+          type: "cash_voucher",
+          label: `Phiếu thu tiền mặt ${cv.voucher_no}`,
+          detail: `${Number(cv.amount || 0).toLocaleString("vi-VN")} ₫ — sẽ bị xoá`,
+        });
+    }
+    if (v.bank_voucher_id) {
+      const { data: bv } = await supabase
+        .from("bank_vouchers")
+        .select("voucher_no, amount")
+        .eq("id", v.bank_voucher_id)
+        .maybeSingle();
+      if (bv)
+        items.push({
+          type: "bank_voucher",
+          label: `Báo có ngân hàng ${bv.voucher_no}`,
+          detail: `${Number(bv.amount || 0).toLocaleString("vi-VN")} ₫ — sẽ bị xoá`,
+        });
+    }
+    return { items };
+  });
+
 // ============ VOID ============
 
 export const voidSalesVoucher = createServerFn({ method: "POST" })
@@ -817,7 +890,7 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (!v) throw new Error("Không tìm thấy phiếu");
-    if (v.status === "void") throw new Error("Phiếu đã huỷ");
+    if (v.status !== "posted") throw new Error("Phiếu chưa ghi sổ");
 
     const { data: locked } = await supabase.rpc("is_period_locked", {
       _user_id: userId,
@@ -825,50 +898,93 @@ export const voidSalesVoucher = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // Xoá bút toán giá vốn (nếu có phiếu xuất kho gắn journal_entry riêng)
+    const entryIds: string[] = [];
+    if (v.journal_entry_id) entryIds.push(v.journal_entry_id);
+
+    let stockJournalEntryId: string | null = null;
     if (v.stock_voucher_id) {
       const { data: stk } = await supabase
         .from("stock_vouchers")
         .select("journal_entry_id")
         .eq("id", v.stock_voucher_id)
-        .single();
-      const stkEntryId = stk?.journal_entry_id ?? null;
-      if (stkEntryId && stkEntryId !== v.journal_entry_id) {
-        // Gỡ tham chiếu trước khi xoá (FK SET NULL)
+        .maybeSingle();
+      stockJournalEntryId = stk?.journal_entry_id ?? null;
+      if (stockJournalEntryId && !entryIds.includes(stockJournalEntryId)) {
+        entryIds.push(stockJournalEntryId);
+      }
+    }
+
+    // 1) Gỡ FK trên sales_vouchers trước
+    await supabase
+      .from("sales_vouchers")
+      .update({
+        journal_entry_id: null,
+        stock_voucher_id: null,
+        cash_voucher_id: null,
+        bank_voucher_id: null,
+      })
+      .eq("id", v.id);
+
+    // 2) Gỡ liên kết bank_transactions
+    if (entryIds.length > 0) {
+      await supabase
+        .from("bank_transactions")
+        .update({ matched_entry_id: null, status: "pending", match_confidence: null, match_reason: null })
+        .in("matched_entry_id", entryIds);
+    }
+
+    // 3) Xoá phiếu thu / báo có
+    if (v.cash_voucher_id) {
+      await supabase.from("cash_vouchers").delete().eq("id", v.cash_voucher_id);
+    }
+    if (v.bank_voucher_id) {
+      await supabase.from("bank_vouchers").delete().eq("id", v.bank_voucher_id);
+    }
+
+    // 4) Hoàn kho + xoá phiếu xuất
+    if (v.stock_voucher_id) {
+      const { data: movs } = await supabase
+        .from("stock_movements")
+        .select("product_id, qty")
+        .eq("voucher_id", v.stock_voucher_id);
+      for (const m of movs ?? []) {
+        const { data: prod } = await supabase
+          .from("products")
+          .select("on_hand")
+          .eq("id", m.product_id)
+          .maybeSingle();
+        if (prod) {
+          // qty của xuất là âm → on_hand - qty = hoàn lại
+          await supabase
+            .from("products")
+            .update({ on_hand: Number(prod.on_hand || 0) - Number(m.qty || 0) })
+            .eq("id", m.product_id);
+        }
+      }
+      await supabase.from("stock_movements").delete().eq("voucher_id", v.stock_voucher_id);
+      if (stockJournalEntryId) {
         await supabase
           .from("stock_vouchers")
           .update({ journal_entry_id: null })
           .eq("id", v.stock_voucher_id);
-        await supabase.from("journal_entries").delete().eq("id", stkEntryId);
       }
+      await supabase.from("stock_vouchers").delete().eq("id", v.stock_voucher_id);
     }
 
-    // Xoá bút toán doanh thu (cascade xoá journal_lines)
-    if (v.journal_entry_id) {
-      await supabase.from("journal_entries").delete().eq("id", v.journal_entry_id);
+    // 5) Xoá journal entries (doanh thu + giá vốn)
+    if (entryIds.length > 0) {
+      await supabase.from("journal_lines").delete().in("entry_id", entryIds);
+      await supabase.from("journal_entries").delete().in("id", entryIds);
     }
 
-    // Huỷ phiếu thu/chi tiền đi kèm (nếu có)
-    if (v.cash_voucher_id) {
-      await supabase
-        .from("cash_vouchers")
-        .update({ status: "void", voided_at: new Date().toISOString(), void_reason: data.reason })
-        .eq("id", v.cash_voucher_id);
-    }
-    if (v.bank_voucher_id) {
-      await supabase
-        .from("bank_vouchers")
-        .update({ status: "void", voided_at: new Date().toISOString(), void_reason: data.reason })
-        .eq("id", v.bank_voucher_id);
-    }
-
-    // Đưa phiếu bán về trạng thái draft (chưa ghi sổ), gỡ tham chiếu bút toán
+    // 6) Đưa phiếu về draft, reset thanh toán
     const { error } = await supabase
       .from("sales_vouchers")
       .update({
         status: "draft",
-        journal_entry_id: null,
         posted_at: null,
+        paid_amount: 0,
+        payment_status: "unpaid",
       })
       .eq("id", v.id);
     if (error) throw new Error(error.message);

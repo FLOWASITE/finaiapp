@@ -563,6 +563,76 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     return { ok: true, entryId: entry.id };
   });
 
+// ============ PREVIEW VOID ============
+
+export const previewVoidPurchaseVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: v } = await supabase
+      .from("purchase_vouchers")
+      .select(
+        "id, voucher_no, voucher_date, total, journal_entry_id, stock_voucher_id, cash_voucher_id, bank_voucher_id",
+      )
+      .eq("id", data.id)
+      .single();
+    if (!v) throw new Error("Không tìm thấy phiếu");
+
+    const items: Array<{ type: string; label: string; detail?: string }> = [];
+    items.push({
+      type: "purchase_voucher",
+      label: `Phiếu mua hàng ${v.voucher_no}`,
+      detail: "Sẽ quay về trạng thái Chưa ghi sổ (có thể ghi sổ lại)",
+    });
+    if (v.journal_entry_id) {
+      items.push({ type: "journal_entry", label: "Bút toán mua hàng", detail: "Sẽ bị xoá" });
+    }
+    if (v.stock_voucher_id) {
+      const { data: sv } = await supabase
+        .from("stock_vouchers")
+        .select("voucher_no")
+        .eq("id", v.stock_voucher_id)
+        .maybeSingle();
+      if (sv) {
+        items.push({
+          type: "stock_voucher",
+          label: `Phiếu nhập kho ${sv.voucher_no}`,
+          detail: "Sẽ bị xoá, tồn kho được điều chỉnh giảm",
+        });
+      }
+    }
+    if (v.cash_voucher_id) {
+      const { data: cv } = await supabase
+        .from("cash_vouchers")
+        .select("voucher_no, amount")
+        .eq("id", v.cash_voucher_id)
+        .maybeSingle();
+      if (cv)
+        items.push({
+          type: "cash_voucher",
+          label: `Phiếu chi tiền mặt ${cv.voucher_no}`,
+          detail: `${Number(cv.amount || 0).toLocaleString("vi-VN")} ₫ — sẽ bị xoá`,
+        });
+    }
+    if (v.bank_voucher_id) {
+      const { data: bv } = await supabase
+        .from("bank_vouchers")
+        .select("voucher_no, amount")
+        .eq("id", v.bank_voucher_id)
+        .maybeSingle();
+      if (bv)
+        items.push({
+          type: "bank_voucher",
+          label: `Uỷ nhiệm chi ${bv.voucher_no}`,
+          detail: `${Number(bv.amount || 0).toLocaleString("vi-VN")} ₫ — sẽ bị xoá`,
+        });
+    }
+    return { items };
+  });
+
 // ============ VOID ============
 
 export const voidPurchaseVoucher = createServerFn({ method: "POST" })
@@ -581,98 +651,103 @@ export const voidPurchaseVoucher = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (!v) throw new Error("Không tìm thấy phiếu");
-    if (v.status === "void") throw new Error("Phiếu đã huỷ");
+    if (v.status !== "posted") throw new Error("Phiếu chưa ghi sổ");
 
-    // Kỳ khoá
     const { data: locked } = await supabase.rpc("is_period_locked", {
       _user_id: userId,
       _date: v.voucher_date,
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // Bút toán đảo
-    if (v.journal_entry_id) {
-      const { data: oldLines } = await supabase
-        .from("journal_lines")
-        .select("account_code, debit, credit, line_order")
-        .eq("entry_id", v.journal_entry_id);
-      const { data: rev } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: userId,
-          tenant_id: v.tenant_id,
-          entry_date: new Date().toISOString().slice(0, 10),
-          description: `Huỷ phiếu ${v.voucher_no}${data.reason ? " — " + data.reason : ""}`,
-        })
-        .select("id")
-        .single();
-      if (rev && oldLines) {
-        await supabase.from("journal_lines").insert(
-          oldLines.map((l) => ({
-            entry_id: rev.id,
-            account_code: l.account_code,
-            debit: l.credit,
-            credit: l.debit,
-            line_order: l.line_order,
-          })),
-        );
+    const entryIds: string[] = [];
+    if (v.journal_entry_id) entryIds.push(v.journal_entry_id);
+
+    let stockJournalEntryId: string | null = null;
+    if (v.stock_voucher_id) {
+      const { data: stk } = await supabase
+        .from("stock_vouchers")
+        .select("journal_entry_id")
+        .eq("id", v.stock_voucher_id)
+        .maybeSingle();
+      stockJournalEntryId = stk?.journal_entry_id ?? null;
+      if (stockJournalEntryId && !entryIds.includes(stockJournalEntryId)) {
+        entryIds.push(stockJournalEntryId);
       }
     }
 
-    // Đảo kho
+    // 1) Gỡ FK trên purchase_vouchers
+    await supabase
+      .from("purchase_vouchers")
+      .update({
+        journal_entry_id: null,
+        stock_voucher_id: null,
+        cash_voucher_id: null,
+        bank_voucher_id: null,
+      })
+      .eq("id", v.id);
+
+    // 2) Gỡ liên kết bank_transactions
+    if (entryIds.length > 0) {
+      await supabase
+        .from("bank_transactions")
+        .update({ matched_entry_id: null, status: "pending", match_confidence: null, match_reason: null })
+        .in("matched_entry_id", entryIds);
+    }
+
+    // 3) Xoá phiếu chi / UNC
+    if (v.cash_voucher_id) {
+      await supabase.from("cash_vouchers").delete().eq("id", v.cash_voucher_id);
+    }
+    if (v.bank_voucher_id) {
+      await supabase.from("bank_vouchers").delete().eq("id", v.bank_voucher_id);
+    }
+
+    // 4) Đảo tồn kho + xoá phiếu nhập + movements
     if (v.stock_voucher_id) {
       const { data: movs } = await supabase
         .from("stock_movements")
-        .select("product_id, warehouse_id, qty, unit_cost")
+        .select("product_id, qty")
         .eq("voucher_id", v.stock_voucher_id);
       for (const m of movs ?? []) {
-        await supabase.from("stock_movements").insert({
-          user_id: userId,
-          tenant_id: v.tenant_id,
-          product_id: m.product_id,
-          warehouse_id: m.warehouse_id,
-          movement_type: "out",
-          qty: m.qty,
-          unit_cost: m.unit_cost,
-          movement_date: new Date().toISOString().slice(0, 10),
-          ref_type: "purchase_voucher_void",
-          ref_id: v.id,
-          note: `Huỷ phiếu ${v.voucher_no}`,
-        });
         const { data: prod } = await supabase
           .from("products")
           .select("on_hand")
           .eq("id", m.product_id)
-          .single();
+          .maybeSingle();
         if (prod) {
+          // qty của nhập là dương → on_hand - qty = giảm tồn
           await supabase
             .from("products")
             .update({ on_hand: Number(prod.on_hand || 0) - Number(m.qty || 0) })
             .eq("id", m.product_id);
         }
       }
+      await supabase.from("stock_movements").delete().eq("voucher_id", v.stock_voucher_id);
+      if (stockJournalEntryId) {
+        await supabase
+          .from("stock_vouchers")
+          .update({ journal_entry_id: null })
+          .eq("id", v.stock_voucher_id);
+      }
+      await supabase.from("stock_vouchers").delete().eq("id", v.stock_voucher_id);
     }
 
-    // Đánh dấu phiếu chi / UNC void
-    if (v.cash_voucher_id) {
-      await supabase
-        .from("cash_vouchers")
-        .update({ status: "void", voided_at: new Date().toISOString(), void_reason: data.reason })
-        .eq("id", v.cash_voucher_id);
-    }
-    if (v.bank_voucher_id) {
-      await supabase
-        .from("bank_vouchers")
-        .update({ status: "void", voided_at: new Date().toISOString(), void_reason: data.reason })
-        .eq("id", v.bank_voucher_id);
+    // 5) Xoá journal entries
+    if (entryIds.length > 0) {
+      await supabase.from("journal_lines").delete().in("entry_id", entryIds);
+      await supabase.from("journal_entries").delete().in("id", entryIds);
     }
 
+    // 6) Đưa phiếu về reviewed (cho phép ghi sổ lại) — qua state machine trigger
     const { error } = await supabase
       .from("purchase_vouchers")
       .update({
-        status: "void",
-        voided_at: new Date().toISOString(),
-        void_reason: data.reason,
+        status: "reviewed",
+        posted_at: null,
+        paid_amount: 0,
+        payment_status: "unpaid",
+        voided_at: null,
+        void_reason: null,
       })
       .eq("id", v.id);
     if (error) throw new Error(error.message);

@@ -15,9 +15,11 @@ import {
   deleteSalesVoucher,
   postSalesVoucher,
   voidSalesVoucher,
+  previewVoidSalesVoucher,
   suggestSalesVoucherNo,
   recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
+import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
 import { listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { listBranches } from "@/lib/dimensions.functions";
@@ -393,6 +395,7 @@ function SalesVouchersPage() {
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
+  const previewVoidFn = useServerFn(previewVoidSalesVoucher);
   const branchFnPage = useServerFn(listBranches);
   const productsFnPage = useServerFn(listProducts);
 
@@ -767,15 +770,27 @@ function SalesVouchersPage() {
     onError: (e: any) => toast.error(e?.message || "Xoá phiếu thất bại"),
   });
 
+  const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+
+  const openVoidDialog = async (id: string) => {
+    try {
+      const res = await previewVoidFn({ data: { id } });
+      setVoidDlg({ open: true, id, items: res.items });
+    } catch (e: any) {
+      toast.error(e?.message || "Không lấy được thông tin huỷ");
+    }
+  };
+
   const voidMut = useMutation({
     mutationFn: async (id: string) =>
-      voidFn({ data: { id, reason: "Huỷ phiếu" } }),
+      voidFn({ data: { id, reason: "Huỷ ghi sổ" } }),
     onSuccess: () => {
-      toast.success("Đã huỷ phiếu");
+      toast.success("Đã huỷ ghi sổ, phiếu có thể ghi sổ lại");
+      setVoidDlg({ open: false, items: [] });
       qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
       invalidateLedgers(qc);
     },
-    onError: (e: any) => toast.error(e?.message || "Huỷ phiếu thất bại"),
+    onError: (e: any) => toast.error(e?.message || "Huỷ ghi sổ thất bại"),
   });
 
   // (Quick-pay dialog removed — replaced by full VoucherFormDialog / BankVoucherFormDialog below.)
@@ -1149,15 +1164,15 @@ function SalesVouchersPage() {
                               </DropdownMenuItem>
                               {!isPosted && !isVoid && (
                                 <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
-                                  <FileCheck2 className="h-4 w-4 mr-2" /> Ghi sổ
+                                  <FileCheck2 className="h-4 w-4 mr-2" /> {v.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
                                 </DropdownMenuItem>
                               )}
                               {isPosted && (
                                 <DropdownMenuItem
-                                  onClick={() => voidMut.mutate(v.id)}
+                                  onClick={() => openVoidDialog(v.id)}
                                   className="text-destructive"
                                 >
-                                  Huỷ ghi sổ
+                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
@@ -1240,6 +1255,13 @@ function SalesVouchersPage() {
         onOpenChange={(o) => setPayBank((s) => ({ ...s, open: o }))}
         prefill={payBank.prefill}
         onSaved={() => qc.invalidateQueries({ queryKey: ["sales-vouchers"] })}
+      />
+      <VoidConfirmDialog
+        open={voidDlg.open}
+        onOpenChange={(o) => setVoidDlg((s) => ({ ...s, open: o }))}
+        items={voidDlg.items}
+        loading={voidMut.isPending}
+        onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
       />
     </div>
     </div>

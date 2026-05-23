@@ -16,11 +16,13 @@ import {
   createPurchaseVoucher,
   postPurchaseVoucher,
   voidPurchaseVoucher,
+  previewVoidPurchaseVoucher,
   deletePurchaseVoucher,
   suggestVoucherNo,
   listLinkablePurchaseInvoices,
   recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
+import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { listProducts } from "@/lib/inventory.functions";
@@ -339,6 +341,7 @@ function PurchaseVouchersPage() {
   const listFn = useServerFn(listPurchaseVouchers);
   const postFn = useServerFn(postPurchaseVoucher);
   const voidFn = useServerFn(voidPurchaseVoucher);
+  const previewVoidFn = useServerFn(previewVoidPurchaseVoucher);
   const delFn = useServerFn(deletePurchaseVoucher);
   const suppliersFnPage = useServerFn(listSuppliers);
   const linkInvFnPage = useServerFn(listLinkablePurchaseInvoices);
