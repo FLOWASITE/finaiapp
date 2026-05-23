@@ -352,6 +352,26 @@ function PurchaseVouchersPage() {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [initialParty, setInitialParty] = useState<{ id: string; name: string; tax_id?: string; address?: string } | null>(null);
+
+  const searchParams = Route.useSearch();
+  const navigateRoute = useNavigate();
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (searchParams.new && searchParams.party_id) {
+      autoOpenedRef.current = true;
+      setInitialParty({
+        id: searchParams.party_id,
+        name: searchParams.party_name ?? "",
+        tax_id: searchParams.party_tax_id,
+        address: searchParams.party_address,
+      });
+      setOpenCreate(true);
+      navigateRoute({ to: "/purchases/vouchers", search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.new, searchParams.party_id]);
 
   const payFn = useServerFn(recordPurchaseVoucherPayment);
   const payMut = useMutation({
