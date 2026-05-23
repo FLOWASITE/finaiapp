@@ -1,51 +1,44 @@
-## Vấn đề
-
-Backend (Lovable Cloud) bình thường. Lỗi "Không kết nối được máy chủ" / "Failed to fetch" khi đăng nhập đến từ **phía client**:
-
-- `localStorage` đang giữ một `refresh_token` hỏng (`"uhutxzheunqb"` — quá ngắn so với token thật).
-- Supabase client tự động retry refresh token đó liên tục (`autoRefreshToken: true`), gây nghẽn pipeline fetch → submit login mất 30+ giây mới báo lỗi.
-- `useEffect` ở `login.tsx` gọi `supabase.auth.getSession()` ngay khi mount, tiếp tục kích hoạt refresh hỏng → trì hoãn cả màn login.
-
 ## Mục tiêu
 
-1. Login phản hồi tức thì (≤ 1–2s khi backend OK).
-2. Tự dọn session hỏng thay vì retry vô hạn.
-3. Không block UI khi `getSession()` chậm.
+Cập nhật trang `/login` theo phong cách ảnh tham khảo: panel trái rỗng/thoáng với logo wordmark ở góc trên và khối tagline lớn ở góc dưới; panel phải giữ form đăng nhập hiện tại nhưng đổi tiêu đề. Giữ nguyên màu sắc, gradient và bố cục 2 cột (lg:grid-cols-2) hiện tại.
 
-## Thay đổi (chỉ frontend, không đụng backend / schema)
+## Phạm vi
 
-### 1. `src/integrations/supabase/client.ts` — KHÔNG sửa (file auto-generated)
+Chỉ sửa `src/routes/login.tsx` — phần frontend/presentation. Không đụng logic auth, validate, Supabase, hay file khác.
 
-Thay vào đó, xử lý ở chỗ tiêu thụ.
+## Thay đổi cụ thể
 
-### 2. `src/routes/login.tsx`
+### 1) Logo "FinAI" kiểu wordmark Jaz
+- Thay khối logo hiện tại (ô vuông + chữ "A" + chữ "FinAI") ở cả panel trái (`lg:flex`) và header mobile (`lg:hidden`).
+- Thành **wordmark đơn**: chỉ chữ `FinAI` cỡ lớn, font-weight 700–800, tracking hơi âm, màu trắng ở panel trái và `text-foreground` ở header mobile.
+- Vị trí panel trái: góc trên-trái (đã đúng vị trí, chỉ đổi style).
 
-- **Race `getSession()` với timeout 1500ms** để không block render màn login. Nếu quá hạn → coi như chưa đăng nhập, hiển thị form ngay.
-- **Nếu phát hiện refresh token lỗi** (event `TOKEN_REFRESHED` thất bại hoặc `getSession()` trả lỗi network kèm có session lưu cũ) → gọi `supabase.auth.signOut({ scope: 'local' })` để xoá localStorage hỏng, rồi cho user đăng nhập lại sạch.
-- **Thêm AbortController + timeout 12s** quanh `signInWithPassword` để fail nhanh thay vì chờ 30s.
-- **Disable nút khi đang loading** nhưng cho phép user huỷ (nút "Huỷ" hiện sau 5s loading).
+### 2) Khối tagline lớn ở góc dưới-trái panel trái
+Thay block `Xin chào, mừng bạn!` + mô tả + nút "Tìm hiểu thêm" bằng:
 
-### 3. `src/routes/__root.tsx` (`AuthSync`)
+```
+Sổ kế toán.
+Phần mềm.
+Agent.
 
-- Lắng nghe thêm event `TOKEN_REFRESHED` với `session == null` (refresh fail) → tự `signOut({ scope: 'local' })` và redirect `/login` nếu user đang ở route protected. Tránh loop retry âm thầm.
-- Hiện tại `invalidateQueries()` chạy cho cả `SIGNED_IN` — giữ nguyên, nhưng đảm bảo không chạy khi đang ở `/login` (không cần thiết).
+Kiến tạo cho những người giữ cán cân tài chính.
+```
 
-### 4. `src/routes/index.tsx` (`IndexRedirectFallback`)
+- Heading: mỗi dòng 1 line, font-bold 5xl/6xl, leading rất chặt (≈1.0), tracking-tight, màu trắng.
+- Sub-tagline: text-sm/base, `text-white/70`, đặt ngay dưới heading.
+- Bỏ nút "Tìm hiểu thêm" và copyright footer để panel sạch như ảnh.
+- Cấu trúc `justify-between` đổi thành layout: logo top-left + tagline bottom-left (dùng `mt-auto` cho khối tagline, bỏ phần tử giữa).
+- Giữ nguyên 2 lớp SVG sóng + radial gradient overlay hiện tại (giữ "màu sắc và layout").
 
-- Đã có fallback 800ms, OK. Giảm xuống 600ms để chuyển trang nhanh hơn khi `getSession()` treo.
+### 3) Panel phải
+- Header mobile (`lg:hidden`) "Xin chào, mừng bạn!" đổi thành `Sổ kế toán. Phần mềm. Agent.` (1 dòng, nhỏ gọn hơn).
+- Tiêu đề form: thêm dòng `Chào mừng đến FinAI` + sub `Đăng nhập hoặc tạo tài khoản bằng email` phía trên ô email (chỉ khi đang ở chế độ signin/signup mặc định — render trước `<form>`).
+- Form email + mật khẩu + Ghi nhớ + Quên mật khẩu + nút Đăng nhập: **giữ nguyên hoàn toàn**.
 
-### 5. Tiện ích nhỏ: `src/lib/auth-recovery.ts` (mới)
-
-Helper `withTimeout<T>(promise, ms)` dùng chung cho `getSession()` và `signInWithPassword()`.
+### 4) Không thay đổi
+- Logic `onSubmit`, `validate`, `mapAuthError`, `handleForgot`, redirect, timeout.
+- Token màu trong `src/styles.css` (`--gradient-login-bg`, `--gradient-login-panel`).
+- File khác trong dự án.
 
 ## Kết quả mong đợi
-
-- Trang `/login` hiển thị tức thì kể cả khi có session hỏng trong localStorage.
-- Lần submit đầu tiên (sau khi tự dọn session hỏng) chạy thẳng vào Supabase Auth API, không bị nghẽn → ~500ms–1s.
-- Nếu mạng thật sự lỗi, báo lỗi sau 12s thay vì 30+s.
-- Không còn vòng lặp refresh token hỏng chạy ngầm.
-
-## Ngoài phạm vi
-
-- Không đổi schema, không đụng RLS, không thay đổi luồng OAuth.
-- Không thêm dependency mới.
+Trang login giữ tông xanh đậm/gradient hiện tại, panel trái trông tối giản kiểu Jaz với wordmark "FinAI" trên cùng và tagline tiếng Việt 3 dòng lớn ở dưới; form bên phải vẫn đầy đủ chức năng email + mật khẩu.

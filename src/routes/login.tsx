@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { z } from "zod";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,49 +241,47 @@ function LoginPage() {
             />
           </svg>
 
-          <div className="relative z-10 flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm font-bold ring-1 ring-white/25">
-              A
-            </div>
-            <span className="font-semibold tracking-tight text-lg">FinAI</span>
+          <div className="relative z-10">
+            <span className="font-extrabold tracking-tight text-3xl text-white">
+              FinAI
+            </span>
           </div>
 
-          <div className="relative z-10 space-y-6 max-w-md">
-            <h2 className="text-5xl font-bold leading-[1.05] tracking-tight">
-              Xin chào,
+          <div className="relative z-10 mt-auto space-y-5 max-w-lg">
+            <h2 className="text-6xl xl:text-7xl font-extrabold leading-[0.95] tracking-tight text-white">
+              Sổ kế toán.
               <br />
-              mừng bạn!
+              Phần mềm.
+              <br />
+              Agent.
             </h2>
-            <p className="text-sm leading-relaxed text-white/80 max-w-xs">
-              FinAI — phần mềm kế toán AI cho doanh nghiệp Việt. Bóc tách hóa
-              đơn, định khoản tự động theo Thông tư 133.
+            <p className="text-sm leading-relaxed text-white/70 max-w-sm">
+              Kiến tạo cho những người giữ cán cân tài chính.
             </p>
-            <Button
-              asChild
-              variant="secondary"
-              className="rounded-full px-6 h-10 bg-white/95 text-foreground hover:bg-white border-0"
-            >
-              <Link to="/welcome">Tìm hiểu thêm</Link>
-            </Button>
           </div>
-
-          <p className="relative z-10 text-xs text-white/60">
-            © {new Date().getFullYear()} FinAI. Mọi quyền được bảo lưu.
-          </p>
         </aside>
 
         {/* Right form panel */}
         <main className="bg-card px-5 py-8 sm:px-10 sm:py-12 flex flex-col justify-center">
-          <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center gap-2 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-              A
-            </div>
-            <span className="font-semibold tracking-tight">FinAI</span>
+          <Link to="/" className="mb-5 sm:mb-6 flex items-center justify-center lg:hidden">
+            <span className="font-extrabold tracking-tight text-2xl text-foreground">
+              FinAI
+            </span>
           </Link>
 
-          <h1 className="lg:hidden text-3xl font-bold tracking-tight mb-6 text-center">
-            Xin chào, mừng bạn!
+          <h1 className="lg:hidden text-xl font-bold tracking-tight mb-6 text-center text-foreground">
+            Sổ kế toán. Phần mềm. Agent.
           </h1>
+
+          <div className="hidden lg:block text-center mb-6">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              Chào mừng đến FinAI
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Đăng nhập hoặc tạo tài khoản bằng email
+            </p>
+          </div>
+
 
           <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4" noValidate>
             {formError && (
