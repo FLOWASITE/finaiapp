@@ -8663,6 +8663,10 @@ export type Database = {
         Args: { p_kind: string; p_primary: string; p_secondary: string }
         Returns: Json
       }
+      office_generate_recurring_tasks: {
+        Args: { p_agency?: string }
+        Returns: number
+      }
       rebuild_account_period_balances: {
         Args: { p_tenant?: string }
         Returns: undefined
