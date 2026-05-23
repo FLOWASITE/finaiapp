@@ -1,7 +1,8 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Info, AlertCircle, X, Sparkles } from "lucide-react";
+import { AlertTriangle, Info, AlertCircle, X } from "lucide-react";
+import { FinMascot } from "@/components/fin-mascot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,8 +40,8 @@ export function InsightWidget() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-primary" />
-          Cảnh báo từ AI
+          <FinMascot size="xs" glow={false} />
+          Fin phát hiện
         </CardTitle>
         <Button variant="ghost" size="sm" onClick={() => openAskAi()}>
           Hỏi AI

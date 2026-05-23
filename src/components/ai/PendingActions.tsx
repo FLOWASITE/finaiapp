@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, X, Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FinMascot } from "@/components/fin-mascot";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,9 +104,9 @@ export function PendingActions() {
 
   return (
     <div className="border-t border-border bg-muted/30 px-3 py-2">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Sparkles className="h-3 w-3" />
-        Hành động chờ duyệt ({visible.length})
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+        <FinMascot size="xs" glow={false} />
+        Fin gợi ý hành động · {visible.length}
       </div>
       <div className="space-y-2">
         {visible.map((a) => (
