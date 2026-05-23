@@ -49,7 +49,7 @@ function ReportsPage() {
   const [to, setTo] = useState(today);
   const [compareEnabled, setCompareEnabled] = useState(true);
   const [hideZero, setHideZero] = useState(true);
-  const [showSignature, setShowSignature] = useState(true);
+  const [showSignature, setShowSignature] = useState(false);
   const [dims, setDims] = useState<DimensionValue>({});
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });

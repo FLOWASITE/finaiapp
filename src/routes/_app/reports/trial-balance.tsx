@@ -36,7 +36,7 @@ function TrialBalancePage() {
   const [from, setFrom] = useState(`${year}-01-01`);
   const [to, setTo] = useState(today);
   const [hideZero, setHideZero] = useState(true);
-  const [showSignature, setShowSignature] = useState(true);
+  const [showSignature, setShowSignature] = useState(false);
   const [dims, setDims] = useState<DimensionValue>({});
   const [tbLevel, setTbLevel] = useState<"all" | "1" | "2" | "3">("all");
   const [tbTree, setTbTree] = useState(true);

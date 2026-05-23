@@ -44,7 +44,7 @@ function ApSummaryPage() {
   const [dims, setDims] = useState<DimensionValue>({});
   const [search, setSearch] = useState("");
   const [hideZero, setHideZero] = useState(true);
-  const [showSignature, setShowSignature] = useState(true);
+  const [showSignature, setShowSignature] = useState(false);
 
   const profileFn = useServerFn(getCompanyProfile);
   const profileQ = useQuery({
