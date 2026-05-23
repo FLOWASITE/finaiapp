@@ -112,24 +112,24 @@ async function loadVoucherMeta(supabase: any, userId: string, entryIds: string[]
     for (const r of cr.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu thu KH",
       source_table: "customer_receipts", party_name: r.customer_name, reference: r.method,
-      invoice_no: null,
-    });
+      invoice_no: r.invoice_id ? (salesInvoiceNoById.get(r.invoice_id) ?? null) : null,
+    }, 10);
     for (const r of sp.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.reference ?? "—", voucher_type: "Phiếu chi NCC",
       source_table: "supplier_payments", party_name: r.supplier_name, reference: r.method,
-      invoice_no: null,
-    });
+      invoice_no: r.invoice_id ? (purchaseInvoiceNoById.get(r.invoice_id) ?? null) : null,
+    }, 10);
     for (const r of si.data ?? []) set(r.journal_entry_id, {
-      voucher_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" "),
+      voucher_no: invoiceLabel(r.invoice_series, r.invoice_no),
       voucher_type: "Hóa đơn bán", source_table: "sales_invoices",
       party_name: r.customer_name, reference: null,
-      invoice_no: [r.invoice_series, r.invoice_no].filter(Boolean).join(" ") || null,
-    });
+      invoice_no: invoiceLabel(r.invoice_series, r.invoice_no) || null,
+    }, 20);
     for (const r of sv.data ?? []) set(r.journal_entry_id, {
       voucher_no: r.voucher_no, voucher_type: r.voucher_type === "in" ? "Phiếu nhập kho" : "Phiếu xuất kho",
       source_table: "stock_vouchers", party_name: null, reference: r.reason ?? null,
       invoice_no: null,
-    });
+    }, 5);
     for (const r of pr.data ?? []) set(r.journal_entry_id, {
       voucher_no: `Lương ${String(r.period_month ?? "").slice(0, 7)}`, voucher_type: "Bảng lương",
       source_table: "payroll_runs", party_name: null, reference: null,
