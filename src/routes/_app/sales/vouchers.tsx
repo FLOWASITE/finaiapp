@@ -990,12 +990,15 @@ function SalesVouchersPage() {
               Lỗi tải dữ liệu: {(error as any)?.message}
             </div>
           ) : (vouchers?.rows ?? []).length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <p className="mb-2">Chưa có phiếu bán hàng nào.</p>
-              <Button variant="outline" onClick={() => openCreate()}>
-                <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
-              </Button>
-            </div>
+            <EmptyState
+              title="Chưa có phiếu bán hàng nào"
+              description="Tạo phiếu đầu tiên để Fin theo dõi doanh thu."
+              cta={
+                <Button variant="outline" onClick={() => openCreate()}>
+                  <Plus className="h-4 w-4 mr-1" /> Tạo phiếu đầu tiên
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table className="text-[13px]">
