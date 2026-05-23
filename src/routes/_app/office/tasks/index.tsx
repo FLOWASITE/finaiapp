@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listTasks, moveTaskStatus } from "@/lib/office/tasks.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { TaskDialog } from "@/components/office/task-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/office/tasks/")({ component: TasksKanban });
@@ -41,7 +42,9 @@ function TasksKanban() {
   const byStatus = (s: string) => (data ?? []).filter((t: any) => t.status === s);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-3">
+      <div className="flex justify-end"><TaskDialog /></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {COLUMNS.map((col) => (
         <div
           key={col.id}
@@ -88,6 +91,7 @@ function TasksKanban() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

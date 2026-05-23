@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ProspectDialog } from "@/components/office/prospect-dialog";
 
 export const Route = createFileRoute("/_app/office/clients/")({ component: ClientsPage });
 
@@ -65,10 +66,11 @@ function ClientsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">
             Khách tiềm năng ({prospects.data?.length ?? 0})
           </CardTitle>
+          <ProspectDialog />
         </CardHeader>
         <CardContent>
           <Table>
