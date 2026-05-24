@@ -1,107 +1,124 @@
-# Confidence Calibration Loop
+## Cross-Agent Feedback Loop: Reconcile → Categorize
 
-Mục tiêu: từ lịch sử `inbox_decisions`, tự động hiệu chỉnh **(a)** ngưỡng auto-post của từng tenant và **(b)** trọng số các signals trong engine, để `confidence` thực sự khớp với tỷ lệ approve không-edit.
+Khi Agent Đối soát phát hiện bút toán lệch với bank statement, hệ thống tự động "phạt" rule/template/memory đã tạo ra bút toán sai — giảm `hit_count`, hạ `confidence_score`, và nếu sai nhiều lần thì auto-demote sang `suggest` hoặc `disabled`.
 
----
+### 1. Schema mới
 
-## 1. Schema mới
+**`agent_feedback_events`** — bảng event log (audit + replay):
+- `tenant_id`, `source_agent` ('reconcile'|'review'|'manual'), `target_agent` ('categorize')
+- `event_type`: `wrong_account` | `wrong_amount` | `wrong_partner` | `wrong_vat` | `duplicate` | `missed_entry`
+- `journal_entry_id`, `bank_transaction_id`, `proposal_id` (nullable — link về proposal gốc nếu còn)
+- `signals_snapshot` jsonb (rule_id, template_id, memory_id, partner_history_id đã match)
+- `severity` numeric (0.1 → 1.0)
+- `processed_at`, `note`
 
-### `confidence_calibration` (per tenant)
-- `tenant_id` (PK)
-- `auto_threshold` numeric(4,3) default 0.85 — ngưỡng auto-post hiện hành
-- `review_threshold` numeric(4,3) default 0.60 — dưới mức này → escalate manual
-- `signal_weights` jsonb — `{vendor_template, learned_memory, classify_rule, partner_history, vat_match, ai_fallback, has_warning, missing_partner}` (mỗi key là delta cộng/trừ vào base confidence)
-- `sample_size` int — số decision dùng để fit lần cuối
-- `accuracy_auto` numeric(4,3) — precision band auto kỳ vừa rồi
-- `accuracy_review` numeric(4,3)
-- `last_calibrated_at` timestamptz
-- RLS: select tenant member, write chỉ owner/admin (đa số chỉ cron ghi qua service role)
+**`ai_rule_penalties`** — tổng hợp điểm phạt cộng dồn (để engine tra cứu nhanh):
+- `tenant_id`, `target_kind` ('rule'|'template'|'memory'|'partner_history')
+- `target_id`, `penalty_score` numeric default 0
+- `wrong_count` int, `last_penalty_at`
+- Unique `(tenant_id, target_kind, target_id)`
 
-### `calibration_runs` (audit log)
-- `id`, `tenant_id`, `ran_at`, `window_days`, `sample_size`, `old_threshold`, `new_threshold`, `old_weights` jsonb, `new_weights` jsonb, `metrics` jsonb (precision/recall/edit_rate theo band), `note` text
-- Để trace drift theo thời gian, hiển thị ở Settings.
+### 2. Reconcile Agent emit event
 
-### Cột mới trong `ai_journal_proposals` (đã có `confidence`, `source`)
-- Thêm `signals` jsonb default `{}` — engine ghi lại các signals đã kích hoạt (vendor_template=true, partner_history=0.8, vat_match=true, warning_codes=[...]) để calibration job có dữ liệu fit.
+Trong `src/lib/reconcile/` (file đối soát hiện có) khi phát hiện lệch:
 
----
+```
+emitFeedback({
+  source: 'reconcile',
+  event_type: 'wrong_account',
+  journal_entry_id,
+  bank_transaction_id,
+  severity: 0.5,  // tuỳ mức lệch
+})
+```
 
-## 2. Engine đọc calibration
+Tạo `src/lib/feedback/emit.server.ts`:
+- Tra `ai_journal_proposals` theo `journal_entry_id` → lấy `signals` (rule_id/template_id/memory_id/partner_history_id)
+- Insert `agent_feedback_events` + snapshot signals
+- Gọi `applyPenalty()` ngay (synchronous, nhanh)
 
-### `src/lib/categorize/calibration.server.ts` (mới)
-- `getCalibration(tenantId)` — cache 60s qua `cache.server.ts`, fallback default nếu chưa có row.
-- `applySignalWeights(baseConfidence, signals, weights)` — trả về confidence đã calibrated, clamp [0, 0.99].
-- `decideBand(confidence, cal)` → `'auto' | 'review' | 'manual'`.
+### 3. Penalty Engine (`src/lib/feedback/penalty.server.ts`)
 
-### Update `engine.server.ts` + `sales-engine.server.ts`
-- Thay vì hard-code `0.85` / `0.7` / `0.4`, thu thập signals vào object, gọi `applySignalWeights`.
-- Lưu `signals` vào DTO của proposal khi insert vào `ai_journal_proposals` (cột mới).
-- `recommend_auto_post = confidence >= cal.auto_threshold && agent.mode === 'auto'`.
+**Công thức `applyPenalty(event)`:**
 
-### Update `agent_settings` đọc `confidence_threshold`
-- Vẫn giữ `agent_settings.confidence_threshold` làm **floor do user set tay**; `auto_threshold` từ calibration là **gợi ý**. Engine dùng `max(user_floor, calibrated_threshold)` để không bao giờ tự nới lỏng dưới mức user yêu cầu.
+| Event type | Severity base | Áp dụng lên |
+|---|---|---|
+| `wrong_account` | 0.5 | rule + template (cùng lúc) |
+| `wrong_partner` | 0.4 | memory + partner_history |
+| `wrong_vat` | 0.3 | template |
+| `wrong_amount` | 0.6 | rule (thường là sai mapping) |
+| `duplicate` | 0.7 | rule (rule quá lỏng) |
 
----
+**Tác động lên bảng nguồn:**
+- `ai_memory_rules`: `accuracy_correct -= 1`, `applied_count` giữ nguyên (vì đã apply rồi nhưng sai)
+- `ai_journal_templates`: `success_count -= 1`, tăng `error_count` (thêm column nếu chưa có)
+- `ai_memory_partners` / `ai_memory_*`: `hit_count = GREATEST(0, hit_count - 1)`, `confidence_score -= 0.05`
 
-## 3. Calibration job
+**Cộng dồn `ai_rule_penalties.penalty_score += severity * weight_event`** (decay 30 ngày — mỗi đêm trừ 10%).
 
-### `src/lib/learning/calibrate.server.ts` (mới)
-Logic:
-1. Lấy 30 ngày `inbox_decisions` của tenant kèm `confidence_at_decision`, `action`, `original_entry.signals` (cần join hoặc lưu sẵn).
-2. Tính cho mỗi band hiện tại:
-   - `precision_auto = approve_count / total_auto` (approve = action 'approve' hoặc 'bulk_approve' không có edit).
-   - `edit_rate_review = edit_count / total_review`.
-3. **Hiệu chỉnh ngưỡng**:
-   - Nếu `precision_auto < 0.92` → nâng `auto_threshold += 0.03` (max 0.95).
-   - Nếu `precision_auto >= 0.97` và `edit_rate_review < 0.15` → hạ `auto_threshold -= 0.02` (min 0.75).
-   - Tương tự `review_threshold` dựa trên tỷ lệ skip ở band review.
-4. **Hiệu chỉnh trọng số signals** (logistic regression nhẹ tay, không cần lib):
-   - Với mỗi signal `s`, tính `P(approve | s=true)` và `P(approve | s=false)`, delta = `logit(p_true) - logit(p_false)` chia 4 để giữ nhỏ.
-   - Clamp mỗi weight trong `[-0.2, +0.2]`.
-   - Chỉ apply khi sample của signal đó ≥ 20.
-5. Yêu cầu `sample_size >= 30` mới ghi; nếu ít hơn thì giữ nguyên + ghi log "insufficient sample".
-6. Ghi `calibration_runs`, upsert `confidence_calibration`, invalidate cache (`cache.server.ts`).
+### 4. Auto-demote
 
-### `src/lib/learning/calibrate.functions.ts`
-- `runCalibrationForTenant({ tenantId })` (owner/admin) — trigger thủ công từ Settings.
-- `getCalibrationStatus({ tenantId })` — trả về current thresholds, weights, last metrics, history 10 runs gần nhất.
+Khi `penalty_score` vượt ngưỡng:
+- `>= 1.5` và `wrong_count >= 3`: demote `mode='active' → 'suggest'`
+- `>= 3.0` và `wrong_count >= 5`: demote `mode='suggest' → 'disabled'` + ghi `disabled_reason='auto: cross-agent feedback'`
+- Memory `confidence_score < 0.4`: chuyển `status='archived'`
 
----
+Chạy trong cùng `applyPenalty()` (synchronous, đảm bảo ngay lập tức).
 
-## 4. Cron hook
+### 5. Engine integration
 
-`src/routes/api/public/hooks/calibrate-confidence.ts`
-- POST, header `apikey` = anon key.
-- Lặp qua tenants có ≥30 decisions trong 30 ngày, gọi `scanAndCalibrate(tenantId)`.
-- Chạy **02:30 UTC** hằng ngày (sau `promote-rules` 02:00) để dùng rules mới khi tính metrics.
-- pg_cron schedule qua `supabase--insert`.
+Trong `src/lib/categorize/calibration.server.ts` — khi đọc signal weights, cộng thêm penalty lookup:
 
----
+```
+effective_confidence = base * weight_signal * (1 - penalty_factor)
+// penalty_factor = min(0.5, penalty_score / 6)
+```
 
-## 5. UI
+→ Rule/template từng sai nhiều sẽ tự động bị "giảm tiếng nói" trong confidence ngay cả khi chưa bị disable.
 
-### Trang `/settings/ai-calibration` (mới, link từ Settings)
-- Card "Ngưỡng hiện tại": auto_threshold / review_threshold (slider read-only + nút "Override thủ công" → ghi vào `agent_settings.confidence_threshold`).
-- Card "Độ chính xác kỳ vừa rồi": precision band auto, edit rate band review, sample size, ngày calibrate cuối.
-- Bảng "Lịch sử calibration" (10 runs): ngày, threshold cũ→mới, precision, sample.
-- Nút "Chạy calibration ngay" → gọi `runCalibrationForTenant`.
-- Hiển thị trọng số signals dạng bar chart đơn giản (positive xanh / negative đỏ).
+### 6. UI
 
-### Badge trong `ProposalCard.tsx`
-- Khi `proposal.signals` có entry mạnh (ví dụ `vendor_template=true`), hiển thị chip nhỏ "Theo mẫu NCC" / "Học từ lịch sử" để user hiểu vì sao confidence cao.
+**Trang `/settings/ai-feedback`** (mới):
+- Tab "Sự kiện gần đây" — list `agent_feedback_events` 30 ngày (filter by source/type)
+- Tab "Rule/Template bị phạt" — sort `ai_rule_penalties.penalty_score DESC`, hiện wrong_count, last_penalty_at, link sang rule editor
+- Tab "Đã auto-demote" — list rule/memory bị demote do feedback (filter `disabled_reason LIKE 'auto:%'`)
+- Nút "Khôi phục" (reset penalty + đưa lại `active`) — owner/admin only
 
----
+**`ProposalCard.tsx`**: nếu signals match rule có `penalty_score > 1.0` → hiện chip vàng "Rule này từng sai 3 lần".
 
-## Thứ tự thực hiện
-1. **Migration**: tạo `confidence_calibration`, `calibration_runs`, thêm cột `signals` vào `ai_journal_proposals` + RLS.
-2. **`calibration.server.ts`** + update engine (purchase + sales) để emit signals và đọc calibration.
-3. **`calibrate.server.ts`** (logic fit) + `calibrate.functions.ts`.
-4. **Cron route** + insert pg_cron schedule 02:30 UTC.
-5. **UI `/settings/ai-calibration`** + chip signals trong ProposalCard.
+### 7. Hook reconcile hiện tại
 
-## KPI dự kiến
-- Sau 2 tuần dữ liệu: precision band auto ổn định ≥95% trong khi tăng coverage auto từ ~30% → ~50%.
-- Edit rate band review giảm ~30% nhờ trọng số signals chuẩn hơn.
-- Drift detection: nếu precision tụt dưới 0.9, threshold tự nâng → tránh sai hệ thống.
+Đọc lại `src/lib/reconcile/` (nếu chưa có thì sẽ tạo điểm emit ở các chỗ:
+- Sau khi `bank_transactions.status = 'mismatch'`
+- Khi user revert bút toán đã posted từ reconcile UI
+- Khi auto-match score thấp < 0.3 nhưng entry đã được auto-post trước đó
 
-Mình implement luôn theo thứ tự trên?
+### Files dự kiến
+
+**Migration:**
+- `agent_feedback_events`, `ai_rule_penalties` + RLS + indexes
+- Thêm `error_count`, `disabled_reason` vào `ai_journal_templates` nếu thiếu
+
+**Server (mới):**
+- `src/lib/feedback/emit.server.ts` — emit + apply
+- `src/lib/feedback/penalty.server.ts` — formula + auto-demote
+- `src/lib/feedback/decay.server.ts` — daily decay job
+- `src/lib/feedback/feedback.functions.ts` — server fn cho UI (list events, list penalties, restore)
+- `src/routes/api/public/hooks/feedback-decay.ts` — cron 03:00 UTC
+
+**Server (chỉnh):**
+- `src/lib/reconcile/*.server.ts` — gọi `emitFeedback` ở các điểm phát hiện lệch
+- `src/lib/categorize/calibration.server.ts` — lookup penalty khi tính effective confidence
+- `src/lib/categorize/engine.server.ts` — pass penalty lookup vào pipeline
+
+**UI:**
+- `src/routes/settings/ai-feedback.tsx` (3 tab)
+- `src/components/categorize/ProposalCard.tsx` — chip cảnh báo rule bị phạt
+
+### KPI kỳ vọng
+
+- Rule sai lặp lại giảm ~70% sau 2 tuần (auto-demote)
+- Tỉ lệ post-edit (edit sau khi đã post) giảm ~40%
+- Engine không "học" mãi rule cũ sai — feedback loop khép kín giữa Reconcile ↔ Categorize
+
+Anh duyệt thì tôi triển khai theo thứ tự: migration → emit/penalty engine → reconcile hooks → cron decay → UI.
