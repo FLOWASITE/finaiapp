@@ -31,16 +31,33 @@ const monthStart = () => {
 function UnpostedPage() {
   const list = useServerFn(listMovements);
   const cancelFn = useServerFn(cancelMovement);
+  const pendingFn = useServerFn(listPendingStockDocs);
+  const whFn = useServerFn(listWarehouses);
+  const stickPurchase = useServerFn(stickStockVoucher);
+  const stickSales = useServerFn(stickSalesStockVoucher);
   const qc = useQueryClient();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
   const [type, setType] = useState<"all" | "in" | "out" | "transfer">("all");
   const [search, setSearch] = useState("");
+  const [pickerDoc, setPickerDoc] = useState<{ id: string; kind: "purchase" | "sales"; voucher_no: string } | null>(null);
+  const [pickerWh, setPickerWh] = useState<string>("");
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["movements-unposted", from, to, type],
     queryFn: () => list({ data: { from, to, type, status: "unposted" } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const { data: pending } = useQuery({
+    queryKey: ["pending-stock-docs", from, to],
+    queryFn: () => pendingFn({ data: { from, to } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => whFn(),
   });
 
   const filtered = useMemo(() => {
@@ -62,6 +79,21 @@ function UnpostedPage() {
     onError: (e: any) => toast.error(e?.message ?? "Không huỷ được"),
   });
 
+  const stickMut = useMutation({
+    mutationFn: async (args: { id: string; kind: "purchase" | "sales"; warehouseId: string }) => {
+      if (args.kind === "purchase") return stickPurchase({ data: { id: args.id, warehouseId: args.warehouseId } });
+      return stickSales({ data: { id: args.id, warehouseId: args.warehouseId } });
+    },
+    onSuccess: () => {
+      toast.success("Đã tạo phiếu kho");
+      setPickerDoc(null);
+      setPickerWh("");
+      qc.invalidateQueries({ queryKey: ["pending-stock-docs"] });
+      qc.invalidateQueries({ queryKey: ["movements-unposted"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
+  });
+
   return (
     <div className="p-8 space-y-6">
       <div>
@@ -73,6 +105,66 @@ function UnpostedPage() {
           <Link to="/inventory/vouchers" className="text-primary hover:underline">Phiếu nhập/xuất kho</Link>.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PackagePlus className="h-4 w-4 text-primary" />
+            Phiếu mua/bán chưa tạo phiếu kho ({(pending ?? []).length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="p-3">Ngày</th>
+                  <th className="p-3">Loại</th>
+                  <th className="p-3">Số phiếu</th>
+                  <th className="p-3">Đối tác</th>
+                  <th className="p-3 text-right">Tổng tiền</th>
+                  <th className="p-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!pending || pending.length === 0) && (
+                  <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Không có phiếu nào cần tạo phiếu kho</td></tr>
+                )}
+                {(pending ?? []).map((d: any) => {
+                  const isPurchase = d.kind === "purchase";
+                  return (
+                    <tr key={`${d.kind}-${d.id}`} className="border-t hover:bg-muted/30">
+                      <td className="p-3 whitespace-nowrap">{d.voucher_date}</td>
+                      <td className="p-3">
+                        <Badge className={isPurchase ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100"}>
+                          {isPurchase ? <><ArrowDownToLine className="h-3 w-3 mr-1" />Mua hàng</> : <><ArrowUpFromLine className="h-3 w-3 mr-1" />Bán hàng</>}
+                        </Badge>
+                      </td>
+                      <td className="p-3 font-medium">{d.voucher_no}</td>
+                      <td className="p-3">{d.party_name ?? "—"}</td>
+                      <td className="p-3 text-right">{fmt(d.total)}</td>
+                      <td className="p-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPickerDoc({ id: d.id, kind: d.kind, voucher_no: d.voucher_no });
+                            setPickerWh("");
+                          }}
+                        >
+                          <PackagePlus className="h-4 w-4 mr-1" />
+                          {isPurchase ? "Tạo phiếu nhập" : "Tạo phiếu xuất"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-5">
