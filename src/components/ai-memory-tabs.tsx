@@ -804,7 +804,10 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               <Label className="mb-1 block text-[12px]">Khoá (a-z, _)</Label>
               <Input
                 value={key}
-                onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                onChange={(e) => {
+                  setKeyTouched(true);
+                  setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""));
+                }}
                 placeholder="cong_no_chuan"
                 className="h-9 font-mono"
               />
@@ -814,11 +817,16 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
             <Label className="mb-1 block text-[12px]">Nhãn</Label>
             <Input
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLabel(v);
+                if (!keyTouched) setKey(slugifyKey(v));
+              }}
               placeholder="Công nợ chuẩn"
               className="h-9"
             />
           </div>
+
           <div>
             <Label className="mb-1 block text-[12px]">Giá trị (câu tiếng Việt)</Label>
             <Textarea
