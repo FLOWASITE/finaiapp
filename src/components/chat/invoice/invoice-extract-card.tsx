@@ -1,11 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
+import { FileText, Check, ExternalLink, Maximize2, Sparkles, ChevronDown, Loader2 } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
+import {
+  saveLineClassification,
+  lookupLineClassifications,
+} from "@/lib/ai/line-classifications.functions";
 import { cn } from "@/lib/utils";
-import { kindMeta, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { kindMeta, normalizeLineName, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
