@@ -43,7 +43,26 @@ export function AgentsOfFinPanel() {
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["ai-agents", "overrides"],
     queryFn: () => listFn(),
+    refetchInterval: 30_000,
   });
+
+  // Realtime: invalidate query khi có log mới
+  useEffect(() => {
+    const ch = supabase
+      .channel("ai-agent-activity-logs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "ai_agent_activity_logs" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["ai-agents", "overrides"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
 
   const upsertMut = useMutation({
     mutationFn: (vars: Parameters<typeof upsertFn>[0]) => upsertFn(vars),
