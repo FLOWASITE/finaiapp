@@ -804,6 +804,8 @@ function InboxHeader({
       </button>
 
       <div className="ml-auto flex items-center gap-2">
+        <InboxDockToggle />
+
         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 text-xs text-foreground/70 md:flex">
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel}
