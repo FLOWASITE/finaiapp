@@ -207,6 +207,12 @@ export const updateActiveTenant = createServerFn({ method: "POST" })
       if (v === null && !NULLABLE_COLS.has(k)) continue;
       patch[k] = v;
     }
+    // Đồng bộ ngành chính (industry_code/name) từ phần tử đầu của industries[]
+    if (Array.isArray((data as any).industries)) {
+      const first = (data as any).industries[0];
+      patch.industry_code = first?.code ?? null;
+      patch.industry_name = first?.name ?? null;
+    }
     const { error } = await supabase.from("tenants").update(patch as any).eq("id", tid);
     if (error) throw new Error(error.message);
     return { ok: true };
