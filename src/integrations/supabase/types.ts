@@ -236,6 +236,7 @@ export type Database = {
           journal_entry_id: string | null
           resolved_at: string | null
           resolved_by: string | null
+          signals: Json
           source: string
           status: string
           tenant_id: string
@@ -253,6 +254,7 @@ export type Database = {
           journal_entry_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          signals?: Json
           source: string
           status?: string
           tenant_id: string
@@ -270,6 +272,7 @@ export type Database = {
           journal_entry_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          signals?: Json
           source?: string
           status?: string
           tenant_id?: string
@@ -1564,6 +1567,48 @@ export type Database = {
         }
         Relationships: []
       }
+      calibration_runs: {
+        Row: {
+          id: string
+          metrics: Json
+          new_threshold: number | null
+          new_weights: Json | null
+          note: string | null
+          old_threshold: number | null
+          old_weights: Json | null
+          ran_at: string
+          sample_size: number
+          tenant_id: string
+          window_days: number
+        }
+        Insert: {
+          id?: string
+          metrics?: Json
+          new_threshold?: number | null
+          new_weights?: Json | null
+          note?: string | null
+          old_threshold?: number | null
+          old_weights?: Json | null
+          ran_at?: string
+          sample_size: number
+          tenant_id: string
+          window_days: number
+        }
+        Update: {
+          id?: string
+          metrics?: Json
+          new_threshold?: number | null
+          new_weights?: Json | null
+          note?: string | null
+          old_threshold?: number | null
+          old_weights?: Json | null
+          ran_at?: string
+          sample_size?: number
+          tenant_id?: string
+          window_days?: number
+        }
+        Relationships: []
+      }
       cash_vouchers: {
         Row: {
           amount: number
@@ -1765,6 +1810,45 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      confidence_calibration: {
+        Row: {
+          accuracy_auto: number | null
+          accuracy_review: number | null
+          auto_threshold: number
+          created_at: string
+          last_calibrated_at: string | null
+          review_threshold: number
+          sample_size: number
+          signal_weights: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_auto?: number | null
+          accuracy_review?: number | null
+          auto_threshold?: number
+          created_at?: string
+          last_calibrated_at?: string | null
+          review_threshold?: number
+          sample_size?: number
+          signal_weights?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_auto?: number | null
+          accuracy_review?: number | null
+          auto_threshold?: number
+          created_at?: string
+          last_calibrated_at?: string | null
+          review_threshold?: number
+          sample_size?: number
+          signal_weights?: Json
+          tenant_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
