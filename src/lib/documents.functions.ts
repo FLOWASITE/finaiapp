@@ -433,7 +433,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
 
     const buf = Buffer.from(data.fileBase64, "base64");
     const safeName = data.filename.replace(/[^\w.\-]+/g, "_");
-    const path = `manual/${userId}/${Date.now()}-${safeName}`;
+    const path = `${userId}/manual/${Date.now()}-${safeName}`;
     const { error: upErr } = await supabase.storage
       .from("invoices")
       .upload(path, buf, { contentType: data.mimeType, upsert: false });
