@@ -44,16 +44,19 @@ export function RuleEditor({
   rule,
   open,
   onOpenChange,
+  onSave,
 }: {
   rule: Rule;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSave?: (rule: Rule) => Promise<void> | void;
 }) {
   const isMobile = useIsMobile();
-  const upsert = useRuleStore((s) => s.upsert);
+  const storeUpsert = useRuleStore((s) => s.upsert);
   const [draft, setDraft] = useState<Rule>(rule);
   const [hasTested, setHasTested] = useState(false);
   const [confirmHeavyOpen, setConfirmHeavyOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Reset draft khi rule prop đổi
   if (draft.id !== rule.id) {
@@ -66,7 +69,7 @@ export function RuleEditor({
     setHasTested(false);
   };
 
-  const doSave = () => {
+  const doSave = async () => {
     if (draft.conditions.length === 0) {
       toast.error("Cần ít nhất 1 điều kiện");
       return;
@@ -84,9 +87,17 @@ export function RuleEditor({
       version: rule.id === draft.id && rule.applied_count > 0 ? rule.version + 1 : draft.version,
       previous_version_id: rule.applied_count > 0 ? rule.id : draft.previous_version_id,
     };
-    upsert(next);
-    toast.success("Đã lưu quy tắc — sẽ áp dụng từ giao dịch tiếp theo");
-    onOpenChange(false);
+    try {
+      setSaving(true);
+      if (onSave) await onSave(next);
+      else storeUpsert(next);
+      toast.success("Đã lưu quy tắc — sẽ áp dụng từ giao dịch tiếp theo");
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lưu quy tắc thất bại");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const trySave = () => {
@@ -171,10 +182,10 @@ export function RuleEditor({
           <Button
             size="sm"
             onClick={trySave}
-            disabled={!hasTested}
+            disabled={!hasTested || saving}
             title={!hasTested ? "Chạy thử trước khi lưu" : ""}
           >
-            Lưu quy tắc
+            {saving ? "Đang lưu..." : "Lưu quy tắc"}
           </Button>
         </div>
       </div>

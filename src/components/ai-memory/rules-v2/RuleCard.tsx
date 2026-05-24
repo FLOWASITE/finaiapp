@@ -67,11 +67,20 @@ function statusPill(rule: Rule) {
   };
 }
 
-export function RuleCard({ rule }: { rule: Rule }) {
+export function RuleCard({
+  rule,
+  onToggleEnabled,
+  onSave,
+}: {
+  rule: Rule;
+  onToggleEnabled?: (id: string, enabled: boolean, reason?: string) => void;
+  onSave?: (rule: Rule) => Promise<void> | void;
+}) {
   const [editOpen, setEditOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const toggleEnabled = useRuleStore((s) => s.toggleEnabled);
+  const storeToggle = useRuleStore((s) => s.toggleEnabled);
+  const toggleEnabled = onToggleEnabled ?? storeToggle;
 
   const badge = SOURCE_BADGE[rule.source];
   const pill = statusPill(rule);
@@ -206,7 +215,7 @@ export function RuleCard({ rule }: { rule: Rule }) {
         </div>
       </div>
 
-      <RuleEditor rule={rule} open={editOpen} onOpenChange={setEditOpen} />
+      <RuleEditor rule={rule} open={editOpen} onOpenChange={setEditOpen} onSave={onSave} />
 
       <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
         <AlertDialogContent>
