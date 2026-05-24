@@ -11,8 +11,9 @@ import {
   ChevronRight,
   Wand2,
   Check,
+  FileText,
 } from "lucide-react";
-import type { InboxItem } from "@/lib/ai/inbox-types";
+import type { InboxItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,12 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -31,10 +38,77 @@ import {
   getThread,
   appendMessage,
 } from "@/lib/chat-threads.functions";
+import { getDocument } from "@/lib/documents.functions";
+import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
+
+const VOUCHER_KIND_LABEL: Record<VoucherKind, string> = {
+  purchase_invoice: "Phiếu mua hàng",
+  sales_invoice: "Phiếu bán hàng",
+  bank_receipt: "Báo Có ngân hàng",
+  bank_payment: "Báo Nợ ngân hàng",
+  cash_receipt: "Phiếu thu",
+  cash_payment: "Phiếu chi",
+  ai_insight: "Cảnh báo AI",
+};
+
+const META_FIELD_LABELS: Record<string, string> = {
+  supplier_name: "Nhà cung cấp",
+  supplier_tax_id: "MST NCC",
+  customer_name: "Khách hàng",
+  customer_tax_id: "MST KH",
+  invoice_no: "Số HĐ",
+  invoice_series: "Ký hiệu",
+  invoice_date: "Ngày HĐ",
+  subtotal: "Tiền hàng",
+  vat_rate: "Thuế suất",
+  vat_amount: "Thuế GTGT",
+  total: "Tổng cộng",
+  payment_method: "Hình thức TT",
+  due_date: "Hạn TT",
+  bank_label: "Ngân hàng",
+  bank_account: "Số TK",
+  txn_date: "Ngày GD",
+  txn_ref: "Mã GD",
+  counterparty: "Đối tác",
+  counterparty_account: "TK đối tác",
+  memo: "Diễn giải",
+  matched_invoice_no: "Khớp HĐ",
+  cash_fund: "Quỹ TM",
+  payer_or_payee: "Người nộp/nhận",
+  reason: "Lý do",
+  attachment_ref: "Chứng từ kèm",
+  severity: "Mức độ",
+  category: "Phân loại",
+  period: "Kỳ",
+  metric: "Chỉ số",
+  delta: "Biến động",
+};
+
+const MONEY_FIELDS = new Set(["subtotal", "vat_amount", "total"]);
+const DATE_FIELDS = new Set(["invoice_date", "due_date", "txn_date"]);
+
+function formatMetaValue(key: string, value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (MONEY_FIELDS.has(key)) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return null;
+    return VND(n) + " đ";
+  }
+  if (DATE_FIELDS.has(key)) {
+    const d = new Date(String(value));
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleDateString("vi-VN");
+  }
+  if (key === "vat_rate") {
+    const n = Number(value);
+    return Number.isFinite(n) ? `${n}%` : String(value);
+  }
+  return String(value);
+}
 
 function formatRelative(iso: string) {
   const d = new Date(iso);
