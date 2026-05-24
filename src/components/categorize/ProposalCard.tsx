@@ -124,6 +124,17 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] px-1.5 py-0",
+                isSales
+                  ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                  : "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30",
+              )}
+            >
+              {isSales ? "Bán ra" : "Mua vào"}
+            </Badge>
             <span className="font-semibold truncate">{supplier}</span>
             {invoice?.invoice_no && (
               <span className="text-xs text-muted-foreground font-mono">#{invoice.invoice_no}</span>
