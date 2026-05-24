@@ -10,7 +10,14 @@ import {
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { hashBase64, readParseCache, writeParseCache } from "@/lib/ai/parse-cache.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
-import { classifyLine, summarizeInvoiceKind } from "@/lib/ai/classify-line";
+import {
+  classifyLine,
+  summarizeInvoiceKind,
+  vsicToKindHint,
+  accountToKind,
+  type LineKind,
+  type ClassifyContext,
+} from "@/lib/ai/classify-line";
 
 const InputSchema = z.object({
   fileBase64: z.string().min(1),
@@ -811,6 +818,115 @@ async function ensureUploadRow(opts: {
   }
 }
 
+/**
+ * Sau khi đã parse được hoá đơn mua, dùng MST/tên NCC để:
+ *  - tra industry_code → industry_hint (ngành nghề thiên về HH/DV…)
+ *  - tổng hợp lịch sử 12 tháng (theo expense_account) → historyDist
+ * Rồi re-run classifyLine để các dòng được phân loại chính xác hơn khi AI
+ * gặp lại cùng tên hàng từ cùng NCC.
+ */
+async function enrichInvoiceWithSupplierSignals(
+  parsed: any,
+  supabase: any,
+  userId?: string,
+): Promise<any> {
+  try {
+    if (!parsed || !supabase || !userId) return parsed;
+    if (!Array.isArray(parsed.lines) || parsed.lines.length === 0) return parsed;
+
+    const rawTax = String(parsed.vendor_tax_id ?? "").replace(/\D+/g, "");
+    const vendorName = String(parsed.vendor_name ?? "").trim();
+    if (!rawTax && !vendorName) return parsed;
+
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const tenantId = prof?.active_tenant_id;
+    if (!tenantId) return parsed;
+
+    let sup: { id: string; industry_code: string | null } | null = null;
+    if (rawTax) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id, industry_code")
+        .eq("tenant_id", tenantId)
+        .eq("tax_id", rawTax)
+        .maybeSingle();
+      sup = data ?? null;
+    }
+    if (!sup && vendorName) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id, industry_code")
+        .eq("tenant_id", tenantId)
+        .ilike("name", vendorName)
+        .limit(1)
+        .maybeSingle();
+      sup = data ?? null;
+    }
+
+    const industry_code = sup?.industry_code ?? null;
+    const industry_hint = vsicToKindHint(industry_code);
+
+    const historyDist: Partial<Record<LineKind, number>> = {};
+    if (sup?.id) {
+      const since = new Date();
+      since.setMonth(since.getMonth() - 12);
+      const sinceDate = since.toISOString().slice(0, 10);
+      const { data: hist } = await supabase
+        .from("invoices")
+        .select("expense_account, total")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_id", sup.id)
+        .gte("issue_date", sinceDate)
+        .neq("status", "void")
+        .not("expense_account", "is", null)
+        .limit(300);
+      for (const r of (hist ?? []) as any[]) {
+        const k = accountToKind(r.expense_account);
+        if (!k) continue;
+        const w = Math.max(1, Math.round(Number(r.total) || 0));
+        historyDist[k] = (historyDist[k] ?? 0) + w;
+      }
+    }
+
+    const ctx: ClassifyContext = {
+      industryHint: industry_hint?.kind ?? null,
+      industryLabel: industry_hint?.label ?? null,
+      historyDist: Object.keys(historyDist).length ? historyDist : null,
+    };
+
+    const newLines = parsed.lines.map((l: any) => {
+      const base = {
+        description: l?.description ?? null,
+        qty: l?.qty ?? null,
+        unit: l?.unit ?? null,
+        unit_price: l?.unit_price ?? null,
+        amount: l?.amount ?? null,
+      };
+      return { ...l, classification: classifyLine(base, ctx) };
+    });
+
+    return {
+      ...parsed,
+      lines: newLines,
+      classification_summary: summarizeInvoiceKind(newLines),
+      _supplier_signals: {
+        industry_code,
+        industry_hint: industry_hint?.label ?? null,
+        history_dist: historyDist,
+      },
+    };
+  } catch (e: any) {
+    console.warn("[parse-document] enrichInvoiceWithSupplierSignals failed:", e?.message);
+    return parsed;
+  }
+}
+
+
+
 export type ParsePhaseEvent = {
   name: "ocr" | "extract" | "partner_match" | "rules_check";
   status: "start" | "done";
@@ -864,7 +980,8 @@ export async function parseFileCore(opts: {
     if (isXmlFile(mimeType, opts.filename)) {
       try {
         const parsedXml = parseEinvoiceXml(fileBuf.toString("utf8"));
-        const parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        let parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        parsed = await enrichInvoiceWithSupplierSignals(parsed, opts.supabase, opts.userId);
         if (uploadId && opts.supabase) {
           try {
             await opts.supabase
@@ -903,9 +1020,12 @@ export async function parseFileCore(opts: {
     if (opts.supabase && opts.kind !== "auto") {
       const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
       if (cached) {
-        const cachedParsed = opts.kind === "purchase_invoice"
+        let cachedParsed = opts.kind === "purchase_invoice"
           ? normalizePurchaseInvoice(cached.parsed, null, "Đọc từ cache parse trước đó.")
           : cached.parsed;
+        if (opts.kind === "purchase_invoice") {
+          cachedParsed = await enrichInvoiceWithSupplierSignals(cachedParsed, opts.supabase, opts.userId);
+        }
         if (opts.kind === "purchase_invoice" && mimeType === "application/pdf" && isEmptyPurchaseInvoice(cachedParsed)) {
           console.warn("[parse-document] ignoring empty invoice cache for PDF, retrying parser");
         } else {
@@ -1138,6 +1258,9 @@ export async function parseFileCore(opts: {
           };
         }
       }
+    }
+    if (effectiveKind === "purchase_invoice") {
+      parsed = await enrichInvoiceWithSupplierSignals(parsed, opts.supabase, opts.userId);
     }
     const structurerMs = Date.now() - structStart;
     emitPhase({ name: "extract", status: "done", ms: structurerMs });
