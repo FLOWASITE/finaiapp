@@ -95,6 +95,87 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_activity_logs: {
+        Row: {
+          action: string
+          agent_id: string
+          created_at: string
+          duration_ms: number | null
+          id: string
+          metadata: Json | null
+          result: string
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          agent_id: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          result?: string
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          agent_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          result?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      ai_agents: {
+        Row: {
+          agent_id: string
+          confidence_profile: string
+          confidence_threshold: number
+          created_at: string
+          enabled: boolean
+          id: string
+          mode: string
+          notify_on: Json
+          schedule: Json
+          status: string
+          status_message: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          confidence_profile?: string
+          confidence_threshold?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          mode?: string
+          notify_on?: Json
+          schedule?: Json
+          status?: string
+          status_message?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          confidence_profile?: string
+          confidence_threshold?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          mode?: string
+          notify_on?: Json
+          schedule?: Json
+          status?: string
+          status_message?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_insights: {
         Row: {
           action_url: string | null
