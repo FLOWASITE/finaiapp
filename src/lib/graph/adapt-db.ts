@@ -127,10 +127,14 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
 
   const ruleAccountHints = new Map<string, string[]>();
   for (const r of input.rules) {
-    const codes = [
-      ...extractAccountCodes(r.when_text),
-      ...extractAccountCodes(r.then_text),
-    ];
+    // Ưu tiên v2 structured actions; fallback regex text khi rule còn ở v1.
+    const fromV2 = extractAccountsFromActions(r.actions);
+    const codes = fromV2.length
+      ? fromV2
+      : [
+          ...extractAccountCodes(r.when_text),
+          ...extractAccountCodes(r.then_text),
+        ];
     for (const c of codes) accountSet.add(c);
     if (codes.length) ruleAccountHints.set(r.id, Array.from(new Set(codes)));
   }
@@ -139,17 +143,29 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     .sort()
     .map((code) => ({ id: `a-${code}`, code, name: accountName(code) }));
 
-  // Fuzzy vendor matching against rule titles + when_text
+  // Vendor matching: v2 conditions (vendor.name) trước, fallback fuzzy text.
   const vendorIndex = vendors.map((v) => ({ v, norm: normalize(v.name) }));
   const ruleVendorHints = new Map<string, string[]>();
   for (const r of input.rules) {
-    const hay = normalize(`${r.title} ${r.when_text}`);
-    const matched: string[] = [];
-    for (const { v, norm } of vendorIndex) {
-      if (!norm || norm.length < 3) continue;
-      if (hay.includes(norm)) matched.push(v.id);
+    const terms = extractVendorTermsFromConditions(r.conditions);
+    const matched = new Set<string>();
+    if (terms.length) {
+      for (const t of terms) {
+        const n = normalize(t);
+        if (n.length < 3) continue;
+        for (const { v, norm } of vendorIndex) {
+          if (norm && (norm.includes(n) || n.includes(norm))) matched.add(v.id);
+        }
+      }
     }
-    if (matched.length) ruleVendorHints.set(r.id, matched);
+    if (matched.size === 0) {
+      const hay = normalize(`${r.title} ${r.when_text}`);
+      for (const { v, norm } of vendorIndex) {
+        if (!norm || norm.length < 3) continue;
+        if (hay.includes(norm)) matched.add(v.id);
+      }
+    }
+    if (matched.size) ruleVendorHints.set(r.id, Array.from(matched));
   }
 
   // Extra edges
