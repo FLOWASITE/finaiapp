@@ -10,6 +10,7 @@ import {
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { hashBase64, readParseCache, writeParseCache } from "@/lib/ai/parse-cache.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
+import { classifyLine, summarizeInvoiceKind } from "@/lib/ai/classify-line";
 
 const InputSchema = z.object({
   fileBase64: z.string().min(1),
@@ -173,14 +174,19 @@ function toNullableNumber(value: any): number | null {
 function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNote?: string | null) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const lines = Array.isArray(source.lines)
-    ? source.lines.map((line: any) => ({
-        description: toNullableString(line?.description) || "Hàng hoá / dịch vụ",
-        qty: toNullableNumber(line?.qty),
-        unit_price: toNullableNumber(line?.unit_price),
-        amount: toNullableNumber(line?.amount),
-        vat_rate: toNullableNumber(line?.vat_rate),
-      }))
+    ? source.lines.map((line: any) => {
+        const base = {
+          description: toNullableString(line?.description) || "Hàng hoá / dịch vụ",
+          qty: toNullableNumber(line?.qty),
+          unit: toNullableString(line?.unit),
+          unit_price: toNullableNumber(line?.unit_price),
+          amount: toNullableNumber(line?.amount),
+          vat_rate: toNullableNumber(line?.vat_rate),
+        };
+        return { ...base, classification: classifyLine(base) };
+      })
     : [];
+  const classification_summary = summarizeInvoiceKind(lines);
   return {
     ...source,
     vendor_name: toNullableString(source.vendor_name),
@@ -192,6 +198,7 @@ function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNot
     vat_amount: toNullableNumber(source.vat_amount),
     total: toNullableNumber(source.total),
     lines,
+    classification_summary,
     notes: toNullableString(source.notes),
     ...(rawText ? { _rawText: rawText.slice(0, 12000) } : {}),
     ...(parserNote ? { _parserNotes: parserNote } : {}),
@@ -242,6 +249,20 @@ function isXmlFile(mimeType: string, filename?: string): boolean {
 }
 
 function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>) {
+  const lines = parsed.lines
+    .filter((line) => line.kind === "item")
+    .map((line) => {
+      const base = {
+        description: line.description || "Hàng hoá / dịch vụ",
+        qty: line.qty || 1,
+        unit: line.unit || null,
+        unit_price: line.unit_price || null,
+        amount: line.amount || null,
+        vat_rate: line.vat_rate,
+      };
+      return { ...base, classification: classifyLine(base) };
+    });
+  const classification_summary = summarizeInvoiceKind(lines);
   return {
     vendor_name: parsed.seller.name || null,
     vendor_tax_id: parsed.seller.tax_id || null,
@@ -251,15 +272,8 @@ function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>)
     subtotal: parsed.totals.subtotal || null,
     vat_amount: parsed.totals.vat_amount || null,
     total: parsed.totals.total || null,
-    lines: parsed.lines
-      .filter((line) => line.kind === "item")
-      .map((line) => ({
-        description: line.description || "Hàng hoá / dịch vụ",
-        qty: line.qty || 1,
-        unit_price: line.unit_price || null,
-        amount: line.amount || null,
-        vat_rate: line.vat_rate,
-      })),
+    lines,
+    classification_summary,
     notes: parsed.cqt_code ? `XML HĐĐT, mã CQT: ${parsed.cqt_code}` : "XML HĐĐT",
     // Extra fields (ignored by downstream validators) used by the chat
     // preview to render the original e-invoice as a paper-style template.

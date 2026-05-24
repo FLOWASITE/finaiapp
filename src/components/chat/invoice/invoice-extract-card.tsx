@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+import { kindMeta, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
@@ -75,7 +77,18 @@ export function InvoiceExtractCard({
   const subtotal = Number(parsed?.subtotal ?? 0);
   const vat = Number(parsed?.vat_amount ?? 0);
   const total = Number(parsed?.total ?? subtotal + vat);
-  const firstLine = parsed?.lines?.[0]?.description ?? null;
+  const invoiceLines: Array<{
+    description?: string | null;
+    qty?: number | null;
+    unit?: string | null;
+    unit_price?: number | null;
+    amount?: number | null;
+    classification?: LineClassification;
+  }> = Array.isArray(parsed?.lines) ? parsed.lines : [];
+  const classificationSummary = parsed?.classification_summary as
+    | { dominant: LineKind; account: string; label: string; mixed: boolean }
+    | null
+    | undefined;
 
   // Detect empty extraction (all key fields missing) — likely OCR/parse failed
   const isEmptyExtract =
@@ -84,7 +97,7 @@ export function InvoiceExtractCard({
     !parsed?.issue_date &&
     !(subtotal > 0) &&
     !(total > 0) &&
-    !(parsed?.lines?.length > 0);
+    !(invoiceLines.length > 0);
 
   const rawText: string | null = parsed?._rawText ?? null;
   const notes: string | null = parsed?.notes ?? null;
@@ -111,7 +124,22 @@ export function InvoiceExtractCard({
           ),
         }
       : null,
-    firstLine ? { label: "Mặt hàng", value: firstLine } : null,
+    classificationSummary
+      ? {
+          label: "Loại",
+          value: (
+            <span className="inline-flex items-center gap-1.5">
+              <KindBadge kind={classificationSummary.dominant} />
+              {classificationSummary.mixed ? (
+                <span className="text-[10px] text-muted-foreground">(hỗn hợp)</span>
+              ) : null}
+              <span className="text-[10px] text-muted-foreground">
+                → TK {classificationSummary.account}
+              </span>
+            </span>
+          ),
+        }
+      : null,
     { label: "Giá trước thuế", value: <span className="font-mono">{fmtVND(subtotal)}</span> },
     vat ? { label: "VAT", value: <span className="font-mono">{fmtVND(vat)}</span> } : null,
     {
@@ -268,6 +296,23 @@ export function InvoiceExtractCard({
                     <FieldRow key={i} label={f.label} value={f.value} />
                   ))}
                 </dl>
+                {invoiceLines.length > 0 ? (
+                  <div className="mt-3 border-t border-border/40 pt-2">
+                    <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Chi tiết dòng ({invoiceLines.length})
+                    </div>
+                    <ul className="space-y-1">
+                      {invoiceLines.slice(0, 8).map((ln, i) => (
+                        <LineRow key={i} line={ln} />
+                      ))}
+                      {invoiceLines.length > 8 ? (
+                        <li className="text-[10px] text-muted-foreground">
+                          … và {invoiceLines.length - 8} dòng khác
+                        </li>
+                      ) : null}
+                    </ul>
+                  </div>
+                ) : null}
                 {notes ? (
                   <div className="mt-3 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
                     {notes}
@@ -386,5 +431,96 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className={cn("self-center text-[11px] text-muted-foreground")}>{label}</dt>
       <dd className="self-center text-foreground">{value}</dd>
     </>
+  );
+}
+
+const KIND_TONE: Record<LineKind, string> = {
+  goods:
+    "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 ring-emerald-500/30",
+  fixed_asset: "bg-sky-500/12 text-sky-700 dark:text-sky-400 ring-sky-500/30",
+  ccdc: "bg-violet-500/12 text-violet-700 dark:text-violet-400 ring-violet-500/30",
+  service: "bg-amber-500/14 text-amber-700 dark:text-amber-400 ring-amber-500/30",
+};
+
+function KindBadge({
+  kind,
+  confidence,
+  signals,
+}: {
+  kind: LineKind;
+  confidence?: number;
+  signals?: { label: string }[];
+}) {
+  const meta = kindMeta(kind);
+  const tone = KIND_TONE[kind];
+  const lowConf = confidence != null && confidence < 80;
+  const badge = (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
+        tone,
+        lowConf && "ring-amber-500/60",
+      )}
+    >
+      {meta.label}
+      {confidence != null ? (
+        <span className="opacity-70">{confidence}%</span>
+      ) : null}
+    </span>
+  );
+  if (!signals || signals.length === 0) return badge;
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help">{badge}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-[11px]">
+          <div className="mb-1 font-semibold">
+            Vì sao là {meta.label}? (TK gợi ý {meta.account})
+          </div>
+          <ul className="list-disc space-y-0.5 pl-3">
+            {signals.map((s, i) => (
+              <li key={i}>{s.label}</li>
+            ))}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function LineRow({
+  line,
+}: {
+  line: {
+    description?: string | null;
+    qty?: number | null;
+    unit?: string | null;
+    unit_price?: number | null;
+    amount?: number | null;
+    classification?: LineClassification;
+  };
+}) {
+  const c = line.classification;
+  return (
+    <li className="flex items-start justify-between gap-2 text-[11.5px]">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate font-medium text-foreground">
+            {line.description ?? "—"}
+          </span>
+          {c ? (
+            <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+          ) : null}
+        </div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
+          {line.qty ?? "—"} {line.unit ?? ""} × {fmtVND(line.unit_price ?? 0)}
+        </div>
+      </div>
+      <div className="shrink-0 text-right font-mono text-[11px]">
+        {fmtVND(line.amount ?? 0)}
+      </div>
+    </li>
   );
 }
