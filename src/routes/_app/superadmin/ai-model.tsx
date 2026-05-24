@@ -51,6 +51,9 @@ import {
 
 export const Route = createFileRoute("/_app/superadmin/ai-model")({
   beforeLoad: requireSuperadminGuard,
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: (s.tab === "agents" ? "agents" : "provider") as "provider" | "agents",
+  }),
   component: AiModelPage,
 });
 
