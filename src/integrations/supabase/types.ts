@@ -8163,6 +8163,7 @@ export type Database = {
           fax: string | null
           fiscal_year_start: number
           id: string
+          industries: Json
           industry_code: string | null
           industry_name: string | null
           legal_form: string | null
@@ -8210,6 +8211,7 @@ export type Database = {
           fax?: string | null
           fiscal_year_start?: number
           id?: string
+          industries?: Json
           industry_code?: string | null
           industry_name?: string | null
           legal_form?: string | null
@@ -8257,6 +8259,7 @@ export type Database = {
           fax?: string | null
           fiscal_year_start?: number
           id?: string
+          industries?: Json
           industry_code?: string | null
           industry_name?: string | null
           legal_form?: string | null

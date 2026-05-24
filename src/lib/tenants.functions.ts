@@ -154,6 +154,7 @@ const UpdateTenantSchema = z.object({
   established_date: optionalDate.optional(),
   industry_code: optionalIndustry.optional(),
   industry_name: z.string().max(255).nullish(),
+  industries: z.array(z.object({ code: z.string().max(20), name: z.string().max(255) })).max(20).nullish(),
   tax_authority: z.string().max(255).nullish(),
   tax_method: z.enum(["deduction","direct_revenue","direct_gtgt"]).nullish(),
   vat_period: z.enum(["monthly","quarterly"]).nullish(),
@@ -165,7 +166,7 @@ const UpdateTenantSchema = z.object({
   email: optionalEmail.optional(),
   website: optionalUrl.optional(),
   fax: z.string().max(50).nullish(),
-  accounting_standard: z.enum(["TT133", "TT200"]).nullish(),
+  accounting_standard: z.enum(["TT133", "TT200", "TT99"]).nullish(),
   base_currency: z.string().max(10).nullish(),
   fiscal_year_start: z.number().int().min(1).max(12).nullish(),
   logo_url: z.string().nullish(),
@@ -206,6 +207,12 @@ export const updateActiveTenant = createServerFn({ method: "POST" })
       if (v === null && !NULLABLE_COLS.has(k)) continue;
       patch[k] = v;
     }
+    // Đồng bộ ngành chính (industry_code/name) từ phần tử đầu của industries[]
+    if (Array.isArray((data as any).industries)) {
+      const first = (data as any).industries[0];
+      patch.industry_code = first?.code ?? null;
+      patch.industry_name = first?.name ?? null;
+    }
     const { error } = await supabase.from("tenants").update(patch as any).eq("id", tid);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -215,8 +222,6 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "tax_id", label: "Mã số thuế" },
   { key: "company_name", label: "Tên pháp nhân" },
   { key: "legal_form", label: "Loại hình doanh nghiệp" },
-  { key: "business_reg_no", label: "Số GPKD" },
-  { key: "business_reg_date", label: "Ngày cấp GPKD" },
   { key: "address", label: "Địa chỉ trụ sở" },
   { key: "accounting_standard", label: "Chuẩn kế toán" },
   { key: "base_currency", label: "Đồng tiền hạch toán" },

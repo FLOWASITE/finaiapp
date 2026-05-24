@@ -4,8 +4,6 @@ export const REQUIRED_TENANT_FIELDS: { key: string; label: string }[] = [
   { key: "tax_id", label: "Mã số thuế" },
   { key: "company_name", label: "Tên pháp nhân" },
   { key: "legal_form", label: "Loại hình doanh nghiệp" },
-  { key: "business_reg_no", label: "Số GPKD" },
-  { key: "business_reg_date", label: "Ngày cấp GPKD" },
   { key: "address", label: "Địa chỉ trụ sở" },
   { key: "accounting_standard", label: "Chuẩn kế toán" },
   { key: "base_currency", label: "Đồng tiền hạch toán" },

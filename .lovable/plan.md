@@ -1,46 +1,62 @@
-## Hoàn thiện "Bối cảnh doanh nghiệp" (Context Tab)
+## Mục tiêu
+Tinh giản & sửa form **Cập nhật tổ chức** (`/settings`) theo 6 yêu cầu.
 
-Hiện trạng:
-- Đã có bảng `ai_memory_context` + CRUD UI (`ContextTab` trong `ai-memory-tabs.tsx`).
-- 3 lỗ hổng cốt lõi:
-  1. **AI không thực sự đọc bối cảnh** — `chat.functions.ts` chỉ inject profile + tenant; chưa nạp `ai_memory_context` vào system prompt.
-  2. **Badge đếm cứng** `(12)` ở tab — không phản ánh số dòng thật.
-  3. **Tenant mới trống trơn** — chưa có gợi ý/seed mẫu để user bắt đầu.
-- Phụ: dialog tạo mới chưa có ordering UI, chưa có nút "Xem 5 dòng gần đây mà AI sẽ áp dụng", chưa search/filter khi danh sách dài.
+## Thay đổi UI — `src/routes/_app/settings/index.tsx`
 
-### Phạm vi làm trong lần này
+1. **Bỏ "Địa chỉ xuất hoá đơn"** — gỡ `Field` `billing_address` (mục Liên hệ & Địa chỉ). Khi lưu, set `billing_address = null`.
+2. **Bỏ GPKD/ĐKKD** — gỡ 3 `Field`: `business_reg_no`, `business_reg_date`, `business_reg_place`. Cũng gỡ chữ "GPKD" trong dòng `Hint` "Tự điền…".
+3. **Auto-fill Loại hình doanh nghiệp từ Tên pháp nhân** — thêm helper `inferLegalForm(companyName)`:
+   - `TNHH` → `llc`
+   - `CỔ PHẦN` / `CP` → `jsc`
+   - `HỢP DANH` → `partnership`
+   - `DOANH NGHIỆP TƯ NHÂN` / `DNTN` → `sole_prop`
+   - `HỘ KINH DOANH` / `HKD` → `household`
+   - `CHI NHÁNH` → `branch`
+   
+   Gắn vào `onChange` của `company_name`: nếu `legal_form` đang trống hoặc người dùng chưa chỉnh tay (track bằng `userEditedLegalFormRef`), tự set giá trị suy luận. Vẫn cho phép sửa tay.
+4. **Bỏ Fax** — gỡ `Field` `fax`. Khi lưu, set `fax = null`. Layout dòng Điện thoại/Email/Website sẽ rearrange gọn lại (Điện thoại + Email trên 1 hàng, Website xuống dưới hoặc cùng hàng tuỳ chỗ trống).
+5. **TT200 → TT99** — trong dropdown "Chuẩn kế toán áp dụng":
+   - Đổi `<SelectItem value="TT200">` thành `value="TT99"` label `"TT 99/2025/TT-BTC — Áp dụng đầy đủ"`.
+   - Giữ `TT133` như cũ.
+   - Nếu dữ liệu hiện tại là `TT200`, hiển thị thêm option ẩn để không vỡ select; có thể auto-migrate trong loader (hiển thị TT99 thay vì TT200) — xem mục Backend.
+6. **Ngành nghề kinh doanh — chọn nhiều** — thay `IndustryCombobox` đơn lẻ bằng phiên bản multi-select.
 
-**1. Inject bối cảnh vào AI (quan trọng nhất)** — `src/lib/chat.functions.ts`
-- Load `ai_memory_context` theo `tenantId` (đã có `supabase` scoped trong handler).
-- Group theo `category`, render thành block markdown `## Bối cảnh doanh nghiệp` với các sub-heading theo `CATEGORY_LABEL` (Tổ chức, Kế toán, Thuế…), mỗi dòng `- {label}: {value_text}`.
-- Append vào `systemParts` sau `userContextBlock`, trước `SCHEMA_HINT`.
-- Cache nhẹ trong request (1 query duy nhất, best-effort, không chặn chat nếu lỗi).
+## Thay đổi component — `src/components/industry-combobox.tsx`
+Thêm chế độ multi: prop `multi?: boolean`, `codes?: string[]`, `names?: string[]`, `onChangeMulti?: (items: {code,name}[]) => void`. Trong popover hiển thị `Checkbox` thay vì `Check`, hiển thị các chip đã chọn bên ngoài + nút xoá. Giữ tương thích chế độ đơn cũ.
 
-**2. Badge đếm thật** — `src/routes/_app/ai.memory.tsx`
-- Thêm `useQuery(['ai-memory','context'], listContext)` ở component cha (hoặc dùng `useQueryClient().getQueryData`), truyền `contextCount` vào `SubTabs` thay cho hằng `12`.
-- Tương tự fix nhanh `partners` (đang cứng `128`) và `limits` (đang cứng `8`) bằng cách dùng cùng pattern khi data đã có sẵn trong cache; nếu chưa load thì hiển thị không có số.
+## Backend — schema & validator
 
-**3. Seed gợi ý cho tenant mới** — `src/components/ai-memory-tabs.tsx`
-- Khi `ContextTab` rỗng (`data?.length === 0`), render empty state với grid 6-8 "thẻ gợi ý" (label + value mẫu, theo các category phổ biến: Kế toán, Thuế, Doanh thu, Ngân hàng…).
-- Mỗi thẻ có nút "Thêm vào bối cảnh" → gọi `createContext` với key tự sinh từ slug(label).
-- Danh sách gợi ý hardcode trong file (không cần migration), ví dụ:
-  - Kế toán: "Áp dụng Thông tư 200", "Kỳ kế toán theo năm dương lịch"
-  - Thuế: "Kê khai VAT theo tháng, phương pháp khấu trừ"
-  - Doanh thu: "Ghi nhận doanh thu khi xuất hoá đơn"
-  - Ngân hàng: "Tài khoản chính tại Vietcombank"
+**Migration (`supabase--migration`)**:
+```sql
+ALTER TABLE public.tenants
+  ADD COLUMN IF NOT EXISTS industries jsonb NOT NULL DEFAULT '[]'::jsonb;
 
-**4. UX nhỏ trong ContextTab**
-- Thêm ô search ở đầu (filter client-side theo `label + value_text`), chỉ hiện khi `data.length > 6`.
-- Sửa nút "Thêm mục bối cảnh": pre-fill `key` tự động từ slug(label) khi user gõ label (chỉ khi key đang trống), giảm friction.
+-- Backfill từ industry_code/industry_name hiện có
+UPDATE public.tenants
+SET industries = jsonb_build_array(jsonb_build_object('code', industry_code, 'name', industry_name))
+WHERE industries = '[]'::jsonb AND industry_code IS NOT NULL;
+```
+Giữ `industry_code`/`industry_name` (lưu ngành **đầu tiên** = ngành chính) để backward-compat với invoice/print/legacy code.
 
-### Ngoài phạm vi (không làm lần này, ghi nhận để pha sau)
-- Node "Bối cảnh" trong Memory Graph (sẽ làm cùng phase mở rộng graph).
-- Versioning / lịch sử thay đổi từng dòng context.
-- Import/export bối cảnh dạng YAML.
+**`src/lib/tenants.functions.ts`** (`updateTenant` validator + `createTenant`):
+- Thêm `industries: z.array(z.object({ code: z.string(), name: z.string() })).max(20).optional()`.
+- Khi `industries` được gửi: tự set `industry_code = industries[0]?.code`, `industry_name = industries[0]?.name` để đồng bộ.
+- Validator `accounting_standard`: nới thành `z.enum(["TT133","TT200","TT99"])` (giữ TT200 cho dữ liệu cũ, mặc định mới là TT99).
+- Cho phép payload set `billing_address=null`, `fax=null` (chỉ cần `.nullable().optional()` — kiểm tra, có thể đã sẵn).
 
-### Files chạm vào
-- `src/lib/chat.functions.ts` (inject context block)
-- `src/routes/_app/ai.memory.tsx` (badge đếm thật)
-- `src/components/ai-memory-tabs.tsx` (empty-state seed, search, auto-slug key)
+**`src/lib/tenant-setup-fields.ts`**: gỡ `business_reg_no`, `business_reg_date` khỏi `REQUIRED_TENANT_FIELDS` (vì không còn nhập). Setup progress sẽ tính lại tự động.
 
-Không cần migration, không thay đổi schema, không đụng business logic khác.
+## Nơi khác cần đồng bộ (nhẹ)
+- `src/components/tenant-switcher.tsx` (dialog tạo nhanh): bỏ hiển thị "GPKD/MST", "Ngày cấp" trong bonus list (giữ payload gửi server vẫn được; chỉ ẩn UI). Không bắt buộc trong vòng này nếu user chỉ cần sửa trang Settings — sẽ confirm.
+- `src/routes/_app/setup.tsx` / wizard: nếu có bước nhập GPKD, gỡ tương tự. (Nếu chưa cần thiết, có thể làm follow-up.)
+
+## Không đụng
+- AI memory, in hoá đơn, BCTC (tiếp tục đọc `industry_code`/`industry_name` là ngành chính).
+- Bảng `tenants` không drop column nào (an toàn dữ liệu cũ).
+
+## Kiểm thử nhanh
+1. Mở `/settings` → tab Tổ chức: các field bị gỡ biến mất, không lỗi console.
+2. Gõ "CÔNG TY CỔ PHẦN ABC" vào Tên pháp nhân → Loại hình tự nhảy "Cổ phần"; sửa tay sang "TNHH" → không bị ghi đè lại.
+3. Chuẩn kế toán: dropdown chỉ còn TT133 + TT99; tổ chức cũ đang TT200 vẫn hiển thị (label fallback).
+4. Ngành nghề: chọn 3 ngành → Lưu → reload → vẫn còn 3 ngành; ngành đầu là ngành chính.
+5. Setup progress (% hoàn thiện) tăng vì bớt 2 field bắt buộc.

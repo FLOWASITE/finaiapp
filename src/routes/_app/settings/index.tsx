@@ -129,6 +129,23 @@ const SECTIONS = [
   { id: "sec-branding", label: "Thương hiệu & Chữ ký", icon: <ImageIcon className="h-4 w-4" /> },
 ];
 
+// Suy luận loại hình doanh nghiệp từ tên pháp nhân (theo cụm từ phổ biến tiếng Việt).
+function inferLegalForm(companyName: string | null | undefined): string | null {
+  if (!companyName) return null;
+  const s = companyName
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g, "D");
+  if (/\bHO\s*KINH\s*DOANH\b|\bHKD\b/.test(s)) return "household";
+  if (/\bCHI\s*NHANH\b/.test(s)) return "branch";
+  if (/\bDOANH\s*NGHIEP\s*TU\s*NHAN\b|\bDNTN\b/.test(s)) return "sole_prop";
+  if (/\bHOP\s*DANH\b/.test(s)) return "partnership";
+  if (/\bCO\s*PHAN\b|\bCONG\s*TY\s*CP\b|\bCTCP\b/.test(s)) return "jsc";
+  if (/\bTNHH\b|\bTRACH\s*NHIEM\s*HUU\s*HAN\b/.test(s)) return "llc";
+  return null;
+}
+
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
@@ -144,10 +161,12 @@ function OrganizationTab() {
   const [diffShipping, setDiffShipping] = React.useState(false);
   const [overwriteAll, setOverwriteAll] = React.useState(false);
   const loadedTenantIdRef = React.useRef<string | null>(null);
+  const userEditedLegalFormRef = React.useRef(false);
   React.useEffect(() => {
     const t: any = data?.tenant;
     if (t && loadedTenantIdRef.current !== t.id) {
       loadedTenantIdRef.current = t.id;
+      userEditedLegalFormRef.current = !!t.legal_form;
       setForm(t);
       setDiffShipping(!!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)));
     }
@@ -219,6 +238,9 @@ function OrganizationTab() {
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
+    // Các trường đã gỡ khỏi UI — xoá hẳn dữ liệu khi lưu
+    payload.billing_address = null;
+    payload.fax = null;
     // strip readonly keys
     ["id","user_id","created_at","updated_at","setup_completed","setup_completed_at"].forEach((k) => delete payload[k]);
     mutate.mutate(payload);
@@ -314,11 +336,26 @@ function OrganizationTab() {
                         Ghi đè dữ liệu hiện có
                       </label>
                     </div>
-                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, GPKD, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
+                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
-                    <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
-                    <Hint>In trên hoá đơn, BCTC, hợp đồng.</Hint>
+                    <Input
+                      disabled={!canEdit}
+                      value={form.company_name ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm((prev: any) => {
+                          const next = { ...prev, company_name: v };
+                          const inferred = inferLegalForm(v);
+                          if (inferred && !userEditedLegalFormRef.current) {
+                            next.legal_form = inferred;
+                          }
+                          return next;
+                        });
+                      }}
+                      placeholder="VD: CÔNG TY TNHH ABC"
+                    />
+                    <Hint>In trên hoá đơn, BCTC, hợp đồng. Loại hình DN sẽ tự suy ra từ tên.</Hint>
                   </Field>
                   <Field label="Tên giao dịch / Thương hiệu">
                     <Input disabled={!canEdit} value={form.trade_name ?? ""} onChange={(e) => set("trade_name", e.target.value)} placeholder="VD: ABC Group" />
@@ -327,27 +364,28 @@ function OrganizationTab() {
                     <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: ABC" />
                   </Field>
                   <Field label="Loại hình doanh nghiệp" required>
-                    <Select disabled={!canEdit} value={form.legal_form ?? ""} onValueChange={(v) => set("legal_form", v)}>
+                    <Select
+                      disabled={!canEdit}
+                      value={form.legal_form ?? ""}
+                      onValueChange={(v) => { userEditedLegalFormRef.current = true; set("legal_form", v); }}
+                    >
                       <SelectTrigger><SelectValue placeholder="Chọn loại hình…" /></SelectTrigger>
                       <SelectContent>
                         {LEGAL_FORMS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <Hint>Tự suy từ tên pháp nhân (TNHH → TNHH, CỔ PHẦN → Cổ phần…). Có thể sửa tay.</Hint>
                   </Field>
                   <Field label="Ngày thành lập">
                     <Input type="date" disabled={!canEdit} value={form.established_date ?? ""} onChange={(e) => set("established_date", e.target.value || null)} />
                   </Field>
-                  <Field label="Số GPKD / ĐKKD" required>
-                    <Input disabled={!canEdit} value={form.business_reg_no ?? ""} onChange={(e) => set("business_reg_no", e.target.value)} placeholder="VD: 0123456789" />
-                  </Field>
-                  <Field label="Ngày cấp GPKD" required>
-                    <Input type="date" disabled={!canEdit} value={form.business_reg_date ?? ""} onChange={(e) => set("business_reg_date", e.target.value || null)} />
-                  </Field>
-                  <Field label="Nơi cấp GPKD" className="md:col-span-2">
-                    <Input disabled={!canEdit} value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="VD: Sở KH&ĐT TP. Hà Nội" />
-                  </Field>
-                  <Field label="Ngành nghề kinh doanh chính" className="md:col-span-2">
-                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => setForm({ ...form, industry_code: c, industry_name: n })} />
+                  <Field label="Ngành nghề kinh doanh" className="md:col-span-2">
+                    <IndustryCombobox
+                      multi
+                      disabled={!canEdit}
+                      items={Array.isArray(form.industries) ? form.industries : []}
+                      onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                    />
                   </Field>
                   <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.tax_authority ?? ""} onChange={(e) => set("tax_authority", e.target.value)} placeholder="VD: Chi cục Thuế Quận 1" />
@@ -369,9 +407,6 @@ function OrganizationTab() {
                 <Field label="Địa chỉ trụ sở chính" required>
                   <Textarea disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" rows={2} />
                 </Field>
-                <Field label="Địa chỉ xuất hoá đơn (nếu khác)">
-                  <Textarea disabled={!canEdit} value={form.billing_address ?? ""} onChange={(e) => set("billing_address", e.target.value)} placeholder="Để trống nếu trùng địa chỉ trụ sở" rows={2} />
-                </Field>
                 <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
                   <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={setDiffShipping} />
                   <div className="text-sm">
@@ -388,13 +423,10 @@ function OrganizationTab() {
                   <Field label="Điện thoại">
                     <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 02838123456" />
                   </Field>
-                  <Field label="Fax">
-                    <Input disabled={!canEdit} value={form.fax ?? ""} onChange={(e) => set("fax", e.target.value)} />
-                  </Field>
                   <Field label="Email">
                     <Input type="email" disabled={!canEdit} value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} placeholder="ketoan@congty.com" />
                   </Field>
-                  <Field label="Website">
+                  <Field label="Website" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.website ?? ""} onChange={(e) => set("website", e.target.value)} placeholder="https://congty.com" />
                   </Field>
                 </div>
@@ -416,7 +448,10 @@ function OrganizationTab() {
                     <SelectTrigger><SelectValue placeholder="Chọn chuẩn…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TT133">TT 133/2016/TT-BTC — Doanh nghiệp nhỏ và vừa</SelectItem>
-                      <SelectItem value="TT200">TT 200/2014/TT-BTC — Áp dụng đầy đủ</SelectItem>
+                      <SelectItem value="TT99">TT 99/2025/TT-BTC — Áp dụng đầy đủ</SelectItem>
+                      {form.accounting_standard === "TT200" && (
+                        <SelectItem value="TT200">TT 200/2014/TT-BTC (cũ — sẽ thay bằng TT99)</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <Hint>Lưu ý: Sau khi phát sinh dữ liệu, đổi chuẩn có thể ảnh hưởng bảng tài khoản.</Hint>
