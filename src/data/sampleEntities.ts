@@ -15,6 +15,14 @@ export type AccountEntity = {
   name: string;
 };
 
+export type ItemEntity = {
+  id: string;
+  name: string;
+  kind: "goods" | "fixed_asset" | "ccdc" | "service";
+  hitCount: number;
+  defaultAccount?: string;
+};
+
 export const sampleVendors: VendorEntity[] = [
   { id: "v-grab", name: "Grab for Business", tax_id: "0312554326", industry: "Vận tải" },
   { id: "v-be", name: "Be Group", tax_id: "0314136868", industry: "Vận tải" },
