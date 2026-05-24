@@ -278,6 +278,8 @@ function hostFromUrl(u: string): string | null {
 }
 
 function AiModelPage() {
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const getCfg = useServerFn(getAiModelConfig);
   const saveCfg = useServerFn(saveAiModelConfig);
   const testCfg = useServerFn(testAiModelConfig);
