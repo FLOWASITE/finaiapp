@@ -238,6 +238,9 @@ function OrganizationTab() {
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
+    // Các trường đã gỡ khỏi UI — xoá hẳn dữ liệu khi lưu
+    payload.billing_address = null;
+    payload.fax = null;
     // strip readonly keys
     ["id","user_id","created_at","updated_at","setup_completed","setup_completed_at"].forEach((k) => delete payload[k]);
     mutate.mutate(payload);
