@@ -178,24 +178,115 @@ function RuleDetail({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
   );
 }
 
+const KIND_ORDER: LineKind[] = ["goods", "fixed_asset", "ccdc", "service"];
+const KIND_COLORS: Record<LineKind, string> = {
+  goods: "#059669",
+  fixed_asset: "#0284C7",
+  ccdc: "#7C3AED",
+  service: "#D97706",
+};
+
 function VendorDetail({
   vendor,
+  industryCode,
+  industryLabel,
+  historyDist,
+  historyTotal,
   relatedRules,
   onJumpTo,
 }: {
   vendor: { id: string; name: string; tax_id?: string; industry?: string };
+  industryCode: string | null;
+  industryLabel: string | null;
+  historyDist: Partial<Record<LineKind, number>> | null;
+  historyTotal: number;
   relatedRules: Rule[];
   onJumpTo: (id: string) => void;
 }) {
+  const [editOpen, setEditOpen] = useState(false);
+
+  // Nudge: history strongly skewed but no industry set
+  let nudge: { kind: LineKind; pct: number } | null = null;
+  if (!industryCode && historyDist && historyTotal > 0) {
+    const sorted = (Object.entries(historyDist) as Array<[LineKind, number]>)
+      .filter(([, v]) => (v ?? 0) > 0)
+      .sort((a, b) => b[1] - a[1]);
+    if (sorted[0] && sorted[0][1] / historyTotal >= 0.7) {
+      nudge = { kind: sorted[0][0], pct: Math.round((sorted[0][1] / historyTotal) * 100) };
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div>
         <div className="text-[13px] font-semibold">{vendor.name}</div>
-        <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-          {vendor.industry && <>Ngành: {vendor.industry} · </>}
-          {vendor.tax_id && <>MST: {vendor.tax_id}</>}
-        </div>
+        {vendor.tax_id && (
+          <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+            MST: {vendor.tax_id}
+          </div>
+        )}
       </div>
+
+      <Section title="Ngành nghề (VSIC)">
+        <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-2">
+          <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" />
+          <div className="flex-1 text-[11.5px]">
+            {industryCode ? (
+              <>
+                <div className="font-mono font-semibold">{industryCode}</div>
+                <div className="text-muted-foreground">
+                  {industryLabel?.replace(`${industryCode} — `, "") ?? "—"}
+                </div>
+              </>
+            ) : (
+              <div className="text-muted-foreground italic">Chưa gắn ngành nghề</div>
+            )}
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setEditOpen(true)}>
+            <Pencil className="mr-1 h-3 w-3" />
+            {industryCode ? "Sửa" : "Gắn"}
+          </Button>
+        </div>
+        {nudge && (
+          <div className="mt-1.5 rounded-md border border-dashed border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">
+            💡 NCC này có <b>{nudge.pct}%</b> giao dịch là{" "}
+            <b>{kindMeta(nudge.kind).label}</b>. Gắn ngành tương ứng để AI đoán chính
+            xác hơn.
+          </div>
+        )}
+      </Section>
+
+      <Section title={`Lịch sử 12 tháng${historyTotal > 0 ? ` (${historyTotal.toLocaleString("vi-VN")})` : ""}`}>
+        {!historyDist || historyTotal === 0 ? (
+          <div className="rounded-md border border-dashed bg-muted/30 p-2 text-[11.5px] text-muted-foreground">
+            Chưa có dữ liệu hoá đơn 12 tháng gần đây.
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {KIND_ORDER.map((k) => {
+              const v = historyDist[k] ?? 0;
+              const pct = historyTotal > 0 ? (v / historyTotal) * 100 : 0;
+              if (v === 0) return null;
+              return (
+                <li key={k} className="text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span>{kindMeta(k).label}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, backgroundColor: KIND_COLORS[k] }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
 
       <Section title={`Quy tắc liên quan (${relatedRules.length})`}>
         {relatedRules.length === 0 ? (
@@ -218,6 +309,14 @@ function VendorDetail({
           </ul>
         )}
       </Section>
+
+      <EditIndustryDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        supplierId={vendor.id}
+        supplierName={vendor.name}
+        currentCode={industryCode}
+      />
     </div>
   );
 }
