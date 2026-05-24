@@ -1,0 +1,188 @@
+/**
+ * Phân loại từng dòng hóa đơn mua vào thành Hàng hóa / TSCĐ / CCDC / Dịch vụ.
+ * Pure rules (price + unit + keyword) — browser & server safe.
+ *
+ * Tham khảo Thông tư 45/2013/TT-BTC: TSCĐ khi nguyên giá ≥ 30tr + thời gian sử
+ * dụng > 1 năm. CCDC: < 30tr nhưng vẫn có giá trị (≥ 3tr) và bền.
+ */
+
+export type LineKind = "goods" | "fixed_asset" | "ccdc" | "service";
+
+export type ClassifySignal = {
+  label: string;
+  weight: number; // 0..100
+  votes: LineKind;
+};
+
+export type LineClassification = {
+  kind: LineKind;
+  account: string;
+  label: string;
+  confidence: number; // 0..100
+  signals: ClassifySignal[];
+};
+
+const KIND_META: Record<LineKind, { label: string; account: string; color: string }> = {
+  goods: { label: "Hàng hóa", account: "156", color: "emerald" },
+  fixed_asset: { label: "TSCĐ", account: "211", color: "sky" },
+  ccdc: { label: "CCDC", account: "153", color: "violet" },
+  service: { label: "Dịch vụ", account: "642", color: "amber" },
+};
+
+export function kindMeta(kind: LineKind) {
+  return KIND_META[kind];
+}
+
+const norm = (s?: string | null) =>
+  (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .trim();
+
+// ---- Đơn vị tính ----------------------------------------------------------
+const UNIT_GOODS = /\b(kg|gam|g|tan|hop|thung|chai|lon|goi|cuon|bao|tui|lit|l|m3|m2|met|cay|cuc|vien|tam|cuon|ream|toa|cuon)\b/;
+const UNIT_DURABLE = /\b(cai|chiec|bo|may|xe|don vi|item|pc|pcs|unit)\b/;
+const UNIT_SERVICE = /\b(lan|gio|h|ngay|thang|nam|ky|km|chuyen|tour|dich vu|service|hop dong|goi dv)\b/;
+
+// ---- Từ khóa tên hàng ----------------------------------------------------
+const KW_FIXED_ASSET =
+  /\b(may (chu|tinh|in|chieu|lanh|giat|moc)|server|laptop|workstation|o to|xe (tai|hoi|nang|may)|thiet bi|he thong|day chuyen|phan mem ban quyen|license|nha xuong|kho bai|may moc thiet bi|tscd|tsdd)\b/;
+
+const KW_SERVICE =
+  /\b(phi|cuoc|dich vu|tu van|consult|thue|rent|thuê|bao tri|sua chua|van chuyen|ship|giao hang|logistic|internet|tien dien|tien nuoc|dien thoai|telecom|quang cao|advertis|marketing|hoa hong|commission|bao hiem|insurance|ve sinh|cleaning|kiem toan|audit|dao tao|training|khach san|hotel|an uong|nha hang|restaurant|tiep khach|cafe|tien xang|nhien lieu|toll|cau duong|grab|taxi|uber)\b/;
+
+const KW_CCDC =
+  /\b(ban|ghe|tu|ke|may tinh tay|may in|dieu hoa|quat|den|may anh|may quay|dien thoai di dong|cong cu|dung cu)\b/;
+
+const KW_GOODS_HINT =
+  /\b(hang hoa|san pham|nguyen lieu|vat lieu|nvl|bia|ruou|nuoc ngot|sua|thuc pham|gao|duong|muoi|xi mang|thep|gach|son|vai|quan ao)\b/;
+
+// Ngưỡng (VND) — theo TT 45/2013
+const FIXED_ASSET_MIN = 30_000_000;
+const CCDC_MIN = 3_000_000;
+
+export type RawLine = {
+  description?: string | null;
+  qty?: number | null;
+  unit?: string | null;
+  unit_price?: number | null;
+  amount?: number | null;
+};
+
+export function classifyLine(line: RawLine): LineClassification {
+  const desc = norm(line.description);
+  const unit = norm(line.unit);
+  const haystack = `${desc} ${unit}`;
+  const unitPrice = Number(line.unit_price ?? 0);
+  const amount = Number(line.amount ?? 0);
+  const qty = Number(line.qty ?? 0);
+  const effectiveUnitPrice =
+    unitPrice > 0 ? unitPrice : qty > 0 && amount > 0 ? amount / qty : amount;
+
+  const scores: Record<LineKind, number> = { goods: 0, fixed_asset: 0, ccdc: 0, service: 0 };
+  const signals: ClassifySignal[] = [];
+
+  const vote = (kind: LineKind, weight: number, label: string) => {
+    scores[kind] += weight;
+    signals.push({ kind: kind as any, label, weight, votes: kind });
+  };
+
+  // 1) Đơn giá (trọng số 30)
+  if (effectiveUnitPrice >= FIXED_ASSET_MIN) {
+    vote("fixed_asset", 35, `Đơn giá ≥ 30tr → TSCĐ`);
+  } else if (effectiveUnitPrice >= CCDC_MIN && UNIT_DURABLE.test(haystack)) {
+    vote("ccdc", 25, `Đơn giá 3–30tr + ĐVT đếm được → CCDC`);
+  } else if (effectiveUnitPrice > 0 && effectiveUnitPrice < CCDC_MIN) {
+    vote("goods", 10, `Đơn giá nhỏ → thiên về hàng hóa`);
+  }
+
+  // 2) Đơn vị tính (trọng số 20)
+  if (UNIT_SERVICE.test(haystack)) {
+    vote("service", 25, `ĐVT "${unit || "—"}" → Dịch vụ`);
+  } else if (UNIT_GOODS.test(haystack)) {
+    vote("goods", 22, `ĐVT "${unit || "—"}" → Hàng hóa`);
+  } else if (UNIT_DURABLE.test(haystack) && effectiveUnitPrice < FIXED_ASSET_MIN) {
+    vote("goods", 8, `ĐVT đếm được, giá thấp → Hàng hóa`);
+  }
+
+  // 3) Từ khóa tên hàng (trọng số 25)
+  if (KW_FIXED_ASSET.test(desc)) {
+    vote("fixed_asset", 30, `Từ khóa TSCĐ trong tên hàng`);
+  }
+  if (KW_SERVICE.test(desc)) {
+    vote("service", 30, `Từ khóa dịch vụ trong tên hàng`);
+  }
+  if (KW_CCDC.test(desc) && effectiveUnitPrice < FIXED_ASSET_MIN) {
+    vote("ccdc", 20, `Từ khóa CCDC trong tên hàng`);
+  }
+  if (KW_GOODS_HINT.test(desc)) {
+    vote("goods", 18, `Từ khóa hàng hóa trong tên hàng`);
+  }
+
+  // Pick winner
+  let winner: LineKind = "goods";
+  let max = -1;
+  for (const k of Object.keys(scores) as LineKind[]) {
+    if (scores[k] > max) {
+      max = scores[k];
+      winner = k;
+    }
+  }
+
+  // Nếu không có tín hiệu nào → fallback theo giá
+  if (max <= 0) {
+    if (effectiveUnitPrice >= FIXED_ASSET_MIN) winner = "fixed_asset";
+    else if (effectiveUnitPrice >= CCDC_MIN) winner = "ccdc";
+    else winner = "goods";
+    signals.push({
+      label: "Không đủ tín hiệu, fallback theo đơn giá",
+      weight: 10,
+      votes: winner,
+    });
+  }
+
+  // Confidence = winner / (sum của tất cả) * 100, clamp
+  const totalScore = Object.values(scores).reduce((s, v) => s + v, 0) || 1;
+  const winnerScore = scores[winner] || max;
+  let confidence = Math.round((winnerScore / totalScore) * 100);
+  // Boost khi winner cao tuyệt đối
+  if (winnerScore >= 50) confidence = Math.max(confidence, 80);
+  if (winnerScore >= 75) confidence = Math.max(confidence, 90);
+  confidence = Math.max(20, Math.min(99, confidence));
+
+  const meta = KIND_META[winner];
+  return {
+    kind: winner,
+    account: meta.account,
+    label: meta.label,
+    confidence,
+    signals,
+  };
+}
+
+/** Tóm tắt phân loại cấp hóa đơn (kind chiếm tỷ trọng giá trị lớn nhất). */
+export function summarizeInvoiceKind(
+  lines: Array<RawLine & { classification?: LineClassification }>,
+): { dominant: LineKind; account: string; label: string; mixed: boolean } | null {
+  if (!lines || lines.length === 0) return null;
+  const totals: Record<LineKind, number> = { goods: 0, fixed_asset: 0, ccdc: 0, service: 0 };
+  for (const l of lines) {
+    const k = l.classification?.kind;
+    if (!k) continue;
+    totals[k] += Math.abs(Number(l.amount ?? 0)) || 1;
+  }
+  let dominant: LineKind = "goods";
+  let max = -1;
+  let nonZero = 0;
+  for (const k of Object.keys(totals) as LineKind[]) {
+    if (totals[k] > 0) nonZero++;
+    if (totals[k] > max) {
+      max = totals[k];
+      dominant = k;
+    }
+  }
+  const meta = KIND_META[dominant];
+  return { dominant, account: meta.account, label: meta.label, mixed: nonZero > 1 };
+}
