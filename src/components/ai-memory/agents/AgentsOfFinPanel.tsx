@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Info, Settings as SettingsIcon, ArrowRight, ArrowRightLeft, Activity, Loader2 } from "lucide-react";
@@ -12,6 +12,8 @@ import { AgentCard } from "./AgentCard";
 import { AgentDetailDrawer } from "./AgentDetailDrawer";
 import { AgentIcon } from "./AgentIcon";
 import { listAgentOverrides, upsertAgentSettings } from "@/lib/ai-agents.functions";
+import { supabase } from "@/integrations/supabase/client";
+
 
 function formatRelative(iso?: string | null): string {
   if (!iso) return "—";
