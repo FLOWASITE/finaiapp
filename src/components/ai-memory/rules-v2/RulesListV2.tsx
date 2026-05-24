@@ -258,29 +258,7 @@ export function RulesListV2() {
           </div>
         )
       )}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
-      {ordered.length > 0 && (
-        <div className="space-y-3">
-          {suggestions.length > 0 && (
-            <div className="mt-2 text-[12px] font-medium text-muted-foreground">
-              Quy tắc đang chạy ({ordered.length})
-            </div>
-          )}
-          {ordered.map((r) => (
-            <RuleCard
-              key={r.id}
-              rule={r}
-              onToggleEnabled={handleToggle}
-              onSave={handleSave}
-            />
-          ))}
-        </div>
-      )}
 
       {draft && (
         <RuleEditor
