@@ -431,26 +431,72 @@ function PartnerDialog({
 
 // =================== CONTEXT ===================
 
+const CONTEXT_SEEDS: Array<{
+  category: ContextCategory;
+  key: string;
+  label: string;
+  value_text: string;
+}> = [
+  { category: "accounting", key: "che_do_kt", label: "Chế độ kế toán", value_text: "Áp dụng Thông tư 200/2014/TT-BTC." },
+  { category: "accounting", key: "ky_kt", label: "Kỳ kế toán", value_text: "Theo năm dương lịch, từ 01/01 đến 31/12." },
+  { category: "tax", key: "vat_method", label: "Kê khai VAT", value_text: "Kê khai theo tháng, phương pháp khấu trừ." },
+  { category: "tax", key: "tncn", label: "Thuế TNCN", value_text: "Khấu trừ tại nguồn cho lương + dịch vụ cá nhân." },
+  { category: "revenue", key: "ghi_nhan_dt", label: "Ghi nhận doanh thu", value_text: "Ghi nhận khi xuất hoá đơn GTGT cho khách." },
+  { category: "banking", key: "tk_chinh", label: "Ngân hàng chính", value_text: "Vietcombank — dùng cho thu/chi chủ đạo." },
+  { category: "business_model", key: "mo_hinh", label: "Mô hình kinh doanh", value_text: "Bán hàng B2B kèm dịch vụ hỗ trợ kỹ thuật." },
+  { category: "einvoice", key: "hd_dt", label: "Hoá đơn điện tử", value_text: "Phát hành qua VNPT-Invoice, định dạng XML chuẩn TCT." },
+];
+
+function slugifyKey(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
 export function ContextTab() {
   const qc = useQueryClient();
   const fn = useServerFn(listContext);
+  const createFn = useServerFn(createContext);
   const { data, isLoading } = useQuery({
     queryKey: ["ai-memory", "context"],
     queryFn: () => fn(),
   });
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const seedM = useMutation({
+    mutationFn: createFn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ai-memory", "context"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const filtered = useMemo(() => {
+    const list = data ?? [];
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
+    return list.filter(
+      (c) => c.label.toLowerCase().includes(q) || c.value_text.toLowerCase().includes(q),
+    );
+  }, [data, search]);
 
   const grouped = useMemo(() => {
     const out = new Map<ContextCategory, MemoryContext[]>();
-    (data ?? []).forEach((c) => {
+    filtered.forEach((c) => {
       const arr = out.get(c.category) ?? [];
       arr.push(c);
       out.set(c.category, arr);
     });
     return out;
-  }, [data]);
+  }, [filtered]);
 
   if (isLoading) return <Loading />;
+
+  const isEmpty = (data ?? []).length === 0;
 
   return (
     <>
@@ -459,35 +505,96 @@ export function ContextTab() {
         luận. Mỗi dòng là một câu tiếng Việt — sửa trực tiếp, không cần code.
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8"
-          onClick={() => setCreating(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          Thêm mục bối cảnh
-        </Button>
-      </div>
-
-      {Array.from(grouped.entries()).map(([cat, items]) => (
-        <div key={cat} className="rounded-lg border bg-card p-3">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            {CATEGORY_LABEL[cat]}
+      {isEmpty ? (
+        <div className="rounded-lg border-2 border-dashed bg-card p-5">
+          <div className="mb-3 text-center">
+            <div className="text-[14px] font-semibold">Bắt đầu nhanh với gợi ý mẫu</div>
+            <div className="mt-1 text-[12px] text-muted-foreground">
+              Chọn các mục phù hợp với doanh nghiệp — bạn có thể sửa lại sau.
+            </div>
           </div>
-          <div className="divide-y">
-            {items.map((c) => (
-              <ContextRow key={c.id} item={c} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {CONTEXT_SEEDS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                disabled={seedM.isPending}
+                onClick={() => seedM.mutate({ data: s })}
+                className="group flex flex-col gap-1 rounded-md border bg-background p-2.5 text-left transition-colors hover:border-[#4F46C7] hover:bg-[#F5F4FE]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#4F46C7]">
+                    {CATEGORY_LABEL[s.category]}
+                  </span>
+                  <Plus className="ml-auto h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+                <div className="text-[12.5px] font-medium">{s.label}</div>
+                <div className="text-[11.5px] text-muted-foreground line-clamp-2">
+                  {s.value_text}
+                </div>
+              </button>
             ))}
           </div>
+          <div className="mt-3 text-center">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => setCreating(true)}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Tự thêm mục mới
+            </Button>
+          </div>
         </div>
-      ))}
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            {(data ?? []).length > 6 && (
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm trong bối cảnh…"
+                className="h-8 max-w-xs text-[12.5px]"
+              />
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto h-8"
+              onClick={() => setCreating(true)}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Thêm mục bối cảnh
+            </Button>
+          </div>
+
+          {Array.from(grouped.entries()).map(([cat, items]) => (
+            <div key={cat} className="rounded-lg border bg-card p-3">
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                {CATEGORY_LABEL[cat]}
+              </div>
+              <div className="divide-y">
+                {items.map((c) => (
+                  <ContextRow key={c.id} item={c} />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {filtered.length === 0 && (data ?? []).length > 0 && (
+            <div className="rounded-lg border bg-card p-6 text-center text-[12.5px] text-muted-foreground">
+              Không tìm thấy mục nào khớp "{search}".
+            </div>
+          )}
+        </>
+      )}
 
       <ContextCreateDialog open={creating} onClose={() => setCreating(false)} />
     </>
   );
 }
+
 
 function ContextRow({ item }: { item: MemoryContext }) {
   const qc = useQueryClient();
@@ -647,8 +754,10 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
   const createFn = useServerFn(createContext);
   const [category, setCategory] = useState<ContextCategory>("other");
   const [key, setKey] = useState("");
+  const [keyTouched, setKeyTouched] = useState(false);
   const [label, setLabel] = useState("");
   const [value, setValue] = useState("");
+
 
   const m = useMutation({
     mutationFn: createFn,
@@ -657,11 +766,13 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       toast.success("Đã thêm");
       onClose();
       setKey("");
+      setKeyTouched(false);
       setLabel("");
       setValue("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -693,7 +804,10 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               <Label className="mb-1 block text-[12px]">Khoá (a-z, _)</Label>
               <Input
                 value={key}
-                onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                onChange={(e) => {
+                  setKeyTouched(true);
+                  setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""));
+                }}
                 placeholder="cong_no_chuan"
                 className="h-9 font-mono"
               />
@@ -703,11 +817,16 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
             <Label className="mb-1 block text-[12px]">Nhãn</Label>
             <Input
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLabel(v);
+                if (!keyTouched) setKey(slugifyKey(v));
+              }}
               placeholder="Công nợ chuẩn"
               className="h-9"
             />
           </div>
+
           <div>
             <Label className="mb-1 block text-[12px]">Giá trị (câu tiếng Việt)</Label>
             <Textarea

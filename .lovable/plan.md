@@ -1,86 +1,46 @@
-## Mục tiêu
+## Hoàn thiện "Bối cảnh doanh nghiệp" (Context Tab)
 
-Đưa `industry_code` (mã VSIC) và phân bố lịch sử 12 tháng của NCC vào UI Trí Nhớ AI — vừa để **xem nhanh** (Memory Graph), vừa để **sửa tại chỗ** (sidebar), không cần đi sang trang NCC.
+Hiện trạng:
+- Đã có bảng `ai_memory_context` + CRUD UI (`ContextTab` trong `ai-memory-tabs.tsx`).
+- 3 lỗ hổng cốt lõi:
+  1. **AI không thực sự đọc bối cảnh** — `chat.functions.ts` chỉ inject profile + tenant; chưa nạp `ai_memory_context` vào system prompt.
+  2. **Badge đếm cứng** `(12)` ở tab — không phản ánh số dòng thật.
+  3. **Tenant mới trống trơn** — chưa có gợi ý/seed mẫu để user bắt đầu.
+- Phụ: dialog tạo mới chưa có ordering UI, chưa có nút "Xem 5 dòng gần đây mà AI sẽ áp dụng", chưa search/filter khi danh sách dài.
 
----
+### Phạm vi làm trong lần này
 
-## Phần 1 — Hiển thị ngành + lịch sử 12 tháng trong Memory Graph
+**1. Inject bối cảnh vào AI (quan trọng nhất)** — `src/lib/chat.functions.ts`
+- Load `ai_memory_context` theo `tenantId` (đã có `supabase` scoped trong handler).
+- Group theo `category`, render thành block markdown `## Bối cảnh doanh nghiệp` với các sub-heading theo `CATEGORY_LABEL` (Tổ chức, Kế toán, Thuế…), mỗi dòng `- {label}: {value_text}`.
+- Append vào `systemParts` sau `userContextBlock`, trước `SCHEMA_HINT`.
+- Cache nhẹ trong request (1 query duy nhất, best-effort, không chặn chat nếu lỗi).
 
-### 1.1. Mở rộng dữ liệu graph
-**File:** `src/lib/graph/memory-graph.functions.ts`
-- `GraphSupplierRow` đã có `industry_code` → tốt, giữ nguyên.
-- Thêm query phụ: với mỗi `supplier_id` trong graph, lấy `kind` distribution từ `invoices` 12 tháng gần nhất (join `expense_account` → `accountToKind`). Trả về `supplierHistory: Record<supplier_id, Partial<Record<LineKind, number>>>`.
-- Giới hạn: chỉ tính cho top ~50 NCC có nhiều hit nhất (tránh query nặng).
+**2. Badge đếm thật** — `src/routes/_app/ai.memory.tsx`
+- Thêm `useQuery(['ai-memory','context'], listContext)` ở component cha (hoặc dùng `useQueryClient().getQueryData`), truyền `contextCount` vào `SubTabs` thay cho hằng `12`.
+- Tương tự fix nhanh `partners` (đang cứng `128`) và `limits` (đang cứng `8`) bằng cách dùng cùng pattern khi data đã có sẵn trong cache; nếu chưa load thì hiển thị không có số.
 
-### 1.2. Truyền vào node data
-**File:** `src/lib/graph/adapt-db.ts`
-- Khi build `VendorNode` data, thêm `industryCode`, `industryLabel` (lookup từ `VSIC`), `historyDist`, `historyTotal`.
-- Mở rộng `GraphNodeData` trong `src/lib/graph/build-graph.ts`.
+**3. Seed gợi ý cho tenant mới** — `src/components/ai-memory-tabs.tsx`
+- Khi `ContextTab` rỗng (`data?.length === 0`), render empty state với grid 6-8 "thẻ gợi ý" (label + value mẫu, theo các category phổ biến: Kế toán, Thuế, Doanh thu, Ngân hàng…).
+- Mỗi thẻ có nút "Thêm vào bối cảnh" → gọi `createContext` với key tự sinh từ slug(label).
+- Danh sách gợi ý hardcode trong file (không cần migration), ví dụ:
+  - Kế toán: "Áp dụng Thông tư 200", "Kỳ kế toán theo năm dương lịch"
+  - Thuế: "Kê khai VAT theo tháng, phương pháp khấu trừ"
+  - Doanh thu: "Ghi nhận doanh thu khi xuất hoá đơn"
+  - Ngân hàng: "Tài khoản chính tại Vietcombank"
 
-### 1.3. VendorNode hiển thị badge ngành
-**File:** `src/components/ai-memory/graph/nodes/VendorNode.tsx`
-- Thêm 1 dòng nhỏ: badge `📊 6201 Lập trình…` (truncate, tooltip full name).
-- Nếu chưa có industry → badge xám "Chưa gắn ngành" để user thấy gap.
+**4. UX nhỏ trong ContextTab**
+- Thêm ô search ở đầu (filter client-side theo `label + value_text`), chỉ hiện khi `data.length > 6`.
+- Sửa nút "Thêm mục bối cảnh": pre-fill `key` tự động từ slug(label) khi user gõ label (chỉ khi key đang trống), giảm friction.
 
-### 1.4. VendorDetail sidebar hiển thị ngành + biểu đồ phân bố
-**File:** `src/components/ai-memory/graph/GraphSidebar.tsx`
-- Section "Ngành nghề": hiện code + tên VSIC, nút "Sửa" (mở Phần 2).
-- Section "Lịch sử 12 tháng": bar chart đơn giản (div + width %) cho từng `LineKind` (HH/TSCĐ/CCDC/DV/CP), kèm tổng số hit.
-- Nếu rỗng: "Chưa có dữ liệu lịch sử".
+### Ngoài phạm vi (không làm lần này, ghi nhận để pha sau)
+- Node "Bối cảnh" trong Memory Graph (sẽ làm cùng phase mở rộng graph).
+- Versioning / lịch sử thay đổi từng dòng context.
+- Import/export bối cảnh dạng YAML.
 
-### 1.5. Legend bổ sung
-**File:** `src/components/ai-memory/graph/GraphLegend.tsx`
-- Thêm chú thích nhỏ: "Badge ngành trên NCC → AI dùng để gợi ý HH/TSCĐ/DV".
+### Files chạm vào
+- `src/lib/chat.functions.ts` (inject context block)
+- `src/routes/_app/ai.memory.tsx` (badge đếm thật)
+- `src/components/ai-memory-tabs.tsx` (empty-state seed, search, auto-slug key)
 
----
-
-## Phần 2 — Sửa industry_code ngay trong Trí Nhớ AI
-
-### 2.1. Server function update
-**File mới:** `src/lib/ai-memory-supplier.functions.ts`
-- `updateSupplierIndustry`: input `{ supplier_id, industry_code, industry_label }`, dùng `withTenant` middleware, update `suppliers.industry_code` (và `industry_name` nếu cột tồn tại — cần check schema).
-- Validate: `industry_code` phải match regex `/^\d{4,6}$/` hoặc null (cho phép xoá).
-- Sau khi update, invalidate query `["ai-memory-graph"]`.
-
-### 2.2. Dialog/Popover sửa ngành trong sidebar
-**File mới:** `src/components/ai-memory/graph/EditIndustryDialog.tsx`
-- Trigger từ nút "Sửa" ở Phần 1.4.
-- Dùng lại `IndustryCombobox` có sẵn (`src/components/industry-combobox.tsx`).
-- Submit → gọi `updateSupplierIndustry` → toast + đóng dialog + invalidate graph.
-
-### 2.3. Empty-state nudge
-**File:** `src/components/ai-memory/graph/GraphSidebar.tsx`
-- Khi `historyDist` lệch mạnh về 1 `kind` (ví dụ >70% là HH) nhưng `industry_code` rỗng → hiện nudge: "Gợi ý: gắn ngành 4631 (Bán buôn thực phẩm) để AI đoán chính xác hơn" + nút "Gắn ngay".
-
----
-
-## Phần 3 — Wiring & QA
-
-- Chạy graph với 1-2 NCC mẫu, kiểm tra badge + biểu đồ render đúng.
-- Test flow sửa ngành: mở dialog → chọn VSIC → save → badge update ngay trên node.
-- Test responsive 707×662 (viewport hiện tại): sidebar không tràn, badge truncate gọn.
-- Không tạo bảng mới, không migration — chỉ tận dụng `suppliers.industry_code` đã có.
-
----
-
-## Phạm vi KHÔNG làm (giữ scope gọn)
-
-- Không đụng `ai_memory_partners` (đó là bảng riêng cho cá nhân/NV, không có ngành).
-- Không tự suy luận ngành từ lịch sử (chỉ nudge, user vẫn phải chọn tay).
-- Không thay đổi pipeline `classifyLine` / `supplier-signals` — Phần 1+2 chỉ là UI cho dữ liệu đã có.
-
----
-
-## Files sẽ chạm
-
-**Sửa:**
-- `src/lib/graph/memory-graph.functions.ts`
-- `src/lib/graph/adapt-db.ts`
-- `src/lib/graph/build-graph.ts`
-- `src/components/ai-memory/graph/nodes/VendorNode.tsx`
-- `src/components/ai-memory/graph/GraphSidebar.tsx`
-- `src/components/ai-memory/graph/GraphLegend.tsx`
-
-**Tạo mới:**
-- `src/lib/ai-memory-supplier.functions.ts`
-- `src/components/ai-memory/graph/EditIndustryDialog.tsx`
+Không cần migration, không thay đổi schema, không đụng business logic khác.
