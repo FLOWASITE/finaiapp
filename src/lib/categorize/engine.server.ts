@@ -403,8 +403,9 @@ function composeEntries(
 export async function proposeJournalForInvoice(
   supabase: SupabaseClient,
   invoiceId: string,
+  preloaded?: LoadedInvoice,
 ): Promise<JournalProposalDTO> {
-  const inv = await loadInvoice(supabase, invoiceId);
+  const inv = preloaded ?? (await loadInvoice(supabase, invoiceId));
   if (!inv) throw new Error(`Không tìm thấy hoá đơn ${invoiceId}`);
   if (!inv.tenant_id) throw new Error("Hoá đơn không có tenant_id");
 
