@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import type { RuleAction, RuleCondition } from "@/types/rule";
+import { accountToKind, type LineKind } from "@/lib/ai/classify-line";
 
 export type GraphRuleRow = {
   id: string;
