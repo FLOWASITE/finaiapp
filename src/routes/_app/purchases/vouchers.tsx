@@ -24,6 +24,7 @@ import {
   recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
+import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { listProducts } from "@/lib/inventory.functions";
