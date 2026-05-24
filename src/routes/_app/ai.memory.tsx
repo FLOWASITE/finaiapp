@@ -84,6 +84,7 @@ import {
 import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
 import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 import { RulesListV2 } from "@/components/ai-memory/rules-v2/RulesListV2";
+import { MemoryGraph } from "@/components/ai-memory/graph/MemoryGraph";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -99,7 +100,7 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-type TabKey = "rules" | "classifications" | "partners" | "context" | "limits" | "learning";
+type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "learning";
 
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
