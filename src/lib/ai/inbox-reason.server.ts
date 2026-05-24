@@ -557,6 +557,7 @@ export async function buildBankItem(
     occurred_at: txn.txn_date,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ blocker, confidence, signals }),
     proposal: {
       description: `${isIncoming ? "Thu" : "Chi"} qua ${bankLabel} — ${partner}`,
       entry_date: txn.txn_date,
