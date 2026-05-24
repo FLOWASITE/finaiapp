@@ -45,11 +45,14 @@ export type GraphClassificationRow = {
   hit_count: number | null;
 };
 
+export type SupplierHistoryDist = Partial<Record<LineKind, number>>;
+
 export type GraphDbData = {
   rules: GraphRuleRow[];
   suppliers: GraphSupplierRow[];
   partners: GraphPartnerRow[];
   classifications: GraphClassificationRow[];
+  supplierHistory: Record<string, SupplierHistoryDist>;
   positions: Record<string, { x: number; y: number }>;
 };
 
