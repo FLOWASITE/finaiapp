@@ -8,12 +8,14 @@ export function GraphLegend() {
         <Row color="#4F46C7" label="Quy tắc" />
         <Row color="#0F6E56" label="Đối tác" />
         <Row color="#BA7517" label="Tài khoản" />
+        <Row color="#0891B2" label="Hàng hoá/DV" />
         <div className="my-1 border-t" />
         <Row color="#0F6E56" label="Auto" lineStyle="solid" />
         <Row color="#A3A3A3" label="Đề xuất" lineStyle="dashed" />
         <Row color="#DC2626" label="Đã tắt" lineStyle="dotted" />
         <Row color="#0EA5A4" label="Mặc định NCC" lineStyle="solid" />
-        <Row color="#94A3B8" label="Phân loại HH" lineStyle="dashed" />
+        <Row color="#0891B2" label="NCC → HH" lineStyle="solid" />
+        <Row color="#0891B2" label="HH → TK" lineStyle="dashed" />
       </div>
     </div>
   );
