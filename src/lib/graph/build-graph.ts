@@ -131,6 +131,7 @@ export function buildGraph({
   extraEdges = [],
   ruleAccountHints,
   ruleVendorHints,
+  vendorEnrichment,
 }: GraphBuildInput): GraphBuildOutput {
   const nodes: GraphBuildOutput["nodes"] = [];
   const edges: GraphBuildOutput["edges"] = [];
