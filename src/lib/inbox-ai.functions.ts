@@ -225,6 +225,11 @@ export const approveInboxItem = createServerFn({ method: "POST" })
       });
     } catch {}
 
+    try {
+      const { invalidateCategorizeCache } = await import("@/lib/categorize/cache.server");
+      invalidateCategorizeCache(tenantId);
+    } catch {}
+
     return { journal_entry_id: entry.id };
   });
 

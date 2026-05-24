@@ -186,23 +186,60 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
         ))}
       </div>
 
-      {/* Warnings */}
+      {/* Warnings — sort error > warn > info */}
       {dto.warnings.length > 0 && (
         <div className="px-4 pb-3 space-y-1.5">
-          {dto.warnings.map((w, i) => (
-            <div key={i} className={cn(
-              "flex gap-2 rounded-md border px-2.5 py-1.5 text-xs",
-              w.severity === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" :
-              w.severity === "warn" ? "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400" :
-              "border-border bg-muted/30 text-muted-foreground",
-            )}>
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span className="flex-1">
-                <span className="font-mono text-[10px] uppercase mr-1">{w.code}</span>
-                {w.message}
-              </span>
-            </div>
-          ))}
+          {[...dto.warnings]
+            .sort((a, b) => {
+              const o: Record<string, number> = { error: 0, warn: 1, info: 2 };
+              return (o[a.severity] ?? 3) - (o[b.severity] ?? 3);
+            })
+            .map((w, i) => (
+              <div key={i} className={cn(
+                "flex gap-2 rounded-md border px-2.5 py-1.5 text-xs",
+                w.severity === "error" ? "border-destructive/40 bg-destructive/10 text-destructive font-medium" :
+                w.severity === "warn" ? "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400" :
+                "border-border bg-muted/30 text-muted-foreground",
+              )}>
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span className="flex-1">
+                  <span className="font-mono text-[10px] uppercase mr-1">{w.code}</span>
+                  {w.message}
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Top-3 signals — luôn hiển thị để KTT thấy "vì sao AI đề xuất" */}
+      {dto.signals.length > 0 && !expanded && (
+        <div className="px-4 pb-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Vì sao AI đề xuất ({dto.signals.length} tín hiệu)
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[...dto.signals]
+              .sort((a, b) => b.weight - a.weight)
+              .slice(0, 3)
+              .map((s, i) => (
+                <Badge key={i} variant="outline" className={cn(
+                  "text-[10px] px-1.5 py-0 gap-1",
+                  s.ok ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "border-amber-500/30 text-amber-700 dark:text-amber-400",
+                )}>
+                  {s.ok ? <Check className="h-2.5 w-2.5" /> : <AlertTriangle className="h-2.5 w-2.5" />}
+                  {s.label}
+                  {s.weight > 0 && <span className="opacity-60">+{s.weight}</span>}
+                </Badge>
+              ))}
+            {dto.signals.length > 3 && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline"
+              >
+                +{dto.signals.length - 3} tín hiệu khác
+              </button>
+            )}
+          </div>
         </div>
       )}
 
