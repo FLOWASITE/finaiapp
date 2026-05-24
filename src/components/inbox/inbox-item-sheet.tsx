@@ -13,7 +13,7 @@ import {
   Check,
   FileText,
 } from "lucide-react";
-import type { InboxItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
