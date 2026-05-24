@@ -287,6 +287,49 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
         </div>
       )}
 
+      {/* Alternatives — phương án khác */}
+      {dto.alternatives && dto.alternatives.length > 0 && (
+        <div className="px-4 pb-3 border-t border-border/40 pt-3">
+          <div className="flex items-center gap-1.5 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <GitBranch className="h-3 w-3" />
+            Phương án khác ({dto.alternatives.length})
+          </div>
+          <div className="space-y-1.5">
+            {dto.alternatives.map((alt, ai) => {
+              const altPct = Math.round(alt.confidence * 100);
+              const altSrc = SOURCE_LABEL[alt.source] ?? SOURCE_LABEL.manual;
+              return (
+                <div key={ai} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium truncate">{alt.label}</span>
+                      <Badge variant="outline" className={cn("text-[10px] px-1 py-0", altSrc.tone)}>{altSrc.label}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 border-muted-foreground/30 text-muted-foreground">{altPct}%</Badge>
+                    </div>
+                    <div className="font-mono text-[11px] text-muted-foreground truncate mt-0.5">
+                      {alt.entries[0]?.lines.map((l) => `${l.debit > 0 ? "Nợ" : "Có"} ${l.account_code}`).join(" / ")}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] gap-1 shrink-0"
+                    disabled={!!busy}
+                    onClick={() => {
+                      setEntries(alt.entries);
+                      setEdit(true);
+                      toast.info(`Đã chọn phương án "${alt.label}" — bấm "Duyệt & ghi sổ" để xác nhận`);
+                    }}
+                  >
+                    Dùng phương án này
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 border-t border-border/60 bg-muted/20 px-4 py-2.5">
         <Button size="sm" onClick={handleApprove} disabled={!!busy || hasError} className="gap-1.5">
