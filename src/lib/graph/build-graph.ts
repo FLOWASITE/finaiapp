@@ -19,9 +19,24 @@ export type GraphNodeData = {
 };
 
 export type GraphEdgeData = {
-  kind: "rule-vendor" | "rule-account-debit" | "rule-account-credit";
+  kind:
+    | "rule-vendor"
+    | "rule-account-debit"
+    | "rule-account-credit"
+    | "partner-default"
+    | "classification";
   ruleStatus: Rule["status"];
   ruleMode: Rule["mode"];
+  weight: number;
+  label?: string;
+};
+
+export type ExtraGraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+  kind: "partner-default" | "classification";
+  label?: string;
   weight: number;
 };
 
@@ -29,6 +44,9 @@ export type GraphBuildInput = {
   rules: Rule[];
   vendors: VendorEntity[];
   accounts: AccountEntity[];
+  extraEdges?: ExtraGraphEdge[];
+  ruleAccountHints?: Map<string, string[]>;
+  ruleVendorHints?: Map<string, string[]>;
 };
 
 export type GraphBuildOutput = {
