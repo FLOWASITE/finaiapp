@@ -550,9 +550,7 @@ function KindBadge({
       )}
     >
       {meta.label}
-      {confidence != null ? (
-        <span className="opacity-70">{confidence}%</span>
-      ) : null}
+      {confidence != null ? <span className="opacity-70">{confidence}%</span> : null}
     </span>
   );
   if (!signals || signals.length === 0) return badge;
@@ -577,8 +575,96 @@ function KindBadge({
   );
 }
 
+const KIND_OPTIONS: { kind: LineKind; account: string }[] = [
+  { kind: "goods", account: "156" },
+  { kind: "fixed_asset", account: "211" },
+  { kind: "ccdc", account: "153" },
+  { kind: "service", account: "642" },
+];
+
+function KindOverrideMenu({
+  current,
+  description,
+  supplierTaxId,
+  onChange,
+}: {
+  current: LineKind;
+  description?: string | null;
+  supplierTaxId?: string | null;
+  onChange: (kind: LineKind, account: string) => void;
+}) {
+  const saveFn = useServerFn(saveLineClassification);
+  const [saving, setSaving] = useState<LineKind | null>(null);
+
+  const handlePick = async (kind: LineKind, account: string) => {
+    if (!description || !description.trim()) return;
+    setSaving(kind);
+    try {
+      await saveFn({
+        data: {
+          line_name: description,
+          supplier_tax_id: supplierTaxId ?? null,
+          kind,
+          account,
+        },
+      });
+      onChange(kind, account);
+      toast.success(`Đã ghi nhớ: "${description}" → ${kindMeta(kind).label}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Không lưu được phân loại");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          title="Đổi phân loại"
+        >
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="text-[11px]">Sửa phân loại</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {KIND_OPTIONS.map((opt) => (
+          <DropdownMenuItem
+            key={opt.kind}
+            disabled={saving !== null}
+            onSelect={(e) => {
+              e.preventDefault();
+              handlePick(opt.kind, opt.account);
+            }}
+            className="text-xs"
+          >
+            <span className="flex w-full items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                {saving === opt.kind ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : current === opt.kind ? (
+                  <Check className="h-3 w-3 text-primary" />
+                ) : (
+                  <span className="inline-block h-3 w-3" />
+                )}
+                {kindMeta(opt.kind).label}
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">TK {opt.account}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function LineRow({
   line,
+  supplierTaxId,
+  onOverride,
 }: {
   line: {
     description?: string | null;
@@ -588,26 +674,34 @@ function LineRow({
     amount?: number | null;
     classification?: LineClassification;
   };
+  supplierTaxId?: string | null;
+  onOverride?: (kind: LineKind, account: string) => void;
 }) {
   const c = line.classification;
   return (
     <li className="flex items-start justify-between gap-2 text-[11.5px]">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate font-medium text-foreground">
-            {line.description ?? "—"}
-          </span>
+          <span className="truncate font-medium text-foreground">{line.description ?? "—"}</span>
           {c ? (
-            <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+            <span className="inline-flex items-center gap-0.5">
+              <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+              {onOverride ? (
+                <KindOverrideMenu
+                  current={c.kind}
+                  description={line.description}
+                  supplierTaxId={supplierTaxId}
+                  onChange={onOverride}
+                />
+              ) : null}
+            </span>
           ) : null}
         </div>
         <div className="mt-0.5 text-[10px] text-muted-foreground">
           {line.qty ?? "—"} {line.unit ?? ""} × {fmtVND(line.unit_price ?? 0)}
         </div>
       </div>
-      <div className="shrink-0 text-right font-mono text-[11px]">
-        {fmtVND(line.amount ?? 0)}
-      </div>
+      <div className="shrink-0 text-right font-mono text-[11px]">{fmtVND(line.amount ?? 0)}</div>
     </li>
   );
 }
