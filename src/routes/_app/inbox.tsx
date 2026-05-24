@@ -722,18 +722,27 @@ function InboxHeader({
   };
 
   return (
-    <header className="mx-3 mt-3 mb-2 flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-border/40 bg-background/70 px-3 shadow-lg shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
+    <header className="relative mx-3 mt-3 mb-2 flex h-14 shrink-0 items-center gap-2 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-r from-background/80 via-background/70 to-emerald-500/[0.04] px-3 shadow-lg shadow-emerald-500/10 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_left,oklch(0.72_0.16_162/0.08),transparent_60%)]">
       <Link
         to="/dashboard"
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         title="Quay lại"
       >
         <ArrowLeft className="h-4 w-4" />
       </Link>
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground shadow-sm shadow-primary/30">
-        F
-      </div>
-      <div className="text-sm font-semibold tracking-tight">FinAI</div>
+      <Link
+        to="/dashboard"
+        className="relative group flex items-center gap-2 rounded-xl px-1.5 py-1 transition hover:bg-primary/5"
+        title="Trang chủ FinAI"
+      >
+        <span className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-primary/20 to-cyan-400/10 opacity-0 blur-md transition group-hover:opacity-100" />
+        <img
+          src={mascotSrc}
+          alt="FinAI Mascot"
+          draggable={false}
+          className="h-9 w-9 shrink-0 object-contain drop-shadow-[0_2px_8px_oklch(0.72_0.16_162/0.45)] transition-transform group-hover:scale-105"
+        />
+      </Link>
 
       {/* Mode switcher: AI ↔ Kế toán */}
       <div
