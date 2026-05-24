@@ -12,6 +12,8 @@ export function GraphLegend() {
         <Row color="#0F6E56" label="Auto" lineStyle="solid" />
         <Row color="#A3A3A3" label="Đề xuất" lineStyle="dashed" />
         <Row color="#DC2626" label="Đã tắt" lineStyle="dotted" />
+        <Row color="#0EA5A4" label="Mặc định NCC" lineStyle="solid" />
+        <Row color="#94A3B8" label="Phân loại HH" lineStyle="dashed" />
       </div>
     </div>
   );
