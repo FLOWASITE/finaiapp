@@ -35,7 +35,7 @@ export const listInboxAi = createServerFn({ method: "POST" })
     const rules = await loadActiveRules(supabase, tenantId);
 
     // Pull recent sources in parallel
-    const [docsRes, txnsRes, insightsRes, banksRes, postedRes] = await Promise.all([
+    const [docsRes, txnsRes, insightsRes, banksRes, postedRes, salesRes] = await Promise.all([
       supabase
         .from("documents")
         .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id")
@@ -63,6 +63,16 @@ export const listInboxAi = createServerFn({ method: "POST" })
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
+      supabase
+        .from("sales_invoices")
+        .select(
+          "id, customer_id, customer_name, customer_tax_id, invoice_no, issue_date, subtotal, vat_amount, total, payment_status, notes, created_at, status, journal_entry_id, tenant_id",
+        )
+        .eq("tenant_id", tenantId)
+        .is("journal_entry_id", null)
+        .in("status", ["reviewed", "issued", "sent"])
+        .order("issue_date", { ascending: false })
+        .limit(40),
     ]);
 
     const bankMap = new Map(
@@ -80,8 +90,15 @@ export const listInboxAi = createServerFn({ method: "POST" })
           .filter((x): x is string => !!x),
       ),
     );
-    const { proposeJournalBatch } = await import("@/lib/categorize/engine.server");
-    const proposalMap = await proposeJournalBatch(supabase, invoiceIds);
+    const salesIds = ((salesRes.data ?? []) as any[]).map((s) => s.id);
+    const [{ proposeJournalBatch }, { proposeSalesJournalBatch }] = await Promise.all([
+      import("@/lib/categorize/engine.server"),
+      import("@/lib/categorize/sales-engine.server"),
+    ]);
+    const [proposalMap, salesProposalMap] = await Promise.all([
+      proposeJournalBatch(supabase, invoiceIds),
+      proposeSalesJournalBatch(supabase, salesIds),
+    ]);
 
     const items: InboxItem[] = [];
     for (const d of (docsRes.data ?? []) as any[]) {
@@ -89,11 +106,16 @@ export const listInboxAi = createServerFn({ method: "POST" })
       const it = await buildDocumentItem(supabase, tenantId, d, rules, prebuilt);
       if (it) items.push(it);
     }
+    for (const s of (salesRes.data ?? []) as any[]) {
+      const it = await buildSalesInvoiceItem(supabase, tenantId, s, salesProposalMap.get(s.id));
+      if (it) items.push(it);
+    }
     for (const t of (txnsRes.data ?? []) as any[]) {
       const it = await buildBankItem(supabase, tenantId, t, bankMap.get(t.bank_account_id) ?? "Ngân hàng", rules);
       if (it) items.push(it);
     }
     for (const i of (insightsRes.data ?? []) as any[]) items.push(buildInsightItem(i));
+
 
     const q = data.search.trim().toLowerCase();
     const filtered = q
