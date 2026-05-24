@@ -61,7 +61,7 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
         supabase
           .from("ai_memory_rules")
           .select(
-            "id,type,source,title,when_text,then_text,applied_count,accuracy_correct,accuracy_total,last_used_at",
+            "id,type,source,title,when_text,then_text,applied_count,accuracy_correct,accuracy_total,last_used_at,conditions,actions,schema_version",
           )
           .eq("tenant_id", tenantId)
           .order("created_at", { ascending: true }),
