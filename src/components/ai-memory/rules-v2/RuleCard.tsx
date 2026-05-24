@@ -215,7 +215,7 @@ export function RuleCard({
         </div>
       </div>
 
-      <RuleEditor rule={rule} open={editOpen} onOpenChange={setEditOpen} />
+      <RuleEditor rule={rule} open={editOpen} onOpenChange={setEditOpen} onSave={onSave} />
 
       <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
         <AlertDialogContent>
