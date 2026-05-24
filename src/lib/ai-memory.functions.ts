@@ -109,10 +109,24 @@ export const createRule = createServerFn({ method: "POST" })
         origin: z.string().trim().max(500).optional(),
         source: z.enum(["ai-learned", "user-taught"]).optional(),
       })
+      .merge(ruleV2PartialSchema)
       .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { supabase, tenantId, userId } = context;
+    const v2 = buildV2Patch(
+      {
+        conditions: data.conditions,
+        actions: data.actions,
+        mode: data.mode,
+        confidence_threshold: data.confidence_threshold,
+        applies_to: data.applies_to,
+        enabled: data.enabled,
+        status: data.status,
+      },
+      data.when_text,
+      data.then_text,
+    );
     const { data: row, error } = await supabase
       .from("ai_memory_rules")
       .insert({
@@ -124,6 +138,7 @@ export const createRule = createServerFn({ method: "POST" })
         when_text: data.when_text,
         then_text: data.then_text,
         origin: data.origin ?? `Bạn tạo ngày ${new Date().toLocaleDateString("vi-VN")}`,
+        ...v2,
       })
       .select(RULE_COLS)
       .single();
