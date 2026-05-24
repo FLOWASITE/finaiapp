@@ -155,7 +155,7 @@ export const logAgentActivity = createServerFn({ method: "POST" })
       action: data.action,
       result: data.result,
       duration_ms: data.duration_ms ?? null,
-      metadata: data.metadata ?? null,
+      metadata: (data.metadata ?? null) as never,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
