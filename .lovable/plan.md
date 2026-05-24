@@ -1,61 +1,31 @@
-## Tích hợp Agent Hạch toán vào Trung tâm tài liệu
+## Mục tiêu
+Tự động chạy OCR + AI parse ngay sau khi user tải hóa đơn/tài liệu lên (không cần bấm "Phân tích lại" thủ công).
 
-Mục tiêu: từ trang `/documents`, kế toán nhìn thấy ngay trạng thái bút toán của mỗi tài liệu, mở chi tiết là xem/sửa/duyệt được đề xuất mà không cần nhảy qua `/categorize`.
+## Cách tiếp cận
+Kích hoạt pipeline parse ngay trong server function `uploadDocument` — sau khi insert row `documents` thành công, gọi luôn `parseFileCore` (cùng pipeline mà `reparseDocument` đang dùng). Trả kết quả về client để UI hiển thị trạng thái đã OCR ngay lập tức.
 
-### 1. Hiển thị trạng thái hạch toán trên danh sách
+## Thay đổi
 
-Trong `getDocument` / `listDocuments` (file `src/lib/documents.functions.ts`), bổ sung 1 join nhẹ sang `ai_journal_proposals` (lấy `status`, `confidence`, `source` mới nhất theo `invoice_id`).
+**`src/lib/documents.functions.ts` — `uploadDocument` handler**
+- Sau bước insert `documents` (đã có `row.id`):
+  - Map `doc_kind` → `kind` cho parser (`purchase_invoice` / `bank_statement` / `cash_voucher` / `auto`) — giống `reparseDocument`.
+  - Set `ocr_status = 'processing'` trên row vừa tạo.
+  - Gọi `parseFileCore({ fileBase64, mimeType, filename, kind, supabase, userId })` trong try/catch.
+  - Thành công: nếu doc chưa có `ai_upload_id`, update `documents` với `ocr_status='done'`, `ocr_extracted`, `ai_upload_id` (đúng pattern `reparseDocument`).
+  - Lỗi: update `ocr_status='failed'`, `ocr_error=<message>`; không throw để upload vẫn coi là thành công (file đã lên storage + có row).
+- Return shape mở rộng: `{ id, ocr_status, parser?, pages?, error? }` để UI biết trạng thái.
 
-Trên bảng tài liệu (`/documents/index.tsx`):
+**`src/routes/_app/documents/index.tsx` — `UploadDialog.submit`**
+- Sau khi upload từng file, đọc `ocr_status` trong kết quả:
+  - `done` → đếm vào `okCount` và message "Đã tải lên & OCR ... file".
+  - `failed` → vẫn đếm upload OK nhưng `toast.warning(${file}: OCR lỗi — có thể chạy lại từ chi tiết)`.
+- Sau vòng lặp invalidate cả `["documents"]` và `["sidebar-counts"]` để badge Inbox cập nhật.
 
-- Thêm cột "Hạch toán" với badge:
-  - `Đã ghi sổ` (xanh) — proposal `approved` hoặc invoice đã có journal_entry.
-  - `Chờ duyệt` (vàng) + % confidence — proposal `pending`.
-  - `Cần xem` (xám) — `skipped` / có warning.
-  - `—` — tài liệu không phải hoá đơn / chưa có invoice_id.
-- Click badge → mở Sheet và switch sang tab `Hạch toán` (xem mục 2).
+## Lưu ý kỹ thuật
+- `parseFileCore` chạy đồng bộ trong request → upload nhiều file sẽ chậm hơn (tuần tự, mỗi file vài giây). Chấp nhận trade-off để giữ luồng đơn giản, không cần queue/cron. Nếu sau này cần async, sẽ chuyển sang background job riêng.
+- Không đụng đến `reparseDocument` — nó vẫn dùng được khi user muốn parse lại thủ công.
+- Không thay đổi schema DB, không cần migration.
 
-### 2. Tab "Hạch toán" trong Sheet chi tiết tài liệu
-
-Trong Sheet detail (`DocumentSheet`), thêm 1 TabsTrigger thứ 4 là **Hạch toán** (chỉ hiện khi `doc.invoice_id`).
-
-Nội dung tab:
-
-- Reuse `ProposalCard` từ `src/components/categorize/ProposalCard.tsx` (đã có inline edit, warnings, approve/skip).
-- Trên cùng có nút **Hạch toán lại** (gọi `proposeJournal({ invoice_id, force: true })`) cho trường hợp cần refresh.
-- Nếu chưa có proposal → state trống + nút **Tạo đề xuất bút toán** (gọi `proposeJournal({ invoice_id })`).
-- Nếu đã `approved` → hiển thị tóm tắt bút toán + link "Xem trong sổ nhật ký".
-
-Lợi ích: kế toán không cần rời khỏi tài liệu để hạch toán; đồng nhất engine với trang `/categorize`.
-
-### 3. Bộ lọc & batch action
-
-Trong header `/documents`, thêm filter `categorize_status`: `all | pending | approved | skipped | none`.
-
-Khi chọn nhiều dòng `pending`, hiện thanh action **Duyệt hàng loạt** (gọi cùng API `approveProposal` mà `/categorize` đang dùng).
-
-### 4. Tự động khi upload mới (đã có sẵn engine)
-
-Pipeline `parse-document` đã gọi `autoPostIfEligible` sau khi tạo invoice. Bổ sung:
-
-- Sau khi parse xong, invalidate query `["documents", ...]` để bảng Trung tâm tài liệu cập nhật badge "Chờ duyệt" / "Đã ghi sổ" realtime.
-- Trên toast "Đã đọc xong tài liệu", thêm dòng phụ: *"Engine đã tạo bút toán — chờ duyệt"* hoặc *"Đã ghi sổ tự động (conf 92%)"*.
-
-### 5. Liên kết 2 chiều
-
-- Tab "Liên kết" hiện tại đã list `entity_table` = `journal_entry` sau khi approve — chỉ cần thêm link tới `/journal/$id`.
-- Trên trang `/categorize`, ProposalCard đã có nguồn `invoice` — thêm link nhỏ "Mở tài liệu gốc" mở Sheet ở `/documents?id=...`.
-
-### File thay đổi
-
-- `src/lib/documents.functions.ts` — join `ai_journal_proposals` vào `listDocuments`/`getDocument`.
-- `src/routes/_app/documents/index.tsx` — thêm cột badge, tab Hạch toán, filter, batch action.
-- `src/components/categorize/ProposalCard.tsx` — nhận thêm prop `compact` để render gọn trong Sheet (không trùng header).
-- `src/lib/categorize.functions.ts` — thêm `proposeJournal` chấp nhận flag `force` (skip cache).
-
-### Acceptance
-
-1. Upload 1 hoá đơn Dell 45tr → bảng tài liệu hiện badge `Đã ghi sổ` (auto-post).
-2. Upload hoá đơn 50tr tiền mặt → badge `Chờ duyệt 70%` + warning trong tab Hạch toán.
-3. Mở Sheet → tab Hạch toán hiển thị Nợ/Có, ấn **Duyệt & ghi sổ** → badge đổi sang `Đã ghi sổ`, tab Liên kết xuất hiện `journal_entry`.
-4. Filter `categorize_status=pending` → chỉ còn các tài liệu chờ duyệt; batch select 5 dòng → duyệt 1 phát.
+## Acceptance
+- Upload 1 file PDF hóa đơn → ngay khi dialog đóng, row mới xuất hiện trong danh sách với badge **OCR: Hoàn tất** và badge **Hạch toán: Chờ duyệt X%** (nhờ engine đã wire ở bước trước).
+- Upload file lỗi parse (ví dụ ảnh trống) → row vẫn xuất hiện, badge **OCR: Lỗi**, có nút "Phân tích lại" trong drawer.
