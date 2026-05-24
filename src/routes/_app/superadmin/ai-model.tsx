@@ -487,6 +487,28 @@ function AiModelPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 pb-28">
+      <Tabs
+        value={tab}
+        onValueChange={(v) =>
+          navigate({ search: { tab: v as "provider" | "agents" }, replace: true })
+        }
+      >
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="provider">
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+            Provider chung
+          </TabsTrigger>
+          <TabsTrigger value="agents">
+            <Cpu className="h-3.5 w-3.5 mr-1.5" />
+            Theo Agent
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="agents" className="mt-4">
+          <AiAgentsPanel />
+        </TabsContent>
+
+        <TabsContent value="provider" className="mt-4 space-y-4">
       {/* Hero */}
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-center gap-4">
