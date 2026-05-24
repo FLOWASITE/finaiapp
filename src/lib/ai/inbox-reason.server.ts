@@ -184,7 +184,7 @@ export async function buildDocumentItem(
   // (single source of truth: vendor templates + rules + AI).
   if (doc.invoice_id) {
     try {
-      const dto = await proposeJournalForInvoice(supabase, doc.invoice_id);
+      const dto = prebuiltProposal ?? (await proposeJournalForInvoice(supabase, doc.invoice_id));
       const entry = dto.entries[0];
       if (entry) {
         const lines: ProposalLine[] = entry.lines.map((l) => ({
