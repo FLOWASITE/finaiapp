@@ -615,6 +615,7 @@ export function buildInsightItem(insight: any): InboxItem {
     occurred_at: insight.created_at,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ confidence }),
     proposal: {
       description: insight.title ?? "Cảnh báo AI",
       entry_date: insight.created_at.slice(0, 10),
