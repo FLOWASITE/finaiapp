@@ -1,0 +1,71 @@
+import type { AgentSpec } from "@/types/agent";
+
+export const taxSpec: AgentSpec = {
+  inputs: [
+    { name: "Bút toán có VAT", format: "JournalEntries với vat_split" },
+    { name: "Bảng lương", format: "Payroll data từ HR module" },
+    { name: "Doanh thu quý", format: "Tổng hợp từ 511/515/711" },
+    { name: "Tenant.tax_method", format: "khấu trừ | trực tiếp" },
+  ],
+  outputs: [
+    { name: "TaxComputation", format: "JSON", notes: "vat_input, vat_output, vat_payable, cit_quarterly, pit_payroll, declarations_due[], warnings[]" },
+    { name: "Tờ khai 01/GTGT", format: "XML chuẩn iHTKK" },
+    { name: "Tờ khai 03/TNDN", format: "XML iHTKK" },
+    { name: "Tờ khai 05/KK-TNCN", format: "XML iHTKK" },
+  ],
+  decision_tree: [
+    {
+      id: "d-vat-method", condition: "Phương pháp tính VAT", outcome: "Route công thức khác nhau",
+      children: [
+        { id: "d-vat-kt", condition: "Khấu trừ", outcome: "VAT phải nộp = 3331 - 133 (âm thì khấu trừ kỳ sau)", confidence: 1.0 },
+        { id: "d-vat-tt-1", condition: "Trực tiếp - phân phối hàng hóa", outcome: "1% x doanh thu", confidence: 1.0 },
+        { id: "d-vat-tt-2", condition: "Trực tiếp - dịch vụ, xây dựng không bao thầu NVL", outcome: "5% x doanh thu", confidence: 1.0 },
+        { id: "d-vat-tt-3", condition: "Trực tiếp - sản xuất, vận tải", outcome: "3% x doanh thu", confidence: 1.0 },
+        { id: "d-vat-tt-4", condition: "Trực tiếp - hoạt động khác", outcome: "2% x doanh thu", confidence: 1.0 },
+      ],
+    },
+    { id: "d-cit", condition: "CIT tạm tính quý", outcome: "20% x (DT - CP hợp lệ), DN nhỏ dưới 50 tỷ DT thì 15-17%" },
+    { id: "d-pit", condition: "PIT lũy tiến 7 bậc", outcome: "5/10/15/20/25/30/35% theo từng bậc thu nhập tính thuế" },
+  ],
+  rules: [
+    { id: "tax-001", title: "HĐ không MST thì không khấu trừ VAT", detail: "Toàn bộ VAT đầu vào bị loại; chuyển vào chi phí TK 6427 hoặc TK gốc", severity: "mandatory", reference: "TT219/2013 Điều 15" },
+    { id: "tax-002", title: "HĐ trên 20tr phải không tiền mặt", detail: "Thanh toán tiền mặt cho HĐ ≥20tr thì mất quyền khấu trừ VAT đầu vào", severity: "mandatory", reference: "TT78/2014 Điều 4" },
+    { id: "tax-003", title: "VAT 8% theo NQ 110/2023", detail: "Áp dụng cho hàng hóa/dịch vụ không thuộc 11 nhóm loại trừ (viễn thông, BĐS, ngân hàng, chứng khoán...)", severity: "mandatory", reference: "NQ 110/2023" },
+    { id: "tax-004", title: "Chi không hóa đơn thì loại CIT", detail: "Lưu sổ riêng các chi 811 + non_cit_deductible để cộng lại khi tính TNDN", severity: "mandatory", reference: "TT78/2014 Điều 4" },
+    { id: "tax-005", title: "Lịch tờ khai VAT tháng", detail: "Khai và nộp chậm nhất ngày 20 tháng sau; tự sinh trước 5 ngày", severity: "mandatory", reference: "Luật QLT 38/2019 Điều 44" },
+    { id: "tax-006", title: "Lịch tờ khai VAT quý", detail: "Áp dụng DN có DT năm trước ≤50 tỷ; hạn cuối tháng đầu quý sau", severity: "mandatory", reference: "TT80/2021 Điều 8" },
+    { id: "tax-007", title: "CIT tạm tính quý", detail: "Nộp chậm nhất ngày 30 tháng đầu quý sau; tổng 4 quý ≥80% CIT năm, không thì phạt chậm nộp", severity: "mandatory", reference: "Luật QLT Điều 55" },
+    { id: "tax-008", title: "Quyết toán CIT năm", detail: "Hạn 90 ngày sau năm tài chính; nếu năm dương lịch thì 31/3 năm sau", severity: "mandatory", reference: "Luật QLT Điều 44" },
+    { id: "tax-009", title: "PIT khấu trừ tại nguồn", detail: "DN trả lương ≥2tr/lần cho cá nhân không HĐLĐ thì khấu trừ 10%", severity: "mandatory", reference: "TT111/2013" },
+    { id: "tax-010", title: "Giảm trừ gia cảnh PIT", detail: "Bản thân 11tr/tháng, người phụ thuộc 4.4tr/người/tháng", severity: "mandatory", reference: "NQ 954/2020" },
+    { id: "tax-011", title: "Cảnh báo trước hạn", detail: "Gửi noti 10/5/2/1 ngày trước hạn nộp; nếu chưa generate xong thì escalate", severity: "mandatory" },
+    { id: "tax-012", title: "Hóa đơn điều chỉnh recompute", detail: "Khi nhận hđ điều chỉnh thì tính lại VAT kỳ phát sinh, sinh phụ lục 01-1/GTGT", severity: "mandatory", reference: "TT78/2021 Điều 19" },
+    { id: "tax-013", title: "Hoàn thuế GTGT dự án đầu tư", detail: "Số dư 133 ≥300tr sau 12 tháng cho dự án thì hồ sơ hoàn thuế 01/HT", severity: "advisory", reference: "TT80/2021 Điều 28" },
+    { id: "tax-014", title: "Xuất khẩu áp 0%", detail: "Đủ điều kiện HĐ + tờ khai HQ + thanh toán qua NH + hợp đồng xuất khẩu", severity: "mandatory", reference: "TT219/2013 Điều 9" },
+    { id: "tax-015", title: "Hộ kinh doanh khoán thuế", detail: "Nếu tenant là HKD thì áp tỷ lệ % thuế khoán theo ngành, không tính chi tiết VAT", severity: "advisory", reference: "TT40/2021" },
+    { id: "tax-016", title: "Audit trail tính thuế", detail: "Mọi recompute lưu tax_period, version, source_invoice_ids, formula_used", severity: "mandatory" },
+    { id: "tax-017", title: "Tỷ giá tính thuế ngoại tệ", detail: "Dùng tỷ giá mua chuyển khoản của NHTM nơi DN mở TK", severity: "mandatory", reference: "TT26/2015" },
+    { id: "tax-018", title: "Báo cáo tình hình sử dụng hóa đơn", detail: "Sinh tự động hàng quý theo mẫu BC26/AC", severity: "mandatory", reference: "TT78/2021 Điều 29" },
+  ],
+  confidence_matrix: { strict: 1.0, balanced: 1.0, flexible: 1.0, fallback_action: "queue_human" },
+  exceptions: [
+    { id: "tax-e1", scenario: "Hóa đơn điều chỉnh/thay thế TT78", handling: "Recompute kỳ phát sinh; sinh phụ lục điều chỉnh 01-1/GTGT" },
+    { id: "tax-e2", scenario: "Hoàn thuế GTGT dự án đầu tư", handling: "Flow riêng: chuẩn bị hồ sơ 01/HT + danh sách HĐ + chứng minh đầu tư" },
+    { id: "tax-e3", scenario: "DN mới thành lập chưa đủ năm tài chính", handling: "Áp lịch tờ khai tháng mặc định; chuyển quý từ năm tiếp theo nếu đủ điều kiện" },
+    { id: "tax-e4", scenario: "Quyết toán PIT cá nhân ủy quyền", handling: "Tổng hợp toàn bộ thu nhập + giảm trừ + sinh tờ khai 02/QTT-TNCN" },
+  ],
+  integrations: [
+    { name: "Tổng cục Thuế eTax", kind: "tax_authority", direction: "out", notes: "Nộp tờ khai XML qua TVAN" },
+    { name: "iHTKK Desktop", kind: "tax_authority", direction: "out", notes: "Format XML chuẩn iHTKK 4.x" },
+    { name: "Nhận tờ khai Mã giao dịch", kind: "tax_authority", direction: "in", notes: "Tra cứu trạng thái nộp" },
+  ],
+  audit_fields: ["tax_period", "recalculation_history", "source_invoice_ids", "formula_used", "submitted_at", "tax_authority_response"],
+  compliance: [
+    { id: "c-tax-1", requirement: "Luật Quản lý thuế", reference: "Luật 38/2019/QH14", status: "covered" },
+    { id: "c-tax-2", requirement: "TT80/2021 quản lý thuế", reference: "TT 80/2021/TT-BTC", status: "covered" },
+    { id: "c-tax-3", requirement: "VAT 8% NQ 110", reference: "NQ 110/2023/QH15", status: "covered" },
+    { id: "c-tax-4", requirement: "PIT TT111", reference: "TT 111/2013/TT-BTC", status: "covered" },
+    { id: "c-tax-5", requirement: "TNDN TT78/2014 + TT96/2015", reference: "TT 78/2014/TT-BTC", status: "covered" },
+  ],
+  sla: { p50_ms: 95, p95_ms: 400, max_retry: 1, timeout_ms: 10000 },
+};
