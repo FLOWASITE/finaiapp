@@ -115,3 +115,124 @@ export const lookupLineClassifications = createServerFn({ method: "POST" })
     }
     return { matches: map };
   });
+
+// ============ Management: list / update / delete ============
+
+export type LineClassificationRow = {
+  id: string;
+  supplier_id: string | null;
+  supplier_tax_id: string | null;
+  supplier_name: string | null;
+  line_name: string;
+  line_name_norm: string;
+  kind: "goods" | "fixed_asset" | "ccdc" | "service";
+  account: string;
+  source: "rule" | "user_override" | "ai";
+  hit_count: number;
+  last_used_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const ListInput = z.object({
+  search: z.string().trim().max(200).optional(),
+  kind: KindEnum.optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export const listLineClassifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ListInput.parse(i ?? {}))
+  .handler(async ({ data, context }): Promise<LineClassificationRow[]> => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return [];
+
+    let q = supabase
+      .from("ai_line_classifications")
+      .select(
+        "id, supplier_id, supplier_tax_id, line_name, line_name_norm, kind, account, source, hit_count, last_used_at, created_at, updated_at",
+      )
+      .eq("tenant_id", tenantId)
+      .order("last_used_at", { ascending: false })
+      .limit(data.limit ?? 200);
+
+    if (data.kind) q = q.eq("kind", data.kind);
+    if (data.search) {
+      const s = data.search.replace(/[%_]/g, "\\$&");
+      q = q.ilike("line_name", `%${s}%`);
+    }
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    // Tra cứu tên NCC (không có FK nên query riêng)
+    const supplierIds = Array.from(
+      new Set(((rows ?? []) as any[]).map((r) => r.supplier_id).filter(Boolean)),
+    );
+    const supplierMap: Record<string, string> = {};
+    if (supplierIds.length > 0) {
+      const { data: sups } = await supabase
+        .from("suppliers")
+        .select("id, name")
+        .in("id", supplierIds);
+      for (const s of (sups ?? []) as any[]) supplierMap[s.id] = s.name;
+    }
+
+    return ((rows ?? []) as any[]).map((r) => ({
+      id: r.id,
+      supplier_id: r.supplier_id,
+      supplier_tax_id: r.supplier_tax_id,
+      supplier_name: r.supplier_id ? supplierMap[r.supplier_id] ?? null : null,
+      line_name: r.line_name,
+      line_name_norm: r.line_name_norm,
+      kind: r.kind,
+      account: r.account,
+      source: r.source,
+      hit_count: r.hit_count,
+      last_used_at: r.last_used_at,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
+  });
+
+const UpdateInput = z.object({
+  id: z.string().uuid(),
+  kind: KindEnum.optional(),
+  account: z.string().min(2).max(16).optional(),
+});
+
+export const updateLineClassification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp");
+    const patch: Record<string, any> = { source: "user_override" };
+    if (data.kind) patch.kind = data.kind;
+    if (data.account) patch.account = data.account;
+    const { error } = await supabase
+      .from("ai_line_classifications")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteLineClassification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp");
+    const { error } = await supabase
+      .from("ai_line_classifications")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

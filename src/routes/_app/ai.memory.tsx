@@ -82,6 +82,7 @@ import {
   validateSlots,
 } from "@/lib/ai-memory-templates";
 import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
+import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -97,7 +98,7 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-type TabKey = "rules" | "partners" | "context" | "limits" | "learning";
+type TabKey = "rules" | "classifications" | "partners" | "context" | "limits" | "learning";
 
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
@@ -157,6 +158,7 @@ function AIMemoryPage() {
           ) : (
             <>
               {tab === "rules" && <RuleList rules={rules} />}
+              {tab === "classifications" && <ClassificationsTab />}
               {tab === "partners" && <PartnersTab />}
               {tab === "context" && <ContextTab />}
               {tab === "limits" && <LimitsTab />}
@@ -275,6 +277,7 @@ function SubTabs({
 }) {
   const tabs: { key: TabKey; label: string; count?: number; badge?: number }[] = [
     { key: "rules", label: "Quy tắc hạch toán", count: ruleCount },
+    { key: "classifications", label: "Hàng hóa / DV" },
     { key: "partners", label: "Đối tác", count: 128 },
     { key: "context", label: "Bối cảnh DN", count: 12 },
     { key: "limits", label: "Giới hạn", count: 8 },
