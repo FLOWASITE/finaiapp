@@ -402,7 +402,7 @@ function SalesVouchersPage() {
   const productsFnPage = useServerFn(listProducts);
 
   // ---------- Filters ----------
-  const defaultPeriod = useMemo(() => getPresetRange("thisMonth"), []);
+  const defaultPeriod = useMemo(() => getPresetRange("thisYear"), []);
   const [fStatus, setFStatus] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>(defaultPeriod.from);
   const [fTo, setFTo] = useState<string>(defaultPeriod.to);
