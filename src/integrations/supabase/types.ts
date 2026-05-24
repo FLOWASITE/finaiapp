@@ -384,58 +384,99 @@ export type Database = {
         Row: {
           accuracy_correct: number
           accuracy_total: number
+          actions: Json
           applied_count: number
+          applies_to: string
+          conditions: Json
+          confidence_threshold: number
           created_at: string
           created_by: string
           disable_reason: string | null
+          enabled: boolean
           id: string
           last_used_at: string | null
+          mode: string
           origin: string | null
+          paused_reason: string | null
+          previous_version_id: string | null
+          schema_version: number
           source: string | null
+          status: string
           tenant_id: string
           then_text: string
           title: string
           type: string
           updated_at: string
+          version: number
           when_text: string
         }
         Insert: {
           accuracy_correct?: number
           accuracy_total?: number
+          actions?: Json
           applied_count?: number
+          applies_to?: string
+          conditions?: Json
+          confidence_threshold?: number
           created_at?: string
           created_by?: string
           disable_reason?: string | null
+          enabled?: boolean
           id?: string
           last_used_at?: string | null
+          mode?: string
           origin?: string | null
+          paused_reason?: string | null
+          previous_version_id?: string | null
+          schema_version?: number
           source?: string | null
+          status?: string
           tenant_id: string
           then_text: string
           title: string
           type: string
           updated_at?: string
+          version?: number
           when_text: string
         }
         Update: {
           accuracy_correct?: number
           accuracy_total?: number
+          actions?: Json
           applied_count?: number
+          applies_to?: string
+          conditions?: Json
+          confidence_threshold?: number
           created_at?: string
           created_by?: string
           disable_reason?: string | null
+          enabled?: boolean
           id?: string
           last_used_at?: string | null
+          mode?: string
           origin?: string | null
+          paused_reason?: string | null
+          previous_version_id?: string | null
+          schema_version?: number
           source?: string | null
+          status?: string
           tenant_id?: string
           then_text?: string
           title?: string
           type?: string
           updated_at?: string
+          version?: number
           when_text?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_memory_rules_previous_version_id_fkey"
+            columns: ["previous_version_id"]
+            isOneToOne: false
+            referencedRelation: "ai_memory_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_memory_watch: {
         Row: {
@@ -8597,6 +8638,8 @@ export type Database = {
       }
       current_tenant_id: { Args: never; Returns: string }
       fn_auto_match_bank_txn: { Args: { p_txn_id: string }; Returns: undefined }
+      fn_parse_then_text: { Args: { p_text: string }; Returns: Json }
+      fn_parse_when_text: { Args: { p_text: string }; Returns: Json }
       fn_product_available_qty: {
         Args: { p_product: string; p_warehouse: string }
         Returns: number
