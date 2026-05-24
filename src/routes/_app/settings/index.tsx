@@ -143,13 +143,15 @@ function OrganizationTab() {
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
   const [overwriteAll, setOverwriteAll] = React.useState(false);
+  const loadedTenantIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (data?.tenant && !form) {
-      setForm(data.tenant);
-      const t: any = data.tenant;
+    const t: any = data?.tenant;
+    if (t && loadedTenantIdRef.current !== t.id) {
+      loadedTenantIdRef.current = t.id;
+      setForm(t);
       setDiffShipping(!!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)));
     }
-  }, [data, form]);
+  }, [data]);
 
   const canEdit = data?.myRole === "owner" || data?.myRole === "admin";
   const mutate = useMutation({
