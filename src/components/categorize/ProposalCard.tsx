@@ -126,7 +126,6 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
               <span className="text-xs text-muted-foreground font-mono">#{invoice.invoice_no}</span>
             )}
             <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", src.tone)}>{src.label}</Badge>
-            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", src.tone)}>{src.label}</Badge>
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
