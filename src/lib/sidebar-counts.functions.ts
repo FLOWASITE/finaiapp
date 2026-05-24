@@ -7,6 +7,7 @@ export type AiSidebarCounts = {
   documents: number;
   taxDaysLeft: number | null;
   alerts: number;
+  categorize: number;
 };
 
 function nextGtgtDeadlineDays(today = new Date()): number {
