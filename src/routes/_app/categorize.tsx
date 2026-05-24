@@ -142,7 +142,6 @@ function CategorizePage() {
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          icon={Calculator}
           title="Không có bút toán nào"
           description={filter === "pending" ? "Tất cả hoá đơn đã được hạch toán. Tốt lắm!" : "Chưa có dữ liệu cho bộ lọc này."}
         />
