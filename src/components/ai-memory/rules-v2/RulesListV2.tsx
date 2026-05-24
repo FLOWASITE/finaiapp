@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Brain, Plus } from "lucide-react";
+import { Brain, Plus, Lightbulb } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ import {
   updateRule,
   disableRule,
   enableRule,
+  deleteRule,
+  promoteSuggestion,
 } from "@/lib/ai-memory.functions";
 import type { Rule } from "@/types/rule";
 
@@ -24,6 +26,8 @@ export function RulesListV2() {
   const updateFn = useServerFn(updateRule);
   const disableFn = useServerFn(disableRule);
   const enableFn = useServerFn(enableRule);
+  const deleteFn = useServerFn(deleteRule);
+  const promoteFn = useServerFn(promoteSuggestion);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -32,17 +36,27 @@ export function RulesListV2() {
   });
 
   const [draft, setDraft] = useState<Rule | null>(null);
+  const [approving, setApproving] = useState<Rule | null>(null);
 
   const rules: Rule[] = useMemo(
     () => (data?.rules ?? []).map(memoryRuleToRule),
     [data?.rules],
   );
 
+  const suggestions = useMemo(
+    () => rules.filter((r) => r.db_type === "suggestion"),
+    [rules],
+  );
+  const activeRules = useMemo(
+    () => rules.filter((r) => r.db_type !== "suggestion"),
+    [rules],
+  );
+
   const ordered = useMemo(() => {
     const order = (r: Rule) =>
       r.status === "active" && r.enabled ? 0 : r.status === "paused" ? 1 : 2;
-    return [...rules].sort((a, b) => order(a) - order(b));
-  }, [rules]);
+    return [...activeRules].sort((a, b) => order(a) - order(b));
+  }, [activeRules]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["ai-memory"] });
@@ -65,6 +79,14 @@ export function RulesListV2() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const deleteM = useMutation({
+    mutationFn: deleteFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã bỏ qua đề xuất");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const handleToggle = (id: string, enabled: boolean, reason?: string) => {
     if (enabled) {
@@ -75,13 +97,11 @@ export function RulesListV2() {
   };
 
   const handleSave = async (rule: Rule) => {
-    const isExisting = rules.some((r) => r.id === rule.id);
+    const existing = rules.find((r) => r.id === rule.id);
     const payload = {
       title: rule.name,
       when_text: rule.description || rule.name,
-      then_text: rule.actions[0]
-        ? `Hành động: ${rule.actions[0].type}`
-        : "—",
+      then_text: rule.actions[0] ? `Hành động: ${rule.actions[0].type}` : "—",
       conditions: rule.conditions,
       actions: rule.actions,
       mode: rule.mode,
@@ -90,7 +110,25 @@ export function RulesListV2() {
       enabled: rule.enabled,
       status: rule.status,
     };
-    if (isExisting) {
+    if (existing?.db_type === "suggestion") {
+      // Promote suggestion → active with v2 data
+      await promoteFn({
+        data: {
+          id: rule.id,
+          title: rule.name,
+          when_text: payload.when_text,
+          then_text: payload.then_text,
+          conditions: rule.conditions,
+          actions: rule.actions,
+          mode: rule.mode,
+          confidence_threshold: rule.confidence_threshold,
+          applies_to: rule.applies_to,
+          enabled: rule.enabled,
+          status: "active",
+        },
+      });
+      toast.success("Đã chấp nhận đề xuất");
+    } else if (existing) {
       await updateFn({ data: { id: rule.id, ...payload } });
     } else {
       await createFn({ data: { ...payload, source: "user-taught" } });
@@ -108,7 +146,9 @@ export function RulesListV2() {
     );
   }
 
-  if (ordered.length === 0) {
+  const hasAny = ordered.length > 0 || suggestions.length > 0;
+
+  if (!hasAny) {
     return (
       <div className="rounded-lg border border-dashed p-10 text-center">
         <Brain className="mx-auto h-8 w-8 text-muted-foreground/50" />
@@ -138,26 +178,67 @@ export function RulesListV2() {
       <div className="flex items-center justify-between">
         <div className="text-[12px] text-muted-foreground">
           {ordered.filter((r) => r.enabled).length} quy tắc đang chạy · {ordered.length} tổng
+          {suggestions.length > 0 && ` · ${suggestions.length} đề xuất`}
         </div>
         <Button size="sm" variant="outline" onClick={() => setDraft(makeEmptyRule())}>
           <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
         </Button>
       </div>
-      <div className="space-y-3">
-        {ordered.map((r) => (
-          <RuleCard
-            key={r.id}
-            rule={r}
-            onToggleEnabled={handleToggle}
-            onSave={handleSave}
-          />
-        ))}
-      </div>
+
+      {suggestions.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+            <Lightbulb className="h-3.5 w-3.5 text-[#4F46C7]" />
+            Đề xuất từ AI ({suggestions.length})
+          </div>
+          <div className="space-y-3">
+            {suggestions.map((r) => (
+              <RuleCard
+                key={r.id}
+                rule={r}
+                onToggleEnabled={handleToggle}
+                onSave={handleSave}
+                onApprove={(rule) => setApproving(rule)}
+                onReject={(rule) =>
+                  deleteM.mutate({ data: { id: rule.id } })
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ordered.length > 0 && (
+        <div className="space-y-3">
+          {suggestions.length > 0 && (
+            <div className="mt-2 text-[12px] font-medium text-muted-foreground">
+              Quy tắc đang chạy ({ordered.length})
+            </div>
+          )}
+          {ordered.map((r) => (
+            <RuleCard
+              key={r.id}
+              rule={r}
+              onToggleEnabled={handleToggle}
+              onSave={handleSave}
+            />
+          ))}
+        </div>
+      )}
+
       {draft && (
         <RuleEditor
           rule={draft}
           open={!!draft}
           onOpenChange={(o) => !o && setDraft(null)}
+          onSave={handleSave}
+        />
+      )}
+      {approving && (
+        <RuleEditor
+          rule={approving}
+          open={!!approving}
+          onOpenChange={(o) => !o && setApproving(null)}
           onSave={handleSave}
         />
       )}
