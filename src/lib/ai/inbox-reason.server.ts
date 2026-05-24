@@ -134,6 +134,71 @@ export async function buildDocumentItem(
   const subtotal = Number(ext.subtotal ?? Math.max(0, amount - vat));
   const date = (ext.invoice_date ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
 
+  // If document is linked to an invoice, prefer the categorize engine
+  // (single source of truth: vendor templates + rules + AI).
+  if (doc.invoice_id) {
+    try {
+      const dto = await proposeJournalForInvoice(supabase, doc.invoice_id);
+      const entry = dto.entries[0];
+      if (entry) {
+        const lines: ProposalLine[] = entry.lines.map((l) => ({
+          account: l.account_code,
+          debit: l.debit || undefined,
+          credit: l.credit || undefined,
+          memo: l.memo ?? undefined,
+        }));
+        const confidence = Math.min(99, Math.round(dto.confidence * 100));
+        const signals: ReasoningSignal[] = dto.signals.map((s) => ({
+          kind: "match",
+          label: s.label,
+          ok: true,
+        }));
+        for (const w of dto.warnings) {
+          signals.push({ kind: "warn", label: w.message, ok: false });
+        }
+        return {
+          id: `document:${doc.id}`,
+          external_id: doc.id,
+          source: "document",
+          source_label:
+            doc.source === "einvoice"
+              ? `Hoá đơn vào · TCT · ${relativeTimeVi(doc.created_at)}`
+              : doc.source === "email"
+              ? `Email forward · ${relativeTimeVi(doc.created_at)}`
+              : `Tài liệu · ${relativeTimeVi(doc.created_at)}`,
+          source_short: doc.source === "einvoice" ? "TCT" : doc.source === "email" ? "EMAIL" : "DOC",
+          title: supplier,
+          subtitle:
+            [ext.description, invoiceNo ? `HĐ ${invoiceNo}` : null].filter(Boolean).join(" · ") ||
+            doc.original_filename,
+          partner: supplier,
+          amount,
+          occurred_at: doc.created_at,
+          confidence,
+          confidence_band: bandOf(confidence),
+          proposal: {
+            description: entry.description,
+            entry_date: entry.entry_date,
+            lines,
+          },
+          reasoning: {
+            summary: `Engine hạch toán (${dto.source}): ${dto.entries.length} bút toán, độ tin cậy ${(dto.confidence * 100).toFixed(0)}%.`,
+            signals,
+          },
+          followups: [
+            `Tổng chi cho ${supplier} năm nay?`,
+            "Vì sao chọn các tài khoản này?",
+            "Áp dụng template này cho NCC này",
+          ],
+          href: "/categorize",
+        };
+      }
+    } catch (_e) {
+      // Fallback xuống logic cũ
+    }
+  }
+
+
   // Default account guess (expense) — rule may override
   let expenseAccount = String(ext.expense_account ?? "642");
   const rule = applyRule(rules, {
