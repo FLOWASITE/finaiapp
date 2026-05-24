@@ -161,6 +161,7 @@ function OrganizationTab() {
   const [diffShipping, setDiffShipping] = React.useState(false);
   const [overwriteAll, setOverwriteAll] = React.useState(false);
   const loadedTenantIdRef = React.useRef<string | null>(null);
+  const userEditedLegalFormRef = React.useRef(false);
   React.useEffect(() => {
     const t: any = data?.tenant;
     if (t && loadedTenantIdRef.current !== t.id) {
