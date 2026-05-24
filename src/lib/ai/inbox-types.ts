@@ -54,6 +54,16 @@ export type InboxSource =
 
 export type ConfidenceBand = "high" | "medium" | "low";
 
+export type ProcessingStatus =
+  | "ocr_pending"
+  | "ocr_failed"
+  | "blocked"
+  | "needs_review"
+  | "ready"
+  | "auto_ready"
+  | "posted"
+  | "skipped";
+
 export type InboxItem = {
   id: string;
   external_id: string;
