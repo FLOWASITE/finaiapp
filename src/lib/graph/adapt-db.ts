@@ -1,5 +1,5 @@
 import type { Rule } from "@/types/rule";
-import type { VendorEntity, AccountEntity } from "@/data/sampleEntities";
+import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
 import type { GraphDbData, GraphRuleRow } from "./memory-graph.functions";
 import { VAS_ACCOUNTS, accountName } from "./vas-accounts";
 
@@ -12,7 +12,6 @@ function extractAccountCodes(text: string | null | undefined): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     const code = m[1];
-    // Only treat as account if it's in our VAS map OR follows "TK"/"tk"/"nợ"/"có" within 6 chars
     if (VAS_ACCOUNTS[code]) {
       out.add(code);
       continue;
@@ -49,7 +48,6 @@ function rowToRule(r: GraphRuleRow): Rule {
   };
 }
 
-/** Trích mã TK từ structured actions v2 (book.account_debit/credit). */
 function extractAccountsFromActions(actions: GraphRuleRow["actions"]): string[] {
   if (!Array.isArray(actions)) return [];
   const out = new Set<string>();
@@ -64,7 +62,6 @@ function extractAccountsFromActions(actions: GraphRuleRow["actions"]): string[] 
   return Array.from(out);
 }
 
-/** Trích từ khoá vendor từ structured conditions v2 (vendor.name equals/contains/in). */
 function extractVendorTermsFromConditions(conditions: GraphRuleRow["conditions"]): string[] {
   if (!Array.isArray(conditions)) return [];
   const out: string[] = [];
@@ -79,9 +76,9 @@ function extractVendorTermsFromConditions(conditions: GraphRuleRow["conditions"]
 
 export type ExtraEdge = {
   id: string;
-  source: string; // vendor:{id}
-  target: string; // account:{id}
-  kind: "partner-default" | "classification";
+  source: string;
+  target: string;
+  kind: "partner-default" | "classification" | "vendor-item" | "item-account";
   label?: string;
   weight: number;
 };
@@ -90,9 +87,10 @@ export type AdaptedGraphInput = {
   rules: Rule[];
   vendors: VendorEntity[];
   accounts: AccountEntity[];
+  items: ItemEntity[];
   extraEdges: ExtraEdge[];
-  ruleAccountHints: Map<string, string[]>; // ruleId -> account codes from text
-  ruleVendorHints: Map<string, string[]>; // ruleId -> vendor ids from fuzzy match
+  ruleAccountHints: Map<string, string[]>;
+  ruleVendorHints: Map<string, string[]>;
 };
 
 function normalize(s: string): string {
@@ -100,7 +98,12 @@ function normalize(s: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
+    .replace(/đ/g, "d")
+    .trim();
+}
+
+function slugify(s: string): string {
+  return normalize(s).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "x";
 }
 
 export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
@@ -113,7 +116,6 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     industry: s.industry_code ?? undefined,
   }));
 
-  // Collect account codes
   const accountSet = new Set<string>();
   for (const s of input.suppliers) {
     if (s.default_expense_account) accountSet.add(s.default_expense_account);
@@ -127,7 +129,6 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
 
   const ruleAccountHints = new Map<string, string[]>();
   for (const r of input.rules) {
-    // Ưu tiên v2 structured actions; fallback regex text khi rule còn ở v1.
     const fromV2 = extractAccountsFromActions(r.actions);
     const codes = fromV2.length
       ? fromV2
@@ -143,7 +144,6 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     .sort()
     .map((code) => ({ id: `a-${code}`, code, name: accountName(code) }));
 
-  // Vendor matching: v2 conditions (vendor.name) trước, fallback fuzzy text.
   const vendorIndex = vendors.map((v) => ({ v, norm: normalize(v.name) }));
   const ruleVendorHints = new Map<string, string[]>();
   for (const r of input.rules) {
@@ -168,9 +168,44 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     if (matched.size) ruleVendorHints.set(r.id, Array.from(matched));
   }
 
-  // Extra edges
+  // --- Items (hàng hoá / dịch vụ) derived from ai_line_classifications ---
+  const itemsMap = new Map<string, ItemEntity>();
+  type ItemLink = { vendorId: string | null; itemId: string; account: string; hits: number; label?: string };
+  const itemLinks: ItemLink[] = [];
+
+  for (const c of input.classifications) {
+    const trimmed = c.line_name?.trim();
+    if (!trimmed) continue;
+    const kind = (c.kind ?? "goods") as ItemEntity["kind"];
+    const key = `${slugify(trimmed)}::${kind}`;
+    let it = itemsMap.get(key);
+    if (!it) {
+      it = {
+        id: key,
+        name: trimmed,
+        kind,
+        hitCount: 0,
+        defaultAccount: c.account,
+      };
+      itemsMap.set(key, it);
+    }
+    it.hitCount += c.hit_count ?? 1;
+    if (!it.defaultAccount && c.account) it.defaultAccount = c.account;
+    itemLinks.push({
+      vendorId: c.supplier_id ?? null,
+      itemId: key,
+      account: c.account,
+      hits: c.hit_count ?? 1,
+      label: trimmed.length > 24 ? `${trimmed.slice(0, 22)}…` : trimmed,
+    });
+  }
+
+  const items = Array.from(itemsMap.values());
+
+  // Extra edges: partner-default (vendor→account), and item routing (vendor→item, item→account)
   const extraEdges: ExtraEdge[] = [];
   const seen = new Set<string>();
+
   for (const p of input.partners) {
     if (!p.party_id || !p.default_account) continue;
     const id = `partner:${p.party_id}->${p.default_account}`;
@@ -185,20 +220,45 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
       weight: 2,
     });
   }
-  for (const c of input.classifications) {
-    if (!c.supplier_id || !c.account) continue;
-    const id = `class:${c.supplier_id}->${c.account}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    extraEdges.push({
-      id,
-      source: `vendor:${c.supplier_id}`,
-      target: `account:a-${c.account}`,
-      kind: "classification",
-      label: c.line_name?.slice(0, 24),
-      weight: Math.min(3, 1 + Math.log10(1 + (c.hit_count ?? 0))),
+
+  // Aggregate vendor→item edges so duplicates collapse
+  const vendorItemAgg = new Map<string, number>();
+  const itemAccountAgg = new Map<string, { hits: number; account: string; itemId: string }>();
+  for (const link of itemLinks) {
+    if (link.vendorId) {
+      const k = `vi:${link.vendorId}->${link.itemId}`;
+      vendorItemAgg.set(k, (vendorItemAgg.get(k) ?? 0) + link.hits);
+    }
+    const ka = `ia:${link.itemId}->${link.account}`;
+    const prev = itemAccountAgg.get(ka);
+    itemAccountAgg.set(ka, {
+      hits: (prev?.hits ?? 0) + link.hits,
+      account: link.account,
+      itemId: link.itemId,
     });
   }
 
-  return { rules, vendors, accounts, extraEdges, ruleAccountHints, ruleVendorHints };
+  for (const [key, hits] of vendorItemAgg) {
+    const [, rest] = key.split(":");
+    const [vendorId, itemId] = rest.split("->");
+    extraEdges.push({
+      id: key,
+      source: `vendor:${vendorId}`,
+      target: `item:${itemId}`,
+      kind: "vendor-item",
+      weight: Math.min(3, 1 + Math.log10(1 + hits)),
+    });
+  }
+  for (const [key, info] of itemAccountAgg) {
+    extraEdges.push({
+      id: key,
+      source: `item:${info.itemId}`,
+      target: `account:a-${info.account}`,
+      kind: "item-account",
+      label: `→ ${info.account}`,
+      weight: Math.min(3, 1 + Math.log10(1 + info.hits)),
+    });
+  }
+
+  return { rules, vendors, accounts, items, extraEdges, ruleAccountHints, ruleVendorHints };
 }

@@ -5,7 +5,7 @@ import { Search, RotateCcw } from "lucide-react";
 
 export type GraphFilterState = {
   search: string;
-  nodeKinds: Set<"rule" | "vendor" | "account">;
+  nodeKinds: Set<"rule" | "vendor" | "account" | "item">;
   modes: Set<"auto" | "suggest" | "disabled">;
   showOrphans: boolean;
 };
@@ -59,6 +59,13 @@ export function GraphFilters({
           onClick={() => onChange({ ...state, nodeKinds: toggle(state.nodeKinds, "account") })}
         >
           Tài khoản
+        </FilterChip>
+        <FilterChip
+          active={state.nodeKinds.has("item")}
+          color="#0891B2"
+          onClick={() => onChange({ ...state, nodeKinds: toggle(state.nodeKinds, "item") })}
+        >
+          Hàng hoá/DV
         </FilterChip>
       </div>
 

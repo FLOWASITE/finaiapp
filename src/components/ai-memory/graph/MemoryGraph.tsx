@@ -30,6 +30,7 @@ import { layoutGraph } from "@/lib/graph/layout";
 import { RuleNode } from "./nodes/RuleNode";
 import { VendorNode } from "./nodes/VendorNode";
 import { AccountNode } from "./nodes/AccountNode";
+import { ItemNode } from "./nodes/ItemNode";
 import { GraphLegend } from "./GraphLegend";
 import { GraphFilters, type GraphFilterState } from "./GraphFilters";
 import { GraphSidebar } from "./GraphSidebar";
@@ -41,11 +42,12 @@ const nodeTypes = {
   rule: RuleNode,
   vendor: VendorNode,
   account: AccountNode,
+  item: ItemNode,
 } as any;
 
 const initialFilters: GraphFilterState = {
   search: "",
-  nodeKinds: new Set(["rule", "vendor", "account"]),
+  nodeKinds: new Set(["rule", "vendor", "account", "item"]),
   modes: new Set(["auto", "suggest", "disabled"]),
   showOrphans: false,
 };
@@ -60,6 +62,17 @@ function edgeStyle(data: GraphEdgeData) {
       strokeWidth: data.weight,
       strokeDasharray: "3 3",
       opacity: 0.6,
+    };
+  }
+  if (data.kind === "vendor-item") {
+    return { stroke: "#0891B2", strokeWidth: data.weight, opacity: 0.75 };
+  }
+  if (data.kind === "item-account") {
+    return {
+      stroke: "#0891B2",
+      strokeWidth: data.weight,
+      strokeDasharray: "4 3",
+      opacity: 0.7,
     };
   }
   const disabled = data.ruleStatus !== "active";
@@ -104,6 +117,7 @@ function InnerGraph() {
       rules: adapted.rules,
       vendors: adapted.vendors,
       accounts: adapted.accounts,
+      items: adapted.items,
       extraEdges: adapted.extraEdges,
       ruleAccountHints: adapted.ruleAccountHints,
       ruleVendorHints: adapted.ruleVendorHints,
@@ -264,6 +278,22 @@ function InnerGraph() {
     return [];
   }, [selectedNode, edges, rules]);
 
+  const itemNeighbors = useMemo(() => {
+    if (!selectedNode || selectedNode.kind !== "item" || !selectedNode.item) {
+      return { vendors: [], accounts: [] };
+    }
+    const iid = `item:${selectedNode.item.id}`;
+    const vendorIds = edges
+      .filter((e) => e.target === iid && e.source.startsWith("vendor:"))
+      .map((e) => e.source.replace("vendor:", ""));
+    const accountIds = edges
+      .filter((e) => e.source === iid && e.target.startsWith("account:"))
+      .map((e) => e.target.replace("account:", ""));
+    const vendors = (adapted?.vendors ?? []).filter((v) => vendorIds.includes(v.id));
+    const accounts = (adapted?.accounts ?? []).filter((a) => accountIds.includes(a.id));
+    return { vendors, accounts };
+  }, [selectedNode, edges, adapted]);
+
   const insights = useMemo(() => {
     const orphanVendors = built.nodes.filter(
       (n) => n.type === "vendor" && (n.data.ruleCount ?? 0) === 0,
@@ -307,7 +337,10 @@ function InnerGraph() {
     );
   }
 
-  const isEmpty = rules.length === 0 && (adapted?.vendors.length ?? 0) === 0;
+  const isEmpty =
+    rules.length === 0 &&
+    (adapted?.vendors.length ?? 0) === 0 &&
+    (adapted?.items.length ?? 0) === 0;
   if (isEmpty) {
     return (
       <div className="flex h-full items-center justify-center p-10 text-center">
@@ -387,7 +420,10 @@ function InnerGraph() {
               zoomable
               nodeColor={(n) => {
                 const k = (n.data as GraphNodeData)?.kind;
-                return k === "rule" ? "#4F46C7" : k === "vendor" ? "#0F6E56" : "#BA7517";
+                if (k === "rule") return "#4F46C7";
+                if (k === "vendor") return "#0F6E56";
+                if (k === "item") return "#0891B2";
+                return "#BA7517";
               }}
               maskColor="rgba(0,0,0,0.06)"
             />
@@ -403,11 +439,11 @@ function InnerGraph() {
             node={selectedNode}
             onClose={() => setSelectedNode(null)}
             onEditRule={() => {
-              // v1 rules edit in the "Quy tắc" tab — emit event to switch tab
               window.dispatchEvent(new CustomEvent("ai-memory:go-rules"));
             }}
             onJumpTo={handleJumpTo}
             relatedRules={relatedRules}
+            itemNeighbors={itemNeighbors}
           />
         )}
       </div>

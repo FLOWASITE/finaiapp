@@ -1,7 +1,7 @@
 import type { Rule, RuleCondition, RuleAction } from "@/types/rule";
-import type { VendorEntity, AccountEntity } from "@/data/sampleEntities";
+import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
 
-export type NodeKind = "rule" | "vendor" | "account";
+export type NodeKind = "rule" | "vendor" | "account" | "item";
 
 export type GraphNodeData = {
   kind: NodeKind;
@@ -10,6 +10,7 @@ export type GraphNodeData = {
   rule?: Rule;
   vendor?: VendorEntity;
   account?: AccountEntity;
+  item?: ItemEntity;
   ruleCount?: number;
   // For rule nodes
   mode?: Rule["mode"];
@@ -24,7 +25,9 @@ export type GraphEdgeData = {
     | "rule-account-debit"
     | "rule-account-credit"
     | "partner-default"
-    | "classification";
+    | "classification"
+    | "vendor-item"
+    | "item-account";
   ruleStatus: Rule["status"];
   ruleMode: Rule["mode"];
   weight: number;
@@ -35,7 +38,7 @@ export type ExtraGraphEdge = {
   id: string;
   source: string;
   target: string;
-  kind: "partner-default" | "classification";
+  kind: "partner-default" | "classification" | "vendor-item" | "item-account";
   label?: string;
   weight: number;
 };
@@ -44,6 +47,7 @@ export type GraphBuildInput = {
   rules: Rule[];
   vendors: VendorEntity[];
   accounts: AccountEntity[];
+  items?: ItemEntity[];
   extraEdges?: ExtraGraphEdge[];
   ruleAccountHints?: Map<string, string[]>;
   ruleVendorHints?: Map<string, string[]>;
@@ -109,6 +113,7 @@ export function buildGraph({
   rules,
   vendors,
   accounts,
+  items = [],
   extraEdges = [],
   ruleAccountHints,
   ruleVendorHints,
@@ -118,6 +123,7 @@ export function buildGraph({
 
   const vendorRuleCount = new Map<string, number>();
   const accountRuleCount = new Map<string, number>();
+  const itemRuleCount = new Map<string, number>();
 
   for (const r of rules) {
     const accuracy =
@@ -193,14 +199,24 @@ export function buildGraph({
     }
   }
 
-  // Extra edges (partner default / classifications) — vendor → account
+  // Extra edges (partner default / classifications / item links)
   const accountIdSet = new Set(accounts.map((a) => a.id));
   const vendorIdSet = new Set(vendors.map((v) => v.id));
+  const itemIdSet = new Set(items.map((i) => i.id));
   for (const ee of extraEdges) {
-    // sanity check refs exist
-    const srcId = ee.source.replace("vendor:", "");
-    const tgtId = ee.target.replace("account:", "");
-    if (!vendorIdSet.has(srcId) || !accountIdSet.has(tgtId)) continue;
+    const srcKind = ee.source.split(":")[0];
+    const tgtKind = ee.target.split(":")[0];
+    const srcId = ee.source.replace(/^[^:]+:/, "");
+    const tgtId = ee.target.replace(/^[^:]+:/, "");
+    const srcOk =
+      (srcKind === "vendor" && vendorIdSet.has(srcId)) ||
+      (srcKind === "item" && itemIdSet.has(srcId)) ||
+      (srcKind === "account" && accountIdSet.has(srcId));
+    const tgtOk =
+      (tgtKind === "vendor" && vendorIdSet.has(tgtId)) ||
+      (tgtKind === "item" && itemIdSet.has(tgtId)) ||
+      (tgtKind === "account" && accountIdSet.has(tgtId));
+    if (!srcOk || !tgtOk) continue;
     edges.push({
       id: ee.id,
       source: ee.source,
@@ -213,8 +229,12 @@ export function buildGraph({
         label: ee.label,
       },
     });
-    vendorRuleCount.set(srcId, (vendorRuleCount.get(srcId) ?? 0) + 1);
-    accountRuleCount.set(tgtId, (accountRuleCount.get(tgtId) ?? 0) + 1);
+    if (srcKind === "vendor") vendorRuleCount.set(srcId, (vendorRuleCount.get(srcId) ?? 0) + 1);
+    if (tgtKind === "account") accountRuleCount.set(tgtId, (accountRuleCount.get(tgtId) ?? 0) + 1);
+    if (srcKind === "item" || tgtKind === "item") {
+      const iid = srcKind === "item" ? srcId : tgtId;
+      itemRuleCount.set(iid, (itemRuleCount.get(iid) ?? 0) + 1);
+    }
   }
 
   for (const v of vendors) {
@@ -245,5 +265,32 @@ export function buildGraph({
     });
   }
 
+  for (const it of items) {
+    nodes.push({
+      id: `item:${it.id}`,
+      type: "item",
+      data: {
+        kind: "item",
+        label: it.name,
+        sub: kindLabel(it.kind),
+        item: it,
+        ruleCount: itemRuleCount.get(it.id) ?? 0,
+      },
+    });
+  }
+
   return { nodes, edges };
+}
+
+function kindLabel(k: ItemEntity["kind"]): string {
+  switch (k) {
+    case "goods":
+      return "Hàng hoá";
+    case "service":
+      return "Dịch vụ";
+    case "fixed_asset":
+      return "TSCĐ";
+    case "ccdc":
+      return "CCDC";
+  }
 }
