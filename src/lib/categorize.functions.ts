@@ -300,21 +300,29 @@ export const skipProposal = createServerFn({ method: "POST" })
 /** Lấy proposal hiện tại theo invoice_id (dùng trong Sheet tài liệu). */
 export const getProposalByInvoice = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        invoice_id: z.string().uuid(),
+        invoice_kind: z.enum(["purchase", "sales"]).default("purchase"),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const tenantId = await activeTenant(supabase, userId);
     if (!tenantId) return { proposal: null };
     const { data: row } = await supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, confidence, source, status, warnings, journal_entry_id, auto_posted, created_at, resolved_at")
+      .select("id, invoice_id, invoice_kind, dto, confidence, source, status, warnings, journal_entry_id, auto_posted, created_at, resolved_at")
       .eq("tenant_id", tenantId)
       .eq("invoice_id", data.invoice_id)
+      .eq("invoice_kind", data.invoice_kind)
       .maybeSingle();
     return { proposal: row ?? null };
   });
 
-/** Wrapper gọi từ parse-document: nếu agent.mode=auto + conf đủ thì auto-post luôn. */
+/** Wrapper gọi từ parse-document: nếu agent.mode=auto + conf đủ thì auto-post luôn. (chỉ áp dụng cho HĐ mua) */
 export const autoPostIfEligible = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
@@ -331,13 +339,14 @@ export const autoPostIfEligible = createServerFn({ method: "POST" })
         {
           tenant_id: tenantId,
           invoice_id: data.invoice_id,
+          invoice_kind: "purchase",
           dto: dto as any,
           confidence: dto.confidence,
           source: dto.source,
           warnings: dto.warnings as any,
-          status: dto.recommend_auto_post ? "pending" : "pending",
+          status: "pending",
         },
-        { onConflict: "invoice_id" },
+        { onConflict: "invoice_kind,invoice_id" },
       );
 
     if (!dto.recommend_auto_post) return { auto_posted: false, confidence: dto.confidence };
@@ -374,8 +383,10 @@ export const autoPostIfEligible = createServerFn({ method: "POST" })
         journal_entry_id: je.id,
         resolved_at: new Date().toISOString(),
       })
-      .eq("invoice_id", data.invoice_id);
+      .eq("invoice_id", data.invoice_id)
+      .eq("invoice_kind", "purchase");
     await supabase.from("invoices").update({ status: "approved" }).eq("id", data.invoice_id);
+
 
     try {
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
