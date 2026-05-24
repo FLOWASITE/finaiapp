@@ -174,14 +174,19 @@ function toNullableNumber(value: any): number | null {
 function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNote?: string | null) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const lines = Array.isArray(source.lines)
-    ? source.lines.map((line: any) => ({
-        description: toNullableString(line?.description) || "Hàng hoá / dịch vụ",
-        qty: toNullableNumber(line?.qty),
-        unit_price: toNullableNumber(line?.unit_price),
-        amount: toNullableNumber(line?.amount),
-        vat_rate: toNullableNumber(line?.vat_rate),
-      }))
+    ? source.lines.map((line: any) => {
+        const base = {
+          description: toNullableString(line?.description) || "Hàng hoá / dịch vụ",
+          qty: toNullableNumber(line?.qty),
+          unit: toNullableString(line?.unit),
+          unit_price: toNullableNumber(line?.unit_price),
+          amount: toNullableNumber(line?.amount),
+          vat_rate: toNullableNumber(line?.vat_rate),
+        };
+        return { ...base, classification: classifyLine(base) };
+      })
     : [];
+  const classification_summary = summarizeInvoiceKind(lines);
   return {
     ...source,
     vendor_name: toNullableString(source.vendor_name),
@@ -193,6 +198,7 @@ function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNot
     vat_amount: toNullableNumber(source.vat_amount),
     total: toNullableNumber(source.total),
     lines,
+    classification_summary,
     notes: toNullableString(source.notes),
     ...(rawText ? { _rawText: rawText.slice(0, 12000) } : {}),
     ...(parserNote ? { _parserNotes: parserNote } : {}),
