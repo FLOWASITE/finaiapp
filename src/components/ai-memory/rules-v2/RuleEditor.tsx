@@ -182,10 +182,10 @@ export function RuleEditor({
           <Button
             size="sm"
             onClick={trySave}
-            disabled={!hasTested}
+            disabled={!hasTested || saving}
             title={!hasTested ? "Chạy thử trước khi lưu" : ""}
           >
-            Lưu quy tắc
+            {saving ? "Đang lưu..." : "Lưu quy tắc"}
           </Button>
         </div>
       </div>
