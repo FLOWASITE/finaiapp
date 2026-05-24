@@ -11,8 +11,15 @@ import {
   normalizeLineName,
   type LineKind,
   type RawLine,
-  vsicToKindHint,
 } from "@/lib/ai/classify-line";
+import {
+  getTenantMemory,
+  getTenantVendorTemplates,
+  getSupplierIndustryCached,
+  getVendorHistoryDistCached,
+  pickMemoryMap,
+  pickVendorTemplate,
+} from "./cache.server";
 import type {
   JournalProposalDTO,
   ProposalEntry,
