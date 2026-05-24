@@ -38,12 +38,13 @@ export const listAgentModels = createServerFn({ method: "GET" })
     };
 
     return {
-      agents: (data ?? []).map((r) => ({
+      agents: (data ?? []).map((r: any) => ({
         agent_key: r.agent_key,
         label: r.label,
         description: r.description,
         purpose: r.purpose,
         model_name: r.model_name,
+        is_active: r.is_active !== false,
         effective_model: r.model_name || pickPurposeDefault(r.purpose) || "(Lovable fallback)",
         updated_at: r.updated_at,
       })),
