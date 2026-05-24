@@ -426,7 +426,10 @@ function OrganizationTab() {
                     <SelectTrigger><SelectValue placeholder="Chọn chuẩn…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TT133">TT 133/2016/TT-BTC — Doanh nghiệp nhỏ và vừa</SelectItem>
-                      <SelectItem value="TT200">TT 200/2014/TT-BTC — Áp dụng đầy đủ</SelectItem>
+                      <SelectItem value="TT99">TT 99/2025/TT-BTC — Áp dụng đầy đủ</SelectItem>
+                      {form.accounting_standard === "TT200" && (
+                        <SelectItem value="TT200">TT 200/2014/TT-BTC (cũ — sẽ thay bằng TT99)</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <Hint>Lưu ý: Sau khi phát sinh dữ liệu, đổi chuẩn có thể ảnh hưởng bảng tài khoản.</Hint>
