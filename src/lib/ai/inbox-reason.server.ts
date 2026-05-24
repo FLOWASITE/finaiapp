@@ -302,10 +302,10 @@ export async function buildDocumentItem(
       voucher_kind: "purchase_invoice",
       meta: {
         supplier_name: supplier,
-        supplier_tax_id: ext.supplier_tax_id ?? ext.tax_id ?? null,
+        supplier_tax_id: supplierTaxId,
         invoice_no: invoiceNo || null,
         invoice_series: ext.invoice_series ?? ext.series ?? null,
-        invoice_date: ext.invoice_date ?? null,
+        invoice_date: invoiceDate,
         subtotal: subtotal || null,
         vat_rate: ext.vat_rate ?? null,
         vat_amount: vat || null,
