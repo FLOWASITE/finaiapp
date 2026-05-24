@@ -27,6 +27,9 @@ import {
   Keyboard,
   Home,
   Calculator,
+  Eye,
+  Archive,
+  MinusCircle,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 
