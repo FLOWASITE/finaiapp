@@ -509,6 +509,24 @@ export function ContextTab() {
         luận. Mỗi dòng là một câu tiếng Việt — sửa trực tiếp, không cần code.
       </div>
 
+      <div className="flex items-start gap-2 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-[12.5px] leading-relaxed text-[#26215C]">
+        <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-[#4F46C7]" />
+        <div className="flex-1">
+          <strong>Đồng bộ với Cài đặt → Tổ chức.</strong> Các mục có nhãn{" "}
+          <Badge variant="outline" className="border-[#4F46C7] bg-white align-middle text-[10px] text-[#4F46C7]">
+            Từ Tổ chức
+          </Badge>{" "}
+          tự động cập nhật từ hồ sơ pháp nhân. Sửa ở đâu cũng được — dữ liệu luôn nhất quán.
+        </div>
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[#4F46C7] hover:underline"
+        >
+          Mở Tổ chức <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+
+
       {isEmpty ? (
         <div className="rounded-lg border-2 border-dashed bg-card p-5">
           <div className="mb-3 text-center">
