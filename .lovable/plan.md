@@ -1,51 +1,57 @@
-## Mục tiêu
+# Hoàn thiện sheet "Đề xuất của Fin"
 
-Refactor `src/components/inbox/inbox-item-sheet.tsx` để khớp với prototype đã chọn (v1 — AI assistant tinh tế), giải quyết các vấn đề trong screenshot: tiêu đề/đối tác trống hiện toàn dấu "—", số tiền trôi nổi, khối bút toán đơn điệu, footer rời rạc.
+Cập nhật `src/components/inbox/inbox-item-sheet.tsx` (và mở rộng `InboxItem` ở `src/lib/ai/inbox-types.ts` + builder ở `src/lib/ai/inbox-reason.server.ts`) theo 2 hướng:
 
-## Thay đổi UI (chỉ frontend, giữ nguyên props & logic)
+## 1) Đổi tên & nút "Xem hóa đơn"
 
-**Header (gọn lại)**
-- Icon Sparkles trong vòng tròn nền `emerald-50` + tiêu đề cố định "Đề xuất của Sổ AI"
-- Thanh tiến trình tin cậy (progress bar 12px) + label "Tin cậy N%", màu theo band: ≥80 emerald, ≥50 amber, <50 rose
-- Bỏ tiêu đề hoá đơn ra khỏi header (chuyển xuống Summary), tránh lặp
+- Đổi tiêu đề header: **"Đề xuất của Sổ AI" → "Đề xuất của Fin"** (kèm icon `Sparkles` giữ nguyên).
+- Thêm nút **"Xem hóa đơn"** ngay cạnh khối Đối tác/Số tiền:
+  - Hiển thị khi `item.source ∈ {document, tct_einvoice, email_forward}` hoặc khi `item.match_ref` trỏ tới `invoice` / `sales_invoice`.
+  - Bấm vào mở `Dialog` toàn màn hình dùng lại `<InvoiceFileViewer />` đã có (PDF / ảnh / XML einvoice).
+  - Nguồn dữ liệu:
+    - Với `source = document`: gọi `getDocument({ data: { id: item.external_id } })` (đã trả `signedUrl`, `mimeType`, `original_filename`, và `doc.invoice_id` để lấy einvoice nếu có).
+    - Với bank item có `match_ref`: mở route `item.href` (Đối soát) thay vì viewer — dùng nút phụ "Mở phiếu khớp".
+  - Trạng thái loading dùng `useQuery` + skeleton trong dialog; lỗi → toast.
+- Nút phụ trong footer header cluster: icon `FileText` + label rút gọn để vẫn đẹp ở viewport 707px.
 
-**Summary block**
-- Cột trái: label "Đối tác" → tên đối tác. Nếu trống → hiện "Chưa xác định tên" italic, muted (thay vì "—")
-- Subline: `item.title` (truncate)
-- Cột phải: số tiền lớn (text-2xl bold, tabular-nums) + thời gian relative
+## 2) Bổ sung trường theo loại phiếu
 
-**Trust strip** (gom OCR + followup thành 1 dải nền muted/60)
-- Chip trắng "✓ OCR đã đọc đầy đủ"
-- Nút amber: lightbulb + `followups[0]` + chevron → mở chat hỏi AI
+Thêm field tuỳ chọn vào `InboxItem.proposal` (giữ ngược tương thích):
 
-**Bút toán đề xuất** (rounded-2xl, border-border/60, bg-muted/30)
-- Grid `[28px_44px_1fr_auto]`: nhãn Nợ/Có (blue/rose) → badge số TK trên nền nhạt → memo truncate → số tiền mono tabular-nums
-- Divider mảnh giữa các dòng Nợ và dòng Có đầu tiên
+```ts
+proposal: {
+  voucher_kind: "purchase_invoice" | "sales_invoice" | "bank_receipt"
+              | "bank_payment" | "cash_receipt" | "cash_payment"
+              | "ai_insight";
+  meta?: Record<string, string | number | null>;  // tuỳ kind
+  ...existing
+}
+```
 
-**Signals & Blocker**: giữ nguyên (chip pill + cảnh báo rose nếu có)
+Builder điền `meta` theo loại; sheet render khối **"Thông tin phiếu"** (grid 2 cột, label nhỏ uppercase + value) phía trên khối Bút toán:
 
-**Footer thống nhất**
-- Hàng nút: Duyệt & ghi sổ (flex-3, gradient primary, rounded-2xl, shadow primary/20) + Sửa (icon, rounded-2xl) + Bỏ qua (X, rounded-2xl)
-- Pill phụ "Áp dụng quy tắc cho tương lai" — nền `primary/5`, viền `primary/20`, có icon Wand2
+- **purchase_invoice** (document/tct/email): `supplier_tax_id`, `invoice_no`, `invoice_series`, `invoice_date`, `subtotal`, `vat_rate`, `vat_amount`, `total`, `payment_method`, `due_date`.
+- **sales_invoice** (qua match_ref khi bank thu): `customer_name`, `customer_tax_id`, `invoice_no`, `invoice_date`, `subtotal`, `vat_amount`, `total`, `due_date`.
+- **bank_receipt / bank_payment**: `bank_account` (TK 112 chi tiết), `bank_name`, `txn_date`, `txn_ref`, `counterparty`, `counterparty_account`, `memo`, `matched_invoice_no`.
+- **cash_receipt / cash_payment**: `cash_fund` (TK 111 chi tiết), `txn_date`, `payer_or_payee`, `reason`, `attachment_ref`.
+- **ai_insight**: `severity`, `category`, `period`, `metric`, `delta`.
 
-**Chat history**: giữ nguyên logic, làm tròn 2xl, message bubble rounded-2xl
+Sheet:
+- Khối mới `<VoucherMetaGrid kind meta />` đặt giữa Trust strip và Reasoning.
+- Field rỗng → ẩn (không render `—`); tiền hiển thị `tabular-nums`, ngày `dd/MM/yyyy`.
+- Chip "Loại phiếu" nhỏ kế bên confidence trong header (vd: "Phiếu mua hàng", "Báo có NH", "AI cảnh báo").
 
-## Token & màu
+## Thay đổi file
 
-- Chrome (background, border, foreground, muted, primary, primary-foreground) dùng semantic tokens trong `src/styles.css`
-- Màu trạng thái (emerald/amber/rose/blue cho Nợ-Có, tin cậy, OCR) dùng Tailwind utility — đây là pattern đã có khắp file hiện tại (dark mode variants kèm theo)
-- CTA chính dùng `from-primary to-primary/85` thay vì hard-code blue-700
+- `src/lib/ai/inbox-types.ts` — thêm `voucher_kind` + `meta` vào `Proposal`.
+- `src/lib/ai/inbox-reason.server.ts` — set `voucher_kind` + bơm `meta` trong `buildDocumentItem`, `buildBankItem`, `buildInsightItem`.
+- `src/components/inbox/inbox-item-sheet.tsx`:
+  - Đổi title, thêm chip kind.
+  - Thêm `InvoiceViewerButton` + `Dialog` dùng `InvoiceFileViewer`.
+  - Thêm `VoucherMetaGrid` component nội bộ + map nhãn tiếng Việt.
+- Không đổi business logic duyệt/ghi sổ, không đổi RLS/migrations.
 
-## Phạm vi
+## Ghi chú phạm vi
 
-- 1 file: `src/components/inbox/inbox-item-sheet.tsx` (rewrite)
-- Props `InboxItemSheetProps` giữ nguyên — mọi caller không cần đổi
-- Không động vào server functions, types, hay logic chat/approve
-
-## Acceptance
-
-- Khi `item.partner` rỗng → hiện "Chưa xác định tên" (italic, muted), không còn dấu "—" trơ trọi
-- Tin cậy 50% → progress bar half, màu amber
-- Bút toán 3 dòng (642 / 133 / 331) căn cột đẹp với divider trước dòng Có
-- Footer: 1 CTA gradient lớn + 2 nút phụ + pill rule, tất cả rounded-2xl
-- Swipe-to-close (mobile) và Esc vẫn hoạt động
+- Chỉ là thay đổi UI + bơm thêm metadata từ dữ liệu đã có (OCR `ocr_extracted`, bank txn, AI insight). Không gọi API mới ngoại trừ `getDocument` (đã tồn tại).
+- Giữ swipe-to-close, footer hành động, lịch sử chat như hiện tại.

@@ -11,8 +11,9 @@ import {
   ChevronRight,
   Wand2,
   Check,
+  FileText,
 } from "lucide-react";
-import type { InboxItem } from "@/lib/ai/inbox-types";
+import type { InboxItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,12 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -31,10 +38,77 @@ import {
   getThread,
   appendMessage,
 } from "@/lib/chat-threads.functions";
+import { getDocument } from "@/lib/documents.functions";
+import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
+
+const VOUCHER_KIND_LABEL: Record<VoucherKind, string> = {
+  purchase_invoice: "Phiếu mua hàng",
+  sales_invoice: "Phiếu bán hàng",
+  bank_receipt: "Báo Có ngân hàng",
+  bank_payment: "Báo Nợ ngân hàng",
+  cash_receipt: "Phiếu thu",
+  cash_payment: "Phiếu chi",
+  ai_insight: "Cảnh báo AI",
+};
+
+const META_FIELD_LABELS: Record<string, string> = {
+  supplier_name: "Nhà cung cấp",
+  supplier_tax_id: "MST NCC",
+  customer_name: "Khách hàng",
+  customer_tax_id: "MST KH",
+  invoice_no: "Số HĐ",
+  invoice_series: "Ký hiệu",
+  invoice_date: "Ngày HĐ",
+  subtotal: "Tiền hàng",
+  vat_rate: "Thuế suất",
+  vat_amount: "Thuế GTGT",
+  total: "Tổng cộng",
+  payment_method: "Hình thức TT",
+  due_date: "Hạn TT",
+  bank_label: "Ngân hàng",
+  bank_account: "Số TK",
+  txn_date: "Ngày GD",
+  txn_ref: "Mã GD",
+  counterparty: "Đối tác",
+  counterparty_account: "TK đối tác",
+  memo: "Diễn giải",
+  matched_invoice_no: "Khớp HĐ",
+  cash_fund: "Quỹ TM",
+  payer_or_payee: "Người nộp/nhận",
+  reason: "Lý do",
+  attachment_ref: "Chứng từ kèm",
+  severity: "Mức độ",
+  category: "Phân loại",
+  period: "Kỳ",
+  metric: "Chỉ số",
+  delta: "Biến động",
+};
+
+const MONEY_FIELDS = new Set(["subtotal", "vat_amount", "total"]);
+const DATE_FIELDS = new Set(["invoice_date", "due_date", "txn_date"]);
+
+function formatMetaValue(key: string, value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (MONEY_FIELDS.has(key)) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return null;
+    return VND(n) + " đ";
+  }
+  if (DATE_FIELDS.has(key)) {
+    const d = new Date(String(value));
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleDateString("vi-VN");
+  }
+  if (key === "vat_rate") {
+    const n = Number(value);
+    return Number.isFinite(n) ? `${n}%` : String(value);
+  }
+  return String(value);
+}
 
 function formatRelative(iso: string) {
   const d = new Date(iso);
@@ -163,7 +237,7 @@ export function InboxItemSheet({
                 </div>
                 <div className="space-y-1">
                   <SheetTitle className="text-sm font-semibold leading-none text-foreground">
-                    Đề xuất của Sổ AI
+                    Đề xuất của Fin
                   </SheetTitle>
                   <div className="flex items-center gap-1.5">
                     <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
@@ -175,6 +249,11 @@ export function InboxItemSheet({
                     <span className={cn("text-[10px] font-bold uppercase tracking-wider", confClasses.text)}>
                       Tin cậy {confidence}%
                     </span>
+                    {item.proposal.voucher_kind && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {VOUCHER_KIND_LABEL[item.proposal.voucher_kind]}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -212,6 +291,14 @@ export function InboxItemSheet({
                   </p>
                 </div>
               </div>
+
+              {/* Invoice viewer / Open match */}
+              <InvoiceActionRow item={item} />
+
+              {/* Voucher meta grid */}
+              <VoucherMetaGrid meta={item.proposal.meta} />
+
+
 
               {/* Trust strip */}
               <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/60 p-1">
@@ -521,5 +608,121 @@ function InboxChatHistory({ item }: { item: InboxItem }) {
         )}
       </div>
     </div>
+  );
+}
+
+function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
+  if (!meta) return null;
+  const entries = Object.entries(meta)
+    .map(([k, v]) => [k, formatMetaValue(k, v)] as const)
+    .filter(([, v]) => v !== null && v !== "");
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-4">
+      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        Thông tin phiếu
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        {entries.map(([k, v]) => (
+          <div key={k} className="min-w-0 space-y-0.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {META_FIELD_LABELS[k] ?? k}
+            </dt>
+            <dd className={cn(
+              "truncate text-xs font-medium text-foreground",
+              (MONEY_FIELDS.has(k) || k === "vat_rate") && "tabular-nums",
+            )}>
+              {v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function InvoiceActionRow({ item }: { item: InboxItem }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const isDoc = item.source === "document";
+  const canOpenMatch = !!item.match_ref && !!item.href;
+
+  if (!isDoc && !canOpenMatch) return null;
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {isDoc && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground/85 transition-colors hover:bg-muted"
+          >
+            <FileText className="h-3.5 w-3.5 text-primary" />
+            Xem hoá đơn
+          </button>
+        )}
+        {canOpenMatch && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: item.href! })}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground/85 transition-colors hover:bg-muted"
+          >
+            <ArrowRight className="h-3.5 w-3.5 text-primary" />
+            Mở phiếu khớp {item.match_ref?.ref ? `(${item.match_ref.ref})` : ""}
+          </button>
+        )}
+      </div>
+
+      {isDoc && open && (
+        <InvoiceViewerDialog
+          documentId={item.external_id}
+          onOpenChange={(v) => setOpen(v)}
+        />
+      )}
+    </>
+  );
+}
+
+function InvoiceViewerDialog({
+  documentId,
+  onOpenChange,
+}: {
+  documentId: string;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const getDocumentFn = useServerFn(getDocument);
+  const q = useQuery({
+    queryKey: ["inbox-doc-viewer", documentId],
+    queryFn: () => getDocumentFn({ data: { id: documentId } }),
+    staleTime: 60_000,
+  });
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            {q.data?.doc?.original_filename ?? "Hoá đơn"}
+          </DialogTitle>
+        </DialogHeader>
+        {q.isLoading ? (
+          <div className="flex h-72 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : q.isError ? (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
+            Không tải được hoá đơn: {(q.error as any)?.message ?? "lỗi không xác định"}
+          </div>
+        ) : (
+          <InvoiceFileViewer
+            einvoice={(q.data?.doc?.ocr_extracted as any)?._einvoice ?? null}
+            signedUrl={q.data?.signedUrl ?? null}
+            mimeType={q.data?.doc?.mime_type ?? null}
+            filename={q.data?.doc?.original_filename ?? null}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
