@@ -8,6 +8,12 @@
  * Warning code mới: cat-011 — không xác định được loại doanh thu, fallback 5118.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  applyCalibratedConfidence,
+  decideBand,
+  getCalibration,
+  type SignalFeatures,
+} from "./calibration.server";
 import type {
   JournalProposalDTO,
   ProposalEntry,
