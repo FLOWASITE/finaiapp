@@ -19,6 +19,171 @@ async function activeTenant(supabase: any, userId: string): Promise<string | nul
   return data?.active_tenant_id ?? null;
 }
 
+/**
+ * Materialize a row in `sales_invoices` (+ lines) from a parsed XML e-invoice
+ * document, so it shows up in "Trung tâm bán hàng → Hoá đơn bán" after the
+ * user duyệt & ghi sổ in Inbox AI. Idempotent: returns existing id if already
+ * linked or matching (tenant_id, invoice_no, customer_tax_id).
+ */
+async function materializeSalesInvoiceFromDocument(
+  supabase: any,
+  opts: {
+    documentId: string;
+    tenantId: string;
+    userId: string;
+    entryDate: string;
+    journalEntryId: string;
+  },
+): Promise<string | null> {
+  const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
+
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id, doc_kind, ai_upload_id, sales_invoice_id, original_filename")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.doc_kind !== "sales_invoice") return null;
+
+  if (doc.sales_invoice_id) {
+    await supabase
+      .from("sales_invoices")
+      .update({ journal_entry_id: journalEntryId, status: "posted", posted_at: new Date().toISOString() })
+      .eq("id", doc.sales_invoice_id);
+    return doc.sales_invoice_id as string;
+  }
+
+  if (!doc.ai_upload_id) return null;
+  const { data: up } = await supabase
+    .from("ai_uploads")
+    .select("parsed")
+    .eq("id", doc.ai_upload_id)
+    .maybeSingle();
+  const ein = up?.parsed?._einvoice ?? null;
+  if (!ein) return null;
+
+  const buyer = ein.buyer ?? {};
+  const totals = ein.totals ?? {};
+  const rawLines: any[] = Array.isArray(ein.lines) ? ein.lines : [];
+
+  const invoiceNo: string | null = ein.invoice_no ?? null;
+  const series: string | null = ein.series ?? null;
+  const issueDate: string = ein.issue_date ?? entryDate;
+  const subtotal = Number(totals.subtotal ?? up?.parsed?.subtotal ?? 0);
+  const vat = Number(totals.vat_amount ?? 0);
+  const total = Number(totals.total ?? up?.parsed?.total ?? subtotal + vat);
+
+  if (invoiceNo) {
+    const { data: existing } = await supabase
+      .from("sales_invoices")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("invoice_no", invoiceNo)
+      .eq("customer_tax_id", buyer.tax_id ?? "")
+      .maybeSingle();
+    if (existing?.id) {
+      await supabase
+        .from("sales_invoices")
+        .update({ journal_entry_id: journalEntryId, status: "posted", posted_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      await supabase.from("documents").update({ sales_invoice_id: existing.id }).eq("id", documentId);
+      return existing.id as string;
+    }
+  }
+
+  let customerId: string | null = null;
+  if (buyer.tax_id) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("tax_id", buyer.tax_id)
+      .maybeSingle();
+    if (cust?.id) {
+      customerId = cust.id;
+    } else {
+      const { data: created } = await supabase
+        .from("customers")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name: buyer.name ?? "Khách hàng",
+          tax_id: buyer.tax_id,
+          email: buyer.email || null,
+          phone: buyer.phone || null,
+          address: buyer.address || null,
+        })
+        .select("id")
+        .single();
+      customerId = created?.id ?? null;
+    }
+  }
+
+  const { data: inv, error: invErr } = await supabase
+    .from("sales_invoices")
+    .insert({
+      user_id: userId,
+      tenant_id: tenantId,
+      customer_id: customerId,
+      customer_name: buyer.name ?? null,
+      customer_tax_id: buyer.tax_id ?? null,
+      customer_email: buyer.email || null,
+      billing_address: buyer.address || null,
+      invoice_series: series,
+      invoice_no: invoiceNo,
+      issue_date: issueDate,
+      currency: ein.currency ?? "VND",
+      fx_rate: 1,
+      subtotal,
+      vat_amount: vat,
+      total,
+      discount_percent: 0,
+      discount_amount: 0,
+      shipping_fee: 0,
+      other_fees: 0,
+      payment_status: "unpaid",
+      paid_amount: 0,
+      status: "posted",
+      send_status: "not_sent",
+      posted_at: new Date().toISOString(),
+      journal_entry_id: journalEntryId,
+      einvoice_code: ein.cqt_code ?? null,
+      notes: `Tự tạo từ XML HĐĐT (${doc.original_filename ?? ""}).`,
+    })
+    .select("id")
+    .single();
+  if (invErr || !inv) {
+    console.error("[materializeSalesInvoice] insert failed", invErr);
+    return null;
+  }
+
+  if (rawLines.length > 0) {
+    const lineRows = rawLines.map((l: any) => {
+      const qty = Number(l.qty ?? 1);
+      const unitPrice = Number(l.unit_price ?? 0);
+      const amount = Number(l.amount ?? qty * unitPrice);
+      const vatRate = Number(l.vat_rate ?? 0);
+      const lineVat = Number(l.vat_amount ?? (amount * vatRate) / 100);
+      return {
+        invoice_id: inv.id,
+        description: l.description ?? "",
+        qty,
+        unit_price: unitPrice,
+        amount,
+        vat_rate: vatRate,
+        line_discount_percent: 0,
+        line_discount_amount: 0,
+        pre_vat_amount: amount,
+        line_vat_amount: lineVat,
+      };
+    });
+    const { error: lErr } = await supabase.from("sales_invoice_lines").insert(lineRows);
+    if (lErr) console.error("[materializeSalesInvoice] lines insert failed", lErr);
+  }
+
+  await supabase.from("documents").update({ sales_invoice_id: inv.id }).eq("id", documentId);
+  return inv.id as string;
+}
+
 const ListInput = z.object({
   tab: z.enum(["inbox", "posted", "review", "documents"]).default("inbox"),
   search: z.string().max(200).optional().default(""),
@@ -220,6 +385,17 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
+      try {
+        await materializeSalesInvoiceFromDocument(supabase, {
+          documentId: data.external_id,
+          tenantId,
+          userId,
+          entryDate: data.entry_date,
+          journalEntryId: entry.id,
+        });
+      } catch (e: any) {
+        console.warn("[approveInboxItem] materializeSalesInvoice failed:", e?.message);
+      }
     } else if (data.source === "ai_insight") {
       await supabase
         .from("ai_insights")
