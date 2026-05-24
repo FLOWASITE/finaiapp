@@ -196,6 +196,7 @@ function AIMemoryPage() {
                 {tab === "partners" && <PartnersTab />}
                 {tab === "context" && <ContextTab />}
                 {tab === "limits" && <LimitsTab />}
+                {tab === "agents" && <AgentsOfFinPanel />}
                 {tab === "learning" && (
                   <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
                 )}
