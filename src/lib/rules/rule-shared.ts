@@ -66,7 +66,12 @@ export const ruleConditionSchema = z.object({
 export const ruleActionSchema = z.object({
   id: z.string().min(1),
   type: z.enum(ACTION_TYPES as [RuleActionType, ...RuleActionType[]]),
-  params: z.record(z.string(), z.unknown()).default({}),
+  params: z
+    .record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]),
+    )
+    .default({}),
 });
 
 export const ruleModeSchema = z.enum(["auto", "suggest", "learn_only", "disabled"]);
