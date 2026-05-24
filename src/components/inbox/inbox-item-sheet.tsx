@@ -237,7 +237,7 @@ export function InboxItemSheet({
                 </div>
                 <div className="space-y-1">
                   <SheetTitle className="text-sm font-semibold leading-none text-foreground">
-                    Đề xuất của Sổ AI
+                    Đề xuất của Fin
                   </SheetTitle>
                   <div className="flex items-center gap-1.5">
                     <div className="h-1 w-12 overflow-hidden rounded-full bg-muted">
@@ -249,6 +249,11 @@ export function InboxItemSheet({
                     <span className={cn("text-[10px] font-bold uppercase tracking-wider", confClasses.text)}>
                       Tin cậy {confidence}%
                     </span>
+                    {item.proposal.voucher_kind && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {VOUCHER_KIND_LABEL[item.proposal.voucher_kind]}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
