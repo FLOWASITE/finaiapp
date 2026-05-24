@@ -32,8 +32,8 @@ function rowToRule(r: GraphRuleRow): Rule {
     id: r.id,
     name: r.title,
     description: [r.when_text, r.then_text].filter(Boolean).join(" → "),
-    conditions: [],
-    actions: [],
+    conditions: Array.isArray(r.conditions) ? r.conditions : [],
+    actions: Array.isArray(r.actions) ? r.actions : [],
     confidence_threshold: 0.8,
     mode,
     applies_to: "future",
@@ -45,8 +45,36 @@ function rowToRule(r: GraphRuleRow): Rule {
     correct_count: r.accuracy_correct ?? 0,
     last_used: r.last_used_at ?? undefined,
     status,
-    version: 1,
+    version: r.schema_version ?? 1,
   };
+}
+
+/** Trích mã TK từ structured actions v2 (book.account_debit/credit). */
+function extractAccountsFromActions(actions: GraphRuleRow["actions"]): string[] {
+  if (!Array.isArray(actions)) return [];
+  const out = new Set<string>();
+  for (const a of actions) {
+    if (a?.type === "book") {
+      const d = a.params?.account_debit;
+      const c = a.params?.account_credit;
+      if (typeof d === "string" && d) out.add(d);
+      if (typeof c === "string" && c) out.add(c);
+    }
+  }
+  return Array.from(out);
+}
+
+/** Trích từ khoá vendor từ structured conditions v2 (vendor.name equals/contains/in). */
+function extractVendorTermsFromConditions(conditions: GraphRuleRow["conditions"]): string[] {
+  if (!Array.isArray(conditions)) return [];
+  const out: string[] = [];
+  for (const c of conditions) {
+    if (c?.field !== "vendor.name") continue;
+    const v = c.value;
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") out.push(x);
+  }
+  return out;
 }
 
 export type ExtraEdge = {
