@@ -30,6 +30,7 @@ import { layoutGraph } from "@/lib/graph/layout";
 import { RuleNode } from "./nodes/RuleNode";
 import { VendorNode } from "./nodes/VendorNode";
 import { AccountNode } from "./nodes/AccountNode";
+import { ItemNode } from "./nodes/ItemNode";
 import { GraphLegend } from "./GraphLegend";
 import { GraphFilters, type GraphFilterState } from "./GraphFilters";
 import { GraphSidebar } from "./GraphSidebar";
@@ -41,11 +42,12 @@ const nodeTypes = {
   rule: RuleNode,
   vendor: VendorNode,
   account: AccountNode,
+  item: ItemNode,
 } as any;
 
 const initialFilters: GraphFilterState = {
   search: "",
-  nodeKinds: new Set(["rule", "vendor", "account"]),
+  nodeKinds: new Set(["rule", "vendor", "account", "item"]),
   modes: new Set(["auto", "suggest", "disabled"]),
   showOrphans: false,
 };
@@ -60,6 +62,17 @@ function edgeStyle(data: GraphEdgeData) {
       strokeWidth: data.weight,
       strokeDasharray: "3 3",
       opacity: 0.6,
+    };
+  }
+  if (data.kind === "vendor-item") {
+    return { stroke: "#0891B2", strokeWidth: data.weight, opacity: 0.75 };
+  }
+  if (data.kind === "item-account") {
+    return {
+      stroke: "#0891B2",
+      strokeWidth: data.weight,
+      strokeDasharray: "4 3",
+      opacity: 0.7,
     };
   }
   const disabled = data.ruleStatus !== "active";
@@ -104,6 +117,7 @@ function InnerGraph() {
       rules: adapted.rules,
       vendors: adapted.vendors,
       accounts: adapted.accounts,
+      items: adapted.items,
       extraEdges: adapted.extraEdges,
       ruleAccountHints: adapted.ruleAccountHints,
       ruleVendorHints: adapted.ruleVendorHints,
