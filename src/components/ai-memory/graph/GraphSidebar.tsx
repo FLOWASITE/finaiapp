@@ -79,49 +79,59 @@ function RuleDetail({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
         </Badge>
       </div>
 
-      <Section title="Điều kiện">
-        <ul className="space-y-1">
-          {rule.conditions.map((c, i) => (
-            <li key={c.id} className="text-[11.5px]">
-              {i > 0 && (
-                <span className="mr-1 font-bold text-[#4F46C7]">{c.logic ?? "AND"}</span>
-              )}
-              <span className="text-muted-foreground">{c.field}</span>{" "}
-              <span className="text-foreground">{c.operator}</span>{" "}
-              <span className="font-medium">
-                {Array.isArray(c.value) ? c.value.join(", ") : String(c.value)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {rule.conditions.length === 0 && rule.actions.length === 0 ? (
+        <Section title="Mô tả">
+          <div className="whitespace-pre-line rounded-md border bg-muted/30 p-2 text-[11.5px] leading-relaxed text-foreground">
+            {rule.description || "(không có nội dung)"}
+          </div>
+        </Section>
+      ) : (
+        <>
+          <Section title="Điều kiện">
+            <ul className="space-y-1">
+              {rule.conditions.map((c, i) => (
+                <li key={c.id} className="text-[11.5px]">
+                  {i > 0 && (
+                    <span className="mr-1 font-bold text-[#4F46C7]">{c.logic ?? "AND"}</span>
+                  )}
+                  <span className="text-muted-foreground">{c.field}</span>{" "}
+                  <span className="text-foreground">{c.operator}</span>{" "}
+                  <span className="font-medium">
+                    {Array.isArray(c.value) ? c.value.join(", ") : String(c.value)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Section>
 
-      <Section title="Hành động">
-        <ul className="space-y-1">
-          {rule.actions.map((a) => (
-            <li key={a.id} className="text-[11.5px]">
-              <span className="font-bold text-[#0F6E56]">{a.type.toUpperCase()}</span>{" "}
-              {a.type === "book" && (
-                <span>
-                  Nợ <b>{a.params.account_debit}</b> / Có <b>{a.params.account_credit}</b>
-                </span>
-              )}
-              {a.type === "tag" && (
-                <span>
-                  {a.params.department && `dept=${a.params.department} `}
-                  {a.params.custom_tags?.join(", ")}
-                </span>
-              )}
-              {a.type === "flag" && <span>{a.params.note}</span>}
-              {a.type === "notify" && (
-                <span>
-                  {a.params.channel} → {a.params.target}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Section>
+          <Section title="Hành động">
+            <ul className="space-y-1">
+              {rule.actions.map((a) => (
+                <li key={a.id} className="text-[11.5px]">
+                  <span className="font-bold text-[#0F6E56]">{a.type.toUpperCase()}</span>{" "}
+                  {a.type === "book" && (
+                    <span>
+                      Nợ <b>{a.params.account_debit}</b> / Có <b>{a.params.account_credit}</b>
+                    </span>
+                  )}
+                  {a.type === "tag" && (
+                    <span>
+                      {a.params.department && `dept=${a.params.department} `}
+                      {a.params.custom_tags?.join(", ")}
+                    </span>
+                  )}
+                  {a.type === "flag" && <span>{a.params.note}</span>}
+                  {a.type === "notify" && (
+                    <span>
+                      {a.params.channel} → {a.params.target}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        </>
+      )}
 
       <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/40 p-2 text-[11px]">
         <Stat label="Áp dụng" value={String(rule.applied_count)} />
