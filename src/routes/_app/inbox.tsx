@@ -321,7 +321,27 @@ function InboxAiPage() {
           match_ref_invoice_id: it.match_ref?.kind === "invoice" ? it.match_ref.id : undefined,
         },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["inbox-ai"] }),
+    onSuccess: (_data, it) => {
+      // Refresh tất cả các danh sách bị ảnh hưởng
+      qc.invalidateQueries({ queryKey: ["inbox-ai"] });
+      qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+      qc.invalidateQueries({ queryKey: ["sales-vouchers"] });
+      qc.invalidateQueries({ queryKey: ["sales-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["purchase-vouchers"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
+      // Đánh dấu card vừa duyệt là "posted" trong khi chờ server trả dữ liệu mới
+      qc.setQueryData(["inbox-ai", tab], (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((x: InboxItem) =>
+            x.id === it.id ? { ...x, processing_status: "posted" } : x,
+          ),
+        };
+      });
+    },
   });
 
   const skipM = useMutation({
