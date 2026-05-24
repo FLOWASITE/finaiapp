@@ -40,11 +40,13 @@ function AppLayout() {
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
   const hideHeader = onChatRoute && chatHistoryCollapsed;
 
+  const { hidden: inboxDockHidden } = useInboxDockHidden();
+
   if (chromeless) {
     return (
       <div className="h-screen w-full overflow-hidden bg-background">
         <Outlet />
-        {workspace === "front" ? <ChatDock /> : null}
+        {workspace === "front" && !inboxDockHidden ? <ChatDock /> : null}
         <CommandPalette />
       </div>
     );
