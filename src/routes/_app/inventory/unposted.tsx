@@ -263,6 +263,36 @@ function UnpostedPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!pickerDoc} onOpenChange={(o) => { if (!o) setPickerDoc(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pickerDoc?.kind === "purchase" ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"} — {pickerDoc?.voucher_no}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Kho</Label>
+            <Select value={pickerWh} onValueChange={setPickerWh}>
+              <SelectTrigger><SelectValue placeholder="Chọn kho" /></SelectTrigger>
+              <SelectContent>
+                {((warehouses ?? []) as any[]).map((w) => (
+                  <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickerDoc(null)}>Huỷ</Button>
+            <Button
+              disabled={!pickerWh || stickMut.isPending}
+              onClick={() => pickerDoc && stickMut.mutate({ id: pickerDoc.id, kind: pickerDoc.kind, warehouseId: pickerWh })}
+            >
+              {stickMut.isPending ? "Đang tạo..." : "Xác nhận"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
