@@ -384,6 +384,7 @@ export async function buildDocumentItem(
     occurred_at: doc.created_at,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ ocr_status: doc.ocr_status, confidence, signals }),
     proposal: {
       description: `Mua hàng/dịch vụ ${supplier}${invoiceNo ? ` — HĐ ${invoiceNo}` : ""}`,
       entry_date: date,
