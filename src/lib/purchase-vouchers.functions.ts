@@ -779,17 +779,18 @@ export const stickStockVoucher = createServerFn({ method: "POST" })
     );
     if (goodsLines.length === 0) throw new Error("Phiếu không có dòng hàng hoá");
 
+    const autoNo = await nextStockVoucherNo(supabase, v.tenant_id ?? null, userId, "in", v.voucher_date);
     const { data: sv, error } = await supabase
       .from("stock_vouchers")
       .insert({
         user_id: userId,
         tenant_id: v.tenant_id,
-        voucher_no: `NK-${v.voucher_no}`,
+        voucher_no: autoNo,
         voucher_type: "in",
         voucher_date: v.voucher_date,
         warehouse_id: data.warehouseId,
         counter_account: v.credit_account,
-        reason: `Nhập kho bổ sung từ ${v.voucher_no}`,
+        reason: `Nhập kho bổ sung từ phiếu mua ${v.voucher_no}`,
         journal_entry_id: v.journal_entry_id,
       })
       .select("id")
