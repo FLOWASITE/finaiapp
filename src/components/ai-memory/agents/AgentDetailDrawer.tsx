@@ -123,7 +123,7 @@ export function AgentDetailDrawer({
             </div>
           </SheetHeader>
 
-          <Tabs defaultValue="overview" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs defaultValue={draft.spec ? "business" : "overview"} className="flex flex-1 flex-col overflow-hidden">
             <TabsList className="mx-5 mt-3 flex h-9 w-[calc(100%-2.5rem)] overflow-x-auto">
               <TabsTrigger value="overview" className="text-[12px] shrink-0">Tổng quan</TabsTrigger>
               <TabsTrigger value="business" className="text-[12px] shrink-0">Nghiệp vụ</TabsTrigger>

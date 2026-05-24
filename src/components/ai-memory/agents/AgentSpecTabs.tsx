@@ -1,6 +1,10 @@
+import { useMemo, useState } from "react";
 import type { AgentSpec } from "@/types/agent";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BookCheck, Building2, Landmark } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, BookCheck, Building2, Landmark, Search } from "lucide-react";
+
+type SeverityFilter = "all" | "mandatory" | "recommended" | "advisory";
 
 const SEVERITY_STYLES: Record<string, string> = {
   mandatory: "bg-red-50 text-red-700 border-red-200",
@@ -15,6 +19,29 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function SpecBusinessTab({ spec }: { spec: AgentSpec }) {
+  const [query, setQuery] = useState("");
+  const [sev, setSev] = useState<SeverityFilter>("all");
+
+  const filteredRules = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return spec.rules.filter((r) => {
+      if (sev !== "all" && r.severity !== sev) return false;
+      if (!q) return true;
+      return (
+        r.title.toLowerCase().includes(q) ||
+        r.detail.toLowerCase().includes(q) ||
+        (r.reference?.toLowerCase().includes(q) ?? false) ||
+        r.id.toLowerCase().includes(q)
+      );
+    });
+  }, [spec.rules, query, sev]);
+
+  const sevCounts = useMemo(() => {
+    const c = { mandatory: 0, recommended: 0, advisory: 0 };
+    for (const r of spec.rules) c[r.severity]++;
+    return c;
+  }, [spec.rules]);
+
   return (
     <div className="space-y-6">
       <section>
@@ -29,11 +56,44 @@ export function SpecBusinessTab({ spec }: { spec: AgentSpec }) {
       </section>
 
       <section>
-        <h4 className="text-[13px] font-semibold mb-2">
-          Quy tắc nghiệp vụ ({spec.rules.length})
-        </h4>
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <h4 className="text-[13px] font-semibold">
+            Quy tắc nghiệp vụ ({filteredRules.length}/{spec.rules.length})
+          </h4>
+        </div>
+        <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm theo tên, TT200, NĐ123..."
+              className="h-8 pl-7 text-[12px]"
+            />
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {(
+              [
+                { v: "all" as const, t: `Tất cả (${spec.rules.length})` },
+                { v: "mandatory" as const, t: `Bắt buộc (${sevCounts.mandatory})` },
+                { v: "recommended" as const, t: `Khuyến nghị (${sevCounts.recommended})` },
+                { v: "advisory" as const, t: `Tham khảo (${sevCounts.advisory})` },
+              ]
+            ).map((o) => (
+              <button
+                key={o.v}
+                onClick={() => setSev(o.v)}
+                className={`text-[11px] px-2 h-7 rounded border transition-colors ${
+                  sev === o.v ? "bg-[#4F46C7] text-white border-[#4F46C7]" : "hover:bg-muted/50"
+                }`}
+              >
+                {o.t}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-1.5">
-          {spec.rules.map((r) => (
+          {filteredRules.map((r) => (
             <div key={r.id} className="rounded border p-2.5 text-[12px]">
               <div className="flex items-start gap-2">
                 <code className="shrink-0 text-[10px] text-muted-foreground mt-0.5">{r.id}</code>
@@ -52,6 +112,11 @@ export function SpecBusinessTab({ spec }: { spec: AgentSpec }) {
               </div>
             </div>
           ))}
+          {filteredRules.length === 0 && (
+            <p className="text-[12px] text-muted-foreground italic text-center py-4">
+              Không tìm thấy quy tắc nào khớp bộ lọc.
+            </p>
+          )}
         </div>
       </section>
 
