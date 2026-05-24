@@ -2,6 +2,9 @@ import type { Rule } from "@/types/rule";
 import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
 import type { GraphDbData, GraphRuleRow } from "./memory-graph.functions";
 import { VAS_ACCOUNTS, accountName } from "./vas-accounts";
+import { VSIC } from "@/lib/vsic";
+import { vsicToKindHint, type LineKind } from "@/lib/ai/classify-line";
+import type { VendorEnrichment } from "./build-graph";
 
 const ACCOUNT_CODE_RE = /\b([1-9][0-9]{2,3})\b/g;
 
