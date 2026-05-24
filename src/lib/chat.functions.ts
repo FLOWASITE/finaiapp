@@ -177,9 +177,13 @@ export const askAccountingStream = createServerFn({ method: "POST" })
 
 
     let model: any;
+    let temperature: number | null = null;
+    let maxOutputTokens: number | null = null;
     try {
       const r = await resolveAgentModel("chat", "google/gemini-3-flash-preview");
       model = r.model;
+      temperature = r.temperature;
+      maxOutputTokens = r.maxOutputTokens;
     } catch (e: any) {
       yield { type: "text", delta: `Lỗi: ${e?.message || "Không khởi tạo được AI model"}` } as AskStreamEvent;
       return;
