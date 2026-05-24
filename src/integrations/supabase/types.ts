@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_feedback_events: {
+        Row: {
+          bank_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          journal_entry_id: string | null
+          note: string | null
+          processed_at: string
+          proposal_id: string | null
+          severity: number
+          signals_snapshot: Json
+          source_agent: string
+          target_agent: string
+          tenant_id: string
+        }
+        Insert: {
+          bank_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          processed_at?: string
+          proposal_id?: string | null
+          severity?: number
+          signals_snapshot?: Json
+          source_agent: string
+          target_agent?: string
+          tenant_id: string
+        }
+        Update: {
+          bank_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          processed_at?: string
+          proposal_id?: string | null
+          severity?: number
+          signals_snapshot?: Json
+          source_agent?: string
+          target_agent?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       ai_actions: {
         Row: {
           approved_at: string | null
@@ -828,6 +879,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_rule_penalties: {
+        Row: {
+          auto_demoted_at: string | null
+          auto_demoted_reason: string | null
+          created_at: string
+          id: string
+          last_event_id: string | null
+          last_penalty_at: string | null
+          penalty_score: number
+          target_id: string
+          target_kind: string
+          tenant_id: string
+          updated_at: string
+          wrong_count: number
+        }
+        Insert: {
+          auto_demoted_at?: string | null
+          auto_demoted_reason?: string | null
+          created_at?: string
+          id?: string
+          last_event_id?: string | null
+          last_penalty_at?: string | null
+          penalty_score?: number
+          target_id: string
+          target_kind: string
+          tenant_id: string
+          updated_at?: string
+          wrong_count?: number
+        }
+        Update: {
+          auto_demoted_at?: string | null
+          auto_demoted_reason?: string | null
+          created_at?: string
+          id?: string
+          last_event_id?: string | null
+          last_penalty_at?: string | null
+          penalty_score?: number
+          target_id?: string
+          target_kind?: string
+          tenant_id?: string
+          updated_at?: string
+          wrong_count?: number
+        }
+        Relationships: []
       }
       ai_suggestions: {
         Row: {
