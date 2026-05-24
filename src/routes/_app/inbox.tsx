@@ -30,7 +30,10 @@ import {
   Eye,
   Archive,
   MinusCircle,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
+import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 import { useWorkspace } from "@/hooks/use-workspace";
 import mascotSrc from "@/assets/fin-mascot.png";
 
@@ -801,6 +804,8 @@ function InboxHeader({
       </button>
 
       <div className="ml-auto flex items-center gap-2">
+        <InboxDockToggle />
+
         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 text-xs text-foreground/70 md:flex">
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel}
@@ -895,6 +900,27 @@ function InboxHeader({
 }
 
 /* ───────── Stats ───────── */
+function InboxDockToggle() {
+  const { hidden, toggle } = useInboxDockHidden();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={hidden ? "Hiện thanh trợ lý AI" : "Ẩn thanh trợ lý AI"}
+      aria-label={hidden ? "Hiện thanh trợ lý AI" : "Ẩn thanh trợ lý AI"}
+      className={cn(
+        "hidden h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition md:inline-flex",
+        hidden
+          ? "border-border/40 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
+      )}
+    >
+      {hidden ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
+      <span className="hidden lg:inline">{hidden ? "Mở AI" : "Ẩn AI"}</span>
+    </button>
+  );
+}
+
 function Stat({ label, value, extra }: { label: string; value: string; extra?: React.ReactNode }) {
   return (
     <div>

@@ -11,6 +11,7 @@ import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
+import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
@@ -39,11 +40,13 @@ function AppLayout() {
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
   const hideHeader = onChatRoute && chatHistoryCollapsed;
 
+  const { hidden: inboxDockHidden } = useInboxDockHidden();
+
   if (chromeless) {
     return (
       <div className="h-screen w-full overflow-hidden bg-background">
         <Outlet />
-        {workspace === "front" ? <ChatDock /> : null}
+        {workspace === "front" && !inboxDockHidden ? <ChatDock /> : null}
         <CommandPalette />
       </div>
     );
