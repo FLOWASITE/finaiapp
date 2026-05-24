@@ -77,6 +77,7 @@ export type InboxItem = {
   occurred_at: string;
   confidence: number;
   confidence_band: ConfidenceBand;
+  processing_status?: ProcessingStatus;
   proposal: Proposal;
   reasoning: Reasoning;
   match_ref?: { kind: "invoice" | "sales_invoice"; id: string; ref: string };
