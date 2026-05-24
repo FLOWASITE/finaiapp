@@ -388,12 +388,15 @@ export async function buildDocumentItem(
       },
     },
     reasoning: {
-      summary: `Hoá đơn ${VND(amount)} từ ${supplier}${invoiceNo ? `, số ${invoiceNo}` : ""}. AI đề xuất Nợ ${expenseAccount}${vat > 0 ? " + Nợ 133" : ""} / Có 331.`,
+      summary:
+        itemAccountCount > 1
+          ? `Hoá đơn ${VND(amount)} từ ${supplier}${invoiceNo ? `, số ${invoiceNo}` : ""}. AI tách thành ${itemAccountCount} dòng Nợ (${Array.from(new Set(lines.filter(l=>l.debit).map(l=>l.account))).join(", ")})${vat > 0 ? " + Nợ 133" : ""} / Có 331.`
+          : `Hoá đơn ${VND(amount)} từ ${supplier}${invoiceNo ? `, số ${invoiceNo}` : ""}. AI đề xuất Nợ ${primaryAccount}${vat > 0 ? " + Nợ 133" : ""} / Có 331.`,
       signals,
     },
     followups: [
       `Tổng chi cho ${supplier} năm nay?`,
-      "Tại sao TK " + expenseAccount + " mà không phải khác?",
+      "Tại sao TK " + primaryAccount + " mà không phải khác?",
       "Áp dụng quy tắc này cho tương lai",
     ],
     href: "/documents",
