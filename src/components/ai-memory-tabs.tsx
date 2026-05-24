@@ -766,11 +766,13 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       toast.success("Đã thêm");
       onClose();
       setKey("");
+      setKeyTouched(false);
       setLabel("");
       setValue("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
