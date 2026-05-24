@@ -181,6 +181,7 @@ function PurchasesHubPage() {
           }}
           items={[
             { label: "Nhập tay HĐ mua", icon: Plus, onSelect: () => router.navigate({ to: "/invoices" }) },
+            { label: "Nhập kho (Tạo phiếu nhập)", icon: Plus, onSelect: () => router.navigate({ to: "/inventory/unposted" }) },
             { label: "Phiếu chi", icon: Banknote, onSelect: () => setOpenPayment(true), separatorBefore: true },
           ]}
         />

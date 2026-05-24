@@ -1612,3 +1612,51 @@ export const recomputeInventoryValuation = createServerFn({ method: "POST" })
     }
     return { ok: true, count };
   });
+
+// ============ Pending stock docs: posted sales/purchase vouchers without stock voucher ============
+export const listPendingStockDocs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { from?: string; to?: string } = {}) => i)
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    let pq = supabase
+      .from("purchase_vouchers")
+      .select("id, voucher_no, voucher_date, supplier_name, total, status, stock_voucher_id, purchase_voucher_lines(product_id, line_type)")
+      .is("stock_voucher_id", null)
+      .order("voucher_date", { ascending: false })
+      .limit(200);
+    if (data.from) pq = pq.gte("voucher_date", data.from);
+    if (data.to) pq = pq.lte("voucher_date", data.to);
+    let sq = supabase
+      .from("sales_vouchers")
+      .select("id, voucher_no, voucher_date, customer_name, total, status, stock_voucher_id, sales_voucher_lines(product_id, line_type)")
+      .is("stock_voucher_id", null)
+      .order("voucher_date", { ascending: false })
+      .limit(200);
+    if (data.from) sq = sq.gte("voucher_date", data.from);
+    if (data.to) sq = sq.lte("voucher_date", data.to);
+    const [{ data: pRows }, { data: sRows }] = await Promise.all([pq, sq]);
+    const purchases = (pRows ?? [])
+      .filter((r: any) => (r.purchase_voucher_lines ?? []).some((l: any) => l.product_id && l.line_type === "goods"))
+      .map((r: any) => ({
+        id: r.id,
+        kind: "purchase" as const,
+        voucher_no: r.voucher_no,
+        voucher_date: r.voucher_date,
+        party_name: r.supplier_name,
+        total: Number(r.total || 0),
+        status: r.status,
+      }));
+    const sales = (sRows ?? [])
+      .filter((r: any) => (r.sales_voucher_lines ?? []).some((l: any) => l.product_id && l.line_type === "goods"))
+      .map((r: any) => ({
+        id: r.id,
+        kind: "sales" as const,
+        voucher_no: r.voucher_no,
+        voucher_date: r.voucher_date,
+        party_name: r.customer_name,
+        total: Number(r.total || 0),
+        status: r.status,
+      }));
+    return [...purchases, ...sales].sort((a, b) => (a.voucher_date < b.voucher_date ? 1 : -1));
+  });

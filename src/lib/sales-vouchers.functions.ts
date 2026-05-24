@@ -1097,3 +1097,109 @@ export const recordSalesVoucherReceipt = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// ============ STICK STOCK (sinh phiếu xuất kho sau cho phiếu bán hàng) ============
+export const stickSalesStockVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; warehouseId?: string | null }) =>
+    z.object({ id: z.string().uuid(), warehouseId: z.string().uuid().nullable().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: v } = await supabase
+      .from("sales_vouchers")
+      .select("*, sales_voucher_lines(*)")
+      .eq("id", data.id)
+      .single();
+    if (!v) throw new Error("Không tìm thấy phiếu");
+    if (v.stock_voucher_id) throw new Error("Phiếu đã có phiếu xuất kho");
+    const goodsLines = (v.sales_voucher_lines ?? []).filter(
+      (l: any) => l.product_id && l.line_type === "goods",
+    );
+    if (goodsLines.length === 0) throw new Error("Phiếu không có dòng hàng hoá");
+
+    const warehouseId = data.warehouseId ?? (await ensureDefaultWarehouseId(supabase, userId));
+
+    // Pre-compute giá vốn
+    const cogsRows: Array<{ productId: string; qty: number; unitCost: number; cogs: number; on_hand: number }> = [];
+    let totalCogs = 0;
+    for (const line of goodsLines) {
+      const productId = line.product_id as string;
+      const qty = Number(line.qty || 0);
+      const { data: prod } = await supabase
+        .from("products")
+        .select("on_hand, unit_cost")
+        .eq("id", productId)
+        .single();
+      const unitCost = Number(prod?.unit_cost || 0);
+      const cogs = qty * unitCost;
+      totalCogs += cogs;
+      cogsRows.push({ productId, qty, unitCost, cogs, on_hand: Number(prod?.on_hand || 0) });
+    }
+
+    // Journal entry cho giá vốn
+    let stockEntryId: string | null = null;
+    if (totalCogs > 0) {
+      const { data: stockEntry, error: eStk } = await supabase
+        .from("journal_entries")
+        .insert({
+          user_id: userId,
+          tenant_id: v.tenant_id,
+          entry_date: v.voucher_date,
+          description: `Giá vốn phiếu bán ${v.voucher_no}`,
+        })
+        .select("id")
+        .single();
+      if (eStk || !stockEntry) throw new Error(eStk?.message || "Không tạo được bút toán giá vốn");
+      stockEntryId = stockEntry.id;
+      await supabase.from("journal_lines").insert([
+        { entry_id: stockEntryId, account_code: "632", debit: totalCogs, credit: 0, line_order: 0 },
+        { entry_id: stockEntryId, account_code: "156", debit: 0, credit: totalCogs, line_order: 1 },
+      ]);
+    }
+
+    const { data: sv, error } = await supabase
+      .from("stock_vouchers")
+      .insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        voucher_no: `XK-${v.voucher_no}`,
+        voucher_type: "out",
+        voucher_date: v.voucher_date,
+        warehouse_id: warehouseId,
+        counter_account: "632",
+        reason: `Xuất kho bổ sung từ ${v.voucher_no}`,
+        journal_entry_id: stockEntryId,
+      })
+      .select("id")
+      .single();
+    if (error || !sv) throw new Error(error?.message || "Không tạo được phiếu xuất kho");
+
+    for (const r of cogsRows) {
+      await supabase.from("stock_movements").insert({
+        user_id: userId,
+        tenant_id: v.tenant_id,
+        product_id: r.productId,
+        warehouse_id: warehouseId,
+        voucher_id: sv.id,
+        movement_type: "out",
+        qty: -r.qty,
+        unit_cost: r.unitCost,
+        movement_date: v.voucher_date,
+        ref_type: "sales_voucher",
+        ref_id: v.id,
+        note: `Xuất bán ${v.voucher_no}`,
+      });
+      await supabase
+        .from("products")
+        .update({ on_hand: r.on_hand - r.qty })
+        .eq("id", r.productId);
+    }
+
+    await supabase
+      .from("sales_vouchers")
+      .update({ stock_voucher_id: sv.id, warehouse_id: warehouseId })
+      .eq("id", v.id);
+
+    return { ok: true, stockVoucherId: sv.id };
+  });

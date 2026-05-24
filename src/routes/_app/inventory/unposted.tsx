@@ -3,7 +3,10 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { QUERY_PRESETS } from "@/lib/query-presets";
-import { listMovements, cancelMovement } from "@/lib/inventory.functions";
+import { listMovements, cancelMovement, listPendingStockDocs } from "@/lib/inventory.functions";
+import { stickStockVoucher } from "@/lib/purchase-vouchers.functions";
+import { stickSalesStockVoucher } from "@/lib/sales-vouchers.functions";
+import { listWarehouses } from "@/lib/warehouses.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Repeat, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Repeat, Trash2, PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/inventory/unposted")({ component: UnpostedPage });
@@ -27,16 +31,33 @@ const monthStart = () => {
 function UnpostedPage() {
   const list = useServerFn(listMovements);
   const cancelFn = useServerFn(cancelMovement);
+  const pendingFn = useServerFn(listPendingStockDocs);
+  const whFn = useServerFn(listWarehouses);
+  const stickPurchase = useServerFn(stickStockVoucher);
+  const stickSales = useServerFn(stickSalesStockVoucher);
   const qc = useQueryClient();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
   const [type, setType] = useState<"all" | "in" | "out" | "transfer">("all");
   const [search, setSearch] = useState("");
+  const [pickerDoc, setPickerDoc] = useState<{ id: string; kind: "purchase" | "sales"; voucher_no: string } | null>(null);
+  const [pickerWh, setPickerWh] = useState<string>("");
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["movements-unposted", from, to, type],
     queryFn: () => list({ data: { from, to, type, status: "unposted" } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const { data: pending } = useQuery({
+    queryKey: ["pending-stock-docs", from, to],
+    queryFn: () => pendingFn({ data: { from, to } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => whFn(),
   });
 
   const filtered = useMemo(() => {
@@ -58,6 +79,21 @@ function UnpostedPage() {
     onError: (e: any) => toast.error(e?.message ?? "Không huỷ được"),
   });
 
+  const stickMut = useMutation({
+    mutationFn: async (args: { id: string; kind: "purchase" | "sales"; warehouseId: string }) => {
+      if (args.kind === "purchase") return stickPurchase({ data: { id: args.id, warehouseId: args.warehouseId } });
+      return stickSales({ data: { id: args.id, warehouseId: args.warehouseId } });
+    },
+    onSuccess: () => {
+      toast.success("Đã tạo phiếu kho");
+      setPickerDoc(null);
+      setPickerWh("");
+      qc.invalidateQueries({ queryKey: ["pending-stock-docs"] });
+      qc.invalidateQueries({ queryKey: ["movements-unposted"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
+  });
+
   return (
     <div className="p-8 space-y-6">
       <div>
@@ -69,6 +105,66 @@ function UnpostedPage() {
           <Link to="/inventory/vouchers" className="text-primary hover:underline">Phiếu nhập/xuất kho</Link>.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PackagePlus className="h-4 w-4 text-primary" />
+            Phiếu mua/bán chưa tạo phiếu kho ({(pending ?? []).length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="p-3">Ngày</th>
+                  <th className="p-3">Loại</th>
+                  <th className="p-3">Số phiếu</th>
+                  <th className="p-3">Đối tác</th>
+                  <th className="p-3 text-right">Tổng tiền</th>
+                  <th className="p-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!pending || pending.length === 0) && (
+                  <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Không có phiếu nào cần tạo phiếu kho</td></tr>
+                )}
+                {(pending ?? []).map((d: any) => {
+                  const isPurchase = d.kind === "purchase";
+                  return (
+                    <tr key={`${d.kind}-${d.id}`} className="border-t hover:bg-muted/30">
+                      <td className="p-3 whitespace-nowrap">{d.voucher_date}</td>
+                      <td className="p-3">
+                        <Badge className={isPurchase ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-orange-100 text-orange-700 hover:bg-orange-100"}>
+                          {isPurchase ? <><ArrowDownToLine className="h-3 w-3 mr-1" />Mua hàng</> : <><ArrowUpFromLine className="h-3 w-3 mr-1" />Bán hàng</>}
+                        </Badge>
+                      </td>
+                      <td className="p-3 font-medium">{d.voucher_no}</td>
+                      <td className="p-3">{d.party_name ?? "—"}</td>
+                      <td className="p-3 text-right">{fmt(d.total)}</td>
+                      <td className="p-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPickerDoc({ id: d.id, kind: d.kind, voucher_no: d.voucher_no });
+                            setPickerWh("");
+                          }}
+                        >
+                          <PackagePlus className="h-4 w-4 mr-1" />
+                          {isPurchase ? "Tạo phiếu nhập" : "Tạo phiếu xuất"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-5">
@@ -167,6 +263,36 @@ function UnpostedPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!pickerDoc} onOpenChange={(o) => { if (!o) setPickerDoc(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pickerDoc?.kind === "purchase" ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"} — {pickerDoc?.voucher_no}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Kho</Label>
+            <Select value={pickerWh} onValueChange={setPickerWh}>
+              <SelectTrigger><SelectValue placeholder="Chọn kho" /></SelectTrigger>
+              <SelectContent>
+                {((warehouses ?? []) as any[]).map((w) => (
+                  <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickerDoc(null)}>Huỷ</Button>
+            <Button
+              disabled={!pickerWh || stickMut.isPending}
+              onClick={() => pickerDoc && stickMut.mutate({ id: pickerDoc.id, kind: pickerDoc.kind, warehouseId: pickerWh })}
+            >
+              {stickMut.isPending ? "Đang tạo..." : "Xác nhận"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
