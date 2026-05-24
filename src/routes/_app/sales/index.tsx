@@ -193,7 +193,7 @@ function SalesHubPage() {
         </div>
         <SplitActionButton
           primary={{
-            label: "Tạo HĐ bán",
+            label: "Phiếu bán hàng",
             icon: Plus,
             onClick: () => setOpenInvoice(true),
           }}
@@ -1563,7 +1563,7 @@ function NewInvoiceDialog({
         <DialogTrigger asChild>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Tạo HĐ bán
+            Phiếu bán hàng
           </Button>
         </DialogTrigger>
       )}
