@@ -83,14 +83,14 @@ export const saveAgentModel = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertSuperadmin(supabase, userId);
-    const patch = {
+    const patch: Record<string, any> = {
       model_name: data.model_name && data.model_name.trim() ? data.model_name.trim() : null,
-      provider_id: data.provider_id,
-      temperature: data.temperature,
-      max_tokens: data.max_tokens,
       updated_at: new Date().toISOString(),
       updated_by: userId,
     };
+    if (data.provider_id !== undefined) patch.provider_id = data.provider_id;
+    if (data.temperature !== undefined) patch.temperature = data.temperature;
+    if (data.max_tokens !== undefined) patch.max_tokens = data.max_tokens;
     const { error } = await supabaseAdmin
       .from("ai_agent_models")
       .update(patch as any)
