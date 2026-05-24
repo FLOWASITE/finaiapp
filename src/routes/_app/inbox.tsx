@@ -39,7 +39,7 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
-import type { InboxItem, ConfidenceBand } from "@/lib/ai/inbox-types";
+import type { InboxItem, ConfidenceBand, VoucherKind } from "@/lib/ai/inbox-types";
 import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
 import { openAskAi } from "@/lib/open-ask-ai";
@@ -109,6 +109,25 @@ function bandDot(b: ConfidenceBand) {
   if (b === "high") return "bg-emerald-500";
   if (b === "medium") return "bg-amber-500";
   return "bg-rose-500";
+}
+
+function voucherKindMeta(kind?: VoucherKind): { label: string; cls: string } | null {
+  switch (kind) {
+    case "purchase_invoice":
+      return { label: "Hóa đơn vào", cls: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300" };
+    case "sales_invoice":
+      return { label: "Hóa đơn ra", cls: "bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300" };
+    case "bank_receipt":
+    case "bank_payment":
+      return { label: "Giao dịch bank", cls: "bg-indigo-500/10 text-indigo-700 border-indigo-500/30 dark:text-indigo-300" };
+    case "cash_receipt":
+    case "cash_payment":
+      return { label: "Thu/Chi tiền mặt", cls: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300" };
+    case "ai_insight":
+      return { label: "AI phát hiện", cls: "bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300" };
+    default:
+      return null;
+  }
 }
 
 type ProcStatus =
@@ -902,6 +921,7 @@ function ItemCard({
   registerRef?: (el: HTMLLIElement | null) => void;
 }) {
   const meta = sourceMeta(item);
+  const kindMeta = voucherKindMeta(item.proposal.voucher_kind);
   const SrcIcon = meta.icon;
   const isInflow = item.source === "bank_statement" && item.amount > 0 &&
     /chuyển khoản|tt|thanh toan|payment|transfer/i.test(item.title + " " + (item.subtitle ?? ""));
@@ -944,6 +964,11 @@ function ItemCard({
               <SrcIcon className="h-3 w-3" />
               {meta.label}
             </span>
+            {kindMeta && (
+              <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium tracking-wide", kindMeta.cls)}>
+                {kindMeta.label}
+              </span>
+            )}
             <span className="text-muted-foreground/80">{relTime(item.occurred_at)}</span>
             {invoiceNo && (
               <>
