@@ -118,6 +118,7 @@ function AIMemoryPage() {
       .channel("ai-memory-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "ai_memory_rules" }, () => {
         qc.invalidateQueries({ queryKey: ["ai-memory"] });
+        qc.invalidateQueries({ queryKey: ["memory-graph"] });
       })
       .on(
         "postgres_changes",
@@ -130,6 +131,21 @@ function AIMemoryPage() {
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
+  // Cross-component events from the Memory Graph
+  useEffect(() => {
+    const goRules = () => setTab("rules");
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["memory-graph"] });
+      qc.invalidateQueries({ queryKey: ["ai-memory"] });
+    };
+    window.addEventListener("ai-memory:go-rules", goRules);
+    window.addEventListener("ai-memory:invalidate", invalidate);
+    return () => {
+      window.removeEventListener("ai-memory:go-rules", goRules);
+      window.removeEventListener("ai-memory:invalidate", invalidate);
     };
   }, [qc]);
 

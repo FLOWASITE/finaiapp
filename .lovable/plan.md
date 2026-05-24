@@ -1,115 +1,136 @@
 
-# Memory Graph view — Trí nhớ AI
+# Memory Graph — Phase 2: kết nối DB thật
 
-Thêm tab mới **"Sơ đồ trí nhớ"** vào trang `/ai/memory`, trực quan hoá toàn bộ "bộ não" của AI dưới dạng đồ thị tương tác: rules, đối tác (vendors), tài khoản kế toán, hàng hoá/DV — và cách chúng liên kết với nhau qua các quy tắc IF/AND/OR/THEN.
+Thay mock `sampleRules` + `sampleVendors` + `sampleAccounts` bằng dữ liệu thật từ Supabase, và lưu vị trí layout user kéo thả.
 
-## Mục tiêu
+## Khác biệt schema cần xử lý
 
-1. **Một cái nhìn toàn cảnh** — người dùng thấy ngay AI "biết gì" và các mối liên hệ giữa chúng (vendor nào dẫn về tài khoản nào, rule nào chi phối nhiều vendor…).
-2. **Phát hiện vấn đề trực quan** — node cô lập (chưa có rule), cụm chồng chéo (nhiều rule cùng vendor → xung đột), rule "chết" (chưa từng dùng).
-3. **Điều hướng nhanh** — click node mở chi tiết / sửa rule / xem vendor.
+Bảng `ai_memory_rules` hiện đang là **v1** (text-based: `title`, `when_text`, `then_text`, `type: suggestion|active|disabled`), trong khi `Rule` type ở frontend là **v2** (IF/AND/OR/THEN có `conditions[]`, `actions[]`, `mode`, `confidence_threshold`…).
 
-Phase 1 dựng prototype frontend bằng mock data (mở rộng từ `sampleRules.ts`), chưa kết DB.
+Phase 2 KHÔNG migrate v1→v2 (phạm vi lớn, để sau). Thay vào đó, **adapter** sẽ map row v1 → cấu trúc tối thiểu đủ render graph:
+- `name` ← `title`
+- `mode` ← `type === "active" ? "auto" : type === "suggestion" ? "suggest" : "disabled"`
+- `source` ← `source === "user-taught" ? "user_taught" : "ai_learned"`
+- `status` ← `type === "disabled" ? "paused" : "active"`
+- `conditions`/`actions` ← **rỗng** (graph cần extract vendor/account theo cách khác — xem dưới)
+- `applied_count`/`correct_count` ← `applied_count`/`accuracy_correct`
 
-## Thư viện
+## Extract vendor/account khi không có conditions/actions có cấu trúc
 
-Dùng **React Flow** (`@xyflow/react`) — chuẩn cho graph tương tác, hỗ trợ pan/zoom/minimap, custom node, layout sẵn. Layout tự động bằng **dagre** (`@dagrejs/dagre`) — đơn giản, ổn định, không nặng như elkjs.
+Vì rule v1 chỉ có text, không có field rõ ràng để build edge. Sẽ extract theo:
 
-## Data model
+1. **Account refs** — regex `\b(1[0-9]{2,3}|2[0-9]{2,3}|[3-9][0-9]{2})\b` (3-4 chữ số bắt đầu 1-9) trên cả `when_text + then_text`. Khớp với `account_period_balances.account_code` (hoặc danh sách TK chuẩn VAS hardcoded).
+2. **Vendor refs** — fuzzy match (substring, lowercase, bỏ dấu) `when_text` với `suppliers.name`. Bonus: nếu rule có `ai_memory_partners` row với `display_name` chứa supplier → link mạnh hơn.
+3. **`ai_memory_partners`** — bảng này đã có sẵn `default_account` + `party_id` (uuid trỏ về supplier). Đây là **nguồn edge tin cậy nhất**: vendor → account (qua partner row), không cần regex.
+4. **`ai_line_classifications`** — vendor (qua `supplier_id`) → account (`account`). Cho phép vẽ "hàng hóa của vendor X mặc định vào TK Y" — đẹp cho insight.
 
-Tạo `src/lib/graph/build-graph.ts`:
-- Input: `Rule[]` (từ sampleRules) + danh sách mock `vendors[]`, `accounts[]`, `goods[]` (extract từ rule conditions/actions).
-- Output: `{ nodes: GraphNode[], edges: GraphEdge[] }` cho React Flow.
+## Server function
 
-Node types:
-- `rule` (tím #4F46C7) — hiển thị tên rule, mode badge (auto/suggest), accuracy %.
-- `vendor` (xanh #0F6E56) — tên NCC + count rules liên quan.
-- `account` (cam #BA7517) — mã TK + tên.
-- `goods` (xám) — hàng hoá/DV đã phân loại (Phase 2, ẩn ban đầu).
+Tạo `src/lib/graph/memory-graph.functions.ts`:
 
-Edge types:
-- `rule → vendor`: rule có condition về vendor.
-- `rule → account`: rule có action `book` với debit/credit.
-- Màu edge: xanh nếu rule active+auto, xám nhạt nếu suggest, đỏ đứt nét nếu paused.
-- Độ dày edge ~ `applied_count` (1px → 4px).
-
-## UI
-
-`src/components/ai-memory/graph/MemoryGraph.tsx` — container chính:
-
-```text
-┌──────────────────────────────────────────────────────┐
-│ [Filter chips: All ▾] [Mode: auto/suggest/paused]   │
-│ [Search nodes…]                          [Reset view]│
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│         ┌──Vendor──┐                                 │
-│         │ Grab     │──┐                              │
-│         └──────────┘  │                              │
-│                       ▼                              │
-│              ┌──Rule──────┐    ┌──Account──┐         │
-│              │ R-002 auto │───▶│ 641       │         │
-│              └────────────┘    └───────────┘         │
-│                                                      │
-│         [MiniMap]                          [Legend]  │
-└──────────────────────────────────────────────────────┘
+```ts
+export const getMemoryGraphData = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [rules, suppliers, partners, classifications] = await Promise.all([
+      supabase.from("ai_memory_rules").select("*").in("type", ["active","suggestion","disabled"]),
+      supabase.from("suppliers").select("id,name,tax_id,industry_code,default_expense_account").eq("is_active", true).limit(200),
+      supabase.from("ai_memory_partners").select("id,party_id,display_name,default_account,sample_count,confidence"),
+      supabase.from("ai_line_classifications").select("supplier_id,line_name,kind,account,hit_count").limit(300),
+    ]);
+    return { rules, suppliers, partners, classifications };
+  });
 ```
 
-Components:
-- `MemoryGraph.tsx` — React Flow canvas, layout dagre, controls (zoom/fit/lock).
-- `nodes/RuleNode.tsx`, `nodes/VendorNode.tsx`, `nodes/AccountNode.tsx` — custom nodes, kích thước nhỏ gọn, badge trạng thái.
-- `GraphSidebar.tsx` — panel bên phải, hiển thị chi tiết khi click node:
-  - Rule node → tên, conditions tóm tắt, actions, applied/accuracy, nút "Sửa quy tắc" (mở `RuleEditor` đã có).
-  - Vendor node → MST, ngành, các rule liên quan (list link).
-  - Account node → mã TK, các rule dùng TK này.
-- `GraphFilters.tsx` — chips lọc theo loại node, mode, source (ai_learned/user_taught), trạng thái.
-- `GraphLegend.tsx` — chú thích màu/đường.
+Tất cả dữ liệu đều scope theo `tenant_id` qua RLS — server fn không cần filter thêm.
 
-Tương tác:
-- **Hover node** → highlight các neighbor, mờ phần còn lại (opacity 0.2).
-- **Click node** → mở sidebar chi tiết.
-- **Double-click rule** → mở `RuleEditor` drawer (re-use sẵn).
-- **Drag** node → tự lưu vị trí vào zustand (giữ layout custom của user).
+## Adapter ở frontend
 
-Insight banner trên đầu graph:
-- "3 rule chưa từng dùng" — click filter ra.
-- "2 vendor có ≥3 rule chồng chéo" — click highlight.
-- "1 rule paused đang ngắt 5 vendor khỏi đồ thị".
+Tạo `src/lib/graph/adapt-db.ts`:
 
-## Tích hợp vào tab
+```ts
+export function adaptDbToGraph(input: GraphDbData): GraphBuildInput {
+  // 1. Map ai_memory_rules → Rule (lite)
+  const rules: Rule[] = input.rules.map(rowToRule);
 
-Sửa `src/routes/_app/ai.memory.tsx`:
-- Thêm tab `"graph"` vào `TabKey`, label "Sơ đồ trí nhớ", icon `Network` từ lucide.
-- Render `<MemoryGraph />` khi `tab === "graph"`.
-- Vì graph cần full-width/full-height, khi tab này active sẽ bỏ `max-w-4xl` wrapper (conditional class).
+  // 2. Build vendors từ suppliers
+  const vendors: VendorEntity[] = input.suppliers.map(s => ({
+    id: s.id, name: s.name, tax_id: s.tax_id ?? undefined,
+    industry: s.industry_code ?? undefined,
+  }));
+
+  // 3. Build accounts: union từ
+  //    - default_expense_account (suppliers)
+  //    - default_account (partners)
+  //    - account (classifications)
+  //    - regex extract từ rules.then_text/when_text
+  const accountSet = new Set<string>();
+  // … gom code
+  const accounts = Array.from(accountSet).map(code => ({
+    id: `a-${code}`, code, name: VAS_ACCOUNTS[code] ?? `TK ${code}`,
+  }));
+
+  return { rules, vendors, accounts };
+}
+```
+
+Mở rộng `buildGraph` (`src/lib/graph/build-graph.ts`) để **chấp nhận edge "ngoài rule"**:
+- Partner-edge: `vendor → account` (trực tiếp, label "mặc định", màu xanh nhạt, không qua rule).
+- Classification-edge: `vendor → account` (label "hàng hóa", đứt nét xám).
+
+Hiện `buildGraph` chỉ tạo edge từ rule conditions/actions; sẽ thêm tham số `extraEdges` (vendor→account) để bổ sung.
+
+## Lưu layout user kéo thả
+
+Thêm migration tạo bảng `ai_memory_graph_layout` (1 row / user / tenant):
+```sql
+CREATE TABLE public.ai_memory_graph_layout (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  tenant_id uuid NOT NULL,
+  positions jsonb NOT NULL DEFAULT '{}'::jsonb, -- { nodeId: {x,y} }
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(user_id, tenant_id)
+);
+-- RLS: chỉ owner đọc/ghi.
+```
+
+Server fn:
+- `getGraphLayout()` — đọc positions.
+- `saveGraphLayout({ positions })` — upsert.
+
+Frontend: debounce 600ms trên `onNodeDragStop` → gọi `saveGraphLayout`. Khi load: nếu node có position lưu → dùng; nếu chưa → fallback dagre auto.
+
+## UI ở frontend
+
+Sửa `MemoryGraph.tsx`:
+- Bỏ `useRuleStore` cho graph, thay bằng `useQuery(['memory-graph'], getMemoryGraphData)`.
+- Loading state: skeleton fullscreen.
+- Empty state: nếu < 1 rule + < 1 supplier → hiện CTA "Chưa có dữ liệu — bắt đầu chat với AI để xây trí nhớ" thay vì graph rỗng.
+- Khi click **rule node**, sidebar mở chi tiết rule **v1 text** (when_text / then_text plain) thay vì conditions builder.
+- Nút "Sửa quy tắc" trên sidebar → mở dialog `EditRuleDialog` đã có sẵn trong `ai.memory.tsx` (re-use), không dùng `RuleEditor` v2.
 
 ## Files tạo / sửa
 
 Tạo mới:
-- `src/lib/graph/build-graph.ts` — transform rules → nodes+edges.
-- `src/lib/graph/layout.ts` — dagre auto-layout helper.
-- `src/components/ai-memory/graph/MemoryGraph.tsx`
-- `src/components/ai-memory/graph/GraphSidebar.tsx`
-- `src/components/ai-memory/graph/GraphFilters.tsx`
-- `src/components/ai-memory/graph/GraphLegend.tsx`
-- `src/components/ai-memory/graph/nodes/RuleNode.tsx`
-- `src/components/ai-memory/graph/nodes/VendorNode.tsx`
-- `src/components/ai-memory/graph/nodes/AccountNode.tsx`
-- `src/data/sampleEntities.ts` — mock vendors/accounts dùng cho demo.
+- `src/lib/graph/memory-graph.functions.ts` — server fn fetch + save layout.
+- `src/lib/graph/adapt-db.ts` — DB → GraphBuildInput.
+- `src/lib/graph/vas-accounts.ts` — map mã TK VAS → tên TK (cache cứng cho hiển thị).
+- `supabase/migrations/...` — bảng `ai_memory_graph_layout` + RLS.
 
 Sửa:
-- `src/routes/_app/ai.memory.tsx` — thêm tab "Sơ đồ trí nhớ".
-- `package.json` — thêm `@xyflow/react`, `@dagrejs/dagre`.
+- `src/lib/graph/build-graph.ts` — thêm `extraEdges` để render partner/classification edges.
+- `src/components/ai-memory/graph/MemoryGraph.tsx` — dùng `useQuery`, persist layout, loading/empty states, dispatch sang dialog edit rule v1.
+- `src/components/ai-memory/graph/GraphSidebar.tsx` — branch render cho rule v1 (text) vs v2 (structured).
+- `src/components/ai-memory/graph/GraphLegend.tsx` — thêm chú thích cho partner edge & classification edge.
 
-## Phạm vi Phase 1
+Giữ nguyên:
+- `src/data/sampleEntities.ts`, `src/data/sampleRules.ts` — vẫn dùng cho tab Rules-v2 prototype.
 
-- Frontend-only, mock data (extend từ sampleRules).
-- Chưa lưu layout xuống DB.
-- Chưa wire vào DB thật — sẽ thay `sampleRules` bằng query từ `ai_memory_rules` trong Phase 2.
+## Phạm vi
 
-## Phạm vi Phase 2 (sau khi duyệt prototype)
-
-- Query rules + vendors thật từ Supabase qua `createServerFn`.
-- Lưu layout custom của user (column `layout_position` jsonb trong `ai_memory_rules` hoặc bảng riêng).
-- Thêm node type `goods` (hàng hoá/DV) — liên kết với rules qua line classifications.
-- Real-time update khi rule mới sinh ra.
+- Frontend đọc/ghi qua server fn, không gọi supabase trực tiếp từ component.
+- RLS đảm bảo dữ liệu cross-tenant không leak.
+- Không migrate rule v1 → v2 (việc đó tách thành plan riêng nếu cần).
+- Realtime auto-refresh khi rule thay đổi: dùng channel `ai-memory-live` đã có ở `ai.memory.tsx`, chỉ thêm invalidate `['memory-graph']`.
