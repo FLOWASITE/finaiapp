@@ -145,9 +145,10 @@ export const updateContext = createServerFn({ method: "POST" })
         if (Object.keys(safe).length > 0) {
           const { error } = await supabase
             .from("ai_memory_context")
-            .update(safe)
+            .update(safe as any)
             .eq("id", id)
             .eq("tenant_id", tenantId);
+
           if (error) throw new Error(error.message);
         }
         return { ok: true };
