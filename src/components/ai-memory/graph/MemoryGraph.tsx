@@ -401,7 +401,10 @@ function InnerGraph() {
               zoomable
               nodeColor={(n) => {
                 const k = (n.data as GraphNodeData)?.kind;
-                return k === "rule" ? "#4F46C7" : k === "vendor" ? "#0F6E56" : "#BA7517";
+                if (k === "rule") return "#4F46C7";
+                if (k === "vendor") return "#0F6E56";
+                if (k === "item") return "#0891B2";
+                return "#BA7517";
               }}
               maskColor="rgba(0,0,0,0.06)"
             />
