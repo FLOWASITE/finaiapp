@@ -276,3 +276,99 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const ITEM_ICONS = {
+  goods: Package,
+  service: Wrench,
+  fixed_asset: Boxes,
+  ccdc: Hammer,
+} as const;
+
+const ITEM_KIND_LABEL = {
+  goods: "Hàng hoá",
+  service: "Dịch vụ",
+  fixed_asset: "Tài sản cố định",
+  ccdc: "Công cụ dụng cụ",
+} as const;
+
+function ItemDetail({
+  item,
+  neighbors,
+  onJumpToVendor,
+  onJumpToAccount,
+}: {
+  item: ItemEntity;
+  neighbors: ItemNeighbors;
+  onJumpToVendor: (id: string) => void;
+  onJumpToAccount: (id: string) => void;
+}) {
+  const Icon = ITEM_ICONS[item.kind] ?? Package;
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[#0891B2]">
+          <Icon className="h-3 w-3" />
+          {ITEM_KIND_LABEL[item.kind]}
+        </div>
+        <div className="mt-0.5 text-[13px] font-semibold leading-snug">{item.name}</div>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          <Badge variant="outline" className="text-[10px]">
+            ×{item.hitCount} lần xuất hiện
+          </Badge>
+          {item.defaultAccount && (
+            <Badge variant="outline" className="text-[10px]">
+              Mặc định TK {item.defaultAccount}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <Section title={`Nhà cung cấp liên quan (${neighbors.vendors.length})`}>
+        {neighbors.vendors.length === 0 ? (
+          <div className="rounded-md border border-dashed bg-muted/30 p-2 text-[11.5px] text-muted-foreground">
+            Chưa gắn với nhà cung cấp cụ thể.
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {neighbors.vendors.map((v) => (
+              <li key={v.id}>
+                <button
+                  onClick={() => onJumpToVendor(v.id)}
+                  className="group flex w-full items-center justify-between rounded-md border bg-card px-2 py-1.5 text-left text-[11.5px] hover:border-[#0F6E56]"
+                >
+                  <span className="line-clamp-1">{v.name}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-[#0F6E56]" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Section title={`Tài khoản hạch toán (${neighbors.accounts.length})`}>
+        {neighbors.accounts.length === 0 ? (
+          <div className="rounded-md border border-dashed bg-muted/30 p-2 text-[11.5px] text-muted-foreground">
+            Chưa có tài khoản nào liên kết.
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {neighbors.accounts.map((a) => (
+              <li key={a.id}>
+                <button
+                  onClick={() => onJumpToAccount(a.id)}
+                  className="group flex w-full items-center justify-between rounded-md border bg-card px-2 py-1.5 text-left text-[11.5px] hover:border-[#BA7517]"
+                >
+                  <span>
+                    <b className="tabular-nums">{a.code}</b>{" "}
+                    <span className="text-muted-foreground">{a.name}</span>
+                  </span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-[#BA7517]" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
