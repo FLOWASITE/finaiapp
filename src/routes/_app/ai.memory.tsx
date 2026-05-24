@@ -85,6 +85,7 @@ import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs"
 import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 import { RulesListV2 } from "@/components/ai-memory/rules-v2/RulesListV2";
 import { MemoryGraph } from "@/components/ai-memory/graph/MemoryGraph";
+import { AgentsOfFinPanel } from "@/components/ai-memory/agents/AgentsOfFinPanel";
 import { listContext } from "@/lib/ai-memory-context.functions";
 import { listPartners } from "@/lib/ai-memory-partners.functions";
 import { listLimits } from "@/lib/ai-memory-limits.functions";
@@ -104,7 +105,7 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "learning";
+type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "agents" | "learning";
 
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
@@ -195,6 +196,7 @@ function AIMemoryPage() {
                 {tab === "partners" && <PartnersTab />}
                 {tab === "context" && <ContextTab />}
                 {tab === "limits" && <LimitsTab />}
+                {tab === "agents" && <AgentsOfFinPanel />}
                 {tab === "learning" && (
                   <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
                 )}
@@ -323,6 +325,7 @@ function SubTabs({
     { key: "partners", label: "Đối tác", count: partnersData?.length },
     { key: "context", label: "Bối cảnh DN", count: ctxData?.length },
     { key: "limits", label: "Giới hạn", count: limitsData?.length },
+    { key: "agents", label: "Agent của Fin" },
     { key: "learning", label: "Đang học", badge: learningCount },
   ];
 

@@ -1,67 +1,74 @@
-## Mục tiêu
 
-Liên kết **Cài đặt → Tổ chức** với **Trí nhớ AI → Bối cảnh DN** thành một nguồn dữ liệu chung. Người dùng có thể sửa ở bất kỳ chỗ nào, dữ liệu vẫn nhất quán. AI luôn đọc thông tin pháp nhân mới nhất.
+# Plan: Tab "Agent của Fin" trong Trí nhớ AI
 
-## Phạm vi đồng bộ
+## Phạm vi MVP
 
-4 nhóm trường (đã chọn):
+Frontend-only với mock data (`sampleAgents`). Chưa wire backend/realtime — phase 2 sẽ làm SSE và persist settings vào DB.
 
-| Nhóm | Trường trong `tenants` | Key trong `ai_memory_context` |
-|---|---|---|
-| Thông tin pháp nhân | `company_name`, `tax_id`, `address`, `legal_form` | `org.company_name`, `org.tax_id`, `org.address`, `org.legal_form` |
-| Ngành nghề KD | `industries` (jsonb), `industry_name` | `business_model.industries` |
-| Chuẩn mực kế toán | `accounting_standard`, `fiscal_year_start` | `accounting.standard`, `accounting.fiscal_year` |
-| Liên hệ & Người đại diện | `email`, `phone`, `legal_rep_name`, `legal_rep_title` | `org.contact`, `org.legal_rep` |
+## Cấu trúc file mới
 
-## Thiết kế
+```
+src/types/agent.ts                                       # Types: Agent, AgentSettings, OrchestrationFlow
+src/data/sampleAgents.ts                                 # 6 agents mock + orchestrationFlow
+src/components/ai-memory/agents/AgentGrid.tsx            # Grid 2 cột
+src/components/ai-memory/agents/AgentCard.tsx            # Card + status dot
+src/components/ai-memory/agents/StatusDot.tsx            # Dot + pulse animation
+src/components/ai-memory/agents/AgentDetailDrawer.tsx    # Sheet right, 5 tabs
+src/components/ai-memory/agents/tabs/OverviewTab.tsx
+src/components/ai-memory/agents/tabs/SettingsTab.tsx     # mode, confidence profile, schedule, notify
+src/components/ai-memory/agents/tabs/RulesTab.tsx
+src/components/ai-memory/agents/tabs/ActivityTab.tsx
+src/components/ai-memory/agents/tabs/DependenciesTab.tsx
+src/components/ai-memory/agents/OrchestrationFlow.tsx    # Horizontal flow + arrows
+src/components/ai-memory/agents/ActivityFeed.tsx         # Cross-agent feed
+src/components/ai-memory/agents/DisableConfirmDialog.tsx
+src/routes/_app/ai/memory/agents.tsx                     # Route mới (sub-tab thứ 6)
+```
 
-### 1. Nguồn dữ liệu chính
-- **`tenants`** là **nguồn sự thật** (source of truth) cho các trường pháp nhân.
-- Các mục tương ứng trong `ai_memory_context` được đánh dấu **"managed"** (cờ `source = 'tenant'` + `source_field` lưu khoá trường).
-- Mục managed: `value_text` được render từ tenant, **không lưu cứng** giá trị riêng — luôn đọc từ tenants để tránh lệch.
+## Tích hợp với Trí nhớ AI hiện có
 
-### 2. Đồng bộ 2 chiều
+- Thêm tab "Agent của Fin" vào `ai-memory-tabs.tsx` (sub-tab thứ 6, sau Bối cảnh DN).
+- Route mới `/ai/memory/agents` (hoặc giữ trong tabs hiện hữu — sẽ dùng tabs state, không tạo route riêng nếu các tab khác cũng dùng state-tab).
+- Deep-link agent qua query param `?agent=extract` thay vì nested route (đơn giản, không cần đụng routeTree).
 
-**Tenant → Context (tự động):**
-- Trigger PG `tg_tenant_sync_context` chạy sau INSERT/UPDATE `tenants`: upsert 8 mục managed vào `ai_memory_context` với `category`, `key`, `label`, `value_text` lấy từ tenant. Idempotent theo `(tenant_id, key)`.
-- Chạy lần đầu cho tenant hiện có qua backfill trong cùng migration.
+## Layout trang
 
-**Context → Tenant (khi user sửa trong AI Memory):**
-- `updateContext` server fn: nếu row có `source='tenant'` → parse `value_text` về field gốc của tenant và `UPDATE tenants` (qua `updateActiveTenant`). Sau đó trigger tenant sẽ refresh lại context row → đảm bảo format chuẩn.
-- Một số mục có format tự do (ví dụ "Ngành nghề chính: ...; phụ: ...") → dùng helper parser đơn giản; nếu parse thất bại, báo lỗi và yêu cầu sửa ở trang Tổ chức.
+1. **WarningBanner (info)** — "Bạn không cần xem tab này để dùng Fin..."
+2. **StatsBar** — `online/6`, tasks hôm nay, accuracy TB, nút Orchestrator settings (disabled placeholder).
+3. **AgentGrid** — 6 cards (2 cột desktop, 1 cột mobile).
+4. **OrchestrationFlow** — horizontal flow với arrows (sequential `→`, parallel `⇉`, optional dashed). Vertical trên mobile.
+5. **ActivityFeed** — cross-agent log với agent tag màu riêng, filter theo agent/result.
+6. **AgentDetailDrawer** — Sheet 640px, 5 tabs.
 
-### 3. UI
+## Design tokens (thêm vào styles.css)
 
-**Trang AI Memory → tab Bối cảnh DN:**
-- Các mục managed hiển thị với badge **"Đồng bộ từ Tổ chức"** + icon link.
-- Cho phép sửa inline (như hiện tại); khi lưu sẽ ghi ngược về `tenants`.
-- Không cho xoá mục managed (ẩn nút xoá, hiện "Sửa tại Cài đặt → Tổ chức" link).
-- Thêm banner đầu tab: "🔗 Một số mục được liên kết với Cài đặt → Tổ chức. Sửa ở đâu cũng được."
+Thêm semantic tokens cho 6 agent colors + status dot colors:
+```
+--agent-extract, --agent-categorize, --agent-reconcile, --agent-tax, --agent-alert, --agent-report
+--status-online, --status-working, --status-warning, --status-error, --status-idle
+```
+Không hard-code hex trong components — dùng `bg-[hsl(var(--agent-extract-bg))]` hoặc CSS vars inline.
 
-**Trang Cài đặt → Tổ chức:**
-- Thêm thẻ thông tin nhỏ ở đầu trang: "Các trường này tự động đồng bộ vào Trí nhớ AI → Bối cảnh DN" + link sang `/ai/memory?tab=context`.
+## Behavior chi tiết
 
-### 4. Migration DB
-- Thêm cột `source text` (`'tenant'` | `'manual'` mặc định `'manual'`) và `source_field text` vào `ai_memory_context`.
-- Unique constraint `(tenant_id, key)` để upsert.
-- Function `public.sync_tenant_to_context(p_tenant uuid)` chứa logic upsert 8 mục.
-- Trigger AFTER INSERT OR UPDATE OF (company_name, tax_id, address, legal_form, industries, industry_name, accounting_standard, fiscal_year_start, email, phone, legal_rep_name, legal_rep_title) ON tenants.
-- Backfill: `SELECT sync_tenant_to_context(id) FROM tenants;`
+- **Status dot "working"**: pulse animation 1.5s loop (CSS `@keyframes`).
+- **Settings tab** giữ đủ 3 confidence profile cards (Nghiêm ngặt 95% / Cân bằng 85% / Linh hoạt 70%) + slider; chọn preset auto-set slider.
+- **Disable agent có `feeds_into.length > 0`**: mở `DisableConfirmDialog` liệt kê chính xác agents bị ảnh hưởng.
+- **OrchestrationFlow node click**: scroll smooth tới agent card + ring highlight 2s.
+- **Activity feed**: mock "live" bằng `setInterval` 5s prepend item giả (tùy chọn — sẽ làm nếu nhanh).
+- **Form**: react-hook-form + zod, optimistic local update (chưa POST API).
 
-### 5. Server fns
-- `src/lib/ai-memory-context.functions.ts`:
-  - `updateContext` mở rộng: nếu `source='tenant'` → gọi handler ghi ngược tenant; chặn xoá managed rows.
-  - Trả thêm `source`, `source_field` trong COLS để UI biết.
-- `src/lib/tenants.functions.ts`: không đổi (trigger DB lo phần đồng bộ).
+## Permission gating
 
-## Files dự kiến
+Mock đơn giản: kiểm tra `useCurrentUser().roles` — nếu không có `ktt`/`cfo`/`owner`/`superadmin` thì show upgrade prompt. Không chặn cứng — tab vẫn render nhưng overlay.
 
-- **Migration mới**: `add_tenant_context_sync.sql` (cột + function + trigger + backfill).
-- **Sửa** `src/lib/ai-memory-context.functions.ts` (cập nhật cột & updateContext write-back).
-- **Sửa** `src/components/ai-memory-tabs.tsx` → `ContextTab` & `ContextRow` (badge managed, ẩn delete, render link).
-- **Sửa** `src/routes/_app/settings/index.tsx` (banner liên kết).
+## Phase 2 (không làm trong lần này)
 
-## Không trong phạm vi
-- Không đổi schema `tenants`.
-- Không đụng các tab khác (Rules, Partners, Limits…).
-- Không tự động tạo lại các mục managed nếu user đã xoá thủ công trước migration — backfill sẽ upsert lại.
+- Persist settings vào DB (`agents_settings` table)
+- Realtime activity via Supabase Realtime
+- Custom instructions editor (Monaco)
+- Wire vào orchestrator thật
+
+---
+
+Sau khi bạn duyệt, tôi sẽ build theo thứ tự: types → sample data → tokens → Grid/Card → Drawer (Overview + Settings) → OrchestrationFlow → ActivityFeed → Rules/Dependencies/Activity tabs → Disable dialog → permission gate.
