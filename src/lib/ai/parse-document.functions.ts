@@ -249,6 +249,20 @@ function isXmlFile(mimeType: string, filename?: string): boolean {
 }
 
 function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>) {
+  const lines = parsed.lines
+    .filter((line) => line.kind === "item")
+    .map((line) => {
+      const base = {
+        description: line.description || "Hàng hoá / dịch vụ",
+        qty: line.qty || 1,
+        unit: line.unit || null,
+        unit_price: line.unit_price || null,
+        amount: line.amount || null,
+        vat_rate: line.vat_rate,
+      };
+      return { ...base, classification: classifyLine(base) };
+    });
+  const classification_summary = summarizeInvoiceKind(lines);
   return {
     vendor_name: parsed.seller.name || null,
     vendor_tax_id: parsed.seller.tax_id || null,
@@ -258,19 +272,8 @@ function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>)
     subtotal: parsed.totals.subtotal || null,
     vat_amount: parsed.totals.vat_amount || null,
     total: parsed.totals.total || null,
-    lines: parsed.lines
-      .filter((line) => line.kind === "item")
-      .map((line) => {
-        const base = {
-          description: line.description || "Hàng hoá / dịch vụ",
-          qty: line.qty || 1,
-          unit: line.unit || null,
-          unit_price: line.unit_price || null,
-          amount: line.amount || null,
-          vat_rate: line.vat_rate,
-        };
-        return { ...base, classification: classifyLine(base) };
-      }),
+    lines,
+    classification_summary,
     notes: parsed.cqt_code ? `XML HĐĐT, mã CQT: ${parsed.cqt_code}` : "XML HĐĐT",
     // Extra fields (ignored by downstream validators) used by the chat
     // preview to render the original e-invoice as a paper-style template.
