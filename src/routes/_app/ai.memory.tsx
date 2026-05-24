@@ -158,6 +158,7 @@ function AIMemoryPage() {
           ) : (
             <>
               {tab === "rules" && <RuleList rules={rules} />}
+              {tab === "classifications" && <ClassificationsTab />}
               {tab === "partners" && <PartnersTab />}
               {tab === "context" && <ContextTab />}
               {tab === "limits" && <LimitsTab />}
