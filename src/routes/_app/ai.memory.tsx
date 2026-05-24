@@ -83,6 +83,7 @@ import {
 } from "@/lib/ai-memory-templates";
 import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
 import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
+import { RulesListV2 } from "@/components/ai-memory/rules-v2/RulesListV2";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -157,7 +158,7 @@ function AIMemoryPage() {
             <LoadingSkeleton />
           ) : (
             <>
-              {tab === "rules" && <RuleList rules={rules} />}
+              {tab === "rules" && <RulesListV2 />}
               {tab === "classifications" && <ClassificationsTab />}
               {tab === "partners" && <PartnersTab />}
               {tab === "context" && <ContextTab />}
