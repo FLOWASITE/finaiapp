@@ -105,7 +105,7 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "learning";
+type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "agents" | "learning";
 
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
