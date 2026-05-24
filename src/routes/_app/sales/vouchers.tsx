@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SalesTabs } from "@/components/sales/SalesTabs";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
-import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark } from "lucide-react";
+import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark, PackagePlus } from "lucide-react";
 
 import {
   listSalesVouchers,
