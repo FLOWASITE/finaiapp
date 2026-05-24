@@ -1020,9 +1020,12 @@ export async function parseFileCore(opts: {
     if (opts.supabase && opts.kind !== "auto") {
       const cached = await readParseCache(opts.supabase, fileHash, opts.kind);
       if (cached) {
-        const cachedParsed = opts.kind === "purchase_invoice"
+        let cachedParsed = opts.kind === "purchase_invoice"
           ? normalizePurchaseInvoice(cached.parsed, null, "Đọc từ cache parse trước đó.")
           : cached.parsed;
+        if (opts.kind === "purchase_invoice") {
+          cachedParsed = await enrichInvoiceWithSupplierSignals(cachedParsed, opts.supabase, opts.userId);
+        }
         if (opts.kind === "purchase_invoice" && mimeType === "application/pdf" && isEmptyPurchaseInvoice(cachedParsed)) {
           console.warn("[parse-document] ignoring empty invoice cache for PDF, retrying parser");
         } else {
