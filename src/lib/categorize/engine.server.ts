@@ -498,3 +498,98 @@ export async function proposeJournalForInvoice(
 }
 
 export { entryFingerprint, entryMatchesTemplate };
+
+// ============================================================
+// BATCH API — dùng cho listInboxAi để tránh N+1
+// ============================================================
+
+/** Load nhiều invoice + lines trong 2 query. */
+async function loadInvoicesBatch(
+  supabase: SupabaseClient,
+  invoiceIds: string[],
+): Promise<Map<string, LoadedInvoice>> {
+  const result = new Map<string, LoadedInvoice>();
+  if (invoiceIds.length === 0) return result;
+  const { data: invs } = await supabase
+    .from("invoices")
+    .select(
+      "id, tenant_id, supplier_id, supplier_name, supplier_tax_id, subtotal, vat_amount, total, payment_status, expense_account, issue_date, notes, raw_ocr",
+    )
+    .in("id", invoiceIds);
+  const { data: allLines } = await supabase
+    .from("invoice_lines")
+    .select("id, invoice_id, description, qty, unit_price, amount, vat_rate, line_type")
+    .in("invoice_id", invoiceIds);
+  const linesByInvoice = new Map<string, any[]>();
+  for (const l of (allLines ?? []) as any[]) {
+    const arr = linesByInvoice.get(l.invoice_id) ?? [];
+    arr.push(l);
+    linesByInvoice.set(l.invoice_id, arr);
+  }
+  for (const inv of (invs ?? []) as any[]) {
+    const lines = linesByInvoice.get(inv.id) ?? [];
+    result.set(inv.id, {
+      id: inv.id,
+      tenant_id: inv.tenant_id ?? "",
+      supplier_id: inv.supplier_id ?? null,
+      supplier_name: inv.supplier_name ?? null,
+      supplier_tax_id: inv.supplier_tax_id ?? null,
+      subtotal: Number(inv.subtotal ?? 0),
+      vat_amount: Number(inv.vat_amount ?? 0),
+      total: Number(inv.total ?? 0),
+      payment_status: inv.payment_status ?? "unpaid",
+      expense_account: inv.expense_account ?? null,
+      issue_date: inv.issue_date ?? null,
+      notes: inv.notes ?? null,
+      raw_ocr: (inv.raw_ocr as any) ?? null,
+      lines: lines.map((l: any, idx: number) => ({
+        id: l.id,
+        idx,
+        description: l.description,
+        qty: l.qty,
+        unit_price: l.unit_price,
+        amount: l.amount,
+        vat_rate: Number(l.vat_rate ?? 0),
+        line_type: l.line_type ?? "goods",
+      })),
+    });
+  }
+  return result;
+}
+
+/**
+ * Đề xuất bút toán cho NHIỀU hoá đơn 1 lần.
+ * Tối ưu: 2 query load invoices+lines + prewarm cache, sau đó loop đọc từ cache.
+ * Returns Map<invoice_id, DTO>; bỏ qua những invoice lỗi.
+ */
+export async function proposeJournalBatch(
+  supabase: SupabaseClient,
+  invoiceIds: string[],
+): Promise<Map<string, JournalProposalDTO>> {
+  const out = new Map<string, JournalProposalDTO>();
+  if (invoiceIds.length === 0) return out;
+
+  const loaded = await loadInvoicesBatch(supabase, invoiceIds);
+
+  // Prewarm cache theo tenant (mỗi tenant 1 lần)
+  const tenants = new Set<string>();
+  for (const inv of loaded.values()) if (inv.tenant_id) tenants.add(inv.tenant_id);
+  await Promise.all(
+    Array.from(tenants).map(async (t) => {
+      const { prewarmCategorizeCache } = await import("./cache.server");
+      await prewarmCategorizeCache(supabase, t);
+    }),
+  );
+
+  // Loop từng invoice — pipeline đọc từ cache
+  for (const id of invoiceIds) {
+    try {
+      const dto = await proposeJournalForInvoice(supabase, id, loaded.get(id));
+      out.set(id, dto);
+    } catch {
+      // skip — invoice lỗi không kéo theo cả batch
+    }
+  }
+  return out;
+}
+
