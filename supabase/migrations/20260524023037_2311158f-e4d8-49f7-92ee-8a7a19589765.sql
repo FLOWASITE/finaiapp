@@ -1,0 +1,2 @@
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS industry_code text;
+CREATE INDEX IF NOT EXISTS idx_suppliers_industry ON public.suppliers(tenant_id, industry_code) WHERE industry_code IS NOT NULL;

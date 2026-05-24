@@ -74,7 +74,65 @@ export type RawLine = {
   amount?: number | null;
 };
 
-export function classifyLine(line: RawLine): LineClassification {
+export type ClassifyContext = {
+  /** Gợi ý kind từ ngành nghề NCC (VSIC) — vd transport/telecom → "service". */
+  industryHint?: LineKind | null;
+  industryLabel?: string | null;
+  /** Phân bố kind 12 tháng qua với NCC này (tổng số tiền hoặc lần). */
+  historyDist?: Partial<Record<LineKind, number>> | null;
+};
+
+/**
+ * Map VSIC 4-6 số → kind mặc định. Chỉ cover những ngành rõ ràng nhất.
+ */
+export function vsicToKindHint(code?: string | null): { kind: LineKind; label: string } | null {
+  if (!code) return null;
+  const c = String(code).replace(/\D+/g, "");
+  if (!c) return null;
+  const head2 = c.slice(0, 2);
+  const head1 = c.slice(0, 1);
+
+  const serviceHeads = new Set([
+    "49","50","51","52","53","55","56","58","59","60","61","62","63",
+    "64","65","66","68","69","70","71","72","73","74","75",
+    "77","78","79","80","81","82","85","86","87","88",
+    "90","91","92","93","94","95","96",
+  ]);
+  if (serviceHeads.has(head2)) {
+    return { kind: "service", label: `Ngành NCC (VSIC ${head2}) thiên về dịch vụ` };
+  }
+  if (["45", "46", "47"].includes(head2)) {
+    return { kind: "goods", label: `Ngành NCC (VSIC ${head2}) bán buôn/bán lẻ → hàng hóa` };
+  }
+  const n2 = Number(head2);
+  if (n2 >= 10 && n2 <= 33) {
+    return { kind: "goods", label: `Ngành NCC (VSIC ${head2}) sản xuất → hàng hóa/NVL` };
+  }
+  if (head1 === "0") {
+    return { kind: "goods", label: `Ngành NCC (VSIC ${head2}) → nguyên liệu/hàng hóa` };
+  }
+  if (["41", "42", "43"].includes(head2)) {
+    return { kind: "service", label: `Ngành NCC (VSIC ${head2}) xây dựng → dịch vụ` };
+  }
+  if (["35", "36", "37", "38", "39"].includes(head2)) {
+    return { kind: "service", label: `Ngành NCC (VSIC ${head2}) điện/nước → dịch vụ` };
+  }
+  return null;
+}
+
+/** Map account code → kind cho việc dựng historyDist từ bảng invoices. */
+export function accountToKind(account?: string | null): LineKind | null {
+  if (!account) return null;
+  const a = String(account).trim();
+  if (!a) return null;
+  if (/^15[26]/.test(a)) return "goods"; // 152 NVL, 156 hàng hoá
+  if (/^153/.test(a)) return "ccdc";
+  if (/^21[1-8]/.test(a)) return "fixed_asset";
+  if (/^(62[1-8]|6[3-4][0-9])/.test(a)) return "service"; // 627,641,642,635...
+  return null;
+}
+
+export function classifyLine(line: RawLine, ctx?: ClassifyContext): LineClassification {
   const desc = norm(line.description);
   const unit = norm(line.unit);
   const haystack = `${desc} ${unit}`;
@@ -123,6 +181,41 @@ export function classifyLine(line: RawLine): LineClassification {
   if (KW_GOODS_HINT.test(desc)) {
     vote("goods", 18, `Từ khóa hàng hóa trong tên hàng`);
   }
+
+  // 4) Ngành nghề NCC (trọng số 15) — chỉ vote nếu chưa có tín hiệu mạnh ngược chiều
+  if (ctx?.industryHint) {
+    const hintScore = scores[ctx.industryHint] ?? 0;
+    // Tránh đè khi từ khóa đã chỉ rõ TSCĐ (giá cao) hoặc ngược lại
+    const strongFixed = scores.fixed_asset >= 30;
+    if (!(strongFixed && ctx.industryHint !== "fixed_asset")) {
+      vote(ctx.industryHint, 15, ctx.industryLabel || `Gợi ý từ ngành nghề NCC`);
+    } else {
+      signals.push({
+        label: `Bỏ qua gợi ý ngành (${ctx.industryLabel ?? "—"}) vì dòng này có dấu hiệu TSCĐ mạnh`,
+        weight: 0,
+        votes: ctx.industryHint,
+      });
+      void hintScore;
+    }
+  }
+
+  // 5) Lịch sử với NCC (trọng số 10) — kind chiếm ưu thế trong 12 tháng
+  if (ctx?.historyDist) {
+    const entries = Object.entries(ctx.historyDist) as Array<[LineKind, number]>;
+    const total = entries.reduce((s, [, v]) => s + (v || 0), 0);
+    if (total > 0) {
+      const sorted = entries.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+      const [topKind, topVal] = sorted[0] ?? [null, 0];
+      if (topKind && topVal / total >= 0.6) {
+        const pct = Math.round((topVal / total) * 100);
+        vote(topKind, 12, `Lịch sử 12 tháng với NCC này ${pct}% là ${KIND_META[topKind].label}`);
+      } else if (topKind && topVal / total >= 0.4) {
+        const pct = Math.round((topVal / total) * 100);
+        vote(topKind, 6, `NCC này thường nhập ${KIND_META[topKind].label} (${pct}%)`);
+      }
+    }
+  }
+
 
   // Pick winner
   let winner: LineKind = "goods";
