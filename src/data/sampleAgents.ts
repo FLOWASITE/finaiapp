@@ -1,4 +1,5 @@
 import type { Agent, OrchestrationFlow } from "@/types/agent";
+import { agentSpecs } from "./agentSpecs";
 
 export const sampleAgents: Agent[] = [
   {
@@ -208,7 +209,7 @@ export const sampleAgents: Agent[] = [
     depends_on: ["categorize", "tax", "reconcile"],
     feeds_into: [],
   },
-];
+].map((a) => ({ ...a, spec: agentSpecs[a.id as keyof typeof agentSpecs] })) as Agent[];
 
 export const sampleOrchestrationFlow: OrchestrationFlow = {
   trigger: "User kéo 1 hóa đơn vào chat với Fin",
