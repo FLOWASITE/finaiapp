@@ -253,6 +253,7 @@ export function buildGraph({
   }
 
   for (const v of vendors) {
+    const enrich = vendorEnrichment?.get(v.id);
     nodes.push({
       id: `vendor:${v.id}`,
       type: "vendor",
@@ -262,6 +263,10 @@ export function buildGraph({
         sub: v.industry,
         vendor: v,
         ruleCount: vendorRuleCount.get(v.id) ?? 0,
+        industryCode: enrich?.industryCode ?? v.industry ?? null,
+        industryLabel: enrich?.industryLabel ?? null,
+        historyDist: enrich?.historyDist ?? null,
+        historyTotal: enrich?.historyTotal ?? 0,
       },
     });
   }
