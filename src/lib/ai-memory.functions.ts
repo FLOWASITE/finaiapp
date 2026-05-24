@@ -158,12 +158,12 @@ export const promoteSuggestion = createServerFn({ method: "POST" })
         when_text: z.string().trim().min(1).max(2000).optional(),
         then_text: z.string().trim().min(1).max(2000).optional(),
       })
+      .merge(ruleV2PartialSchema)
       .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { supabase, tenantId } = context;
 
-    // Load current suggestion để fallback nếu UI không gửi đủ thông tin.
     const { data: current, error: loadErr } = await supabase
       .from("ai_memory_rules")
       .select("title,when_text,then_text")
@@ -173,39 +173,69 @@ export const promoteSuggestion = createServerFn({ method: "POST" })
     if (loadErr) throw new Error(loadErr.message);
     if (!current) throw new Error("Không tìm thấy đề xuất");
 
-    // Quyết định mẫu + slot.
-    let templateId = data.template_id;
-    let slots = data.slots ?? {};
-    if (!templateId || Object.keys(slots).length === 0) {
-      const parsed = parseSuggestion(current as { title: string; when_text: string; then_text: string });
-      templateId = templateId ?? parsed.templateId;
-      slots = Object.keys(slots).length === 0 ? parsed.slots : slots;
+    const hasV2 =
+      (data.conditions && data.conditions.length > 0) ||
+      (data.actions && data.actions.length > 0);
+
+    let finalTitle = (data.title ?? current.title ?? "").trim();
+    let finalWhen = (data.when_text ?? current.when_text ?? "").trim();
+    let finalThen = (data.then_text ?? current.then_text ?? "").trim();
+    let originSuffix = `Tạo từ đề xuất ngày ${new Date().toLocaleDateString("vi-VN")}`;
+    let templateIdResult: string | undefined = data.template_id;
+
+    if (!hasV2) {
+      let templateId = data.template_id;
+      let slots = data.slots ?? {};
+      if (!templateId || Object.keys(slots).length === 0) {
+        const parsed = parseSuggestion(
+          current as { title: string; when_text: string; then_text: string },
+        );
+        templateId = templateId ?? parsed.templateId;
+        slots = Object.keys(slots).length === 0 ? parsed.slots : slots;
+      }
+      const tpl = templateId ? TEMPLATES_BY_ID[templateId] : undefined;
+      if (!tpl) throw new Error("Mẫu quy tắc không hợp lệ");
+      const rendered = renderRule(templateId!, slots);
+      finalTitle = (data.title ?? rendered.title).trim();
+      finalWhen = (data.when_text ?? rendered.when_text).trim();
+      finalThen = (data.then_text ?? rendered.then_text).trim();
+      originSuffix += ` — mẫu: ${tpl.label}`;
+      templateIdResult = templateId;
     }
 
-    const tpl = TEMPLATES_BY_ID[templateId!];
-    if (!tpl) throw new Error("Mẫu quy tắc không hợp lệ");
+    const v2Patch = buildV2Patch(
+      {
+        conditions: data.conditions,
+        actions: data.actions,
+        mode: data.mode,
+        confidence_threshold: data.confidence_threshold,
+        applies_to: data.applies_to,
+        enabled: data.enabled,
+        status: data.status,
+      },
+      finalWhen,
+      finalThen,
+    );
 
-    // Ưu tiên text đã render từ UI; nếu thiếu, render lại từ slot ở server.
-    const rendered = renderRule(templateId!, slots);
-    const finalTitle = (data.title ?? rendered.title).trim();
-    const finalWhen = (data.when_text ?? rendered.when_text).trim();
-    const finalThen = (data.then_text ?? rendered.then_text).trim();
+    const updatePayload: Record<string, unknown> = {
+      type: "active",
+      source: "user-taught",
+      title: finalTitle,
+      when_text: finalWhen,
+      then_text: finalThen,
+      origin: originSuffix,
+      ...v2Patch,
+    };
+    if (updatePayload.status === undefined) updatePayload.status = "active";
+    if (updatePayload.enabled === undefined) updatePayload.enabled = true;
 
-    const today = new Date().toLocaleDateString("vi-VN");
     const { error } = await supabase
       .from("ai_memory_rules")
-      .update({
-        type: "active",
-        source: "user-taught",
-        title: finalTitle,
-        when_text: finalWhen,
-        then_text: finalThen,
-        origin: `Tạo từ đề xuất ngày ${today} — mẫu: ${tpl.label}`,
-      })
+      .update(updatePayload as never)
       .eq("id", data.id)
       .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
-    return { ok: true, template_id: templateId };
+    return { ok: true, template_id: templateIdResult };
   });
 
 export const updateRule = createServerFn({ method: "POST" })

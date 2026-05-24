@@ -108,4 +108,11 @@ export type Rule = {
   paused_reason?: string;
   version: number;
   previous_version_id?: string;
+  /** Quy tắc còn ở dạng văn bản v1 (chưa có conditions/actions structured). */
+  is_legacy_text?: boolean;
+  /** DB type — dùng để phân biệt suggestion / active / disabled trong UI. */
+  db_type?: "suggestion" | "active" | "disabled";
+  /** when_text / then_text gốc (v1) — để hiển thị khi chưa migrate. */
+  legacy_when_text?: string;
+  legacy_then_text?: string;
 };
