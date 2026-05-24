@@ -164,8 +164,9 @@ export const updateContext = createServerFn({ method: "POST" })
       const newVal = patch.value_text.trim();
       const { error: e2 } = await supabase
         .from("tenants")
-        .update({ [tenantCol]: newVal })
+        .update({ [tenantCol]: newVal } as any)
         .eq("id", tenantId);
+
       if (e2) throw new Error(e2.message);
       // Trigger DB sẽ đồng bộ lại ai_memory_context với format chuẩn.
       return { ok: true };
