@@ -79,6 +79,7 @@ export function RuleCard({
   onSave,
   onApprove,
   onReject,
+  onDelete,
 }: {
   rule: Rule;
   onToggleEnabled?: (id: string, enabled: boolean, reason?: string) => void;
@@ -87,13 +88,40 @@ export function RuleCard({
   onApprove?: (rule: Rule) => void;
   /** Từ chối / xoá đề xuất. */
   onReject?: (rule: Rule) => void;
+  /** Xoá quy tắc khỏi DB. */
+  onDelete?: (rule: Rule) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [reason, setReason] = useState("");
   const storeToggle = useRuleStore((s) => s.toggleEnabled);
   const toggleEnabled = onToggleEnabled ?? storeToggle;
   const isSuggestion = rule.db_type === "suggestion";
+
+  // Mở editor với pre-fill structured cho rule v1 (banner) hoặc suggestion.
+  const openEditorWithPrefill = () => {
+    if (rule.is_legacy_text && rule.conditions.length === 0 && rule.actions.length === 0) {
+      const parsed = legacyTextToRuleV2({
+        title: rule.name,
+        when_text: rule.legacy_when_text,
+        then_text: rule.legacy_then_text,
+      });
+      // Mutate draft thông qua editor: dùng rule clone với conditions/actions đã parse.
+      // Trick: chuyển rule prop đã pre-fill xuống editor.
+      setPrefilled({
+        ...rule,
+        conditions: parsed.conditions,
+        actions: parsed.actions,
+      });
+      setEditOpen(true);
+      return;
+    }
+    setPrefilled(null);
+    setEditOpen(true);
+  };
+  const [prefilled, setPrefilled] = useState<Rule | null>(null);
 
   const badge = SOURCE_BADGE[rule.source];
   const pill = statusPill(rule);
