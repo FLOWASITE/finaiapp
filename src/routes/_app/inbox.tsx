@@ -30,7 +30,10 @@ import {
   Eye,
   Archive,
   MinusCircle,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
+import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 import { useWorkspace } from "@/hooks/use-workspace";
 import mascotSrc from "@/assets/fin-mascot.png";
 
