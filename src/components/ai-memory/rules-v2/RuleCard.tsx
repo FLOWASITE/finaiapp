@@ -12,6 +12,9 @@ import {
   Power,
   Pencil,
   History as HistoryIcon,
+  AlertTriangle,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
