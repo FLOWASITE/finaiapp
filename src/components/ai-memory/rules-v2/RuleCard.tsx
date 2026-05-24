@@ -74,16 +74,23 @@ export function RuleCard({
   rule,
   onToggleEnabled,
   onSave,
+  onApprove,
+  onReject,
 }: {
   rule: Rule;
   onToggleEnabled?: (id: string, enabled: boolean, reason?: string) => void;
   onSave?: (rule: Rule) => Promise<void> | void;
+  /** Chấp nhận đề xuất (mở RuleEditor để hoàn thiện trước khi promote). */
+  onApprove?: (rule: Rule) => void;
+  /** Từ chối / xoá đề xuất. */
+  onReject?: (rule: Rule) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
   const [reason, setReason] = useState("");
   const storeToggle = useRuleStore((s) => s.toggleEnabled);
   const toggleEnabled = onToggleEnabled ?? storeToggle;
+  const isSuggestion = rule.db_type === "suggestion";
 
   const badge = SOURCE_BADGE[rule.source];
   const pill = statusPill(rule);
@@ -157,7 +164,40 @@ export function RuleCard({
         </div>
       )}
 
-      {!disabled && (
+      {/* Legacy text banner (v1) */}
+      {!disabled && rule.is_legacy_text && (
+        <div className="mt-3 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2.5 dark:border-amber-700/40 dark:bg-amber-950/30">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1 text-[12px] text-amber-900 dark:text-amber-200">
+              <div className="font-semibold">Quy tắc dạng văn bản cũ</div>
+              <div className="mt-0.5 leading-snug">
+                {rule.legacy_when_text && (
+                  <span className="text-amber-900/80 dark:text-amber-200/80">
+                    KHI: {rule.legacy_when_text}
+                  </span>
+                )}
+                {rule.legacy_when_text && rule.legacy_then_text && <span> · </span>}
+                {rule.legacy_then_text && (
+                  <span className="text-amber-900/80 dark:text-amber-200/80">
+                    THÌ: {rule.legacy_then_text}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-7 border-amber-400 px-2 text-[11px] hover:bg-amber-100 dark:border-amber-600 dark:hover:bg-amber-900/40"
+                onClick={() => setEditOpen(true)}
+              >
+                Chuyển sang dạng cấu trúc <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!disabled && !rule.is_legacy_text && (
         <>
           <div className="mt-3 rounded-md bg-muted/30 p-2.5">
             <ConditionsRead conditions={rule.conditions} />
@@ -169,6 +209,29 @@ export function RuleCard({
             <RuleSettingsCompact rule={rule} />
           </div>
         </>
+      )}
+
+      {/* Suggestion approve / reject CTAs */}
+      {isSuggestion && (
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            className="h-8 flex-1 text-[12px]"
+            onClick={() => (onApprove ? onApprove(rule) : setEditOpen(true))}
+          >
+            <Check className="mr-1 h-3.5 w-3.5" /> Chấp nhận & hoàn thiện
+          </Button>
+          {onReject && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-[12px]"
+              onClick={() => onReject(rule)}
+            >
+              Bỏ qua
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Footer */}
