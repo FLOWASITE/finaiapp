@@ -1,36 +1,53 @@
-## Vấn đề
+## Mục tiêu
 
-Khi user bấm "Duyệt & ghi sổ" một hoá đơn bán hàng trong Inbox AI, hệ thống chỉ tạo `journal_entries` + `journal_lines` và đánh dấu `documents.ocr_status='done'`. **Không có dòng nào được thêm vào bảng `sales_invoices`** → danh sách phiếu bán hàng (Trung tâm bán hàng) không hiển thị hoá đơn này.
+Khi bấm **Duyệt & ghi sổ** với hoá đơn bán hàng trong Inbox AI:
+- Tạo đúng bản ghi trong **Phiếu bán hàng** (`sales_vouchers`), không chỉ tạo `sales_invoices`.
+- Phiếu bán hàng có dòng hàng hoá/dịch vụ đầy đủ.
+- Card Inbox AI đổi trạng thái sau khi duyệt, không còn nhìn như “chưa xử lý”.
+- Nếu tạo phiếu thất bại, UI phải báo lỗi thật, không được báo “Đã ghi sổ” giả.
 
-So sánh: với hoá đơn mua, AI gọi tool `createPurchaseInvoice` trước, tạo dòng trong `invoices` rồi mới hạch toán. Phía bán chưa có bước tương đương.
+## Kế hoạch sửa
 
-## Giải pháp
+1. **Sửa backend duyệt Inbox AI**
+   - Trong `src/lib/inbox-ai.functions.ts`, thay helper hiện tại bằng helper tạo/ghép **sales_vouchers** từ XML hoá đơn bán ra.
+   - Lấy dữ liệu từ `documents.ocr_extracted` và `ai_uploads.parsed._einvoice` để tránh thiếu dữ liệu khi một nguồn parse không đủ.
+   - Tìm/tạo khách hàng theo MST người mua.
+   - Tạo `sales_vouchers` với:
+     - `voucher_no` dạng `BHYYYY-xxxxx` hoặc theo số HĐ nếu phù hợp.
+     - `voucher_date`, `customer_name`, `customer_tax_id`, `customer_address`.
+     - `subtotal`, `vat_amount`, `total`, `payment_status='unpaid'`, `status='posted'`.
+     - `journal_entry_id` trỏ tới bút toán vừa tạo.
+   - Tạo `sales_voucher_lines` từ hàng hoá/dịch vụ XML với `qty`, `unit_price`, `amount`, `vat_rate`, `vat_amount`, `total`, tài khoản doanh thu/thuế mặc định.
+   - Vẫn có thể tạo/ghép `sales_invoices` để liên kết hoá đơn điện tử nếu cần, nhưng **danh sách Phiếu bán hàng sẽ đọc từ `sales_vouchers`**.
 
-Trong `approveInboxItem` (`src/lib/inbox-ai.functions.ts`), khi `source === "document"` và document có `doc_kind === "sales_invoice"`:
+2. **Không nuốt lỗi tạo phiếu**
+   - Hiện tại helper có thể fail nhưng `approveInboxItem` vẫn trả thành công nên UI báo “Đã ghi sổ”.
+   - Sửa để nếu document là `sales_invoice` mà không tạo/ghép được phiếu bán hàng thì server function ném lỗi rõ ràng.
+   - Chỉ đánh dấu chứng từ đã xử lý sau khi tạo phiếu/bút toán/decision thành công.
 
-1. Đọc `documents` + `ai_uploads.parsed` để lấy dữ liệu eInvoice đã parse (seller, buyer, lines, totals, series, invoice number).
-2. Tìm/tạo `customers` theo `buyer.tax_id` (nếu chưa có thì insert tối thiểu name + tax_id + address + email).
-3. Insert một dòng `sales_invoices`:
-   - `user_id`, `tenant_id`, `customer_id`, `customer_name`, `customer_tax_id`, `billing_address`
-   - `invoice_no` = `series + "-" + invoice_number` (nếu có), `issue_date` = ngày trên XML hoặc `entry_date`
-   - `currency = "VND"`, `subtotal`, `vat_amount`, `total` từ `_einvoice.totals`
-   - `status = "approved"` (đã ghi sổ), `source = "einvoice_xml"`, `source_document_id` (nếu cột có)
-4. Insert `sales_invoice_lines` từ `_einvoice.lines` (description, qty, unit_price, vat_rate, amount, pre_vat / vat tính lại).
-5. Lưu `sales_invoice_id` vào `journal_entries.invoice_id` (hoặc một cột phụ nếu schema tách) để liên kết bút toán ↔ hoá đơn.
-6. Cập nhật `documents.ref_table='sales_invoices', ref_id=<new id>` (nếu cột tồn tại) để tab Hoá đơn bán ra link sang chứng từ.
+3. **Sửa refresh UI sau duyệt**
+   - Trong `src/routes/_app/inbox.tsx`, sau duyệt thành công sẽ invalidate thêm:
+     - `sales-vouchers`
+     - `sales-invoices`
+     - `sales-dashboard`
+     - các query sổ sách liên quan qua helper hiện có.
+   - Với card vừa duyệt, cập nhật optimistic/local state sang `posted` hoặc loại khỏi Inbox ngay để người dùng thấy trạng thái đổi tức thì.
 
-Nếu document đã có sẵn `sales_invoices` (do đã được tạo bởi luồng XML store trước đây), **không insert lần nữa** — chỉ link và ghi sổ. Kiểm tra trùng theo `(tenant_id, invoice_no, customer_tax_id)` hoặc theo `source_document_id`.
+4. **Bổ sung hiển thị trạng thái card**
+   - Đảm bảo card dùng `processing_status='posted'` sau approve thay vì giữ `auto_ready/ready`.
+   - Nếu refresh server chưa kịp trả dữ liệu mới, UI vẫn hiển thị “Đã hạch toán/Đã ghi sổ” cho item vừa duyệt.
 
-Bọc bước này trong try/catch: nếu tạo sales_invoices fail, vẫn cho phép journal entry tồn tại nhưng trả về cảnh báo cho UI (không chặn ghi sổ).
+5. **Kiểm tra dữ liệu hiện có**
+   - Backfill hoá đơn `1C26TYY_00000138.xml` đang có `sales_invoice_id` nhưng chưa có `sales_vouchers` tương ứng.
+   - Liên kết `sales_vouchers.journal_entry_id` với bút toán đã tạo để nó xuất hiện trong danh sách phiếu bán hàng và danh sách chứng từ/sổ sách.
 
-## Kỹ thuật
+## File dự kiến sửa
 
-- File chỉnh: `src/lib/inbox-ai.functions.ts` (thêm helper `materializeSalesInvoiceFromDocument`).
-- Truy vấn schema thực tế của `sales_invoices` để biết các cột bắt buộc (xem `sales.functions.ts` lines 174–230 làm tham chiếu payload).
-- Không thay đổi UI; danh sách `/sales` đã đọc từ `sales_invoices` nên sẽ tự xuất hiện.
-- Không tạo migration mới (dùng cột hiện có). Nếu thiếu cột `source_document_id`/`source` thì sẽ thêm migration nhỏ (chỉ khi cần).
+- `src/lib/inbox-ai.functions.ts`
+- `src/routes/_app/inbox.tsx`
 
-## Kết quả mong đợi
+## Xác nhận sau khi sửa
 
-- Sau khi duyệt hoá đơn bán XML trong Inbox AI: xuất hiện trong **Trung tâm bán hàng → Hoá đơn bán** với đúng số HĐ, KH, tổng tiền, trạng thái "Đã duyệt", có link sang bút toán và file XML gốc.
-- Hoá đơn mua giữ nguyên hành vi hiện tại.
+- Query database kiểm tra có dòng mới trong `sales_vouchers` và `sales_voucher_lines`.
+- Mở/refresh danh sách **Bán hàng → Phiếu bán hàng** phải thấy phiếu.
+- Card Inbox AI phải đổi trạng thái sau khi duyệt hoặc biến khỏi danh sách chờ xử lý.

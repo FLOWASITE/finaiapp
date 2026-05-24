@@ -184,6 +184,228 @@ async function materializeSalesInvoiceFromDocument(
   return inv.id as string;
 }
 
+/**
+ * Materialize a row in `sales_vouchers` (+ lines) — đây mới là bảng mà
+ * trang "Trung tâm bán hàng → Phiếu bán hàng" (/sales/vouchers) đọc.
+ * Idempotent theo `tenant_id + voucher_no` hoặc theo journal_entry_id.
+ * Throw nếu insert fail để approveInboxItem không nuốt lỗi.
+ */
+async function materializeSalesVoucherFromDocument(
+  supabase: any,
+  opts: {
+    documentId: string;
+    tenantId: string;
+    userId: string;
+    entryDate: string;
+    journalEntryId: string;
+    salesInvoiceId: string | null;
+  },
+): Promise<string | null> {
+  const { documentId, tenantId, userId, entryDate, journalEntryId, salesInvoiceId } = opts;
+
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id, doc_kind, ai_upload_id, ocr_extracted, original_filename")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.doc_kind !== "sales_invoice") return null;
+
+  // Đã có phiếu liên kết với bút toán này → cập nhật & thoát
+  const { data: existingByEntry } = await supabase
+    .from("sales_vouchers")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("journal_entry_id", journalEntryId)
+    .maybeSingle();
+  if (existingByEntry?.id) return existingByEntry.id as string;
+
+  // Lấy dữ liệu từ ai_uploads.parsed._einvoice (đầy đủ nhất), fallback ocr_extracted
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+  const buyer = ein?.buyer ?? ext?.buyer ?? {};
+  const totals = ein?.totals ?? {};
+  const rawLines: any[] = Array.isArray(ein?.lines)
+    ? ein.lines
+    : Array.isArray(ext?.items)
+    ? ext.items
+    : Array.isArray(ext?.lines)
+    ? ext.lines
+    : Array.isArray(ext?.line_items)
+    ? ext.line_items
+    : [];
+
+  const series: string | null = ein?.series ?? ext?.invoice_series ?? null;
+  const invoiceNo: string | null = ein?.invoice_no ?? ext?.invoice_no ?? ext?.invoice_number ?? null;
+  const rawDate = ein?.issue_date ?? ext?.invoice_date ?? ext?.issue_date ?? entryDate;
+  const issueDate = (() => {
+    if (!rawDate || typeof rawDate !== "string") return entryDate;
+    const m = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : rawDate.slice(0, 10);
+  })();
+
+  const subtotal = Number(totals.subtotal ?? ext.subtotal ?? 0);
+  const vat = Number(totals.vat_amount ?? ext.vat_amount ?? 0);
+  const total = Number(
+    totals.total ?? ext.total_amount ?? ext.total ?? subtotal + vat,
+  );
+
+  // Tìm/tạo customer theo MST người mua
+  let customerId: string | null = null;
+  if (buyer.tax_id) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("tax_id", buyer.tax_id)
+      .maybeSingle();
+    if (cust?.id) {
+      customerId = cust.id;
+    } else {
+      const { data: created } = await supabase
+        .from("customers")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name: buyer.name ?? "Khách hàng",
+          tax_id: buyer.tax_id,
+          email: buyer.email || null,
+          phone: buyer.phone || null,
+          address: buyer.address || null,
+        })
+        .select("id")
+        .single();
+      customerId = created?.id ?? null;
+    }
+  }
+
+  // Sinh voucher_no: theo số HĐ nếu có, không trùng thì fallback BHYYYY-#####
+  const yyyy = String(new Date(issueDate).getFullYear());
+  let voucherNo = invoiceNo ? `${series ? series + "-" : ""}${invoiceNo}` : "";
+  if (voucherNo) {
+    const { data: dup } = await supabase
+      .from("sales_vouchers")
+      .select("id, journal_entry_id")
+      .eq("tenant_id", tenantId)
+      .eq("voucher_no", voucherNo)
+      .maybeSingle();
+    if (dup?.id) {
+      // Đã có phiếu — chỉ cập nhật journal_entry_id nếu chưa có
+      if (!dup.journal_entry_id) {
+        await supabase
+          .from("sales_vouchers")
+          .update({
+            journal_entry_id: journalEntryId,
+            status: "posted",
+            posted_at: new Date().toISOString(),
+          })
+          .eq("id", dup.id);
+      }
+      return dup.id as string;
+    }
+  }
+  if (!voucherNo) {
+    const prefix = `BH${yyyy}-`;
+    const { data: last } = await supabase
+      .from("sales_vouchers")
+      .select("voucher_no")
+      .eq("tenant_id", tenantId)
+      .ilike("voucher_no", `${prefix}%`)
+      .order("voucher_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    let next = 1;
+    if (last?.voucher_no) {
+      const m = /(\d+)$/.exec(last.voucher_no);
+      if (m) next = parseInt(m[1], 10) + 1;
+    }
+    voucherNo = `${prefix}${String(next).padStart(5, "0")}`;
+  }
+
+  const vatRateHeader = subtotal > 0 ? Math.round((vat / subtotal) * 100) : 0;
+
+  const { data: voucher, error: vErr } = await supabase
+    .from("sales_vouchers")
+    .insert({
+      user_id: userId,
+      tenant_id: tenantId,
+      voucher_no: voucherNo,
+      voucher_date: issueDate,
+      customer_id: customerId,
+      customer_name: buyer.name ?? null,
+      customer_tax_id: buyer.tax_id ?? null,
+      customer_address: buyer.address ?? null,
+      reason: `Hóa đơn bán ra ${voucherNo}${buyer.name ? ` — ${buyer.name}` : ""}`,
+      currency: ein?.currency ?? "VND",
+      exchange_rate: 1,
+      subtotal,
+      vat_amount: vat,
+      total,
+      paid_amount: 0,
+      debit_account: "131",
+      credit_account: "5111",
+      vat_account: vat > 0 ? "33311" : null,
+      payment_method: "credit",
+      payment_status: "unpaid",
+      pay_now: false,
+      issue_einvoice: false,
+      create_stock_voucher: false,
+      status: "posted",
+      posted_at: new Date().toISOString(),
+      journal_entry_id: journalEntryId,
+      notes: `Tự tạo từ Inbox AI khi duyệt chứng từ (${doc.original_filename ?? ""}).`,
+    })
+    .select("id")
+    .single();
+  if (vErr || !voucher) {
+    throw new Error("Không tạo được phiếu bán hàng: " + (vErr?.message ?? "unknown"));
+  }
+
+  if (rawLines.length > 0) {
+    const lineRows = rawLines.map((l: any, i: number) => {
+      const qty = Number(l.qty ?? l.quantity ?? 1);
+      const unitPrice = Number(l.unit_price ?? 0);
+      const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
+      const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
+      const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
+      return {
+        voucher_id: voucher.id,
+        line_order: i,
+        product_id: null,
+        product_code: l.product_code ?? null,
+        product_name: l.item_name ?? l.name ?? l.product_name ?? l.description ?? "—",
+        description: l.description ?? l.item_name ?? l.name ?? null,
+        unit: l.unit ?? null,
+        qty,
+        unit_price: unitPrice,
+        amount,
+        discount_pct: 0,
+        discount_amount: 0,
+        vat_rate: lineVatRate,
+        vat_amount: lineVat,
+        total: amount + lineVat,
+        credit_account: "5111",
+        vat_account: lineVat > 0 ? "33311" : null,
+        line_type: "goods",
+      };
+    });
+    const { error: lErr } = await supabase.from("sales_voucher_lines").insert(lineRows);
+    if (lErr) {
+      // Lỗi line không huỷ phiếu, nhưng log để biết
+      console.error("[materializeSalesVoucher] lines insert failed", lErr);
+    }
+  }
+
+  return voucher.id as string;
+}
+
 const ListInput = z.object({
   tab: z.enum(["inbox", "posted", "review", "documents"]).default("inbox"),
   search: z.string().max(200).optional().default(""),
@@ -385,16 +607,30 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
-      try {
-        await materializeSalesInvoiceFromDocument(supabase, {
+      // Hoá đơn BÁN RA → vật chất hoá sang sales_invoices (cho danh sách HĐ bán)
+      // và sales_vouchers (cho danh sách Phiếu bán hàng). Nếu fail thì THROW
+      // để UI thấy lỗi thật, không báo "Đã ghi sổ" giả.
+      const { data: docMeta } = await supabase
+        .from("documents")
+        .select("doc_kind")
+        .eq("id", data.external_id)
+        .maybeSingle();
+      if (docMeta?.doc_kind === "sales_invoice") {
+        const salesInvoiceId = await materializeSalesInvoiceFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
           userId,
           entryDate: data.entry_date,
           journalEntryId: entry.id,
         });
-      } catch (e: any) {
-        console.warn("[approveInboxItem] materializeSalesInvoice failed:", e?.message);
+        await materializeSalesVoucherFromDocument(supabase, {
+          documentId: data.external_id,
+          tenantId,
+          userId,
+          entryDate: data.entry_date,
+          journalEntryId: entry.id,
+          salesInvoiceId,
+        });
       }
     } else if (data.source === "ai_insight") {
       await supabase
