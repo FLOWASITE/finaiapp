@@ -6,10 +6,23 @@ export type ProposalLine = {
   memo?: string;
 };
 
+export type VoucherKind =
+  | "purchase_invoice"
+  | "sales_invoice"
+  | "bank_receipt"
+  | "bank_payment"
+  | "cash_receipt"
+  | "cash_payment"
+  | "ai_insight";
+
+export type VoucherMeta = Record<string, string | number | null | undefined>;
+
 export type Proposal = {
   description: string;
   entry_date: string;
   lines: ProposalLine[];
+  voucher_kind?: VoucherKind;
+  meta?: VoucherMeta;
 };
 
 export type ReasoningSignal = {
