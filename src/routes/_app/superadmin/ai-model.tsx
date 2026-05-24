@@ -908,8 +908,11 @@ function AiModelPage() {
           </div>
         </details>
       </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar (chỉ tab provider) */}
+      {tab === "provider" && (
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/85 backdrop-blur shadow-[0_-2px_12px_-4px_rgba(0,0,0,0.08)] md:left-60">
         <div className="mx-auto max-w-4xl flex flex-wrap items-center gap-3 px-4 py-2.5">
           {testResult && (
