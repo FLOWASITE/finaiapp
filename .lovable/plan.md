@@ -1,73 +1,38 @@
-
 ## Mục tiêu
-Hiện tại mọi agent chia sẻ chung 5 purpose (`default/chat/parse/reasoning/classify`) trong `ai_model_config`. Plan này cho phép **gán model riêng cho từng AI Agent** (10 agent) mà vẫn giữ tương thích ngược.
+Người dùng không thấy phần cấu hình model theo Agent vì nó nằm ở trang riêng (`/superadmin/ai-agents`) chỉ truy cập qua một link nhỏ. Plan này:
+1. **Gộp** trang con vào `/superadmin/ai-model` bằng **2 tab**: *Provider chung* | *Theo Agent*.
+2. **Bổ sung 3 agent rule-based** (`categorize_purchase`, `categorize_sales`, `inbox_reason`) vào danh sách, đánh dấu disabled + tooltip "Chưa gọi LLM".
 
-## 1. Database migration
-Tạo bảng `ai_agent_models`:
-- `agent_key` text PK
-- `label` text, `description` text, `purpose` text (fallback purpose)
-- `model_name` text NULL (NULL = kế thừa purpose)
-- `updated_at`, `updated_by`
-- RLS: chỉ superadmin read/write
-- Seed 10 hàng với `model_name = NULL`:
-  - `categorize_purchase` (reasoning) – Đề xuất bút toán mua vào
-  - `categorize_sales` (reasoning) – Đề xuất bút toán bán ra
-  - `inbox_reason` (reasoning) – Inbox AI giải thích
-  - `bank_reconcile` (reasoning) – Gợi ý đối soát bank
-  - `journal` (reasoning) – Soạn bút toán thủ công
-  - `parse_doc_vision` (parse) – OCR/đọc PDF, ảnh
-  - `parse_doc_text` (parse) – Đọc tài liệu text/markdown
-  - `invoice_extract` (parse) – Trích xuất hoá đơn
-  - `classify_file` (classify) – Phân loại file upload
-  - `chat` (chat) – Trợ lý kế toán viên
+## 1. Database
+Migration seed thêm 3 hàng vào `ai_agent_models`:
+- `categorize_purchase` (purpose=reasoning) – Đề xuất bút toán mua vào
+- `categorize_sales` (purpose=reasoning) – Đề xuất bút toán bán ra
+- `inbox_reason` (purpose=reasoning) – Inbox AI giải thích
 
-## 2. Resolver
-Trong `src/lib/ai-gateway.server.ts` thêm:
-```ts
-export type AgentKey =
-  | "categorize_purchase" | "categorize_sales" | "inbox_reason"
-  | "bank_reconcile" | "journal" | "parse_doc_vision"
-  | "parse_doc_text" | "invoice_extract" | "classify_file" | "chat";
+Thêm cột `is_active boolean default true`. Set `false` cho 3 agent trên để UI hiển thị disabled.
 
-export async function resolveAgentModel(agentKey: AgentKey, fallback: string)
-```
-Logic:
-1. Đọc `ai_agent_models[agentKey]` (cache chung TTL 30s).
-2. Nếu `model_name` có → build provider (custom hoặc Lovable) với model đó.
-3. Nếu NULL → gọi `resolveActiveModel(row.purpose, fallback)`.
+## 2. UI gộp tab
+Sửa `src/routes/_app/superadmin/ai-model.tsx`:
+- Bọc nội dung hiện tại bằng component `<Tabs>` (shadcn) với 2 tab:
+  - **Provider chung** — toàn bộ form hiện tại (presets, base URL, API key, model purposes...).
+  - **Theo Agent** — nhúng nội dung lấy từ `ai-agents.tsx`: list card 10 agent + input model.
+- Bỏ link "Cấu hình model riêng cho từng AI Agent →" (không còn cần).
+- Giữ route `/superadmin/ai-agents` redirect sang `/superadmin/ai-model?tab=agents` để khỏi vỡ link cũ.
 
-Giữ `resolveActiveModel` để không phá API cũ.
+## 3. UI agent card (cho rule-based)
+Trong tab "Theo Agent":
+- Hiển thị 10 card. Agent có `is_active=false` → input disabled, badge "Chưa dùng LLM", tooltip giải thích "Engine rule-based, sẽ kích hoạt khi tích hợp LLM".
+- Vẫn hiển thị `purpose` + `effective_model` để khi tương lai bật LLM thì chỉ cần đổi flag.
 
-## 3. Đổi call-site
-Sửa 10 chỗ gọi `resolveActiveModel(...)` sang `resolveAgentModel(agentKey, fallback)`:
-- `categorize/engine.server.ts`, `categorize/sales-engine.server.ts`
-- `ai/inbox-reason.server.ts`
-- `bank.functions.ts` (suggest reconcile)
-- `journal.functions.ts`
-- `ai/parse-document.functions.ts` (2 chỗ: visionModel, textModel)
-- `invoices.functions.ts`
-- `ai/classify-file.server.ts` (cả 2 nhánh)
-- `chat.functions.ts`
+## 4. Files thay đổi
+- **Migration**: seed 3 agent + thêm cột `is_active`.
+- **Sửa**: `src/routes/_app/superadmin/ai-model.tsx` (thêm Tabs + import lại logic từ ai-agents).
+- **Sửa**: `src/routes/_app/superadmin/ai-agents.tsx` → đổi thành redirect, hoặc xoá và đăng ký redirect ở route khác.
+- **Sửa**: `src/lib/ai-agent-models.functions.ts` → trả thêm field `is_active`.
 
-## 4. Server functions mới
-Trong `src/lib/ai-config.functions.ts` (hoặc file mới `ai-agent-models.functions.ts`):
-- `getAgentModels()` → list 10 agent + model hiện effective
-- `saveAgentModel({ agentKey, modelName })` (superadmin only) → invalidate cache
-
-## 5. UI Super Admin
-Tại `/superadmin/ai-model`, thêm tab **"Theo Agent"** (giữ nguyên tab cấu hình provider hiện có):
-- Hiển thị 10 card agent (icon, tên, mô tả, purpose fallback)
-- Mỗi card: dropdown chọn model (dùng `listAiModels()` sẵn có) + option "Kế thừa mặc định ({purpose})"
-- Badge: "Đang dùng: {modelName}" (effective)
-- Nút **Lưu** từng agent + **Reset tất cả**
-
-## 6. Không đụng tới
-- Calibration / Promote Rules / Feedback loop (không gọi LLM)
-- Schema và logic nghiệp vụ khác
+## 5. Không đụng tới
+- Resolver `resolveAgentModel`, call-sites trong các function file.
+- Logic Calibration / Feedback / Promote rules.
 
 ## Kết quả
-Super Admin có thể, ví dụ:
-- Đặt Categorize dùng `gpt-5-mini` (chính xác hơn)
-- Đặt Inbox dùng `gemini-2.5-flash-lite` (rẻ, nhanh)
-- Đặt Parse Vision dùng `gemini-2.5-pro`
-- Các agent khác vẫn kế thừa cấu hình purpose mặc định.
+Vào `/superadmin/ai-model` → thấy ngay 2 tab. Tab "Theo Agent" hiển thị 10 card; 7 agent đang dùng LLM có thể chỉnh model, 3 agent rule-based hiển thị disabled kèm ghi chú.
