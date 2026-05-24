@@ -85,6 +85,7 @@ import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs"
 import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 import { RulesListV2 } from "@/components/ai-memory/rules-v2/RulesListV2";
 import { MemoryGraph } from "@/components/ai-memory/graph/MemoryGraph";
+import { AgentsOfFinPanel } from "@/components/ai-memory/agents/AgentsOfFinPanel";
 import { listContext } from "@/lib/ai-memory-context.functions";
 import { listPartners } from "@/lib/ai-memory-partners.functions";
 import { listLimits } from "@/lib/ai-memory-limits.functions";
