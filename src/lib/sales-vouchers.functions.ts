@@ -1160,17 +1160,18 @@ export const stickSalesStockVoucher = createServerFn({ method: "POST" })
       ]);
     }
 
+    const autoNo = await nextStockVoucherNo(supabase, v.tenant_id ?? null, userId, "out", v.voucher_date);
     const { data: sv, error } = await supabase
       .from("stock_vouchers")
       .insert({
         user_id: userId,
         tenant_id: v.tenant_id,
-        voucher_no: `XK-${v.voucher_no}`,
+        voucher_no: autoNo,
         voucher_type: "out",
         voucher_date: v.voucher_date,
         warehouse_id: warehouseId,
         counter_account: "632",
-        reason: `Xuất kho bổ sung từ ${v.voucher_no}`,
+        reason: `Xuất kho bổ sung từ phiếu bán ${v.voucher_no}`,
         journal_entry_id: stockEntryId,
       })
       .select("id")
