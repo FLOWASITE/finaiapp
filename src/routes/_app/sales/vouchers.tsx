@@ -1276,6 +1276,7 @@ function SalesVouchersPage() {
         loading={voidMut.isPending}
         onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
       />
+      <StickStockVoucherDialog target={stickTarget} onClose={() => setStickTarget(null)} />
     </div>
     </div>
   );
