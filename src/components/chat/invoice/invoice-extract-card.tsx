@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
 import { cn } from "@/lib/utils";
+import { kindMeta, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
