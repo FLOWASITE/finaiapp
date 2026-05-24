@@ -1,33 +1,56 @@
 ## Vấn đề
 
-Trên thẻ "Đề xuất của Fin" cho phiếu mua hàng, vùng Đối tác hiển thị **"Chưa xác định tên"** mặc dù hoá đơn đã được parse đầy đủ (số HĐ, ngày, subtotal, VAT, dòng hàng…).
+UI gợi ý của Fin (sheet `inbox-item-sheet.tsx`) không hiển thị danh sách hàng hoá / dịch vụ, mặc dù OCR của tài liệu đã trích xuất đầy đủ (`items[]` trong `ocr_extracted`).
 
-## Nguyên nhân
+Đồng thời, khi rà DB thực tế thấy `buildDocumentItem` đang đọc sai tên trường: OCR lưu `seller_legal_name`, `seller_tax_code`, `invoice_number`, `total_amount`, `net_amount`, `items[]` — nhưng code đang đọc `supplier_name`, `vendor_name`, `total`, `subtotal`, không có nhánh nào đọc `items`. Đây cũng là lý do nhiều phiếu vẫn rơi vào "Chưa xác định tên" / không có meta dù OCR đã parse xong.
 
-1. **Sai key OCR.** OCR ghi vào `documents.ocr_extracted` với key `vendor_name` / `vendor_tax_id`, nhưng `buildDocumentItem` ở `src/lib/ai/inbox-reason.server.ts` chỉ đọc `supplier_name` / `partner` và `supplier_tax_id` / `tax_id`. Không match → `supplier = "—"` → `partner = "—"` → UI fallback "Chưa xác định tên".
+## Phạm vi
 
-2. **Nhánh engine chuẩn không bao giờ chạy.** Trong `src/lib/inbox-ai.functions.ts`, query `documents` không select `invoice_id`, nên nhánh `if (doc.invoice_id) proposeJournalForInvoice(...)` luôn bị skip — kể cả khi document đã được link tới một invoice đầy đủ (có supplier chuẩn từ bảng `invoices`).
+Chỉ FE / glue: bổ sung field, thêm UI block. Không động vào DB, RLS, engine hạch toán.
 
-## Phạm vi sửa (UI/glue, không đổi business logic)
+## Thay đổi
 
-**File 1 — `src/lib/inbox-ai.functions.ts`**
-- Bổ sung `invoice_id` vào `.select(...)` của query documents (dòng ~40).
+**1. `src/lib/ai/inbox-types.ts`** — mở rộng `Proposal`:
+```ts
+items?: Array<{ name: string; qty?: number; unit_price?: number; amount: number }>;
+```
 
-**File 2 — `src/lib/ai/inbox-reason.server.ts`** (trong `buildDocumentItem`)
-- Đọc supplier theo thứ tự ưu tiên: `ext.supplier_name ?? ext.vendor_name ?? ext.partner ?? ext.seller_name`.
-- Đọc tax id: `ext.supplier_tax_id ?? ext.vendor_tax_id ?? ext.tax_id ?? ext.seller_tax_id`.
-- Đọc invoice_no: thêm `ext.invoice_number` vào fallback chain.
-- Đọc date: thêm `ext.issue_date` vào fallback chain (hiện đang đọc `invoice_date`, nhưng DB lưu `issue_date`).
-- Áp dụng đồng nhất ở cả 2 nhánh (engine path + manual fallback path) và cho `meta.supplier_name`, `meta.supplier_tax_id`, `meta.invoice_date`.
+**2. `src/lib/ai/inbox-reason.server.ts` — `buildDocumentItem`**
 
-## Không đụng tới
+- Bổ sung alias đọc OCR (ưu tiên giá trị có sẵn, fallback dần):
+  - `amount`     ← `ext.total_amount ?? ext.total ?? ext.amount`
+  - `supplier`   ← `… ?? ext.seller_legal_name`
+  - `supplierTaxId` ← `… ?? ext.seller_tax_code`
+  - `invoiceNo`  ← `ext.invoice_number ?? ext.invoice_no ?? ext.number`
+  - `subtotal`   ← `ext.net_amount ?? ext.subtotal ?? max(0, amount-vat)`
+- Chuẩn hoá `invoice_date`: nếu match `dd/mm/yyyy` → đổi sang `yyyy-mm-dd`.
+- Build `items` từ `ext.items ?? ext.lines ?? ext.line_items`:
+  ```ts
+  items = rawItems.map(r => ({
+    name: r.item_name ?? r.name ?? r.description ?? "—",
+    qty: Number(r.quantity ?? r.qty) || undefined,
+    unit_price: Number(r.unit_price) || undefined,
+    amount: Number(r.total_amount ?? r.amount ?? 0),
+  }));
+  ```
+- Gắn `items` vào `proposal` ở cả hai nhánh: engine path (line 182–200) và fallback path (line 298–316).
 
-- Schema DB, RLS, migrations.
-- Logic `proposeJournalForInvoice` / `categorize/engine.server.ts`.
-- UI sheet (`inbox-item-sheet.tsx`) — chỉ cần dữ liệu đúng là hiển thị đúng.
+**3. `src/components/inbox/inbox-item-sheet.tsx`**
 
-## Kết quả mong đợi
+Thêm block mới giữa `VoucherMetaGrid` (line 299) và "Trust strip" (line 304):
 
-- Đối tác hiển thị đúng tên NCC từ XML (ví dụ "CÔNG TY …").
-- MST đối tác hiện trong VoucherMetaGrid.
-- Khi document đã link invoice, dùng engine chuẩn (vendor template, line classification) thay vì fallback heuristic.
+```text
+┌─ Hàng hoá / dịch vụ ───────────────┐
+│ 1. Phí kế toán Q4.2025  1×6.000.000  6.000.000đ │
+│ 2. Phí kế toán Q1.2026  1×6.000.000  6.000.000đ │
+└────────────────────────────────────┘
+```
+
+- Component `ProposalItemsList({ items })` — null nếu rỗng.
+- Mỗi dòng: STT · tên (truncate) · `qty × unit_price` (nếu có) · amount (right-align, tabular-nums).
+- Style đồng bộ với block "Bút toán đề xuất" (rounded-2xl, border, bg-muted/30, label uppercase tracking-widest).
+- Không thêm nút bấm, không edit-in-place — chỉ hiển thị.
+
+## Verify
+
+Sau khi áp dụng, mở 1 inbox item có `documents.ocr_extracted.items` (vd UUID đã trích trong DB): phải thấy đủ NCC, MST, các trường meta, và block "Hàng hoá / dịch vụ" liệt kê 2 dòng dịch vụ kế toán.

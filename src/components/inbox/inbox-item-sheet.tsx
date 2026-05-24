@@ -13,7 +13,7 @@ import {
   Check,
   FileText,
 } from "lucide-react";
-import type { InboxItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
@@ -297,6 +297,11 @@ export function InboxItemSheet({
 
               {/* Voucher meta grid */}
               <VoucherMetaGrid meta={item.proposal.meta} />
+
+              {/* Items (goods / services) */}
+              <ProposalItemsList items={item.proposal.items} />
+
+
 
 
 
@@ -637,6 +642,48 @@ function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          Hàng hoá / dịch vụ
+        </span>
+        <span className="text-[10px] font-medium text-muted-foreground">
+          {items.length} dòng
+        </span>
+      </div>
+      <ul className="space-y-2">
+        {items.map((it, i) => {
+          const hasQty = it.qty != null && it.unit_price != null;
+          return (
+            <li
+              key={i}
+              className="grid grid-cols-[20px_1fr_auto] items-start gap-3 text-xs"
+            >
+              <span className="pt-0.5 text-[10px] font-mono text-muted-foreground">
+                {i + 1}.
+              </span>
+              <div className="min-w-0">
+                <div className="truncate font-medium text-foreground">{it.name}</div>
+                {hasQty && (
+                  <div className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+                    {it.qty} × {VND(it.unit_price!)}
+                  </div>
+                )}
+              </div>
+              <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                {VND(it.amount)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
