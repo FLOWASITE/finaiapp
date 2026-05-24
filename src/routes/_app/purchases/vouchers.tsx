@@ -440,6 +440,7 @@ function PurchaseVouchersPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi ghi sổ"),
   });
   const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+  const [stickTarget, setStickTarget] = useState<StickStockTarget>(null);
 
   const openVoidDialog = async (id: string) => {
     try {
