@@ -145,6 +145,7 @@ import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/publi
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
 import { Route as ApiPublicHooksPromoteRulesRouteImport } from './routes/api/public/hooks/promote-rules'
+import { Route as ApiPublicHooksFeedbackDecayRouteImport } from './routes/api/public/hooks/feedback-decay'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as ApiPublicHooksCalibrateConfidenceRouteImport } from './routes/api/public/hooks/calibrate-confidence'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
@@ -859,6 +860,12 @@ const ApiPublicHooksPromoteRulesRoute =
     path: '/api/public/hooks/promote-rules',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksFeedbackDecayRoute =
+  ApiPublicHooksFeedbackDecayRouteImport.update({
+    id: '/api/public/hooks/feedback-decay',
+    path: '/api/public/hooks/feedback-decay',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyDigestRoute =
   ApiPublicHooksDailyDigestRouteImport.update({
     id: '/api/public/hooks/daily-digest',
@@ -1164,6 +1171,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1322,6 +1330,7 @@ export interface FileRoutesByTo {
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1489,6 +1498,7 @@ export interface FileRoutesById {
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1656,6 +1666,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -1814,6 +1825,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -1980,6 +1992,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -2004,6 +2017,7 @@ export interface RootRouteChildren {
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
   ApiPublicHooksCalibrateConfidenceRoute: typeof ApiPublicHooksCalibrateConfidenceRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
+  ApiPublicHooksFeedbackDecayRoute: typeof ApiPublicHooksFeedbackDecayRoute
   ApiPublicHooksPromoteRulesRoute: typeof ApiPublicHooksPromoteRulesRoute
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
   ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
@@ -2965,6 +2979,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPromoteRulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/feedback-decay': {
+      id: '/api/public/hooks/feedback-decay'
+      path: '/api/public/hooks/feedback-decay'
+      fullPath: '/api/public/hooks/feedback-decay'
+      preLoaderRoute: typeof ApiPublicHooksFeedbackDecayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-digest': {
       id: '/api/public/hooks/daily-digest'
       path: '/api/public/hooks/daily-digest'
@@ -3613,6 +3634,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksCalibrateConfidenceRoute:
     ApiPublicHooksCalibrateConfidenceRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
+  ApiPublicHooksFeedbackDecayRoute: ApiPublicHooksFeedbackDecayRoute,
   ApiPublicHooksPromoteRulesRoute: ApiPublicHooksPromoteRulesRoute,
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
   ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,
