@@ -100,11 +100,46 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
     if (classRes.error) throw new Error(classRes.error.message);
     // layoutRes can have null data; ignore not-found
 
+    const suppliers = (suppliersRes.data ?? []) as GraphSupplierRow[];
+
+    // Compute 12-month kind distribution per supplier from invoices.
+    // Limit work: only top ~80 suppliers by id presence in invoices.
+    const since = new Date();
+    since.setMonth(since.getMonth() - 12);
+    const sinceDate = since.toISOString().slice(0, 10);
+    const supplierIds = suppliers.map((s) => s.id);
+    const supplierHistory: Record<string, SupplierHistoryDist> = {};
+    if (supplierIds.length > 0) {
+      const { data: hist } = await supabase
+        .from("invoices")
+        .select("supplier_id, expense_account, total")
+        .eq("tenant_id", tenantId)
+        .in("supplier_id", supplierIds)
+        .gte("issue_date", sinceDate)
+        .neq("status", "void")
+        .not("expense_account", "is", null)
+        .limit(2000);
+      for (const r of (hist ?? []) as Array<{
+        supplier_id: string | null;
+        expense_account: string | null;
+        total: number | null;
+      }>) {
+        if (!r.supplier_id) continue;
+        const kind = accountToKind(r.expense_account);
+        if (!kind) continue;
+        const w = Math.max(1, Math.round(Number(r.total) || 0));
+        const dist = supplierHistory[r.supplier_id] ?? {};
+        dist[kind] = (dist[kind] ?? 0) + w;
+        supplierHistory[r.supplier_id] = dist;
+      }
+    }
+
     return {
       rules: (rulesRes.data ?? []) as GraphRuleRow[],
-      suppliers: (suppliersRes.data ?? []) as GraphSupplierRow[],
+      suppliers,
       partners: (partnersRes.data ?? []) as GraphPartnerRow[],
       classifications: (classRes.data ?? []) as GraphClassificationRow[],
+      supplierHistory,
       positions:
         (layoutRes.data?.positions as Record<string, { x: number; y: number }>) ??
         {},
