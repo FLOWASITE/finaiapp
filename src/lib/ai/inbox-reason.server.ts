@@ -141,6 +141,7 @@ export async function buildDocumentItem(
   tenantId: string,
   doc: any,
   rules: Awaited<ReturnType<typeof loadActiveRules>>,
+  prebuiltProposal?: import("@/lib/categorize/types").JournalProposalDTO,
 ): Promise<InboxItem | null> {
   const ext = (doc.ocr_extracted ?? {}) as any;
   const amount = Number(ext.total_amount ?? ext.total ?? ext.amount ?? 0);
