@@ -71,7 +71,19 @@ export const sendDigestNow = createServerFn({ method: "POST" })
       .maybeSingle();
     const template = ((prefs as any)?.template ?? "standard") as DigestTemplate;
     const { generateAndPostDigest } = await import("@/lib/digest-generator.server");
-    return generateAndPostDigest({ userId, tenantId, supabase, force: true, template });
+    const t0 = Date.now();
+    const result = await generateAndPostDigest({ userId, tenantId, supabase, force: true, template });
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "report",
+        action: `Sinh bản tóm tắt (${template})`,
+        result: "success",
+        duration_ms: Date.now() - t0,
+        metadata: { template, thread_id: result.thread_id },
+      });
+    } catch {}
+    return result;
   });
 
 /** Count digest messages newer than the timestamp (for ChatDock badge). */
