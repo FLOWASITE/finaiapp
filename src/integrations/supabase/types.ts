@@ -185,8 +185,11 @@ export type Database = {
           description: string | null
           is_active: boolean
           label: string
+          max_tokens: number | null
           model_name: string | null
+          provider_id: string | null
           purpose: string
+          temperature: number | null
           updated_at: string
           updated_by: string | null
         }
@@ -195,8 +198,11 @@ export type Database = {
           description?: string | null
           is_active?: boolean
           label: string
+          max_tokens?: number | null
           model_name?: string | null
+          provider_id?: string | null
           purpose: string
+          temperature?: number | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -205,12 +211,23 @@ export type Database = {
           description?: string | null
           is_active?: boolean
           label?: string
+          max_tokens?: number | null
           model_name?: string | null
+          provider_id?: string | null
           purpose?: string
+          temperature?: number | null
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_models_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "ai_providers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_agents: {
         Row: {
@@ -829,6 +846,51 @@ export type Database = {
           pages?: number | null
           parsed?: Json
           parser_used?: string | null
+        }
+        Relationships: []
+      }
+      ai_providers: {
+        Row: {
+          api_key_encrypted: string | null
+          base_url: string
+          code: string
+          created_at: string
+          enabled: boolean
+          extra_headers: Json
+          id: string
+          is_default: boolean
+          label: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          base_url: string
+          code: string
+          created_at?: string
+          enabled?: boolean
+          extra_headers?: Json
+          id?: string
+          is_default?: boolean
+          label: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          base_url?: string
+          code?: string
+          created_at?: string
+          enabled?: boolean
+          extra_headers?: Json
+          id?: string
+          is_default?: boolean
+          label?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
