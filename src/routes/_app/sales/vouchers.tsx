@@ -21,6 +21,7 @@ import {
   recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
+import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
 import { listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { listBranches } from "@/lib/dimensions.functions";
