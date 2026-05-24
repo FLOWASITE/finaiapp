@@ -143,6 +143,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_line_classifications: {
+        Row: {
+          account: string
+          created_at: string
+          created_by: string | null
+          hit_count: number
+          id: string
+          kind: string
+          last_used_at: string
+          line_name: string
+          line_name_norm: string
+          source: string
+          supplier_id: string | null
+          supplier_tax_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account: string
+          created_at?: string
+          created_by?: string | null
+          hit_count?: number
+          id?: string
+          kind: string
+          last_used_at?: string
+          line_name: string
+          line_name_norm: string
+          source?: string
+          supplier_id?: string | null
+          supplier_tax_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account?: string
+          created_at?: string
+          created_by?: string | null
+          hit_count?: number
+          id?: string
+          kind?: string
+          last_used_at?: string
+          line_name?: string
+          line_name_norm?: string
+          source?: string
+          supplier_id?: string | null
+          supplier_tax_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_memory_context: {
         Row: {
           category: string

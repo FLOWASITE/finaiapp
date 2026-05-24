@@ -1,11 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Check, ExternalLink, Maximize2, Sparkles } from "lucide-react";
+import { FileText, Check, ExternalLink, Maximize2, Sparkles, ChevronDown, Loader2 } from "lucide-react";
 import { getUploadSignedUrl } from "@/lib/ai/parse-document.functions";
+import {
+  saveLineClassification,
+  lookupLineClassifications,
+} from "@/lib/ai/line-classifications.functions";
 import { cn } from "@/lib/utils";
-import { kindMeta, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { kindMeta, normalizeLineName, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { XmlInvoicePreview, type EinvoiceExtras } from "./xml-invoice-preview";
@@ -77,7 +90,7 @@ export function InvoiceExtractCard({
   const subtotal = Number(parsed?.subtotal ?? 0);
   const vat = Number(parsed?.vat_amount ?? 0);
   const total = Number(parsed?.total ?? subtotal + vat);
-  const invoiceLines: Array<{
+  const rawInvoiceLines: Array<{
     description?: string | null;
     qty?: number | null;
     unit?: string | null;
@@ -85,6 +98,72 @@ export function InvoiceExtractCard({
     amount?: number | null;
     classification?: LineClassification;
   }> = Array.isArray(parsed?.lines) ? parsed.lines : [];
+
+  // Local overrides keyed by normalized line name
+  const [overrides, setOverrides] = useState<Record<string, { kind: LineKind; account: string }>>(
+    {},
+  );
+
+  // Lookup memorized classifications from DB
+  const lineNames = useMemo(
+    () => rawInvoiceLines.map((l) => l.description ?? "").filter((s) => s.trim().length > 0),
+    [rawInvoiceLines],
+  );
+  const lookupFn = useServerFn(lookupLineClassifications);
+  const { data: memoryData } = useQuery({
+    queryKey: ["ai_line_class_lookup", taxId, lineNames],
+    queryFn: () => lookupFn({ data: { supplier_tax_id: taxId, line_names: lineNames } }),
+    enabled: lineNames.length > 0,
+    staleTime: 60_000,
+  });
+  const memoryMatches = (memoryData?.matches ?? {}) as Record<
+    string,
+    { kind: LineKind; account: string; hit_count: number }
+  >;
+
+  const invoiceLines = useMemo(
+    () =>
+      rawInvoiceLines.map((l) => {
+        const key = normalizeLineName(l.description);
+        const ov = overrides[key];
+        const mem = memoryMatches[key];
+        if (ov) {
+          return {
+            ...l,
+            classification: {
+              ...(l.classification ?? { signals: [], label: "", confidence: 100 }),
+              kind: ov.kind,
+              account: ov.account,
+              label: kindMeta(ov.kind).label,
+              confidence: 100,
+              signals: [{ label: "Bạn đã sửa thủ công — đã ghi nhớ", weight: 100, votes: ov.kind }],
+            } as LineClassification,
+          };
+        }
+        if (mem && l.classification?.kind !== mem.kind) {
+          return {
+            ...l,
+            classification: {
+              ...(l.classification ?? { signals: [], label: "", confidence: 100 }),
+              kind: mem.kind,
+              account: mem.account,
+              label: kindMeta(mem.kind).label,
+              confidence: 99,
+              signals: [
+                {
+                  label: `Đã ghi nhớ từ lần trước (×${mem.hit_count})`,
+                  weight: 100,
+                  votes: mem.kind,
+                },
+              ],
+            } as LineClassification,
+          };
+        }
+        return l;
+      }),
+    [rawInvoiceLines, overrides, memoryMatches],
+  );
+
   const classificationSummary = parsed?.classification_summary as
     | { dominant: LineKind; account: string; label: string; mixed: boolean }
     | null
@@ -303,7 +382,15 @@ export function InvoiceExtractCard({
                     </div>
                     <ul className="space-y-1">
                       {invoiceLines.slice(0, 8).map((ln, i) => (
-                        <LineRow key={i} line={ln} />
+                        <LineRow
+                          key={i}
+                          line={ln}
+                          supplierTaxId={taxId}
+                          onOverride={(kind, account) => {
+                            const key = normalizeLineName(ln.description);
+                            if (key) setOverrides((p) => ({ ...p, [key]: { kind, account } }));
+                          }}
+                        />
                       ))}
                       {invoiceLines.length > 8 ? (
                         <li className="text-[10px] text-muted-foreground">
@@ -463,9 +550,7 @@ function KindBadge({
       )}
     >
       {meta.label}
-      {confidence != null ? (
-        <span className="opacity-70">{confidence}%</span>
-      ) : null}
+      {confidence != null ? <span className="opacity-70">{confidence}%</span> : null}
     </span>
   );
   if (!signals || signals.length === 0) return badge;
@@ -490,8 +575,96 @@ function KindBadge({
   );
 }
 
+const KIND_OPTIONS: { kind: LineKind; account: string }[] = [
+  { kind: "goods", account: "156" },
+  { kind: "fixed_asset", account: "211" },
+  { kind: "ccdc", account: "153" },
+  { kind: "service", account: "642" },
+];
+
+function KindOverrideMenu({
+  current,
+  description,
+  supplierTaxId,
+  onChange,
+}: {
+  current: LineKind;
+  description?: string | null;
+  supplierTaxId?: string | null;
+  onChange: (kind: LineKind, account: string) => void;
+}) {
+  const saveFn = useServerFn(saveLineClassification);
+  const [saving, setSaving] = useState<LineKind | null>(null);
+
+  const handlePick = async (kind: LineKind, account: string) => {
+    if (!description || !description.trim()) return;
+    setSaving(kind);
+    try {
+      await saveFn({
+        data: {
+          line_name: description,
+          supplier_tax_id: supplierTaxId ?? null,
+          kind,
+          account,
+        },
+      });
+      onChange(kind, account);
+      toast.success(`Đã ghi nhớ: "${description}" → ${kindMeta(kind).label}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Không lưu được phân loại");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          title="Đổi phân loại"
+        >
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="text-[11px]">Sửa phân loại</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {KIND_OPTIONS.map((opt) => (
+          <DropdownMenuItem
+            key={opt.kind}
+            disabled={saving !== null}
+            onSelect={(e) => {
+              e.preventDefault();
+              handlePick(opt.kind, opt.account);
+            }}
+            className="text-xs"
+          >
+            <span className="flex w-full items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                {saving === opt.kind ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : current === opt.kind ? (
+                  <Check className="h-3 w-3 text-primary" />
+                ) : (
+                  <span className="inline-block h-3 w-3" />
+                )}
+                {kindMeta(opt.kind).label}
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">TK {opt.account}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function LineRow({
   line,
+  supplierTaxId,
+  onOverride,
 }: {
   line: {
     description?: string | null;
@@ -501,26 +674,34 @@ function LineRow({
     amount?: number | null;
     classification?: LineClassification;
   };
+  supplierTaxId?: string | null;
+  onOverride?: (kind: LineKind, account: string) => void;
 }) {
   const c = line.classification;
   return (
     <li className="flex items-start justify-between gap-2 text-[11.5px]">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate font-medium text-foreground">
-            {line.description ?? "—"}
-          </span>
+          <span className="truncate font-medium text-foreground">{line.description ?? "—"}</span>
           {c ? (
-            <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+            <span className="inline-flex items-center gap-0.5">
+              <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+              {onOverride ? (
+                <KindOverrideMenu
+                  current={c.kind}
+                  description={line.description}
+                  supplierTaxId={supplierTaxId}
+                  onChange={onOverride}
+                />
+              ) : null}
+            </span>
           ) : null}
         </div>
         <div className="mt-0.5 text-[10px] text-muted-foreground">
           {line.qty ?? "—"} {line.unit ?? ""} × {fmtVND(line.unit_price ?? 0)}
         </div>
       </div>
-      <div className="shrink-0 text-right font-mono text-[11px]">
-        {fmtVND(line.amount ?? 0)}
-      </div>
+      <div className="shrink-0 text-right font-mono text-[11px]">{fmtVND(line.amount ?? 0)}</div>
     </li>
   );
 }
