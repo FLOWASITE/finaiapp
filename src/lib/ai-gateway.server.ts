@@ -13,9 +13,6 @@ import { decryptSecret } from "@/lib/crypto-secret.server";
 export type ModelPurpose = "default" | "chat" | "parse" | "reasoning" | "classify";
 
 export type AgentKey =
-  | "categorize_purchase"
-  | "categorize_sales"
-  | "inbox_reason"
   | "bank_reconcile"
   | "journal"
   | "parse_doc_vision"
