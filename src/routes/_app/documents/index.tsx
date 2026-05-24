@@ -609,7 +609,7 @@ function DocumentsPage() {
                   ))}
                   {rows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8">
+                      <TableCell colSpan={8} className="py-8">
                         <EmptyState
                           size="sm"
                           bordered={false}
