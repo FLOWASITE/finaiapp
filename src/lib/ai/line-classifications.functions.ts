@@ -151,7 +151,7 @@ export const listLineClassifications = createServerFn({ method: "GET" })
     let q = supabase
       .from("ai_line_classifications")
       .select(
-        "id, supplier_id, supplier_tax_id, line_name, line_name_norm, kind, account, source, hit_count, last_used_at, created_at, updated_at, suppliers:supplier_id(name)",
+        "id, supplier_id, supplier_tax_id, line_name, line_name_norm, kind, account, source, hit_count, last_used_at, created_at, updated_at",
       )
       .eq("tenant_id", tenantId)
       .order("last_used_at", { ascending: false })
@@ -165,11 +165,25 @@ export const listLineClassifications = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
+
+    // Tra cứu tên NCC (không có FK nên query riêng)
+    const supplierIds = Array.from(
+      new Set(((rows ?? []) as any[]).map((r) => r.supplier_id).filter(Boolean)),
+    );
+    const supplierMap: Record<string, string> = {};
+    if (supplierIds.length > 0) {
+      const { data: sups } = await supabase
+        .from("suppliers")
+        .select("id, name")
+        .in("id", supplierIds);
+      for (const s of (sups ?? []) as any[]) supplierMap[s.id] = s.name;
+    }
+
     return ((rows ?? []) as any[]).map((r) => ({
       id: r.id,
       supplier_id: r.supplier_id,
       supplier_tax_id: r.supplier_tax_id,
-      supplier_name: r.suppliers?.name ?? null,
+      supplier_name: r.supplier_id ? supplierMap[r.supplier_id] ?? null : null,
       line_name: r.line_name,
       line_name_norm: r.line_name_norm,
       kind: r.kind,
