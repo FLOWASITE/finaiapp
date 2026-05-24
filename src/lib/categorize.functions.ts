@@ -236,6 +236,11 @@ export const approveProposal = createServerFn({ method: "POST" })
       });
     } catch {}
 
+    try {
+      const { invalidateCategorizeCache } = await import("./categorize/cache.server");
+      invalidateCategorizeCache(tenantId);
+    } catch {}
+
     return { ok: true, journal_entry_id: je.id };
   });
 
