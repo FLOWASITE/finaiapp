@@ -38,6 +38,22 @@ function bandOf(confidence: number): ConfidenceBand {
   return "low";
 }
 
+function deriveStatus(opts: {
+  ocr_status?: string | null;
+  blocker?: unknown;
+  confidence: number;
+  signals?: ReasoningSignal[];
+}): import("./inbox-types").ProcessingStatus {
+  const s = opts.ocr_status;
+  if (s === "pending" || s === "processing" || s === "queued") return "ocr_pending";
+  if (s === "failed" || s === "error") return "ocr_failed";
+  if (opts.blocker) return "blocked";
+  const hasWarn = (opts.signals ?? []).some((x) => x.kind === "warn" && !x.ok);
+  if (opts.confidence < 60 || hasWarn) return "needs_review";
+  if (opts.confidence >= 88) return "auto_ready";
+  return "ready";
+}
+
 function relativeTimeVi(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.round(diff / 60000);
