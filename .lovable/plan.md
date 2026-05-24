@@ -1,63 +1,107 @@
-# Kế hoạch tiếp tục: Hoàn tất #3 và triển khai #4
+# Confidence Calibration Loop
 
-## Phần A — Tích hợp Sales Invoice vào luồng Inbox AI (#3 phần 2)
+Mục tiêu: từ lịch sử `inbox_decisions`, tự động hiệu chỉnh **(a)** ngưỡng auto-post của từng tenant và **(b)** trọng số các signals trong engine, để `confidence` thực sự khớp với tỷ lệ approve không-edit.
 
-### A1. Mở rộng `listInboxAi` (src/lib/inbox-ai.functions.ts)
-- Query thêm `sales_invoices` (status='reviewed', chưa post) song song với `invoices`.
-- `buildDocumentItem` nhận thêm `invoice_kind: 'purchase' | 'sales'`.
-- Khi `kind='sales'` → gọi `proposeSalesJournalBatch` thay vì engine mua.
-- Merge 2 danh sách, sort theo `invoice_date DESC`.
+---
 
-### A2. Cập nhật `approveProposal` / `saveProposal` (src/lib/categorize.functions.ts)
-- Đọc/ghi `categorize_proposals` với cặp khóa `(invoice_kind, invoice_id)`.
-- Khi approve sales → tạo `journal_entries` + `journal_entry_lines` với `source_type='sales_invoice'`, set `sales_invoices.posted_at`.
-- Bảo toàn logic mua hiện tại (không đổi behavior cũ).
+## 1. Schema mới
 
-### A3. UI Badge "Bán ra / Mua vào" (src/components/categorize/ProposalCard.tsx + danh sách Inbox)
-- Badge màu xanh cho "Bán ra", màu cam cho "Mua vào" cạnh tên đối tác.
-- Đổi label "NCC" → "KH" khi `invoice_kind='sales'`.
-- Hiển thị warning `cat-011` (fallback 5118) rõ ràng.
+### `confidence_calibration` (per tenant)
+- `tenant_id` (PK)
+- `auto_threshold` numeric(4,3) default 0.85 — ngưỡng auto-post hiện hành
+- `review_threshold` numeric(4,3) default 0.60 — dưới mức này → escalate manual
+- `signal_weights` jsonb — `{vendor_template, learned_memory, classify_rule, partner_history, vat_match, ai_fallback, has_warning, missing_partner}` (mỗi key là delta cộng/trừ vào base confidence)
+- `sample_size` int — số decision dùng để fit lần cuối
+- `accuracy_auto` numeric(4,3) — precision band auto kỳ vừa rồi
+- `accuracy_review` numeric(4,3)
+- `last_calibrated_at` timestamptz
+- RLS: select tenant member, write chỉ owner/admin (đa số chỉ cron ghi qua service role)
 
-## Phần B — Auto-Promote Rules từ `inbox_decisions` (#4)
+### `calibration_runs` (audit log)
+- `id`, `tenant_id`, `ran_at`, `window_days`, `sample_size`, `old_threshold`, `new_threshold`, `old_weights` jsonb, `new_weights` jsonb, `metrics` jsonb (precision/recall/edit_rate theo band), `note` text
+- Để trace drift theo thời gian, hiển thị ở Settings.
 
-### B1. Server function: `src/lib/learning/promote-rules.server.ts` + `.functions.ts`
-- `scanAndPromoteRules(tenantId)`:
-  - Lấy `inbox_decisions` 30 ngày, `rule_id IS NULL`, action ∈ ('approve','edit','bulk_approve').
-  - Group theo `(partner_tax_id, primary_debit_account)` từ `final_entry`.
-  - Promote khi count ≥ 3 → insert `inbox_rules` với `confidence_boost=30`, `note='Tự học từ N lần duyệt'`, `source='auto'`.
-  - Demote: nếu cùng partner có ≥2 edit đổi account khác rule cũ → set `inbox_rules.disabled_at`.
-  - Invalidate cache categorize cuối job.
+### Cột mới trong `ai_journal_proposals` (đã có `confidence`, `source`)
+- Thêm `signals` jsonb default `{}` — engine ghi lại các signals đã kích hoạt (vendor_template=true, partner_history=0.8, vat_match=true, warning_codes=[...]) để calibration job có dữ liệu fit.
 
-### B2. Cron route: `src/routes/api/public/hooks/promote-rules.ts`
-- POST handler, verify `apikey` header = anon key.
-- Loop active tenants (LIMIT 1000) → gọi `scanAndPromoteRules`.
-- Log kết quả `{tenant_id, promoted, demoted}`.
-- pg_cron 02:00 UTC daily (insert tool, không phải migration).
+---
 
-### B3. Schema mở rộng (migration nhỏ)
-- `inbox_rules`: thêm cột `source TEXT DEFAULT 'manual' CHECK (source IN ('manual','auto'))`, `note TEXT`, `disabled_at TIMESTAMPTZ`.
-- Index `(tenant_id, partner_tax_id) WHERE disabled_at IS NULL`.
+## 2. Engine đọc calibration
 
-### B4. UI hiển thị nguồn rule
-- Trong `ProposalCard`: badge "Auto-learned" khi `applied_rule.source='auto'`.
-- Trang `/settings/rules`: cột "Nguồn" (Thủ công / Tự học) + filter.
+### `src/lib/categorize/calibration.server.ts` (mới)
+- `getCalibration(tenantId)` — cache 60s qua `cache.server.ts`, fallback default nếu chưa có row.
+- `applySignalWeights(baseConfidence, signals, weights)` — trả về confidence đã calibrated, clamp [0, 0.99].
+- `decideBand(confidence, cal)` → `'auto' | 'review' | 'manual'`.
 
-## Kỹ thuật & rủi ro
-- Sales integration không đụng schema `invoices`/`journal_entries` (đã có `source_type`).
-- Auto-promote: ngưỡng 3 lần có thể nâng lên 5 nếu nhiễu; mọi rule auto có `note` rõ để KTT review.
-- Cron batched per tenant, mỗi query LIMIT 1000, dùng index `idx_inbox_decisions_recent` đã có.
-- Cache invalidate cuối job tránh race.
+### Update `engine.server.ts` + `sales-engine.server.ts`
+- Thay vì hard-code `0.85` / `0.7` / `0.4`, thu thập signals vào object, gọi `applySignalWeights`.
+- Lưu `signals` vào DTO của proposal khi insert vào `ai_journal_proposals` (cột mới).
+- `recommend_auto_post = confidence >= cal.auto_threshold && agent.mode === 'auto'`.
+
+### Update `agent_settings` đọc `confidence_threshold`
+- Vẫn giữ `agent_settings.confidence_threshold` làm **floor do user set tay**; `auto_threshold` từ calibration là **gợi ý**. Engine dùng `max(user_floor, calibrated_threshold)` để không bao giờ tự nới lỏng dưới mức user yêu cầu.
+
+---
+
+## 3. Calibration job
+
+### `src/lib/learning/calibrate.server.ts` (mới)
+Logic:
+1. Lấy 30 ngày `inbox_decisions` của tenant kèm `confidence_at_decision`, `action`, `original_entry.signals` (cần join hoặc lưu sẵn).
+2. Tính cho mỗi band hiện tại:
+   - `precision_auto = approve_count / total_auto` (approve = action 'approve' hoặc 'bulk_approve' không có edit).
+   - `edit_rate_review = edit_count / total_review`.
+3. **Hiệu chỉnh ngưỡng**:
+   - Nếu `precision_auto < 0.92` → nâng `auto_threshold += 0.03` (max 0.95).
+   - Nếu `precision_auto >= 0.97` và `edit_rate_review < 0.15` → hạ `auto_threshold -= 0.02` (min 0.75).
+   - Tương tự `review_threshold` dựa trên tỷ lệ skip ở band review.
+4. **Hiệu chỉnh trọng số signals** (logistic regression nhẹ tay, không cần lib):
+   - Với mỗi signal `s`, tính `P(approve | s=true)` và `P(approve | s=false)`, delta = `logit(p_true) - logit(p_false)` chia 4 để giữ nhỏ.
+   - Clamp mỗi weight trong `[-0.2, +0.2]`.
+   - Chỉ apply khi sample của signal đó ≥ 20.
+5. Yêu cầu `sample_size >= 30` mới ghi; nếu ít hơn thì giữ nguyên + ghi log "insufficient sample".
+6. Ghi `calibration_runs`, upsert `confidence_calibration`, invalidate cache (`cache.server.ts`).
+
+### `src/lib/learning/calibrate.functions.ts`
+- `runCalibrationForTenant({ tenantId })` (owner/admin) — trigger thủ công từ Settings.
+- `getCalibrationStatus({ tenantId })` — trả về current thresholds, weights, last metrics, history 10 runs gần nhất.
+
+---
+
+## 4. Cron hook
+
+`src/routes/api/public/hooks/calibrate-confidence.ts`
+- POST, header `apikey` = anon key.
+- Lặp qua tenants có ≥30 decisions trong 30 ngày, gọi `scanAndCalibrate(tenantId)`.
+- Chạy **02:30 UTC** hằng ngày (sau `promote-rules` 02:00) để dùng rules mới khi tính metrics.
+- pg_cron schedule qua `supabase--insert`.
+
+---
+
+## 5. UI
+
+### Trang `/settings/ai-calibration` (mới, link từ Settings)
+- Card "Ngưỡng hiện tại": auto_threshold / review_threshold (slider read-only + nút "Override thủ công" → ghi vào `agent_settings.confidence_threshold`).
+- Card "Độ chính xác kỳ vừa rồi": precision band auto, edit rate band review, sample size, ngày calibrate cuối.
+- Bảng "Lịch sử calibration" (10 runs): ngày, threshold cũ→mới, precision, sample.
+- Nút "Chạy calibration ngay" → gọi `runCalibrationForTenant`.
+- Hiển thị trọng số signals dạng bar chart đơn giản (positive xanh / negative đỏ).
+
+### Badge trong `ProposalCard.tsx`
+- Khi `proposal.signals` có entry mạnh (ví dụ `vendor_template=true`), hiển thị chip nhỏ "Theo mẫu NCC" / "Học từ lịch sử" để user hiểu vì sao confidence cao.
+
+---
+
+## Thứ tự thực hiện
+1. **Migration**: tạo `confidence_calibration`, `calibration_runs`, thêm cột `signals` vào `ai_journal_proposals` + RLS.
+2. **`calibration.server.ts`** + update engine (purchase + sales) để emit signals và đọc calibration.
+3. **`calibrate.server.ts`** (logic fit) + `calibrate.functions.ts`.
+4. **Cron route** + insert pg_cron schedule 02:30 UTC.
+5. **UI `/settings/ai-calibration`** + chip signals trong ProposalCard.
 
 ## KPI dự kiến
-- #3: Inbox AI cover được hóa đơn bán → coverage 60%→~95%.
-- #4: Sau 2 tuần, ~30-50% NCC có auto-rule → tỷ lệ band≥85% tăng ~45%→~70%, edit giảm ~25%.
+- Sau 2 tuần dữ liệu: precision band auto ổn định ≥95% trong khi tăng coverage auto từ ~30% → ~50%.
+- Edit rate band review giảm ~30% nhờ trọng số signals chuẩn hơn.
+- Drift detection: nếu precision tụt dưới 0.9, threshold tự nâng → tránh sai hệ thống.
 
-## Thứ tự thực thi
-1. A1 + A2 (integration sales) → 1 batch
-2. A3 (UI badges) → 1 batch
-3. B3 (migration schema) → chờ approve
-4. B1 + B2 (server + cron route) → 1 batch
-5. B4 (UI rules) → 1 batch
-6. Insert pg_cron schedule → cuối cùng
-
-Duyệt để mình bắt đầu A1+A2?
+Mình implement luôn theo thứ tự trên?

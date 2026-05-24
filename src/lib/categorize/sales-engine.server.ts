@@ -8,6 +8,12 @@
  * Warning code mới: cat-011 — không xác định được loại doanh thu, fallback 5118.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  applyCalibratedConfidence,
+  decideBand,
+  getCalibration,
+  type SignalFeatures,
+} from "./calibration.server";
 import type {
   JournalProposalDTO,
   ProposalEntry,
@@ -299,17 +305,32 @@ export async function proposeJournalForSalesInvoice(
   }
 
   const hasError = warnings.some((w) => w.severity === "error");
-  let confidence = inv.lines.length > 0 ? 0.85 : 0.5;
-  if (warnings.some((w) => w.code === "cat-011" && w.severity === "warn")) confidence = 0.6;
-  if (hasError) confidence = Math.min(confidence, 0.4);
+  let base = inv.lines.length > 0 ? 0.85 : 0.5;
+  if (warnings.some((w) => w.code === "cat-011" && w.severity === "warn")) base = 0.6;
+  if (hasError) base = Math.min(base, 0.4);
+
+  const cal = await getCalibration(supabase, inv.tenant_id);
+  const features: SignalFeatures = {
+    classify_rule: 1,
+    partner_history: inv.customer_tax_id ? 1 : 0,
+    vat_match: inv.vat_amount > 0 ? 1 : 0,
+    has_warning: warnings.some((w) => w.severity !== "info") ? 1 : 0,
+    missing_partner: inv.customer_tax_id ? 0 : 1,
+    ai_fallback: inv.lines.length === 0 ? 1 : 0,
+  };
+  const confidence = applyCalibratedConfidence(base, features, cal.signal_weights);
+  const band = decideBand(confidence, cal);
 
   return {
     invoice_id: invoiceId,
     source: "classify_rule",
     entries,
     confidence,
+    base_confidence: base,
     warnings,
     signals,
+    signal_features: features as Record<string, number>,
+    band,
     alternatives,
     applied_rules: ["sales-engine-v1"],
     recommend_auto_post: false, // sales bao giờ cũng cần KTT review
