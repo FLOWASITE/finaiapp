@@ -166,6 +166,7 @@ function OrganizationTab() {
     const t: any = data?.tenant;
     if (t && loadedTenantIdRef.current !== t.id) {
       loadedTenantIdRef.current = t.id;
+      userEditedLegalFormRef.current = !!t.legal_form;
       setForm(t);
       setDiffShipping(!!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)));
     }
