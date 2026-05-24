@@ -964,6 +964,11 @@ function ItemCard({
               <SrcIcon className="h-3 w-3" />
               {meta.label}
             </span>
+            {kindMeta && (
+              <span className={cn("inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium tracking-wide", kindMeta.cls)}>
+                {kindMeta.label}
+              </span>
+            )}
             <span className="text-muted-foreground/80">{relTime(item.occurred_at)}</span>
             {invoiceNo && (
               <>
