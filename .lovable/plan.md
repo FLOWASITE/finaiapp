@@ -1,67 +1,61 @@
-# Hoàn thiện Agent Hạch toán — Phase UI + Tích hợp
+## Tích hợp Agent Hạch toán vào Trung tâm tài liệu
 
-Backend engine + DB đã xong ở turn trước (`categorize/engine.server.ts`, `categorize.functions.ts`, `ai_journal_proposals`, `template_lines`). Phase này gắn engine vào pipeline thật và mở UI cho Kế toán trưởng duyệt hàng loạt.
+Mục tiêu: từ trang `/documents`, kế toán nhìn thấy ngay trạng thái bút toán của mỗi tài liệu, mở chi tiết là xem/sửa/duyệt được đề xuất mà không cần nhảy qua `/categorize`.
 
-## 1. Tích hợp engine vào pipeline có sẵn
+### 1. Hiển thị trạng thái hạch toán trên danh sách
 
-**`src/lib/ai/parse-document.functions.ts`**
-- Sau khi parse xong hoá đơn mua vào và tạo `invoices` row → gọi `autoPostIfEligible({ invoice_id })`.
-- Nếu agent `categorize` ở mode `auto` và `confidence ≥ threshold`: tự `approveJournalEntry` + ghi log `agent_activity`.
-- Ngược lại: chỉ tạo bản ghi `ai_journal_proposals` (status `pending`) để KTT duyệt sau.
+Trong `getDocument` / `listDocuments` (file `src/lib/documents.functions.ts`), bổ sung 1 join nhẹ sang `ai_journal_proposals` (lấy `status`, `confidence`, `source` mới nhất theo `invoice_id`).
 
-**`src/lib/ai/inbox-reason.server.ts`**
-- Thay heuristic `642/331` hard-code bằng `proposeJournalForInvoice` (engine mới).
-- Map `JournalProposalDTO.entries[0].lines` → `Proposal.lines` cho inbox card; giữ signals/warnings.
-- Inbox và `/invoices/$id` từ đây dùng chung 1 engine.
+Trên bảng tài liệu (`/documents/index.tsx`):
 
-**`src/lib/journal.functions.ts`** (đã có `approveJournalEntry`)
-- Hook sau approve: gọi `learnVendorTemplate(invoice_id, entries)` để cập nhật `ai_memory_partners.template_lines`.
+- Thêm cột "Hạch toán" với badge:
+  - `Đã ghi sổ` (xanh) — proposal `approved` hoặc invoice đã có journal_entry.
+  - `Chờ duyệt` (vàng) + % confidence — proposal `pending`.
+  - `Cần xem` (xám) — `skipped` / có warning.
+  - `—` — tài liệu không phải hoá đơn / chưa có invoice_id.
+- Click badge → mở Sheet và switch sang tab `Hạch toán` (xem mục 2).
 
-## 2. Trang `/categorize` — Hàng đợi hạch toán
+### 2. Tab "Hạch toán" trong Sheet chi tiết tài liệu
 
-**`src/routes/_app/categorize.tsx`** — route mới dưới `_authenticated` layout
-- Loader: `listProposals({ status: 'pending', limit: 50 })`.
-- Layout: header thống kê (tổng chờ duyệt, auto-posted hôm nay, độ chính xác 7 ngày) + danh sách card.
+Trong Sheet detail (`DocumentSheet`), thêm 1 TabsTrigger thứ 4 là **Hạch toán** (chỉ hiện khi `doc.invoice_id`).
 
-**`src/components/categorize/ProposalCard.tsx`**
-- Hiển thị: NCC, mô tả, tổng tiền, bảng bút toán Nợ/Có (giống `journal-proposal-card.tsx` đã có).
-- Badge nguồn (`vendor_template` / `learned_lines` / `classify_rule` / `ai_fallback`).
-- Confidence pill + warnings (cat-001 cảnh báo >20tr tiền mặt, cat-008, …).
-- Nút: **Duyệt & ghi sổ** · **Sửa** (mở drawer) · **Bỏ qua** · **Mở hoá đơn gốc**.
+Nội dung tab:
 
-**`src/components/categorize/ProposalDetailDrawer.tsx`**
-- Cột trái: preview file hoá đơn (dùng `invoice-file-viewer.tsx` có sẵn).
-- Cột phải: editor bút toán per-line (account picker dùng `coa.functions.ts`), nature picker, ghi chú.
-- Nút Lưu → `approveProposal` với entries đã sửa → trigger `learnVendorTemplate`.
+- Reuse `ProposalCard` từ `src/components/categorize/ProposalCard.tsx` (đã có inline edit, warnings, approve/skip).
+- Trên cùng có nút **Hạch toán lại** (gọi `proposeJournal({ invoice_id, force: true })`) cho trường hợp cần refresh.
+- Nếu chưa có proposal → state trống + nút **Tạo đề xuất bút toán** (gọi `proposeJournal({ invoice_id })`).
+- Nếu đã `approved` → hiển thị tóm tắt bút toán + link "Xem trong sổ nhật ký".
 
-**Batch action**: checkbox + thanh "Duyệt N bút toán đã chọn" (chỉ enable cho card không có warning `error`).
+Lợi ích: kế toán không cần rời khỏi tài liệu để hạch toán; đồng nhất engine với trang `/categorize`.
 
-## 3. Sidebar + AgentDetailDrawer
+### 3. Bộ lọc & batch action
 
-**`src/components/app-sidebar.tsx`**: thêm mục **Hạch toán** dưới nhóm AI, icon `Calculator`, badge số chờ duyệt (từ `sidebar-counts.functions.ts`).
+Trong header `/documents`, thêm filter `categorize_status`: `all | pending | approved | skipped | none`.
 
-**`src/components/ai-memory/agents/AgentDetailDrawer.tsx`**: tab "Cài đặt" cho agent `categorize` — chỉnh `mode` (off/suggest/auto), `confidence_threshold` slider, link đến `/categorize`.
+Khi chọn nhiều dòng `pending`, hiện thanh action **Duyệt hàng loạt** (gọi cùng API `approveProposal` mà `/categorize` đang dùng).
 
-## 4. Test cases
+### 4. Tự động khi upload mới (đã có sẵn engine)
 
-**`src/lib/categorize/engine.test.ts`**
-- Server "Máy chủ Dell 45tr" → entry `Nợ 211 / Có 331` (không phải 642).
-- Hoá đơn mixed (hàng + dịch vụ) → 2 entries riêng (rule cat-009).
-- 3+ hoá đơn cùng NCC pattern giống → source = `vendor_template`, confidence ≥ 0.85.
-- Tiền mặt 50tr → warning cat-001, confidence cap 0.7, `recommend_auto_post=false`.
-- Hoá đơn ghi "điều chỉnh giảm" → cat-013 nature `mixed`, không auto-post.
+Pipeline `parse-document` đã gọi `autoPostIfEligible` sau khi tạo invoice. Bổ sung:
 
-## Files
+- Sau khi parse xong, invalidate query `["documents", ...]` để bảng Trung tâm tài liệu cập nhật badge "Chờ duyệt" / "Đã ghi sổ" realtime.
+- Trên toast "Đã đọc xong tài liệu", thêm dòng phụ: *"Engine đã tạo bút toán — chờ duyệt"* hoặc *"Đã ghi sổ tự động (conf 92%)"*.
 
-**Tạo mới (4)**: `src/routes/_app/categorize.tsx`, `src/components/categorize/ProposalCard.tsx`, `src/components/categorize/ProposalDetailDrawer.tsx`, `src/lib/categorize/engine.test.ts`.
+### 5. Liên kết 2 chiều
 
-**Sửa (5)**: `src/lib/ai/parse-document.functions.ts`, `src/lib/ai/inbox-reason.server.ts`, `src/lib/journal.functions.ts`, `src/components/app-sidebar.tsx`, `src/components/ai-memory/agents/AgentDetailDrawer.tsx`.
+- Tab "Liên kết" hiện tại đã list `entity_table` = `journal_entry` sau khi approve — chỉ cần thêm link tới `/journal/$id`.
+- Trên trang `/categorize`, ProposalCard đã có nguồn `invoice` — thêm link nhỏ "Mở tài liệu gốc" mở Sheet ở `/documents?id=...`.
 
-**Không động**: XML export TT200, KTT override audit table, ML feedback loop (đã đồng ý để phase sau).
+### File thay đổi
 
-## Acceptance
+- `src/lib/documents.functions.ts` — join `ai_journal_proposals` vào `listDocuments`/`getDocument`.
+- `src/routes/_app/documents/index.tsx` — thêm cột badge, tab Hạch toán, filter, batch action.
+- `src/components/categorize/ProposalCard.tsx` — nhận thêm prop `compact` để render gọn trong Sheet (không trùng header).
+- `src/lib/categorize.functions.ts` — thêm `proposeJournal` chấp nhận flag `force` (skip cache).
 
-1. Upload hoá đơn Dell 45tr → tự ghi sổ Nợ 211/Có 331 nếu agent ở mode auto.
-2. `/categorize` hiển thị queue, duyệt 1 phát → bút toán xuất hiện trong `journal_entries`, `learnVendorTemplate` ghi vào `ai_memory_partners.template_lines`.
-3. Inbox card và trang chi tiết hoá đơn cho ra cùng đề xuất bút toán.
-4. Sidebar đếm số chờ duyệt realtime.
+### Acceptance
+
+1. Upload 1 hoá đơn Dell 45tr → bảng tài liệu hiện badge `Đã ghi sổ` (auto-post).
+2. Upload hoá đơn 50tr tiền mặt → badge `Chờ duyệt 70%` + warning trong tab Hạch toán.
+3. Mở Sheet → tab Hạch toán hiển thị Nợ/Có, ấn **Duyệt & ghi sổ** → badge đổi sang `Đã ghi sổ`, tab Liên kết xuất hiện `journal_entry`.
+4. Filter `categorize_status=pending` → chỉ còn các tài liệu chờ duyệt; batch select 5 dòng → duyệt 1 phát.

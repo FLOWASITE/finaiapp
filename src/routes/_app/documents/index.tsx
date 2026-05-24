@@ -101,6 +101,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
+import { CategorizeTab } from "@/components/categorize/CategorizeTab";
 
 const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -592,6 +593,7 @@ function DocumentsPage() {
                     <TableHead>Loại</TableHead>
                     <TableHead>Nguồn</TableHead>
                     <TableHead>OCR</TableHead>
+                    <TableHead>Hạch toán</TableHead>
                     <TableHead className="text-right">Kích thước</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
@@ -608,7 +610,7 @@ function DocumentsPage() {
                   ))}
                   {rows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-8">
+                      <TableCell colSpan={8} className="py-8">
                         <EmptyState
                           size="sm"
                           bordered={false}
@@ -645,6 +647,30 @@ function DocumentsPage() {
       </div>
     </TooltipProvider>
   );
+}
+
+function CategorizeBadge({ categorize, hasInvoice }: { categorize: any; hasInvoice: boolean }) {
+  if (!hasInvoice) return <span className="text-xs text-muted-foreground">—</span>;
+  if (!categorize) return <Badge variant="outline" className="text-[10px] text-muted-foreground">Chưa hạch toán</Badge>;
+  const status = categorize.status as string;
+  const conf = Math.round(Number(categorize.confidence ?? 0) * 100);
+  if (status === "approved" || status === "auto_posted") {
+    return (
+      <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+        {status === "auto_posted" ? "Auto ghi sổ" : "Đã ghi sổ"}
+      </Badge>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-700 dark:text-amber-400">
+        Chờ duyệt · {conf}%
+      </Badge>
+    );
+  }
+  if (status === "skipped") return <Badge variant="outline" className="text-[10px] text-muted-foreground">Đã bỏ qua</Badge>;
+  if (status === "failed") return <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">Lỗi</Badge>;
+  return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
 }
 
 function DocumentRow({
@@ -712,6 +738,9 @@ function DocumentRow({
         >
           {OCR_LABELS[d.ocr_status] ?? d.ocr_status}
         </span>
+      </TableCell>
+      <TableCell>
+        <CategorizeBadge categorize={d.categorize} hasInvoice={!!d.invoice_id} />
       </TableCell>
       <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
         {formatBytes(d.size_bytes)}
@@ -978,6 +1007,9 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
               <TabsList>
                 <TabsTrigger value="preview">Xem trước</TabsTrigger>
                 <TabsTrigger value="ocr">OCR</TabsTrigger>
+                {doc.invoice_id && (
+                  <TabsTrigger value="categorize">Hạch toán</TabsTrigger>
+                )}
                 <TabsTrigger value="links">Liên kết ({(data.links?.length ?? 0) + (doc.einvoice_id ? 1 : 0)})</TabsTrigger>
               </TabsList>
 
@@ -1045,6 +1077,14 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                   </p>
                 )}
               </TabsContent>
+
+              {doc.invoice_id && (
+                <TabsContent value="categorize" className="mt-3">
+                  <CategorizeTab invoiceId={doc.invoice_id} categorize={data.categorize} />
+                </TabsContent>
+              )}
+
+
 
               <TabsContent value="links" className="mt-3 space-y-2">
                 {doc.einvoice_id && (

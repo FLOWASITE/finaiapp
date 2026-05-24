@@ -79,8 +79,26 @@ export const listDocuments = createServerFn({ method: "GET" })
     if (data.to_date) q = q.lte("created_at", `${data.to_date}T23:59:59Z`);
     const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
-    return { rows: rows ?? [], total: count ?? 0 };
+
+    // Đính kèm trạng thái hạch toán
+    const invIds = Array.from(
+      new Set(((rows ?? []) as any[]).map((r) => r.invoice_id).filter(Boolean)),
+    );
+    const propMap = new Map<string, any>();
+    if (invIds.length > 0) {
+      const { data: props } = await context.supabase
+        .from("ai_journal_proposals")
+        .select("invoice_id, status, confidence, source, journal_entry_id, auto_posted")
+        .in("invoice_id", invIds);
+      for (const p of (props ?? []) as any[]) propMap.set(p.invoice_id, p);
+    }
+    const annotated = ((rows ?? []) as any[]).map((r) => ({
+      ...r,
+      categorize: r.invoice_id ? propMap.get(r.invoice_id) ?? null : null,
+    }));
+    return { rows: annotated, total: count ?? 0 };
   });
+
 
 export const listPurchaseDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -473,7 +491,16 @@ export const getDocument = createServerFn({ method: "GET" })
         .maybeSingle();
       aiUpload = au ?? null;
     }
-    return { doc, links: links ?? [], signedUrl, aiUpload };
+    let categorize: any = null;
+    if (doc.invoice_id) {
+      const { data: prop } = await context.supabase
+        .from("ai_journal_proposals")
+        .select("id, status, confidence, source, journal_entry_id, auto_posted, dto, warnings, created_at, resolved_at")
+        .eq("invoice_id", doc.invoice_id)
+        .maybeSingle();
+      categorize = prop ?? null;
+    }
+    return { doc, links: links ?? [], signedUrl, aiUpload, categorize };
   });
 
 export const reparseDocument = createServerFn({ method: "POST" })

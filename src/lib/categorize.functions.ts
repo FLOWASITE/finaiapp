@@ -256,6 +256,23 @@ export const skipProposal = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Lấy proposal hiện tại theo invoice_id (dùng trong Sheet tài liệu). */
+export const getProposalByInvoice = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return { proposal: null };
+    const { data: row } = await supabase
+      .from("ai_journal_proposals")
+      .select("id, invoice_id, dto, confidence, source, status, warnings, journal_entry_id, auto_posted, created_at, resolved_at")
+      .eq("tenant_id", tenantId)
+      .eq("invoice_id", data.invoice_id)
+      .maybeSingle();
+    return { proposal: row ?? null };
+  });
+
 /** Wrapper gọi từ parse-document: nếu agent.mode=auto + conf đủ thì auto-post luôn. */
 export const autoPostIfEligible = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
