@@ -427,17 +427,19 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
     );
     if (v.create_stock_voucher && goodsLines.length > 0) {
       const warehouseId = v.warehouse_id ?? (await ensureDefaultWarehouseId(supabase, userId));
+      const stockDate = (v as any).stock_voucher_date || v.voucher_date;
+      const autoNo = await nextStockVoucherNo(supabase, v.tenant_id ?? null, userId, "in", stockDate);
       const { data: sv, error: e3 } = await supabase
         .from("stock_vouchers")
         .insert({
           user_id: userId,
           tenant_id: v.tenant_id,
-          voucher_no: (v as any).stock_voucher_no || `NK-${v.voucher_no}`,
+          voucher_no: (v as any).stock_voucher_no || autoNo,
           voucher_type: "in",
-          voucher_date: (v as any).stock_voucher_date || v.voucher_date,
+          voucher_date: stockDate,
           warehouse_id: warehouseId,
           counter_account: creditAcc,
-          reason: (v as any).stock_voucher_reason || `Nhập kho từ ${v.voucher_no}`,
+          reason: (v as any).stock_voucher_reason || `Nhập kho từ phiếu mua ${v.voucher_no}`,
           journal_entry_id: entry.id,
         })
         .select("id")
