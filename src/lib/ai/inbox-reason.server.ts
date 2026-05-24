@@ -252,12 +252,53 @@ export async function buildDocumentItem(
   });
   if (rule?.account) expenseAccount = rule.account;
 
-  // Build balanced entry: Nợ expense + Nợ 133 (VAT) / Có 331
-  const lines: ProposalLine[] = [
-    { account: expenseAccount, debit: subtotal, memo: `${supplier} — ${invoiceNo}` },
-  ];
+  // Per-line classification từ items[] (nếu có) → nhiều dòng Nợ chi tiết
+  const lines: ProposalLine[] = [];
+  let itemAccountCount = 0;
+  let primaryAccount = expenseAccount;
+  if (items.length > 0) {
+    const groups = new Map<string, { amount: number; names: string[] }>();
+    for (const it of items) {
+      const c = classifyLine(
+        {
+          description: it.name,
+          qty: it.qty ?? null,
+          unit_price: it.unit_price ?? null,
+          amount: it.amount ?? null,
+        },
+        {},
+      );
+      const acc = rule?.account ?? c.account;
+      const cur = groups.get(acc) ?? { amount: 0, names: [] };
+      cur.amount += Number(it.amount ?? 0);
+      cur.names.push(it.name);
+      groups.set(acc, cur);
+    }
+    const sorted = Array.from(groups.entries()).sort((a, b) => b[1].amount - a[1].amount);
+    itemAccountCount = sorted.length;
+    if (sorted[0]) primaryAccount = sorted[0][0];
+    for (const [acc, info] of sorted) {
+      const memo =
+        info.names.slice(0, 2).join("; ") +
+        (info.names.length > 2 ? ` +${info.names.length - 2}` : "");
+      lines.push({ account: acc, debit: Math.round(info.amount), memo });
+    }
+    // Bù chênh do làm tròn / khác subtotal vào dòng debit cuối
+    const sumDebit = lines.reduce((s, l) => s + (l.debit ?? 0), 0);
+    const target = subtotal || Math.max(0, amount - vat);
+    const diff = target - sumDebit;
+    if (diff !== 0 && lines.length > 0) {
+      lines[lines.length - 1].debit = (lines[lines.length - 1].debit ?? 0) + diff;
+    }
+  } else {
+    lines.push({ account: expenseAccount, debit: subtotal, memo: `${supplier} — ${invoiceNo}` });
+  }
   if (vat > 0) lines.push({ account: "133", debit: vat, memo: `Thuế GTGT khấu trừ` });
   lines.push({ account: "331", credit: amount, memo: `Phải trả ${supplier}` });
+
+  if (itemAccountCount > 0) {
+    // signal pushed below sau khi khởi tạo signals
+  }
 
   // Confidence
   let confidence = 35;
