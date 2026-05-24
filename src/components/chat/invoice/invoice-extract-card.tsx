@@ -122,6 +122,15 @@ export function InvoiceExtractCard({
     { kind: LineKind; account: string; hit_count: number }
   >;
 
+  // Lookup supplier industry + 12-month history signals (Phase 3)
+  const supplierSignalsFn = useServerFn(lookupSupplierSignals);
+  const { data: supplierSignals } = useQuery({
+    queryKey: ["ai_supplier_signals", taxId],
+    queryFn: () => supplierSignalsFn({ data: { supplier_tax_id: taxId! } }),
+    enabled: !!taxId,
+    staleTime: 5 * 60_000,
+  });
+
   const invoiceLines = useMemo(
     () =>
       rawInvoiceLines.map((l) => {
@@ -160,10 +169,32 @@ export function InvoiceExtractCard({
             } as LineClassification,
           };
         }
+        // Re-classify with supplier industry + history context if available
+        if (
+          supplierSignals &&
+          (supplierSignals.industry_hint || supplierSignals.history_total > 0)
+        ) {
+          const enriched = classifyLine(
+            {
+              description: l.description ?? null,
+              qty: l.qty ?? null,
+              unit: l.unit ?? null,
+              unit_price: l.unit_price ?? null,
+              amount: l.amount ?? null,
+            },
+            {
+              industryHint: supplierSignals.industry_hint?.kind ?? null,
+              industryLabel: supplierSignals.industry_hint?.label ?? null,
+              historyDist: supplierSignals.history_dist,
+            },
+          );
+          return { ...l, classification: enriched };
+        }
         return l;
       }),
-    [rawInvoiceLines, overrides, memoryMatches],
+    [rawInvoiceLines, overrides, memoryMatches, supplierSignals],
   );
+
 
   const classificationSummary = parsed?.classification_summary as
     | { dominant: LineKind; account: string; label: string; mixed: boolean }
