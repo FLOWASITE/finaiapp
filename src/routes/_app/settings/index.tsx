@@ -385,9 +385,6 @@ function OrganizationTab() {
                 <Field label="Địa chỉ trụ sở chính" required>
                   <Textarea disabled={!canEdit} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" rows={2} />
                 </Field>
-                <Field label="Địa chỉ xuất hoá đơn (nếu khác)">
-                  <Textarea disabled={!canEdit} value={form.billing_address ?? ""} onChange={(e) => set("billing_address", e.target.value)} placeholder="Để trống nếu trùng địa chỉ trụ sở" rows={2} />
-                </Field>
                 <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
                   <Switch disabled={!canEdit} checked={diffShipping} onCheckedChange={setDiffShipping} />
                   <div className="text-sm">
@@ -404,13 +401,10 @@ function OrganizationTab() {
                   <Field label="Điện thoại">
                     <Input disabled={!canEdit} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="VD: 02838123456" />
                   </Field>
-                  <Field label="Fax">
-                    <Input disabled={!canEdit} value={form.fax ?? ""} onChange={(e) => set("fax", e.target.value)} />
-                  </Field>
                   <Field label="Email">
                     <Input type="email" disabled={!canEdit} value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} placeholder="ketoan@congty.com" />
                   </Field>
-                  <Field label="Website">
+                  <Field label="Website" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.website ?? ""} onChange={(e) => set("website", e.target.value)} placeholder="https://congty.com" />
                   </Field>
                 </div>
