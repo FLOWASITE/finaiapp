@@ -1,6 +1,10 @@
+import { useMemo, useState } from "react";
 import type { AgentSpec } from "@/types/agent";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BookCheck, Building2, Landmark } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, BookCheck, Building2, Landmark, Search } from "lucide-react";
+
+type SeverityFilter = "all" | "mandatory" | "recommended" | "advisory";
 
 const SEVERITY_STYLES: Record<string, string> = {
   mandatory: "bg-red-50 text-red-700 border-red-200",
