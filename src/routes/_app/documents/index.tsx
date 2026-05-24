@@ -815,6 +815,8 @@ function UploadDialog({
     if (okCount > 0) {
       toast.success(`Đã tải lên ${okCount}/${files.length} file · OCR ${ocrOk} thành công${ocrFail ? `, ${ocrFail} lỗi` : ""}`);
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["sales-documents"] });
+      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
       qc.invalidateQueries({ queryKey: ["sidebar-counts"] });
     }
     reset();
