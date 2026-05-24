@@ -1,14 +1,21 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, AlertTriangle, Sparkles, XCircle, Loader2, FileText, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, AlertTriangle, Sparkles, XCircle, Loader2, FileText, Pencil, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { approveProposal, skipProposal } from "@/lib/categorize.functions";
 import type { JournalProposalDTO, ProposalEntry, ProposalLine } from "@/lib/categorize/types";
+
+const confidenceHint = (pct: number) => {
+  if (pct >= 85) return { label: "Độ tin cậy cao", detail: "Band ≥85%: precision lịch sử ~94%. Khuyến nghị duyệt nhanh." };
+  if (pct >= 60) return { label: "Độ tin cậy trung bình", detail: "Band 60–84%: precision lịch sử ~78%. Nên xem qua trước khi duyệt." };
+  return { label: "Độ tin cậy thấp", detail: "Band <60%: precision lịch sử ~55%. Cần review kỹ hoặc sửa tay." };
+};
 
 const SOURCE_LABEL: Record<string, { label: string; tone: string }> = {
   vendor_template: { label: "Mẫu NCC", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
