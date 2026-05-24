@@ -82,6 +82,7 @@ import {
   validateSlots,
 } from "@/lib/ai-memory-templates";
 import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
+import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
