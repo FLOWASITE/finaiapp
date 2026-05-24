@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Pencil, ArrowRight, Package, Wrench, Boxes, Hammer } from "lucide-react";
+import { X, Pencil, ArrowRight, Package, Wrench, Boxes, Hammer, Tag } from "lucide-react";
 import type { GraphNodeData } from "@/lib/graph/build-graph";
 import type { Rule } from "@/types/rule";
 import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
+import type { LineKind } from "@/lib/ai/classify-line";
+import { kindMeta } from "@/lib/ai/classify-line";
+import { EditIndustryDialog } from "./EditIndustryDialog";
 
 type ItemNeighbors = { vendors: VendorEntity[]; accounts: AccountEntity[] };
 
