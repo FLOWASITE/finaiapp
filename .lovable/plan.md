@@ -1,62 +1,67 @@
 ## Mục tiêu
-Tinh giản & sửa form **Cập nhật tổ chức** (`/settings`) theo 6 yêu cầu.
 
-## Thay đổi UI — `src/routes/_app/settings/index.tsx`
+Liên kết **Cài đặt → Tổ chức** với **Trí nhớ AI → Bối cảnh DN** thành một nguồn dữ liệu chung. Người dùng có thể sửa ở bất kỳ chỗ nào, dữ liệu vẫn nhất quán. AI luôn đọc thông tin pháp nhân mới nhất.
 
-1. **Bỏ "Địa chỉ xuất hoá đơn"** — gỡ `Field` `billing_address` (mục Liên hệ & Địa chỉ). Khi lưu, set `billing_address = null`.
-2. **Bỏ GPKD/ĐKKD** — gỡ 3 `Field`: `business_reg_no`, `business_reg_date`, `business_reg_place`. Cũng gỡ chữ "GPKD" trong dòng `Hint` "Tự điền…".
-3. **Auto-fill Loại hình doanh nghiệp từ Tên pháp nhân** — thêm helper `inferLegalForm(companyName)`:
-   - `TNHH` → `llc`
-   - `CỔ PHẦN` / `CP` → `jsc`
-   - `HỢP DANH` → `partnership`
-   - `DOANH NGHIỆP TƯ NHÂN` / `DNTN` → `sole_prop`
-   - `HỘ KINH DOANH` / `HKD` → `household`
-   - `CHI NHÁNH` → `branch`
-   
-   Gắn vào `onChange` của `company_name`: nếu `legal_form` đang trống hoặc người dùng chưa chỉnh tay (track bằng `userEditedLegalFormRef`), tự set giá trị suy luận. Vẫn cho phép sửa tay.
-4. **Bỏ Fax** — gỡ `Field` `fax`. Khi lưu, set `fax = null`. Layout dòng Điện thoại/Email/Website sẽ rearrange gọn lại (Điện thoại + Email trên 1 hàng, Website xuống dưới hoặc cùng hàng tuỳ chỗ trống).
-5. **TT200 → TT99** — trong dropdown "Chuẩn kế toán áp dụng":
-   - Đổi `<SelectItem value="TT200">` thành `value="TT99"` label `"TT 99/2025/TT-BTC — Áp dụng đầy đủ"`.
-   - Giữ `TT133` như cũ.
-   - Nếu dữ liệu hiện tại là `TT200`, hiển thị thêm option ẩn để không vỡ select; có thể auto-migrate trong loader (hiển thị TT99 thay vì TT200) — xem mục Backend.
-6. **Ngành nghề kinh doanh — chọn nhiều** — thay `IndustryCombobox` đơn lẻ bằng phiên bản multi-select.
+## Phạm vi đồng bộ
 
-## Thay đổi component — `src/components/industry-combobox.tsx`
-Thêm chế độ multi: prop `multi?: boolean`, `codes?: string[]`, `names?: string[]`, `onChangeMulti?: (items: {code,name}[]) => void`. Trong popover hiển thị `Checkbox` thay vì `Check`, hiển thị các chip đã chọn bên ngoài + nút xoá. Giữ tương thích chế độ đơn cũ.
+4 nhóm trường (đã chọn):
 
-## Backend — schema & validator
+| Nhóm | Trường trong `tenants` | Key trong `ai_memory_context` |
+|---|---|---|
+| Thông tin pháp nhân | `company_name`, `tax_id`, `address`, `legal_form` | `org.company_name`, `org.tax_id`, `org.address`, `org.legal_form` |
+| Ngành nghề KD | `industries` (jsonb), `industry_name` | `business_model.industries` |
+| Chuẩn mực kế toán | `accounting_standard`, `fiscal_year_start` | `accounting.standard`, `accounting.fiscal_year` |
+| Liên hệ & Người đại diện | `email`, `phone`, `legal_rep_name`, `legal_rep_title` | `org.contact`, `org.legal_rep` |
 
-**Migration (`supabase--migration`)**:
-```sql
-ALTER TABLE public.tenants
-  ADD COLUMN IF NOT EXISTS industries jsonb NOT NULL DEFAULT '[]'::jsonb;
+## Thiết kế
 
--- Backfill từ industry_code/industry_name hiện có
-UPDATE public.tenants
-SET industries = jsonb_build_array(jsonb_build_object('code', industry_code, 'name', industry_name))
-WHERE industries = '[]'::jsonb AND industry_code IS NOT NULL;
-```
-Giữ `industry_code`/`industry_name` (lưu ngành **đầu tiên** = ngành chính) để backward-compat với invoice/print/legacy code.
+### 1. Nguồn dữ liệu chính
+- **`tenants`** là **nguồn sự thật** (source of truth) cho các trường pháp nhân.
+- Các mục tương ứng trong `ai_memory_context` được đánh dấu **"managed"** (cờ `source = 'tenant'` + `source_field` lưu khoá trường).
+- Mục managed: `value_text` được render từ tenant, **không lưu cứng** giá trị riêng — luôn đọc từ tenants để tránh lệch.
 
-**`src/lib/tenants.functions.ts`** (`updateTenant` validator + `createTenant`):
-- Thêm `industries: z.array(z.object({ code: z.string(), name: z.string() })).max(20).optional()`.
-- Khi `industries` được gửi: tự set `industry_code = industries[0]?.code`, `industry_name = industries[0]?.name` để đồng bộ.
-- Validator `accounting_standard`: nới thành `z.enum(["TT133","TT200","TT99"])` (giữ TT200 cho dữ liệu cũ, mặc định mới là TT99).
-- Cho phép payload set `billing_address=null`, `fax=null` (chỉ cần `.nullable().optional()` — kiểm tra, có thể đã sẵn).
+### 2. Đồng bộ 2 chiều
 
-**`src/lib/tenant-setup-fields.ts`**: gỡ `business_reg_no`, `business_reg_date` khỏi `REQUIRED_TENANT_FIELDS` (vì không còn nhập). Setup progress sẽ tính lại tự động.
+**Tenant → Context (tự động):**
+- Trigger PG `tg_tenant_sync_context` chạy sau INSERT/UPDATE `tenants`: upsert 8 mục managed vào `ai_memory_context` với `category`, `key`, `label`, `value_text` lấy từ tenant. Idempotent theo `(tenant_id, key)`.
+- Chạy lần đầu cho tenant hiện có qua backfill trong cùng migration.
 
-## Nơi khác cần đồng bộ (nhẹ)
-- `src/components/tenant-switcher.tsx` (dialog tạo nhanh): bỏ hiển thị "GPKD/MST", "Ngày cấp" trong bonus list (giữ payload gửi server vẫn được; chỉ ẩn UI). Không bắt buộc trong vòng này nếu user chỉ cần sửa trang Settings — sẽ confirm.
-- `src/routes/_app/setup.tsx` / wizard: nếu có bước nhập GPKD, gỡ tương tự. (Nếu chưa cần thiết, có thể làm follow-up.)
+**Context → Tenant (khi user sửa trong AI Memory):**
+- `updateContext` server fn: nếu row có `source='tenant'` → parse `value_text` về field gốc của tenant và `UPDATE tenants` (qua `updateActiveTenant`). Sau đó trigger tenant sẽ refresh lại context row → đảm bảo format chuẩn.
+- Một số mục có format tự do (ví dụ "Ngành nghề chính: ...; phụ: ...") → dùng helper parser đơn giản; nếu parse thất bại, báo lỗi và yêu cầu sửa ở trang Tổ chức.
 
-## Không đụng
-- AI memory, in hoá đơn, BCTC (tiếp tục đọc `industry_code`/`industry_name` là ngành chính).
-- Bảng `tenants` không drop column nào (an toàn dữ liệu cũ).
+### 3. UI
 
-## Kiểm thử nhanh
-1. Mở `/settings` → tab Tổ chức: các field bị gỡ biến mất, không lỗi console.
-2. Gõ "CÔNG TY CỔ PHẦN ABC" vào Tên pháp nhân → Loại hình tự nhảy "Cổ phần"; sửa tay sang "TNHH" → không bị ghi đè lại.
-3. Chuẩn kế toán: dropdown chỉ còn TT133 + TT99; tổ chức cũ đang TT200 vẫn hiển thị (label fallback).
-4. Ngành nghề: chọn 3 ngành → Lưu → reload → vẫn còn 3 ngành; ngành đầu là ngành chính.
-5. Setup progress (% hoàn thiện) tăng vì bớt 2 field bắt buộc.
+**Trang AI Memory → tab Bối cảnh DN:**
+- Các mục managed hiển thị với badge **"Đồng bộ từ Tổ chức"** + icon link.
+- Cho phép sửa inline (như hiện tại); khi lưu sẽ ghi ngược về `tenants`.
+- Không cho xoá mục managed (ẩn nút xoá, hiện "Sửa tại Cài đặt → Tổ chức" link).
+- Thêm banner đầu tab: "🔗 Một số mục được liên kết với Cài đặt → Tổ chức. Sửa ở đâu cũng được."
+
+**Trang Cài đặt → Tổ chức:**
+- Thêm thẻ thông tin nhỏ ở đầu trang: "Các trường này tự động đồng bộ vào Trí nhớ AI → Bối cảnh DN" + link sang `/ai/memory?tab=context`.
+
+### 4. Migration DB
+- Thêm cột `source text` (`'tenant'` | `'manual'` mặc định `'manual'`) và `source_field text` vào `ai_memory_context`.
+- Unique constraint `(tenant_id, key)` để upsert.
+- Function `public.sync_tenant_to_context(p_tenant uuid)` chứa logic upsert 8 mục.
+- Trigger AFTER INSERT OR UPDATE OF (company_name, tax_id, address, legal_form, industries, industry_name, accounting_standard, fiscal_year_start, email, phone, legal_rep_name, legal_rep_title) ON tenants.
+- Backfill: `SELECT sync_tenant_to_context(id) FROM tenants;`
+
+### 5. Server fns
+- `src/lib/ai-memory-context.functions.ts`:
+  - `updateContext` mở rộng: nếu `source='tenant'` → gọi handler ghi ngược tenant; chặn xoá managed rows.
+  - Trả thêm `source`, `source_field` trong COLS để UI biết.
+- `src/lib/tenants.functions.ts`: không đổi (trigger DB lo phần đồng bộ).
+
+## Files dự kiến
+
+- **Migration mới**: `add_tenant_context_sync.sql` (cột + function + trigger + backfill).
+- **Sửa** `src/lib/ai-memory-context.functions.ts` (cập nhật cột & updateContext write-back).
+- **Sửa** `src/components/ai-memory-tabs.tsx` → `ContextTab` & `ContextRow` (badge managed, ẩn delete, render link).
+- **Sửa** `src/routes/_app/settings/index.tsx` (banner liên kết).
+
+## Không trong phạm vi
+- Không đổi schema `tenants`.
+- Không đụng các tab khác (Rules, Partners, Limits…).
+- Không tự động tạo lại các mục managed nếu user đã xoá thủ công trước migration — backfill sẽ upsert lại.
