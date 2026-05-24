@@ -24,6 +24,7 @@ import type {
   ConfidenceBand,
   InboxItem,
 } from "./inbox-types";
+import { proposeJournalForInvoice } from "@/lib/categorize/engine.server";
 
 
 
