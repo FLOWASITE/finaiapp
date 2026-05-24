@@ -55,6 +55,10 @@ export function GraphSidebar({
         {node.kind === "vendor" && node.vendor && (
           <VendorDetail
             vendor={node.vendor}
+            industryCode={node.industryCode ?? null}
+            industryLabel={node.industryLabel ?? null}
+            historyDist={node.historyDist ?? null}
+            historyTotal={node.historyTotal ?? 0}
             relatedRules={relatedRules}
             onJumpTo={(id) => onJumpTo(`rule:${id}`)}
           />
