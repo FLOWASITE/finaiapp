@@ -221,6 +221,7 @@ export async function buildDocumentItem(
           occurred_at: doc.created_at,
           confidence,
           confidence_band: bandOf(confidence),
+          processing_status: deriveStatus({ ocr_status: doc.ocr_status, confidence, signals }),
           proposal: {
             description: entry.description,
             entry_date: entry.entry_date,
