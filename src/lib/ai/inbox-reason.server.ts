@@ -297,13 +297,17 @@ export async function buildDocumentItem(
   if (vat > 0) lines.push({ account: "133", debit: vat, memo: `Thuế GTGT khấu trừ` });
   lines.push({ account: "331", credit: amount, memo: `Phải trả ${supplier}` });
 
-  if (itemAccountCount > 0) {
-    // signal pushed below sau khi khởi tạo signals
-  }
-
   // Confidence
   let confidence = 35;
   const signals: ReasoningSignal[] = [];
+  if (itemAccountCount > 0) {
+    confidence += 10;
+    signals.push({
+      kind: "pattern",
+      label: `Phân loại ${items.length} dòng chi tiết (${itemAccountCount} loại TK)`,
+      ok: true,
+    });
+  }
   if (doc.ocr_status === "done") {
     confidence += 15;
     signals.push({ kind: "match", label: "OCR đã đọc đầy đủ", ok: true });
