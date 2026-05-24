@@ -984,7 +984,10 @@ function ItemCard({
           <h3 className="flex-1 text-[14px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
             {item.title}
           </h3>
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right flex flex-col items-end gap-1">
+            {item.processing_status && (
+              <StatusBadge status={item.processing_status as ProcStatus} />
+            )}
             <div className="text-[17px] font-bold leading-none tabular-nums text-foreground">
               {sign}
               {VND(Math.abs(item.amount))}
