@@ -27,6 +27,9 @@ import {
   Keyboard,
   Home,
   Calculator,
+  Eye,
+  Archive,
+  MinusCircle,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 
@@ -106,6 +109,79 @@ function bandDot(b: ConfidenceBand) {
   if (b === "high") return "bg-emerald-500";
   if (b === "medium") return "bg-amber-500";
   return "bg-rose-500";
+}
+
+type ProcStatus =
+  | "ocr_pending"
+  | "ocr_failed"
+  | "blocked"
+  | "needs_review"
+  | "ready"
+  | "auto_ready"
+  | "posted"
+  | "skipped";
+
+const STATUS_META: Record<
+  ProcStatus,
+  { label: string; icon: typeof CheckCircle2; cls: string; spin?: boolean }
+> = {
+  ocr_pending: {
+    label: "Đang đọc OCR",
+    icon: Loader2,
+    cls: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300",
+    spin: true,
+  },
+  ocr_failed: {
+    label: "Lỗi OCR",
+    icon: AlertTriangle,
+    cls: "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300",
+  },
+  blocked: {
+    label: "Bị chặn",
+    icon: AlertTriangle,
+    cls: "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300",
+  },
+  needs_review: {
+    label: "Cần xem lại",
+    icon: Eye,
+    cls: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300",
+  },
+  ready: {
+    label: "Sẵn sàng duyệt",
+    icon: CheckCircle2,
+    cls: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300",
+  },
+  auto_ready: {
+    label: "AI gợi ý duyệt",
+    icon: Sparkles,
+    cls: "bg-indigo-500/10 text-indigo-700 border-indigo-500/30 dark:text-indigo-300",
+  },
+  posted: {
+    label: "Đã hạch toán",
+    icon: Archive,
+    cls: "bg-slate-500/10 text-slate-700 border-slate-500/30 dark:text-slate-300",
+  },
+  skipped: {
+    label: "Đã bỏ qua",
+    icon: MinusCircle,
+    cls: "bg-muted text-muted-foreground border-border",
+  },
+};
+
+function StatusBadge({ status }: { status: ProcStatus }) {
+  const m = STATUS_META[status];
+  const Icon = m.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+        m.cls,
+      )}
+    >
+      <Icon className={cn("h-2.5 w-2.5", m.spin && "animate-spin")} />
+      {m.label}
+    </span>
+  );
 }
 
 function relTime(iso: string) {
@@ -908,7 +984,10 @@ function ItemCard({
           <h3 className="flex-1 text-[14px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
             {item.title}
           </h3>
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right flex flex-col items-end gap-1">
+            {item.processing_status && (
+              <StatusBadge status={item.processing_status as ProcStatus} />
+            )}
             <div className="text-[17px] font-bold leading-none tabular-nums text-foreground">
               {sign}
               {VND(Math.abs(item.amount))}

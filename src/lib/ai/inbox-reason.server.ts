@@ -38,6 +38,22 @@ function bandOf(confidence: number): ConfidenceBand {
   return "low";
 }
 
+function deriveStatus(opts: {
+  ocr_status?: string | null;
+  blocker?: unknown;
+  confidence: number;
+  signals?: ReasoningSignal[];
+}): import("./inbox-types").ProcessingStatus {
+  const s = opts.ocr_status;
+  if (s === "pending" || s === "processing" || s === "queued") return "ocr_pending";
+  if (s === "failed" || s === "error") return "ocr_failed";
+  if (opts.blocker) return "blocked";
+  const hasWarn = (opts.signals ?? []).some((x) => x.kind === "warn" && !x.ok);
+  if (opts.confidence < 60 || hasWarn) return "needs_review";
+  if (opts.confidence >= 88) return "auto_ready";
+  return "ready";
+}
+
 function relativeTimeVi(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.round(diff / 60000);
@@ -205,6 +221,7 @@ export async function buildDocumentItem(
           occurred_at: doc.created_at,
           confidence,
           confidence_band: bandOf(confidence),
+          processing_status: deriveStatus({ ocr_status: doc.ocr_status, confidence, signals }),
           proposal: {
             description: entry.description,
             entry_date: entry.entry_date,
@@ -367,6 +384,7 @@ export async function buildDocumentItem(
     occurred_at: doc.created_at,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ ocr_status: doc.ocr_status, confidence, signals }),
     proposal: {
       description: `Mua hàng/dịch vụ ${supplier}${invoiceNo ? ` — HĐ ${invoiceNo}` : ""}`,
       entry_date: date,
@@ -539,6 +557,7 @@ export async function buildBankItem(
     occurred_at: txn.txn_date,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ blocker, confidence, signals }),
     proposal: {
       description: `${isIncoming ? "Thu" : "Chi"} qua ${bankLabel} — ${partner}`,
       entry_date: txn.txn_date,
@@ -596,6 +615,7 @@ export function buildInsightItem(insight: any): InboxItem {
     occurred_at: insight.created_at,
     confidence,
     confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ confidence }),
     proposal: {
       description: insight.title ?? "Cảnh báo AI",
       entry_date: insight.created_at.slice(0, 10),
