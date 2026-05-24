@@ -50,7 +50,10 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
   const src = SOURCE_LABEL[source] ?? SOURCE_LABEL.manual;
   const confPct = Math.round(confidence * 100);
   const hasError = dto.warnings.some((w) => w.severity === "error");
-  const supplier = invoice?.supplier_name ?? "(Không rõ NCC)";
+  const invoiceKind: "purchase" | "sales" = (invoice?.invoice_kind === "sales" ? "sales" : "purchase");
+  const isSales = invoiceKind === "sales";
+  const partnerLabel = isSales ? "KH" : "NCC";
+  const supplier = invoice?.supplier_name ?? invoice?.customer_name ?? `(Không rõ ${partnerLabel})`;
   const total = Number(invoice?.total ?? 0);
 
   const refresh = () => {
