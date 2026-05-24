@@ -13,7 +13,11 @@ import {
   ShieldAlert,
   ShieldCheck,
   History,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
