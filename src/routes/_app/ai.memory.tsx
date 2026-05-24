@@ -171,7 +171,13 @@ function AIMemoryPage() {
         totalApplied={totalApplied}
         accuracy={accPct}
       />
-      <SubTabs value={tab} onChange={setTab} learningCount={watch.length} ruleCount={activeCount} />
+      <SubTabs
+        value={tab}
+        onChange={setTab}
+        learningCount={watch.length}
+        ruleCount={activeCount}
+      />
+
 
       {tab === "graph" ? (
         <div className="flex-1 overflow-hidden">
