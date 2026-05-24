@@ -1,31 +1,51 @@
 ## Mục tiêu
-Tự động chạy OCR + AI parse ngay sau khi user tải hóa đơn/tài liệu lên (không cần bấm "Phân tích lại" thủ công).
 
-## Cách tiếp cận
-Kích hoạt pipeline parse ngay trong server function `uploadDocument` — sau khi insert row `documents` thành công, gọi luôn `parseFileCore` (cùng pipeline mà `reparseDocument` đang dùng). Trả kết quả về client để UI hiển thị trạng thái đã OCR ngay lập tức.
+Refactor `src/components/inbox/inbox-item-sheet.tsx` để khớp với prototype đã chọn (v1 — AI assistant tinh tế), giải quyết các vấn đề trong screenshot: tiêu đề/đối tác trống hiện toàn dấu "—", số tiền trôi nổi, khối bút toán đơn điệu, footer rời rạc.
 
-## Thay đổi
+## Thay đổi UI (chỉ frontend, giữ nguyên props & logic)
 
-**`src/lib/documents.functions.ts` — `uploadDocument` handler**
-- Sau bước insert `documents` (đã có `row.id`):
-  - Map `doc_kind` → `kind` cho parser (`purchase_invoice` / `bank_statement` / `cash_voucher` / `auto`) — giống `reparseDocument`.
-  - Set `ocr_status = 'processing'` trên row vừa tạo.
-  - Gọi `parseFileCore({ fileBase64, mimeType, filename, kind, supabase, userId })` trong try/catch.
-  - Thành công: nếu doc chưa có `ai_upload_id`, update `documents` với `ocr_status='done'`, `ocr_extracted`, `ai_upload_id` (đúng pattern `reparseDocument`).
-  - Lỗi: update `ocr_status='failed'`, `ocr_error=<message>`; không throw để upload vẫn coi là thành công (file đã lên storage + có row).
-- Return shape mở rộng: `{ id, ocr_status, parser?, pages?, error? }` để UI biết trạng thái.
+**Header (gọn lại)**
+- Icon Sparkles trong vòng tròn nền `emerald-50` + tiêu đề cố định "Đề xuất của Sổ AI"
+- Thanh tiến trình tin cậy (progress bar 12px) + label "Tin cậy N%", màu theo band: ≥80 emerald, ≥50 amber, <50 rose
+- Bỏ tiêu đề hoá đơn ra khỏi header (chuyển xuống Summary), tránh lặp
 
-**`src/routes/_app/documents/index.tsx` — `UploadDialog.submit`**
-- Sau khi upload từng file, đọc `ocr_status` trong kết quả:
-  - `done` → đếm vào `okCount` và message "Đã tải lên & OCR ... file".
-  - `failed` → vẫn đếm upload OK nhưng `toast.warning(${file}: OCR lỗi — có thể chạy lại từ chi tiết)`.
-- Sau vòng lặp invalidate cả `["documents"]` và `["sidebar-counts"]` để badge Inbox cập nhật.
+**Summary block**
+- Cột trái: label "Đối tác" → tên đối tác. Nếu trống → hiện "Chưa xác định tên" italic, muted (thay vì "—")
+- Subline: `item.title` (truncate)
+- Cột phải: số tiền lớn (text-2xl bold, tabular-nums) + thời gian relative
 
-## Lưu ý kỹ thuật
-- `parseFileCore` chạy đồng bộ trong request → upload nhiều file sẽ chậm hơn (tuần tự, mỗi file vài giây). Chấp nhận trade-off để giữ luồng đơn giản, không cần queue/cron. Nếu sau này cần async, sẽ chuyển sang background job riêng.
-- Không đụng đến `reparseDocument` — nó vẫn dùng được khi user muốn parse lại thủ công.
-- Không thay đổi schema DB, không cần migration.
+**Trust strip** (gom OCR + followup thành 1 dải nền muted/60)
+- Chip trắng "✓ OCR đã đọc đầy đủ"
+- Nút amber: lightbulb + `followups[0]` + chevron → mở chat hỏi AI
+
+**Bút toán đề xuất** (rounded-2xl, border-border/60, bg-muted/30)
+- Grid `[28px_44px_1fr_auto]`: nhãn Nợ/Có (blue/rose) → badge số TK trên nền nhạt → memo truncate → số tiền mono tabular-nums
+- Divider mảnh giữa các dòng Nợ và dòng Có đầu tiên
+
+**Signals & Blocker**: giữ nguyên (chip pill + cảnh báo rose nếu có)
+
+**Footer thống nhất**
+- Hàng nút: Duyệt & ghi sổ (flex-3, gradient primary, rounded-2xl, shadow primary/20) + Sửa (icon, rounded-2xl) + Bỏ qua (X, rounded-2xl)
+- Pill phụ "Áp dụng quy tắc cho tương lai" — nền `primary/5`, viền `primary/20`, có icon Wand2
+
+**Chat history**: giữ nguyên logic, làm tròn 2xl, message bubble rounded-2xl
+
+## Token & màu
+
+- Chrome (background, border, foreground, muted, primary, primary-foreground) dùng semantic tokens trong `src/styles.css`
+- Màu trạng thái (emerald/amber/rose/blue cho Nợ-Có, tin cậy, OCR) dùng Tailwind utility — đây là pattern đã có khắp file hiện tại (dark mode variants kèm theo)
+- CTA chính dùng `from-primary to-primary/85` thay vì hard-code blue-700
+
+## Phạm vi
+
+- 1 file: `src/components/inbox/inbox-item-sheet.tsx` (rewrite)
+- Props `InboxItemSheetProps` giữ nguyên — mọi caller không cần đổi
+- Không động vào server functions, types, hay logic chat/approve
 
 ## Acceptance
-- Upload 1 file PDF hóa đơn → ngay khi dialog đóng, row mới xuất hiện trong danh sách với badge **OCR: Hoàn tất** và badge **Hạch toán: Chờ duyệt X%** (nhờ engine đã wire ở bước trước).
-- Upload file lỗi parse (ví dụ ảnh trống) → row vẫn xuất hiện, badge **OCR: Lỗi**, có nút "Phân tích lại" trong drawer.
+
+- Khi `item.partner` rỗng → hiện "Chưa xác định tên" (italic, muted), không còn dấu "—" trơ trọi
+- Tin cậy 50% → progress bar half, màu amber
+- Bút toán 3 dòng (642 / 133 / 331) căn cột đẹp với divider trước dòng Có
+- Footer: 1 CTA gradient lớn + 2 nút phụ + pill rule, tất cả rounded-2xl
+- Swipe-to-close (mobile) và Esc vẫn hoạt động
