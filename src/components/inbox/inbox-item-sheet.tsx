@@ -292,6 +292,14 @@ export function InboxItemSheet({
                 </div>
               </div>
 
+              {/* Invoice viewer / Open match */}
+              <InvoiceActionRow item={item} />
+
+              {/* Voucher meta grid */}
+              <VoucherMetaGrid meta={item.proposal.meta} />
+
+
+
               {/* Trust strip */}
               <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/60 p-1">
                 <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 shadow-sm">
