@@ -45,6 +45,66 @@ export type AgentSettings = {
   };
 };
 
+export type AgentIO = {
+  name: string;
+  format: string;
+  notes?: string;
+};
+
+export type BusinessRule = {
+  id: string;
+  title: string;
+  detail: string;
+  severity: "mandatory" | "recommended" | "advisory";
+  reference?: string;
+};
+
+export type DecisionNode = {
+  id: string;
+  condition: string;
+  outcome: string;
+  confidence?: number;
+  children?: DecisionNode[];
+};
+
+export type ExceptionCase = {
+  id: string;
+  scenario: string;
+  handling: string;
+};
+
+export type Integration = {
+  name: string;
+  kind: "tax_authority" | "bank" | "accounting_software" | "messaging" | "ai_gateway" | "other";
+  direction: "in" | "out" | "bidirectional";
+  notes?: string;
+};
+
+export type ComplianceCheck = {
+  id: string;
+  requirement: string;
+  reference: string;
+  status: "covered" | "partial" | "planned";
+};
+
+export type AgentSpec = {
+  inputs: AgentIO[];
+  outputs: AgentIO[];
+  decision_tree: DecisionNode[];
+  rules: BusinessRule[];
+  confidence_matrix: {
+    strict: number;
+    balanced: number;
+    flexible: number;
+    fallback_action: "queue_human" | "suggest" | "reject" | "log_only";
+  };
+  exceptions: ExceptionCase[];
+  integrations: Integration[];
+  audit_fields: string[];
+  compliance: ComplianceCheck[];
+  sla: { p50_ms: number; p95_ms: number; max_retry: number; timeout_ms: number };
+};
+
 export type Agent = {
   id: AgentId;
   name: string;
@@ -68,6 +128,7 @@ export type Agent = {
   recent_activity: AgentActivity[];
   depends_on: AgentId[];
   feeds_into: AgentId[];
+  spec?: AgentSpec;
 };
 
 export type OrchestrationFlow = {
