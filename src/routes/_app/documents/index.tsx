@@ -1077,6 +1077,14 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
                 )}
               </TabsContent>
 
+              {doc.invoice_id && (
+                <TabsContent value="categorize" className="mt-3">
+                  <CategorizeTab invoiceId={doc.invoice_id} categorize={data.categorize} />
+                </TabsContent>
+              )}
+
+
+
               <TabsContent value="links" className="mt-3 space-y-2">
                 {doc.einvoice_id && (
                   <div className="flex items-center justify-between border rounded p-2 text-sm">
