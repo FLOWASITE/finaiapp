@@ -32,6 +32,7 @@ import {
   MinusCircle,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
+import mascotSrc from "@/assets/fin-mascot.png";
 
 import {
   listInboxAi,
