@@ -183,6 +183,7 @@ export type Database = {
         Row: {
           agent_key: string
           description: string | null
+          is_active: boolean
           label: string
           model_name: string | null
           purpose: string
@@ -192,6 +193,7 @@ export type Database = {
         Insert: {
           agent_key: string
           description?: string | null
+          is_active?: boolean
           label: string
           model_name?: string | null
           purpose: string
@@ -201,6 +203,7 @@ export type Database = {
         Update: {
           agent_key?: string
           description?: string | null
+          is_active?: boolean
           label?: string
           model_name?: string | null
           purpose?: string

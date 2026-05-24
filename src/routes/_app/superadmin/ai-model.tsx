@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +29,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AiAgentsPanel } from "@/components/ai-agents-panel";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -51,6 +53,9 @@ import {
 
 export const Route = createFileRoute("/_app/superadmin/ai-model")({
   beforeLoad: requireSuperadminGuard,
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: (s.tab === "agents" ? "agents" : "provider") as "provider" | "agents",
+  }),
   component: AiModelPage,
 });
 
@@ -273,6 +278,8 @@ function hostFromUrl(u: string): string | null {
 }
 
 function AiModelPage() {
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const getCfg = useServerFn(getAiModelConfig);
   const saveCfg = useServerFn(saveAiModelConfig);
   const testCfg = useServerFn(testAiModelConfig);
@@ -480,6 +487,28 @@ function AiModelPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 pb-28">
+      <Tabs
+        value={tab}
+        onValueChange={(v) =>
+          navigate({ search: { tab: v as "provider" | "agents" }, replace: true })
+        }
+      >
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="provider">
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+            Provider chung
+          </TabsTrigger>
+          <TabsTrigger value="agents">
+            <Cpu className="h-3.5 w-3.5 mr-1.5" />
+            Theo Agent
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="agents" className="mt-4">
+          <AiAgentsPanel />
+        </TabsContent>
+
+        <TabsContent value="provider" className="mt-4 space-y-4">
       {/* Hero */}
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-center gap-4">
@@ -520,12 +549,6 @@ function AiModelPage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               Nguồn AI cho Chat, Parse hoá đơn/sao kê, đề xuất định khoản…
             </p>
-            <Link
-              to="/superadmin/ai-agents"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-            >
-              <Sparkles className="h-3 w-3" /> Cấu hình model riêng cho từng AI Agent →
-            </Link>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2">
             <div className="flex flex-col">
@@ -885,8 +908,11 @@ function AiModelPage() {
           </div>
         </details>
       </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar (chỉ tab provider) */}
+      {tab === "provider" && (
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/85 backdrop-blur shadow-[0_-2px_12px_-4px_rgba(0,0,0,0.08)] md:left-60">
         <div className="mx-auto max-w-4xl flex flex-wrap items-center gap-3 px-4 py-2.5">
           {testResult && (
@@ -931,6 +957,7 @@ function AiModelPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

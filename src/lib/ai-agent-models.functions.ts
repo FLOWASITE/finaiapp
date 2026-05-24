@@ -18,7 +18,7 @@ export const listAgentModels = createServerFn({ method: "GET" })
     await assertSuperadmin(supabase, userId);
     const { data, error } = await supabaseAdmin
       .from("ai_agent_models")
-      .select("agent_key, label, description, purpose, model_name, updated_at")
+      .select("agent_key, label, description, purpose, model_name, is_active, updated_at")
       .order("agent_key");
     if (error) throw new Error(error.message);
 
@@ -38,12 +38,13 @@ export const listAgentModels = createServerFn({ method: "GET" })
     };
 
     return {
-      agents: (data ?? []).map((r) => ({
+      agents: (data ?? []).map((r: any) => ({
         agent_key: r.agent_key,
         label: r.label,
         description: r.description,
         purpose: r.purpose,
         model_name: r.model_name,
+        is_active: r.is_active !== false,
         effective_model: r.model_name || pickPurposeDefault(r.purpose) || "(Lovable fallback)",
         updated_at: r.updated_at,
       })),
