@@ -491,7 +491,16 @@ export const getDocument = createServerFn({ method: "GET" })
         .maybeSingle();
       aiUpload = au ?? null;
     }
-    return { doc, links: links ?? [], signedUrl, aiUpload };
+    let categorize: any = null;
+    if (doc.invoice_id) {
+      const { data: prop } = await context.supabase
+        .from("ai_journal_proposals")
+        .select("id, status, confidence, source, journal_entry_id, auto_posted, dto, warnings, created_at, resolved_at")
+        .eq("invoice_id", doc.invoice_id)
+        .maybeSingle();
+      categorize = prop ?? null;
+    }
+    return { doc, links: links ?? [], signedUrl, aiUpload, categorize };
   });
 
 export const reparseDocument = createServerFn({ method: "POST" })
