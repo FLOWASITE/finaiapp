@@ -237,6 +237,47 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       // Best-effort — không chặn chat nếu lookup lỗi.
     }
 
+    // Bối cảnh doanh nghiệp do user tự nhập (ai_memory_context) — AI đọc trước khi suy luận.
+    let memoryContextBlock = "";
+    try {
+      const { data: ctxRows } = await supabase
+        .from("ai_memory_context")
+        .select("category,label,value_text,order_index")
+        .order("category", { ascending: true })
+        .order("order_index", { ascending: true });
+      if (ctxRows && ctxRows.length > 0) {
+        const CATEGORY_LABEL: Record<string, string> = {
+          org: "Tổ chức",
+          accounting: "Kế toán",
+          tax: "Thuế",
+          revenue: "Doanh thu",
+          banking: "Ngân hàng",
+          departments: "Phòng ban",
+          business_model: "Mô hình KD",
+          einvoice: "HĐ điện tử",
+          other: "Khác",
+        };
+        const grouped = new Map<string, Array<{ label: string; value_text: string }>>();
+        for (const r of ctxRows as Array<{ category: string; label: string; value_text: string }>) {
+          const arr = grouped.get(r.category) ?? [];
+          arr.push({ label: r.label, value_text: r.value_text });
+          grouped.set(r.category, arr);
+        }
+        const parts: string[] = ["## Bối cảnh doanh nghiệp (user tự khai báo — ưu tiên cao)"];
+        for (const [cat, items] of grouped.entries()) {
+          parts.push(`\n### ${CATEGORY_LABEL[cat] ?? cat}`);
+          for (const it of items) parts.push(`- **${it.label}**: ${it.value_text}`);
+        }
+        parts.push(
+          "\nKhi user hỏi/nhập liệu, BẮT BUỘC tuân thủ các quy tắc bối cảnh trên. Nếu mâu thuẫn với mặc định của bạn, ưu tiên bối cảnh user.",
+        );
+        memoryContextBlock = parts.join("\n");
+      }
+    } catch {
+      // Best-effort.
+    }
+
+
     // ----- Parse attachments INLINE before LLM, surfacing as tool-call events -----
     const parsedAttachments: Array<{ name: string; kind: string; parsed: any }> = [];
     if (data.attachments && data.attachments.length > 0) {
