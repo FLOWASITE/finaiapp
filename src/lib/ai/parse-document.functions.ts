@@ -980,7 +980,8 @@ export async function parseFileCore(opts: {
     if (isXmlFile(mimeType, opts.filename)) {
       try {
         const parsedXml = parseEinvoiceXml(fileBuf.toString("utf8"));
-        const parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        let parsed = parsedXmlToPurchaseInvoice(parsedXml);
+        parsed = await enrichInvoiceWithSupplierSignals(parsed, opts.supabase, opts.userId);
         if (uploadId && opts.supabase) {
           try {
             await opts.supabase
