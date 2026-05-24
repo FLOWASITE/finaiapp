@@ -314,11 +314,26 @@ function OrganizationTab() {
                         Ghi đè dữ liệu hiện có
                       </label>
                     </div>
-                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, GPKD, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
+                    <Hint>Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, Ngành nghề, Đại diện…). Vẫn cần bấm <b>Lưu</b> để xác nhận.</Hint>
                   </Field>
                   <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
-                    <Input disabled={!canEdit} value={form.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} placeholder="VD: CÔNG TY TNHH ABC" />
-                    <Hint>In trên hoá đơn, BCTC, hợp đồng.</Hint>
+                    <Input
+                      disabled={!canEdit}
+                      value={form.company_name ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm((prev: any) => {
+                          const next = { ...prev, company_name: v };
+                          const inferred = inferLegalForm(v);
+                          if (inferred && !userEditedLegalFormRef.current) {
+                            next.legal_form = inferred;
+                          }
+                          return next;
+                        });
+                      }}
+                      placeholder="VD: CÔNG TY TNHH ABC"
+                    />
+                    <Hint>In trên hoá đơn, BCTC, hợp đồng. Loại hình DN sẽ tự suy ra từ tên.</Hint>
                   </Field>
                   <Field label="Tên giao dịch / Thương hiệu">
                     <Input disabled={!canEdit} value={form.trade_name ?? ""} onChange={(e) => set("trade_name", e.target.value)} placeholder="VD: ABC Group" />
@@ -327,27 +342,28 @@ function OrganizationTab() {
                     <Input disabled={!canEdit} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="VD: ABC" />
                   </Field>
                   <Field label="Loại hình doanh nghiệp" required>
-                    <Select disabled={!canEdit} value={form.legal_form ?? ""} onValueChange={(v) => set("legal_form", v)}>
+                    <Select
+                      disabled={!canEdit}
+                      value={form.legal_form ?? ""}
+                      onValueChange={(v) => { userEditedLegalFormRef.current = true; set("legal_form", v); }}
+                    >
                       <SelectTrigger><SelectValue placeholder="Chọn loại hình…" /></SelectTrigger>
                       <SelectContent>
                         {LEGAL_FORMS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <Hint>Tự suy từ tên pháp nhân (TNHH → TNHH, CỔ PHẦN → Cổ phần…). Có thể sửa tay.</Hint>
                   </Field>
                   <Field label="Ngày thành lập">
                     <Input type="date" disabled={!canEdit} value={form.established_date ?? ""} onChange={(e) => set("established_date", e.target.value || null)} />
                   </Field>
-                  <Field label="Số GPKD / ĐKKD" required>
-                    <Input disabled={!canEdit} value={form.business_reg_no ?? ""} onChange={(e) => set("business_reg_no", e.target.value)} placeholder="VD: 0123456789" />
-                  </Field>
-                  <Field label="Ngày cấp GPKD" required>
-                    <Input type="date" disabled={!canEdit} value={form.business_reg_date ?? ""} onChange={(e) => set("business_reg_date", e.target.value || null)} />
-                  </Field>
-                  <Field label="Nơi cấp GPKD" className="md:col-span-2">
-                    <Input disabled={!canEdit} value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="VD: Sở KH&ĐT TP. Hà Nội" />
-                  </Field>
-                  <Field label="Ngành nghề kinh doanh chính" className="md:col-span-2">
-                    <IndustryCombobox disabled={!canEdit} code={form.industry_code} name={form.industry_name} onChange={(c, n) => setForm({ ...form, industry_code: c, industry_name: n })} />
+                  <Field label="Ngành nghề kinh doanh" className="md:col-span-2">
+                    <IndustryCombobox
+                      multi
+                      disabled={!canEdit}
+                      items={Array.isArray(form.industries) ? form.industries : []}
+                      onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                    />
                   </Field>
                   <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
                     <Input disabled={!canEdit} value={form.tax_authority ?? ""} onChange={(e) => set("tax_authority", e.target.value)} placeholder="VD: Chi cục Thuế Quận 1" />
