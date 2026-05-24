@@ -464,6 +464,17 @@ export async function buildBankItem(
       description: `${isIncoming ? "Thu" : "Chi"} qua ${bankLabel} — ${partner}`,
       entry_date: txn.txn_date,
       lines,
+      voucher_kind: isIncoming ? "bank_receipt" : "bank_payment",
+      meta: {
+        bank_label: bankLabel,
+        bank_account: txn.account_no ?? txn.bank_account ?? null,
+        txn_date: txn.txn_date ?? null,
+        txn_ref: txn.reference ?? txn.txn_ref ?? txn.ref_no ?? null,
+        counterparty: partner || null,
+        counterparty_account: txn.counterparty_account ?? null,
+        memo: memo || null,
+        matched_invoice_no: match_ref?.ref ?? null,
+      },
     },
     reasoning: {
       summary: match_ref
