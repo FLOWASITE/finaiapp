@@ -142,19 +142,9 @@ async function tryVendorTemplate(
   inv: LoadedInvoice,
 ): Promise<{ entries: ProposalEntry[]; signals: ProposalSignal[]; rule: string } | null> {
   if (!inv.supplier_name && !inv.supplier_tax_id) return null;
-  const { data } = await supabase
-    .from("ai_memory_partners")
-    .select("id, display_name, template_lines, template_version, sample_count, default_account")
-    .eq("tenant_id", inv.tenant_id)
-    .eq("party_kind", "supplier")
-    .ilike("display_name", `%${(inv.supplier_name ?? "").slice(0, 30)}%`)
-    .gte("sample_count", 3)
-    .order("sample_count", { ascending: false })
-    .limit(1);
-  const row = (data ?? [])[0] as any;
-  if (!row?.template_lines || !Array.isArray(row.template_lines) || row.template_lines.length === 0) {
-    return null;
-  }
+  const templates = await getTenantVendorTemplates(supabase, inv.tenant_id);
+  const row = pickVendorTemplate(templates, inv.supplier_name);
+  if (!row) return null;
 
   // Scale template về tổng = inv.total
   const tplLines: ProposalLine[] = row.template_lines as ProposalLine[];
