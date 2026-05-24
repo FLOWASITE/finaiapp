@@ -96,7 +96,9 @@ const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
 function sourceMeta(it: InboxItem): { icon: any; label: string } {
   if (it.source === "bank_statement") return { icon: Landmark, label: it.source_short || "Sao kê" };
   if (it.source === "ai_insight") return { icon: Lightbulb, label: it.source_short || "AI phát hiện" };
-  return { icon: FileText, label: it.source_short || "Hoá đơn vào" };
+  const short = it.source_short?.trim();
+  const label = short && !/^doc$/i.test(short) ? short : "Hoá đơn vào";
+  return { icon: FileText, label };
 }
 
 function bandRail(b: ConfidenceBand) {
