@@ -640,9 +640,26 @@ async function structureBankStatement(
 const KIND_TO_DOC_KIND: Record<string, string> = {
   bank_statement: "bank_statement",
   purchase_invoice: "purchase_invoice",
+  sales_invoice: "sales_invoice",
   cash_voucher: "cash_voucher",
   auto: "other",
 };
+
+/** Lấy MST tenant đang hoạt động của user. Trả "" nếu không có. */
+async function getTenantTaxIdQuick(supabase: any, userId?: string): Promise<string> {
+  try {
+    if (!supabase || !userId) return "";
+    const { data: prof } = await supabase
+      .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const tid = prof?.active_tenant_id;
+    if (!tid) return "";
+    const { data: t } = await supabase
+      .from("tenants").select("tax_id").eq("id", tid).maybeSingle();
+    return String(t?.tax_id ?? "").replace(/\D+/g, "");
+  } catch {
+    return "";
+  }
+}
 
 async function upsertDocumentForUpload(opts: {
   supabase: any;
