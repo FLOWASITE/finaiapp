@@ -239,6 +239,15 @@ export const buildVatXml = createServerFn({ method: "POST" })
     }
     lines.push(`  </BangKeMuaVao>`);
     lines.push(`</HSoThueDTu>`);
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "tax",
+        action: `Tạo tờ khai 01/GTGT kỳ ${period}`,
+        result: "success",
+        metadata: { period, payable: summary.payable, sales: sales.length, purchases: purchases.length },
+      });
+    } catch {}
     return { xml: lines.join("\n"), filename: `01-GTGT-${period}.xml` };
   });
 

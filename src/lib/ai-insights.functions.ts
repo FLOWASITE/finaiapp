@@ -27,5 +27,14 @@ export const dismissAiInsight = createServerFn({ method: "POST" })
       .update({ dismissed_at: new Date().toISOString(), dismissed_by: userId })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "alert",
+        action: `Đóng cảnh báo AI`,
+        result: "success",
+        metadata: { insight_id: data.id },
+      });
+    } catch {}
     return { ok: true };
   });

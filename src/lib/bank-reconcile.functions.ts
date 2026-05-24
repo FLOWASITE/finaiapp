@@ -153,7 +153,7 @@ export const matchTxn = createServerFn({ method: "POST" })
     z.object({ txnId: z.string().uuid(), voucherId: z.string().uuid() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: v } = await supabase
       .from("bank_vouchers")
       .select("id, journal_entry_id, voucher_no")
@@ -173,6 +173,15 @@ export const matchTxn = createServerFn({ method: "POST" })
         match_reason: `Ghép thủ công với phiếu ${v.voucher_no}`,
       })
       .eq("id", data.txnId);
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "reconcile",
+        action: `Ghép giao dịch NH với phiếu ${v.voucher_no}`,
+        result: "success",
+        metadata: { txn_id: data.txnId, voucher_id: data.voucherId },
+      });
+    } catch {}
     return { ok: true };
   });
 
