@@ -18,7 +18,7 @@ export const listAgentModels = createServerFn({ method: "GET" })
     await assertSuperadmin(supabase, userId);
     const { data, error } = await supabaseAdmin
       .from("ai_agent_models")
-      .select("agent_key, label, description, purpose, model_name, updated_at")
+      .select("agent_key, label, description, purpose, model_name, is_active, updated_at")
       .order("agent_key");
     if (error) throw new Error(error.message);
 
