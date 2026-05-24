@@ -121,6 +121,7 @@ function InnerGraph() {
       extraEdges: adapted.extraEdges,
       ruleAccountHints: adapted.ruleAccountHints,
       ruleVendorHints: adapted.ruleVendorHints,
+      vendorEnrichment: adapted.vendorEnrichment,
     });
   }, [adapted]);
 
