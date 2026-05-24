@@ -72,9 +72,9 @@ export const listAgentModels = createServerFn({ method: "GET" })
 const SaveSchema = z.object({
   agent_key: z.string().min(1).max(100),
   model_name: z.string().max(200).nullable(),
-  provider_id: z.string().uuid().nullable(),
-  temperature: z.number().min(0).max(2).nullable(),
-  max_tokens: z.number().int().min(1).max(200000).nullable(),
+  provider_id: z.string().uuid().nullable().optional().default(null),
+  temperature: z.number().min(0).max(2).nullable().optional().default(null),
+  max_tokens: z.number().int().min(1).max(200000).nullable().optional().default(null),
 });
 
 export const saveAgentModel = createServerFn({ method: "POST" })
