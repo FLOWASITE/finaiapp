@@ -309,15 +309,23 @@ function SubTabs({
   learningCount: number;
   ruleCount: number;
 }) {
+  const ctxFn = useServerFn(listContext);
+  const partnersFn = useServerFn(listPartners);
+  const limitsFn = useServerFn(listLimits);
+  const { data: ctxData } = useQuery({ queryKey: ["ai-memory", "context"], queryFn: () => ctxFn() });
+  const { data: partnersData } = useQuery({ queryKey: ["ai-memory", "partners"], queryFn: () => partnersFn() });
+  const { data: limitsData } = useQuery({ queryKey: ["ai-memory", "limits"], queryFn: () => limitsFn() });
+
   const tabs: { key: TabKey; label: string; count?: number; badge?: number }[] = [
     { key: "rules", label: "Quy tắc hạch toán", count: ruleCount },
     { key: "graph", label: "Sơ đồ trí nhớ" },
     { key: "classifications", label: "Hàng hóa / DV" },
-    { key: "partners", label: "Đối tác", count: 128 },
-    { key: "context", label: "Bối cảnh DN", count: 12 },
-    { key: "limits", label: "Giới hạn", count: 8 },
+    { key: "partners", label: "Đối tác", count: partnersData?.length },
+    { key: "context", label: "Bối cảnh DN", count: ctxData?.length },
+    { key: "limits", label: "Giới hạn", count: limitsData?.length },
     { key: "learning", label: "Đang học", badge: learningCount },
   ];
+
   return (
     <div className="flex items-center gap-1 overflow-x-auto border-b px-3">
       {tabs.map((t) => {
