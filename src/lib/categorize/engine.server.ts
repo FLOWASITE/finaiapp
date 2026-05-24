@@ -417,34 +417,55 @@ export async function proposeJournalForInvoice(
   if (!inv.tenant_id) throw new Error("Hoá đơn không có tenant_id");
 
   const agent = await getCategorizeAgent(supabase, inv.tenant_id);
+  const cal = await getCalibration(supabase, inv.tenant_id);
   const paymentAccount = pickPaymentAccount(inv);
   const signals: ProposalSignal[] = [];
   const warnings: ProposalWarning[] = [];
   const appliedRules: string[] = [];
   const alternatives: ProposalAlternative[] = [];
 
+  const finalize = (
+    base: number,
+    features: SignalFeatures,
+    source: JournalProposalDTO["source"],
+    entries: ProposalEntry[],
+    hasError: boolean,
+  ): JournalProposalDTO => {
+    if (warnings.some((w) => w.severity === "error" || w.code === "balance")) {
+      features.has_warning = 1;
+    }
+    if (!inv.supplier_tax_id) features.missing_partner = 1;
+    const confidence = applyCalibratedConfidence(base, features, cal.signal_weights);
+    const band = decideBand(confidence, cal);
+    const threshold = effectiveAutoThreshold(agent.confidence_threshold, cal.auto_threshold);
+    return {
+      invoice_id: invoiceId,
+      source,
+      entries,
+      confidence,
+      base_confidence: base,
+      warnings,
+      signals,
+      signal_features: features as Record<string, number>,
+      band,
+      alternatives,
+      applied_rules: appliedRules,
+      recommend_auto_post:
+        agent.enabled && agent.mode === "auto" && confidence >= threshold && !hasError,
+      generated_at: new Date().toISOString(),
+    };
+  };
+
   // Step 2: vendor template
   const tpl = await tryVendorTemplate(supabase, inv);
   if (tpl) {
     appliedRules.push(tpl.rule);
     signals.push(...tpl.signals);
-    return {
-      invoice_id: invoiceId,
-      source: "vendor_template",
-      entries: tpl.entries,
-      confidence: 0.95,
-      warnings,
-      signals,
-      alternatives,
-      applied_rules: appliedRules,
-      recommend_auto_post: agent.enabled && agent.mode === "auto" && 0.95 >= agent.confidence_threshold,
-      generated_at: new Date().toISOString(),
-    };
+    return finalize(0.92, { vendor_template: 1, vat_match: 1 }, "vendor_template", tpl.entries, false);
   }
 
   // Step 3 + 4 + 5
   if (inv.lines.length === 0) {
-    // Fallback HĐ không có dòng — 1 bút toán Nợ 6422 / Có 331
     const fallbackEntry: ProposalEntry = {
       description: `Mua hàng/dịch vụ ${inv.supplier_name ?? "—"}`,
       entry_date: inv.issue_date ?? new Date().toISOString().slice(0, 10),
@@ -455,18 +476,8 @@ export async function proposeJournalForInvoice(
       ],
     };
     warnings.push({ code: "no-lines", severity: "warn", message: "Hoá đơn không có chi tiết dòng — engine dùng 6422 mặc định" });
-    return {
-      invoice_id: invoiceId,
-      source: "ai_fallback",
-      entries: [fallbackEntry],
-      confidence: 0.45,
-      warnings,
-      signals: [{ label: "Không có chi tiết dòng", weight: 0, ok: false }],
-      alternatives,
-      applied_rules: [],
-      recommend_auto_post: false,
-      generated_at: new Date().toISOString(),
-    };
+    signals.push({ label: "Không có chi tiết dòng", weight: 0, ok: false });
+    return finalize(0.5, { ai_fallback: 1 }, "ai_fallback", [fallbackEntry], false);
   }
 
   const { classified, signals: clsSignals } = await classifyLines(supabase, inv);
@@ -479,31 +490,23 @@ export async function proposeJournalForInvoice(
   const { entries, warnings: composeWarnings } = composeEntries(inv, classified, paymentAccount);
   warnings.push(...composeWarnings);
 
-  // Confidence = min(line confidences) × (1 - 0.1 if has warning error)
   const minLineConf = classified.reduce((m, c) => Math.min(m, c.confidence), 1);
   const hasError = warnings.some((w) => w.severity === "error");
-  let confidence = minLineConf;
-  if (memoryHits === classified.length) confidence = Math.max(confidence, 0.9);
-  if (hasError) confidence = Math.min(confidence, 0.4);
-  if (warnings.some((w) => w.code === "cat-001")) confidence = Math.min(confidence, 0.7);
+  let base = minLineConf;
+  if (memoryHits === classified.length) base = Math.max(base, 0.9);
+  if (hasError) base = Math.min(base, 0.4);
+  if (warnings.some((w) => w.code === "cat-001")) base = Math.min(base, 0.7);
 
-  return {
-    invoice_id: invoiceId,
-    source,
-    entries,
-    confidence,
-    warnings,
-    signals,
-    alternatives,
-    applied_rules: appliedRules,
-    recommend_auto_post:
-      agent.enabled &&
-      agent.mode === "auto" &&
-      confidence >= agent.confidence_threshold &&
-      !hasError,
-    generated_at: new Date().toISOString(),
+  const features: SignalFeatures = {
+    learned_memory: classified.length > 0 ? memoryHits / classified.length : 0,
+    classify_rule: memoryHits === 0 ? 1 : 0,
+    partner_history: signals.some((s) => s.label.startsWith("Có lịch sử")) ? 1 : 0,
+    vat_match: warnings.some((w) => w.code === "cat-001") ? 0 : 1,
   };
+
+  return finalize(base, features, source, entries, hasError);
 }
+
 
 export { entryFingerprint, entryMatchesTemplate };
 
