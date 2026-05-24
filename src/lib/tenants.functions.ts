@@ -154,6 +154,7 @@ const UpdateTenantSchema = z.object({
   established_date: optionalDate.optional(),
   industry_code: optionalIndustry.optional(),
   industry_name: z.string().max(255).nullish(),
+  industries: z.array(z.object({ code: z.string().max(20), name: z.string().max(255) })).max(20).nullish(),
   tax_authority: z.string().max(255).nullish(),
   tax_method: z.enum(["deduction","direct_revenue","direct_gtgt"]).nullish(),
   vat_period: z.enum(["monthly","quarterly"]).nullish(),
