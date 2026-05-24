@@ -118,6 +118,7 @@ function AIMemoryPage() {
       .channel("ai-memory-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "ai_memory_rules" }, () => {
         qc.invalidateQueries({ queryKey: ["ai-memory"] });
+        qc.invalidateQueries({ queryKey: ["memory-graph"] });
       })
       .on(
         "postgres_changes",
