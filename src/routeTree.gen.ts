@@ -144,6 +144,7 @@ import { Route as ApiPublicMbbankSyncLogStartRouteImport } from './routes/api/pu
 import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/public/mbbank/sync-error'
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
+import { Route as ApiPublicHooksPromoteRulesRouteImport } from './routes/api/public/hooks/promote-rules'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
@@ -851,6 +852,12 @@ const ApiPublicMbbankAccountsRoute = ApiPublicMbbankAccountsRouteImport.update({
   path: '/api/public/mbbank/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksPromoteRulesRoute =
+  ApiPublicHooksPromoteRulesRouteImport.update({
+    id: '/api/public/hooks/promote-rules',
+    path: '/api/public/hooks/promote-rules',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyDigestRoute =
   ApiPublicHooksDailyDigestRouteImport.update({
     id: '/api/public/hooks/daily-digest',
@@ -1149,6 +1156,7 @@ export interface FileRoutesByFullPath {
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1305,6 +1313,7 @@ export interface FileRoutesByTo {
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1470,6 +1479,7 @@ export interface FileRoutesById {
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1635,6 +1645,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -1791,6 +1802,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -1955,6 +1967,7 @@ export interface FileRouteTypes {
     | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -1977,6 +1990,7 @@ export interface RootRouteChildren {
   InviteTokenRoute: typeof InviteTokenRoute
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
+  ApiPublicHooksPromoteRulesRoute: typeof ApiPublicHooksPromoteRulesRoute
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
   ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
   ApiPublicMbbankSyncErrorRoute: typeof ApiPublicMbbankSyncErrorRoute
@@ -2930,6 +2944,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMbbankAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/promote-rules': {
+      id: '/api/public/hooks/promote-rules'
+      path: '/api/public/hooks/promote-rules'
+      fullPath: '/api/public/hooks/promote-rules'
+      preLoaderRoute: typeof ApiPublicHooksPromoteRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-digest': {
       id: '/api/public/hooks/daily-digest'
       path: '/api/public/hooks/daily-digest'
@@ -3569,6 +3590,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteTokenRoute: InviteTokenRoute,
   ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
+  ApiPublicHooksPromoteRulesRoute: ApiPublicHooksPromoteRulesRoute,
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
   ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,
   ApiPublicMbbankSyncErrorRoute: ApiPublicMbbankSyncErrorRoute,

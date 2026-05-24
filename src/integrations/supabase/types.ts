@@ -4096,6 +4096,7 @@ export type Database = {
           apply_dimension: Json
           confidence_boost: number
           created_at: string
+          disabled_at: string | null
           enabled: boolean
           hit_count: number
           id: string
@@ -4103,6 +4104,7 @@ export type Database = {
           note: string | null
           pattern_kind: string
           pattern_value: string
+          source: string
           tenant_id: string
           updated_at: string
           user_id: string
@@ -4112,6 +4114,7 @@ export type Database = {
           apply_dimension?: Json
           confidence_boost?: number
           created_at?: string
+          disabled_at?: string | null
           enabled?: boolean
           hit_count?: number
           id?: string
@@ -4119,6 +4122,7 @@ export type Database = {
           note?: string | null
           pattern_kind: string
           pattern_value: string
+          source?: string
           tenant_id: string
           updated_at?: string
           user_id: string
@@ -4128,6 +4132,7 @@ export type Database = {
           apply_dimension?: Json
           confidence_boost?: number
           created_at?: string
+          disabled_at?: string | null
           enabled?: boolean
           hit_count?: number
           id?: string
@@ -4135,6 +4140,7 @@ export type Database = {
           note?: string | null
           pattern_kind?: string
           pattern_value?: string
+          source?: string
           tenant_id?: string
           updated_at?: string
           user_id?: string

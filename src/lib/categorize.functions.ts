@@ -14,14 +14,27 @@ async function activeTenant(supabase: any, userId: string): Promise<string | nul
 /** Sinh đề xuất bút toán + cache vào ai_journal_proposals. */
 export const proposeJournal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        invoice_id: z.string().uuid(),
+        invoice_kind: z.enum(["purchase", "sales"]).default("purchase"),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const tenantId = await activeTenant(supabase, userId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp");
-    const { proposeJournalForInvoice } = await import("./categorize/engine.server");
     const t0 = Date.now();
-    const dto = await proposeJournalForInvoice(supabase, data.invoice_id);
+    let dto;
+    if (data.invoice_kind === "sales") {
+      const { proposeJournalForSalesInvoice } = await import("./categorize/sales-engine.server");
+      dto = await proposeJournalForSalesInvoice(supabase, data.invoice_id);
+    } else {
+      const { proposeJournalForInvoice } = await import("./categorize/engine.server");
+      dto = await proposeJournalForInvoice(supabase, data.invoice_id);
+    }
     const duration = Date.now() - t0;
 
     await supabase
@@ -30,23 +43,24 @@ export const proposeJournal = createServerFn({ method: "POST" })
         {
           tenant_id: tenantId,
           invoice_id: data.invoice_id,
+          invoice_kind: data.invoice_kind,
           dto: dto as any,
           confidence: dto.confidence,
           source: dto.source,
           warnings: dto.warnings as any,
           status: "pending",
         },
-        { onConflict: "invoice_id" },
+        { onConflict: "invoice_kind,invoice_id" },
       );
 
     try {
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
       await tryLogAgentActivity(supabase, userId, {
         agent_id: "categorize",
-        action: `Đề xuất bút toán (${dto.source}, ${Math.round(dto.confidence * 100)}%)`,
+        action: `Đề xuất bút toán ${data.invoice_kind === "sales" ? "(bán)" : "(mua)"} (${dto.source}, ${Math.round(dto.confidence * 100)}%)`,
         result: dto.warnings.some((w) => w.severity === "error") ? "warning" : "success",
         duration_ms: duration,
-        metadata: { invoice_id: data.invoice_id, entries: dto.entries.length },
+        metadata: { invoice_id: data.invoice_id, invoice_kind: data.invoice_kind, entries: dto.entries.length },
       });
     } catch {}
 
@@ -73,7 +87,7 @@ export const listProposals = createServerFn({ method: "POST" })
 
     let q = supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, confidence, source, status, warnings, auto_posted, journal_entry_id, created_at")
+      .select("id, invoice_id, invoice_kind, dto, confidence, source, status, warnings, auto_posted, journal_entry_id, created_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -84,19 +98,34 @@ export const listProposals = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    const invoiceIds = Array.from(new Set(((rows ?? []) as any[]).map((r) => r.invoice_id)));
+    const purchaseIds = ((rows ?? []) as any[]).filter((r) => (r.invoice_kind ?? "purchase") === "purchase").map((r) => r.invoice_id);
+    const salesIds = ((rows ?? []) as any[]).filter((r) => r.invoice_kind === "sales").map((r) => r.invoice_id);
     const invMap = new Map<string, any>();
-    if (invoiceIds.length > 0) {
+    if (purchaseIds.length > 0) {
       const { data: invs } = await supabase
         .from("invoices")
         .select("id, supplier_name, supplier_tax_id, total, invoice_no, issue_date, status, file_path")
-        .in("id", invoiceIds);
-      for (const i of (invs ?? []) as any[]) invMap.set(i.id, i);
+        .in("id", purchaseIds);
+      for (const i of (invs ?? []) as any[]) invMap.set(i.id, { ...i, invoice_kind: "purchase" });
+    }
+    if (salesIds.length > 0) {
+      const { data: sinvs } = await supabase
+        .from("sales_invoices")
+        .select("id, customer_name, customer_tax_id, total, invoice_no, issue_date, status, payment_status")
+        .in("id", salesIds);
+      for (const i of (sinvs ?? []) as any[])
+        invMap.set(i.id, {
+          ...i,
+          supplier_name: i.customer_name,
+          supplier_tax_id: i.customer_tax_id,
+          invoice_kind: "sales",
+        });
     }
 
     const items = ((rows ?? []) as any[]).map((r) => ({
       id: r.id,
       invoice_id: r.invoice_id,
+      invoice_kind: r.invoice_kind ?? "purchase",
       invoice: invMap.get(r.invoice_id) ?? null,
       dto: r.dto,
       confidence: Number(r.confidence),
@@ -161,7 +190,7 @@ export const approveProposal = createServerFn({ method: "POST" })
 
     const { data: p } = await supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, status")
+      .select("id, invoice_id, invoice_kind, dto, status")
       .eq("id", data.proposal_id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -186,12 +215,14 @@ export const approveProposal = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
+    const isSales = p.invoice_kind === "sales";
     const { data: je, error: je_err } = await supabase
       .from("journal_entries")
       .insert({
         user_id: userId,
         tenant_id: tenantId,
-        invoice_id: p.invoice_id,
+        // journal_entries.invoice_id chỉ FK tới invoices (mua); với sales để null và liên kết qua sales_invoices.journal_entry_id
+        invoice_id: isSales ? null : p.invoice_id,
         entry_date: entry.entry_date,
         description: entry.description,
       })
@@ -220,20 +251,36 @@ export const approveProposal = createServerFn({ method: "POST" })
       })
       .eq("id", data.proposal_id);
 
-    await supabase.from("invoices").update({ status: "approved" }).eq("id", p.invoice_id);
+    if (isSales) {
+      await supabase
+        .from("sales_invoices")
+        .update({ journal_entry_id: je.id, status: "posted" })
+        .eq("id", p.invoice_id);
+    } else {
+      await supabase.from("invoices").update({ status: "approved" }).eq("id", p.invoice_id);
+    }
 
     try {
-      const { learnVendorTemplate } = await import("./categorize/templates.server");
-      const learn = await learnVendorTemplate(supabase, tenantId, p.invoice_id);
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
-      await tryLogAgentActivity(supabase, userId, {
-        agent_id: "categorize",
-        action: learn.learned
-          ? `Học template NCC (mẫu thứ ${learn.sample_count})`
-          : `Duyệt bút toán — ${entry.description.slice(0, 80)}`,
-        result: "success",
-        metadata: { entry_id: je.id, invoice_id: p.invoice_id, learned: learn.learned },
-      });
+      if (!isSales) {
+        const { learnVendorTemplate } = await import("./categorize/templates.server");
+        const learn = await learnVendorTemplate(supabase, tenantId, p.invoice_id);
+        await tryLogAgentActivity(supabase, userId, {
+          agent_id: "categorize",
+          action: learn.learned
+            ? `Học template NCC (mẫu thứ ${learn.sample_count})`
+            : `Duyệt bút toán mua — ${entry.description.slice(0, 80)}`,
+          result: "success",
+          metadata: { entry_id: je.id, invoice_id: p.invoice_id, learned: learn.learned },
+        });
+      } else {
+        await tryLogAgentActivity(supabase, userId, {
+          agent_id: "categorize",
+          action: `Duyệt bút toán bán — ${entry.description.slice(0, 80)}`,
+          result: "success",
+          metadata: { entry_id: je.id, sales_invoice_id: p.invoice_id },
+        });
+      }
     } catch {}
 
     try {
@@ -268,21 +315,29 @@ export const skipProposal = createServerFn({ method: "POST" })
 /** Lấy proposal hiện tại theo invoice_id (dùng trong Sheet tài liệu). */
 export const getProposalByInvoice = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        invoice_id: z.string().uuid(),
+        invoice_kind: z.enum(["purchase", "sales"]).default("purchase"),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const tenantId = await activeTenant(supabase, userId);
     if (!tenantId) return { proposal: null };
     const { data: row } = await supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, confidence, source, status, warnings, journal_entry_id, auto_posted, created_at, resolved_at")
+      .select("id, invoice_id, invoice_kind, dto, confidence, source, status, warnings, journal_entry_id, auto_posted, created_at, resolved_at")
       .eq("tenant_id", tenantId)
       .eq("invoice_id", data.invoice_id)
+      .eq("invoice_kind", data.invoice_kind)
       .maybeSingle();
     return { proposal: row ?? null };
   });
 
-/** Wrapper gọi từ parse-document: nếu agent.mode=auto + conf đủ thì auto-post luôn. */
+/** Wrapper gọi từ parse-document: nếu agent.mode=auto + conf đủ thì auto-post luôn. (chỉ áp dụng cho HĐ mua) */
 export const autoPostIfEligible = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
@@ -299,13 +354,14 @@ export const autoPostIfEligible = createServerFn({ method: "POST" })
         {
           tenant_id: tenantId,
           invoice_id: data.invoice_id,
+          invoice_kind: "purchase",
           dto: dto as any,
           confidence: dto.confidence,
           source: dto.source,
           warnings: dto.warnings as any,
-          status: dto.recommend_auto_post ? "pending" : "pending",
+          status: "pending",
         },
-        { onConflict: "invoice_id" },
+        { onConflict: "invoice_kind,invoice_id" },
       );
 
     if (!dto.recommend_auto_post) return { auto_posted: false, confidence: dto.confidence };
@@ -342,8 +398,10 @@ export const autoPostIfEligible = createServerFn({ method: "POST" })
         journal_entry_id: je.id,
         resolved_at: new Date().toISOString(),
       })
-      .eq("invoice_id", data.invoice_id);
+      .eq("invoice_id", data.invoice_id)
+      .eq("invoice_kind", "purchase");
     await supabase.from("invoices").update({ status: "approved" }).eq("id", data.invoice_id);
+
 
     try {
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
