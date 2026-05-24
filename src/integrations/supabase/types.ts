@@ -7505,6 +7505,8 @@ export type Database = {
           discount_pct: number
           due_date: string | null
           einvoice_id: string | null
+          einvoice_no: string | null
+          einvoice_series: string | null
           exchange_rate: number
           id: string
           issue_einvoice: boolean
@@ -7560,6 +7562,8 @@ export type Database = {
           discount_pct?: number
           due_date?: string | null
           einvoice_id?: string | null
+          einvoice_no?: string | null
+          einvoice_series?: string | null
           exchange_rate?: number
           id?: string
           issue_einvoice?: boolean
@@ -7615,6 +7619,8 @@ export type Database = {
           discount_pct?: number
           due_date?: string | null
           einvoice_id?: string | null
+          einvoice_no?: string | null
+          einvoice_series?: string | null
           exchange_rate?: number
           id?: string
           issue_einvoice?: boolean
