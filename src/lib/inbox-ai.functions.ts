@@ -203,6 +203,16 @@ export const approveInboxItem = createServerFn({ method: "POST" })
       journal_entry_id: entry.id,
     });
 
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "categorize",
+        action: `Hạch toán ${data.source === "bank_statement" ? "giao dịch NH" : data.source === "document" ? "chứng từ" : "đề xuất"} — ${data.description.slice(0, 80)}`,
+        result: "success",
+        metadata: { entry_id: entry.id, confidence: data.confidence_at_decision ?? null },
+      });
+    } catch {}
+
     return { journal_entry_id: entry.id };
   });
 

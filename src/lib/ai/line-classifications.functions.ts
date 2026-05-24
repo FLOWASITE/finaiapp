@@ -76,6 +76,15 @@ export const saveLineClassification = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    try {
+      const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "categorize",
+        action: `Học phân loại "${data.line_name.slice(0, 80)}" → ${data.account}`,
+        result: "success",
+        metadata: { kind: data.kind, account: data.account },
+      });
+    } catch {}
     return { id: row!.id, updated: false };
   });
 
