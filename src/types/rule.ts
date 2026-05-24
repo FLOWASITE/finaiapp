@@ -74,7 +74,7 @@ export type RuleActionParams = {
   when_condition?: string;
   // set_field
   field?: string;
-  value?: unknown;
+  value?: string | number | boolean | null;
 };
 
 export type RuleAction = {
