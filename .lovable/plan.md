@@ -1,124 +1,73 @@
-## Cross-Agent Feedback Loop: Reconcile → Categorize
 
-Khi Agent Đối soát phát hiện bút toán lệch với bank statement, hệ thống tự động "phạt" rule/template/memory đã tạo ra bút toán sai — giảm `hit_count`, hạ `confidence_score`, và nếu sai nhiều lần thì auto-demote sang `suggest` hoặc `disabled`.
+## Mục tiêu
+Hiện tại mọi agent chia sẻ chung 5 purpose (`default/chat/parse/reasoning/classify`) trong `ai_model_config`. Plan này cho phép **gán model riêng cho từng AI Agent** (10 agent) mà vẫn giữ tương thích ngược.
 
-### 1. Schema mới
+## 1. Database migration
+Tạo bảng `ai_agent_models`:
+- `agent_key` text PK
+- `label` text, `description` text, `purpose` text (fallback purpose)
+- `model_name` text NULL (NULL = kế thừa purpose)
+- `updated_at`, `updated_by`
+- RLS: chỉ superadmin read/write
+- Seed 10 hàng với `model_name = NULL`:
+  - `categorize_purchase` (reasoning) – Đề xuất bút toán mua vào
+  - `categorize_sales` (reasoning) – Đề xuất bút toán bán ra
+  - `inbox_reason` (reasoning) – Inbox AI giải thích
+  - `bank_reconcile` (reasoning) – Gợi ý đối soát bank
+  - `journal` (reasoning) – Soạn bút toán thủ công
+  - `parse_doc_vision` (parse) – OCR/đọc PDF, ảnh
+  - `parse_doc_text` (parse) – Đọc tài liệu text/markdown
+  - `invoice_extract` (parse) – Trích xuất hoá đơn
+  - `classify_file` (classify) – Phân loại file upload
+  - `chat` (chat) – Trợ lý kế toán viên
 
-**`agent_feedback_events`** — bảng event log (audit + replay):
-- `tenant_id`, `source_agent` ('reconcile'|'review'|'manual'), `target_agent` ('categorize')
-- `event_type`: `wrong_account` | `wrong_amount` | `wrong_partner` | `wrong_vat` | `duplicate` | `missed_entry`
-- `journal_entry_id`, `bank_transaction_id`, `proposal_id` (nullable — link về proposal gốc nếu còn)
-- `signals_snapshot` jsonb (rule_id, template_id, memory_id, partner_history_id đã match)
-- `severity` numeric (0.1 → 1.0)
-- `processed_at`, `note`
+## 2. Resolver
+Trong `src/lib/ai-gateway.server.ts` thêm:
+```ts
+export type AgentKey =
+  | "categorize_purchase" | "categorize_sales" | "inbox_reason"
+  | "bank_reconcile" | "journal" | "parse_doc_vision"
+  | "parse_doc_text" | "invoice_extract" | "classify_file" | "chat";
 
-**`ai_rule_penalties`** — tổng hợp điểm phạt cộng dồn (để engine tra cứu nhanh):
-- `tenant_id`, `target_kind` ('rule'|'template'|'memory'|'partner_history')
-- `target_id`, `penalty_score` numeric default 0
-- `wrong_count` int, `last_penalty_at`
-- Unique `(tenant_id, target_kind, target_id)`
-
-### 2. Reconcile Agent emit event
-
-Trong `src/lib/reconcile/` (file đối soát hiện có) khi phát hiện lệch:
-
+export async function resolveAgentModel(agentKey: AgentKey, fallback: string)
 ```
-emitFeedback({
-  source: 'reconcile',
-  event_type: 'wrong_account',
-  journal_entry_id,
-  bank_transaction_id,
-  severity: 0.5,  // tuỳ mức lệch
-})
-```
+Logic:
+1. Đọc `ai_agent_models[agentKey]` (cache chung TTL 30s).
+2. Nếu `model_name` có → build provider (custom hoặc Lovable) với model đó.
+3. Nếu NULL → gọi `resolveActiveModel(row.purpose, fallback)`.
 
-Tạo `src/lib/feedback/emit.server.ts`:
-- Tra `ai_journal_proposals` theo `journal_entry_id` → lấy `signals` (rule_id/template_id/memory_id/partner_history_id)
-- Insert `agent_feedback_events` + snapshot signals
-- Gọi `applyPenalty()` ngay (synchronous, nhanh)
+Giữ `resolveActiveModel` để không phá API cũ.
 
-### 3. Penalty Engine (`src/lib/feedback/penalty.server.ts`)
+## 3. Đổi call-site
+Sửa 10 chỗ gọi `resolveActiveModel(...)` sang `resolveAgentModel(agentKey, fallback)`:
+- `categorize/engine.server.ts`, `categorize/sales-engine.server.ts`
+- `ai/inbox-reason.server.ts`
+- `bank.functions.ts` (suggest reconcile)
+- `journal.functions.ts`
+- `ai/parse-document.functions.ts` (2 chỗ: visionModel, textModel)
+- `invoices.functions.ts`
+- `ai/classify-file.server.ts` (cả 2 nhánh)
+- `chat.functions.ts`
 
-**Công thức `applyPenalty(event)`:**
+## 4. Server functions mới
+Trong `src/lib/ai-config.functions.ts` (hoặc file mới `ai-agent-models.functions.ts`):
+- `getAgentModels()` → list 10 agent + model hiện effective
+- `saveAgentModel({ agentKey, modelName })` (superadmin only) → invalidate cache
 
-| Event type | Severity base | Áp dụng lên |
-|---|---|---|
-| `wrong_account` | 0.5 | rule + template (cùng lúc) |
-| `wrong_partner` | 0.4 | memory + partner_history |
-| `wrong_vat` | 0.3 | template |
-| `wrong_amount` | 0.6 | rule (thường là sai mapping) |
-| `duplicate` | 0.7 | rule (rule quá lỏng) |
+## 5. UI Super Admin
+Tại `/superadmin/ai-model`, thêm tab **"Theo Agent"** (giữ nguyên tab cấu hình provider hiện có):
+- Hiển thị 10 card agent (icon, tên, mô tả, purpose fallback)
+- Mỗi card: dropdown chọn model (dùng `listAiModels()` sẵn có) + option "Kế thừa mặc định ({purpose})"
+- Badge: "Đang dùng: {modelName}" (effective)
+- Nút **Lưu** từng agent + **Reset tất cả**
 
-**Tác động lên bảng nguồn:**
-- `ai_memory_rules`: `accuracy_correct -= 1`, `applied_count` giữ nguyên (vì đã apply rồi nhưng sai)
-- `ai_journal_templates`: `success_count -= 1`, tăng `error_count` (thêm column nếu chưa có)
-- `ai_memory_partners` / `ai_memory_*`: `hit_count = GREATEST(0, hit_count - 1)`, `confidence_score -= 0.05`
+## 6. Không đụng tới
+- Calibration / Promote Rules / Feedback loop (không gọi LLM)
+- Schema và logic nghiệp vụ khác
 
-**Cộng dồn `ai_rule_penalties.penalty_score += severity * weight_event`** (decay 30 ngày — mỗi đêm trừ 10%).
-
-### 4. Auto-demote
-
-Khi `penalty_score` vượt ngưỡng:
-- `>= 1.5` và `wrong_count >= 3`: demote `mode='active' → 'suggest'`
-- `>= 3.0` và `wrong_count >= 5`: demote `mode='suggest' → 'disabled'` + ghi `disabled_reason='auto: cross-agent feedback'`
-- Memory `confidence_score < 0.4`: chuyển `status='archived'`
-
-Chạy trong cùng `applyPenalty()` (synchronous, đảm bảo ngay lập tức).
-
-### 5. Engine integration
-
-Trong `src/lib/categorize/calibration.server.ts` — khi đọc signal weights, cộng thêm penalty lookup:
-
-```
-effective_confidence = base * weight_signal * (1 - penalty_factor)
-// penalty_factor = min(0.5, penalty_score / 6)
-```
-
-→ Rule/template từng sai nhiều sẽ tự động bị "giảm tiếng nói" trong confidence ngay cả khi chưa bị disable.
-
-### 6. UI
-
-**Trang `/settings/ai-feedback`** (mới):
-- Tab "Sự kiện gần đây" — list `agent_feedback_events` 30 ngày (filter by source/type)
-- Tab "Rule/Template bị phạt" — sort `ai_rule_penalties.penalty_score DESC`, hiện wrong_count, last_penalty_at, link sang rule editor
-- Tab "Đã auto-demote" — list rule/memory bị demote do feedback (filter `disabled_reason LIKE 'auto:%'`)
-- Nút "Khôi phục" (reset penalty + đưa lại `active`) — owner/admin only
-
-**`ProposalCard.tsx`**: nếu signals match rule có `penalty_score > 1.0` → hiện chip vàng "Rule này từng sai 3 lần".
-
-### 7. Hook reconcile hiện tại
-
-Đọc lại `src/lib/reconcile/` (nếu chưa có thì sẽ tạo điểm emit ở các chỗ:
-- Sau khi `bank_transactions.status = 'mismatch'`
-- Khi user revert bút toán đã posted từ reconcile UI
-- Khi auto-match score thấp < 0.3 nhưng entry đã được auto-post trước đó
-
-### Files dự kiến
-
-**Migration:**
-- `agent_feedback_events`, `ai_rule_penalties` + RLS + indexes
-- Thêm `error_count`, `disabled_reason` vào `ai_journal_templates` nếu thiếu
-
-**Server (mới):**
-- `src/lib/feedback/emit.server.ts` — emit + apply
-- `src/lib/feedback/penalty.server.ts` — formula + auto-demote
-- `src/lib/feedback/decay.server.ts` — daily decay job
-- `src/lib/feedback/feedback.functions.ts` — server fn cho UI (list events, list penalties, restore)
-- `src/routes/api/public/hooks/feedback-decay.ts` — cron 03:00 UTC
-
-**Server (chỉnh):**
-- `src/lib/reconcile/*.server.ts` — gọi `emitFeedback` ở các điểm phát hiện lệch
-- `src/lib/categorize/calibration.server.ts` — lookup penalty khi tính effective confidence
-- `src/lib/categorize/engine.server.ts` — pass penalty lookup vào pipeline
-
-**UI:**
-- `src/routes/settings/ai-feedback.tsx` (3 tab)
-- `src/components/categorize/ProposalCard.tsx` — chip cảnh báo rule bị phạt
-
-### KPI kỳ vọng
-
-- Rule sai lặp lại giảm ~70% sau 2 tuần (auto-demote)
-- Tỉ lệ post-edit (edit sau khi đã post) giảm ~40%
-- Engine không "học" mãi rule cũ sai — feedback loop khép kín giữa Reconcile ↔ Categorize
-
-Anh duyệt thì tôi triển khai theo thứ tự: migration → emit/penalty engine → reconcile hooks → cron decay → UI.
+## Kết quả
+Super Admin có thể, ví dụ:
+- Đặt Categorize dùng `gpt-5-mini` (chính xác hơn)
+- Đặt Inbox dùng `gemini-2.5-flash-lite` (rẻ, nhanh)
+- Đặt Parse Vision dùng `gemini-2.5-pro`
+- Các agent khác vẫn kế thừa cấu hình purpose mặc định.

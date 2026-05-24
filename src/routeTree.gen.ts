@@ -67,6 +67,7 @@ import { Route as AppSuperadminBillingRouteImport } from './routes/_app/superadm
 import { Route as AppSuperadminBackupsRouteImport } from './routes/_app/superadmin/backups'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
 import { Route as AppSuperadminAiModelRouteImport } from './routes/_app/superadmin/ai-model'
+import { Route as AppSuperadminAiAgentsRouteImport } from './routes/_app/superadmin/ai-agents'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
 import { Route as AppSettingsProjectsRouteImport } from './routes/_app/settings/projects'
 import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/settings/fiscal-periods'
@@ -464,6 +465,11 @@ const AppSuperadminAuditRoute = AppSuperadminAuditRouteImport.update({
 const AppSuperadminAiModelRoute = AppSuperadminAiModelRouteImport.update({
   id: '/ai-model',
   path: '/ai-model',
+  getParentRoute: () => AppSuperadminRoute,
+} as any)
+const AppSuperadminAiAgentsRoute = AppSuperadminAiAgentsRouteImport.update({
+  id: '/ai-agents',
+  path: '/ai-agents',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
 const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
@@ -1114,6 +1120,7 @@ export interface FileRoutesByFullPath {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/backups': typeof AppSuperadminBackupsRoute
@@ -1274,6 +1281,7 @@ export interface FileRoutesByTo {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/backups': typeof AppSuperadminBackupsRoute
@@ -1443,6 +1451,7 @@ export interface FileRoutesById {
   '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/_app/settings/projects': typeof AppSettingsProjectsRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/_app/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/_app/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/backups': typeof AppSuperadminBackupsRoute
@@ -1612,6 +1621,7 @@ export interface FileRouteTypes {
     | '/settings/fiscal-periods'
     | '/settings/projects'
     | '/superadmin/accounts'
+    | '/superadmin/ai-agents'
     | '/superadmin/ai-model'
     | '/superadmin/audit'
     | '/superadmin/backups'
@@ -1772,6 +1782,7 @@ export interface FileRouteTypes {
     | '/settings/fiscal-periods'
     | '/settings/projects'
     | '/superadmin/accounts'
+    | '/superadmin/ai-agents'
     | '/superadmin/ai-model'
     | '/superadmin/audit'
     | '/superadmin/backups'
@@ -1940,6 +1951,7 @@ export interface FileRouteTypes {
     | '/_app/settings/fiscal-periods'
     | '/_app/settings/projects'
     | '/_app/superadmin/accounts'
+    | '/_app/superadmin/ai-agents'
     | '/_app/superadmin/ai-model'
     | '/_app/superadmin/audit'
     | '/_app/superadmin/backups'
@@ -2443,6 +2455,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-model'
       fullPath: '/superadmin/ai-model'
       preLoaderRoute: typeof AppSuperadminAiModelRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/ai-agents': {
+      id: '/_app/superadmin/ai-agents'
+      path: '/ai-agents'
+      fullPath: '/superadmin/ai-agents'
+      preLoaderRoute: typeof AppSuperadminAiAgentsRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
     '/_app/superadmin/accounts': {
@@ -3336,6 +3355,7 @@ const AppItemsRouteWithChildren = AppItemsRoute._addFileChildren(
 
 interface AppSuperadminRouteChildren {
   AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
+  AppSuperadminAiAgentsRoute: typeof AppSuperadminAiAgentsRoute
   AppSuperadminAiModelRoute: typeof AppSuperadminAiModelRoute
   AppSuperadminAuditRoute: typeof AppSuperadminAuditRoute
   AppSuperadminBackupsRoute: typeof AppSuperadminBackupsRoute
@@ -3350,6 +3370,7 @@ interface AppSuperadminRouteChildren {
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
+  AppSuperadminAiAgentsRoute: AppSuperadminAiAgentsRoute,
   AppSuperadminAiModelRoute: AppSuperadminAiModelRoute,
   AppSuperadminAuditRoute: AppSuperadminAuditRoute,
   AppSuperadminBackupsRoute: AppSuperadminBackupsRoute,

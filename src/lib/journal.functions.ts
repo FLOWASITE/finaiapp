@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { resolveActiveModel } from "@/lib/ai-gateway.server";
+import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 
 const SuggestionSchema = z.object({
   suggestions: z
@@ -42,7 +42,7 @@ export const suggestJournalEntry = createServerFn({ method: "POST" })
   .inputValidator((input: { invoiceId: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { model } = await resolveActiveModel("reasoning", "google/gemini-3-flash-preview");
+    const { model } = await resolveAgentModel("journal", "google/gemini-3-flash-preview");
 
     const { data: invoice, error } = await supabase
       .from("invoices")

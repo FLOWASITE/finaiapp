@@ -179,6 +179,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_models: {
+        Row: {
+          agent_key: string
+          description: string | null
+          label: string
+          model_name: string | null
+          purpose: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agent_key: string
+          description?: string | null
+          label: string
+          model_name?: string | null
+          purpose: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agent_key?: string
+          description?: string | null
+          label?: string
+          model_name?: string | null
+          purpose?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ai_agents: {
         Row: {
           agent_id: string

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { streamText, stepCountIs } from "ai";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { resolveActiveModel } from "@/lib/ai-gateway.server";
+import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 import { makeRunQueryTool, SCHEMA_HINT } from "@/lib/ai/tools/query.tool";
 import { makeProposeActionTool } from "@/lib/ai/tools/propose-action.tool";
 import { makeRenderChartTool } from "@/lib/ai/tools/chart.tool";
@@ -178,7 +178,7 @@ export const askAccountingStream = createServerFn({ method: "POST" })
 
     let model: any;
     try {
-      const r = await resolveActiveModel("chat", "google/gemini-3-flash-preview");
+      const r = await resolveAgentModel("chat", "google/gemini-3-flash-preview");
       model = r.model;
     } catch (e: any) {
       yield { type: "text", delta: `Lỗi: ${e?.message || "Không khởi tạo được AI model"}` } as AskStreamEvent;

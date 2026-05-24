@@ -9,7 +9,7 @@
 import { createHash } from "crypto";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { resolveActiveModel } from "@/lib/ai-gateway.server";
+import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
 
@@ -404,10 +404,10 @@ reason ngắn gọn tiếng Việt (<=140 ký tự), nêu căn cứ cụ thể (
   try {
     let model;
     try {
-      ({ model } = await resolveActiveModel("classify", "google/gemini-3.1-flash-lite-preview"));
+      ({ model } = await resolveAgentModel("classify_file", "google/gemini-3.1-flash-lite-preview"));
     } catch (liteErr) {
       console.warn("[classify-file] lite model failed, fallback flash:", (liteErr as Error).message);
-      ({ model } = await resolveActiveModel("classify", "google/gemini-3-flash-preview"));
+      ({ model } = await resolveAgentModel("classify_file", "google/gemini-3-flash-preview"));
     }
     const { output } = await generateText({
       model,
