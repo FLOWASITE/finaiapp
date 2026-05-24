@@ -129,6 +129,23 @@ const SECTIONS = [
   { id: "sec-branding", label: "Thương hiệu & Chữ ký", icon: <ImageIcon className="h-4 w-4" /> },
 ];
 
+// Suy luận loại hình doanh nghiệp từ tên pháp nhân (theo cụm từ phổ biến tiếng Việt).
+function inferLegalForm(companyName: string | null | undefined): string | null {
+  if (!companyName) return null;
+  const s = companyName
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g, "D");
+  if (/\bHO\s*KINH\s*DOANH\b|\bHKD\b/.test(s)) return "household";
+  if (/\bCHI\s*NHANH\b/.test(s)) return "branch";
+  if (/\bDOANH\s*NGHIEP\s*TU\s*NHAN\b|\bDNTN\b/.test(s)) return "sole_prop";
+  if (/\bHOP\s*DANH\b/.test(s)) return "partnership";
+  if (/\bCO\s*PHAN\b|\bCONG\s*TY\s*CP\b|\bCTCP\b/.test(s)) return "jsc";
+  if (/\bTNHH\b|\bTRACH\s*NHIEM\s*HUU\s*HAN\b/.test(s)) return "llc";
+  return null;
+}
+
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
