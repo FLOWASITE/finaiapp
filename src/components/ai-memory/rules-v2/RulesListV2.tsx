@@ -1,20 +1,112 @@
 import { useMemo, useState } from "react";
 import { Brain, Plus } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RuleCard } from "./RuleCard";
 import { RuleEditor } from "./RuleEditor";
-import { useRuleStore, makeEmptyRule } from "@/lib/rules/rule-store";
+import { makeEmptyRule } from "@/lib/rules/rule-store";
+import { memoryRuleToRule } from "@/lib/rules/db-adapter";
+import {
+  listAiMemory,
+  createRule,
+  updateRule,
+  disableRule,
+  enableRule,
+} from "@/lib/ai-memory.functions";
 import type { Rule } from "@/types/rule";
 
 export function RulesListV2() {
-  const rules = useRuleStore((s) => s.rules);
+  const list = useServerFn(listAiMemory);
+  const createFn = useServerFn(createRule);
+  const updateFn = useServerFn(updateRule);
+  const disableFn = useServerFn(disableRule);
+  const enableFn = useServerFn(enableRule);
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["ai-memory"],
+    queryFn: () => list(),
+  });
+
   const [draft, setDraft] = useState<Rule | null>(null);
+
+  const rules: Rule[] = useMemo(
+    () => (data?.rules ?? []).map(memoryRuleToRule),
+    [data?.rules],
+  );
 
   const ordered = useMemo(() => {
     const order = (r: Rule) =>
       r.status === "active" && r.enabled ? 0 : r.status === "paused" ? 1 : 2;
     return [...rules].sort((a, b) => order(a) - order(b));
   }, [rules]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["ai-memory"] });
+    qc.invalidateQueries({ queryKey: ["memory-graph"] });
+  };
+
+  const disableM = useMutation({
+    mutationFn: disableFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã tắt quy tắc");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const enableM = useMutation({
+    mutationFn: enableFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã bật lại quy tắc");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleToggle = (id: string, enabled: boolean, reason?: string) => {
+    if (enabled) {
+      enableM.mutate({ data: { id } });
+    } else {
+      disableM.mutate({ data: { id, reason: reason ?? "Người dùng tắt" } });
+    }
+  };
+
+  const handleSave = async (rule: Rule) => {
+    const isExisting = rules.some((r) => r.id === rule.id);
+    const payload = {
+      title: rule.name,
+      when_text: rule.description || rule.name,
+      then_text: rule.actions[0]
+        ? `Hành động: ${rule.actions[0].type}`
+        : "—",
+      conditions: rule.conditions,
+      actions: rule.actions,
+      mode: rule.mode,
+      confidence_threshold: rule.confidence_threshold,
+      applies_to: rule.applies_to,
+      enabled: rule.enabled,
+      status: rule.status,
+    };
+    if (isExisting) {
+      await updateFn({ data: { id: rule.id, ...payload } });
+    } else {
+      await createFn({ data: { ...payload, source: "user-taught" } });
+    }
+    invalidate();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
 
   if (ordered.length === 0) {
     return (
@@ -30,7 +122,12 @@ export function RulesListV2() {
           </Button>
         </div>
         {draft && (
-          <RuleEditor rule={draft} open={!!draft} onOpenChange={(o) => !o && setDraft(null)} />
+          <RuleEditor
+            rule={draft}
+            open={!!draft}
+            onOpenChange={(o) => !o && setDraft(null)}
+            onSave={handleSave}
+          />
         )}
       </div>
     );
@@ -48,11 +145,21 @@ export function RulesListV2() {
       </div>
       <div className="space-y-3">
         {ordered.map((r) => (
-          <RuleCard key={r.id} rule={r} />
+          <RuleCard
+            key={r.id}
+            rule={r}
+            onToggleEnabled={handleToggle}
+            onSave={handleSave}
+          />
         ))}
       </div>
       {draft && (
-        <RuleEditor rule={draft} open={!!draft} onOpenChange={(o) => !o && setDraft(null)} />
+        <RuleEditor
+          rule={draft}
+          open={!!draft}
+          onOpenChange={(o) => !o && setDraft(null)}
+          onSave={handleSave}
+        />
       )}
     </>
   );
