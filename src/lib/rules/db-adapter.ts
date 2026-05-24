@@ -12,15 +12,24 @@ import type {
 export function memoryRuleToRule(r: MemoryRule): Rule {
   const source: RuleSource =
     r.source === "user-taught" ? "user_taught" : "ai_learned";
-  const mode: RuleMode = r.mode ?? (r.type === "active" ? "auto" : r.type === "suggestion" ? "suggest" : "disabled");
+  const mode: RuleMode =
+    r.mode ?? (r.type === "active" ? "auto" : r.type === "suggestion" ? "suggest" : "disabled");
   const status: RuleStatus =
-    r.status ?? (r.type === "disabled" ? "paused" : r.type === "suggestion" ? "draft" : "active");
+    r.status ??
+    (r.type === "disabled" ? "paused" : r.type === "suggestion" ? "draft" : "active");
+  const conditions = (Array.isArray(r.conditions) ? r.conditions : []) as RuleCondition[];
+  const actions = (Array.isArray(r.actions) ? r.actions : []) as RuleAction[];
+  const schemaVer = r.schema_version ?? 1;
+  const isLegacy = schemaVer < 2 || (conditions.length === 0 && actions.length === 0);
   return {
     id: r.id,
     name: r.title,
-    description: r.when_text && r.then_text ? `${r.when_text} → ${r.then_text}` : r.when_text || r.then_text || "",
-    conditions: (Array.isArray(r.conditions) ? r.conditions : []) as RuleCondition[],
-    actions: (Array.isArray(r.actions) ? r.actions : []) as RuleAction[],
+    description:
+      r.when_text && r.then_text
+        ? `${r.when_text} → ${r.then_text}`
+        : r.when_text || r.then_text || "",
+    conditions,
+    actions,
     confidence_threshold: r.confidence_threshold ?? 0.8,
     mode,
     applies_to: r.applies_to ?? "future",
@@ -34,6 +43,10 @@ export function memoryRuleToRule(r: MemoryRule): Rule {
     last_used: r.last_used_at ?? undefined,
     status,
     paused_reason: r.disable_reason ?? undefined,
-    version: r.schema_version ?? 1,
+    version: schemaVer,
+    is_legacy_text: isLegacy,
+    db_type: r.type,
+    legacy_when_text: r.when_text,
+    legacy_then_text: r.then_text,
   };
 }
