@@ -105,7 +105,14 @@ function extractAccountMentions(
   return out;
 }
 
-export function buildGraph({ rules, vendors, accounts }: GraphBuildInput): GraphBuildOutput {
+export function buildGraph({
+  rules,
+  vendors,
+  accounts,
+  extraEdges = [],
+  ruleAccountHints,
+  ruleVendorHints,
+}: GraphBuildInput): GraphBuildOutput {
   const nodes: GraphBuildOutput["nodes"] = [];
   const edges: GraphBuildOutput["edges"] = [];
 
@@ -130,7 +137,10 @@ export function buildGraph({ rules, vendors, accounts }: GraphBuildInput): Graph
       },
     });
 
-    const vIds = extractVendorMentions(r.conditions, vendors);
+    // Vendor edges — structured conditions OR fuzzy hints
+    const vIds = new Set<string>(extractVendorMentions(r.conditions, vendors));
+    const hints = ruleVendorHints?.get(r.id) ?? [];
+    for (const h of hints) vIds.add(h);
     for (const vid of vIds) {
       vendorRuleCount.set(vid, (vendorRuleCount.get(vid) ?? 0) + 1);
       edges.push({
@@ -146,6 +156,7 @@ export function buildGraph({ rules, vendors, accounts }: GraphBuildInput): Graph
       });
     }
 
+    // Account edges — structured actions OR text hints
     const accs = extractAccountMentions(r.actions, accounts);
     for (const { accountId, side } of accs) {
       accountRuleCount.set(accountId, (accountRuleCount.get(accountId) ?? 0) + 1);
@@ -161,6 +172,49 @@ export function buildGraph({ rules, vendors, accounts }: GraphBuildInput): Graph
         },
       });
     }
+    const hintedCodes = ruleAccountHints?.get(r.id) ?? [];
+    for (const code of hintedCodes) {
+      const acc = accounts.find((a) => a.code === code);
+      if (!acc) continue;
+      const edgeId = `e:${r.id}->${acc.id}:hint`;
+      if (edges.some((e) => e.id === edgeId)) continue;
+      accountRuleCount.set(acc.id, (accountRuleCount.get(acc.id) ?? 0) + 1);
+      edges.push({
+        id: edgeId,
+        source: `rule:${r.id}`,
+        target: `account:${acc.id}`,
+        data: {
+          kind: "rule-account-debit",
+          ruleStatus: r.status,
+          ruleMode: r.mode,
+          weight: Math.min(4, 1 + Math.log10(1 + r.applied_count)),
+        },
+      });
+    }
+  }
+
+  // Extra edges (partner default / classifications) — vendor → account
+  const accountIdSet = new Set(accounts.map((a) => a.id));
+  const vendorIdSet = new Set(vendors.map((v) => v.id));
+  for (const ee of extraEdges) {
+    // sanity check refs exist
+    const srcId = ee.source.replace("vendor:", "");
+    const tgtId = ee.target.replace("account:", "");
+    if (!vendorIdSet.has(srcId) || !accountIdSet.has(tgtId)) continue;
+    edges.push({
+      id: ee.id,
+      source: ee.source,
+      target: ee.target,
+      data: {
+        kind: ee.kind,
+        ruleStatus: "active",
+        ruleMode: "auto",
+        weight: ee.weight,
+        label: ee.label,
+      },
+    });
+    vendorRuleCount.set(srcId, (vendorRuleCount.get(srcId) ?? 0) + 1);
+    accountRuleCount.set(tgtId, (accountRuleCount.get(tgtId) ?? 0) + 1);
   }
 
   for (const v of vendors) {
