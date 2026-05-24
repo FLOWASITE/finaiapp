@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -520,6 +520,12 @@ function AiModelPage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               Nguồn AI cho Chat, Parse hoá đơn/sao kê, đề xuất định khoản…
             </p>
+            <Link
+              to="/superadmin/ai-agents"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+            >
+              <Sparkles className="h-3 w-3" /> Cấu hình model riêng cho từng AI Agent →
+            </Link>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2">
             <div className="flex flex-col">
