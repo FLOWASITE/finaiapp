@@ -382,7 +382,15 @@ export function InvoiceExtractCard({
                     </div>
                     <ul className="space-y-1">
                       {invoiceLines.slice(0, 8).map((ln, i) => (
-                        <LineRow key={i} line={ln} />
+                        <LineRow
+                          key={i}
+                          line={ln}
+                          supplierTaxId={taxId}
+                          onOverride={(kind, account) => {
+                            const key = normalizeLineName(ln.description);
+                            if (key) setOverrides((p) => ({ ...p, [key]: { kind, account } }));
+                          }}
+                        />
                       ))}
                       {invoiceLines.length > 8 ? (
                         <li className="text-[10px] text-muted-foreground">
