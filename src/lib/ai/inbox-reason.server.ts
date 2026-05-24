@@ -209,6 +209,7 @@ export async function buildDocumentItem(
             entry_date: entry.entry_date,
             lines,
             voucher_kind: "purchase_invoice",
+            items: items.length > 0 ? items : undefined,
             meta: {
               supplier_name: supplier,
               supplier_tax_id: supplierTaxId,
