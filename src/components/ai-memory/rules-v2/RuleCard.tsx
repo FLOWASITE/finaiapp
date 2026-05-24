@@ -34,7 +34,9 @@ import { ConditionsRead } from "./ConditionsBlock";
 import { ActionsRead } from "./ActionsBlock";
 import { RuleSettingsCompact } from "./RuleSettings";
 import { RuleEditor } from "./RuleEditor";
+import { RuleApplicationsSheet } from "./RuleApplicationsSheet";
 import { useRuleStore } from "@/lib/rules/rule-store";
+import { legacyTextToRuleV2 } from "@/lib/ai-memory-templates";
 import type { Rule, RuleSource } from "@/types/rule";
 
 const SOURCE_BADGE: Record<RuleSource, { label: string; bg: string; Icon: typeof Bot }> = {
