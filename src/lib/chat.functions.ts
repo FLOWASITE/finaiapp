@@ -404,6 +404,8 @@ export const askAccountingStream = createServerFn({ method: "POST" })
 
     const result = streamText({
       model,
+      ...(temperature != null ? { temperature } : {}),
+      ...(maxOutputTokens != null ? { maxOutputTokens } : {}),
       tools: {
         runQuery: makeRunQueryTool(supabase, userId),
         proposeAction: makeProposeActionTool(supabase, userId),
