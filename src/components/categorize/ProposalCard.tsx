@@ -126,12 +126,23 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
               <span className="text-xs text-muted-foreground font-mono">#{invoice.invoice_no}</span>
             )}
             <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", src.tone)}>{src.label}</Badge>
-            <Badge variant="outline" className={cn(
-              "text-[10px] px-1.5 py-0",
-              confPct >= 85 ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" :
-              confPct >= 60 ? "border-amber-500/30 text-amber-700 dark:text-amber-400" :
-              "border-muted-foreground/30 text-muted-foreground",
-            )}>{confPct}%</Badge>
+            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", src.tone)}>{src.label}</Badge>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className={cn(
+                    "text-[10px] px-1.5 py-0 cursor-help",
+                    confPct >= 85 ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" :
+                    confPct >= 60 ? "border-amber-500/30 text-amber-700 dark:text-amber-400" :
+                    "border-muted-foreground/30 text-muted-foreground",
+                  )}>{confPct}%</Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                  <div className="font-semibold mb-0.5">{confidenceHint(confPct).label}</div>
+                  <div className="text-muted-foreground">{confidenceHint(confPct).detail}</div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {invoice?.issue_date ?? "—"} · Tổng <span className="font-semibold text-foreground">{fmt(total)} ₫</span>
