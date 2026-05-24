@@ -392,9 +392,11 @@ export const askAccountingStream = createServerFn({ method: "POST" })
     const systemParts = [
       SYSTEM_PROMPT,
       userContextBlock,
+      memoryContextBlock,
       SCHEMA_HINT,
       data.pageContext ? `\n## Ngữ cảnh trang hiện tại\n${data.pageContext}` : "",
     ].filter(Boolean);
+
 
     const result = streamText({
       model,
