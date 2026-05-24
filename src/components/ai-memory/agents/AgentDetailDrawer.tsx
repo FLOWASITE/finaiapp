@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Agent, AgentMode, ConfidenceProfile } from "@/types/agent";
 import { AgentIcon } from "./AgentIcon";
+import { SpecBusinessTab, SpecIntegrationTab, SpecSlaAuditTab } from "./AgentSpecTabs";
 
 function formatRelative(iso?: string): string {
   if (!iso) return "—";
@@ -123,14 +124,17 @@ export function AgentDetailDrawer({
           </SheetHeader>
 
           <Tabs defaultValue="overview" className="flex flex-1 flex-col overflow-hidden">
-            <TabsList className="mx-5 mt-3 grid grid-cols-5 h-9">
-              <TabsTrigger value="overview" className="text-[12px]">Tổng quan</TabsTrigger>
-              <TabsTrigger value="settings" className="text-[12px]">Cài đặt</TabsTrigger>
-              <TabsTrigger value="rules" className="text-[12px]">
+            <TabsList className="mx-5 mt-3 flex h-9 w-[calc(100%-2.5rem)] overflow-x-auto">
+              <TabsTrigger value="overview" className="text-[12px] shrink-0">Tổng quan</TabsTrigger>
+              <TabsTrigger value="business" className="text-[12px] shrink-0">Nghiệp vụ</TabsTrigger>
+              <TabsTrigger value="integration" className="text-[12px] shrink-0">Tích hợp</TabsTrigger>
+              <TabsTrigger value="sla" className="text-[12px] shrink-0">SLA &amp; Audit</TabsTrigger>
+              <TabsTrigger value="settings" className="text-[12px] shrink-0">Cài đặt</TabsTrigger>
+              <TabsTrigger value="rules" className="text-[12px] shrink-0">
                 Quy tắc ({draft.connected_rules_count})
               </TabsTrigger>
-              <TabsTrigger value="activity" className="text-[12px]">Hoạt động</TabsTrigger>
-              <TabsTrigger value="deps" className="text-[12px]">Liên kết</TabsTrigger>
+              <TabsTrigger value="activity" className="text-[12px] shrink-0">Hoạt động</TabsTrigger>
+              <TabsTrigger value="deps" className="text-[12px] shrink-0">Liên kết</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -176,6 +180,17 @@ export function AgentDetailDrawer({
                     Chỉnh sửa
                   </Button>
                 </Section>
+              </TabsContent>
+
+              {/* BUSINESS SPEC */}
+              <TabsContent value="business" className="mt-0">
+                {draft.spec ? <SpecBusinessTab spec={draft.spec} /> : <EmptySpec />}
+              </TabsContent>
+              <TabsContent value="integration" className="mt-0">
+                {draft.spec ? <SpecIntegrationTab spec={draft.spec} /> : <EmptySpec />}
+              </TabsContent>
+              <TabsContent value="sla" className="mt-0">
+                {draft.spec ? <SpecSlaAuditTab spec={draft.spec} /> : <EmptySpec />}
               </TabsContent>
 
               {/* SETTINGS */}
@@ -464,6 +479,14 @@ export function AgentDetailDrawer({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function EmptySpec() {
+  return (
+    <p className="text-[12px] text-muted-foreground italic">
+      Agent này chưa có đặc tả nghiệp vụ chi tiết.
+    </p>
   );
 }
 
