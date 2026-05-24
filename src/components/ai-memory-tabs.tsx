@@ -754,8 +754,10 @@ function ContextCreateDialog({ open, onClose }: { open: boolean; onClose: () => 
   const createFn = useServerFn(createContext);
   const [category, setCategory] = useState<ContextCategory>("other");
   const [key, setKey] = useState("");
+  const [keyTouched, setKeyTouched] = useState(false);
   const [label, setLabel] = useState("");
   const [value, setValue] = useState("");
+
 
   const m = useMutation({
     mutationFn: createFn,
