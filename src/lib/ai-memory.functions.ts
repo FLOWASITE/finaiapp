@@ -218,14 +218,31 @@ export const updateRule = createServerFn({ method: "POST" })
         when_text: z.string().trim().min(1).max(2000).optional(),
         then_text: z.string().trim().min(1).max(2000).optional(),
       })
+      .merge(ruleV2PartialSchema)
       .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { supabase, tenantId } = context;
-    const patch: { title?: string; when_text?: string; then_text?: string } = {};
+    const patch: Record<string, unknown> = {};
     if (data.title !== undefined) patch.title = data.title;
     if (data.when_text !== undefined) patch.when_text = data.when_text;
     if (data.then_text !== undefined) patch.then_text = data.then_text;
+    Object.assign(
+      patch,
+      buildV2Patch(
+        {
+          conditions: data.conditions,
+          actions: data.actions,
+          mode: data.mode,
+          confidence_threshold: data.confidence_threshold,
+          applies_to: data.applies_to,
+          enabled: data.enabled,
+          status: data.status,
+        },
+        data.when_text,
+        data.then_text,
+      ),
+    );
     const { error } = await supabase
       .from("ai_memory_rules")
       .update(patch)
