@@ -202,60 +202,22 @@ async function classifyLines(
 }> {
   const signals: ProposalSignal[] = [];
 
-  // Memory lookup
+  // Memory lookup — load 1 lần toàn bộ tenant (cached), filter trong RAM
   const norms = inv.lines.map((l) => normalizeLineName(l.description));
   const taxId = inv.supplier_tax_id ?? null;
-  const memoryMap = new Map<string, { kind: LineKind; account: string; hit_count: number }>();
-  if (norms.filter(Boolean).length > 0) {
-    const { data } = await supabase
-      .from("ai_line_classifications")
-      .select("line_name_norm, kind, account, hit_count, supplier_tax_id")
-      .eq("tenant_id", inv.tenant_id)
-      .in("line_name_norm", Array.from(new Set(norms.filter(Boolean))));
-    for (const r of (data ?? []) as any[]) {
-      const cur = memoryMap.get(r.line_name_norm);
-      const sameVendor = taxId && r.supplier_tax_id === taxId;
-      if (!cur || sameVendor) {
-        memoryMap.set(r.line_name_norm, {
-          kind: r.kind as LineKind,
-          account: r.account,
-          hit_count: Number(r.hit_count ?? 1),
-        });
-      }
-    }
-  }
+  const allMemory = await getTenantMemory(supabase, inv.tenant_id);
+  const memoryMap = pickMemoryMap(allMemory, norms, taxId);
 
-  // Supplier industry hint
-  let industryHint: { kind: LineKind; label: string } | null = null;
-  if (inv.supplier_id) {
-    const { data: sup } = await supabase
-      .from("suppliers")
-      .select("vsic_code")
-      .eq("id", inv.supplier_id)
-      .maybeSingle();
-    industryHint = vsicToKindHint(sup?.vsic_code);
-  }
+  // Supplier industry hint (cached)
+  const industryHint = await getSupplierIndustryCached(supabase, inv.supplier_id);
 
-  // History distribution per vendor (12 tháng)
-  let historyDist: Partial<Record<LineKind, number>> | null = null;
-  if (taxId || inv.supplier_id) {
-    const sinceISO = new Date(Date.now() - 365 * 86400000).toISOString();
-    const filter = taxId
-      ? supabase.from("invoices").select("expense_account, total").eq("tenant_id", inv.tenant_id).eq("supplier_tax_id", taxId).gte("created_at", sinceISO).limit(100)
-      : supabase.from("invoices").select("expense_account, total").eq("tenant_id", inv.tenant_id).eq("supplier_id", inv.supplier_id!).gte("created_at", sinceISO).limit(100);
-    const { data: hist } = await filter;
-    const dist: Partial<Record<LineKind, number>> = {};
-    for (const h of (hist ?? []) as any[]) {
-      const acc = String(h.expense_account ?? "");
-      let k: LineKind | null = null;
-      if (/^15[26]/.test(acc)) k = "goods";
-      else if (/^153/.test(acc)) k = "ccdc";
-      else if (/^21[1-8]/.test(acc)) k = "fixed_asset";
-      else if (/^(62|63|64|66)/.test(acc)) k = "service";
-      if (k) dist[k] = (dist[k] ?? 0) + Number(h.total ?? 0);
-    }
-    if (Object.keys(dist).length > 0) historyDist = dist;
-  }
+  // History distribution per vendor (12 tháng) — cached
+  const historyDist = await getVendorHistoryDistCached(
+    supabase,
+    inv.tenant_id,
+    taxId,
+    inv.supplier_id,
+  );
 
   let memoryHits = 0;
   const classified = inv.lines.map((l) => {
