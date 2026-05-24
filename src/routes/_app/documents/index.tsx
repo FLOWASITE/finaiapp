@@ -1006,6 +1006,9 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
               <TabsList>
                 <TabsTrigger value="preview">Xem trước</TabsTrigger>
                 <TabsTrigger value="ocr">OCR</TabsTrigger>
+                {doc.invoice_id && (
+                  <TabsTrigger value="categorize">Hạch toán</TabsTrigger>
+                )}
                 <TabsTrigger value="links">Liên kết ({(data.links?.length ?? 0) + (doc.einvoice_id ? 1 : 0)})</TabsTrigger>
               </TabsList>
 
