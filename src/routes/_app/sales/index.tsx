@@ -199,6 +199,7 @@ function SalesHubPage() {
           }}
           items={[
             { label: "Phiếu thu", icon: Banknote, onSelect: () => setOpenReceipt(true) },
+            { label: "Xuất kho (Tạo phiếu xuất)", icon: Plus, onSelect: () => navigate({ to: "/inventory/unposted" }) },
             { label: "Nhập XML hoá đơn", icon: FileCode2, onSelect: () => setOpenImport(true), separatorBefore: true },
           ]}
         />
