@@ -77,7 +77,18 @@ export function InvoiceExtractCard({
   const subtotal = Number(parsed?.subtotal ?? 0);
   const vat = Number(parsed?.vat_amount ?? 0);
   const total = Number(parsed?.total ?? subtotal + vat);
-  const firstLine = parsed?.lines?.[0]?.description ?? null;
+  const invoiceLines: Array<{
+    description?: string | null;
+    qty?: number | null;
+    unit?: string | null;
+    unit_price?: number | null;
+    amount?: number | null;
+    classification?: LineClassification;
+  }> = Array.isArray(parsed?.lines) ? parsed.lines : [];
+  const classificationSummary = parsed?.classification_summary as
+    | { dominant: LineKind; account: string; label: string; mixed: boolean }
+    | null
+    | undefined;
 
   // Detect empty extraction (all key fields missing) — likely OCR/parse failed
   const isEmptyExtract =
@@ -86,7 +97,7 @@ export function InvoiceExtractCard({
     !parsed?.issue_date &&
     !(subtotal > 0) &&
     !(total > 0) &&
-    !(parsed?.lines?.length > 0);
+    !(invoiceLines.length > 0);
 
   const rawText: string | null = parsed?._rawText ?? null;
   const notes: string | null = parsed?.notes ?? null;
@@ -113,7 +124,22 @@ export function InvoiceExtractCard({
           ),
         }
       : null,
-    firstLine ? { label: "Mặt hàng", value: firstLine } : null,
+    classificationSummary
+      ? {
+          label: "Loại",
+          value: (
+            <span className="inline-flex items-center gap-1.5">
+              <KindBadge kind={classificationSummary.dominant} />
+              {classificationSummary.mixed ? (
+                <span className="text-[10px] text-muted-foreground">(hỗn hợp)</span>
+              ) : null}
+              <span className="text-[10px] text-muted-foreground">
+                → TK {classificationSummary.account}
+              </span>
+            </span>
+          ),
+        }
+      : null,
     { label: "Giá trước thuế", value: <span className="font-mono">{fmtVND(subtotal)}</span> },
     vat ? { label: "VAT", value: <span className="font-mono">{fmtVND(vat)}</span> } : null,
     {
