@@ -1326,7 +1326,42 @@ export const parseDocument = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => InputSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    return parseFileCore({ ...data, supabase, userId });
+    const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
+    const t0 = Date.now();
+    try {
+      const result = await parseFileCore({ ...data, supabase, userId });
+      const kindLabel =
+        result.kind === "purchase_invoice"
+          ? "hoá đơn mua"
+          : result.kind === "bank_statement"
+            ? "sao kê ngân hàng"
+            : result.kind === "cash_voucher"
+              ? "phiếu thu/chi"
+              : "tài liệu";
+      const vendor =
+        (result.parsed as any)?.vendor_name ||
+        (result.parsed as any)?.account_holder ||
+        (result.parsed as any)?.party_name ||
+        data.filename ||
+        "";
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "extract",
+        action: `Trích xuất ${kindLabel}${vendor ? ` — ${vendor}` : ""}`,
+        result: (result.parsed as any)?._schemaWarning ? "warning" : "success",
+        duration_ms: Date.now() - t0,
+        metadata: { parser: result.parser, kind: result.kind, pages: result.pages },
+      });
+      return result;
+    } catch (err: any) {
+      await tryLogAgentActivity(supabase, userId, {
+        agent_id: "extract",
+        action: `Trích xuất thất bại — ${data.filename ?? "tài liệu"}`,
+        result: "error",
+        duration_ms: Date.now() - t0,
+        metadata: { error: err?.message?.slice(0, 200) },
+      });
+      throw err;
+    }
   });
 
 export const uploadChatAttachment = createServerFn({ method: "POST" })
