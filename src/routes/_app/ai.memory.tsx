@@ -277,6 +277,7 @@ function SubTabs({
 }) {
   const tabs: { key: TabKey; label: string; count?: number; badge?: number }[] = [
     { key: "rules", label: "Quy tắc hạch toán", count: ruleCount },
+    { key: "classifications", label: "Hàng hóa / DV" },
     { key: "partners", label: "Đối tác", count: 128 },
     { key: "context", label: "Bối cảnh DN", count: 12 },
     { key: "limits", label: "Giới hạn", count: 8 },
