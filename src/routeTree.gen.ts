@@ -73,6 +73,7 @@ import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/sett
 import { Route as AppSettingsDepartmentsRouteImport } from './routes/_app/settings/departments'
 import { Route as AppSettingsCostCentersRouteImport } from './routes/_app/settings/cost-centers'
 import { Route as AppSettingsBranchesRouteImport } from './routes/_app/settings/branches'
+import { Route as AppSettingsAiFeedbackRouteImport } from './routes/_app/settings/ai-feedback'
 import { Route as AppSalesVouchersRouteImport } from './routes/_app/sales/vouchers'
 import { Route as AppSalesReturnsRouteImport } from './routes/_app/sales/returns'
 import { Route as AppSalesOrdersRouteImport } from './routes/_app/sales/orders'
@@ -145,6 +146,7 @@ import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/publi
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
 import { Route as ApiPublicHooksPromoteRulesRouteImport } from './routes/api/public/hooks/promote-rules'
+import { Route as ApiPublicHooksFeedbackDecayRouteImport } from './routes/api/public/hooks/feedback-decay'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as ApiPublicHooksCalibrateConfidenceRouteImport } from './routes/api/public/hooks/calibrate-confidence'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
@@ -493,6 +495,11 @@ const AppSettingsCostCentersRoute = AppSettingsCostCentersRouteImport.update({
 const AppSettingsBranchesRoute = AppSettingsBranchesRouteImport.update({
   id: '/settings/branches',
   path: '/settings/branches',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsAiFeedbackRoute = AppSettingsAiFeedbackRouteImport.update({
+  id: '/settings/ai-feedback',
+  path: '/settings/ai-feedback',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSalesVouchersRoute = AppSalesVouchersRouteImport.update({
@@ -859,6 +866,12 @@ const ApiPublicHooksPromoteRulesRoute =
     path: '/api/public/hooks/promote-rules',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksFeedbackDecayRoute =
+  ApiPublicHooksFeedbackDecayRouteImport.update({
+    id: '/api/public/hooks/feedback-decay',
+    path: '/api/public/hooks/feedback-decay',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyDigestRoute =
   ApiPublicHooksDailyDigestRouteImport.update({
     id: '/api/public/hooks/daily-digest',
@@ -1094,6 +1107,7 @@ export interface FileRoutesByFullPath {
   '/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/sales/returns': typeof AppSalesReturnsRoute
   '/sales/vouchers': typeof AppSalesVouchersRoute
+  '/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -1164,6 +1178,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1252,6 +1267,7 @@ export interface FileRoutesByTo {
   '/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/sales/returns': typeof AppSalesReturnsRoute
   '/sales/vouchers': typeof AppSalesVouchersRoute
+  '/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -1322,6 +1338,7 @@ export interface FileRoutesByTo {
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1419,6 +1436,7 @@ export interface FileRoutesById {
   '/_app/sales/orders': typeof AppSalesOrdersRouteWithChildren
   '/_app/sales/returns': typeof AppSalesReturnsRoute
   '/_app/sales/vouchers': typeof AppSalesVouchersRoute
+  '/_app/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/_app/settings/branches': typeof AppSettingsBranchesRoute
   '/_app/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/_app/settings/departments': typeof AppSettingsDepartmentsRoute
@@ -1489,6 +1507,7 @@ export interface FileRoutesById {
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
+  '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
@@ -1586,6 +1605,7 @@ export interface FileRouteTypes {
     | '/sales/orders'
     | '/sales/returns'
     | '/sales/vouchers'
+    | '/settings/ai-feedback'
     | '/settings/branches'
     | '/settings/cost-centers'
     | '/settings/departments'
@@ -1656,6 +1676,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -1744,6 +1765,7 @@ export interface FileRouteTypes {
     | '/sales/orders'
     | '/sales/returns'
     | '/sales/vouchers'
+    | '/settings/ai-feedback'
     | '/settings/branches'
     | '/settings/cost-centers'
     | '/settings/departments'
@@ -1814,6 +1836,7 @@ export interface FileRouteTypes {
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -1910,6 +1933,7 @@ export interface FileRouteTypes {
     | '/_app/sales/orders'
     | '/_app/sales/returns'
     | '/_app/sales/vouchers'
+    | '/_app/settings/ai-feedback'
     | '/_app/settings/branches'
     | '/_app/settings/cost-centers'
     | '/_app/settings/departments'
@@ -1980,6 +2004,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/tenant/$id'
     | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
+    | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
@@ -2004,6 +2029,7 @@ export interface RootRouteChildren {
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
   ApiPublicHooksCalibrateConfidenceRoute: typeof ApiPublicHooksCalibrateConfidenceRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
+  ApiPublicHooksFeedbackDecayRoute: typeof ApiPublicHooksFeedbackDecayRoute
   ApiPublicHooksPromoteRulesRoute: typeof ApiPublicHooksPromoteRulesRoute
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
   ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
@@ -2459,6 +2485,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/branches'
       fullPath: '/settings/branches'
       preLoaderRoute: typeof AppSettingsBranchesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/ai-feedback': {
+      id: '/_app/settings/ai-feedback'
+      path: '/settings/ai-feedback'
+      fullPath: '/settings/ai-feedback'
+      preLoaderRoute: typeof AppSettingsAiFeedbackRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sales/vouchers': {
@@ -2965,6 +2998,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPromoteRulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/feedback-decay': {
+      id: '/api/public/hooks/feedback-decay'
+      path: '/api/public/hooks/feedback-decay'
+      fullPath: '/api/public/hooks/feedback-decay'
+      preLoaderRoute: typeof ApiPublicHooksFeedbackDecayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-digest': {
       id: '/api/public/hooks/daily-digest'
       path: '/api/public/hooks/daily-digest'
@@ -3450,6 +3490,7 @@ interface AppRouteChildren {
   AppSalesOrdersRoute: typeof AppSalesOrdersRouteWithChildren
   AppSalesReturnsRoute: typeof AppSalesReturnsRoute
   AppSalesVouchersRoute: typeof AppSalesVouchersRoute
+  AppSettingsAiFeedbackRoute: typeof AppSettingsAiFeedbackRoute
   AppSettingsBranchesRoute: typeof AppSettingsBranchesRoute
   AppSettingsCostCentersRoute: typeof AppSettingsCostCentersRoute
   AppSettingsDepartmentsRoute: typeof AppSettingsDepartmentsRoute
@@ -3551,6 +3592,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesOrdersRoute: AppSalesOrdersRouteWithChildren,
   AppSalesReturnsRoute: AppSalesReturnsRoute,
   AppSalesVouchersRoute: AppSalesVouchersRoute,
+  AppSettingsAiFeedbackRoute: AppSettingsAiFeedbackRoute,
   AppSettingsBranchesRoute: AppSettingsBranchesRoute,
   AppSettingsCostCentersRoute: AppSettingsCostCentersRoute,
   AppSettingsDepartmentsRoute: AppSettingsDepartmentsRoute,
@@ -3613,6 +3655,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksCalibrateConfidenceRoute:
     ApiPublicHooksCalibrateConfidenceRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
+  ApiPublicHooksFeedbackDecayRoute: ApiPublicHooksFeedbackDecayRoute,
   ApiPublicHooksPromoteRulesRoute: ApiPublicHooksPromoteRulesRoute,
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
   ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,

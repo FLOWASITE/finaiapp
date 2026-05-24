@@ -92,11 +92,12 @@ export function invalidateCalibration(tenantId: string): void {
   cache.delete(tenantId);
 }
 
-/** Cộng/trừ delta theo từng signal kích hoạt, clamp [0, 0.99]. */
+/** Cộng/trừ delta theo từng signal kích hoạt, áp penalty từ cross-agent feedback, clamp [0, 0.99]. */
 export function applyCalibratedConfidence(
   base: number,
   features: SignalFeatures,
   weights: SignalWeights = DEFAULT_WEIGHTS,
+  penaltyFactor: number = 0,
 ): number {
   let c = base;
   for (const k of Object.keys(features) as SignalKey[]) {
@@ -104,6 +105,10 @@ export function applyCalibratedConfidence(
     if (!v) continue;
     const w = Number(weights[k] ?? DEFAULT_WEIGHTS[k] ?? 0);
     c += w * v;
+  }
+  if (penaltyFactor > 0) {
+    const pf = Math.min(0.5, Math.max(0, penaltyFactor));
+    c = c * (1 - pf);
   }
   if (c < 0) c = 0;
   if (c > 0.99) c = 0.99;

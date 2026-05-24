@@ -187,9 +187,26 @@ export const matchTxn = createServerFn({ method: "POST" })
 
 export const unmatchTxn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ txnId: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        txnId: z.string().uuid(),
+        reason: z
+          .enum(["wrong_account", "wrong_amount", "wrong_partner", "duplicate"])
+          .optional(),
+        note: z.string().max(500).optional(),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    // Lấy entry_id trước khi xoá để emit feedback
+    const { data: txn } = await supabase
+      .from("bank_transactions")
+      .select("matched_entry_id, tenant_id, match_confidence")
+      .eq("id", data.txnId)
+      .maybeSingle();
+
     await supabase
       .from("bank_vouchers")
       .update({ bank_transaction_id: null })
@@ -203,6 +220,25 @@ export const unmatchTxn = createServerFn({ method: "POST" })
         match_reason: null,
       })
       .eq("id", data.txnId);
+
+    // Emit cross-agent feedback nếu đối soát phát hiện match cũ là sai
+    if (txn?.matched_entry_id && txn?.tenant_id) {
+      try {
+        const { emitFeedback } = await import("@/lib/feedback/emit.server");
+        await emitFeedback(supabase, {
+          tenantId: txn.tenant_id,
+          sourceAgent: "reconcile",
+          eventType: data.reason ?? "wrong_account",
+          severity: Number(txn.match_confidence ?? 0.5) >= 0.8 ? 0.7 : 0.4,
+          journalEntryId: txn.matched_entry_id,
+          bankTransactionId: data.txnId,
+          note: data.note ?? "Đối soát: huỷ ghép do phát hiện lệch",
+          createdBy: userId,
+        });
+      } catch (e) {
+        console.error("[unmatchTxn] emit feedback failed", e);
+      }
+    }
     return { ok: true };
   });
 
