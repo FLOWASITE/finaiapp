@@ -224,6 +224,65 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_journal_proposals: {
+        Row: {
+          auto_posted: boolean
+          confidence: number
+          created_at: string
+          dto: Json
+          id: string
+          invoice_id: string
+          journal_entry_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          warnings: Json
+        }
+        Insert: {
+          auto_posted?: boolean
+          confidence?: number
+          created_at?: string
+          dto: Json
+          id?: string
+          invoice_id: string
+          journal_entry_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          warnings?: Json
+        }
+        Update: {
+          auto_posted?: boolean
+          confidence?: number
+          created_at?: string
+          dto?: Json
+          id?: string
+          invoice_id?: string
+          journal_entry_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_journal_proposals_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_line_classifications: {
         Row: {
           account: string
@@ -422,6 +481,8 @@ export type Database = {
           party_kind: string
           sample_count: number
           tags: string[]
+          template_lines: Json | null
+          template_version: number
           tenant_id: string
           updated_at: string
         }
@@ -442,6 +503,8 @@ export type Database = {
           party_kind: string
           sample_count?: number
           tags?: string[]
+          template_lines?: Json | null
+          template_version?: number
           tenant_id: string
           updated_at?: string
         }
@@ -462,6 +525,8 @@ export type Database = {
           party_kind?: string
           sample_count?: number
           tags?: string[]
+          template_lines?: Json | null
+          template_version?: number
           tenant_id?: string
           updated_at?: string
         }
