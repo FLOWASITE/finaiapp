@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { parseSuggestion, renderRule, TEMPLATES_BY_ID } from "./ai-memory-templates";
+import {
+  ruleV2PartialSchema,
+  renderConditions,
+  renderActions,
+  type RuleV2Patch,
+} from "./rules/rule-shared";
+import type { RuleAction, RuleCondition, RuleMode, RuleStatus } from "@/types/rule";
 
 export type RuleType = "suggestion" | "active" | "disabled";
 export type RuleSource = "ai-learned" | "user-taught";
@@ -21,6 +28,14 @@ export type MemoryRule = {
   disable_reason: string | null;
   created_at: string;
   updated_at: string;
+  conditions: RuleCondition[];
+  actions: RuleAction[];
+  mode: RuleMode;
+  confidence_threshold: number;
+  applies_to: "future" | "retroactive";
+  enabled: boolean;
+  status: RuleStatus;
+  schema_version: number;
 };
 
 export type MemoryWatch = {
@@ -32,7 +47,32 @@ export type MemoryWatch = {
 };
 
 const RULE_COLS =
-  "id,type,source,title,when_text,then_text,origin,applied_count,accuracy_correct,accuracy_total,last_used_at,disable_reason,created_at,updated_at";
+  "id,type,source,title,when_text,then_text,origin,applied_count,accuracy_correct,accuracy_total,last_used_at,disable_reason,created_at,updated_at,conditions,actions,mode,confidence_threshold,applies_to,enabled,status,schema_version";
+
+/** Áp patch v2 → DB; auto-derive when_text/then_text khi user gửi structured. */
+function buildV2Patch(v2: RuleV2Patch, fallbackWhen?: string, fallbackThen?: string) {
+  const patch: Record<string, unknown> = {};
+  if (v2.conditions !== undefined) {
+    patch.conditions = v2.conditions;
+    const rendered = renderConditions(v2.conditions);
+    if (rendered) patch.when_text = rendered;
+    else if (fallbackWhen) patch.when_text = fallbackWhen;
+    patch.schema_version = 2;
+  }
+  if (v2.actions !== undefined) {
+    patch.actions = v2.actions;
+    const rendered = renderActions(v2.actions);
+    if (rendered) patch.then_text = rendered;
+    else if (fallbackThen) patch.then_text = fallbackThen;
+    patch.schema_version = 2;
+  }
+  if (v2.mode !== undefined) patch.mode = v2.mode;
+  if (v2.confidence_threshold !== undefined) patch.confidence_threshold = v2.confidence_threshold;
+  if (v2.applies_to !== undefined) patch.applies_to = v2.applies_to;
+  if (v2.enabled !== undefined) patch.enabled = v2.enabled;
+  if (v2.status !== undefined) patch.status = v2.status;
+  return patch;
+}
 
 export const listAiMemory = createServerFn({ method: "GET" })
   .middleware([withTenant])
