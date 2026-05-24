@@ -144,10 +144,10 @@ async function getProductKindMap(
   if (productIds.length === 0) return map;
   const { data } = await supabase
     .from("products")
-    .select("id, product_type")
+    .select("id, item_type")
     .in("id", productIds);
   for (const p of (data ?? []) as any[]) {
-    if (p?.id && p?.product_type) map.set(p.id, String(p.product_type));
+    if (p?.id && p?.item_type) map.set(p.id, String(p.item_type));
   }
   return map;
 }
