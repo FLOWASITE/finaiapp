@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { withTenant } from "@/integrations/supabase/with-tenant";
+import type { RuleAction, RuleCondition } from "@/types/rule";
 
 export type GraphRuleRow = {
   id: string;
@@ -13,6 +14,9 @@ export type GraphRuleRow = {
   accuracy_correct: number;
   accuracy_total: number;
   last_used_at: string | null;
+  conditions: RuleCondition[] | null;
+  actions: RuleAction[] | null;
+  schema_version: number | null;
 };
 
 export type GraphSupplierRow = {
@@ -57,7 +61,7 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
         supabase
           .from("ai_memory_rules")
           .select(
-            "id,type,source,title,when_text,then_text,applied_count,accuracy_correct,accuracy_total,last_used_at",
+            "id,type,source,title,when_text,then_text,applied_count,accuracy_correct,accuracy_total,last_used_at,conditions,actions,schema_version",
           )
           .eq("tenant_id", tenantId)
           .order("created_at", { ascending: true }),

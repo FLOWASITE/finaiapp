@@ -32,8 +32,8 @@ function rowToRule(r: GraphRuleRow): Rule {
     id: r.id,
     name: r.title,
     description: [r.when_text, r.then_text].filter(Boolean).join(" → "),
-    conditions: [],
-    actions: [],
+    conditions: Array.isArray(r.conditions) ? r.conditions : [],
+    actions: Array.isArray(r.actions) ? r.actions : [],
     confidence_threshold: 0.8,
     mode,
     applies_to: "future",
@@ -45,8 +45,36 @@ function rowToRule(r: GraphRuleRow): Rule {
     correct_count: r.accuracy_correct ?? 0,
     last_used: r.last_used_at ?? undefined,
     status,
-    version: 1,
+    version: r.schema_version ?? 1,
   };
+}
+
+/** Trích mã TK từ structured actions v2 (book.account_debit/credit). */
+function extractAccountsFromActions(actions: GraphRuleRow["actions"]): string[] {
+  if (!Array.isArray(actions)) return [];
+  const out = new Set<string>();
+  for (const a of actions) {
+    if (a?.type === "book") {
+      const d = a.params?.account_debit;
+      const c = a.params?.account_credit;
+      if (typeof d === "string" && d) out.add(d);
+      if (typeof c === "string" && c) out.add(c);
+    }
+  }
+  return Array.from(out);
+}
+
+/** Trích từ khoá vendor từ structured conditions v2 (vendor.name equals/contains/in). */
+function extractVendorTermsFromConditions(conditions: GraphRuleRow["conditions"]): string[] {
+  if (!Array.isArray(conditions)) return [];
+  const out: string[] = [];
+  for (const c of conditions) {
+    if (c?.field !== "vendor.name") continue;
+    const v = c.value;
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") out.push(x);
+  }
+  return out;
 }
 
 export type ExtraEdge = {
@@ -99,10 +127,14 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
 
   const ruleAccountHints = new Map<string, string[]>();
   for (const r of input.rules) {
-    const codes = [
-      ...extractAccountCodes(r.when_text),
-      ...extractAccountCodes(r.then_text),
-    ];
+    // Ưu tiên v2 structured actions; fallback regex text khi rule còn ở v1.
+    const fromV2 = extractAccountsFromActions(r.actions);
+    const codes = fromV2.length
+      ? fromV2
+      : [
+          ...extractAccountCodes(r.when_text),
+          ...extractAccountCodes(r.then_text),
+        ];
     for (const c of codes) accountSet.add(c);
     if (codes.length) ruleAccountHints.set(r.id, Array.from(new Set(codes)));
   }
@@ -111,17 +143,29 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     .sort()
     .map((code) => ({ id: `a-${code}`, code, name: accountName(code) }));
 
-  // Fuzzy vendor matching against rule titles + when_text
+  // Vendor matching: v2 conditions (vendor.name) trước, fallback fuzzy text.
   const vendorIndex = vendors.map((v) => ({ v, norm: normalize(v.name) }));
   const ruleVendorHints = new Map<string, string[]>();
   for (const r of input.rules) {
-    const hay = normalize(`${r.title} ${r.when_text}`);
-    const matched: string[] = [];
-    for (const { v, norm } of vendorIndex) {
-      if (!norm || norm.length < 3) continue;
-      if (hay.includes(norm)) matched.push(v.id);
+    const terms = extractVendorTermsFromConditions(r.conditions);
+    const matched = new Set<string>();
+    if (terms.length) {
+      for (const t of terms) {
+        const n = normalize(t);
+        if (n.length < 3) continue;
+        for (const { v, norm } of vendorIndex) {
+          if (norm && (norm.includes(n) || n.includes(norm))) matched.add(v.id);
+        }
+      }
     }
-    if (matched.length) ruleVendorHints.set(r.id, matched);
+    if (matched.size === 0) {
+      const hay = normalize(`${r.title} ${r.when_text}`);
+      for (const { v, norm } of vendorIndex) {
+        if (!norm || norm.length < 3) continue;
+        if (hay.includes(norm)) matched.add(v.id);
+      }
+    }
+    if (matched.size) ruleVendorHints.set(r.id, Array.from(matched));
   }
 
   // Extra edges
