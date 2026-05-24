@@ -32,7 +32,7 @@ const nodeTypes = {
   rule: RuleNode,
   vendor: VendorNode,
   account: AccountNode,
-};
+} as any;
 
 const initialFilters: GraphFilterState = {
   search: "",
