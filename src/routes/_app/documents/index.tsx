@@ -906,6 +906,8 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
     onSuccess: () => {
       toast.success("Đã xoá tài liệu");
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["sales-documents"] });
+      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -927,6 +929,8 @@ function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => voi
       finToast.success(`AI đã parse lại chứng từ (${r.parser ?? "—"})`);
       qc.invalidateQueries({ queryKey: ["document", id] });
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["sales-documents"] });
+      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
