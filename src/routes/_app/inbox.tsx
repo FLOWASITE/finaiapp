@@ -958,7 +958,7 @@ function ItemCard({
         )}
       />
 
-      <div className="pl-4 pr-4 py-3.5 flex flex-col gap-2.5">
+      <div className="pl-4 pr-4 py-2.5 flex flex-col gap-2">
         {/* Top meta row */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-[11px] min-w-0">
