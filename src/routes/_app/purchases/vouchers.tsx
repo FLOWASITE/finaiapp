@@ -24,6 +24,7 @@ import {
   recordPurchaseVoucherPayment,
 } from "@/lib/purchase-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
+import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
 import { listSuppliers } from "@/lib/purchases.functions";
 import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { listProducts } from "@/lib/inventory.functions";
@@ -439,6 +440,7 @@ function PurchaseVouchersPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi ghi sổ"),
   });
   const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+  const [stickTarget, setStickTarget] = useState<StickStockTarget>(null);
 
   const openVoidDialog = async (id: string) => {
     try {
@@ -869,10 +871,10 @@ function PurchaseVouchersPage() {
                                 </DropdownMenuItem>
                               )}
                               {!r.stock_voucher_id && (
-                                <DropdownMenuItem asChild>
-                                  <Link to="/inventory/unposted">
-                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
-                                  </Link>
+                                <DropdownMenuItem
+                                  onClick={() => setStickTarget({ kind: "purchase", id: r.id, voucher_no: r.voucher_no })}
+                                >
+                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
@@ -937,6 +939,7 @@ function PurchaseVouchersPage() {
         loading={voidMut.isPending}
         onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
       />
+      <StickStockVoucherDialog target={stickTarget} onClose={() => setStickTarget(null)} />
 
     </div>
     </div>

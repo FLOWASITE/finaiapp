@@ -21,6 +21,7 @@ import {
   recordSalesVoucherReceipt,
 } from "@/lib/sales-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
+import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
 import { listProducts } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
 import { listBranches } from "@/lib/dimensions.functions";
@@ -772,6 +773,7 @@ function SalesVouchersPage() {
   });
 
   const [voidDlg, setVoidDlg] = useState<{ open: boolean; id?: string; items: Array<{ type: string; label: string; detail?: string }> }>({ open: false, items: [] });
+  const [stickTarget, setStickTarget] = useState<StickStockTarget>(null);
 
   const openVoidDialog = async (id: string) => {
     try {
@@ -1180,10 +1182,10 @@ function SalesVouchersPage() {
                                 </DropdownMenuItem>
                               )}
                               {!v.stock_voucher_id && (
-                                <DropdownMenuItem asChild>
-                                  <Link to="/inventory/unposted">
-                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
-                                  </Link>
+                                <DropdownMenuItem
+                                  onClick={() => setStickTarget({ kind: "sales", id: v.id, voucher_no: v.voucher_no })}
+                                >
+                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
@@ -1274,6 +1276,7 @@ function SalesVouchersPage() {
         loading={voidMut.isPending}
         onConfirm={() => voidDlg.id && voidMut.mutate(voidDlg.id)}
       />
+      <StickStockVoucherDialog target={stickTarget} onClose={() => setStickTarget(null)} />
     </div>
     </div>
   );
