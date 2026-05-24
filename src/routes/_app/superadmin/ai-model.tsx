@@ -521,7 +521,6 @@ function AiModelPage() {
               Nguồn AI cho Chat, Parse hoá đơn/sao kê, đề xuất định khoản…
             </p>
           </div>
-          </div>
           <div className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2">
             <div className="flex flex-col">
               <Label htmlFor="enabled-switch" className="text-sm cursor-pointer leading-tight">
