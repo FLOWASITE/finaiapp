@@ -7741,6 +7741,7 @@ export type Database = {
           fax: string | null
           group_id: string | null
           id: string
+          industry_code: string | null
           is_active: boolean
           legal_rep: string | null
           name: string
@@ -7779,6 +7780,7 @@ export type Database = {
           fax?: string | null
           group_id?: string | null
           id?: string
+          industry_code?: string | null
           is_active?: boolean
           legal_rep?: string | null
           name: string
@@ -7817,6 +7819,7 @@ export type Database = {
           fax?: string | null
           group_id?: string | null
           id?: string
+          industry_code?: string | null
           is_active?: boolean
           legal_rep?: string | null
           name?: string
