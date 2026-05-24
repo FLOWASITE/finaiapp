@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { resolveActiveModel } from "@/lib/ai-gateway.server";
+import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 import {
   isLlamaParseEnabled,
   parseDocument as llamaParseDocument,
@@ -1073,8 +1073,8 @@ export async function parseFileCore(opts: {
     emitPhase({ name: "ocr", status: "done", ms: parserMs });
 
     // ---- 3. Models
-    const { model: visionModel } = await resolveActiveModel("parse", "google/gemini-2.5-pro");
-    const { model: textModel } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
+    const { model: visionModel } = await resolveAgentModel("parse_doc_vision", "google/gemini-2.5-pro");
+    const { model: textModel } = await resolveAgentModel("parse_doc_text", "google/gemini-3-flash-preview");
 
     // ---- 4. Auto kind classification
     let effectiveKind = opts.kind;

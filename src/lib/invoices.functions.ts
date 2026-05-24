@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { withTenant } from "@/integrations/supabase/with-tenant";
-import { resolveActiveModel } from "@/lib/ai-gateway.server";
+import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 
 const InvoiceLineSchema = z.object({
   description: z.string(),
@@ -30,7 +30,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
   .inputValidator((input: { invoiceId: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId, tenantId } = context;
-    const { model } = await resolveActiveModel("parse", "google/gemini-3-flash-preview");
+    const { model } = await resolveAgentModel("invoice_extract", "google/gemini-3-flash-preview");
 
     // 1. Lấy invoice + signed URL file
     const { data: invoice, error: invErr } = await supabase
