@@ -433,3 +433,94 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
     </>
   );
 }
+
+const KIND_TONE: Record<LineKind, string> = {
+  goods:
+    "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 ring-emerald-500/30",
+  fixed_asset: "bg-sky-500/12 text-sky-700 dark:text-sky-400 ring-sky-500/30",
+  ccdc: "bg-violet-500/12 text-violet-700 dark:text-violet-400 ring-violet-500/30",
+  service: "bg-amber-500/14 text-amber-700 dark:text-amber-400 ring-amber-500/30",
+};
+
+function KindBadge({
+  kind,
+  confidence,
+  signals,
+}: {
+  kind: LineKind;
+  confidence?: number;
+  signals?: { label: string }[];
+}) {
+  const meta = kindMeta(kind);
+  const tone = KIND_TONE[kind];
+  const lowConf = confidence != null && confidence < 80;
+  const badge = (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
+        tone,
+        lowConf && "ring-amber-500/60",
+      )}
+    >
+      {meta.label}
+      {confidence != null ? (
+        <span className="opacity-70">{confidence}%</span>
+      ) : null}
+    </span>
+  );
+  if (!signals || signals.length === 0) return badge;
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help">{badge}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-[11px]">
+          <div className="mb-1 font-semibold">
+            Vì sao là {meta.label}? (TK gợi ý {meta.account})
+          </div>
+          <ul className="list-disc space-y-0.5 pl-3">
+            {signals.map((s, i) => (
+              <li key={i}>{s.label}</li>
+            ))}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function LineRow({
+  line,
+}: {
+  line: {
+    description?: string | null;
+    qty?: number | null;
+    unit?: string | null;
+    unit_price?: number | null;
+    amount?: number | null;
+    classification?: LineClassification;
+  };
+}) {
+  const c = line.classification;
+  return (
+    <li className="flex items-start justify-between gap-2 text-[11.5px]">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate font-medium text-foreground">
+            {line.description ?? "—"}
+          </span>
+          {c ? (
+            <KindBadge kind={c.kind} confidence={c.confidence} signals={c.signals} />
+          ) : null}
+        </div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
+          {line.qty ?? "—"} {line.unit ?? ""} × {fmtVND(line.unit_price ?? 0)}
+        </div>
+      </div>
+      <div className="shrink-0 text-right font-mono text-[11px]">
+        {fmtVND(line.amount ?? 0)}
+      </div>
+    </li>
+  );
+}
