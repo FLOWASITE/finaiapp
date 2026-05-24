@@ -610,3 +610,119 @@ function InboxChatHistory({ item }: { item: InboxItem }) {
     </div>
   );
 }
+
+function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
+  if (!meta) return null;
+  const entries = Object.entries(meta)
+    .map(([k, v]) => [k, formatMetaValue(k, v)] as const)
+    .filter(([, v]) => v !== null && v !== "");
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-4">
+      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        Thông tin phiếu
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        {entries.map(([k, v]) => (
+          <div key={k} className="min-w-0 space-y-0.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {META_FIELD_LABELS[k] ?? k}
+            </dt>
+            <dd className={cn(
+              "truncate text-xs font-medium text-foreground",
+              (MONEY_FIELDS.has(k) || k === "vat_rate") && "tabular-nums",
+            )}>
+              {v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function InvoiceActionRow({ item }: { item: InboxItem }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const isDoc = item.source === "document";
+  const canOpenMatch = !!item.match_ref && !!item.href;
+
+  if (!isDoc && !canOpenMatch) return null;
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {isDoc && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground/85 transition-colors hover:bg-muted"
+          >
+            <FileText className="h-3.5 w-3.5 text-primary" />
+            Xem hoá đơn
+          </button>
+        )}
+        {canOpenMatch && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: item.href! })}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground/85 transition-colors hover:bg-muted"
+          >
+            <ArrowRight className="h-3.5 w-3.5 text-primary" />
+            Mở phiếu khớp {item.match_ref?.ref ? `(${item.match_ref.ref})` : ""}
+          </button>
+        )}
+      </div>
+
+      {isDoc && open && (
+        <InvoiceViewerDialog
+          documentId={item.external_id}
+          onOpenChange={(v) => setOpen(v)}
+        />
+      )}
+    </>
+  );
+}
+
+function InvoiceViewerDialog({
+  documentId,
+  onOpenChange,
+}: {
+  documentId: string;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const getDocumentFn = useServerFn(getDocument);
+  const q = useQuery({
+    queryKey: ["inbox-doc-viewer", documentId],
+    queryFn: () => getDocumentFn({ data: { id: documentId } }),
+    staleTime: 60_000,
+  });
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            {q.data?.doc?.original_filename ?? "Hoá đơn"}
+          </DialogTitle>
+        </DialogHeader>
+        {q.isLoading ? (
+          <div className="flex h-72 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : q.isError ? (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
+            Không tải được hoá đơn: {(q.error as any)?.message ?? "lỗi không xác định"}
+          </div>
+        ) : (
+          <InvoiceFileViewer
+            einvoice={(q.data?.doc?.ocr_extracted as any)?._einvoice ?? null}
+            signedUrl={q.data?.signedUrl ?? null}
+            mimeType={q.data?.doc?.mime_type ?? null}
+            filename={q.data?.doc?.original_filename ?? null}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
