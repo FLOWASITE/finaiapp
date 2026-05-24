@@ -385,6 +385,17 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
+      try {
+        await materializeSalesInvoiceFromDocument(supabase, {
+          documentId: data.external_id,
+          tenantId,
+          userId,
+          entryDate: data.entry_date,
+          journalEntryId: entry.id,
+        });
+      } catch (e: any) {
+        console.warn("[approveInboxItem] materializeSalesInvoice failed:", e?.message);
+      }
     } else if (data.source === "ai_insight") {
       await supabase
         .from("ai_insights")
