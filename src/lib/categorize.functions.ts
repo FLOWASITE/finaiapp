@@ -236,6 +236,11 @@ export const approveProposal = createServerFn({ method: "POST" })
       });
     } catch {}
 
+    try {
+      const { invalidateCategorizeCache } = await import("./categorize/cache.server");
+      invalidateCategorizeCache(tenantId);
+    } catch {}
+
     return { ok: true, journal_entry_id: je.id };
   });
 
@@ -253,6 +258,10 @@ export const skipProposal = createServerFn({ method: "POST" })
       .update({ status: "skipped", resolved_at: new Date().toISOString(), resolved_by: userId })
       .eq("id", data.proposal_id)
       .eq("tenant_id", tenantId);
+    try {
+      const { invalidateCategorizeCache } = await import("./categorize/cache.server");
+      invalidateCategorizeCache(tenantId);
+    } catch {}
     return { ok: true };
   });
 

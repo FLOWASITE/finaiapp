@@ -141,6 +141,7 @@ export async function buildDocumentItem(
   tenantId: string,
   doc: any,
   rules: Awaited<ReturnType<typeof loadActiveRules>>,
+  prebuiltProposal?: import("@/lib/categorize/types").JournalProposalDTO,
 ): Promise<InboxItem | null> {
   const ext = (doc.ocr_extracted ?? {}) as any;
   const amount = Number(ext.total_amount ?? ext.total ?? ext.amount ?? 0);
@@ -183,7 +184,7 @@ export async function buildDocumentItem(
   // (single source of truth: vendor templates + rules + AI).
   if (doc.invoice_id) {
     try {
-      const dto = await proposeJournalForInvoice(supabase, doc.invoice_id);
+      const dto = prebuiltProposal ?? (await proposeJournalForInvoice(supabase, doc.invoice_id));
       const entry = dto.entries[0];
       if (entry) {
         const lines: ProposalLine[] = entry.lines.map((l) => ({
