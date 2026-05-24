@@ -232,6 +232,7 @@ export type Database = {
           dto: Json
           id: string
           invoice_id: string
+          invoice_kind: string
           journal_entry_id: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -248,6 +249,7 @@ export type Database = {
           dto: Json
           id?: string
           invoice_id: string
+          invoice_kind?: string
           journal_entry_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -264,6 +266,7 @@ export type Database = {
           dto?: Json
           id?: string
           invoice_id?: string
+          invoice_kind?: string
           journal_entry_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -273,15 +276,7 @@ export type Database = {
           updated_at?: string
           warnings?: Json
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_journal_proposals_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: true
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ai_line_classifications: {
         Row: {
