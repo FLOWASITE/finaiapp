@@ -71,9 +71,21 @@ export const listInboxAi = createServerFn({ method: "POST" })
       ]),
     );
 
+    // BATCH: prefetch proposals cho mọi document có invoice_id
+    const invoiceIds = Array.from(
+      new Set(
+        ((docsRes.data ?? []) as any[])
+          .map((d) => d.invoice_id)
+          .filter((x): x is string => !!x),
+      ),
+    );
+    const { proposeJournalBatch } = await import("@/lib/categorize/engine.server");
+    const proposalMap = await proposeJournalBatch(supabase, invoiceIds);
+
     const items: InboxItem[] = [];
     for (const d of (docsRes.data ?? []) as any[]) {
-      const it = await buildDocumentItem(supabase, tenantId, d, rules);
+      const prebuilt = d.invoice_id ? proposalMap.get(d.invoice_id) : undefined;
+      const it = await buildDocumentItem(supabase, tenantId, d, rules, prebuilt);
       if (it) items.push(it);
     }
     for (const t of (txnsRes.data ?? []) as any[]) {
