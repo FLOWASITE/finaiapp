@@ -2,6 +2,9 @@ import type { Rule } from "@/types/rule";
 import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
 import type { GraphDbData, GraphRuleRow } from "./memory-graph.functions";
 import { VAS_ACCOUNTS, accountName } from "./vas-accounts";
+import { VSIC } from "@/lib/vsic";
+import { vsicToKindHint, type LineKind } from "@/lib/ai/classify-line";
+import type { VendorEnrichment } from "./build-graph";
 
 const ACCOUNT_CODE_RE = /\b([1-9][0-9]{2,3})\b/g;
 
@@ -91,6 +94,7 @@ export type AdaptedGraphInput = {
   extraEdges: ExtraEdge[];
   ruleAccountHints: Map<string, string[]>;
   ruleVendorHints: Map<string, string[]>;
+  vendorEnrichment: Map<string, VendorEnrichment>;
 };
 
 function normalize(s: string): string {
@@ -260,5 +264,36 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     });
   }
 
-  return { rules, vendors, accounts, items, extraEdges, ruleAccountHints, ruleVendorHints };
+  // --- Vendor enrichment: industry label + 12-month history dist ---
+  const vendorEnrichment = new Map<string, VendorEnrichment>();
+  const vsicByCode = new Map(VSIC.map((v) => [v.code, v.name]));
+  for (const s of input.suppliers) {
+    const code = s.industry_code ?? null;
+    const dist = input.supplierHistory?.[s.id] ?? null;
+    const total = dist
+      ? (Object.values(dist) as number[]).reduce((acc, v) => acc + (v || 0), 0)
+      : 0;
+    let label: string | null = null;
+    if (code) {
+      const name = vsicByCode.get(code);
+      label = name ? `${code} — ${name}` : code;
+    }
+    vendorEnrichment.set(s.id, {
+      industryCode: code,
+      industryLabel: label,
+      historyDist: dist as Partial<Record<LineKind, number>> | null,
+      historyTotal: total,
+    });
+  }
+
+  return {
+    rules,
+    vendors,
+    accounts,
+    items,
+    extraEdges,
+    ruleAccountHints,
+    ruleVendorHints,
+    vendorEnrichment,
+  };
 }

@@ -1,5 +1,6 @@
 import type { Rule, RuleCondition, RuleAction } from "@/types/rule";
 import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
+import type { LineKind } from "@/lib/ai/classify-line";
 
 export type NodeKind = "rule" | "vendor" | "account" | "item";
 
@@ -17,6 +18,11 @@ export type GraphNodeData = {
   status?: Rule["status"];
   accuracy?: number | null;
   appliedCount?: number;
+  // For vendor nodes
+  industryCode?: string | null;
+  industryLabel?: string | null;
+  historyDist?: Partial<Record<LineKind, number>> | null;
+  historyTotal?: number;
 };
 
 export type GraphEdgeData = {
@@ -43,6 +49,13 @@ export type ExtraGraphEdge = {
   weight: number;
 };
 
+export type VendorEnrichment = {
+  industryCode?: string | null;
+  industryLabel?: string | null;
+  historyDist?: Partial<Record<LineKind, number>> | null;
+  historyTotal?: number;
+};
+
 export type GraphBuildInput = {
   rules: Rule[];
   vendors: VendorEntity[];
@@ -51,6 +64,7 @@ export type GraphBuildInput = {
   extraEdges?: ExtraGraphEdge[];
   ruleAccountHints?: Map<string, string[]>;
   ruleVendorHints?: Map<string, string[]>;
+  vendorEnrichment?: Map<string, VendorEnrichment>;
 };
 
 export type GraphBuildOutput = {
@@ -117,6 +131,7 @@ export function buildGraph({
   extraEdges = [],
   ruleAccountHints,
   ruleVendorHints,
+  vendorEnrichment,
 }: GraphBuildInput): GraphBuildOutput {
   const nodes: GraphBuildOutput["nodes"] = [];
   const edges: GraphBuildOutput["edges"] = [];
@@ -238,6 +253,7 @@ export function buildGraph({
   }
 
   for (const v of vendors) {
+    const enrich = vendorEnrichment?.get(v.id);
     nodes.push({
       id: `vendor:${v.id}`,
       type: "vendor",
@@ -247,6 +263,10 @@ export function buildGraph({
         sub: v.industry,
         vendor: v,
         ruleCount: vendorRuleCount.get(v.id) ?? 0,
+        industryCode: enrich?.industryCode ?? v.industry ?? null,
+        industryLabel: enrich?.industryLabel ?? null,
+        historyDist: enrich?.historyDist ?? null,
+        historyTotal: enrich?.historyTotal ?? 0,
       },
     });
   }
