@@ -80,8 +80,8 @@ export function CategorizeTab({
           </span>
           {p.journal_entry_id && (
             <Button asChild size="sm" variant="outline">
-              <Link to="/journal" search={{ focus: p.journal_entry_id } as any}>
-                Xem bút toán <ExternalLink className="h-3 w-3 ml-1" />
+              <Link to="/journal">
+                Xem sổ <ExternalLink className="h-3 w-3 ml-1" />
               </Link>
             </Button>
           )}
