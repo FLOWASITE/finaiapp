@@ -226,3 +226,129 @@ export function validateSlots(templateId: string, slots: Record<string, string>)
   }
   return null;
 }
+
+// ===== Template → Rule v2 (conditions/actions) =====
+import type { RuleAction, RuleCondition, RuleOperator } from "@/types/rule";
+
+const cid = () => `c_${Math.random().toString(36).slice(2, 9)}`;
+const aid = () => `a_${Math.random().toString(36).slice(2, 9)}`;
+
+const OP_MAP: Record<string, RuleOperator> = {
+  ">": "greater_than",
+  ">=": "greater_than",
+  "<": "less_than",
+  "<=": "less_than",
+  "=": "equals",
+  "==": "equals",
+};
+
+/** Convert template + slots → structured conditions/actions cho RuleEditor v2. */
+export function templateToRuleV2(
+  templateId: string,
+  slots: Record<string, string>,
+): { conditions: RuleCondition[]; actions: RuleAction[] } {
+  const s = (k: string) => (slots[k] ?? "").trim();
+  switch (templateId) {
+    case "vendor-account": {
+      const conditions: RuleCondition[] = s("vendor")
+        ? [{ id: cid(), field: "vendor.name", operator: "equals", value: s("vendor") }]
+        : [];
+      const actions: RuleAction[] = [
+        {
+          id: aid(),
+          type: "book",
+          params: {
+            account_debit: s("debit_acc") || undefined,
+            account_credit: s("credit_acc") || undefined,
+          },
+        },
+      ];
+      return { conditions, actions };
+    }
+    case "desc-contains-account": {
+      const conditions: RuleCondition[] = s("keyword")
+        ? [{ id: cid(), field: "description", operator: "contains", value: s("keyword") }]
+        : [];
+      const actions: RuleAction[] = [
+        {
+          id: aid(),
+          type: "book",
+          params: {
+            account_debit: s("debit_acc") || undefined,
+            account_credit: s("credit_acc") || undefined,
+          },
+        },
+      ];
+      return { conditions, actions };
+    }
+    case "amount-threshold": {
+      const op = OP_MAP[s("op")] ?? "greater_than";
+      const threshold = Number(s("threshold").replace(/[^\d.-]/g, "")) || 0;
+      const conditions: RuleCondition[] = [
+        { id: cid(), field: "amount", operator: op, value: threshold },
+      ];
+      const action = s("action");
+      const isApproval = /duy[eệ]t|approve|flag/i.test(action);
+      const actions: RuleAction[] = [
+        isApproval
+          ? { id: aid(), type: "flag", params: { note: action || "Yêu cầu duyệt" } }
+          : {
+              id: aid(),
+              type: "notify",
+              params: { channel: "in_app", message_template: action || "Cảnh báo ngưỡng" },
+            },
+      ];
+      return { conditions, actions };
+    }
+    case "vendor-recurring": {
+      const conditions: RuleCondition[] = [];
+      if (s("vendor"))
+        conditions.push({ id: cid(), field: "vendor.name", operator: "equals", value: s("vendor") });
+      if (s("day"))
+        conditions.push({
+          id: cid(),
+          logic: "AND",
+          field: "date",
+          operator: "equals",
+          value: `day=${s("day")}`,
+        });
+      const actions: RuleAction[] = [
+        {
+          id: aid(),
+          type: "book",
+          params: {
+            account_debit: s("debit_acc") || undefined,
+            account_credit: s("credit_acc") || undefined,
+            note: s("amount") ? `Định kỳ: ${s("amount")}` : "Định kỳ hàng tháng",
+          },
+        },
+      ];
+      return { conditions, actions };
+    }
+    case "category-routing": {
+      const conditions: RuleCondition[] = s("category")
+        ? [{ id: cid(), field: "category.predicted", operator: "equals", value: s("category") }]
+        : [];
+      const actions: RuleAction[] = [
+        { id: aid(), type: "book", params: { account_debit: s("debit_acc") || undefined } },
+      ];
+      if (s("department")) {
+        actions.push({ id: aid(), type: "tag", params: { department: s("department") } });
+      }
+      return { conditions, actions };
+    }
+    default:
+      return { conditions: [], actions: [] };
+  }
+}
+
+/** Parse text v1 → conditions/actions v2 (dùng cho banner "Chuyển sang dạng cấu trúc"). */
+export function legacyTextToRuleV2(input: {
+  title?: string | null;
+  when_text?: string | null;
+  then_text?: string | null;
+}): { conditions: RuleCondition[]; actions: RuleAction[]; templateId: string } {
+  const parsed = parseSuggestion(input);
+  const { conditions, actions } = templateToRuleV2(parsed.templateId, parsed.slots);
+  return { conditions, actions, templateId: parsed.templateId };
+}

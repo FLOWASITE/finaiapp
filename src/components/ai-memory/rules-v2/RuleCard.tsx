@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Check,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,9 @@ import { ConditionsRead } from "./ConditionsBlock";
 import { ActionsRead } from "./ActionsBlock";
 import { RuleSettingsCompact } from "./RuleSettings";
 import { RuleEditor } from "./RuleEditor";
+import { RuleApplicationsSheet } from "./RuleApplicationsSheet";
 import { useRuleStore } from "@/lib/rules/rule-store";
+import { legacyTextToRuleV2 } from "@/lib/ai-memory-templates";
 import type { Rule, RuleSource } from "@/types/rule";
 
 const SOURCE_BADGE: Record<RuleSource, { label: string; bg: string; Icon: typeof Bot }> = {
@@ -76,6 +79,7 @@ export function RuleCard({
   onSave,
   onApprove,
   onReject,
+  onDelete,
 }: {
   rule: Rule;
   onToggleEnabled?: (id: string, enabled: boolean, reason?: string) => void;
@@ -84,13 +88,40 @@ export function RuleCard({
   onApprove?: (rule: Rule) => void;
   /** Từ chối / xoá đề xuất. */
   onReject?: (rule: Rule) => void;
+  /** Xoá quy tắc khỏi DB. */
+  onDelete?: (rule: Rule) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [reason, setReason] = useState("");
   const storeToggle = useRuleStore((s) => s.toggleEnabled);
   const toggleEnabled = onToggleEnabled ?? storeToggle;
   const isSuggestion = rule.db_type === "suggestion";
+
+  // Mở editor với pre-fill structured cho rule v1 (banner) hoặc suggestion.
+  const openEditorWithPrefill = () => {
+    if (rule.is_legacy_text && rule.conditions.length === 0 && rule.actions.length === 0) {
+      const parsed = legacyTextToRuleV2({
+        title: rule.name,
+        when_text: rule.legacy_when_text,
+        then_text: rule.legacy_then_text,
+      });
+      // Mutate draft thông qua editor: dùng rule clone với conditions/actions đã parse.
+      // Trick: chuyển rule prop đã pre-fill xuống editor.
+      setPrefilled({
+        ...rule,
+        conditions: parsed.conditions,
+        actions: parsed.actions,
+      });
+      setEditOpen(true);
+      return;
+    }
+    setPrefilled(null);
+    setEditOpen(true);
+  };
+  const [prefilled, setPrefilled] = useState<Rule | null>(null);
 
   const badge = SOURCE_BADGE[rule.source];
   const pill = statusPill(rule);
@@ -149,7 +180,7 @@ export function RuleCard({
           "mt-2 cursor-pointer text-[14px] font-medium leading-snug hover:underline",
           disabled && "line-through text-muted-foreground",
         )}
-        onClick={() => setEditOpen(true)}
+        onClick={openEditorWithPrefill}
       >
         {rule.name}
       </h3>
@@ -188,7 +219,7 @@ export function RuleCard({
                 variant="outline"
                 size="sm"
                 className="mt-2 h-7 border-amber-400 px-2 text-[11px] hover:bg-amber-100 dark:border-amber-600 dark:hover:bg-amber-900/40"
-                onClick={() => setEditOpen(true)}
+                onClick={openEditorWithPrefill}
               >
                 Chuyển sang dạng cấu trúc <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
@@ -247,7 +278,12 @@ export function RuleCard({
         </span>
         <div className="ml-auto flex items-center gap-1">
           {rule.applied_count > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px]"
+              onClick={() => setHistoryOpen(true)}
+            >
               <HistoryIcon className="mr-1 h-3 w-3" /> Xem {rule.applied_count} lần
             </Button>
           )}
@@ -255,7 +291,7 @@ export function RuleCard({
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[11px]"
-            onClick={() => setEditOpen(true)}
+            onClick={openEditorWithPrefill}
           >
             <Pencil className="mr-1 h-3 w-3" /> Sửa
           </Button>
@@ -278,10 +314,66 @@ export function RuleCard({
               <Power className="mr-1 h-3 w-3" /> Bật lại
             </Button>
           )}
+          {onDelete && !isSuggestion && (rule.source === "user_taught" || !rule.enabled) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
 
-      <RuleEditor rule={rule} open={editOpen} onOpenChange={setEditOpen} onSave={onSave} />
+      <RuleEditor
+        rule={prefilled ?? rule}
+        open={editOpen}
+        onOpenChange={(o) => {
+          setEditOpen(o);
+          if (!o) setPrefilled(null);
+        }}
+        onSave={onSave}
+      />
+
+      <RuleApplicationsSheet
+        ruleId={rule.id}
+        ruleName={rule.name}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+      />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá quy tắc này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rule.applied_count > 0 ? (
+                <>
+                  Quy tắc đã chạy <b>{rule.applied_count} lần</b>. Xoá sẽ không tự động
+                  hoàn tác các bút toán đã sinh ra. Nếu muốn ngừng dùng nhưng vẫn giữ lịch
+                  sử, hãy chọn <b>Tắt</b> thay vì Xoá.
+                </>
+              ) : (
+                "Quy tắc sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDelete?.(rule);
+                setDeleteOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Xoá vĩnh viễn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
         <AlertDialogContent>
