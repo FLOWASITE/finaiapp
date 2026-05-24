@@ -182,6 +182,41 @@ export function classifyLine(line: RawLine, ctx?: ClassifyContext): LineClassifi
     vote("goods", 18, `Từ khóa hàng hóa trong tên hàng`);
   }
 
+  // 4) Ngành nghề NCC (trọng số 15) — chỉ vote nếu chưa có tín hiệu mạnh ngược chiều
+  if (ctx?.industryHint) {
+    const hintScore = scores[ctx.industryHint] ?? 0;
+    // Tránh đè khi từ khóa đã chỉ rõ TSCĐ (giá cao) hoặc ngược lại
+    const strongFixed = scores.fixed_asset >= 30;
+    if (!(strongFixed && ctx.industryHint !== "fixed_asset")) {
+      vote(ctx.industryHint, 15, ctx.industryLabel || `Gợi ý từ ngành nghề NCC`);
+    } else {
+      signals.push({
+        label: `Bỏ qua gợi ý ngành (${ctx.industryLabel ?? "—"}) vì dòng này có dấu hiệu TSCĐ mạnh`,
+        weight: 0,
+        votes: ctx.industryHint,
+      });
+      void hintScore;
+    }
+  }
+
+  // 5) Lịch sử với NCC (trọng số 10) — kind chiếm ưu thế trong 12 tháng
+  if (ctx?.historyDist) {
+    const entries = Object.entries(ctx.historyDist) as Array<[LineKind, number]>;
+    const total = entries.reduce((s, [, v]) => s + (v || 0), 0);
+    if (total > 0) {
+      const sorted = entries.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+      const [topKind, topVal] = sorted[0] ?? [null, 0];
+      if (topKind && topVal / total >= 0.6) {
+        const pct = Math.round((topVal / total) * 100);
+        vote(topKind, 12, `Lịch sử 12 tháng với NCC này ${pct}% là ${KIND_META[topKind].label}`);
+      } else if (topKind && topVal / total >= 0.4) {
+        const pct = Math.round((topVal / total) * 100);
+        vote(topKind, 6, `NCC này thường nhập ${KIND_META[topKind].label} (${pct}%)`);
+      }
+    }
+  }
+
+
   // Pick winner
   let winner: LineKind = "goods";
   let max = -1;
