@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
+import { nextStockVoucherNo } from "@/lib/inventory.functions";
 
 // ============ Schemas ============
 
@@ -661,12 +662,13 @@ export const postSalesVoucher = createServerFn({ method: "POST" })
         stockEntryId = stockEntry.id;
       }
 
+      const autoNo = await nextStockVoucherNo(supabase, v.tenant_id ?? null, userId, "out", stockDate);
       const { data: sv, error: e3 } = await supabase
         .from("stock_vouchers")
         .insert({
           user_id: userId,
           tenant_id: v.tenant_id,
-          voucher_no: (v as any).stock_voucher_no || `XK-${v.voucher_no}`,
+          voucher_no: (v as any).stock_voucher_no || autoNo,
           voucher_type: "out",
           voucher_date: stockDate,
           warehouse_id: warehouseId,
@@ -1158,17 +1160,18 @@ export const stickSalesStockVoucher = createServerFn({ method: "POST" })
       ]);
     }
 
+    const autoNo = await nextStockVoucherNo(supabase, v.tenant_id ?? null, userId, "out", v.voucher_date);
     const { data: sv, error } = await supabase
       .from("stock_vouchers")
       .insert({
         user_id: userId,
         tenant_id: v.tenant_id,
-        voucher_no: `XK-${v.voucher_no}`,
+        voucher_no: autoNo,
         voucher_type: "out",
         voucher_date: v.voucher_date,
         warehouse_id: warehouseId,
         counter_account: "632",
-        reason: `Xuất kho bổ sung từ ${v.voucher_no}`,
+        reason: `Xuất kho bổ sung từ phiếu bán ${v.voucher_no}`,
         journal_entry_id: stockEntryId,
       })
       .select("id")
