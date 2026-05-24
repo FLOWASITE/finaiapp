@@ -236,6 +236,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memory_graph_layout: {
+        Row: {
+          created_at: string
+          id: string
+          positions: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          positions?: Json
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          positions?: Json
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_memory_limits: {
         Row: {
           code: string
