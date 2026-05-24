@@ -111,6 +111,25 @@ function bandDot(b: ConfidenceBand) {
   return "bg-rose-500";
 }
 
+function voucherKindMeta(kind?: VoucherKind): { label: string; cls: string } | null {
+  switch (kind) {
+    case "purchase_invoice":
+      return { label: "Hóa đơn vào", cls: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300" };
+    case "sales_invoice":
+      return { label: "Hóa đơn ra", cls: "bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300" };
+    case "bank_receipt":
+    case "bank_payment":
+      return { label: "Giao dịch bank", cls: "bg-indigo-500/10 text-indigo-700 border-indigo-500/30 dark:text-indigo-300" };
+    case "cash_receipt":
+    case "cash_payment":
+      return { label: "Thu/Chi tiền mặt", cls: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300" };
+    case "ai_insight":
+      return { label: "AI phát hiện", cls: "bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300" };
+    default:
+      return null;
+  }
+}
+
 type ProcStatus =
   | "ocr_pending"
   | "ocr_failed"
