@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Info, Settings as SettingsIcon, ArrowRight, ArrowRightLeft, Activity, Loader2 } from "lucide-react";
@@ -12,6 +12,8 @@ import { AgentCard } from "./AgentCard";
 import { AgentDetailDrawer } from "./AgentDetailDrawer";
 import { AgentIcon } from "./AgentIcon";
 import { listAgentOverrides, upsertAgentSettings } from "@/lib/ai-agents.functions";
+import { supabase } from "@/integrations/supabase/client";
+
 
 function formatRelative(iso?: string | null): string {
   if (!iso) return "—";
@@ -41,7 +43,26 @@ export function AgentsOfFinPanel() {
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["ai-agents", "overrides"],
     queryFn: () => listFn(),
+    refetchInterval: 30_000,
   });
+
+  // Realtime: invalidate query khi có log mới
+  useEffect(() => {
+    const ch = supabase
+      .channel("ai-agent-activity-logs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "ai_agent_activity_logs" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["ai-agents", "overrides"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
 
   const upsertMut = useMutation({
     mutationFn: (vars: Parameters<typeof upsertFn>[0]) => upsertFn(vars),
