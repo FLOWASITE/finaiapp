@@ -153,24 +153,30 @@ function AIMemoryPage() {
       />
       <SubTabs value={tab} onChange={setTab} learningCount={watch.length} ruleCount={activeCount} />
 
-      <ScrollArea className="flex-1">
-        <div className="mx-auto max-w-4xl space-y-3 px-5 py-4">
-          {isLoading ? (
-            <LoadingSkeleton />
-          ) : (
-            <>
-              {tab === "rules" && <RulesListV2 />}
-              {tab === "classifications" && <ClassificationsTab />}
-              {tab === "partners" && <PartnersTab />}
-              {tab === "context" && <ContextTab />}
-              {tab === "limits" && <LimitsTab />}
-              {tab === "learning" && (
-                <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
-              )}
-            </>
-          )}
+      {tab === "graph" ? (
+        <div className="flex-1 overflow-hidden">
+          <MemoryGraph />
         </div>
-      </ScrollArea>
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="mx-auto max-w-4xl space-y-3 px-5 py-4">
+            {isLoading ? (
+              <LoadingSkeleton />
+            ) : (
+              <>
+                {tab === "rules" && <RulesListV2 />}
+                {tab === "classifications" && <ClassificationsTab />}
+                {tab === "partners" && <PartnersTab />}
+                {tab === "context" && <ContextTab />}
+                {tab === "limits" && <LimitsTab />}
+                {tab === "learning" && (
+                  <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
+                )}
+              </>
+            )}
+          </div>
+        </ScrollArea>
+      )}
 
       <WatchFooter count={watch.length} onClick={() => setTab("learning")} />
     </div>
