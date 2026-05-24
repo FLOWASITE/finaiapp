@@ -648,6 +648,30 @@ function DocumentsPage() {
   );
 }
 
+function CategorizeBadge({ categorize, hasInvoice }: { categorize: any; hasInvoice: boolean }) {
+  if (!hasInvoice) return <span className="text-xs text-muted-foreground">—</span>;
+  if (!categorize) return <Badge variant="outline" className="text-[10px] text-muted-foreground">Chưa hạch toán</Badge>;
+  const status = categorize.status as string;
+  const conf = Math.round(Number(categorize.confidence ?? 0) * 100);
+  if (status === "approved" || status === "auto_posted") {
+    return (
+      <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+        {status === "auto_posted" ? "Auto ghi sổ" : "Đã ghi sổ"}
+      </Badge>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-700 dark:text-amber-400">
+        Chờ duyệt · {conf}%
+      </Badge>
+    );
+  }
+  if (status === "skipped") return <Badge variant="outline" className="text-[10px] text-muted-foreground">Đã bỏ qua</Badge>;
+  if (status === "failed") return <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive">Lỗi</Badge>;
+  return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
+}
+
 function DocumentRow({
   d,
   highlighted,
