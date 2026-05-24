@@ -175,7 +175,7 @@ export const approveProposal = createServerFn({ method: "POST" })
 
     const { data: p } = await supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, status")
+      .select("id, invoice_id, invoice_kind, dto, status")
       .eq("id", data.proposal_id)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -200,12 +200,14 @@ export const approveProposal = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
+    const isSales = p.invoice_kind === "sales";
     const { data: je, error: je_err } = await supabase
       .from("journal_entries")
       .insert({
         user_id: userId,
         tenant_id: tenantId,
-        invoice_id: p.invoice_id,
+        // journal_entries.invoice_id chỉ FK tới invoices (mua); với sales để null và liên kết qua sales_invoices.journal_entry_id
+        invoice_id: isSales ? null : p.invoice_id,
         entry_date: entry.entry_date,
         description: entry.description,
       })
@@ -234,20 +236,36 @@ export const approveProposal = createServerFn({ method: "POST" })
       })
       .eq("id", data.proposal_id);
 
-    await supabase.from("invoices").update({ status: "approved" }).eq("id", p.invoice_id);
+    if (isSales) {
+      await supabase
+        .from("sales_invoices")
+        .update({ journal_entry_id: je.id, status: "posted" })
+        .eq("id", p.invoice_id);
+    } else {
+      await supabase.from("invoices").update({ status: "approved" }).eq("id", p.invoice_id);
+    }
 
     try {
-      const { learnVendorTemplate } = await import("./categorize/templates.server");
-      const learn = await learnVendorTemplate(supabase, tenantId, p.invoice_id);
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
-      await tryLogAgentActivity(supabase, userId, {
-        agent_id: "categorize",
-        action: learn.learned
-          ? `Học template NCC (mẫu thứ ${learn.sample_count})`
-          : `Duyệt bút toán — ${entry.description.slice(0, 80)}`,
-        result: "success",
-        metadata: { entry_id: je.id, invoice_id: p.invoice_id, learned: learn.learned },
-      });
+      if (!isSales) {
+        const { learnVendorTemplate } = await import("./categorize/templates.server");
+        const learn = await learnVendorTemplate(supabase, tenantId, p.invoice_id);
+        await tryLogAgentActivity(supabase, userId, {
+          agent_id: "categorize",
+          action: learn.learned
+            ? `Học template NCC (mẫu thứ ${learn.sample_count})`
+            : `Duyệt bút toán mua — ${entry.description.slice(0, 80)}`,
+          result: "success",
+          metadata: { entry_id: je.id, invoice_id: p.invoice_id, learned: learn.learned },
+        });
+      } else {
+        await tryLogAgentActivity(supabase, userId, {
+          agent_id: "categorize",
+          action: `Duyệt bút toán bán — ${entry.description.slice(0, 80)}`,
+          result: "success",
+          metadata: { entry_id: je.id, sales_invoice_id: p.invoice_id },
+        });
+      }
     } catch {}
 
     try {
