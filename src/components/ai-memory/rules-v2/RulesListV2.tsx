@@ -80,11 +80,19 @@ export function RulesListV2() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const deleteM = useMutation({
+  const rejectM = useMutation({
     mutationFn: deleteFn,
     onSuccess: () => {
       invalidate();
       toast.success("Đã bỏ qua đề xuất");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteM = useMutation({
+    mutationFn: deleteFn,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Đã xoá quy tắc");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -94,6 +102,25 @@ export function RulesListV2() {
       enableM.mutate({ data: { id } });
     } else {
       disableM.mutate({ data: { id, reason: reason ?? "Người dùng tắt" } });
+    }
+  };
+
+  /** Khi user bấm "Chấp nhận" trên 1 suggestion → pre-fill conditions/actions từ template rồi mở editor. */
+  const handleApprove = (rule: Rule) => {
+    if (rule.conditions.length === 0 && rule.actions.length === 0) {
+      const parsed = legacyTextToRuleV2({
+        title: rule.name,
+        when_text: rule.legacy_when_text ?? rule.description,
+        then_text: rule.legacy_then_text,
+      });
+      setApproving({
+        ...rule,
+        conditions: parsed.conditions,
+        actions: parsed.actions,
+        mode: rule.mode === "disabled" ? "auto" : rule.mode,
+      });
+    } else {
+      setApproving(rule);
     }
   };
 
@@ -199,10 +226,38 @@ export function RulesListV2() {
                 rule={r}
                 onToggleEnabled={handleToggle}
                 onSave={handleSave}
-                onApprove={(rule) => setApproving(rule)}
-                onReject={(rule) =>
-                  deleteM.mutate({ data: { id: rule.id } })
-                }
+                onApprove={handleApprove}
+                onReject={(rule) => rejectM.mutate({ data: { id: rule.id } })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ordered.length > 0 ? (
+        <div className="space-y-3">
+          {suggestions.length > 0 && (
+            <div className="mt-2 text-[12px] font-medium text-muted-foreground">
+              Quy tắc đang chạy ({ordered.length})
+            </div>
+          )}
+          {ordered.map((r) => (
+            <RuleCard
+              key={r.id}
+              rule={r}
+              onToggleEnabled={handleToggle}
+              onSave={handleSave}
+              onDelete={(rule) => deleteM.mutate({ data: { id: rule.id } })}
+            />
+          ))}
+        </div>
+      ) : (
+        suggestions.length > 0 && (
+          <div className="rounded-md border border-dashed bg-muted/20 px-4 py-3 text-center text-[12px] text-muted-foreground">
+            Chưa có quy tắc nào đang chạy. Chấp nhận một đề xuất phía trên hoặc tạo quy tắc thủ công.
+          </div>
+        )
+      )}
               />
             ))}
           </div>
