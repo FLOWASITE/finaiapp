@@ -83,7 +83,7 @@ export const saveProvider = createServerFn({ method: "POST" })
 
     let resultId = data.id;
     if (data.id) {
-      const { error } = await supabaseAdmin.from("ai_providers").update(patch).eq("id", data.id);
+      const { error } = await supabaseAdmin.from("ai_providers").update(patch as any).eq("id", data.id);
       if (error) throw new Error(error.message);
     } else {
       const { data: ins, error } = await supabaseAdmin
