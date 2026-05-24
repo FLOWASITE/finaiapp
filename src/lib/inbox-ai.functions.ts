@@ -607,16 +607,30 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
-      try {
-        await materializeSalesInvoiceFromDocument(supabase, {
+      // Hoá đơn BÁN RA → vật chất hoá sang sales_invoices (cho danh sách HĐ bán)
+      // và sales_vouchers (cho danh sách Phiếu bán hàng). Nếu fail thì THROW
+      // để UI thấy lỗi thật, không báo "Đã ghi sổ" giả.
+      const { data: docMeta } = await supabase
+        .from("documents")
+        .select("doc_kind")
+        .eq("id", data.external_id)
+        .maybeSingle();
+      if (docMeta?.doc_kind === "sales_invoice") {
+        const salesInvoiceId = await materializeSalesInvoiceFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
           userId,
           entryDate: data.entry_date,
           journalEntryId: entry.id,
         });
-      } catch (e: any) {
-        console.warn("[approveInboxItem] materializeSalesInvoice failed:", e?.message);
+        await materializeSalesVoucherFromDocument(supabase, {
+          documentId: data.external_id,
+          tenantId,
+          userId,
+          entryDate: data.entry_date,
+          journalEntryId: entry.id,
+          salesInvoiceId,
+        });
       }
     } else if (data.source === "ai_insight") {
       await supabase
