@@ -101,6 +101,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
+import { CategorizeTab } from "@/components/categorize/CategorizeTab";
 
 const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
