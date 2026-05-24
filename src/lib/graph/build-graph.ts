@@ -49,6 +49,13 @@ export type ExtraGraphEdge = {
   weight: number;
 };
 
+export type VendorEnrichment = {
+  industryCode?: string | null;
+  industryLabel?: string | null;
+  historyDist?: Partial<Record<LineKind, number>> | null;
+  historyTotal?: number;
+};
+
 export type GraphBuildInput = {
   rules: Rule[];
   vendors: VendorEntity[];
@@ -57,6 +64,7 @@ export type GraphBuildInput = {
   extraEdges?: ExtraGraphEdge[];
   ruleAccountHints?: Map<string, string[]>;
   ruleVendorHints?: Map<string, string[]>;
+  vendorEnrichment?: Map<string, VendorEnrichment>;
 };
 
 export type GraphBuildOutput = {
