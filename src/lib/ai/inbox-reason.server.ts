@@ -163,6 +163,22 @@ export async function buildDocumentItem(
     })();
     const dateS = (invoiceDateS ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
 
+    const rawItemsS: any[] = Array.isArray(ext.items)
+      ? ext.items
+      : Array.isArray(ext.lines)
+      ? ext.lines
+      : Array.isArray(ext.line_items)
+      ? ext.line_items
+      : [];
+    const itemsS = rawItemsS
+      .map((r: any) => ({
+        name: String(r?.item_name ?? r?.name ?? r?.description ?? "—"),
+        qty: Number(r?.quantity ?? r?.qty) || undefined,
+        unit_price: Number(r?.unit_price) || undefined,
+        amount: Number(r?.total_amount ?? r?.amount ?? 0),
+      }))
+      .filter((it) => (it.name && it.name !== "—") || it.amount > 0);
+
     const linesS: ProposalLine[] = [
       { account: "131", debit: amount, memo: `Phải thu ${customer}` },
       { account: "511", credit: subtotalS, memo: `Doanh thu — HĐ ${invoiceNoS}` },
@@ -173,6 +189,8 @@ export async function buildDocumentItem(
       { kind: "match", label: "MST người bán = MST doanh nghiệp → HĐ bán ra", ok: true },
     ];
     if (doc.ocr_status === "done") signalsS.push({ kind: "match", label: "OCR đầy đủ", ok: true });
+    if (itemsS.length > 0)
+      signalsS.push({ kind: "match", label: `${itemsS.length} dòng hàng hoá/dịch vụ`, ok: true });
     const confS = Math.min(95, 60 + (doc.ocr_status === "done" ? 20 : 0) + (vatS > 0 ? 10 : 0));
 
     return {
@@ -194,6 +212,7 @@ export async function buildDocumentItem(
         entry_date: dateS,
         lines: linesS,
         voucher_kind: "sales_invoice",
+        items: itemsS.length > 0 ? itemsS : undefined,
         meta: {
           customer_name: customer,
           customer_tax_id: customerTaxId,
@@ -205,6 +224,7 @@ export async function buildDocumentItem(
           invoice_kind: "sales",
         },
       },
+
       reasoning: {
         summary: `Hoá đơn BÁN RA (MST người bán = MST DN). Ghi nhận doanh thu 511 + VAT đầu ra 3331.`,
         signals: signalsS,
