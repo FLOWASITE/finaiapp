@@ -592,6 +592,7 @@ function DocumentsPage() {
                     <TableHead>Loại</TableHead>
                     <TableHead>Nguồn</TableHead>
                     <TableHead>OCR</TableHead>
+                    <TableHead>Hạch toán</TableHead>
                     <TableHead className="text-right">Kích thước</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
