@@ -1,42 +1,86 @@
-## Phase 1 — Batch 2 (hoàn thiện tab Quy tắc hạch toán)
+## Mục tiêu
 
-Sau batch 1 (banner v1→v2, approve flow, promote v2), còn 4 task để đóng Phase 1.
+Đưa `industry_code` (mã VSIC) và phân bố lịch sử 12 tháng của NCC vào UI Trí Nhớ AI — vừa để **xem nhanh** (Memory Graph), vừa để **sửa tại chỗ** (sidebar), không cần đi sang trang NCC.
 
-### 1. Lịch sử áp dụng + Hoàn tác (task #3)
-- Thêm component `RuleApplicationsSheet` (Sheet/Drawer phải) hiển thị danh sách `RuleApplication`.
-- Nguồn: server fn `listRuleApplications({ rule_id })` (đã có sẵn).
-- Mỗi dòng: ngày áp dụng, chứng từ liên kết (document_label/journal_code), trạng thái (applied / undone), nút **Hoàn tác** (chỉ khi `status='applied'` và còn `journal_entry_id`).
-- Hoàn tác gọi `undoRuleApplication({ id, reason })` — mở `AlertDialog` hỏi lý do trước.
-- Wire nút "Xem N lần" trong `RuleCard` → `setHistoryOpen(true)`; toast + `invalidateQueries(['ai-memory'])` sau khi undo (trigger DB sẽ tự trừ applied_count).
+---
 
-### 2. Xoá quy tắc / Bỏ qua đề xuất (task #4)
-- Thêm action **Xoá** trong footer `RuleCard` (chỉ cho quy tắc `user_taught` hoặc đã `disabled`, để tránh xoá nhầm rule đang chạy của AI).
-- Mở `AlertDialog` xác nhận (cảnh báo nếu `applied_count > 0`: "đã chạy N lần, xoá sẽ không hoàn tác các bút toán").
-- Gọi `deleteRule({ id })` (đã có server fn). Suggestion đã có nút "Bỏ qua" ở batch 1.
+## Phần 1 — Hiển thị ngành + lịch sử 12 tháng trong Memory Graph
 
-### 3. `templateToRuleV2` — generate conditions/actions từ template (task #5)
-- Thêm hàm `templateToRuleV2(templateId, slots): { conditions: RuleCondition[]; actions: RuleAction[] }` trong `src/lib/ai-memory-templates.ts`.
-- Mapping:
-  - `vendor-account` → cond `vendor.name equals <vendor>`; action `book { account_debit, account_credit }`.
-  - `desc-contains-account` → cond `description contains <keyword>`; action `book`.
-  - `amount-threshold` → cond `amount <op> <threshold>`; action `notify` hoặc `flag` (tuỳ text).
-  - `vendor-recurring` → 2 conds AND (`vendor.name`, `day_of_week`/custom field); action `book` + note `Định kỳ`.
-  - `category-routing` → cond `category.predicted equals <cat>`; action `book` + `tag { department }`.
-- Trong `RuleCard.onApprove`: gọi `parseSuggestion` → `templateToRuleV2` để pre-fill `conditions/actions` cho `RuleEditor` thay vì mở rỗng.
-- Backfill khi user bấm **"Chuyển sang dạng cấu trúc"** trên rule v1 (banner): cũng dùng `parseSuggestion` + `templateToRuleV2` để pre-fill editor.
+### 1.1. Mở rộng dữ liệu graph
+**File:** `src/lib/graph/memory-graph.functions.ts`
+- `GraphSupplierRow` đã có `industry_code` → tốt, giữ nguyên.
+- Thêm query phụ: với mỗi `supplier_id` trong graph, lấy `kind` distribution từ `invoices` 12 tháng gần nhất (join `expense_account` → `accountToKind`). Trả về `supplierHistory: Record<supplier_id, Partial<Record<LineKind, number>>>`.
+- Giới hạn: chỉ tính cho top ~50 NCC có nhiều hit nhất (tránh query nặng).
 
-### 4. Empty state cho từng nhóm (task #7)
-- Hiện tại `RulesListV2` chỉ hiện empty state khi cả 2 nhóm rỗng. Tách:
-  - Có quy tắc đang chạy, không suggestion → ẩn block suggestion (đã đúng).
-  - Có suggestion, không quy tắc → vẫn hiện danh sách suggestion + thông báo "Chưa có quy tắc đang chạy" thay vì empty state toàn trang.
-  - Cả 2 rỗng → empty state (giữ nguyên).
+### 1.2. Truyền vào node data
+**File:** `src/lib/graph/adapt-db.ts`
+- Khi build `VendorNode` data, thêm `industryCode`, `industryLabel` (lookup từ `VSIC`), `historyDist`, `historyTotal`.
+- Mở rộng `GraphNodeData` trong `src/lib/graph/build-graph.ts`.
 
-### Files thay đổi
-- `src/lib/ai-memory-templates.ts` — thêm `templateToRuleV2`.
-- `src/components/ai-memory/rules-v2/RuleCard.tsx` — wire "Xem N lần", thêm nút Xoá, dùng `templateToRuleV2` trong approve.
-- `src/components/ai-memory/rules-v2/RuleApplicationsSheet.tsx` — **MỚI**.
-- `src/components/ai-memory/rules-v2/RulesListV2.tsx` — tách empty state, pre-fill khi approve.
+### 1.3. VendorNode hiển thị badge ngành
+**File:** `src/components/ai-memory/graph/nodes/VendorNode.tsx`
+- Thêm 1 dòng nhỏ: badge `📊 6201 Lập trình…` (truncate, tooltip full name).
+- Nếu chưa có industry → badge xám "Chưa gắn ngành" để user thấy gap.
 
-### Không thay đổi
-- Schema DB (đã đủ sẵn `ai_rule_applications`, `deleteRule`, `undoRuleApplication`).
-- Migration mới.
+### 1.4. VendorDetail sidebar hiển thị ngành + biểu đồ phân bố
+**File:** `src/components/ai-memory/graph/GraphSidebar.tsx`
+- Section "Ngành nghề": hiện code + tên VSIC, nút "Sửa" (mở Phần 2).
+- Section "Lịch sử 12 tháng": bar chart đơn giản (div + width %) cho từng `LineKind` (HH/TSCĐ/CCDC/DV/CP), kèm tổng số hit.
+- Nếu rỗng: "Chưa có dữ liệu lịch sử".
+
+### 1.5. Legend bổ sung
+**File:** `src/components/ai-memory/graph/GraphLegend.tsx`
+- Thêm chú thích nhỏ: "Badge ngành trên NCC → AI dùng để gợi ý HH/TSCĐ/DV".
+
+---
+
+## Phần 2 — Sửa industry_code ngay trong Trí Nhớ AI
+
+### 2.1. Server function update
+**File mới:** `src/lib/ai-memory-supplier.functions.ts`
+- `updateSupplierIndustry`: input `{ supplier_id, industry_code, industry_label }`, dùng `withTenant` middleware, update `suppliers.industry_code` (và `industry_name` nếu cột tồn tại — cần check schema).
+- Validate: `industry_code` phải match regex `/^\d{4,6}$/` hoặc null (cho phép xoá).
+- Sau khi update, invalidate query `["ai-memory-graph"]`.
+
+### 2.2. Dialog/Popover sửa ngành trong sidebar
+**File mới:** `src/components/ai-memory/graph/EditIndustryDialog.tsx`
+- Trigger từ nút "Sửa" ở Phần 1.4.
+- Dùng lại `IndustryCombobox` có sẵn (`src/components/industry-combobox.tsx`).
+- Submit → gọi `updateSupplierIndustry` → toast + đóng dialog + invalidate graph.
+
+### 2.3. Empty-state nudge
+**File:** `src/components/ai-memory/graph/GraphSidebar.tsx`
+- Khi `historyDist` lệch mạnh về 1 `kind` (ví dụ >70% là HH) nhưng `industry_code` rỗng → hiện nudge: "Gợi ý: gắn ngành 4631 (Bán buôn thực phẩm) để AI đoán chính xác hơn" + nút "Gắn ngay".
+
+---
+
+## Phần 3 — Wiring & QA
+
+- Chạy graph với 1-2 NCC mẫu, kiểm tra badge + biểu đồ render đúng.
+- Test flow sửa ngành: mở dialog → chọn VSIC → save → badge update ngay trên node.
+- Test responsive 707×662 (viewport hiện tại): sidebar không tràn, badge truncate gọn.
+- Không tạo bảng mới, không migration — chỉ tận dụng `suppliers.industry_code` đã có.
+
+---
+
+## Phạm vi KHÔNG làm (giữ scope gọn)
+
+- Không đụng `ai_memory_partners` (đó là bảng riêng cho cá nhân/NV, không có ngành).
+- Không tự suy luận ngành từ lịch sử (chỉ nudge, user vẫn phải chọn tay).
+- Không thay đổi pipeline `classifyLine` / `supplier-signals` — Phần 1+2 chỉ là UI cho dữ liệu đã có.
+
+---
+
+## Files sẽ chạm
+
+**Sửa:**
+- `src/lib/graph/memory-graph.functions.ts`
+- `src/lib/graph/adapt-db.ts`
+- `src/lib/graph/build-graph.ts`
+- `src/components/ai-memory/graph/nodes/VendorNode.tsx`
+- `src/components/ai-memory/graph/GraphSidebar.tsx`
+- `src/components/ai-memory/graph/GraphLegend.tsx`
+
+**Tạo mới:**
+- `src/lib/ai-memory-supplier.functions.ts`
+- `src/components/ai-memory/graph/EditIndustryDialog.tsx`
