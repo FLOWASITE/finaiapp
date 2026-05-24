@@ -90,7 +90,7 @@ export function InvoiceExtractCard({
   const subtotal = Number(parsed?.subtotal ?? 0);
   const vat = Number(parsed?.vat_amount ?? 0);
   const total = Number(parsed?.total ?? subtotal + vat);
-  const invoiceLines: Array<{
+  const rawInvoiceLines: Array<{
     description?: string | null;
     qty?: number | null;
     unit?: string | null;
@@ -98,6 +98,72 @@ export function InvoiceExtractCard({
     amount?: number | null;
     classification?: LineClassification;
   }> = Array.isArray(parsed?.lines) ? parsed.lines : [];
+
+  // Local overrides keyed by normalized line name
+  const [overrides, setOverrides] = useState<Record<string, { kind: LineKind; account: string }>>(
+    {},
+  );
+
+  // Lookup memorized classifications from DB
+  const lineNames = useMemo(
+    () => rawInvoiceLines.map((l) => l.description ?? "").filter((s) => s.trim().length > 0),
+    [rawInvoiceLines],
+  );
+  const lookupFn = useServerFn(lookupLineClassifications);
+  const { data: memoryData } = useQuery({
+    queryKey: ["ai_line_class_lookup", taxId, lineNames],
+    queryFn: () => lookupFn({ data: { supplier_tax_id: taxId, line_names: lineNames } }),
+    enabled: lineNames.length > 0,
+    staleTime: 60_000,
+  });
+  const memoryMatches = (memoryData?.matches ?? {}) as Record<
+    string,
+    { kind: LineKind; account: string; hit_count: number }
+  >;
+
+  const invoiceLines = useMemo(
+    () =>
+      rawInvoiceLines.map((l) => {
+        const key = normalizeLineName(l.description);
+        const ov = overrides[key];
+        const mem = memoryMatches[key];
+        if (ov) {
+          return {
+            ...l,
+            classification: {
+              ...(l.classification ?? { signals: [], label: "", confidence: 100 }),
+              kind: ov.kind,
+              account: ov.account,
+              label: kindMeta(ov.kind).label,
+              confidence: 100,
+              signals: [{ label: "Bạn đã sửa thủ công — đã ghi nhớ", weight: 100, votes: ov.kind }],
+            } as LineClassification,
+          };
+        }
+        if (mem && l.classification?.kind !== mem.kind) {
+          return {
+            ...l,
+            classification: {
+              ...(l.classification ?? { signals: [], label: "", confidence: 100 }),
+              kind: mem.kind,
+              account: mem.account,
+              label: kindMeta(mem.kind).label,
+              confidence: 99,
+              signals: [
+                {
+                  label: `Đã ghi nhớ từ lần trước (×${mem.hit_count})`,
+                  weight: 100,
+                  votes: mem.kind,
+                },
+              ],
+            } as LineClassification,
+          };
+        }
+        return l;
+      }),
+    [rawInvoiceLines, overrides, memoryMatches],
+  );
+
   const classificationSummary = parsed?.classification_summary as
     | { dominant: LineKind; account: string; label: string; mixed: boolean }
     | null
