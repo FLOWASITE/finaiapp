@@ -325,6 +325,7 @@ function SubTabs({
     { key: "partners", label: "Đối tác", count: partnersData?.length },
     { key: "context", label: "Bối cảnh DN", count: ctxData?.length },
     { key: "limits", label: "Giới hạn", count: limitsData?.length },
+    { key: "agents", label: "Agent của Fin" },
     { key: "learning", label: "Đang học", badge: learningCount },
   ];
 
