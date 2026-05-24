@@ -17,12 +17,20 @@ export type VoucherKind =
 
 export type VoucherMeta = Record<string, string | number | null | undefined>;
 
+export type ProposalItem = {
+  name: string;
+  qty?: number;
+  unit_price?: number;
+  amount: number;
+};
+
 export type Proposal = {
   description: string;
   entry_date: string;
   lines: ProposalLine[];
   voucher_kind?: VoucherKind;
   meta?: VoucherMeta;
+  items?: ProposalItem[];
 };
 
 export type ReasoningSignal = {
