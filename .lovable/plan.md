@@ -1,57 +1,33 @@
-# Hoàn thiện sheet "Đề xuất của Fin"
+## Vấn đề
 
-Cập nhật `src/components/inbox/inbox-item-sheet.tsx` (và mở rộng `InboxItem` ở `src/lib/ai/inbox-types.ts` + builder ở `src/lib/ai/inbox-reason.server.ts`) theo 2 hướng:
+Trên thẻ "Đề xuất của Fin" cho phiếu mua hàng, vùng Đối tác hiển thị **"Chưa xác định tên"** mặc dù hoá đơn đã được parse đầy đủ (số HĐ, ngày, subtotal, VAT, dòng hàng…).
 
-## 1) Đổi tên & nút "Xem hóa đơn"
+## Nguyên nhân
 
-- Đổi tiêu đề header: **"Đề xuất của Sổ AI" → "Đề xuất của Fin"** (kèm icon `Sparkles` giữ nguyên).
-- Thêm nút **"Xem hóa đơn"** ngay cạnh khối Đối tác/Số tiền:
-  - Hiển thị khi `item.source ∈ {document, tct_einvoice, email_forward}` hoặc khi `item.match_ref` trỏ tới `invoice` / `sales_invoice`.
-  - Bấm vào mở `Dialog` toàn màn hình dùng lại `<InvoiceFileViewer />` đã có (PDF / ảnh / XML einvoice).
-  - Nguồn dữ liệu:
-    - Với `source = document`: gọi `getDocument({ data: { id: item.external_id } })` (đã trả `signedUrl`, `mimeType`, `original_filename`, và `doc.invoice_id` để lấy einvoice nếu có).
-    - Với bank item có `match_ref`: mở route `item.href` (Đối soát) thay vì viewer — dùng nút phụ "Mở phiếu khớp".
-  - Trạng thái loading dùng `useQuery` + skeleton trong dialog; lỗi → toast.
-- Nút phụ trong footer header cluster: icon `FileText` + label rút gọn để vẫn đẹp ở viewport 707px.
+1. **Sai key OCR.** OCR ghi vào `documents.ocr_extracted` với key `vendor_name` / `vendor_tax_id`, nhưng `buildDocumentItem` ở `src/lib/ai/inbox-reason.server.ts` chỉ đọc `supplier_name` / `partner` và `supplier_tax_id` / `tax_id`. Không match → `supplier = "—"` → `partner = "—"` → UI fallback "Chưa xác định tên".
 
-## 2) Bổ sung trường theo loại phiếu
+2. **Nhánh engine chuẩn không bao giờ chạy.** Trong `src/lib/inbox-ai.functions.ts`, query `documents` không select `invoice_id`, nên nhánh `if (doc.invoice_id) proposeJournalForInvoice(...)` luôn bị skip — kể cả khi document đã được link tới một invoice đầy đủ (có supplier chuẩn từ bảng `invoices`).
 
-Thêm field tuỳ chọn vào `InboxItem.proposal` (giữ ngược tương thích):
+## Phạm vi sửa (UI/glue, không đổi business logic)
 
-```ts
-proposal: {
-  voucher_kind: "purchase_invoice" | "sales_invoice" | "bank_receipt"
-              | "bank_payment" | "cash_receipt" | "cash_payment"
-              | "ai_insight";
-  meta?: Record<string, string | number | null>;  // tuỳ kind
-  ...existing
-}
-```
+**File 1 — `src/lib/inbox-ai.functions.ts`**
+- Bổ sung `invoice_id` vào `.select(...)` của query documents (dòng ~40).
 
-Builder điền `meta` theo loại; sheet render khối **"Thông tin phiếu"** (grid 2 cột, label nhỏ uppercase + value) phía trên khối Bút toán:
+**File 2 — `src/lib/ai/inbox-reason.server.ts`** (trong `buildDocumentItem`)
+- Đọc supplier theo thứ tự ưu tiên: `ext.supplier_name ?? ext.vendor_name ?? ext.partner ?? ext.seller_name`.
+- Đọc tax id: `ext.supplier_tax_id ?? ext.vendor_tax_id ?? ext.tax_id ?? ext.seller_tax_id`.
+- Đọc invoice_no: thêm `ext.invoice_number` vào fallback chain.
+- Đọc date: thêm `ext.issue_date` vào fallback chain (hiện đang đọc `invoice_date`, nhưng DB lưu `issue_date`).
+- Áp dụng đồng nhất ở cả 2 nhánh (engine path + manual fallback path) và cho `meta.supplier_name`, `meta.supplier_tax_id`, `meta.invoice_date`.
 
-- **purchase_invoice** (document/tct/email): `supplier_tax_id`, `invoice_no`, `invoice_series`, `invoice_date`, `subtotal`, `vat_rate`, `vat_amount`, `total`, `payment_method`, `due_date`.
-- **sales_invoice** (qua match_ref khi bank thu): `customer_name`, `customer_tax_id`, `invoice_no`, `invoice_date`, `subtotal`, `vat_amount`, `total`, `due_date`.
-- **bank_receipt / bank_payment**: `bank_account` (TK 112 chi tiết), `bank_name`, `txn_date`, `txn_ref`, `counterparty`, `counterparty_account`, `memo`, `matched_invoice_no`.
-- **cash_receipt / cash_payment**: `cash_fund` (TK 111 chi tiết), `txn_date`, `payer_or_payee`, `reason`, `attachment_ref`.
-- **ai_insight**: `severity`, `category`, `period`, `metric`, `delta`.
+## Không đụng tới
 
-Sheet:
-- Khối mới `<VoucherMetaGrid kind meta />` đặt giữa Trust strip và Reasoning.
-- Field rỗng → ẩn (không render `—`); tiền hiển thị `tabular-nums`, ngày `dd/MM/yyyy`.
-- Chip "Loại phiếu" nhỏ kế bên confidence trong header (vd: "Phiếu mua hàng", "Báo có NH", "AI cảnh báo").
+- Schema DB, RLS, migrations.
+- Logic `proposeJournalForInvoice` / `categorize/engine.server.ts`.
+- UI sheet (`inbox-item-sheet.tsx`) — chỉ cần dữ liệu đúng là hiển thị đúng.
 
-## Thay đổi file
+## Kết quả mong đợi
 
-- `src/lib/ai/inbox-types.ts` — thêm `voucher_kind` + `meta` vào `Proposal`.
-- `src/lib/ai/inbox-reason.server.ts` — set `voucher_kind` + bơm `meta` trong `buildDocumentItem`, `buildBankItem`, `buildInsightItem`.
-- `src/components/inbox/inbox-item-sheet.tsx`:
-  - Đổi title, thêm chip kind.
-  - Thêm `InvoiceViewerButton` + `Dialog` dùng `InvoiceFileViewer`.
-  - Thêm `VoucherMetaGrid` component nội bộ + map nhãn tiếng Việt.
-- Không đổi business logic duyệt/ghi sổ, không đổi RLS/migrations.
-
-## Ghi chú phạm vi
-
-- Chỉ là thay đổi UI + bơm thêm metadata từ dữ liệu đã có (OCR `ocr_extracted`, bank txn, AI insight). Không gọi API mới ngoại trừ `getDocument` (đã tồn tại).
-- Giữ swipe-to-close, footer hành động, lịch sử chat như hiện tại.
+- Đối tác hiển thị đúng tên NCC từ XML (ví dụ "CÔNG TY …").
+- MST đối tác hiện trong VoucherMetaGrid.
+- Khi document đã link invoice, dùng engine chuẩn (vendor template, line classification) thay vì fallback heuristic.

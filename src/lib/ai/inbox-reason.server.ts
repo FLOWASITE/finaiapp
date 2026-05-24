@@ -128,11 +128,14 @@ export async function buildDocumentItem(
   const ext = (doc.ocr_extracted ?? {}) as any;
   const amount = Number(ext.total ?? ext.amount ?? 0);
   if (!amount) return null;
-  const supplier = String(ext.supplier_name ?? ext.partner ?? "—");
-  const invoiceNo = String(ext.invoice_no ?? ext.number ?? "").trim();
+  const supplierRaw = ext.supplier_name ?? ext.vendor_name ?? ext.seller_name ?? ext.partner;
+  const supplier = String(supplierRaw ?? "—");
+  const supplierTaxId = ext.supplier_tax_id ?? ext.vendor_tax_id ?? ext.seller_tax_id ?? ext.tax_id ?? null;
+  const invoiceNo = String(ext.invoice_no ?? ext.invoice_number ?? ext.number ?? "").trim();
   const vat = Number(ext.vat_amount ?? 0);
   const subtotal = Number(ext.subtotal ?? Math.max(0, amount - vat));
-  const date = (ext.invoice_date ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
+  const invoiceDate = ext.invoice_date ?? ext.issue_date ?? null;
+  const date = (invoiceDate ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
 
   // If document is linked to an invoice, prefer the categorize engine
   // (single source of truth: vendor templates + rules + AI).
@@ -183,10 +186,10 @@ export async function buildDocumentItem(
             voucher_kind: "purchase_invoice",
             meta: {
               supplier_name: supplier,
-              supplier_tax_id: ext.supplier_tax_id ?? ext.tax_id ?? null,
+              supplier_tax_id: supplierTaxId,
               invoice_no: invoiceNo || null,
               invoice_series: ext.invoice_series ?? ext.series ?? null,
-              invoice_date: ext.invoice_date ?? null,
+              invoice_date: invoiceDate,
               subtotal: subtotal || null,
               vat_rate: ext.vat_rate ?? null,
               vat_amount: vat || null,
@@ -299,10 +302,10 @@ export async function buildDocumentItem(
       voucher_kind: "purchase_invoice",
       meta: {
         supplier_name: supplier,
-        supplier_tax_id: ext.supplier_tax_id ?? ext.tax_id ?? null,
+        supplier_tax_id: supplierTaxId,
         invoice_no: invoiceNo || null,
         invoice_series: ext.invoice_series ?? ext.series ?? null,
-        invoice_date: ext.invoice_date ?? null,
+        invoice_date: invoiceDate,
         subtotal: subtotal || null,
         vat_rate: ext.vat_rate ?? null,
         vat_amount: vat || null,
