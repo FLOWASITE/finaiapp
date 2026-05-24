@@ -1182,10 +1182,10 @@ function SalesVouchersPage() {
                                 </DropdownMenuItem>
                               )}
                               {!v.stock_voucher_id && (
-                                <DropdownMenuItem asChild>
-                                  <Link to="/inventory/unposted">
-                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
-                                  </Link>
+                                <DropdownMenuItem
+                                  onClick={() => setStickTarget({ kind: "sales", id: v.id, voucher_no: v.voucher_no })}
+                                >
+                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
