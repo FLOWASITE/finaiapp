@@ -96,7 +96,9 @@ const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
 function sourceMeta(it: InboxItem): { icon: any; label: string } {
   if (it.source === "bank_statement") return { icon: Landmark, label: it.source_short || "Sao kê" };
   if (it.source === "ai_insight") return { icon: Lightbulb, label: it.source_short || "AI phát hiện" };
-  return { icon: FileText, label: it.source_short || "Hoá đơn vào" };
+  const short = it.source_short?.trim();
+  const label = short && !/^doc$/i.test(short) ? short : "Hoá đơn vào";
+  return { icon: FileText, label };
 }
 
 function bandRail(b: ConfidenceBand) {
@@ -956,7 +958,7 @@ function ItemCard({
         )}
       />
 
-      <div className="pl-4 pr-4 py-3.5 flex flex-col gap-2.5">
+      <div className="pl-4 pr-4 py-2.5 flex flex-col gap-2">
         {/* Top meta row */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-[11px] min-w-0">
@@ -1006,17 +1008,17 @@ function ItemCard({
 
         {/* Title + amount */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="flex-1 text-[14px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
+          <h3 className="flex-1 text-[13px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
             {item.title}
           </h3>
           <div className="shrink-0 text-right flex flex-col items-end gap-1">
             {item.processing_status && (
               <StatusBadge status={item.processing_status as ProcStatus} />
             )}
-            <div className="text-[17px] font-bold leading-none tabular-nums text-foreground">
+            <div className="text-[15px] font-bold leading-none tabular-nums text-foreground">
               {sign}
               {VND(Math.abs(item.amount))}
-              <span className="ml-0.5 text-[12px] font-medium text-muted-foreground">đ</span>
+              <span className="ml-0.5 text-[10.5px] font-medium text-muted-foreground">đ</span>
             </div>
           </div>
         </div>
