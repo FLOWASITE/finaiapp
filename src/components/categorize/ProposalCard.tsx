@@ -1,14 +1,21 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, AlertTriangle, Sparkles, XCircle, Loader2, FileText, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, AlertTriangle, Sparkles, XCircle, Loader2, FileText, Pencil, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { approveProposal, skipProposal } from "@/lib/categorize.functions";
 import type { JournalProposalDTO, ProposalEntry, ProposalLine } from "@/lib/categorize/types";
+
+const confidenceHint = (pct: number) => {
+  if (pct >= 85) return { label: "Độ tin cậy cao", detail: "Band ≥85%: precision lịch sử ~94%. Khuyến nghị duyệt nhanh." };
+  if (pct >= 60) return { label: "Độ tin cậy trung bình", detail: "Band 60–84%: precision lịch sử ~78%. Nên xem qua trước khi duyệt." };
+  return { label: "Độ tin cậy thấp", detail: "Band <60%: precision lịch sử ~55%. Cần review kỹ hoặc sửa tay." };
+};
 
 const SOURCE_LABEL: Record<string, { label: string; tone: string }> = {
   vendor_template: { label: "Mẫu NCC", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
@@ -119,12 +126,22 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
               <span className="text-xs text-muted-foreground font-mono">#{invoice.invoice_no}</span>
             )}
             <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", src.tone)}>{src.label}</Badge>
-            <Badge variant="outline" className={cn(
-              "text-[10px] px-1.5 py-0",
-              confPct >= 85 ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" :
-              confPct >= 60 ? "border-amber-500/30 text-amber-700 dark:text-amber-400" :
-              "border-muted-foreground/30 text-muted-foreground",
-            )}>{confPct}%</Badge>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className={cn(
+                    "text-[10px] px-1.5 py-0 cursor-help",
+                    confPct >= 85 ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" :
+                    confPct >= 60 ? "border-amber-500/30 text-amber-700 dark:text-amber-400" :
+                    "border-muted-foreground/30 text-muted-foreground",
+                  )}>{confPct}%</Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                  <div className="font-semibold mb-0.5">{confidenceHint(confPct).label}</div>
+                  <div className="text-muted-foreground">{confidenceHint(confPct).detail}</div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {invoice?.issue_date ?? "—"} · Tổng <span className="font-semibold text-foreground">{fmt(total)} ₫</span>
@@ -267,6 +284,49 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Alternatives — phương án khác */}
+      {dto.alternatives && dto.alternatives.length > 0 && (
+        <div className="px-4 pb-3 border-t border-border/40 pt-3">
+          <div className="flex items-center gap-1.5 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <GitBranch className="h-3 w-3" />
+            Phương án khác ({dto.alternatives.length})
+          </div>
+          <div className="space-y-1.5">
+            {dto.alternatives.map((alt, ai) => {
+              const altPct = Math.round(alt.confidence * 100);
+              const altSrc = SOURCE_LABEL[alt.source] ?? SOURCE_LABEL.manual;
+              return (
+                <div key={ai} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium truncate">{alt.label}</span>
+                      <Badge variant="outline" className={cn("text-[10px] px-1 py-0", altSrc.tone)}>{altSrc.label}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 border-muted-foreground/30 text-muted-foreground">{altPct}%</Badge>
+                    </div>
+                    <div className="font-mono text-[11px] text-muted-foreground truncate mt-0.5">
+                      {alt.entries[0]?.lines.map((l) => `${l.debit > 0 ? "Nợ" : "Có"} ${l.account_code}`).join(" / ")}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] gap-1 shrink-0"
+                    disabled={!!busy}
+                    onClick={() => {
+                      setEntries(alt.entries);
+                      setEdit(true);
+                      toast.info(`Đã chọn phương án "${alt.label}" — bấm "Duyệt & ghi sổ" để xác nhận`);
+                    }}
+                  >
+                    Dùng phương án này
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
