@@ -652,3 +652,89 @@ export function buildInsightItem(insight: any): InboxItem {
     href: insight.action_url ?? "/chat",
   };
 }
+
+// ============================================================
+// SALES INVOICE items (hoá đơn bán ra) — uses sales-engine
+// ============================================================
+export async function buildSalesInvoiceItem(
+  supabase: SupabaseClient,
+  _tenantId: string,
+  inv: any,
+  prebuiltProposal?: import("@/lib/categorize/types").JournalProposalDTO,
+): Promise<InboxItem | null> {
+  if (!inv) return null;
+  let dto = prebuiltProposal;
+  if (!dto) {
+    try {
+      const { proposeJournalForSalesInvoice } = await import("@/lib/categorize/sales-engine.server");
+      dto = await proposeJournalForSalesInvoice(supabase, inv.id);
+    } catch {
+      return null;
+    }
+  }
+  const entry = dto.entries[0];
+  if (!entry) return null;
+
+  const lines: ProposalLine[] = entry.lines.map((l) => ({
+    account: l.account_code,
+    debit: l.debit || undefined,
+    credit: l.credit || undefined,
+    memo: l.memo ?? undefined,
+  }));
+  const confidence = Math.min(99, Math.round(dto.confidence * 100));
+  const signals: ReasoningSignal[] = dto.signals.map((s) => ({
+    kind: "match",
+    label: s.label,
+    ok: true,
+  }));
+  for (const w of dto.warnings) {
+    signals.push({ kind: "warn", label: w.message, ok: false });
+  }
+  const customer = inv.customer_name ?? "Khách hàng";
+  const invoiceNo = inv.invoice_no ?? "";
+  const amount = Number(inv.total ?? 0);
+  const occurredAt = inv.created_at ?? inv.issue_date ?? new Date().toISOString();
+  return {
+    id: `sales_invoice:${inv.id}`,
+    external_id: inv.id,
+    source: "document",
+    source_label: `Hoá đơn ra · ${relativeTimeVi(occurredAt)}`,
+    source_short: "BÁN",
+    title: customer,
+    subtitle: invoiceNo ? `HĐ ${invoiceNo}` : "Hoá đơn bán",
+    partner: customer,
+    amount,
+    occurred_at: occurredAt,
+    confidence,
+    confidence_band: bandOf(confidence),
+    processing_status: deriveStatus({ confidence, signals }),
+    proposal: {
+      description: entry.description,
+      entry_date: entry.entry_date,
+      lines,
+      voucher_kind: "sales_invoice",
+      meta: {
+        customer_name: customer,
+        customer_tax_id: inv.customer_tax_id ?? null,
+        invoice_no: invoiceNo || null,
+        invoice_date: inv.issue_date ?? null,
+        subtotal: Number(inv.subtotal ?? 0) || null,
+        vat_amount: Number(inv.vat_amount ?? 0) || null,
+        total: amount,
+        payment_status: inv.payment_status ?? null,
+        invoice_kind: "sales",
+      },
+    },
+    reasoning: {
+      summary: `Engine bán hàng: ${dto.entries.length} bút toán, độ tin cậy ${(dto.confidence * 100).toFixed(0)}%.`,
+      signals,
+    },
+    followups: [
+      `Doanh thu từ ${customer} năm nay?`,
+      "Vì sao chia nhiều TK 511?",
+      "Khách này thường thanh toán bằng gì?",
+    ],
+    href: "/sales-invoices",
+  };
+}
+
