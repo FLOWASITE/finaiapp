@@ -25,6 +25,7 @@ import type {
   InboxItem,
 } from "./inbox-types";
 import { proposeJournalForInvoice } from "@/lib/categorize/engine.server";
+import { classifyLine } from "@/lib/ai/classify-line";
 
 
 
