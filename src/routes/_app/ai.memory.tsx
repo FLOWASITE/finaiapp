@@ -84,6 +84,7 @@ import {
 import { PartnersTab, ContextTab, LimitsTab } from "@/components/ai-memory-tabs";
 import { ClassificationsTab } from "@/components/ai-memory-classifications-tab";
 import { RulesListV2 } from "@/components/ai-memory/rules-v2/RulesListV2";
+import { MemoryGraph } from "@/components/ai-memory/graph/MemoryGraph";
 
 export const Route = createFileRoute("/_app/ai/memory")({
   head: () => ({
@@ -99,7 +100,7 @@ export const Route = createFileRoute("/_app/ai/memory")({
   component: AIMemoryPage,
 });
 
-type TabKey = "rules" | "classifications" | "partners" | "context" | "limits" | "learning";
+type TabKey = "rules" | "graph" | "classifications" | "partners" | "context" | "limits" | "learning";
 
 function AIMemoryPage() {
   const [tab, setTab] = useState<TabKey>("rules");
@@ -152,24 +153,30 @@ function AIMemoryPage() {
       />
       <SubTabs value={tab} onChange={setTab} learningCount={watch.length} ruleCount={activeCount} />
 
-      <ScrollArea className="flex-1">
-        <div className="mx-auto max-w-4xl space-y-3 px-5 py-4">
-          {isLoading ? (
-            <LoadingSkeleton />
-          ) : (
-            <>
-              {tab === "rules" && <RulesListV2 />}
-              {tab === "classifications" && <ClassificationsTab />}
-              {tab === "partners" && <PartnersTab />}
-              {tab === "context" && <ContextTab />}
-              {tab === "limits" && <LimitsTab />}
-              {tab === "learning" && (
-                <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
-              )}
-            </>
-          )}
+      {tab === "graph" ? (
+        <div className="flex-1 overflow-hidden">
+          <MemoryGraph />
         </div>
-      </ScrollArea>
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="mx-auto max-w-4xl space-y-3 px-5 py-4">
+            {isLoading ? (
+              <LoadingSkeleton />
+            ) : (
+              <>
+                {tab === "rules" && <RulesListV2 />}
+                {tab === "classifications" && <ClassificationsTab />}
+                {tab === "partners" && <PartnersTab />}
+                {tab === "context" && <ContextTab />}
+                {tab === "limits" && <LimitsTab />}
+                {tab === "learning" && (
+                  <WatchListView items={watch} onSwitchToRules={() => setTab("rules")} />
+                )}
+              </>
+            )}
+          </div>
+        </ScrollArea>
+      )}
 
       <WatchFooter count={watch.length} onClick={() => setTab("learning")} />
     </div>
@@ -278,6 +285,7 @@ function SubTabs({
 }) {
   const tabs: { key: TabKey; label: string; count?: number; badge?: number }[] = [
     { key: "rules", label: "Quy tắc hạch toán", count: ruleCount },
+    { key: "graph", label: "Sơ đồ trí nhớ" },
     { key: "classifications", label: "Hàng hóa / DV" },
     { key: "partners", label: "Đối tác", count: 128 },
     { key: "context", label: "Bối cảnh DN", count: 12 },
