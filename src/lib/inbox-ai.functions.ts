@@ -201,7 +201,7 @@ async function materializeSalesVoucherFromDocument(
     salesInvoiceId: string | null;
   },
 ): Promise<string | null> {
-  const { documentId, tenantId, userId, entryDate, journalEntryId, salesInvoiceId } = opts;
+  const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
 
   const { data: doc } = await supabase
     .from("documents")
@@ -210,7 +210,7 @@ async function materializeSalesVoucherFromDocument(
     .maybeSingle();
   if (!doc || doc.doc_kind !== "sales_invoice") return null;
 
-  // Đã có phiếu liên kết với bút toán này → cập nhật & thoát
+  // Đã có phiếu liên kết bút toán này → trả về
   const { data: existingByEntry } = await supabase
     .from("sales_vouchers")
     .select("id")
@@ -219,7 +219,7 @@ async function materializeSalesVoucherFromDocument(
     .maybeSingle();
   if (existingByEntry?.id) return existingByEntry.id as string;
 
-  // Lấy dữ liệu từ ai_uploads.parsed._einvoice (đầy đủ nhất), fallback ocr_extracted
+  // Lấy dữ liệu eInvoice
   let ein: any = null;
   if (doc.ai_upload_id) {
     const { data: up } = await supabase
@@ -257,77 +257,80 @@ async function materializeSalesVoucherFromDocument(
     totals.total ?? ext.total_amount ?? ext.total ?? subtotal + vat,
   );
 
-  // Tìm/tạo customer theo MST người mua
+  // === Customer: luôn tự tạo nếu chưa có ===
   let customerId: string | null = null;
-  if (buyer.tax_id) {
+  const buyerName: string = (buyer.name ?? "Khách hàng lẻ").toString().trim();
+  const buyerTaxId: string | null = buyer.tax_id ? String(buyer.tax_id).trim() : null;
+  const buyerAddress: string | null = buyer.address ? String(buyer.address).trim() : null;
+
+  if (buyerTaxId) {
     const { data: cust } = await supabase
       .from("customers")
       .select("id")
       .eq("tenant_id", tenantId)
-      .eq("tax_id", buyer.tax_id)
+      .eq("tax_id", buyerTaxId)
       .maybeSingle();
-    if (cust?.id) {
-      customerId = cust.id;
-    } else {
-      const { data: created } = await supabase
-        .from("customers")
-        .insert({
-          tenant_id: tenantId,
-          user_id: userId,
-          name: buyer.name ?? "Khách hàng",
-          tax_id: buyer.tax_id,
-          email: buyer.email || null,
-          phone: buyer.phone || null,
-          address: buyer.address || null,
-        })
-        .select("id")
-        .single();
-      customerId = created?.id ?? null;
-    }
-  }
-
-  // Sinh voucher_no: theo số HĐ nếu có, không trùng thì fallback BHYYYY-#####
-  const yyyy = String(new Date(issueDate).getFullYear());
-  let voucherNo = invoiceNo ? `${series ? series + "-" : ""}${invoiceNo}` : "";
-  if (voucherNo) {
-    const { data: dup } = await supabase
-      .from("sales_vouchers")
-      .select("id, journal_entry_id")
+    if (cust?.id) customerId = cust.id;
+  } else {
+    // Không có MST: thử khớp theo tên
+    const { data: matches } = await supabase
+      .from("customers")
+      .select("id")
       .eq("tenant_id", tenantId)
-      .eq("voucher_no", voucherNo)
-      .maybeSingle();
-    if (dup?.id) {
-      // Đã có phiếu — chỉ cập nhật journal_entry_id nếu chưa có
-      if (!dup.journal_entry_id) {
-        await supabase
-          .from("sales_vouchers")
-          .update({
-            journal_entry_id: journalEntryId,
-            status: "posted",
-            posted_at: new Date().toISOString(),
-          })
-          .eq("id", dup.id);
-      }
-      return dup.id as string;
-    }
+      .eq("name", buyerName)
+      .limit(1);
+    if (matches && matches.length > 0) customerId = matches[0].id;
   }
-  if (!voucherNo) {
-    const prefix = `BH${yyyy}-`;
-    const { data: last } = await supabase
-      .from("sales_vouchers")
-      .select("voucher_no")
+  if (!customerId) {
+    const { data: lastCust } = await supabase
+      .from("customers")
+      .select("code")
       .eq("tenant_id", tenantId)
-      .ilike("voucher_no", `${prefix}%`)
-      .order("voucher_no", { ascending: false })
+      .ilike("code", "KH%")
+      .order("code", { ascending: false })
       .limit(1)
       .maybeSingle();
-    let next = 1;
-    if (last?.voucher_no) {
-      const m = /(\d+)$/.exec(last.voucher_no);
-      if (m) next = parseInt(m[1], 10) + 1;
+    let n = 1;
+    if (lastCust?.code) {
+      const m = /(\d+)$/.exec(lastCust.code);
+      if (m) n = parseInt(m[1], 10) + 1;
     }
-    voucherNo = `${prefix}${String(next).padStart(5, "0")}`;
+    const code = `KH${String(n).padStart(5, "0")}`;
+    const { data: created, error: cErr } = await supabase
+      .from("customers")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        code,
+        name: buyerName,
+        tax_id: buyerTaxId,
+        email: buyer.email || null,
+        phone: buyer.phone || null,
+        address: buyerAddress,
+      })
+      .select("id")
+      .single();
+    if (cErr) throw new Error("Không tạo được khách hàng: " + cErr.message);
+    customerId = created?.id ?? null;
   }
+
+  // === Số phiếu chuẩn BHYYYY-##### ===
+  const yyyy = String(new Date(issueDate).getFullYear());
+  const prefix = `BH${yyyy}-`;
+  const { data: last } = await supabase
+    .from("sales_vouchers")
+    .select("voucher_no")
+    .eq("tenant_id", tenantId)
+    .ilike("voucher_no", `${prefix}%`)
+    .order("voucher_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let next = 1;
+  if (last?.voucher_no) {
+    const m = /(\d+)$/.exec(last.voucher_no);
+    if (m) next = parseInt(m[1], 10) + 1;
+  }
+  const voucherNo = `${prefix}${String(next).padStart(5, "0")}`;
 
   const vatRateHeader = subtotal > 0 ? Math.round((vat / subtotal) * 100) : 0;
 
@@ -339,10 +342,12 @@ async function materializeSalesVoucherFromDocument(
       voucher_no: voucherNo,
       voucher_date: issueDate,
       customer_id: customerId,
-      customer_name: buyer.name ?? null,
-      customer_tax_id: buyer.tax_id ?? null,
-      customer_address: buyer.address ?? null,
-      reason: `Hóa đơn bán ra ${voucherNo}${buyer.name ? ` — ${buyer.name}` : ""}`,
+      customer_name: buyerName,
+      customer_tax_id: buyerTaxId,
+      customer_address: buyerAddress,
+      einvoice_series: series,
+      einvoice_no: invoiceNo,
+      reason: `Hóa đơn ${series ?? ""}${series && invoiceNo ? "-" : ""}${invoiceNo ?? ""} — ${buyerName}`.trim(),
       currency: ein?.currency ?? "VND",
       exchange_rate: 1,
       subtotal,
@@ -397,13 +402,49 @@ async function materializeSalesVoucherFromDocument(
       };
     });
     const { error: lErr } = await supabase.from("sales_voucher_lines").insert(lineRows);
-    if (lErr) {
-      // Lỗi line không huỷ phiếu, nhưng log để biết
-      console.error("[materializeSalesVoucher] lines insert failed", lErr);
-    }
+    if (lErr) console.error("[materializeSalesVoucher] lines insert failed", lErr);
   }
 
   return voucher.id as string;
+}
+
+/** Throw nếu hóa đơn điện tử (series + no) đã được ghi sổ (phiếu chưa void). */
+async function assertNoDuplicateEInvoice(
+  supabase: any,
+  tenantId: string,
+  documentId: string,
+): Promise<void> {
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("doc_kind, ai_upload_id, ocr_extracted")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.doc_kind !== "sales_invoice") return;
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+  const series: string | null = ein?.series ?? ext?.invoice_series ?? null;
+  const invoiceNo: string | null = ein?.invoice_no ?? ext?.invoice_no ?? ext?.invoice_number ?? null;
+  if (!invoiceNo) return;
+  let q = supabase
+    .from("sales_vouchers")
+    .select("id, voucher_no, status")
+    .eq("tenant_id", tenantId)
+    .eq("einvoice_no", invoiceNo)
+    .neq("status", "void");
+  if (series) q = q.eq("einvoice_series", series);
+  const { data: dups } = await q;
+  if (dups && dups.length > 0) {
+    const label = `${series ? series + "-" : ""}${invoiceNo}`;
+    throw new Error(`Hóa đơn ${label} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+  }
 }
 
 const ListInput = z.object({
