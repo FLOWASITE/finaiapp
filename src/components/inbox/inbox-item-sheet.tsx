@@ -298,6 +298,11 @@ export function InboxItemSheet({
               {/* Voucher meta grid */}
               <VoucherMetaGrid meta={item.proposal.meta} />
 
+              {/* Items (goods / services) */}
+              <ProposalItemsList items={item.proposal.items} />
+
+
+
 
 
               {/* Trust strip */}
