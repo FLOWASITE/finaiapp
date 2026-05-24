@@ -1179,6 +1179,13 @@ function SalesVouchersPage() {
                                   <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
                                 </DropdownMenuItem>
                               )}
+                              {!v.stock_voucher_id && (
+                                <DropdownMenuItem asChild>
+                                  <Link to="/inventory/unposted">
+                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               {!isPosted && (
                                 <DropdownMenuItem
