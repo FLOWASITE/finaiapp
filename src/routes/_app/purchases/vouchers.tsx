@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical } from "lucide-react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical, PackagePlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
