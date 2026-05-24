@@ -321,7 +321,10 @@ function InnerGraph() {
     );
   }
 
-  const isEmpty = rules.length === 0 && (adapted?.vendors.length ?? 0) === 0;
+  const isEmpty =
+    rules.length === 0 &&
+    (adapted?.vendors.length ?? 0) === 0 &&
+    (adapted?.items.length ?? 0) === 0;
   if (isEmpty) {
     return (
       <div className="flex h-full items-center justify-center p-10 text-center">
