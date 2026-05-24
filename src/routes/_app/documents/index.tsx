@@ -714,6 +714,9 @@ function DocumentRow({
           {OCR_LABELS[d.ocr_status] ?? d.ocr_status}
         </span>
       </TableCell>
+      <TableCell>
+        <CategorizeBadge categorize={d.categorize} hasInvoice={!!d.invoice_id} />
+      </TableCell>
       <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
         {formatBytes(d.size_bytes)}
       </TableCell>
