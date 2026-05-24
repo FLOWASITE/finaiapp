@@ -14,14 +14,27 @@ async function activeTenant(supabase: any, userId: string): Promise<string | nul
 /** Sinh đề xuất bút toán + cache vào ai_journal_proposals. */
 export const proposeJournal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ invoice_id: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        invoice_id: z.string().uuid(),
+        invoice_kind: z.enum(["purchase", "sales"]).default("purchase"),
+      })
+      .parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const tenantId = await activeTenant(supabase, userId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp");
-    const { proposeJournalForInvoice } = await import("./categorize/engine.server");
     const t0 = Date.now();
-    const dto = await proposeJournalForInvoice(supabase, data.invoice_id);
+    let dto;
+    if (data.invoice_kind === "sales") {
+      const { proposeJournalForSalesInvoice } = await import("./categorize/sales-engine.server");
+      dto = await proposeJournalForSalesInvoice(supabase, data.invoice_id);
+    } else {
+      const { proposeJournalForInvoice } = await import("./categorize/engine.server");
+      dto = await proposeJournalForInvoice(supabase, data.invoice_id);
+    }
     const duration = Date.now() - t0;
 
     await supabase
@@ -30,23 +43,24 @@ export const proposeJournal = createServerFn({ method: "POST" })
         {
           tenant_id: tenantId,
           invoice_id: data.invoice_id,
+          invoice_kind: data.invoice_kind,
           dto: dto as any,
           confidence: dto.confidence,
           source: dto.source,
           warnings: dto.warnings as any,
           status: "pending",
         },
-        { onConflict: "invoice_id" },
+        { onConflict: "invoice_kind,invoice_id" },
       );
 
     try {
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
       await tryLogAgentActivity(supabase, userId, {
         agent_id: "categorize",
-        action: `Đề xuất bút toán (${dto.source}, ${Math.round(dto.confidence * 100)}%)`,
+        action: `Đề xuất bút toán ${data.invoice_kind === "sales" ? "(bán)" : "(mua)"} (${dto.source}, ${Math.round(dto.confidence * 100)}%)`,
         result: dto.warnings.some((w) => w.severity === "error") ? "warning" : "success",
         duration_ms: duration,
-        metadata: { invoice_id: data.invoice_id, entries: dto.entries.length },
+        metadata: { invoice_id: data.invoice_id, invoice_kind: data.invoice_kind, entries: dto.entries.length },
       });
     } catch {}
 
