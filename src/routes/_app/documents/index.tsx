@@ -781,6 +781,8 @@ function UploadDialog({
     if (files.length === 0) return;
     setUploading(true);
     let okCount = 0;
+    let ocrOk = 0;
+    let ocrFail = 0;
     for (const f of files) {
       if (f.size > 20 * 1024 * 1024) {
         toast.error(`${f.name}: vượt 20MB`);
@@ -791,7 +793,7 @@ function UploadDialog({
         const b64 = btoa(
           new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ""),
         );
-        await upload({
+        const res: any = await upload({
           data: {
             fileBase64: b64,
             filename: f.name,
@@ -801,17 +803,24 @@ function UploadDialog({
           },
         });
         okCount++;
+        if (res?.ocr_status === "done") ocrOk++;
+        else if (res?.ocr_status === "failed") {
+          ocrFail++;
+          toast.warning(`${f.name}: OCR lỗi — có thể chạy lại trong chi tiết`);
+        }
       } catch (e: any) {
         toast.error(`${f.name}: ${e.message ?? "lỗi"}`);
       }
     }
     if (okCount > 0) {
-      toast.success(`Đã tải lên ${okCount}/${files.length} file`);
+      toast.success(`Đã tải lên ${okCount}/${files.length} file · OCR ${ocrOk} thành công${ocrFail ? `, ${ocrFail} lỗi` : ""}`);
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["sidebar-counts"] });
     }
     reset();
     onOpenChange(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
