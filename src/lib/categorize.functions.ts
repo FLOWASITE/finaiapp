@@ -87,7 +87,7 @@ export const listProposals = createServerFn({ method: "POST" })
 
     let q = supabase
       .from("ai_journal_proposals")
-      .select("id, invoice_id, dto, confidence, source, status, warnings, auto_posted, journal_entry_id, created_at")
+      .select("id, invoice_id, invoice_kind, dto, confidence, source, status, warnings, auto_posted, journal_entry_id, created_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -98,19 +98,34 @@ export const listProposals = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    const invoiceIds = Array.from(new Set(((rows ?? []) as any[]).map((r) => r.invoice_id)));
+    const purchaseIds = ((rows ?? []) as any[]).filter((r) => (r.invoice_kind ?? "purchase") === "purchase").map((r) => r.invoice_id);
+    const salesIds = ((rows ?? []) as any[]).filter((r) => r.invoice_kind === "sales").map((r) => r.invoice_id);
     const invMap = new Map<string, any>();
-    if (invoiceIds.length > 0) {
+    if (purchaseIds.length > 0) {
       const { data: invs } = await supabase
         .from("invoices")
         .select("id, supplier_name, supplier_tax_id, total, invoice_no, issue_date, status, file_path")
-        .in("id", invoiceIds);
-      for (const i of (invs ?? []) as any[]) invMap.set(i.id, i);
+        .in("id", purchaseIds);
+      for (const i of (invs ?? []) as any[]) invMap.set(i.id, { ...i, invoice_kind: "purchase" });
+    }
+    if (salesIds.length > 0) {
+      const { data: sinvs } = await supabase
+        .from("sales_invoices")
+        .select("id, customer_name, customer_tax_id, total, invoice_no, issue_date, status, payment_status")
+        .in("id", salesIds);
+      for (const i of (sinvs ?? []) as any[])
+        invMap.set(i.id, {
+          ...i,
+          supplier_name: i.customer_name,
+          supplier_tax_id: i.customer_tax_id,
+          invoice_kind: "sales",
+        });
     }
 
     const items = ((rows ?? []) as any[]).map((r) => ({
       id: r.id,
       invoice_id: r.invoice_id,
+      invoice_kind: r.invoice_kind ?? "purchase",
       invoice: invMap.get(r.invoice_id) ?? null,
       dto: r.dto,
       confidence: Number(r.confidence),
