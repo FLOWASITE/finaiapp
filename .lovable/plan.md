@@ -1,26 +1,31 @@
-## Hoàn thiện UI Inbox AI
+## Gắn `items` vào engine định khoản (đường fallback document)
 
-Áp dụng hướng "Premium fintech" đã chọn cho card trong danh sách Inbox AI, đồng thời bổ sung 2 thông tin user yêu cầu: **ngày hoá đơn** và **loại hàng hoá/dịch vụ**.
+### Bối cảnh
+- Khi document **đã liên kết với invoice** (`doc.invoice_id`), engine `proposeJournalForInvoice` đã chạy step phân loại từng dòng (`classifyLines` → `composeEntries`) dựa vào bảng `invoice_lines` — nên đã có Nợ chi tiết theo từng dòng. Không cần đổi gì cho nhánh này.
+- Khi document **chưa link invoice** (đa số phiếu mua OCR mới), nhánh fallback trong `src/lib/ai/inbox-reason.server.ts` hiện chỉ tạo **1 dòng Nợ** dùng `expense_account` mặc định (`642`), bỏ qua `items[]` đã parse được — đó là lý do user thấy "Nợ 642 / Nợ 133 / Có 331" gộp.
 
 ### Phạm vi
-Chỉ chỉnh frontend, 1 file: `src/routes/_app/inbox.tsx` — hàm `ItemCard` (dòng ~806–925). Không đụng business logic, server function, hay database. Dữ liệu đã có sẵn trong `item.proposal.meta.invoice_date` và `item.proposal.items` từ các pass trước.
+Sửa **1 file**: `src/lib/ai/inbox-reason.server.ts`, hàm `buildDocumentItem`, đoạn fallback sau khối `if (doc.invoice_id) { ... }` (≈ dòng 215–250). Không đụng engine, DB, types, UI.
 
-### Thay đổi cụ thể
+### Logic mới (fallback path)
+1. Nếu `items.length > 0`:
+   - Với mỗi item, gọi `classifyLine({ description: item.name, qty, unit_price, amount }, {})` để lấy `{ kind, account }`.
+   - Gom nhóm theo `account`: cộng dồn `amount`, ghép `memo` (tên 2–3 mục đầu, kèm `+N` nếu nhiều).
+   - Tạo 1 dòng `Nợ <account>` cho mỗi nhóm.
+2. Nếu `vat > 0`: thêm `Nợ 133` (giữ nguyên).
+3. Thêm `Có 331` cho tổng `amount` (giữ nguyên).
+4. Vẫn cân bằng (sum debit = sum credit = total). Sửa rounding bằng cách cộng/trừ vào dòng debit cuối nếu lệch.
 
-**1. Card container** — rounded-xl, shadow-sm → hover:shadow-md, border mềm hơn, thêm hover lift nhẹ. Rail confidence chuyển thành thanh bo tròn nổi (floating pill) thay vì `before:` pseudo cứng.
+### Confidence & signals
+- Nếu phân loại được items: `confidence += 10`, push signal `{ kind: "pattern", label: "Phân loại N dòng chi tiết (M loại TK)", ok: true }`.
+- Cập nhật `reasoning.summary` để mô tả số lượng tài khoản chi phí thay vì chỉ tên 1 TK.
 
-**2. Top meta row** — pill DOC uppercase + tracking-wide; thêm tách dấu • giữa các phần; **bổ sung ngày HĐ** (icon Calendar + `dd/mm/yyyy`) đọc từ `proposal.meta.invoice_date`.
+### Followups & UI
+- Followup `"Tại sao TK X mà không phải khác?"` đổi sang dùng TK đầu tiên trong danh sách (lấy account đầu của group lớn nhất).
+- UI list card và sheet "Đề xuất của Fin" đã render `proposal.lines[]` dạng pill nên tự hiển thị các dòng Nợ mới — không cần đổi UI.
 
-**3. Title + amount** — title `text-[14px] font-bold uppercase line-clamp-2`; amount `text-[17px] font-bold tabular-nums`, đơn vị "đ" nhạt hơn.
-
-**4. Dòng hàng hoá/dịch vụ (mới)** — đọc `proposal.items[]`; hiển thị tên item đầu tiên truncate, kèm `+N mục` nếu có nhiều dòng. Dấu chấm nhỏ làm bullet.
-
-**5. Journal pills** — nâng cấp pill bút toán:
-- NỢ: nền indigo nhạt + viền indigo, label "NỢ" indigo-500, số TK indigo-900, separator dọc indigo-200, số tiền indigo-700.
-- CÓ: nền muted + viền border, giữ tone trung tính.
-- Cả hai dùng `tabular-nums` cho số tiền.
-
-**6. Giữ nguyên** — blocker/followup banner, badge "Đang chat", badge match_ref, dot confidence band, prop signature (`item`, `active`, `onClick`, `registerRef`) — không ảnh hưởng phần còn lại của page.
-
-### Kết quả
-Card sang hơn, phân cấp thị giác rõ (NCC vs số tiền), người dùng thấy ngay ngày HĐ + loại hàng hoá ngay trên list mà không cần mở sheet.
+### Không thay đổi
+- Engine `proposeJournalForInvoice` và mọi bảng DB.
+- Nhánh document có `invoice_id` (đã đi engine).
+- Bank/cash/insight items.
+- Types `Proposal` / `ProposalLine`.
