@@ -9,6 +9,7 @@ import { RuleCard } from "./RuleCard";
 import { RuleEditor } from "./RuleEditor";
 import { makeEmptyRule } from "@/lib/rules/rule-store";
 import { memoryRuleToRule } from "@/lib/rules/db-adapter";
+import { legacyTextToRuleV2 } from "@/lib/ai-memory-templates";
 import {
   listAiMemory,
   createRule,
