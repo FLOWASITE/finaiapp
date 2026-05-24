@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Pencil, ArrowRight } from "lucide-react";
+import { X, Pencil, ArrowRight, Package, Wrench, Boxes, Hammer } from "lucide-react";
 import type { GraphNodeData } from "@/lib/graph/build-graph";
 import type { Rule } from "@/types/rule";
+import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
+
+type ItemNeighbors = { vendors: VendorEntity[]; accounts: AccountEntity[] };
 
 export function GraphSidebar({
   node,
@@ -10,20 +13,31 @@ export function GraphSidebar({
   onEditRule,
   onJumpTo,
   relatedRules,
+  itemNeighbors,
 }: {
   node: GraphNodeData | null;
   onClose: () => void;
   onEditRule: (rule: Rule) => void;
   onJumpTo: (nodeId: string) => void;
   relatedRules: Rule[];
+  itemNeighbors?: ItemNeighbors;
 }) {
   if (!node) return null;
+
+  const kindLabel =
+    node.kind === "rule"
+      ? "Quy tắc"
+      : node.kind === "vendor"
+        ? "Đối tác"
+        : node.kind === "item"
+          ? "Hàng hoá/Dịch vụ"
+          : "Tài khoản";
 
   return (
     <div className="flex h-full w-[320px] flex-col border-l bg-card">
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          {node.kind === "rule" ? "Quy tắc" : node.kind === "vendor" ? "Đối tác" : "Tài khoản"}
+          {kindLabel}
         </div>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onClose}>
           <X className="h-3.5 w-3.5" />
@@ -46,6 +60,14 @@ export function GraphSidebar({
             account={node.account}
             relatedRules={relatedRules}
             onJumpTo={(id) => onJumpTo(`rule:${id}`)}
+          />
+        )}
+        {node.kind === "item" && node.item && (
+          <ItemDetail
+            item={node.item}
+            neighbors={itemNeighbors ?? { vendors: [], accounts: [] }}
+            onJumpToVendor={(id) => onJumpTo(`vendor:${id}`)}
+            onJumpToAccount={(id) => onJumpTo(`account:${id}`)}
           />
         )}
       </div>
