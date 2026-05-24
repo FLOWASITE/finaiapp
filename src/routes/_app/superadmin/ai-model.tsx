@@ -29,6 +29,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AiAgentsPanel } from "@/components/ai-agents-panel";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
