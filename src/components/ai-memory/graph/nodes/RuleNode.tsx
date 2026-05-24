@@ -1,9 +1,9 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position } from "@xyflow/react";
 import { Sparkles, Zap, PauseCircle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GraphNodeData } from "@/lib/graph/build-graph";
 
-export function RuleNode({ data, selected }: NodeProps<{ data: GraphNodeData } & any>) {
+export function RuleNode({ data, selected }: any) {
   const d = data as GraphNodeData;
   const mode = d.mode ?? "suggest";
   const ModeIcon =

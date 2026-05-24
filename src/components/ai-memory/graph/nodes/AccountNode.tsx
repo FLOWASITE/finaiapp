@@ -1,9 +1,9 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position } from "@xyflow/react";
 import { Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GraphNodeData } from "@/lib/graph/build-graph";
 
-export function AccountNode({ data, selected }: NodeProps<{ data: GraphNodeData } & any>) {
+export function AccountNode({ data, selected }: any) {
   const d = data as GraphNodeData;
   const orphan = (d.ruleCount ?? 0) === 0;
 
