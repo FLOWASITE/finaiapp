@@ -10,6 +10,7 @@ import {
 import { extractPdfText } from "@/lib/ai/pdf-text.server";
 import { hashBase64, readParseCache, writeParseCache } from "@/lib/ai/parse-cache.server";
 import { parseEinvoiceXml } from "@/lib/einvoice-xml-parser";
+import { classifyLine, summarizeInvoiceKind } from "@/lib/ai/classify-line";
 
 const InputSchema = z.object({
   fileBase64: z.string().min(1),
