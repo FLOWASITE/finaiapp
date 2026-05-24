@@ -921,6 +921,7 @@ function ItemCard({
   registerRef?: (el: HTMLLIElement | null) => void;
 }) {
   const meta = sourceMeta(item);
+  const kindMeta = voucherKindMeta(item.proposal.voucher_kind);
   const SrcIcon = meta.icon;
   const isInflow = item.source === "bank_statement" && item.amount > 0 &&
     /chuyển khoản|tt|thanh toan|payment|transfer/i.test(item.title + " " + (item.subtitle ?? ""));
