@@ -5,6 +5,7 @@ import {
   buildBankItem,
   buildDocumentItem,
   buildInsightItem,
+  buildSalesInvoiceItem,
   loadActiveRules,
   type InboxItem,
 } from "@/lib/ai/inbox-reason.server";
