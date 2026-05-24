@@ -146,6 +146,7 @@ import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/m
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
 import { Route as ApiPublicHooksPromoteRulesRouteImport } from './routes/api/public/hooks/promote-rules'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
+import { Route as ApiPublicHooksCalibrateConfidenceRouteImport } from './routes/api/public/hooks/calibrate-confidence'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
 import { Route as AppSalesDashboardReportsQtyByItemRouteImport } from './routes/_app/sales-dashboard/reports.qty-by-item'
@@ -864,6 +865,12 @@ const ApiPublicHooksDailyDigestRoute =
     path: '/api/public/hooks/daily-digest',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCalibrateConfidenceRoute =
+  ApiPublicHooksCalibrateConfidenceRouteImport.update({
+    id: '/api/public/hooks/calibrate-confidence',
+    path: '/api/public/hooks/calibrate-confidence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   id: '/tenant/$id',
   path: '/tenant/$id',
@@ -1155,6 +1162,7 @@ export interface FileRoutesByFullPath {
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
@@ -1312,6 +1320,7 @@ export interface FileRoutesByTo {
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
@@ -1478,6 +1487,7 @@ export interface FileRoutesById {
   '/_app/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
+  '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
@@ -1644,6 +1654,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
+    | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
@@ -1801,6 +1812,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
     | '/superadmin/tenant/$id'
+    | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
@@ -1966,6 +1978,7 @@ export interface FileRouteTypes {
     | '/_app/sales-dashboard/reports/qty-by-item'
     | '/_app/sales/orders/$id'
     | '/_app/superadmin/tenant/$id'
+    | '/api/public/hooks/calibrate-confidence'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/promote-rules'
     | '/api/public/mbbank/accounts'
@@ -1989,6 +2002,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   InviteTokenRoute: typeof InviteTokenRoute
   ApiPublicAiDailyDigestRoute: typeof ApiPublicAiDailyDigestRoute
+  ApiPublicHooksCalibrateConfidenceRoute: typeof ApiPublicHooksCalibrateConfidenceRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
   ApiPublicHooksPromoteRulesRoute: typeof ApiPublicHooksPromoteRulesRoute
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
@@ -2958,6 +2972,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDailyDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/calibrate-confidence': {
+      id: '/api/public/hooks/calibrate-confidence'
+      path: '/api/public/hooks/calibrate-confidence'
+      fullPath: '/api/public/hooks/calibrate-confidence'
+      preLoaderRoute: typeof ApiPublicHooksCalibrateConfidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/superadmin/tenant/$id': {
       id: '/_app/superadmin/tenant/$id'
       path: '/tenant/$id'
@@ -3589,6 +3610,8 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   InviteTokenRoute: InviteTokenRoute,
   ApiPublicAiDailyDigestRoute: ApiPublicAiDailyDigestRoute,
+  ApiPublicHooksCalibrateConfidenceRoute:
+    ApiPublicHooksCalibrateConfidenceRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
   ApiPublicHooksPromoteRulesRoute: ApiPublicHooksPromoteRulesRoute,
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
