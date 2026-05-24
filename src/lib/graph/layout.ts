@@ -1,5 +1,5 @@
 import dagre from "@dagrejs/dagre";
-import type { Edge, Node } from "@xyflow/react";
+import { Position, type Edge, type Node } from "@xyflow/react";
 
 export function layoutGraph<NData extends Record<string, unknown>>(
   nodes: Node<NData>[],
@@ -23,9 +23,8 @@ export function layoutGraph<NData extends Record<string, unknown>>(
     return {
       ...n,
       position: { x: p.x - W / 2, y: p.y - H / 2 },
-      // React Flow needs a position; sourcePosition/targetPosition help LR layouts
-      sourcePosition: direction === "LR" ? ("right" as const) : ("bottom" as const),
-      targetPosition: direction === "LR" ? ("left" as const) : ("top" as const),
+      sourcePosition: direction === "LR" ? Position.Right : Position.Bottom,
+      targetPosition: direction === "LR" ? Position.Left : Position.Top,
     };
   });
 }
