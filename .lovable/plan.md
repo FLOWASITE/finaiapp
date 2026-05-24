@@ -1,56 +1,26 @@
-## Vấn đề
+## Hoàn thiện UI Inbox AI
 
-UI gợi ý của Fin (sheet `inbox-item-sheet.tsx`) không hiển thị danh sách hàng hoá / dịch vụ, mặc dù OCR của tài liệu đã trích xuất đầy đủ (`items[]` trong `ocr_extracted`).
+Áp dụng hướng "Premium fintech" đã chọn cho card trong danh sách Inbox AI, đồng thời bổ sung 2 thông tin user yêu cầu: **ngày hoá đơn** và **loại hàng hoá/dịch vụ**.
 
-Đồng thời, khi rà DB thực tế thấy `buildDocumentItem` đang đọc sai tên trường: OCR lưu `seller_legal_name`, `seller_tax_code`, `invoice_number`, `total_amount`, `net_amount`, `items[]` — nhưng code đang đọc `supplier_name`, `vendor_name`, `total`, `subtotal`, không có nhánh nào đọc `items`. Đây cũng là lý do nhiều phiếu vẫn rơi vào "Chưa xác định tên" / không có meta dù OCR đã parse xong.
+### Phạm vi
+Chỉ chỉnh frontend, 1 file: `src/routes/_app/inbox.tsx` — hàm `ItemCard` (dòng ~806–925). Không đụng business logic, server function, hay database. Dữ liệu đã có sẵn trong `item.proposal.meta.invoice_date` và `item.proposal.items` từ các pass trước.
 
-## Phạm vi
+### Thay đổi cụ thể
 
-Chỉ FE / glue: bổ sung field, thêm UI block. Không động vào DB, RLS, engine hạch toán.
+**1. Card container** — rounded-xl, shadow-sm → hover:shadow-md, border mềm hơn, thêm hover lift nhẹ. Rail confidence chuyển thành thanh bo tròn nổi (floating pill) thay vì `before:` pseudo cứng.
 
-## Thay đổi
+**2. Top meta row** — pill DOC uppercase + tracking-wide; thêm tách dấu • giữa các phần; **bổ sung ngày HĐ** (icon Calendar + `dd/mm/yyyy`) đọc từ `proposal.meta.invoice_date`.
 
-**1. `src/lib/ai/inbox-types.ts`** — mở rộng `Proposal`:
-```ts
-items?: Array<{ name: string; qty?: number; unit_price?: number; amount: number }>;
-```
+**3. Title + amount** — title `text-[14px] font-bold uppercase line-clamp-2`; amount `text-[17px] font-bold tabular-nums`, đơn vị "đ" nhạt hơn.
 
-**2. `src/lib/ai/inbox-reason.server.ts` — `buildDocumentItem`**
+**4. Dòng hàng hoá/dịch vụ (mới)** — đọc `proposal.items[]`; hiển thị tên item đầu tiên truncate, kèm `+N mục` nếu có nhiều dòng. Dấu chấm nhỏ làm bullet.
 
-- Bổ sung alias đọc OCR (ưu tiên giá trị có sẵn, fallback dần):
-  - `amount`     ← `ext.total_amount ?? ext.total ?? ext.amount`
-  - `supplier`   ← `… ?? ext.seller_legal_name`
-  - `supplierTaxId` ← `… ?? ext.seller_tax_code`
-  - `invoiceNo`  ← `ext.invoice_number ?? ext.invoice_no ?? ext.number`
-  - `subtotal`   ← `ext.net_amount ?? ext.subtotal ?? max(0, amount-vat)`
-- Chuẩn hoá `invoice_date`: nếu match `dd/mm/yyyy` → đổi sang `yyyy-mm-dd`.
-- Build `items` từ `ext.items ?? ext.lines ?? ext.line_items`:
-  ```ts
-  items = rawItems.map(r => ({
-    name: r.item_name ?? r.name ?? r.description ?? "—",
-    qty: Number(r.quantity ?? r.qty) || undefined,
-    unit_price: Number(r.unit_price) || undefined,
-    amount: Number(r.total_amount ?? r.amount ?? 0),
-  }));
-  ```
-- Gắn `items` vào `proposal` ở cả hai nhánh: engine path (line 182–200) và fallback path (line 298–316).
+**5. Journal pills** — nâng cấp pill bút toán:
+- NỢ: nền indigo nhạt + viền indigo, label "NỢ" indigo-500, số TK indigo-900, separator dọc indigo-200, số tiền indigo-700.
+- CÓ: nền muted + viền border, giữ tone trung tính.
+- Cả hai dùng `tabular-nums` cho số tiền.
 
-**3. `src/components/inbox/inbox-item-sheet.tsx`**
+**6. Giữ nguyên** — blocker/followup banner, badge "Đang chat", badge match_ref, dot confidence band, prop signature (`item`, `active`, `onClick`, `registerRef`) — không ảnh hưởng phần còn lại của page.
 
-Thêm block mới giữa `VoucherMetaGrid` (line 299) và "Trust strip" (line 304):
-
-```text
-┌─ Hàng hoá / dịch vụ ───────────────┐
-│ 1. Phí kế toán Q4.2025  1×6.000.000  6.000.000đ │
-│ 2. Phí kế toán Q1.2026  1×6.000.000  6.000.000đ │
-└────────────────────────────────────┘
-```
-
-- Component `ProposalItemsList({ items })` — null nếu rỗng.
-- Mỗi dòng: STT · tên (truncate) · `qty × unit_price` (nếu có) · amount (right-align, tabular-nums).
-- Style đồng bộ với block "Bút toán đề xuất" (rounded-2xl, border, bg-muted/30, label uppercase tracking-widest).
-- Không thêm nút bấm, không edit-in-place — chỉ hiển thị.
-
-## Verify
-
-Sau khi áp dụng, mở 1 inbox item có `documents.ocr_extracted.items` (vd UUID đã trích trong DB): phải thấy đủ NCC, MST, các trường meta, và block "Hàng hoá / dịch vụ" liệt kê 2 dòng dịch vụ kế toán.
+### Kết quả
+Card sang hơn, phân cấp thị giác rõ (NCC vs số tiền), người dùng thấy ngay ngày HĐ + loại hàng hoá ngay trên list mà không cần mở sheet.

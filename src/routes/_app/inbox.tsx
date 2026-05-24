@@ -804,6 +804,16 @@ function Divider() {
 }
 
 /* ───────── Item Card ───────── */
+function formatDateVi(s?: string | number | null) {
+  if (!s) return null;
+  const str = String(s);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const m2 = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m2) return str.slice(0, 10);
+  return null;
+}
+
 function ItemCard({
   item,
   active,
@@ -822,34 +832,60 @@ function ItemCard({
   const isOutflow = item.source === "bank_statement" && !isInflow;
   const sign = item.source === "bank_statement" ? (isOutflow ? "−" : "+") : "";
 
+  const invoiceNo = item.proposal.meta?.invoice_no
+    ? String(item.proposal.meta.invoice_no)
+    : null;
+  const invoiceDate = formatDateVi(item.proposal.meta?.invoice_date as any);
+  const items = item.proposal.items ?? [];
+  const firstItem = items[0]?.name;
+  const moreItems = items.length > 1 ? items.length - 1 : 0;
+
   return (
     <li
       ref={registerRef}
       onClick={onClick}
       className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
-        "before:absolute before:inset-y-0 before:left-0 before:w-1",
-        bandRail(item.confidence_band),
+        "group relative cursor-pointer overflow-hidden rounded-xl border bg-card shadow-sm transition-all",
+        "hover:shadow-md hover:-translate-y-px",
         active
-          ? "border-primary/40 bg-primary/[0.04] shadow-sm before:w-1.5 before:bg-primary"
-          : "border-border/50 hover:border-border hover:bg-card/80",
+          ? "border-primary/40 bg-primary/[0.03] shadow-md ring-1 ring-primary/20"
+          : "border-border/60 hover:border-border",
       )}
     >
-      <div className="pl-4 pr-4 py-3">
-        {/* Row 1: source pill + sub + match + dot */}
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-0.5 font-medium text-foreground/80">
-            <SrcIcon className="h-3 w-3" />
-            {meta.label}
-          </span>
-          <span className="text-muted-foreground">{relTime(item.occurred_at)}</span>
-          {item.subtitle && item.source !== "bank_statement" && (
-            <>
-              <span className="text-muted-foreground">·</span>
-              <span className="truncate text-muted-foreground">{item.subtitle}</span>
-            </>
-          )}
-          <div className="ml-auto flex items-center gap-2">
+      {/* Confidence rail (floating, rounded) */}
+      <span
+        className={cn(
+          "pointer-events-none absolute left-1 top-3 bottom-3 w-1 rounded-full",
+          bandDot(item.confidence_band),
+        )}
+      />
+
+      <div className="pl-4 pr-4 py-3.5 flex flex-col gap-2.5">
+        {/* Top meta row */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[11px] min-w-0">
+            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-semibold uppercase tracking-wide text-muted-foreground">
+              <SrcIcon className="h-3 w-3" />
+              {meta.label}
+            </span>
+            <span className="text-muted-foreground/80">{relTime(item.occurred_at)}</span>
+            {invoiceNo && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="truncate text-muted-foreground tabular-nums">HĐ {invoiceNo}</span>
+              </>
+            )}
+            {invoiceDate && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="inline-flex items-center gap-1 text-muted-foreground/90 tabular-nums">
+                  <Calendar className="h-2.5 w-2.5" />
+                  {invoiceDate}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {active && (
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Đang chat
@@ -857,7 +893,7 @@ function ItemCard({
             )}
             {item.match_ref && (
               <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300">
-                <Link2 className="h-2.5 w-2.5" /> Khớp {item.match_ref.ref}
+                <Link2 className="h-2.5 w-2.5" /> {item.match_ref.ref}
               </span>
             )}
             <span
@@ -867,44 +903,94 @@ function ItemCard({
           </div>
         </div>
 
-        {/* Row 2: title + amount */}
-        <div className="mt-1.5 flex items-baseline justify-between gap-3">
-          <div className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+        {/* Title + amount */}
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="flex-1 text-[14px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
             {item.title}
-          </div>
-          <div className="shrink-0 text-[15px] font-semibold tabular-nums text-foreground">
-            {sign}
-            {VND(Math.abs(item.amount))} <span className="text-muted-foreground">đ</span>
+          </h3>
+          <div className="shrink-0 text-right">
+            <div className="text-[17px] font-bold leading-none tabular-nums text-foreground">
+              {sign}
+              {VND(Math.abs(item.amount))}
+              <span className="ml-0.5 text-[12px] font-medium text-muted-foreground">đ</span>
+            </div>
           </div>
         </div>
 
-        {/* Row 3: memo (for bank) */}
-        {item.source === "bank_statement" && item.subtitle && (
-          <div className="mt-0.5 text-[11px] italic text-muted-foreground">
-            "{item.subtitle}"
+        {/* Goods/services line */}
+        {firstItem && (
+          <div className="flex items-start gap-1.5 text-[11.5px] text-muted-foreground">
+            <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
+            <span className="truncate">
+              {firstItem}
+              {moreItems > 0 && (
+                <span className="ml-1 text-muted-foreground/70">+{moreItems} mục</span>
+              )}
+            </span>
           </div>
         )}
 
-        {/* Row 4: proposed entry pills */}
+        {/* Bank memo */}
+        {item.source === "bank_statement" && item.subtitle && (
+          <div className="text-[11px] italic text-muted-foreground">"{item.subtitle}"</div>
+        )}
+
+        {/* Proposed journal entries */}
         {item.proposal.lines.length > 0 && !item.blocker && (
-          <div className="mt-2 inline-flex flex-wrap gap-1.5 rounded-md bg-muted/40 px-2 py-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {item.proposal.lines.slice(0, 4).map((l, i) => {
-              const side = (l.debit ?? 0) > 0 ? "Nợ" : "Có";
-              const amount = (l.debit ?? 0) > 0 ? l.debit! : l.credit ?? 0;
+              const isDebit = (l.debit ?? 0) > 0;
+              const side = isDebit ? "NỢ" : "CÓ";
+              const amount = isDebit ? l.debit! : l.credit ?? 0;
               return (
-                <span key={i} className="font-mono text-[11px] text-foreground/85">
-                  <span className="text-muted-foreground">{side}</span>{" "}
-                  <span className="font-semibold">{l.account}</span>{" "}
-                  <span className="tabular-nums">{VND(amount)}</span>
-                </span>
+                <div
+                  key={i}
+                  className={cn(
+                    "inline-flex items-center rounded-md border px-2 py-1",
+                    isDebit
+                      ? "bg-indigo-50 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20"
+                      : "bg-muted/70 border-border/60",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "text-[10px] font-bold mr-1.5",
+                      isDebit ? "text-indigo-500 dark:text-indigo-400" : "text-muted-foreground",
+                    )}
+                  >
+                    {side}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[12px] font-semibold",
+                      isDebit ? "text-indigo-900 dark:text-indigo-100" : "text-foreground",
+                    )}
+                  >
+                    {l.account}
+                  </span>
+                  <span
+                    className={cn(
+                      "mx-1.5 h-3 w-px",
+                      isDebit ? "bg-indigo-200 dark:bg-indigo-500/30" : "bg-border",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-[12px] font-medium tabular-nums",
+                      isDebit ? "text-indigo-700 dark:text-indigo-200" : "text-foreground/80",
+                    )}
+                  >
+                    {VND(amount)}
+                  </span>
+                </div>
               );
             })}
           </div>
         )}
 
-        {/* Row 5: blocker / followup */}
+        {/* Blocker / followup */}
         {item.blocker ? (
-          <div className="mt-2 flex items-start gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1.5 text-[11px] text-rose-700 dark:text-rose-300">
+          <div className="flex items-start gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1.5 text-[11px] text-rose-700 dark:text-rose-300">
             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>
               {item.blocker.reason}
@@ -914,7 +1000,7 @@ function ItemCard({
             </span>
           </div>
         ) : item.followups[0] && item.confidence_band === "medium" ? (
-          <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+          <div className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-300">
             <Lightbulb className="mt-0.5 h-3 w-3 shrink-0" />
             <span>{item.followups[0]}</span>
           </div>
