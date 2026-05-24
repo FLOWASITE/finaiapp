@@ -94,6 +94,7 @@ export type AdaptedGraphInput = {
   extraEdges: ExtraEdge[];
   ruleAccountHints: Map<string, string[]>;
   ruleVendorHints: Map<string, string[]>;
+  vendorEnrichment: Map<string, VendorEnrichment>;
 };
 
 function normalize(s: string): string {
