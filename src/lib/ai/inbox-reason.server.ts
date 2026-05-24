@@ -521,6 +521,14 @@ export function buildInsightItem(insight: any): InboxItem {
       description: insight.title ?? "Cảnh báo AI",
       entry_date: insight.created_at.slice(0, 10),
       lines: [],
+      voucher_kind: "ai_insight",
+      meta: {
+        severity: insight.severity ?? null,
+        category: insight.category ?? null,
+        period: md.period ?? null,
+        metric: md.metric ?? null,
+        delta: md.delta ?? null,
+      },
     },
     reasoning: {
       summary: insight.body ?? "AI đã phát hiện điểm cần xem.",
