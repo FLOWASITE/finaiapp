@@ -868,6 +868,13 @@ function PurchaseVouchersPage() {
                                   </Link>
                                 </DropdownMenuItem>
                               )}
+                              {!r.stock_voucher_id && (
+                                <DropdownMenuItem asChild>
+                                  <Link to="/inventory/unposted">
+                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
