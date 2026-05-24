@@ -86,7 +86,7 @@ export function classifyLine(line: RawLine): LineClassification {
 
   const vote = (kind: LineKind, weight: number, label: string) => {
     scores[kind] += weight;
-    signals.push({ kind: kind as any, label, weight, votes: kind });
+    signals.push({ label, weight, votes: kind });
   };
 
   // 1) Đơn giá (trọng số 30)
