@@ -278,6 +278,22 @@ function InnerGraph() {
     return [];
   }, [selectedNode, edges, rules]);
 
+  const itemNeighbors = useMemo(() => {
+    if (!selectedNode || selectedNode.kind !== "item" || !selectedNode.item) {
+      return { vendors: [], accounts: [] };
+    }
+    const iid = `item:${selectedNode.item.id}`;
+    const vendorIds = edges
+      .filter((e) => e.target === iid && e.source.startsWith("vendor:"))
+      .map((e) => e.source.replace("vendor:", ""));
+    const accountIds = edges
+      .filter((e) => e.source === iid && e.target.startsWith("account:"))
+      .map((e) => e.target.replace("account:", ""));
+    const vendors = (adapted?.vendors ?? []).filter((v) => vendorIds.includes(v.id));
+    const accounts = (adapted?.accounts ?? []).filter((a) => accountIds.includes(a.id));
+    return { vendors, accounts };
+  }, [selectedNode, edges, adapted]);
+
   const insights = useMemo(() => {
     const orphanVendors = built.nodes.filter(
       (n) => n.type === "vendor" && (n.data.ruleCount ?? 0) === 0,
@@ -423,11 +439,11 @@ function InnerGraph() {
             node={selectedNode}
             onClose={() => setSelectedNode(null)}
             onEditRule={() => {
-              // v1 rules edit in the "Quy tắc" tab — emit event to switch tab
               window.dispatchEvent(new CustomEvent("ai-memory:go-rules"));
             }}
             onJumpTo={handleJumpTo}
             relatedRules={relatedRules}
+            itemNeighbors={itemNeighbors}
           />
         )}
       </div>
