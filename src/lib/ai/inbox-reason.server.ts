@@ -126,16 +126,41 @@ export async function buildDocumentItem(
   rules: Awaited<ReturnType<typeof loadActiveRules>>,
 ): Promise<InboxItem | null> {
   const ext = (doc.ocr_extracted ?? {}) as any;
-  const amount = Number(ext.total ?? ext.amount ?? 0);
+  const amount = Number(ext.total_amount ?? ext.total ?? ext.amount ?? 0);
   if (!amount) return null;
-  const supplierRaw = ext.supplier_name ?? ext.vendor_name ?? ext.seller_name ?? ext.partner;
+  const supplierRaw =
+    ext.supplier_name ?? ext.vendor_name ?? ext.seller_name ?? ext.seller_legal_name ?? ext.partner;
   const supplier = String(supplierRaw ?? "—");
-  const supplierTaxId = ext.supplier_tax_id ?? ext.vendor_tax_id ?? ext.seller_tax_id ?? ext.tax_id ?? null;
+  const supplierTaxId =
+    ext.supplier_tax_id ?? ext.vendor_tax_id ?? ext.seller_tax_id ?? ext.seller_tax_code ?? ext.tax_id ?? null;
   const invoiceNo = String(ext.invoice_no ?? ext.invoice_number ?? ext.number ?? "").trim();
   const vat = Number(ext.vat_amount ?? 0);
-  const subtotal = Number(ext.subtotal ?? Math.max(0, amount - vat));
-  const invoiceDate = ext.invoice_date ?? ext.issue_date ?? null;
+  const subtotal = Number(ext.net_amount ?? ext.subtotal ?? Math.max(0, amount - vat));
+  const rawInvoiceDate = ext.invoice_date ?? ext.issue_date ?? null;
+  const normInvoiceDate = (() => {
+    if (!rawInvoiceDate || typeof rawInvoiceDate !== "string") return rawInvoiceDate ?? null;
+    const m = rawInvoiceDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : rawInvoiceDate;
+  })();
+  const invoiceDate = normInvoiceDate;
   const date = (invoiceDate ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
+
+  const rawItems: any[] = Array.isArray(ext.items)
+    ? ext.items
+    : Array.isArray(ext.lines)
+    ? ext.lines
+    : Array.isArray(ext.line_items)
+    ? ext.line_items
+    : [];
+  const items = rawItems
+    .map((r: any) => ({
+      name: String(r?.item_name ?? r?.name ?? r?.description ?? "—"),
+      qty: Number(r?.quantity ?? r?.qty) || undefined,
+      unit_price: Number(r?.unit_price) || undefined,
+      amount: Number(r?.total_amount ?? r?.amount ?? 0),
+    }))
+    .filter((it) => it.name && it.name !== "—" || it.amount > 0);
+
 
   // If document is linked to an invoice, prefer the categorize engine
   // (single source of truth: vendor templates + rules + AI).
