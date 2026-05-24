@@ -457,8 +457,55 @@ export const uploadDocument = createServerFn({ method: "POST" })
       .select("id")
       .maybeSingle();
     if (insErr) throw new Error(insErr.message);
-    return { id: row?.id };
+    const docId = row?.id;
+    if (!docId) return { id: undefined, ocr_status: "failed" as const };
+
+    // Auto OCR + parse ngay sau khi upload
+    const kindMap: Record<string, "purchase_invoice" | "bank_statement" | "cash_voucher" | "auto"> = {
+      purchase_invoice: "purchase_invoice",
+      bank_statement: "bank_statement",
+      cash_voucher: "cash_voucher",
+    };
+    const kind = kindMap[data.doc_kind] ?? "auto";
+
+    await supabase.from("documents").update({ ocr_status: "processing" }).eq("id", docId);
+
+    try {
+      const { parseFileCore } = await import("@/lib/ai/parse-document.functions");
+      const result = await parseFileCore({
+        fileBase64: data.fileBase64,
+        mimeType: data.mimeType,
+        filename: data.filename,
+        kind,
+        supabase,
+        userId,
+      });
+      // parseFileCore tự cập nhật khi có ai_upload_id; với manual upload chưa có thì update trực tiếp
+      const { data: fresh } = await supabase
+        .from("documents")
+        .select("ai_upload_id")
+        .eq("id", docId)
+        .maybeSingle();
+      if (!fresh?.ai_upload_id) {
+        await supabase
+          .from("documents")
+          .update({
+            ocr_status: "done",
+            ocr_extracted: typeof result.parsed === "string" ? { raw: result.parsed } : result.parsed,
+            ai_upload_id: result.uploadId ?? null,
+          })
+          .eq("id", docId);
+      }
+      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages };
+    } catch (e: any) {
+      await supabase
+        .from("documents")
+        .update({ ocr_status: "failed", ocr_error: e?.message ?? "OCR failed" })
+        .eq("id", docId);
+      return { id: docId, ocr_status: "failed" as const, error: e?.message ?? "OCR failed" };
+    }
   });
+
 
 export const getDocument = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
