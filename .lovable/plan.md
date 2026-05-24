@@ -1,53 +1,43 @@
-## Mục tiêu
+## Bối cảnh
 
-Khi bấm **Duyệt & ghi sổ** với hoá đơn bán hàng trong Inbox AI:
-- Tạo đúng bản ghi trong **Phiếu bán hàng** (`sales_vouchers`), không chỉ tạo `sales_invoices`.
-- Phiếu bán hàng có dòng hàng hoá/dịch vụ đầy đủ.
-- Card Inbox AI đổi trạng thái sau khi duyệt, không còn nhìn như “chưa xử lý”.
-- Nếu tạo phiếu thất bại, UI phải báo lỗi thật, không được báo “Đã ghi sổ” giả.
+Phiếu hóa đơn `1C26TYY-00000138` ngày `2026-04-14` đã được tạo trong `sales_vouchers` sau khi duyệt từ Inbox AI, nhưng tab Phiếu bán hàng lọc mặc định "Tháng này" (tháng 5/2026) nên không thấy. Ngoài ra có 1 phiếu trùng `00000138` (thiếu tên KH).
 
-## Kế hoạch sửa
+## Các thay đổi
 
-1. **Sửa backend duyệt Inbox AI**
-   - Trong `src/lib/inbox-ai.functions.ts`, thay helper hiện tại bằng helper tạo/ghép **sales_vouchers** từ XML hoá đơn bán ra.
-   - Lấy dữ liệu từ `documents.ocr_extracted` và `ai_uploads.parsed._einvoice` để tránh thiếu dữ liệu khi một nguồn parse không đủ.
-   - Tìm/tạo khách hàng theo MST người mua.
-   - Tạo `sales_vouchers` với:
-     - `voucher_no` dạng `BHYYYY-xxxxx` hoặc theo số HĐ nếu phù hợp.
-     - `voucher_date`, `customer_name`, `customer_tax_id`, `customer_address`.
-     - `subtotal`, `vat_amount`, `total`, `payment_status='unpaid'`, `status='posted'`.
-     - `journal_entry_id` trỏ tới bút toán vừa tạo.
-   - Tạo `sales_voucher_lines` từ hàng hoá/dịch vụ XML với `qty`, `unit_price`, `amount`, `vat_rate`, `vat_amount`, `total`, tài khoản doanh thu/thuế mặc định.
-   - Vẫn có thể tạo/ghép `sales_invoices` để liên kết hoá đơn điện tử nếu cần, nhưng **danh sách Phiếu bán hàng sẽ đọc từ `sales_vouchers`**.
+### 1. Chuẩn hóa số phiếu bán hàng tự sinh từ Inbox AI
+Trong `src/lib/inbox-ai.functions.ts` (`materializeSalesVoucherFromDocument`):
+- Số phiếu tự sinh theo cùng định dạng mà module Phiếu bán hàng đang dùng: `BHYYYY-#####` (giống `nextVoucherNo` của `sales-vouchers.functions.ts`).
+- KHÔNG dùng `series-invoice_no` (như `1C26TYY-00000138`) làm `voucher_no` nữa.
+- Lưu `invoice_series` + `invoice_no` của HĐĐT vào cột riêng (hoặc trong `notes`) để vẫn tra cứu được, và dùng cặp này để chống trùng.
 
-2. **Không nuốt lỗi tạo phiếu**
-   - Hiện tại helper có thể fail nhưng `approveInboxItem` vẫn trả thành công nên UI báo “Đã ghi sổ”.
-   - Sửa để nếu document là `sales_invoice` mà không tạo/ghép được phiếu bán hàng thì server function ném lỗi rõ ràng.
-   - Chỉ đánh dấu chứng từ đã xử lý sau khi tạo phiếu/bút toán/decision thành công.
+### 2. Luôn tạo mới khách hàng nếu chưa có
+Helper hiện đã tự tạo customer khi không thấy MST trùng. Bổ sung:
+- Nếu MST người mua không có sẵn, cũng tự tạo customer mới (chỉ dùng tên + địa chỉ làm khoá phụ).
+- Sinh mã KH tự động dạng `KH#####` để không vi phạm ràng buộc unique.
+- Đảm bảo `customer_id` luôn được set vào phiếu bán hàng.
 
-3. **Sửa refresh UI sau duyệt**
-   - Trong `src/routes/_app/inbox.tsx`, sau duyệt thành công sẽ invalidate thêm:
-     - `sales-vouchers`
-     - `sales-invoices`
-     - `sales-dashboard`
-     - các query sổ sách liên quan qua helper hiện có.
-   - Với card vừa duyệt, cập nhật optimistic/local state sang `posted` hoặc loại khỏi Inbox ngay để người dùng thấy trạng thái đổi tức thì.
+### 3. Chống ghi sổ hóa đơn trùng (HARD STOP)
+Trong `approveInboxItem` của `src/lib/inbox-ai.functions.ts`:
+- Trước khi tạo bút toán + phiếu, kiểm tra trong `sales_vouchers` cùng tenant đã tồn tại phiếu có cùng (`invoice_series` + `invoice_no`) hoặc cùng số HĐĐT chưa.
+- Nếu trùng và phiếu cũ KHÔNG ở trạng thái `void`: ném lỗi rõ ràng "Hóa đơn `<series-no>` đã được ghi sổ — không ghi sổ trùng". UI sẽ hiển thị toast đỏ và card không chuyển trạng thái.
+- Nếu trùng nhưng phiếu cũ đã `void`: cho phép tạo lại.
 
-4. **Bổ sung hiển thị trạng thái card**
-   - Đảm bảo card dùng `processing_status='posted'` sau approve thay vì giữ `auto_ready/ready`.
-   - Nếu refresh server chưa kịp trả dữ liệu mới, UI vẫn hiển thị “Đã hạch toán/Đã ghi sổ” cho item vừa duyệt.
+### 4. Đổi bộ lọc mặc định Phiếu bán hàng sang "Năm này"
+Trong `src/routes/_app/sales/vouchers.tsx`:
+- Đổi `defaultPeriod` từ `getPresetRange("thisMonth")` sang `getPresetRange("thisYear")`.
+- Áp dụng tương tự cho điều kiện reset filter.
 
-5. **Kiểm tra dữ liệu hiện có**
-   - Backfill hoá đơn `1C26TYY_00000138.xml` đang có `sales_invoice_id` nhưng chưa có `sales_vouchers` tương ứng.
-   - Liên kết `sales_vouchers.journal_entry_id` với bút toán đã tạo để nó xuất hiện trong danh sách phiếu bán hàng và danh sách chứng từ/sổ sách.
-
-## File dự kiến sửa
-
-- `src/lib/inbox-ai.functions.ts`
-- `src/routes/_app/inbox.tsx`
+### 5. Dọn dữ liệu trùng hiện tại
+- Xóa phiếu trùng `00000138` (id `1ab5254f-a4fd-4257-810b-b29ed1bfd4ef`) và line tương ứng — phiếu này thiếu tên KH, MST.
+- Giữ lại phiếu `1C26TYY-00000138` (id `c27734d6-…`) đã có đầy đủ thông tin KH.
+- Đổi `voucher_no` của phiếu giữ lại sang `BH2026-00006` để đồng bộ với quy ước chuẩn (kế tiếp `BH2026-00005`).
 
 ## Xác nhận sau khi sửa
+- Mở tab Phiếu bán hàng: thấy phiếu `BH2026-00006` (Kim Oanh) trong danh sách năm này.
+- Thử duyệt lại cùng hóa đơn `1C26TYY-00000138` từ Inbox AI: phải báo lỗi "đã ghi sổ".
+- Duyệt 1 hóa đơn mới: tự tạo customer (nếu chưa có) + phiếu `BH2026-00007`.
 
-- Query database kiểm tra có dòng mới trong `sales_vouchers` và `sales_voucher_lines`.
-- Mở/refresh danh sách **Bán hàng → Phiếu bán hàng** phải thấy phiếu.
-- Card Inbox AI phải đổi trạng thái sau khi duyệt hoặc biến khỏi danh sách chờ xử lý.
+## File sửa
+- `src/lib/inbox-ai.functions.ts`
+- `src/routes/_app/sales/vouchers.tsx`
+- Backfill dữ liệu qua data migration
