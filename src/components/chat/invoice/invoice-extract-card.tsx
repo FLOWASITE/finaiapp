@@ -8,7 +8,8 @@ import {
   lookupLineClassifications,
 } from "@/lib/ai/line-classifications.functions";
 import { cn } from "@/lib/utils";
-import { kindMeta, normalizeLineName, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { classifyLine, kindMeta, normalizeLineName, type LineClassification, type LineKind } from "@/lib/ai/classify-line";
+import { lookupSupplierSignals } from "@/lib/ai/supplier-signals.functions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
