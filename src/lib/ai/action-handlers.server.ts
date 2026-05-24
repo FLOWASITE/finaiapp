@@ -268,6 +268,16 @@ const createPurchaseInvoice: ActionHandler = {
         lines: input.lines.map((l: any) => ({ ...l, line_type: "goods" })),
       },
     });
+    // Hook engine hạch toán: tự ghi sổ nếu agent.mode=auto & conf≥threshold,
+    // ngược lại tạo proposal "pending" cho KTT duyệt tại /categorize.
+    if (result?.id) {
+      try {
+        const { autoPostIfEligible } = await import("@/lib/categorize.functions");
+        await (autoPostIfEligible as any)({ data: { invoice_id: result.id } });
+      } catch (e: any) {
+        console.warn("[createPurchaseInvoice] autoPostIfEligible failed:", e?.message);
+      }
+    }
     return { ref_table: "invoices", ref_id: result?.id, message: "Đã tạo hoá đơn mua nháp" };
   },
 };

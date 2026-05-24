@@ -105,6 +105,7 @@ const FRONT_SECTIONS: NavSection[] = [
     label: "Xử lý",
     entries: [
       { to: "/inbox", label: "Inbox AI", icon: Inbox },
+      { to: "/categorize", label: "Hạch toán", icon: Calculator },
       { to: "/inbox?tab=review", label: "Cần xem lại", icon: AlertTriangle },
       { to: "/inbox?tab=posted", label: "Đã hạch toán", icon: BookOpenCheck },
     ],
@@ -378,6 +379,7 @@ export function AppSidebar() {
     if (activeSections !== FRONT_SECTIONS || !aiCounts) return activeSections;
     const map: Record<string, { badge: string | number; tone?: BadgeTone }> = {
       "/inbox": { badge: aiCounts.inbox },
+      "/categorize": { badge: aiCounts.categorize, tone: "danger" },
       "/inbox?tab=review": { badge: aiCounts.review, tone: "danger" },
       "/documents": { badge: aiCounts.documents, tone: "muted" },
       "/alerts": { badge: aiCounts.alerts, tone: "danger" },

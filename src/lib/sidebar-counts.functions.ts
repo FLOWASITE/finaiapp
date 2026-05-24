@@ -7,6 +7,7 @@ export type AiSidebarCounts = {
   documents: number;
   taxDaysLeft: number | null;
   alerts: number;
+  categorize: number;
 };
 
 function nextGtgtDeadlineDays(today = new Date()): number {
@@ -42,8 +43,7 @@ export const getAiSidebarCounts = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AiSidebarCounts> => {
     const { supabase } = context;
 
-    const [inbox, review, documents, alerts] = await Promise.all([
-      // Inbox AI: tài liệu đã OCR xong, chưa được gắn vào hoá đơn nào
+    const [inbox, review, documents, alerts, categorize] = await Promise.all([
       safeCount(
         supabase
           .from("documents")
@@ -52,23 +52,26 @@ export const getAiSidebarCounts = createServerFn({ method: "GET" })
           .is("invoice_id", null)
           .is("sales_invoice_id", null),
       ),
-      // Cần xem lại: OCR failed hoặc chưa review
       safeCount(
         supabase
           .from("documents")
           .select("id", { count: "exact", head: true })
           .in("ocr_status", ["failed", "processing"]),
       ),
-      // Tổng số tài liệu
       safeCount(
         supabase.from("documents").select("id", { count: "exact", head: true }),
       ),
-      // Cảnh báo: ai_insights chưa dismiss
       safeCount(
         supabase
           .from("ai_insights")
           .select("id", { count: "exact", head: true })
           .is("dismissed_at", null),
+      ),
+      safeCount(
+        supabase
+          .from("ai_journal_proposals")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
       ),
     ]);
 
@@ -77,6 +80,7 @@ export const getAiSidebarCounts = createServerFn({ method: "GET" })
       review,
       documents,
       alerts,
+      categorize,
       taxDaysLeft: nextGtgtDeadlineDays(),
     };
   });
