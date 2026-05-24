@@ -13,7 +13,11 @@ import {
   ShieldAlert,
   ShieldCheck,
   History,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -505,6 +509,24 @@ export function ContextTab() {
         luận. Mỗi dòng là một câu tiếng Việt — sửa trực tiếp, không cần code.
       </div>
 
+      <div className="flex items-start gap-2 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3 text-[12.5px] leading-relaxed text-[#26215C]">
+        <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-[#4F46C7]" />
+        <div className="flex-1">
+          <strong>Đồng bộ với Cài đặt → Tổ chức.</strong> Các mục có nhãn{" "}
+          <Badge variant="outline" className="border-[#4F46C7] bg-white align-middle text-[10px] text-[#4F46C7]">
+            Từ Tổ chức
+          </Badge>{" "}
+          tự động cập nhật từ hồ sơ pháp nhân. Sửa ở đâu cũng được — dữ liệu luôn nhất quán.
+        </div>
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium text-[#4F46C7] hover:underline"
+        >
+          Mở Tổ chức <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+
+
       {isEmpty ? (
         <div className="rounded-lg border-2 border-dashed bg-card p-5">
           <div className="mb-3 text-center">
@@ -632,13 +654,29 @@ function ContextRow({ item }: { item: MemoryContext }) {
     },
   });
 
+  const isManaged = item.source === "tenant";
+  const editableInline =
+    !isManaged ||
+    item.source_field === "company_name" ||
+    item.source_field === "tax_id" ||
+    item.source_field === "address";
+
   return (
     <div className="flex items-start gap-3 py-2.5">
       <div className="w-32 shrink-0 text-[12.5px] font-medium text-muted-foreground">
-        {item.label}
+        <div>{item.label}</div>
+        {isManaged && (
+          <Badge
+            variant="outline"
+            className="mt-1 border-[#4F46C7] bg-[#F5F4FE] px-1.5 py-0 text-[9.5px] font-medium text-[#4F46C7]"
+          >
+            <Link2 className="mr-0.5 h-2.5 w-2.5" />
+            Từ Tổ chức
+          </Badge>
+        )}
       </div>
       <div className="flex-1">
-        {editing ? (
+        {editing && editableInline ? (
           <div className="flex gap-2">
             <Textarea
               value={val}
@@ -670,15 +708,27 @@ function ContextRow({ item }: { item: MemoryContext }) {
               </Button>
             </div>
           </div>
-        ) : (
+        ) : editableInline ? (
           <button
             type="button"
             onClick={() => setEditing(true)}
             className="group flex w-full items-start gap-2 rounded-md px-1 py-0.5 text-left text-[13px] leading-relaxed hover:bg-muted/50"
           >
-            <span className="flex-1">{item.value_text}</span>
+            <span className="flex-1 whitespace-pre-line">{item.value_text}</span>
             <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
           </button>
+        ) : (
+          <div className="flex items-start gap-2 px-1 py-0.5 text-[13px] leading-relaxed">
+            <span className="flex-1 whitespace-pre-line text-muted-foreground">
+              {item.value_text}
+            </span>
+            <Link
+              to="/settings"
+              className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-[#4F46C7] hover:underline"
+            >
+              Sửa <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
         )}
       </div>
       <button
@@ -689,15 +739,18 @@ function ContextRow({ item }: { item: MemoryContext }) {
       >
         <History className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
       </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (confirm(`Xoá mục "${item.label}"?`)) delM.mutate({ data: { id: item.id } });
-        }}
-        className="opacity-30 transition-opacity hover:opacity-100"
-      >
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-      </button>
+      {!isManaged && (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Xoá mục "${item.label}"?`)) delM.mutate({ data: { id: item.id } });
+          }}
+          className="opacity-30 transition-opacity hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
+
 
       <SourceAppliedSheet
         open={usedOpen}

@@ -203,6 +203,8 @@ export type Database = {
           key: string
           label: string
           order_index: number
+          source: string
+          source_field: string | null
           tenant_id: string
           updated_at: string
           value_json: Json | null
@@ -216,6 +218,8 @@ export type Database = {
           key: string
           label: string
           order_index?: number
+          source?: string
+          source_field?: string | null
           tenant_id: string
           updated_at?: string
           value_json?: Json | null
@@ -229,6 +233,8 @@ export type Database = {
           key?: string
           label?: string
           order_index?: number
+          source?: string
+          source_field?: string | null
           tenant_id?: string
           updated_at?: string
           value_json?: Json | null
@@ -8807,6 +8813,7 @@ export type Database = {
         Args: { p_line_id: string }
         Returns: undefined
       }
+      sync_tenant_to_context: { Args: { p_tenant: string }; Returns: undefined }
       transition_document_status: {
         Args: {
           p_id: string

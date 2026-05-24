@@ -278,6 +278,23 @@ function OrganizationTab() {
         </div>
       )}
 
+      {/* AI Memory link */}
+      <Card className="border-[#C7D2FE] bg-[#EEF2FF]">
+        <CardContent className="flex flex-wrap items-center gap-3 py-3 text-[#26215C]">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4F46C7] text-white text-[12px] font-bold">AI</div>
+          <div className="flex-1 min-w-[200px]">
+            <p className="text-sm font-medium">Đồng bộ với Trí nhớ AI</p>
+            <p className="text-xs">
+              Tên pháp nhân, MST, địa chỉ, loại hình, liên hệ, người đại diện, ngành nghề và chế độ kế toán tự động cập nhật vào Bối cảnh DN.
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="border-[#4F46C7] text-[#4F46C7] hover:bg-white">
+            <Link to="/ai/memory">Mở Trí nhớ AI</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+
       {/* Hero */}
       <Card>
         <CardContent className="flex items-center gap-4 py-5">
