@@ -112,7 +112,7 @@ function yyyy(dateStr?: string): string {
   return String(d.getFullYear());
 }
 
-async function nextStockVoucherNo(
+export async function nextStockVoucherNo(
   supabase: any,
   tenantId: string | null,
   userId: string,

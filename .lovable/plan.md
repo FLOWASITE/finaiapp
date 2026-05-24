@@ -1,31 +1,41 @@
-# Tạo phiếu kho trực tiếp từ Phiếu mua/bán hàng
+# Phiếu nhập/xuất kho có hệ số phiếu riêng
 
-## Vấn đề hiện tại
-Khi bấm "Tạo phiếu xuất kho" / "Tạo phiếu nhập kho" trong dropdown của dòng phiếu bán/mua, hệ thống điều hướng sang `/inventory/unposted` rồi user phải tìm lại dòng đó, bấm nút lần nữa, chọn kho trong dialog → tốn 2 bước thừa.
+## Vấn đề
+Hiện khi tạo phiếu kho từ phiếu bán/mua, hệ thống đặt số phiếu kho **bám theo số phiếu gốc**:
+- `NK-{số phiếu mua}` (nhập kho từ phiếu mua)
+- `XK-{số phiếu bán}` (xuất kho từ phiếu bán)
+
+Trong khi đó, dự án đã có sẵn bộ sinh số phiếu kho riêng (`nextStockVoucherNo` trong `src/lib/inventory.functions.ts`) theo định dạng:
+- Nhập kho: `PNK{YYYY}-00001` (auto +1, scope theo tenant)
+- Xuất kho: `PXK{YYYY}-00001`
+
+→ Bộ sinh đẹp này hiện chỉ dùng khi tạo phiếu kho thủ công, còn các luồng tạo tự động bị bỏ qua nên số phiếu kho không liên tục và lẫn lộn với số phiếu mua/bán.
 
 ## Giải pháp
-Cho phép tạo phiếu kho **ngay tại chỗ** trên trang Bán hàng / Mua hàng, không rời màn hình.
+Mọi nơi tạo `stock_vouchers` tự động đều dùng `nextStockVoucherNo` để cấp số theo hệ riêng `PNK/PXK`. Vẫn tôn trọng `stock_voucher_no` nếu user nhập tay trên form (override).
 
-### Thay đổi UI
-1. **`src/routes/_app/sales/vouchers.tsx`** và **`src/routes/_app/purchases/vouchers.tsx`**:
-   - Đổi hành vi menu item "Tạo phiếu xuất/nhập kho": thay vì `navigate("/inventory/unposted")`, mở một **Dialog chọn kho** ngay trong trang.
-   - Dialog chứa: tên phiếu gốc, Select chọn kho (dùng `listWarehouses`), nút Xác nhận.
-   - Khi xác nhận → gọi `stickSalesStockVoucher` (sales) hoặc `stickStockVoucher` (purchases) trực tiếp.
-   - Thành công → toast + invalidate query danh sách phiếu, dòng được cập nhật `stock_voucher_id` nên menu item tự ẩn.
+### Thay đổi
+1. **`src/lib/inventory.functions.ts`**
+   - Đổi `async function nextStockVoucherNo` thành `export async function nextStockVoucherNo` để dùng chung.
 
-2. **Mặc định kho thông minh**: nếu user chỉ có 1 kho, auto-chọn; nếu có kho mặc định trong settings, ưu tiên. (Nếu chưa có khái niệm kho mặc định thì bỏ qua.)
+2. **`src/lib/purchase-vouchers.functions.ts`**
+   - Line 434 (luồng `postPurchaseVoucher` — tự tạo phiếu nhập khi ghi sổ):
+     `voucher_no: (v as any).stock_voucher_no || <gọi nextStockVoucherNo("in", v.voucher_date)>`
+   - Line 784 (`stickStockVoucher`): thay `NK-${v.voucher_no}` bằng `nextStockVoucherNo("in", v.voucher_date)`.
+   - Cập nhật `reason` giữ tham chiếu rõ ràng tới phiếu gốc (`Nhập kho từ phiếu mua {voucher_no}`).
 
-3. Giữ nguyên trang `/inventory/unposted` như một nơi tổng hợp để xử lý hàng loạt — không xoá, chỉ không còn là bước bắt buộc.
+3. **`src/lib/sales-vouchers.functions.ts`**
+   - Line 669 (luồng ghi sổ phiếu bán — tự tạo phiếu xuất): tương tự, `nextStockVoucherNo("out", ...)`.
+   - Line 1166 (`stickSalesStockVoucher`): tương tự cho xuất kho.
 
-### Các nút "Xuất kho (Tạo phiếu xuất)" / "Nhập kho (Tạo phiếu nhập)" ở `SplitActionButton` trên trang index
-- Giữ nguyên (đây là shortcut sang trang tổng hợp, hữu ích khi có nhiều phiếu chờ).
+### Không đụng đến
+- Các phiếu thu/chi/UNC (`PT-`, `BC-`, `PC-`, `UNC-`) — đó là số chứng từ tiền, sẽ xử lý sau nếu cần.
+- Schema database (`stock_vouchers.voucher_no` đã tồn tại + cột override `stock_voucher_no` trên phiếu mua/bán đã có).
+- Trang Kho/Phiếu nhập-xuất, Phiếu chưa nhập-xuất — chỉ hiển thị, không phải sửa.
 
-## Files sẽ sửa
-- `src/routes/_app/sales/vouchers.tsx` — thêm state dialog + mutation `stickSalesStockVoucher`
-- `src/routes/_app/purchases/vouchers.tsx` — thêm state dialog + mutation `stickStockVoucher`
-
-## Không thay đổi
-- Server functions (`stickSalesStockVoucher`, `stickStockVoucher`) đã sẵn sàng dùng inline.
-- Trang `/inventory/unposted` giữ nguyên.
+## Kết quả người dùng thấy
+- Phiếu nhập kho luôn có dạng `PNK2026-00007`, phiếu xuất `PXK2026-00012` — liên tục, đúng quy chuẩn kế toán.
+- Phần ghi chú/diễn giải vẫn ghi rõ "Nhập từ phiếu mua PM…/Xuất từ phiếu bán PB…" để truy vết.
+- User vẫn có thể tự nhập `stock_voucher_no` trên form phiếu mua/bán để ép số theo ý mình.
 
 Bạn duyệt để mình triển khai nhé?
