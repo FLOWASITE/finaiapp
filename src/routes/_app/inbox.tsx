@@ -1015,10 +1015,10 @@ function ItemCard({
             {item.processing_status && (
               <StatusBadge status={item.processing_status as ProcStatus} />
             )}
-            <div className="text-[17px] font-bold leading-none tabular-nums text-foreground">
+            <div className="text-[15px] font-bold leading-none tabular-nums text-foreground">
               {sign}
               {VND(Math.abs(item.amount))}
-              <span className="ml-0.5 text-[12px] font-medium text-muted-foreground">đ</span>
+              <span className="ml-0.5 text-[10.5px] font-medium text-muted-foreground">đ</span>
             </div>
           </div>
         </div>
