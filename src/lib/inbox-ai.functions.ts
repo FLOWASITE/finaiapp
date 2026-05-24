@@ -613,6 +613,11 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
+    // Chặn ghi sổ trùng hóa đơn bán ra (kiểm tra trước khi tạo journal entry)
+    if (data.source === "document") {
+      await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
+    }
+
     const { data: entry, error } = await supabase
       .from("journal_entries")
       .insert({
