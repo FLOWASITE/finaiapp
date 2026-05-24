@@ -1,5 +1,6 @@
 import type { Rule, RuleCondition, RuleAction } from "@/types/rule";
 import type { VendorEntity, AccountEntity, ItemEntity } from "@/data/sampleEntities";
+import type { LineKind } from "@/lib/ai/classify-line";
 
 export type NodeKind = "rule" | "vendor" | "account" | "item";
 
@@ -17,6 +18,11 @@ export type GraphNodeData = {
   status?: Rule["status"];
   accuracy?: number | null;
   appliedCount?: number;
+  // For vendor nodes
+  industryCode?: string | null;
+  industryLabel?: string | null;
+  historyDist?: Partial<Record<LineKind, number>> | null;
+  historyTotal?: number;
 };
 
 export type GraphEdgeData = {
