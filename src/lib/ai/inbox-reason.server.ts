@@ -146,6 +146,77 @@ export async function buildDocumentItem(
   const ext = (doc.ocr_extracted ?? {}) as any;
   const amount = Number(ext.total_amount ?? ext.total ?? ext.amount ?? 0);
   if (!amount) return null;
+
+  // ===== Hoá đơn BÁN RA: build proposal khách hàng + doanh thu =====
+  if (doc.doc_kind === "sales_invoice") {
+    const buyer = ext?._einvoice?.buyer ?? ext?.buyer ?? {};
+    const customer = String(buyer?.name ?? ext.customer_name ?? "Khách hàng");
+    const customerTaxId = buyer?.tax_id ?? ext.customer_tax_id ?? null;
+    const invoiceNoS = String(ext.invoice_no ?? ext.invoice_number ?? "").trim();
+    const vatS = Number(ext.vat_amount ?? 0);
+    const subtotalS = Number(ext.subtotal ?? Math.max(0, amount - vatS));
+    const rawDateS = ext.invoice_date ?? ext.issue_date ?? null;
+    const invoiceDateS = (() => {
+      if (!rawDateS || typeof rawDateS !== "string") return rawDateS ?? null;
+      const m = rawDateS.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      return m ? `${m[3]}-${m[2]}-${m[1]}` : rawDateS;
+    })();
+    const dateS = (invoiceDateS ?? doc.created_at ?? new Date().toISOString()).slice(0, 10);
+
+    const linesS: ProposalLine[] = [
+      { account: "131", debit: amount, memo: `Phải thu ${customer}` },
+      { account: "511", credit: subtotalS, memo: `Doanh thu — HĐ ${invoiceNoS}` },
+    ];
+    if (vatS > 0) linesS.push({ account: "3331", credit: vatS, memo: "Thuế GTGT đầu ra" });
+
+    const signalsS: ReasoningSignal[] = [
+      { kind: "match", label: "MST người bán = MST doanh nghiệp → HĐ bán ra", ok: true },
+    ];
+    if (doc.ocr_status === "done") signalsS.push({ kind: "match", label: "OCR đầy đủ", ok: true });
+    const confS = Math.min(95, 60 + (doc.ocr_status === "done" ? 20 : 0) + (vatS > 0 ? 10 : 0));
+
+    return {
+      id: `document:${doc.id}`,
+      external_id: doc.id,
+      source: "document",
+      source_label: `Hoá đơn ra · ${relativeTimeVi(doc.created_at)}`,
+      source_short: "BÁN",
+      title: customer,
+      subtitle: [invoiceNoS ? `HĐ ${invoiceNoS}` : null, doc.original_filename].filter(Boolean).join(" · "),
+      partner: customer,
+      amount,
+      occurred_at: doc.created_at,
+      confidence: confS,
+      confidence_band: bandOf(confS),
+      processing_status: deriveStatus({ ocr_status: doc.ocr_status, confidence: confS, signals: signalsS }),
+      proposal: {
+        description: `Bán hàng/dịch vụ ${customer}${invoiceNoS ? ` — HĐ ${invoiceNoS}` : ""}`,
+        entry_date: dateS,
+        lines: linesS,
+        voucher_kind: "sales_invoice",
+        meta: {
+          customer_name: customer,
+          customer_tax_id: customerTaxId,
+          invoice_no: invoiceNoS || null,
+          invoice_date: invoiceDateS,
+          subtotal: subtotalS || null,
+          vat_amount: vatS || null,
+          total: amount,
+          invoice_kind: "sales",
+        },
+      },
+      reasoning: {
+        summary: `Hoá đơn BÁN RA (MST người bán = MST DN). Ghi nhận doanh thu 511 + VAT đầu ra 3331.`,
+        signals: signalsS,
+      },
+      followups: [
+        `Doanh thu từ ${customer} năm nay?`,
+        "Khách này thường thanh toán bằng gì?",
+      ],
+      href: "/sales-invoices",
+    };
+  }
+
   const supplierRaw =
     ext.supplier_name ?? ext.vendor_name ?? ext.seller_name ?? ext.seller_legal_name ?? ext.partner;
   const supplier = String(supplierRaw ?? "—");
