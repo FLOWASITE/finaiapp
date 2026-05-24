@@ -1008,7 +1008,7 @@ function ItemCard({
 
         {/* Title + amount */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="flex-1 text-[14px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
+          <h3 className="flex-1 text-[13px] font-bold leading-snug tracking-tight text-foreground uppercase line-clamp-2">
             {item.title}
           </h3>
           <div className="shrink-0 text-right flex flex-col items-end gap-1">
