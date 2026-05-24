@@ -49,9 +49,14 @@ export type JournalProposalDTO = {
   invoice_id: string;
   source: ProposalSource;
   entries: ProposalEntry[];           // ≥1; tách nếu cat-009
-  confidence: number;                  // 0..1, agg of lines
+  confidence: number;                  // 0..1, agg of lines (đã calibrated)
+  base_confidence?: number;            // confidence trước khi áp signal weights
   warnings: ProposalWarning[];
   signals: ProposalSignal[];
+  /** Feature flags nhị phân/scalar dùng cho calibration job. */
+  signal_features?: Record<string, number>;
+  /** "auto" | "review" | "manual" theo ngưỡng calibration của tenant. */
+  band?: "auto" | "review" | "manual";
   alternatives: ProposalAlternative[];
   /** Mã rule áp dụng (cat-001, vendor-template id, ...) */
   applied_rules: string[];
