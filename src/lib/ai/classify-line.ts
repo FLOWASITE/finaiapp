@@ -33,13 +33,16 @@ export function kindMeta(kind: LineKind) {
   return KIND_META[kind];
 }
 
-const norm = (s?: string | null) =>
+export const normalizeLineName = (s?: string | null) =>
   (s ?? "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
     .trim();
+
+const norm = normalizeLineName;
 
 // ---- Đơn vị tính ----------------------------------------------------------
 const UNIT_GOODS = /\b(kg|gam|g|tan|hop|thung|chai|lon|goi|cuon|bao|tui|lit|l|m3|m2|met|cay|cuc|vien|tam|cuon|ream|toa|cuon)\b/;
