@@ -133,6 +133,21 @@ function AIMemoryPage() {
     };
   }, [qc]);
 
+  // Cross-component events from the Memory Graph
+  useEffect(() => {
+    const goRules = () => setTab("rules");
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["memory-graph"] });
+      qc.invalidateQueries({ queryKey: ["ai-memory"] });
+    };
+    window.addEventListener("ai-memory:go-rules", goRules);
+    window.addEventListener("ai-memory:invalidate", invalidate);
+    return () => {
+      window.removeEventListener("ai-memory:go-rules", goRules);
+      window.removeEventListener("ai-memory:invalidate", invalidate);
+    };
+  }, [qc]);
+
   const rules = data?.rules ?? [];
   const watch = data?.watch ?? [];
 
