@@ -70,13 +70,33 @@ export type PostedVoucherRef = {
   voucher_no: string;
 };
 
+export type MissingItemTypeGuess =
+  | "goods"
+  | "service"
+  | "material"
+  | "tool"
+  | "asset_alloc"
+  | "asset_tangible"
+  | "asset_intangible";
+
+export type MissingProductSuggestion = {
+  name: string;
+  /** AI-suggested item type (1 trong 7 loại). */
+  item_type: MissingItemTypeGuess;
+  /** Tài khoản kho/CP gợi ý kèm: 156/152/153/242/211/213/642... */
+  account: string;
+  /** 0..100 — độ tin cậy gợi ý. */
+  confidence: number;
+  /** Lý do ngắn để hiển thị tooltip. */
+  reason?: string;
+};
+
 export type MissingMasterData = {
   customer?: string;
   customer_tax_id?: string;
   supplier?: string;
   supplier_tax_id?: string;
-  products?: string[];
-  services?: string[];
+  products?: MissingProductSuggestion[];
 };
 
 export type InboxItem = {

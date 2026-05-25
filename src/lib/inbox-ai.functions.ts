@@ -9,6 +9,41 @@ import {
   loadActiveRules,
   type InboxItem,
 } from "@/lib/ai/inbox-reason.server";
+import {
+  classifyLineV2,
+  type LineKindV2,
+  type ClassifyContextV2,
+} from "@/lib/ai/classify-line-v2";
+import {
+  getTenantClassifyContext,
+  getVendorRolesAndVsic,
+  buildClassifyContextV2,
+} from "@/lib/categorize/classify-context.server";
+import type { MissingProductSuggestion, MissingItemTypeGuess } from "@/lib/ai/inbox-types";
+
+/** Map LineKindV2 (engine) → MissingItemTypeGuess (UI / products table). */
+function kindV2ToItemType(k: LineKindV2): MissingItemTypeGuess {
+  switch (k) {
+    case "service": return "service";
+    case "raw_material": return "material";
+    case "tools": return "tool";
+    case "prepaid": return "asset_alloc";
+    case "goods_for_resale": return "goods";
+    case "fixed_asset_tangible": return "asset_tangible";
+    case "fixed_asset_intangible": return "asset_intangible";
+  }
+}
+
+const KIND_V2_LABEL: Record<LineKindV2, string> = {
+  service: "Dịch vụ",
+  raw_material: "Nguyên vật liệu",
+  tools: "Công cụ dụng cụ",
+  prepaid: "Tài sản phân bổ",
+  goods_for_resale: "Hàng hoá",
+  fixed_asset_tangible: "TSCĐ hữu hình",
+  fixed_asset_intangible: "TSCĐ vô hình",
+};
+
 
 async function activeTenant(supabase: any, userId: string): Promise<string | null> {
   const { data } = await supabase
@@ -609,13 +644,16 @@ async function autoResolveMissingMaster(
     ? ext.line_items
     : [];
 
-  const names = Array.from(
-    new Set(
-      rawLines
-        .map((l: any) => (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim())
-        .filter((s: string) => s && s !== "—"),
-    ),
-  ).slice(0, 30);
+  const lineEntries = rawLines
+    .map((l: any) => ({
+      name: (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim(),
+      qty: Number(l.qty ?? l.quantity ?? 0) || null,
+      unit_price: Number(l.unit_price ?? l.price ?? 0) || null,
+      amount: Number(l.amount ?? l.total ?? 0) || null,
+      unit: (l.unit ?? l.uom ?? null) as string | null,
+    }))
+    .filter((l: any) => l.name && l.name !== "—");
+  const names = Array.from(new Set(lineEntries.map((l: any) => l.name))).slice(0, 30);
   if (names.length === 0) return;
 
   const { data: existing } = await supabase
@@ -624,19 +662,63 @@ async function autoResolveMissingMaster(
     .eq("tenant_id", tenantId)
     .in("name", names);
   const existSet = new Set<string>((existing ?? []).map((r: any) => String(r.name).toLowerCase()));
-  const toInsert = names.filter((n) => !existSet.has(n.toLowerCase()));
-  for (const nm of toInsert) {
+
+  // Build classify context (tenant + supplier nếu mua vào)
+  const tenantCfg = await getTenantClassifyContext(supabase, tenantId).catch(() => null);
+  let vendor: ClassifyContextV2["vendor"] | undefined;
+  if (tenantCfg && doc.doc_kind === "purchase_invoice") {
+    const seller = ein?.seller ?? ext?.seller ?? {};
+    const sellerTax = (seller.tax_id ?? ext?.supplier_tax_id ?? "").toString().trim();
+    if (sellerTax) {
+      const sup = await getVendorRolesAndVsic(
+        supabase,
+        await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", sellerTax)
+          .maybeSingle()
+          .then((r: any) => r.data?.id ?? null),
+      );
+      vendor = sup;
+    }
+  }
+  const ctxV2 = tenantCfg ? buildClassifyContextV2(tenantCfg, vendor) : null;
+
+  const seen = new Set<string>();
+  for (const li of lineEntries) {
+    const nm = li.name;
+    if (seen.has(nm.toLowerCase())) continue;
+    seen.add(nm.toLowerCase());
+    if (existSet.has(nm.toLowerCase())) continue;
+
+    let item_type: "goods" | "service" = "goods";
+    let stock_account = "156";
+    let unit = li.unit?.toString().trim() || "cái";
+    if (ctxV2) {
+      try {
+        const r = classifyLineV2(li, ctxV2);
+        const acct = accountForItemType(kindV2ToItemType(r.kind));
+        item_type = acct.item_type;
+        stock_account = acct.stock_account;
+        if (!li.unit) unit = acct.unit;
+      } catch {
+        /* fallback giữ nguyên */
+      }
+    }
+
     await supabase.from("products").insert({
       tenant_id: tenantId,
       user_id: userId,
       name: nm,
-      code: slug(nm, "HH"),
-      item_type: "goods",
-      stock_account: "156",
-      unit: "cái",
+      code: slug(nm, item_type === "service" ? "DV" : "HH"),
+      item_type,
+      stock_account,
+      unit,
     });
   }
 }
+
 // Enrich Inbox items with posted_voucher + missing master data
 // ============================================================
 function normName(s: string | null | undefined): string {
@@ -697,10 +779,15 @@ async function enrichDocumentItems(
   }
 
   // 3) Batch load master data để check missing
-  const [custRes, supRes, prodRes] = await Promise.all([
+  const [custRes, supRes, prodRes, tenantCfg] = await Promise.all([
     supabase.from("customers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
-    supabase.from("suppliers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
+    supabase
+      .from("suppliers")
+      .select("id, name, tax_id, industry_code, roles")
+      .eq("tenant_id", tenantId)
+      .limit(2000),
     supabase.from("products").select("id, code, name, item_type").eq("tenant_id", tenantId).limit(2000),
+    getTenantClassifyContext(supabase, tenantId).catch(() => null),
   ]);
   const custByTax = new Map<string, any>();
   const custByName = new Set<string>();
@@ -734,7 +821,15 @@ async function enrichDocumentItems(
 
     const meta = it.proposal.meta ?? {};
     const kind = it.proposal.voucher_kind;
-    const missing: { customer?: string; customer_tax_id?: string; supplier?: string; supplier_tax_id?: string; products?: string[]; services?: string[] } = {};
+    const missing: {
+      customer?: string;
+      customer_tax_id?: string;
+      supplier?: string;
+      supplier_tax_id?: string;
+      products?: MissingProductSuggestion[];
+    } = {};
+
+    let vendorForClassify: ClassifyContextV2["vendor"] | undefined;
 
     if (kind === "sales_invoice") {
       const taxId = meta.customer_tax_id ? String(meta.customer_tax_id).trim() : "";
@@ -752,22 +847,73 @@ async function enrichDocumentItems(
         missing.supplier = name;
         if (taxId) missing.supplier_tax_id = taxId;
       }
+      // Lấy vendor signals (vsic + roles) để classify mặt hàng chính xác hơn
+      const sup = taxId ? supByTax.get(taxId) : null;
+      if (sup) {
+        vendorForClassify = {
+          mst: sup.tax_id ?? null,
+          vsic: sup.industry_code ?? null,
+          roles: Array.isArray(sup.roles) ? sup.roles : [],
+        };
+      } else if (taxId) {
+        vendorForClassify = { mst: taxId, vsic: null, roles: [] };
+      }
     }
 
     const itemsArr = it.proposal.items ?? [];
-    const missingProducts: string[] = [];
+    const missingProducts: MissingProductSuggestion[] = [];
+    const ctxV2: ClassifyContextV2 | null = tenantCfg
+      ? buildClassifyContextV2(tenantCfg, vendorForClassify)
+      : null;
+
     for (const li of itemsArr) {
       const nm = (li.name ?? "").toString().trim();
       if (!nm || nm === "—") continue;
-      if (!prodByName.has(normName(nm))) missingProducts.push(nm);
+      if (prodByName.has(normName(nm))) continue;
+
+      // Mặc định fallback nếu chưa có context phân loại
+      let suggestion: MissingProductSuggestion = {
+        name: nm,
+        item_type: "goods",
+        account: "156",
+        confidence: 30,
+        reason: "Mặc định Hàng hoá (chưa đủ tín hiệu)",
+      };
+      if (ctxV2) {
+        try {
+          const r = classifyLineV2(
+            {
+              description: nm,
+              qty: typeof li.qty === "number" ? li.qty : null,
+              unit_price: typeof li.unit_price === "number" ? li.unit_price : null,
+              amount: typeof li.amount === "number" ? li.amount : null,
+              unit: null,
+            },
+            ctxV2,
+          );
+          const topSignal = [...r.signals].sort((a, b) => b.weight - a.weight)[0];
+          suggestion = {
+            name: nm,
+            item_type: kindV2ToItemType(r.kind),
+            account: r.account,
+            confidence: r.confidence,
+            reason: topSignal?.label ?? KIND_V2_LABEL[r.kind],
+          };
+        } catch {
+          // giữ fallback
+        }
+      }
+      missingProducts.push(suggestion);
+      if (missingProducts.length >= 8) break;
     }
-    if (missingProducts.length > 0) missing.products = missingProducts.slice(0, 8);
+    if (missingProducts.length > 0) missing.products = missingProducts;
 
     if (missing.customer || missing.supplier || (missing.products && missing.products.length > 0)) {
       it.missing = missing;
     }
   }
 }
+
 
 
 

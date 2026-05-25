@@ -811,6 +811,12 @@ function MissingMasterDataPanel({
     value: string;
     entity: MissingRowEntity;
     tax_id?: string;
+    suggestion?: {
+      item_type: MissingItemType;
+      account: string;
+      confidence: number;
+      reason?: string;
+    };
   };
   const rows: Row[] = [];
   if (missing.customer)
@@ -829,8 +835,21 @@ function MissingMasterDataPanel({
       entity: "supplier",
       tax_id: missing.supplier_tax_id,
     });
-  for (const p of missing.products ?? [])
-    rows.push({ key: `product:${p}`, label: "Hàng hoá / Dịch vụ", value: p, entity: "product" });
+  for (const p of missing.products ?? []) {
+    const it = (p.item_type ?? "goods") as MissingItemType;
+    rows.push({
+      key: `product:${p.name}`,
+      label: it === "service" ? "Dịch vụ" : "Hàng hoá",
+      value: p.name,
+      entity: it === "service" ? "service" : "product",
+      suggestion: {
+        item_type: it,
+        account: p.account ?? "156",
+        confidence: p.confidence ?? 0,
+        reason: p.reason,
+      },
+    });
+  }
   if (rows.length === 0) return null;
 
   const invalidate = (entity: MissingRowEntity) => {
@@ -845,7 +864,14 @@ function MissingMasterDataPanel({
   const handleCreate = async (r: Row) => {
     setPending(r.key);
     try {
-      const res = await createFn({ data: { entity: r.entity, name: r.value, tax_id: r.tax_id } });
+      const res = await createFn({
+        data: {
+          entity: r.entity,
+          name: r.value,
+          tax_id: r.tax_id,
+          item_type: r.suggestion?.item_type,
+        },
+      });
       setDoneKeys((prev) => new Set(prev).add(r.key));
       toast.success(
         res.existed
@@ -865,9 +891,10 @@ function MissingMasterDataPanel({
     setDraft({
       name: r.value,
       tax_id: r.tax_id ?? "",
-      item_type: r.entity === "service" ? "service" : "goods",
+      item_type: r.suggestion?.item_type ?? (r.entity === "service" ? "service" : "goods"),
     });
   };
+
 
   const handleSaveEdit = async (r: Row) => {
     setPending(r.key);
@@ -929,7 +956,23 @@ function MissingMasterDataPanel({
                         (MST {r.tax_id})
                       </span>
                     ) : null}
+                    {r.suggestion ? (
+                      <span
+                        className="ml-1.5 inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200"
+                        title={r.suggestion.reason ?? ""}
+                      >
+                        <Sparkles className="h-2.5 w-2.5" />
+                        {ITEM_TYPE_OPTIONS.find((o) => o.value === r.suggestion!.item_type)?.label ??
+                          r.suggestion.item_type}
+                        {r.suggestion.confidence > 0 ? (
+                          <span className="text-amber-700/70 dark:text-amber-300/70">
+                            · {r.suggestion.confidence}%
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : null}
                   </span>
+
                 </div>
                 {isDone ? (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
