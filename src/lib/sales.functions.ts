@@ -84,14 +84,15 @@ export const listSalesInvoices = createServerFn({ method: "GET" })
   });
 
 export const salesDashboardStats = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date().toISOString().slice(0, 10);
     const first = today.slice(0, 8) + "01";
     const { data: month } = await supabase
       .from("sales_invoices")
       .select("total, status, payment_status, paid_amount, due_date")
+      .eq("tenant_id", tenantId)
       .gte("issue_date", first)
       .neq("status", "void");
     const issued = (month ?? []).filter((r) => r.status === "issued");
@@ -103,6 +104,7 @@ export const salesDashboardStats = createServerFn({ method: "GET" })
     const { data: overdueRows } = await supabase
       .from("sales_invoices")
       .select("total, paid_amount")
+      .eq("tenant_id", tenantId)
       .lt("due_date", today)
       .in("payment_status", ["unpaid", "partial", "overdue"])
       .neq("status", "void");
