@@ -53,6 +53,7 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const { data: payments = [] } = await supabase
       .from("supplier_payments")
       .select("amount, method, pay_date, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .gte("pay_date", d90);
     const paid30 = (payments ?? []).filter((p: any) => p.pay_date >= d30).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
     const paid60 = (payments ?? []).filter((p: any) => p.pay_date >= d60).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
