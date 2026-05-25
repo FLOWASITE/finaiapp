@@ -45,6 +45,18 @@ export const saveLineClassification = createServerFn({ method: "POST" })
     if (!norm) throw new Error("Tên mặt hàng không hợp lệ");
     const taxId = data.supplier_tax_id ?? null;
 
+    // Derive kind_v2 if not provided — dùng business_types để chọn nhánh hợp lý
+    let kindV2: string | null = data.kind_v2 ?? null;
+    if (!kindV2) {
+      const { data: t } = await supabase
+        .from("tenants")
+        .select("business_types")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const { legacyKindToV2 } = await import("@/lib/ai/classify-line-v2");
+      kindV2 = legacyKindToV2(data.kind, (t?.business_types as any) ?? []);
+    }
+
     // Upsert: tìm bản ghi đã có theo (tenant, tax_id, name_norm)
     const { data: existing } = await supabase
       .from("ai_line_classifications")
