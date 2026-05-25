@@ -979,6 +979,8 @@ function CreateVoucherDialog({
   editId?: string | null;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
+  const updateFn = useServerFn(updatePurchaseVoucher);
+  const getFn = useServerFn(getPurchaseVoucher);
   const postFn = useServerFn(postPurchaseVoucher);
   const suggestNoFn = useServerFn(suggestVoucherNo);
   const linkInvFn = useServerFn(listLinkablePurchaseInvoices);
