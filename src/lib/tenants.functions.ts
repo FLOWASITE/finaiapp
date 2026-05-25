@@ -180,6 +180,12 @@ const UpdateTenantSchema = z.object({
   chief_accountant_name: z.string().max(255).nullish(),
   chief_accountant_cert_no: z.string().max(100).nullish(),
   preparer_name: z.string().max(255).nullish(),
+  business_types: z
+    .array(z.enum(["trading", "manufacturing", "service"]))
+    .max(3)
+    .nullish(),
+  ccdc_allocation_threshold: z.number().int().min(0).max(1_000_000_000).nullish(),
+  default_cost_center: z.enum(["627", "641", "642"]).nullish(),
 });
 
 const NULLABLE_COLS = new Set([
