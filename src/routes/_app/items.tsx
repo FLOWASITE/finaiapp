@@ -38,4 +38,3 @@ function ItemsLayout() {
     </div>
   );
 }
-

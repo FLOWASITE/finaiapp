@@ -44,7 +44,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,14 +79,30 @@ import {
 } from "lucide-react";
 
 type ItemType = "goods" | "service" | "combo";
-const ITEM_TYPE_LABEL: Record<ItemType, string> = { goods: "Hàng hóa", service: "Dịch vụ", combo: "Combo" };
+const ITEM_TYPE_LABEL: Record<ItemType, string> = {
+  goods: "Hàng hóa",
+  service: "Dịch vụ",
+  combo: "Combo",
+};
 const ITEM_TYPE_BADGE: Record<ItemType, string> = {
   goods: "bg-blue-50 text-blue-700 border-blue-200",
   service: "bg-emerald-50 text-emerald-700 border-emerald-200",
   combo: "bg-violet-50 text-violet-700 border-violet-200",
 };
 const CODE_PREFIX: Record<ItemType, string> = { goods: "HH", service: "DV", combo: "CB" };
-const UNIT_SUGGESTIONS = ["cái", "hộp", "thùng", "kg", "lít", "mét", "bộ", "chiếc", "giờ", "lần", "gói"];
+const UNIT_SUGGESTIONS = [
+  "cái",
+  "hộp",
+  "thùng",
+  "kg",
+  "lít",
+  "mét",
+  "bộ",
+  "chiếc",
+  "giờ",
+  "lần",
+  "gói",
+];
 
 export const Route = createFileRoute("/_app/items/")({ component: ItemsListPage });
 
@@ -181,8 +203,12 @@ function ItemsListPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Khai báo mặt hàng</h1>
           <p className="text-sm text-muted-foreground">
-            Khai báo hàng hoá, dịch vụ dùng chung cho bán hàng, mua hàng, hoá đơn. Để xem tồn kho & nhập/xuất, vào{" "}
-            <Link to="/inventory" className="text-primary hover:underline inline-flex items-center gap-1">
+            Khai báo hàng hoá, dịch vụ dùng chung cho bán hàng, mua hàng, hoá đơn. Để xem tồn kho &
+            nhập/xuất, vào{" "}
+            <Link
+              to="/inventory"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
               <Warehouse className="h-3 w-3" /> Kho
             </Link>
             .
@@ -212,7 +238,9 @@ function ItemsListPage() {
           <div className="space-y-1">
             <Label className="text-xs">Loại</Label>
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="goods">Hàng hóa</SelectItem>
@@ -224,11 +252,15 @@ function ItemsListPage() {
           <div className="space-y-1">
             <Label className="text-xs">Nhóm</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 {(categories ?? []).map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -236,7 +268,9 @@ function ItemsListPage() {
           <div className="space-y-1">
             <Label className="text-xs">Dùng cho</Label>
             <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="sell">Có thể bán</SelectItem>
@@ -248,7 +282,9 @@ function ItemsListPage() {
           <div className="space-y-1 md:col-span-1">
             <Label className="text-xs">Trạng thái</Label>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="active">Đang kinh doanh</SelectItem>
@@ -287,9 +323,13 @@ function ItemsListPage() {
                 const t = (p.item_type ?? "goods") as ItemType;
                 const isService = t === "service";
                 const checked = selected.has(p.id);
-                const lowStock = !isService && p.is_active && Number(p.on_hand) < Number(p.min_stock ?? 0);
+                const lowStock =
+                  !isService && p.is_active && Number(p.on_hand) < Number(p.min_stock ?? 0);
                 return (
-                  <tr key={p.id} className={`border-t border-border hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}>
+                  <tr
+                    key={p.id}
+                    className={`border-t border-border hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}
+                  >
                     <td className="px-3 py-2">
                       <Checkbox checked={checked} onCheckedChange={() => toggleOne(p.id)} />
                     </td>
@@ -302,7 +342,9 @@ function ItemsListPage() {
                         {p.name}
                       </button>
                       {p.notes ? (
-                        <div className="text-[11px] text-muted-foreground line-clamp-1">{p.notes}</div>
+                        <div className="text-[11px] text-muted-foreground line-clamp-1">
+                          {p.notes}
+                        </div>
                       ) : null}
                     </td>
                     <td className="px-3 py-2">
@@ -311,13 +353,21 @@ function ItemsListPage() {
                           {ITEM_TYPE_LABEL[t]}
                         </Badge>
                         {p.can_be_sold && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
-                            <Tag className="h-2.5 w-2.5 mr-0.5" />Bán
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200"
+                          >
+                            <Tag className="h-2.5 w-2.5 mr-0.5" />
+                            Bán
                           </Badge>
                         )}
                         {p.can_be_purchased && (
-                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />Mua
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+                          >
+                            <ShoppingCart className="h-2.5 w-2.5 mr-0.5" />
+                            Mua
                           </Badge>
                         )}
                         {!p.can_be_sold && !p.can_be_purchased && (
@@ -329,7 +379,9 @@ function ItemsListPage() {
                       {p.product_categories?.name ?? "—"}
                     </td>
                     <td className="px-3 py-2">{p.unit}</td>
-                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{p.barcode || "—"}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
+                      {p.barcode || "—"}
+                    </td>
                     <td className="px-3 py-2 text-right font-mono">{fmt(p.unit_price)}</td>
                     <td className="px-3 py-2 text-right font-mono text-muted-foreground">
                       {isService ? "—" : fmt(p.unit_cost)}
@@ -341,28 +393,39 @@ function ItemsListPage() {
                         <span className={lowStock ? "text-amber-600 font-semibold" : ""}>
                           {fmt(p.on_hand)}
                           {lowStock && (
-                            <AlertTriangle className="inline-block ml-1 h-3 w-3" aria-label="Dưới định mức" />
+                            <AlertTriangle
+                              className="inline-block ml-1 h-3 w-3"
+                              aria-label="Dưới định mức"
+                            />
                           )}
                         </span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{p.vat_rate ?? 0}%</td>
                     <td className="px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                      {(p.can_be_sold ? p.revenue_account || "—" : "—")}
+                      {p.can_be_sold ? p.revenue_account || "—" : "—"}
                       {" / "}
                       {isService
-                        ? (p.can_be_purchased ? p.expense_account || "—" : "—")
-                        : (p.cogs_account || "—")}
+                        ? p.can_be_purchased
+                          ? p.expense_account || "—"
+                          : "—"
+                        : p.cogs_account || "—"}
                       {" / "}
-                      {isService ? "—" : (p.stock_account || "—")}
+                      {isService ? "—" : p.stock_account || "—"}
                     </td>
                     <td className="px-3 py-2">
                       {p.is_active ? (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-green-50 text-green-700 border-green-200"
+                        >
                           Đang KD
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] bg-gray-50 text-gray-600 border-gray-200">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-gray-50 text-gray-600 border-gray-200"
+                        >
                           Ngừng
                         </Badge>
                       )}
@@ -453,7 +516,9 @@ function ItemsListPage() {
           onOpenChange={(o) => !o && setEditing(null)}
           initial={editing}
           categories={categories ?? []}
-          existingCodes={(products ?? []).filter((p: any) => p.id !== editing.id).map((p: any) => p.code)}
+          existingCodes={(products ?? [])
+            .filter((p: any) => p.id !== editing.id)
+            .map((p: any) => p.code)}
           units={(units as any[]) ?? []}
         />
       )}
@@ -488,8 +553,8 @@ function ItemsListPage() {
             <AlertDialogTitle>Xoá mặt hàng?</AlertDialogTitle>
             <AlertDialogDescription>
               Bạn có chắc muốn xoá <span className="font-mono">{deleting?.code}</span> —{" "}
-              <span className="font-medium">{deleting?.name}</span>? Nếu mặt hàng đã được dùng trong chứng từ,
-              hệ thống sẽ chặn xoá; hãy dùng chức năng <strong>Gộp</strong> thay thế.
+              <span className="font-medium">{deleting?.name}</span>? Nếu mặt hàng đã được dùng trong
+              chứng từ, hệ thống sẽ chặn xoá; hãy dùng chức năng <strong>Gộp</strong> thay thế.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -554,8 +619,15 @@ function ViewProductDialog({
           <InfoRow label="Giá bán" value={fmt(product.unit_price) + " ₫"} />
           {!isService && <InfoRow label="Giá vốn" value={fmt(product.unit_cost) + " ₫"} />}
           <InfoRow label="VAT" value={(product.vat_rate ?? 0) + "%"} />
-          {!isService && <InfoRow label="Tồn kho hiện tại" value={fmt(product.on_hand) + " " + product.unit} />}
-          {!isService && <InfoRow label="Tồn min / max" value={`${fmt(product.min_stock)} / ${fmt(product.max_stock)}`} />}
+          {!isService && (
+            <InfoRow label="Tồn kho hiện tại" value={fmt(product.on_hand) + " " + product.unit} />
+          )}
+          {!isService && (
+            <InfoRow
+              label="Tồn min / max"
+              value={`${fmt(product.min_stock)} / ${fmt(product.max_stock)}`}
+            />
+          )}
           <InfoRow label="Mã vạch" value={product.barcode || "—"} />
           <InfoRow label="Trạng thái" value={product.is_active ? "Đang kinh doanh" : "Ngừng"} />
           <InfoRow
@@ -566,9 +638,15 @@ function ViewProductDialog({
                 .join(" + ") || "—"
             }
           />
-          <InfoRow label="TK doanh thu" value={product.can_be_sold ? product.revenue_account || "—" : "—"} />
+          <InfoRow
+            label="TK doanh thu"
+            value={product.can_be_sold ? product.revenue_account || "—" : "—"}
+          />
           {isService ? (
-            <InfoRow label="TK chi phí" value={product.can_be_purchased ? product.expense_account || "—" : "—"} />
+            <InfoRow
+              label="TK chi phí"
+              value={product.can_be_purchased ? product.expense_account || "—" : "—"}
+            />
           ) : (
             <>
               <InfoRow label="TK kho" value={product.stock_account || "—"} />
@@ -578,7 +656,9 @@ function ViewProductDialog({
           {product.notes && (
             <div className="col-span-2">
               <div className="text-xs text-muted-foreground mb-1">Ghi chú</div>
-              <div className="rounded-md bg-muted/40 p-2 text-sm whitespace-pre-wrap">{product.notes}</div>
+              <div className="rounded-md bg-muted/40 p-2 text-sm whitespace-pre-wrap">
+                {product.notes}
+              </div>
             </div>
           )}
         </div>
@@ -590,7 +670,9 @@ function ViewProductDialog({
               </Link>
             </Button>
           )}
-          <Button variant="outline" onClick={onClose}>Đóng</Button>
+          <Button variant="outline" onClick={onClose}>
+            Đóng
+          </Button>
           <Button onClick={onEdit}>
             <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
           </Button>
@@ -641,9 +723,7 @@ function MergeDialog({
     const s = extraTargetSearch.trim().toLowerCase();
     return products
       .filter((p) => !selectedIds.includes(p.id))
-      .filter((p) =>
-        !s ? true : [p.code, p.name].some((v) => v?.toLowerCase().includes(s)),
-      )
+      .filter((p) => (!s ? true : [p.code, p.name].some((v) => v?.toLowerCase().includes(s))))
       .slice(0, 50);
   }, [needsExternalTarget, selected, products, selectedIds, extraTargetSearch]);
 
@@ -670,8 +750,8 @@ function MergeDialog({
             <GitMerge className="h-5 w-5 text-primary" /> Gộp mặt hàng
           </DialogTitle>
           <DialogDescription>
-            Chọn một mặt hàng <strong>đích</strong>. Mọi tham chiếu (chứng từ, tồn kho) từ các mặt hàng còn lại
-            sẽ được chuyển sang mặt hàng đích, và các mặt hàng nguồn sẽ bị xoá.
+            Chọn một mặt hàng <strong>đích</strong>. Mọi tham chiếu (chứng từ, tồn kho) từ các mặt
+            hàng còn lại sẽ được chuyển sang mặt hàng đích, và các mặt hàng nguồn sẽ bị xoá.
           </DialogDescription>
         </DialogHeader>
 
@@ -706,7 +786,9 @@ function MergeDialog({
                 </label>
               ))}
               {selected.length === 0 && candidates.length === 0 && (
-                <div className="px-3 py-6 text-center text-sm text-muted-foreground">Không có mặt hàng</div>
+                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  Không có mặt hàng
+                </div>
               )}
             </div>
           </div>
@@ -739,20 +821,27 @@ function MergeDialog({
           )}
 
           {target && sources.length === 0 && needsExternalTarget && (
-            <div className="text-xs text-muted-foreground">
-              Cần chọn ít nhất 2 mặt hàng để gộp.
-            </div>
+            <div className="text-xs text-muted-foreground">Cần chọn ít nhất 2 mặt hàng để gộp.</div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Huỷ
+          </Button>
           <Button
-            onClick={() => onConfirm(targetId, sources.map((s) => s.id))}
+            onClick={() =>
+              onConfirm(
+                targetId,
+                sources.map((s) => s.id),
+              )
+            }
             disabled={!canConfirm}
           >
             {isPending ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang gộp…</>
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang gộp…
+              </>
             ) : (
               <>Gộp vào {target?.code ?? ""}</>
             )}
@@ -793,11 +882,11 @@ const emptyForm = () => ({
 function fromProduct(p: any, mode: DialogMode) {
   return {
     id: mode === "edit" ? p.id : undefined,
-    code: mode === "duplicate" ? "" : p.code ?? "",
-    name: mode === "duplicate" ? `${p.name} (sao chép)` : p.name ?? "",
+    code: mode === "duplicate" ? "" : (p.code ?? ""),
+    name: mode === "duplicate" ? `${p.name} (sao chép)` : (p.name ?? ""),
     item_type: (p.item_type ?? "goods") as ItemType,
     unit: p.unit ?? "cái",
-    barcode: mode === "duplicate" ? "" : p.barcode ?? "",
+    barcode: mode === "duplicate" ? "" : (p.barcode ?? ""),
     unit_cost: Number(p.unit_cost ?? 0),
     unit_price: Number(p.unit_price ?? 0),
     min_stock: Number(p.min_stock ?? 0),
@@ -919,8 +1008,8 @@ function ProductDialog({
     mode === "edit"
       ? "Chỉnh sửa mặt hàng"
       : mode === "duplicate"
-      ? "Nhân bản mặt hàng"
-      : "Thêm hàng hoá / dịch vụ";
+        ? "Nhân bản mặt hàng"
+        : "Thêm hàng hoá / dịch vụ";
 
   return (
     <Dialog open={isOpen} onOpenChange={setOpen}>
@@ -950,8 +1039,8 @@ function ProductDialog({
                     active
                       ? "bg-background shadow-sm text-foreground"
                       : disabled
-                      ? "opacity-40 cursor-not-allowed text-muted-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                        ? "opacity-40 cursor-not-allowed text-muted-foreground"
+                        : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -971,7 +1060,11 @@ function ProductDialog({
 
           <TabsContent value="general" className="space-y-3 pt-4 min-h-[280px]">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Mã *" hint={codeDuplicate ? "Mã đã tồn tại" : undefined} error={codeDuplicate}>
+              <Field
+                label="Mã *"
+                hint={codeDuplicate ? "Mã đã tồn tại" : undefined}
+                error={codeDuplicate}
+              >
                 <AutoCodeInput
                   inputRef={codeRef}
                   value={form.code}
@@ -980,8 +1073,8 @@ function ProductDialog({
                     form.item_type === "goods"
                       ? "product_goods"
                       : form.item_type === "service"
-                      ? "product_service"
-                      : "product_combo"
+                        ? "product_service"
+                        : "product_combo"
                   }
                   placeholder={`${CODE_PREFIX[form.item_type]}0001`}
                   error={codeDuplicate}
@@ -989,7 +1082,10 @@ function ProductDialog({
                 />
               </Field>
               <Field label="Tên *">
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </Field>
               <Field label="ĐVT mặc định *">
                 <UnitPicker
@@ -1000,16 +1096,29 @@ function ProductDialog({
                 />
               </Field>
               <Field label="Nhóm">
-                <Select value={form.category_id ?? ""} onValueChange={(v) => setForm({ ...form, category_id: v || null })}>
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <Select
+                  value={form.category_id ?? ""}
+                  onValueChange={(v) => setForm({ ...form, category_id: v || null })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {categories.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
               {hasStock && (
                 <Field label="Mã vạch" full>
-                  <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Quét hoặc nhập mã vạch" />
+                  <Input
+                    value={form.barcode}
+                    onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                    placeholder="Quét hoặc nhập mã vạch"
+                  />
                 </Field>
               )}
               <Field label="Ghi chú" full>
@@ -1022,7 +1131,10 @@ function ProductDialog({
               </Field>
               <div className="col-span-2 rounded-lg border border-border bg-muted/20 p-3 space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Tính chất sử dụng {isService && <span className="text-emerald-600 normal-case">· quan trọng với dịch vụ</span>}
+                  Tính chất sử dụng{" "}
+                  {isService && (
+                    <span className="text-emerald-600 normal-case">· quan trọng với dịch vụ</span>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
@@ -1033,7 +1145,9 @@ function ProductDialog({
                     />
                     <div className="space-y-0.5">
                       <div className="text-sm font-medium">Có thể bán</div>
-                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn bán, phiếu bán</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Xuất hiện trong hoá đơn bán, phiếu bán
+                      </div>
                     </div>
                   </label>
                   <label className="flex items-start gap-2 rounded-md border border-border bg-background p-3 cursor-pointer hover:border-primary/50 transition-colors">
@@ -1044,7 +1158,9 @@ function ProductDialog({
                     />
                     <div className="space-y-0.5">
                       <div className="text-sm font-medium">Có thể mua</div>
-                      <div className="text-[11px] text-muted-foreground">Xuất hiện trong hoá đơn mua, phiếu mua</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Xuất hiện trong hoá đơn mua, phiếu mua
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -1058,11 +1174,17 @@ function ProductDialog({
           <TabsContent value="pricing" className="space-y-3 pt-4 min-h-[280px]">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Giá bán (VND)">
-                <NumberInput value={form.unit_price} onChange={(v) => setForm({ ...form, unit_price: v })} />
+                <NumberInput
+                  value={form.unit_price}
+                  onChange={(v) => setForm({ ...form, unit_price: v })}
+                />
               </Field>
               {hasStock && (
                 <Field label="Giá vốn (VND)">
-                  <NumberInput value={form.unit_cost} onChange={(v) => setForm({ ...form, unit_cost: v })} />
+                  <NumberInput
+                    value={form.unit_cost}
+                    onChange={(v) => setForm({ ...form, unit_cost: v })}
+                  />
                 </Field>
               )}
               <Field label="Thuế suất GTGT">
@@ -1070,7 +1192,9 @@ function ProductDialog({
                   value={String(form.vat_rate)}
                   onValueChange={(v) => setForm({ ...form, vat_rate: Number(v) })}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">0% / KCT</SelectItem>
                     <SelectItem value="5">5%</SelectItem>
@@ -1082,9 +1206,14 @@ function ProductDialog({
               <div className="col-span-2 flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
                 <div>
                   <div className="text-sm font-medium">Đang kinh doanh</div>
-                  <div className="text-xs text-muted-foreground">Mặt hàng hiển thị trong bán hàng / mua hàng</div>
+                  <div className="text-xs text-muted-foreground">
+                    Mặt hàng hiển thị trong bán hàng / mua hàng
+                  </div>
                 </div>
-                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+                />
               </div>
             </div>
           </TabsContent>
@@ -1104,10 +1233,16 @@ function ProductDialog({
               <Section title="Định mức tồn kho">
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Tồn tối thiểu">
-                    <NumberInput value={form.min_stock} onChange={(v) => setForm({ ...form, min_stock: v })} />
+                    <NumberInput
+                      value={form.min_stock}
+                      onChange={(v) => setForm({ ...form, min_stock: v })}
+                    />
                   </Field>
                   <Field label="Tồn tối đa">
-                    <NumberInput value={form.max_stock} onChange={(v) => setForm({ ...form, max_stock: v })} />
+                    <NumberInput
+                      value={form.max_stock}
+                      onChange={(v) => setForm({ ...form, max_stock: v })}
+                    />
                   </Field>
                 </div>
               </Section>
@@ -1117,21 +1252,37 @@ function ProductDialog({
               <div className="grid grid-cols-2 gap-3">
                 {form.can_be_sold && (
                   <Field label="TK doanh thu *" hint="TT133/TT200: 511x">
-                    <Input value={form.revenue_account} onChange={(e) => setForm({ ...form, revenue_account: e.target.value })} placeholder="511" />
+                    <Input
+                      value={form.revenue_account}
+                      onChange={(e) => setForm({ ...form, revenue_account: e.target.value })}
+                      placeholder="511"
+                    />
                   </Field>
                 )}
                 {form.can_be_purchased && isService && (
                   <Field label="TK chi phí khi mua *" hint="154 / 627 / 642">
-                    <Input value={form.expense_account ?? ""} onChange={(e) => setForm({ ...form, expense_account: e.target.value })} placeholder="642" />
+                    <Input
+                      value={form.expense_account ?? ""}
+                      onChange={(e) => setForm({ ...form, expense_account: e.target.value })}
+                      placeholder="642"
+                    />
                   </Field>
                 )}
                 {hasStock && (
                   <>
                     <Field label="TK kho" hint="156 - Hàng hoá / 155 - Thành phẩm">
-                      <Input value={form.stock_account} onChange={(e) => setForm({ ...form, stock_account: e.target.value })} placeholder="156" />
+                      <Input
+                        value={form.stock_account}
+                        onChange={(e) => setForm({ ...form, stock_account: e.target.value })}
+                        placeholder="156"
+                      />
                     </Field>
                     <Field label="TK giá vốn" hint="632 - Giá vốn hàng bán">
-                      <Input value={form.cogs_account} onChange={(e) => setForm({ ...form, cogs_account: e.target.value })} placeholder="632" />
+                      <Input
+                        value={form.cogs_account}
+                        onChange={(e) => setForm({ ...form, cogs_account: e.target.value })}
+                        placeholder="632"
+                      />
                     </Field>
                   </>
                 )}
@@ -1146,14 +1297,23 @@ function ProductDialog({
             <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">Ctrl+S</kbd> để lưu
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Huỷ</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Huỷ
+            </Button>
             {mode === "create" && (
               <Button variant="secondary" onClick={() => m.mutate(true)} disabled={!canSave}>
                 Lưu & thêm mới
               </Button>
             )}
             <Button onClick={() => m.mutate(false)} disabled={!canSave}>
-              {m.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Đang lưu…</> : "Lưu"}
+              {m.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang lưu…
+                </>
+              ) : (
+                "Lưu"
+              )}
             </Button>
           </div>
         </DialogFooter>
@@ -1165,7 +1325,9 @@ function ProductDialog({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
       {children}
     </div>
   );
@@ -1219,10 +1381,15 @@ function UnitPicker({
   const active = (units ?? []).filter((u: any) => u.is_active);
   const merged = useMemo(() => {
     const map = new Map<string, { code: string; name: string; usage?: number }>();
-    for (const u of active) map.set(u.code.toLowerCase(), { code: u.code, name: u.name, usage: u.usage ?? 0 });
-    for (const s of UNIT_SUGGESTIONS) if (!map.has(s.toLowerCase())) map.set(s.toLowerCase(), { code: s, name: s });
-    if (value && !map.has(value.toLowerCase())) map.set(value.toLowerCase(), { code: value, name: value });
-    return Array.from(map.values()).sort((a, b) => (b.usage ?? 0) - (a.usage ?? 0) || a.code.localeCompare(b.code));
+    for (const u of active)
+      map.set(u.code.toLowerCase(), { code: u.code, name: u.name, usage: u.usage ?? 0 });
+    for (const s of UNIT_SUGGESTIONS)
+      if (!map.has(s.toLowerCase())) map.set(s.toLowerCase(), { code: s, name: s });
+    if (value && !map.has(value.toLowerCase()))
+      map.set(value.toLowerCase(), { code: value, name: value });
+    return Array.from(map.values()).sort(
+      (a, b) => (b.usage ?? 0) - (a.usage ?? 0) || a.code.localeCompare(b.code),
+    );
   }, [active, value]);
   const [custom, setCustom] = useState(false);
   const inCatalog = useMemo(
@@ -1239,7 +1406,9 @@ function UnitPicker({
           placeholder={isService ? "lần / giờ" : "cái"}
           autoFocus
         />
-        <Button type="button" variant="ghost" size="sm" onClick={() => setCustom(false)}>Chọn</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setCustom(false)}>
+          Chọn
+        </Button>
       </div>
     );
   }
@@ -1247,7 +1416,9 @@ function UnitPicker({
   return (
     <div className="flex gap-1">
       <Select value={inCatalog ? value : ""} onValueChange={onChange}>
-        <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn đơn vị..." /></SelectTrigger>
+        <SelectTrigger className="flex-1">
+          <SelectValue placeholder="Chọn đơn vị..." />
+        </SelectTrigger>
         <SelectContent>
           {merged.map((u) => (
             <SelectItem key={u.code} value={u.code}>
@@ -1257,7 +1428,15 @@ function UnitPicker({
           ))}
         </SelectContent>
       </Select>
-      <Button type="button" variant="outline" size="sm" onClick={() => setCustom(true)} title="Nhập thủ công">+</Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setCustom(true)}
+        title="Nhập thủ công"
+      >
+        +
+      </Button>
     </div>
   );
 }

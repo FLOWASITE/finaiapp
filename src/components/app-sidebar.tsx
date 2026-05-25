@@ -1,31 +1,96 @@
 import * as React from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
-  LayoutDashboard, FileText, BookOpen, BookOpenCheck, LogOut, BarChart3, Landmark, Boxes,
-  Package, Wallet, Users, Receipt, ShoppingCart, Sparkles, Warehouse, Coins,
-  Command as CommandIcon, Settings, User as UserIcon, ChevronsUpDown,
-  Plus, FileSpreadsheet, Bot, UserCog, Shield, ShieldAlert,
-  ChevronRight, Contact as ContactIcon, PiggyBank, LineChart, Briefcase, Calculator,
-  ArrowLeft, Inbox, Send, KeyRound, Sun, Moon, TrendingDown, ArrowRightLeft, ArrowLeftRight, ScanBarcode, FileBarChart,
-  Lock, CreditCard, DatabaseBackup, ListChecks, ScrollText, Building2, Brain, AlertTriangle,
+  LayoutDashboard,
+  FileText,
+  BookOpen,
+  BookOpenCheck,
+  LogOut,
+  BarChart3,
+  Landmark,
+  Boxes,
+  Package,
+  Wallet,
+  Users,
+  Receipt,
+  ShoppingCart,
+  Sparkles,
+  Warehouse,
+  Coins,
+  Command as CommandIcon,
+  Settings,
+  User as UserIcon,
+  ChevronsUpDown,
+  Plus,
+  FileSpreadsheet,
+  Bot,
+  UserCog,
+  Shield,
+  ShieldAlert,
+  ChevronRight,
+  Contact as ContactIcon,
+  PiggyBank,
+  LineChart,
+  Briefcase,
+  Calculator,
+  ArrowLeft,
+  Inbox,
+  Send,
+  KeyRound,
+  Sun,
+  Moon,
+  TrendingDown,
+  ArrowRightLeft,
+  ArrowLeftRight,
+  ScanBarcode,
+  FileBarChart,
+  Lock,
+  CreditCard,
+  DatabaseBackup,
+  ListChecks,
+  ScrollText,
+  Building2,
+  Brain,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
 import { FinAILogo } from "@/components/FinAILogo";
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarGroup,
-  SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem,
-  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarRail, useSidebar,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem,
-  CommandList, CommandSeparator, CommandShortcut,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  DropdownMenuTrigger, DropdownMenuLabel,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -39,7 +104,13 @@ import { openAskAi } from "@/lib/open-ask-ai";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type BadgeTone = "new" | "muted" | "danger" | "default";
-type NavLeaf = { to: string; label: string; icon?: React.ElementType; badge?: string | number; badgeTone?: BadgeTone };
+type NavLeaf = {
+  to: string;
+  label: string;
+  icon?: React.ElementType;
+  badge?: string | number;
+  badgeTone?: BadgeTone;
+};
 type NavGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
 type NavEntry = NavLeaf | NavGroup;
 type NavSection = { label?: string; labelBadge?: string; entries: NavEntry[] };
@@ -48,9 +119,7 @@ const isGroup = (e: NavEntry): e is NavGroup => "items" in e;
 
 const SECTIONS: NavSection[] = [
   {
-    entries: [
-      { to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-    ],
+    entries: [{ to: "/dashboard", label: "Tổng quan", icon: LayoutDashboard }],
   },
   {
     label: "Vận hành",
@@ -138,9 +207,7 @@ const FRONT_SECTIONS: NavSection[] = [
 
 const EINVOICE_SECTIONS: NavSection[] = [
   {
-    entries: [
-      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
-    ],
+    entries: [{ to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft }],
   },
   {
     label: "Hoá đơn điện tử",
@@ -163,9 +230,7 @@ const EINVOICE_SECTIONS: NavSection[] = [
 
 const TAX_SECTIONS: NavSection[] = [
   {
-    entries: [
-      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
-    ],
+    entries: [{ to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft }],
   },
   {
     label: "Thuế",
@@ -186,9 +251,7 @@ const TAX_SECTIONS: NavSection[] = [
 
 const REPORTS_SECTIONS: NavSection[] = [
   {
-    entries: [
-      { to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft },
-    ],
+    entries: [{ to: "/dashboard", label: "Quay lại tổng quan", icon: ArrowLeft }],
   },
   {
     label: "Kế toán",
@@ -256,9 +319,7 @@ const REPORTS_SECTIONS: NavSection[] = [
 
 const SUPERADMIN_SECTIONS: NavSection[] = [
   {
-    entries: [
-      { to: "/dashboard", label: "← Về ứng dụng", icon: ArrowLeft },
-    ],
+    entries: [{ to: "/dashboard", label: "← Về ứng dụng", icon: ArrowLeft }],
   },
   {
     label: "Hệ thống",
@@ -270,9 +331,7 @@ const SUPERADMIN_SECTIONS: NavSection[] = [
   },
   {
     label: "Người dùng & bảo mật",
-    entries: [
-      { to: "/superadmin/security", label: "Bảo mật", icon: Lock },
-    ],
+    entries: [{ to: "/superadmin/security", label: "Bảo mật", icon: Lock }],
   },
   {
     label: "Nhật ký & sao lưu",
@@ -291,9 +350,6 @@ const SUPERADMIN_SECTIONS: NavSection[] = [
     ],
   },
 ];
-
-
-
 
 const QUICK_AI = [
   { label: "Tóm tắt doanh thu tháng này", to: "/chat" },
@@ -320,7 +376,9 @@ function useGroupOpenState(initialActive: Record<string, boolean>) {
   const setOpen = React.useCallback((label: string, open: boolean) => {
     setOpenMap((prev) => {
       const next = { ...prev, [label]: open };
-      try { localStorage.setItem(OPEN_STATE_KEY, JSON.stringify(next)); } catch {}
+      try {
+        localStorage.setItem(OPEN_STATE_KEY, JSON.stringify(next));
+      } catch {}
       return next;
     });
   }, []);
@@ -351,14 +409,14 @@ export function AppSidebar() {
   const activeSections = inSuperadminModule
     ? SUPERADMIN_SECTIONS
     : workspace === "front" && !inEinvoiceModule && !inTaxModule && !inReportsModule
-    ? FRONT_SECTIONS
-    : inTaxModule
-    ? TAX_SECTIONS
-    : inReportsModule
-    ? REPORTS_SECTIONS
-    : inEinvoiceModule
-    ? EINVOICE_SECTIONS
-    : SECTIONS;
+      ? FRONT_SECTIONS
+      : inTaxModule
+        ? TAX_SECTIONS
+        : inReportsModule
+          ? REPORTS_SECTIONS
+          : inEinvoiceModule
+            ? EINVOICE_SECTIONS
+            : SECTIONS;
 
   // Dùng cache chung cho user/profile/roles tránh fetch lặp.
   const { data: cu, isLoading: cuLoading } = useCurrentUser();
@@ -370,7 +428,12 @@ export function AppSidebar() {
   const { data: aiCounts } = useQuery({
     queryKey: ["sidebar", "ai-counts"],
     queryFn: () => fetchSidebarCounts(),
-    enabled: workspace === "front" && !inSuperadminModule && !inEinvoiceModule && !inTaxModule && !inReportsModule,
+    enabled:
+      workspace === "front" &&
+      !inSuperadminModule &&
+      !inEinvoiceModule &&
+      !inTaxModule &&
+      !inReportsModule,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -384,9 +447,10 @@ export function AppSidebar() {
       "/inbox?tab=review": { badge: aiCounts.review, tone: "danger" },
       "/documents": { badge: aiCounts.documents, tone: "muted" },
       "/alerts": { badge: aiCounts.alerts, tone: "danger" },
-      "/tax/gtgt": aiCounts.taxDaysLeft != null
-        ? { badge: `${aiCounts.taxDaysLeft} ngày`, tone: "danger" }
-        : { badge: "" },
+      "/tax/gtgt":
+        aiCounts.taxDaysLeft != null
+          ? { badge: `${aiCounts.taxDaysLeft} ngày`, tone: "danger" }
+          : { badge: "" },
     };
     return activeSections.map((s) => ({
       ...s,
@@ -450,7 +514,6 @@ export function AppSidebar() {
     [pathname, searchStr, allTos],
   );
 
-
   // Initial open = groups containing active route
   const initialOpen = React.useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -498,10 +561,7 @@ export function AppSidebar() {
   };
 
   const allLeaves = React.useMemo<NavLeaf[]>(
-    () =>
-      SECTIONS.flatMap((s) =>
-        s.entries.flatMap((e) => (isGroup(e) ? e.items : [e])),
-      ),
+    () => SECTIONS.flatMap((s) => s.entries.flatMap((e) => (isGroup(e) ? e.items : [e]))),
     [],
   );
 
@@ -529,8 +589,14 @@ export function AppSidebar() {
 
         <SidebarHeader className="relative border-b border-sidebar-border/40 px-3 py-3">
           <div className="flex items-center justify-between gap-2">
-            <Link to="/dashboard" className="group/brand flex items-center gap-2 min-w-0 transition-transform duration-300 hover:scale-[1.02]">
-              <FinAILogo height={collapsed ? 28 : 34} className="shrink-0 drop-shadow-[0_2px_8px_oklch(0.72_0.16_162/0.35)]" />
+            <Link
+              to="/dashboard"
+              className="group/brand flex items-center gap-2 min-w-0 transition-transform duration-300 hover:scale-[1.02]"
+            >
+              <FinAILogo
+                height={collapsed ? 28 : 34}
+                className="shrink-0 drop-shadow-[0_2px_8px_oklch(0.72_0.16_162/0.35)]"
+              />
               {!collapsed && (
                 <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate animate-fade-in">
                   AI Accounting · v3
@@ -682,8 +748,14 @@ export function AppSidebar() {
             <DropdownMenuContent side="top" align="start" className="w-56">
               <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Hồ sơ</DropdownMenuItem>
-              <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Cài đặt</DropdownMenuItem>
+              <DropdownMenuItem>
+                <UserIcon className="mr-2 h-4 w-4" />
+                Hồ sơ
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                Cài đặt
+              </DropdownMenuItem>
               {isSuperadmin && (
                 <>
                   <DropdownMenuSeparator />
@@ -695,16 +767,31 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme(); }}>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  toggleTheme();
+                }}
+              >
                 {theme === "dark" ? (
-                  <><Sun className="mr-2 h-4 w-4" />Chế độ sáng</>
+                  <>
+                    <Sun className="mr-2 h-4 w-4" />
+                    Chế độ sáng
+                  </>
                 ) : (
-                  <><Moon className="mr-2 h-4 w-4" />Chế độ tối</>
+                  <>
+                    <Moon className="mr-2 h-4 w-4" />
+                    Chế độ tối
+                  </>
                 )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />Đăng xuất
+              <DropdownMenuItem
+                onClick={signOut}
+                className="text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Đăng xuất
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -732,13 +819,16 @@ export function AppSidebar() {
           <CommandSeparator />
           <CommandGroup heading="Lệnh nhanh">
             <CommandItem onSelect={() => go("/cash")}>
-              <Plus className="mr-2 h-4 w-4" />Tạo phiếu thu / chi
+              <Plus className="mr-2 h-4 w-4" />
+              Tạo phiếu thu / chi
             </CommandItem>
             <CommandItem onSelect={() => go("/sales")}>
-              <Plus className="mr-2 h-4 w-4" />Tạo hoá đơn bán
+              <Plus className="mr-2 h-4 w-4" />
+              Tạo hoá đơn bán
             </CommandItem>
             <CommandItem onSelect={() => go("/reports")}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />Xuất BCTC
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Xuất BCTC
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
@@ -762,9 +852,7 @@ export function AppSidebar() {
 function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
   const Icon = item.icon ?? FileText;
   const [path, query] = item.to.split("?");
-  const search = query
-    ? Object.fromEntries(new URLSearchParams(query).entries())
-    : undefined;
+  const search = query ? Object.fromEntries(new URLSearchParams(query).entries()) : undefined;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -773,7 +861,7 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
         tooltip={item.label}
         className={cn(
           "relative group transition-all duration-200 hover:translate-x-px hover:bg-sidebar-accent/40",
-          active && "bg-sidebar-accent/60 shadow-[var(--shadow-sidebar-active)]"
+          active && "bg-sidebar-accent/60 shadow-[var(--shadow-sidebar-active)]",
         )}
       >
         <Link to={path} search={search as never}>
@@ -783,18 +871,27 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
           <Icon
             className={cn(
               "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
-              active && "text-sidebar-primary drop-shadow-[0_0_6px_oklch(0.72_0.16_162/0.55)]"
+              active && "text-sidebar-primary drop-shadow-[0_0_6px_oklch(0.72_0.16_162/0.55)]",
             )}
           />
-          <span className={cn("text-[13px] tracking-[-0.005em] truncate", active ? "font-semibold" : "font-medium")}>{item.label}</span>
+          <span
+            className={cn(
+              "text-[13px] tracking-[-0.005em] truncate",
+              active ? "font-semibold" : "font-medium",
+            )}
+          >
+            {item.label}
+          </span>
           {item.badge != null && item.badge !== "" && (
             <span
               className={cn(
                 "ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide tabular-nums",
                 item.badgeTone === "new" && "bg-[#4F46C7] text-white",
                 item.badgeTone === "danger" && "bg-rose-500/15 text-rose-600",
-                item.badgeTone === "muted" && "bg-transparent px-0 text-sidebar-foreground/45 font-medium",
-                (!item.badgeTone || item.badgeTone === "default") && "bg-sidebar-accent/60 text-sidebar-foreground/70",
+                item.badgeTone === "muted" &&
+                  "bg-transparent px-0 text-sidebar-foreground/45 font-medium",
+                (!item.badgeTone || item.badgeTone === "default") &&
+                  "bg-sidebar-accent/60 text-sidebar-foreground/70",
               )}
             >
               {item.badge}
@@ -807,7 +904,12 @@ function LeafItem({ item, active }: { item: NavLeaf; active: boolean }) {
 }
 
 function GroupItem({
-  group, open, onOpenChange, isActive, collapsed, onNavigate,
+  group,
+  open,
+  onOpenChange,
+  isActive,
+  collapsed,
+  onNavigate,
 }: {
   group: NavGroup;
   open: boolean;
@@ -852,11 +954,23 @@ function GroupItem({
             tooltip={group.label}
             className={cn(
               "group/btn transition-all duration-200 hover:translate-x-px hover:bg-sidebar-accent/40",
-              hasActiveChild && "text-sidebar-foreground"
+              hasActiveChild && "text-sidebar-foreground",
             )}
           >
-            <Icon className={cn("h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110", hasActiveChild && "text-sidebar-primary")} />
-            <span className={cn("flex-1 text-left text-[13px] tracking-[-0.005em]", hasActiveChild ? "font-semibold" : "font-medium")}>{group.label}</span>
+            <Icon
+              className={cn(
+                "h-4 w-4 transition-transform duration-200 group-hover/btn:scale-110",
+                hasActiveChild && "text-sidebar-primary",
+              )}
+            />
+            <span
+              className={cn(
+                "flex-1 text-left text-[13px] tracking-[-0.005em]",
+                hasActiveChild ? "font-semibold" : "font-medium",
+              )}
+            >
+              {group.label}
+            </span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-all duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[state=open]/collapsible:text-sidebar-primary" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -872,10 +986,14 @@ function GroupItem({
                 <SidebarMenuSubItem key={i.to}>
                   <SidebarMenuSubButton asChild isActive={active}>
                     <Link to={path} search={search as never}>
-                      <span className={cn(
-                        "text-[12.5px] tracking-[-0.005em] transition-colors",
-                        active ? "font-semibold text-sidebar-primary" : "text-sidebar-foreground/75 hover:text-sidebar-foreground"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[12.5px] tracking-[-0.005em] transition-colors",
+                          active
+                            ? "font-semibold text-sidebar-primary"
+                            : "text-sidebar-foreground/75 hover:text-sidebar-foreground",
+                        )}
+                      >
                         {i.label}
                       </span>
                       {i.badge != null && (
