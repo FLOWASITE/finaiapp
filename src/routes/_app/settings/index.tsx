@@ -411,96 +411,100 @@ function OrganizationTab() {
   const pct = progress.percent;
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Setup banner */}
-      {!isComplete && (
-        <Card className="border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10">
-          <CardContent className="flex flex-wrap items-center gap-3 py-3">
-            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-sm font-medium">Hồ sơ tổ chức chưa hoàn tất ({pct}%)</p>
-              <p className="text-xs text-muted-foreground">
-                Còn {progress?.missing?.length ?? 0} trường bắt buộc theo chuẩn kế toán Việt Nam.
-              </p>
+    <div className="space-y-5 pb-24">
+      {/* Hero card — gộp setup status + meta */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+            <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm shrink-0">
+              {form.logo_url ? (
+                <AvatarImage
+                  src={form.logo_url}
+                  alt={form.name}
+                  className="object-contain bg-white"
+                />
+              ) : null}
+              <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
+                {initials || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold truncate">
+                  {form.company_name || form.name || "(chưa đặt tên)"}
+                </h2>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+                  {ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}
+                </Badge>
+                {!canEdit && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Chỉ đọc
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {form.tax_id && <span>MST {form.tax_id}</span>}
+                {form.legal_form && (
+                  <span>
+                    {LEGAL_FORMS.find((f) => f.value === form.legal_form)?.label ?? form.legal_form}
+                  </span>
+                )}
+                {form.trade_name && <span className="truncate">{form.trade_name}</span>}
+              </div>
             </div>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/setup">
-                <Wand2 className="mr-1 h-3.5 w-3.5" />
-                Hoàn tất bằng Wizard
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-      {isComplete && (
-        <div className="flex items-center gap-2 text-xs text-emerald-600">
-          <CheckCircle2 className="h-3.5 w-3.5" /> Hồ sơ đã hoàn tất.
-        </div>
-      )}
-
-      {/* AI Memory link */}
-      <Card className="border-[#C7D2FE] bg-[#EEF2FF]">
-        <CardContent className="flex flex-wrap items-center gap-3 py-3 text-[#26215C]">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4F46C7] text-white text-[12px] font-bold">
-            AI
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-sm font-medium">Đồng bộ với Trí nhớ AI</p>
-            <p className="text-xs">
-              Tên pháp nhân, MST, địa chỉ, loại hình, liên hệ, người đại diện, ngành nghề và chế độ
-              kế toán tự động cập nhật vào Bối cảnh DN.
-            </p>
-          </div>
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            className="border-[#4F46C7] text-[#4F46C7] hover:bg-white"
-          >
-            <Link to="/ai/memory">Mở Trí nhớ AI</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Hero */}
-      <Card>
-        <CardContent className="flex items-center gap-4 py-5">
-          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm">
-            {form.logo_url ? (
-              <AvatarImage
-                src={form.logo_url}
-                alt={form.name}
-                className="object-contain bg-white"
-              />
-            ) : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
-              {initials || "?"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold truncate">
-                {form.company_name || form.name || "(chưa đặt tên)"}
-              </h2>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                {ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}
-              </Badge>
-              {!canEdit && (
-                <Badge variant="outline" className="text-[10px]">
-                  Chỉ đọc
+            <div className="flex items-center gap-2 sm:self-center">
+              {isComplete ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Hoàn tất
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="h-3 w-3" /> {pct}%
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {form.trade_name ||
-                (form.name && form.name !== form.company_name
-                  ? form.name
-                  : "Hồ sơ tổ chức đang hoạt động")}
-              {form.tax_id ? ` · MST ${form.tax_id}` : ""}
-            </p>
           </div>
+          {!isComplete && (
+            <>
+              <div className="h-1 w-full bg-muted">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 bg-amber-50/50 dark:bg-amber-950/10 px-5 py-2.5 text-xs">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="flex-1 min-w-0">
+                  Còn <b>{progress?.missing?.length ?? 0}</b> trường bắt buộc theo chuẩn kế toán Việt Nam.
+                </span>
+                <Button asChild size="sm" variant="outline" className="h-7">
+                  <Link to="/setup">
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Hoàn tất bằng Wizard
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* AI Memory — banner mảnh, dùng token */}
+      <div className="flex flex-wrap items-center gap-3 rounded-md border bg-accent/40 px-4 py-2.5 text-xs">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+          AI
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <span className="font-medium text-foreground">Đồng bộ với Trí nhớ AI · </span>
+          <span className="text-muted-foreground">
+            Mọi thay đổi tổ chức tự cập nhật vào Bối cảnh DN.
+          </span>
+        </div>
+        <Button asChild size="sm" variant="ghost" className="h-7">
+          <Link to="/ai/memory">Mở Trí nhớ AI</Link>
+        </Button>
+      </div>
+
 
       {/* 2-col layout: side nav + form */}
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
