@@ -205,9 +205,9 @@ export function TenantSwitcher() {
               {t.is_active && <Check className="h-4 w-4 text-primary shrink-0 mt-1" />}
             </DropdownMenuItem>
           ))}
-          {(data?.tenants ?? []).length === 0 && !isPending && (
+          {filtered.length === 0 && !isPending && (
             <div className="px-2 py-3 text-xs text-muted-foreground">
-              Chưa có tổ chức nào.
+              {search.trim() ? "Không tìm thấy tổ chức phù hợp." : "Chưa có tổ chức nào."}
             </div>
           )}
           <DropdownMenuSeparator />
