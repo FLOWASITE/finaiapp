@@ -264,7 +264,7 @@ const SECTIONS = [
   { id: "sec-business", label: "Thông tin doanh nghiệp", icon: <Building2 className="h-4 w-4" /> },
   { id: "sec-tax", label: "Thông tin kế toán thuế", icon: <Calculator className="h-4 w-4" /> },
   { id: "sec-activity", label: "Hoạt động kinh doanh", icon: <Package className="h-4 w-4" /> },
-  { id: "sec-reps", label: "Người đại diện & Chữ ký", icon: <UsersIcon className="h-4 w-4" /> },
+  { id: "sec-reps", label: "Người ký Báo cáo", icon: <UsersIcon className="h-4 w-4" /> },
 ];
 
 // Suy luận loại hình doanh nghiệp từ tên pháp nhân (theo cụm từ phổ biến tiếng Việt).
@@ -733,15 +733,6 @@ function OrganizationTab() {
                   </Field>
                 )}
 
-                {/* Ngành nghề kinh doanh */}
-                <Field label="Ngành nghề kinh doanh">
-                  <IndustryCombobox
-                    multi
-                    disabled={!canEdit}
-                    items={Array.isArray(form.industries) ? form.industries : []}
-                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
-                  />
-                </Field>
               </CardContent>
             </Card>
           </section>
@@ -885,7 +876,15 @@ function OrganizationTab() {
                   Hoạt động kinh doanh
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <Field label="Ngành nghề kinh doanh">
+                  <IndustryCombobox
+                    multi
+                    disabled={!canEdit}
+                    items={Array.isArray(form.industries) ? form.industries : []}
+                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                  />
+                </Field>
                 <BusinessActivitySection showWhyPanel={false} />
               </CardContent>
             </Card>
@@ -897,7 +896,7 @@ function OrganizationTab() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <UsersIcon className="h-4 w-4 text-primary" />
-                  Người đại diện & Chữ ký
+                  Người ký Báo cáo
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -919,29 +918,6 @@ function OrganizationTab() {
                         value={form.legal_rep_title ?? ""}
                         onChange={(e) => set("legal_rep_title", e.target.value)}
                         placeholder="VD: Giám đốc"
-                      />
-                    </Field>
-                    <Field label="Số CCCD / CMND">
-                      <Input
-                        disabled={!canEdit}
-                        value={form.legal_rep_id_no ?? ""}
-                        onChange={(e) => set("legal_rep_id_no", e.target.value)}
-                        placeholder="9 hoặc 12 số"
-                      />
-                    </Field>
-                    <Field label="Ngày cấp CCCD">
-                      <Input
-                        type="date"
-                        disabled={!canEdit}
-                        value={form.legal_rep_id_date ?? ""}
-                        onChange={(e) => set("legal_rep_id_date", e.target.value || null)}
-                      />
-                    </Field>
-                    <Field label="Điện thoại" className="md:col-span-2">
-                      <Input
-                        disabled={!canEdit}
-                        value={form.legal_rep_phone ?? ""}
-                        onChange={(e) => set("legal_rep_phone", e.target.value)}
                       />
                     </Field>
                   </div>
