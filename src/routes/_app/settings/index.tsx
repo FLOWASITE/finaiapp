@@ -264,7 +264,7 @@ const SECTIONS = [
   { id: "sec-business", label: "Thông tin doanh nghiệp", icon: <Building2 className="h-4 w-4" /> },
   { id: "sec-tax", label: "Thông tin kế toán thuế", icon: <Calculator className="h-4 w-4" /> },
   { id: "sec-activity", label: "Hoạt động kinh doanh", icon: <Package className="h-4 w-4" /> },
-  { id: "sec-reps", label: "Người đại diện & Chữ ký", icon: <UsersIcon className="h-4 w-4" /> },
+  { id: "sec-reps", label: "Người ký Báo cáo", icon: <UsersIcon className="h-4 w-4" /> },
 ];
 
 // Suy luận loại hình doanh nghiệp từ tên pháp nhân (theo cụm từ phổ biến tiếng Việt).
