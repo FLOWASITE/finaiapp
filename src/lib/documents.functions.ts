@@ -560,14 +560,15 @@ export const getDocument = createServerFn({ method: "GET" })
   });
 
 export const reparseDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context as any;
+    const { supabase, userId, tenantId } = context as any;
     const { data: doc, error } = await supabase
       .from("documents")
       .select("*")
       .eq("id", data.id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!doc) throw new Error("Không tìm thấy tài liệu");
