@@ -68,16 +68,18 @@ const SupplierSchema = z
   });
 
 export const listSuppliers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data, error } = await supabase
       .from("suppliers")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
 
 export const upsertSupplier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
