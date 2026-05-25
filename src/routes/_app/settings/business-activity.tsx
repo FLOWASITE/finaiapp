@@ -8,6 +8,7 @@ import {
   listProductCatalog,
   upsertProductCatalog,
   deleteProductCatalog,
+  bulkImportProductCatalog,
 } from "@/lib/product-catalog.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
