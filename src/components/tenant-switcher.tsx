@@ -139,13 +139,13 @@ export function TenantSwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[380px]">
             {showSpinner ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
             ) : (
               <Building2 className="h-3.5 w-3.5 shrink-0" />
             )}
-            <span className="truncate text-xs">{displayName}</span>
+            <span className="truncate text-xs" title={displayName}>{displayName}</span>
             {isFetching && !showSpinner ? (
               <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-50" />
             ) : (
@@ -153,7 +153,7 @@ export function TenantSwitcher() {
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuContent align="start" className="w-96">
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             Tổ chức của bạn
           </DropdownMenuLabel>
@@ -167,7 +167,7 @@ export function TenantSwitcher() {
                 {(t.company_name || t.name).charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{t.company_name || t.name}</div>
+                <div className="text-sm font-medium whitespace-normal break-words" title={t.company_name || t.name}>{t.company_name || t.name}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                     {ROLE_LABEL[t.role] ?? t.role}
