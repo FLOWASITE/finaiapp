@@ -356,8 +356,38 @@ export const listSalesDocuments = createServerFn({ method: "GET" })
       }
     }
 
+    // Lookup posted sales vouchers (Phiếu bán hàng + Phiếu xuất kho) — match by einvoice_series+no
+    const svByInvoiceId: Record<string, { voucher_no: string; stock_voucher_no: string | null }> = {};
+    const invList = Object.values(invoicesById) as any[];
+    const keyedInvs = invList.filter((i) => i.invoice_no);
+    if (keyedInvs.length > 0) {
+      const nos = keyedInvs.map((i) => String(i.invoice_no));
+      const { data: svs } = await context.supabase
+        .from("sales_vouchers")
+        .select("voucher_no, status, einvoice_series, einvoice_no, stock_voucher_no")
+        .eq("tenant_id", tenantId)
+        .in("einvoice_no", nos)
+        .neq("status", "void");
+      for (const sv of (svs ?? []) as any[]) {
+        const match = keyedInvs.find(
+          (i) =>
+            String(i.invoice_no) === String(sv.einvoice_no) &&
+            (!sv.einvoice_series ||
+              !i.invoice_series ||
+              String(i.invoice_series) === String(sv.einvoice_series)),
+        );
+        if (match) {
+          svByInvoiceId[match.id] = {
+            voucher_no: sv.voucher_no,
+            stock_voucher_no: sv.stock_voucher_no ?? null,
+          };
+        }
+      }
+    }
+
     const docToInv: Record<string, string> = {};
     for (const l of links ?? []) docToInv[l.document_id] = l.entity_id;
+
 
     const rows = docList.map((d: any) => {
       const invId = docToInv[d.id];
