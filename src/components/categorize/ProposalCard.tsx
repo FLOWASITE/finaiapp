@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { approveProposal, skipProposal } from "@/lib/categorize.functions";
 import type { JournalProposalDTO, ProposalEntry, ProposalLine } from "@/lib/categorize/types";
+import { AccountKindBadge } from "./AccountKindBadge";
+import { TscdConfirmDialog, type TscdConfirmResult } from "./TscdConfirmDialog";
 
 const confidenceHint = (pct: number) => {
   if (pct >= 85) return { label: "Độ tin cậy cao", detail: "Band ≥85%: precision lịch sử ~94%. Khuyến nghị duyệt nhanh." };
