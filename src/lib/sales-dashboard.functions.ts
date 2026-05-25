@@ -54,6 +54,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: receipts = [] } = await supabase
       .from("customer_receipts")
       .select("amount, method, pay_date")
+      .eq("tenant_id", tenantId)
       .gte("pay_date", d90);
     const collected30 = (receipts ?? []).filter((r: any) => r.pay_date >= d30).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     const collected60 = (receipts ?? []).filter((r: any) => r.pay_date >= d60).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
