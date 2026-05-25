@@ -63,6 +63,9 @@ const partySchema = z
     opening_balance_credit: z.number().min(0).default(0),
     notes: z.string().trim().max(1000).default(""),
     group_id: z.string().default(""),
+    roles: z
+      .array(z.enum(["resale_source", "raw_material_source", "service_provider", "asset_vendor"]))
+      .default([]),
     is_active: z.boolean().default(true),
   })
   .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {
