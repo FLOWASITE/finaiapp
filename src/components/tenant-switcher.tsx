@@ -139,13 +139,13 @@ export function TenantSwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[240px]">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[380px]">
             {showSpinner ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
             ) : (
               <Building2 className="h-3.5 w-3.5 shrink-0" />
             )}
-            <span className="truncate text-xs">{displayName}</span>
+            <span className="truncate text-xs" title={displayName}>{displayName}</span>
             {isFetching && !showSpinner ? (
               <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-50" />
             ) : (
