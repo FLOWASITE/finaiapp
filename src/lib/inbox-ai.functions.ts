@@ -9,6 +9,41 @@ import {
   loadActiveRules,
   type InboxItem,
 } from "@/lib/ai/inbox-reason.server";
+import {
+  classifyLineV2,
+  type LineKindV2,
+  type ClassifyContextV2,
+} from "@/lib/ai/classify-line-v2";
+import {
+  getTenantClassifyContext,
+  getVendorRolesAndVsic,
+  buildClassifyContextV2,
+} from "@/lib/categorize/classify-context.server";
+import type { MissingProductSuggestion, MissingItemTypeGuess } from "@/lib/ai/inbox-types";
+
+/** Map LineKindV2 (engine) → MissingItemTypeGuess (UI / products table). */
+function kindV2ToItemType(k: LineKindV2): MissingItemTypeGuess {
+  switch (k) {
+    case "service": return "service";
+    case "raw_material": return "material";
+    case "tools": return "tool";
+    case "prepaid": return "asset_alloc";
+    case "goods_for_resale": return "goods";
+    case "fixed_asset_tangible": return "asset_tangible";
+    case "fixed_asset_intangible": return "asset_intangible";
+  }
+}
+
+const KIND_V2_LABEL: Record<LineKindV2, string> = {
+  service: "Dịch vụ",
+  raw_material: "Nguyên vật liệu",
+  tools: "Công cụ dụng cụ",
+  prepaid: "Tài sản phân bổ",
+  goods_for_resale: "Hàng hoá",
+  fixed_asset_tangible: "TSCĐ hữu hình",
+  fixed_asset_intangible: "TSCĐ vô hình",
+};
+
 
 async function activeTenant(supabase: any, userId: string): Promise<string | null> {
   const { data } = await supabase
