@@ -382,6 +382,20 @@ export const approveProposal = createServerFn({ method: "POST" })
       await supabase.from("invoices").update({ status: "approved" }).eq("id", p.invoice_id);
     }
 
+    // ====== Promote kind_v2 vào ai_line_classifications (chỉ cho hóa đơn mua) ======
+    if (!isSales) {
+      try {
+        await learnLineClassificationsFromApproval(supabase, {
+          tenantId,
+          userId,
+          invoiceId: p.invoice_id,
+          lines: entry.lines as any[],
+        });
+      } catch (e) {
+        console.error("[approveProposal] learnLineClassifications failed:", (e as Error).message);
+      }
+    }
+
     try {
       const { tryLogAgentActivity } = await import("@/lib/ai-agents.server");
       if (!isSales) {
