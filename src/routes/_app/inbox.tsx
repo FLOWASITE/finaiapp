@@ -401,7 +401,7 @@ function InboxAiPage() {
     (it: InboxItem) => {
       const finish = () => {
         toast.success(`Đã ghi sổ: ${it.title}`);
-        setSheetItem(null);
+        // Giữ sheet mở để hiển thị nút "Xem phiếu" và trạng thái mới
       };
       if (isMock(it)) {
         dismissMock(it.id);
