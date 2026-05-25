@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -39,6 +39,7 @@ import {
   appendMessage,
 } from "@/lib/chat-threads.functions";
 import { getDocument } from "@/lib/documents.functions";
+import { createMissingMaster } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
