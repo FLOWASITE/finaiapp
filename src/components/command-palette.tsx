@@ -44,32 +44,116 @@ type GoItem = {
 };
 
 const GO_ITEMS: GoItem[] = [
-  { label: "Hộp việc", to: "/inbox", group: "Tổng quan", icon: InboxIcon, keywords: ["inbox", "home"] },
-  { label: "Bảng điều khiển", to: "/dashboard", group: "Tổng quan", icon: LayoutDashboard, keywords: ["dashboard"] },
+  {
+    label: "Hộp việc",
+    to: "/inbox",
+    group: "Tổng quan",
+    icon: InboxIcon,
+    keywords: ["inbox", "home"],
+  },
+  {
+    label: "Bảng điều khiển",
+    to: "/dashboard",
+    group: "Tổng quan",
+    icon: LayoutDashboard,
+    keywords: ["dashboard"],
+  },
   { label: "Trợ lý AI", to: "/chat", group: "Tổng quan", icon: Sparkles, keywords: ["chat", "ai"] },
 
-  { label: "Hóa đơn điện tử (HĐĐT)", to: "/einvoices", group: "HĐĐT", icon: FileText, keywords: ["hddt", "einvoice"] },
-  { label: "Hóa đơn bán hàng", to: "/sales", group: "HĐĐT", icon: ShoppingCart, keywords: ["ban hang", "sales"] },
-  { label: "Hóa đơn mua hàng", to: "/purchases", group: "HĐĐT", icon: Truck, keywords: ["mua hang", "purchase"] },
+  {
+    label: "Hóa đơn điện tử (HĐĐT)",
+    to: "/einvoices",
+    group: "HĐĐT",
+    icon: FileText,
+    keywords: ["hddt", "einvoice"],
+  },
+  {
+    label: "Hóa đơn bán hàng",
+    to: "/sales",
+    group: "HĐĐT",
+    icon: ShoppingCart,
+    keywords: ["ban hang", "sales"],
+  },
+  {
+    label: "Hóa đơn mua hàng",
+    to: "/purchases",
+    group: "HĐĐT",
+    icon: Truck,
+    keywords: ["mua hang", "purchase"],
+  },
 
-  { label: "Thuế GTGT", to: "/tax/gtgt", group: "Thuế", icon: Receipt, keywords: ["vat", "gtgt", "thue"] },
-  { label: "Báo cáo", to: "/reports", group: "Báo cáo", icon: BarChart3, keywords: ["report", "bao cao"] },
+  {
+    label: "Thuế GTGT",
+    to: "/tax/gtgt",
+    group: "Thuế",
+    icon: Receipt,
+    keywords: ["vat", "gtgt", "thue"],
+  },
+  {
+    label: "Báo cáo",
+    to: "/reports",
+    group: "Báo cáo",
+    icon: BarChart3,
+    keywords: ["report", "bao cao"],
+  },
 
-  { label: "Phải thu", to: "/receivables", group: "Công nợ", icon: CircleDollarSign, keywords: ["ar"] },
+  {
+    label: "Phải thu",
+    to: "/receivables",
+    group: "Công nợ",
+    icon: CircleDollarSign,
+    keywords: ["ar"],
+  },
   { label: "Phải trả", to: "/payables", group: "Công nợ", icon: Wallet, keywords: ["ap"] },
 
-  { label: "Hàng hoá & Dịch vụ", to: "/items", group: "Kế toán", icon: Package, keywords: ["items", "products"] },
-  { label: "Kho — Tồn kho", to: "/inventory", group: "Kế toán", icon: Boxes, keywords: ["kho", "inventory"] },
+  {
+    label: "Khai báo mặt hàng",
+    to: "/items",
+    group: "Kế toán",
+    icon: Package,
+    keywords: ["items", "products", "hang hoa", "dich vu", "khai bao mat hang"],
+  },
+  {
+    label: "Kho — Tồn kho",
+    to: "/inventory",
+    group: "Kế toán",
+    icon: Boxes,
+    keywords: ["kho", "inventory"],
+  },
   { label: "Ngân hàng", to: "/bank", group: "Kế toán", icon: Banknote, keywords: ["bank"] },
-  { label: "Đối soát ngân hàng", to: "/bank/reconcile", group: "Kế toán", icon: Landmark, keywords: ["reconcile", "doi soat"] },
+  {
+    label: "Đối soát ngân hàng",
+    to: "/bank/reconcile",
+    group: "Kế toán",
+    icon: Landmark,
+    keywords: ["reconcile", "doi soat"],
+  },
   { label: "Tiền mặt", to: "/cash", group: "Kế toán", icon: Wallet, keywords: ["cash"] },
-  { label: "Tài sản", to: "/assets", group: "Kế toán", icon: Package, keywords: ["tsco", "assets"] },
+  {
+    label: "Tài sản",
+    to: "/assets",
+    group: "Kế toán",
+    icon: Package,
+    keywords: ["tsco", "assets"],
+  },
   { label: "Lương", to: "/payroll", group: "Kế toán", icon: Users, keywords: ["payroll", "luong"] },
   { label: "Sổ nhật ký", to: "/journal", group: "Kế toán", icon: FileText, keywords: ["journal"] },
   { label: "Hệ thống tài khoản", to: "/coa", group: "Kế toán", icon: FileText, keywords: ["coa"] },
 
-  { label: "Nhà cung cấp", to: "/suppliers", group: "Danh mục", icon: Truck, keywords: ["suppliers", "ncc"] },
-  { label: "Khách hàng", to: "/customers", group: "Danh mục", icon: Users, keywords: ["customers", "kh"] },
+  {
+    label: "Nhà cung cấp",
+    to: "/suppliers",
+    group: "Danh mục",
+    icon: Truck,
+    keywords: ["suppliers", "ncc"],
+  },
+  {
+    label: "Khách hàng",
+    to: "/customers",
+    group: "Danh mục",
+    icon: Users,
+    keywords: ["customers", "kh"],
+  },
 
   { label: "Cài đặt", to: "/settings", group: "Hệ thống", icon: Settings, keywords: ["settings"] },
   { label: "Quản trị", to: "/admin", group: "Hệ thống", icon: Building2, keywords: ["admin"] },
@@ -83,12 +167,37 @@ type ActionItem = {
 };
 
 const ACTIONS: ActionItem[] = [
-  { label: "Tạo phiếu thu", intent: "Tạo phiếu thu: ", icon: Banknote, keywords: ["thu", "receipt"] },
-  { label: "Tạo phiếu chi", intent: "Tạo phiếu chi: ", icon: Banknote, keywords: ["chi", "payment"] },
-  { label: "Tạo hoá đơn bán", intent: "Tạo hoá đơn bán cho: ", icon: Receipt, keywords: ["ban", "sales"] },
-  { label: "Ghi nhận hoá đơn mua", intent: "Ghi nhận hoá đơn mua từ: ", icon: ShoppingCart, keywords: ["mua", "purchase"] },
+  {
+    label: "Tạo phiếu thu",
+    intent: "Tạo phiếu thu: ",
+    icon: Banknote,
+    keywords: ["thu", "receipt"],
+  },
+  {
+    label: "Tạo phiếu chi",
+    intent: "Tạo phiếu chi: ",
+    icon: Banknote,
+    keywords: ["chi", "payment"],
+  },
+  {
+    label: "Tạo hoá đơn bán",
+    intent: "Tạo hoá đơn bán cho: ",
+    icon: Receipt,
+    keywords: ["ban", "sales"],
+  },
+  {
+    label: "Ghi nhận hoá đơn mua",
+    intent: "Ghi nhận hoá đơn mua từ: ",
+    icon: ShoppingCart,
+    keywords: ["mua", "purchase"],
+  },
   { label: "Nhập file (PDF/ảnh)", intent: "", icon: Plus, keywords: ["upload", "tai len"] },
-  { label: "Đối soát sao kê", intent: "Đối soát sao kê ngân hàng kỳ này", icon: Landmark, keywords: ["reconcile"] },
+  {
+    label: "Đối soát sao kê",
+    intent: "Đối soát sao kê ngân hàng kỳ này",
+    icon: Landmark,
+    keywords: ["reconcile"],
+  },
 ];
 
 const QUESTIONS: string[] = [
@@ -185,12 +294,11 @@ export function CommandPalette() {
 
         {showSmartAction && (
           <CommandGroup heading="✨ Hành động thông minh">
-            <CommandItem
-              value={`smart-action ${trimmed}`}
-              onSelect={() => ask(trimmed)}
-            >
+            <CommandItem value={`smart-action ${trimmed}`} onSelect={() => ask(trimmed)}>
               <Plus className="mr-2 h-4 w-4 text-primary" />
-              <span>Tạo: <span className="font-medium">{trimmed}</span></span>
+              <span>
+                Tạo: <span className="font-medium">{trimmed}</span>
+              </span>
               <CommandShortcut>↵ AI</CommandShortcut>
             </CommandItem>
           </CommandGroup>
@@ -200,7 +308,9 @@ export function CommandPalette() {
           <CommandGroup heading="❔ Hỏi AI">
             <CommandItem value={`smart-ask ${trimmed}`} onSelect={() => ask(trimmed)}>
               <HelpCircle className="mr-2 h-4 w-4 text-primary" />
-              <span>Hỏi: <span className="font-medium">{trimmed}</span></span>
+              <span>
+                Hỏi: <span className="font-medium">{trimmed}</span>
+              </span>
               <CommandShortcut>↵ AI</CommandShortcut>
             </CommandItem>
           </CommandGroup>
