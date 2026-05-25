@@ -8,6 +8,7 @@ import {
   listProductCatalog,
   upsertProductCatalog,
   deleteProductCatalog,
+  bulkImportProductCatalog,
 } from "@/lib/product-catalog.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -317,7 +318,12 @@ function BusinessActivityPage() {
               )}
             </CardDescription>
           </div>
-          <ProductDialog onSaved={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })} upsertCat={upsertCat} />
+          <div className="flex items-center gap-2">
+            <CsvImportButton
+              onDone={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })}
+            />
+            <ProductDialog onSaved={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })} upsertCat={upsertCat} />
+          </div>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
@@ -536,5 +542,79 @@ function ProductDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------- CSV Import ----------
+function parseCsv(text: string): Array<{ name: string; sku?: string | null; aliases?: string[]; note?: string | null }> {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return [];
+  // Phát hiện header
+  const first = lines[0].toLowerCase();
+  const hasHeader = /name|tên|sku/.test(first);
+  const rows = hasHeader ? lines.slice(1) : lines;
+  const out: Array<{ name: string; sku?: string | null; aliases?: string[]; note?: string | null }> = [];
+  for (const raw of rows) {
+    // CSV split đơn giản — hỗ trợ dấu phẩy hoặc tab
+    const sep = raw.includes("\t") ? "\t" : ",";
+    const cols = raw.split(sep).map((c) => c.trim().replace(/^"|"$/g, ""));
+    if (!cols[0]) continue;
+    out.push({
+      name: cols[0],
+      sku: cols[1] || null,
+      aliases: cols[2] ? cols[2].split("|").map((s) => s.trim()).filter(Boolean) : [],
+      note: cols[3] || null,
+    });
+  }
+  return out;
+}
+
+function CsvImportButton({ onDone }: { onDone: () => void }) {
+  const bulkFn = useServerFn(bulkImportProductCatalog);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const handleFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const text = await file.text();
+      const items = parseCsv(text);
+      if (items.length === 0) {
+        toast.error("Không tìm thấy dòng hợp lệ trong tệp");
+        return;
+      }
+      const res = await bulkFn({ data: { items } });
+      toast.success(`Đã nhập ${res.inserted} mặt hàng${res.skipped ? ` (bỏ qua ${res.skipped})` : ""}`);
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Lỗi nhập danh mục");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.tsv,text/csv,text/tab-separated-values"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        title="Cột: tên, SKU, alias (ngăn cách |), ghi chú"
+      >
+        {busy ? "Đang nhập…" : "Nhập CSV"}
+      </Button>
+    </>
   );
 }

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 import { IndustryCombobox } from "@/components/industry-combobox";
 import { SetupStepper } from "@/components/setup-stepper";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/setup")({
   beforeLoad: async () => {
@@ -328,6 +329,76 @@ function FinanceStep({ form, set }: any) {
             </SelectContent>
           </Select>
         </Field>
+      </div>
+
+      <BusinessActivityBlock form={form} set={set} />
+    </div>
+  );
+}
+
+function BusinessActivityBlock({ form, set }: any) {
+  const types: Array<"trading" | "manufacturing" | "service"> = form.business_types ?? [];
+  const toggle = (t: "trading" | "manufacturing" | "service") => {
+    set("business_types", types.includes(t) ? types.filter((x) => x !== t) : [...types, t]);
+  };
+  const OPTIONS = [
+    { id: "trading" as const, label: "Thương mại", hint: "Mua đi bán lại → 156" },
+    { id: "manufacturing" as const, label: "Sản xuất", hint: "Mua NVL → 152, tạo 155" },
+    { id: "service" as const, label: "Dịch vụ", hint: "Chi phí trực tiếp 154/642" },
+  ];
+  return (
+    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+      <div>
+        <div className="text-sm font-semibold">Hoạt động kinh doanh</div>
+        <div className="text-xs text-muted-foreground">
+          Giúp Fin chọn đúng tài khoản (156 vs 152 vs 642…) khi hạch toán.
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {OPTIONS.map((o) => {
+          const checked = types.includes(o.id);
+          return (
+            <label
+              key={o.id}
+              className={cn(
+                "flex items-start gap-2 rounded-md border p-2 cursor-pointer text-xs",
+                checked ? "border-primary bg-primary/5" : "border-border",
+              )}
+            >
+              <input type="checkbox" checked={checked} onChange={() => toggle(o.id)} className="mt-0.5" />
+              <div>
+                <div className="font-medium">{o.label}</div>
+                <div className="text-muted-foreground">{o.hint}</div>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+      <div className="grid md:grid-cols-2 gap-4 pt-2">
+        <Field label="Ngưỡng phân loại CCDC (VND)" hint="Mặc định 5.000.000đ. Dưới ngưỡng → 153, trên → 242">
+          <Input
+            type="number"
+            min={0}
+            value={form.ccdc_allocation_threshold ?? 5000000}
+            onChange={(e) => set("ccdc_allocation_threshold", Number(e.target.value) || 0)}
+          />
+        </Field>
+        <Field label="Trung tâm chi phí mặc định">
+          <Select
+            value={form.default_cost_center ?? "642"}
+            onValueChange={(v) => set("default_cost_center", v)}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="627">627 — Chi phí sản xuất chung</SelectItem>
+              <SelectItem value="641">641 — Chi phí bán hàng</SelectItem>
+              <SelectItem value="642">642 — Chi phí quản lý doanh nghiệp</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        Sau khi hoàn tất khai báo, vào <strong>Cài đặt → Hoạt động kinh doanh</strong> để khai báo danh mục mặt hàng (tăng độ chính xác).
       </div>
     </div>
   );
