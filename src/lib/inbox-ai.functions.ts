@@ -732,10 +732,15 @@ async function enrichDocumentItems(
   }
 
   // 3) Batch load master data để check missing
-  const [custRes, supRes, prodRes] = await Promise.all([
+  const [custRes, supRes, prodRes, tenantCfg] = await Promise.all([
     supabase.from("customers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
-    supabase.from("suppliers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
+    supabase
+      .from("suppliers")
+      .select("id, name, tax_id, industry_code, roles")
+      .eq("tenant_id", tenantId)
+      .limit(2000),
     supabase.from("products").select("id, code, name, item_type").eq("tenant_id", tenantId).limit(2000),
+    getTenantClassifyContext(supabase, tenantId).catch(() => null),
   ]);
   const custByTax = new Map<string, any>();
   const custByName = new Set<string>();
@@ -769,7 +774,15 @@ async function enrichDocumentItems(
 
     const meta = it.proposal.meta ?? {};
     const kind = it.proposal.voucher_kind;
-    const missing: { customer?: string; customer_tax_id?: string; supplier?: string; supplier_tax_id?: string; products?: string[]; services?: string[] } = {};
+    const missing: {
+      customer?: string;
+      customer_tax_id?: string;
+      supplier?: string;
+      supplier_tax_id?: string;
+      products?: MissingProductSuggestion[];
+    } = {};
+
+    let vendorForClassify: ClassifyContextV2["vendor"] | undefined;
 
     if (kind === "sales_invoice") {
       const taxId = meta.customer_tax_id ? String(meta.customer_tax_id).trim() : "";
@@ -787,22 +800,73 @@ async function enrichDocumentItems(
         missing.supplier = name;
         if (taxId) missing.supplier_tax_id = taxId;
       }
+      // Lấy vendor signals (vsic + roles) để classify mặt hàng chính xác hơn
+      const sup = taxId ? supByTax.get(taxId) : null;
+      if (sup) {
+        vendorForClassify = {
+          mst: sup.tax_id ?? null,
+          vsic: sup.industry_code ?? null,
+          roles: Array.isArray(sup.roles) ? sup.roles : [],
+        };
+      } else if (taxId) {
+        vendorForClassify = { mst: taxId, vsic: null, roles: [] };
+      }
     }
 
     const itemsArr = it.proposal.items ?? [];
-    const missingProducts: string[] = [];
+    const missingProducts: MissingProductSuggestion[] = [];
+    const ctxV2: ClassifyContextV2 | null = tenantCfg
+      ? buildClassifyContextV2(tenantCfg, vendorForClassify)
+      : null;
+
     for (const li of itemsArr) {
       const nm = (li.name ?? "").toString().trim();
       if (!nm || nm === "—") continue;
-      if (!prodByName.has(normName(nm))) missingProducts.push(nm);
+      if (prodByName.has(normName(nm))) continue;
+
+      // Mặc định fallback nếu chưa có context phân loại
+      let suggestion: MissingProductSuggestion = {
+        name: nm,
+        item_type: "goods",
+        account: "156",
+        confidence: 30,
+        reason: "Mặc định Hàng hoá (chưa đủ tín hiệu)",
+      };
+      if (ctxV2) {
+        try {
+          const r = classifyLineV2(
+            {
+              description: nm,
+              qty: typeof li.qty === "number" ? li.qty : null,
+              unit_price: typeof li.unit_price === "number" ? li.unit_price : null,
+              amount: typeof li.amount === "number" ? li.amount : null,
+              unit: null,
+            },
+            ctxV2,
+          );
+          const topSignal = [...r.signals].sort((a, b) => b.weight - a.weight)[0];
+          suggestion = {
+            name: nm,
+            item_type: kindV2ToItemType(r.kind),
+            account: r.account,
+            confidence: r.confidence,
+            reason: topSignal?.label ?? KIND_V2_LABEL[r.kind],
+          };
+        } catch {
+          // giữ fallback
+        }
+      }
+      missingProducts.push(suggestion);
+      if (missingProducts.length >= 8) break;
     }
-    if (missingProducts.length > 0) missing.products = missingProducts.slice(0, 8);
+    if (missingProducts.length > 0) missing.products = missingProducts;
 
     if (missing.customer || missing.supplier || (missing.products && missing.products.length > 0)) {
       it.missing = missing;
     }
   }
 }
+
 
 
 
