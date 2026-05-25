@@ -647,7 +647,7 @@ async function learnLineClassificationsFromApproval(
           kind: legacyKind,
           kind_v2: kindV2,
           account: dominantAcc,
-          source: "approved_proposal",
+          source: "user_override",
           hit_count: (existing.hit_count ?? 0) + 1,
           last_used_at: new Date().toISOString(),
         })
@@ -662,7 +662,7 @@ async function learnLineClassificationsFromApproval(
         kind: legacyKind,
         kind_v2: kindV2,
         account: dominantAcc,
-        source: "approved_proposal",
+        source: "user_override",
         created_by: userId,
       });
     }
