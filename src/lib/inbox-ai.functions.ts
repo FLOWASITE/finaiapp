@@ -981,3 +981,104 @@ export const saveInboxRule = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { id: row!.id };
   });
+
+// ============================================================================
+// Tạo nhanh master data còn thiếu từ panel cảnh báo trong Inbox AI
+// ============================================================================
+const CreateMissingInput = z.object({
+  entity: z.enum(["customer", "supplier", "product", "service"]),
+  name: z.string().min(1).max(255),
+  tax_id: z.string().max(32).optional(),
+});
+
+function slugCode(name: string, prefix: string): string {
+  const base = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, 10);
+  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
+  return `${prefix}${base || "X"}${suffix}`;
+}
+
+export const createMissingMaster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CreateMissingInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+    const name = data.name.trim();
+    const taxId = data.tax_id?.trim() || null;
+
+    if (data.entity === "customer") {
+      // Idempotent: nếu đã có theo MST hoặc tên thì trả về id hiện có
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) return { id: ex.id, entity: "customer", existed: true };
+      }
+      const { data: row, error } = await supabase
+        .from("customers")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slugCode(name, "KH"),
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: row!.id, entity: "customer", existed: false };
+    }
+
+    if (data.entity === "supplier") {
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) return { id: ex.id, entity: "supplier", existed: true };
+      }
+      const { data: row, error } = await supabase
+        .from("suppliers")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slugCode(name, "NCC"),
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: row!.id, entity: "supplier", existed: false };
+    }
+
+    // product / service
+    const itemType = data.entity === "service" ? "service" : "goods";
+    const prefix = itemType === "service" ? "DV" : "HH";
+    const { data: row, error } = await supabase
+      .from("products")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        name,
+        code: slugCode(name, prefix),
+        item_type: itemType,
+        unit: itemType === "service" ? "lần" : "cái",
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: row!.id, entity: data.entity, existed: false };
+  });
