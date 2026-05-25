@@ -769,6 +769,7 @@ function PurchaseVouchersPage() {
                       <TableRow
                         key={r.id}
                         className={`cursor-pointer hover:bg-accent/60 ${isSel ? "bg-primary/5" : ""}`}
+                        onClick={() => setEditId(r.id)}
                         style={{ height: 40 }}
                       >
                         <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
