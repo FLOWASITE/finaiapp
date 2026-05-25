@@ -594,18 +594,24 @@ async function enrichDocumentItems(
 
     const meta = it.proposal.meta ?? {};
     const kind = it.proposal.voucher_kind;
-    const missing: { customer?: string; supplier?: string; products?: string[]; services?: string[] } = {};
+    const missing: { customer?: string; customer_tax_id?: string; supplier?: string; supplier_tax_id?: string; products?: string[]; services?: string[] } = {};
 
     if (kind === "sales_invoice") {
       const taxId = meta.customer_tax_id ? String(meta.customer_tax_id).trim() : "";
       const name = meta.customer_name ? String(meta.customer_name).trim() : "";
       const found = (taxId && custByTax.has(taxId)) || (name && custByName.has(normName(name)));
-      if (!found && name) missing.customer = name;
+      if (!found && name) {
+        missing.customer = name;
+        if (taxId) missing.customer_tax_id = taxId;
+      }
     } else if (kind === "purchase_invoice") {
       const taxId = meta.supplier_tax_id ? String(meta.supplier_tax_id).trim() : "";
       const name = meta.supplier_name ? String(meta.supplier_name).trim() : "";
       const found = (taxId && supByTax.has(taxId)) || (name && supByName.has(normName(name)));
-      if (!found && name) missing.supplier = name;
+      if (!found && name) {
+        missing.supplier = name;
+        if (taxId) missing.supplier_tax_id = taxId;
+      }
     }
 
     const itemsArr = it.proposal.items ?? [];
