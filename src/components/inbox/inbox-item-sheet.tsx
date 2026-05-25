@@ -693,8 +693,9 @@ function InvoiceActionRow({ item }: { item: InboxItem }) {
   const [open, setOpen] = useState(false);
   const isDoc = item.source === "document";
   const canOpenMatch = !!item.match_ref && !!item.href;
+  const posted = item.posted_voucher;
 
-  if (!isDoc && !canOpenMatch) return null;
+  if (!isDoc && !canOpenMatch && !posted) return null;
 
   return (
     <>
@@ -709,7 +710,27 @@ function InvoiceActionRow({ item }: { item: InboxItem }) {
             Xem hoá đơn
           </button>
         )}
-        {canOpenMatch && (
+        {posted?.kind === "sales_voucher" && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/sales/vouchers" })}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            Xem Phiếu bán hàng ({posted.voucher_no})
+          </button>
+        )}
+        {posted?.kind === "purchase_voucher" && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/purchases/vouchers" })}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            Xem Phiếu mua hàng ({posted.voucher_no})
+          </button>
+        )}
+        {canOpenMatch && !posted && (
           <button
             type="button"
             onClick={() => navigate({ to: item.href! })}
@@ -730,6 +751,35 @@ function InvoiceActionRow({ item }: { item: InboxItem }) {
     </>
   );
 }
+
+function MissingMasterDataPanel({ missing }: { missing?: MissingMasterData }) {
+  if (!missing) return null;
+  const rows: { label: string; value: string }[] = [];
+  if (missing.customer) rows.push({ label: "Khách hàng", value: missing.customer });
+  if (missing.supplier) rows.push({ label: "Nhà cung cấp", value: missing.supplier });
+  for (const p of missing.products ?? []) rows.push({ label: "Hàng hóa / Dịch vụ", value: p });
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        Cần tạo mới vào hệ thống
+      </div>
+      <ul className="space-y-1 text-xs text-amber-800 dark:text-amber-200">
+        {rows.map((r, i) => (
+          <li key={i} className="flex items-start gap-1.5">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+            <span>
+              <span className="font-semibold">{r.label}:</span>{" "}
+              <span className="font-medium">{r.value}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 
 function InvoiceViewerDialog({
   documentId,
