@@ -49,6 +49,7 @@ const PurchaseInvoiceSchema = z.object({
       z.object({
         description: z.string(),
         qty: z.number().nullable(),
+        unit: z.string().nullable().describe("Đơn vị tính (ĐVT): cái, hộp, kg, lít, lần, tháng, bộ…"),
         unit_price: z.number().nullable(),
         amount: z.number().nullable(),
         vat_rate: z.number().nullable(),
