@@ -876,10 +876,17 @@ function OrganizationTab() {
                   Hoạt động kinh doanh
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <Field label="Ngành nghề kinh doanh">
+                  <IndustryCombobox
+                    multi
+                    disabled={!canEdit}
+                    items={Array.isArray(form.industries) ? form.industries : []}
+                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                  />
+                </Field>
                 <BusinessActivitySection showWhyPanel={false} />
               </CardContent>
-            </Card>
           </section>
 
           {/* 4. Người đại diện & Chữ ký */}
