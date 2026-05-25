@@ -13,6 +13,15 @@ import {
   type RawLine,
 } from "@/lib/ai/classify-line";
 import {
+  classifyLineV2,
+  type LineKindV2,
+} from "@/lib/ai/classify-line-v2";
+import {
+  getTenantClassifyContext,
+  getVendorRolesAndVsic,
+  buildClassifyContextV2,
+} from "./classify-context.server";
+import {
   getTenantMemory,
   getTenantVendorTemplates,
   getSupplierIndustryCached,
@@ -50,6 +59,23 @@ import {
   isBalanced,
   splitByNature,
 } from "./rules";
+
+/** Map nhãn v2 (7 loại) → nhãn legacy (4 loại) để splitByNature/composeEntries dùng được. */
+function v2ToLegacyKind(k: LineKindV2): LineKind {
+  switch (k) {
+    case "service":
+    case "prepaid":
+      return "service";
+    case "raw_material":
+    case "goods_for_resale":
+      return "goods";
+    case "tools":
+      return "ccdc";
+    case "fixed_asset_tangible":
+    case "fixed_asset_intangible":
+      return "fixed_asset";
+  }
+}
 
 type AgentSettings = {
   enabled: boolean;
