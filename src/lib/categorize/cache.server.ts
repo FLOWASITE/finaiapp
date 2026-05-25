@@ -39,6 +39,7 @@ const memoryStore = new Map<string, Entry<MemRow[]>>();
 const templateStore = new Map<string, Entry<TplRow[]>>();
 const industryStore = new Map<string, Entry<{ kind: LineKind; label: string } | null>>();
 const historyStore = new Map<string, Entry<Partial<Record<LineKind, number>> | null>>();
+const historyStoreV2 = new Map<string, Entry<Partial<Record<LineKindV2, number>> | null>>();
 
 function evictOldest<T>(map: Map<string, Entry<T>>) {
   if (map.size <= TENANT_CAP) return;
