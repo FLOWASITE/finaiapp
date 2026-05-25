@@ -256,7 +256,9 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
             },
         lines: finalLines,
         lines_summary,
+        posted: invId ? (pvByInvoice[invId] ?? null) : null,
       };
+
     });
 
     // Apply invoice-level filters client-side
