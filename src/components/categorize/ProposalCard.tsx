@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { approveProposal, skipProposal } from "@/lib/categorize.functions";
 import type { JournalProposalDTO, ProposalEntry, ProposalLine } from "@/lib/categorize/types";
+import { AccountKindBadge } from "./AccountKindBadge";
+import { TscdConfirmDialog, type TscdConfirmResult } from "./TscdConfirmDialog";
 
 const confidenceHint = (pct: number) => {
   if (pct >= 85) return { label: "Độ tin cậy cao", detail: "Band ≥85%: precision lịch sử ~94%. Khuyến nghị duyệt nhanh." };
@@ -46,6 +48,16 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
   const [expanded, setExpanded] = useState(false);
   const [edit, setEdit] = useState(false);
   const [entries, setEntries] = useState<ProposalEntry[]>(dto.entries);
+  const [tscdOpen, setTscdOpen] = useState(false);
+
+  // TSCĐ confirm gate — driven by engine warning `cat-tscd-confirm`
+  const tscdWarn = dto.warnings.find((w) => w.code === "cat-tscd-confirm");
+  const tscdLine = tscdWarn
+    ? entries[0]?.lines.find((l) => /^21[13]/.test(l.account_code) && l.debit > 0)
+    : undefined;
+  const tscdKind: "tangible" | "intangible" = tscdLine?.account_code.startsWith("213")
+    ? "intangible"
+    : "tangible";
 
   const src = SOURCE_LABEL[source] ?? SOURCE_LABEL.manual;
   const confPct = Math.round(confidence * 100);
@@ -62,7 +74,7 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
     onMutated?.();
   };
 
-  const handleApprove = async () => {
+  const doApprove = async (extra?: { tscd?: TscdConfirmResult }) => {
     setBusy("approve");
     try {
       const dirty = edit && JSON.stringify(entries) !== JSON.stringify(dto.entries);
@@ -71,15 +83,26 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
           proposal_id: proposalId,
           entry_index: 0,
           ...(dirty ? { edits: { description: entries[0].description, entry_date: entries[0].entry_date, lines: entries[0].lines } } : {}),
-        },
+          ...(extra?.tscd ? { tscd_confirm: extra.tscd } : {}),
+        } as any,
       });
-      toast.success("Đã ghi sổ bút toán");
+      toast.success(extra?.tscd ? "Đã ghi sổ TSCĐ" : "Đã ghi sổ bút toán");
+      setTscdOpen(false);
       refresh();
     } catch (e: any) {
       toast.error(e?.message || "Không duyệt được");
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleApprove = async () => {
+    // Gate: nếu là TSCĐ cần xác nhận, mở dialog trước
+    if (tscdWarn && tscdLine) {
+      setTscdOpen(true);
+      return;
+    }
+    await doApprove();
   };
 
   const handleSkip = async () => {
@@ -193,7 +216,10 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
                         <span className="font-semibold">{l.account_code}</span>
                       )}
                     </td>
-                    <td className="py-1 text-muted-foreground truncate max-w-[280px]">{l.memo ?? ""}</td>
+                    <td className="py-1 pl-1">
+                      {l.debit > 0 && <AccountKindBadge code={l.account_code} />}
+                    </td>
+                    <td className="py-1 text-muted-foreground truncate max-w-[260px]">{l.memo ?? ""}</td>
                     <td className="py-1 text-right font-semibold">
                       {edit ? (
                         <Input
@@ -373,6 +399,19 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
           Bỏ qua
         </Button>
       </div>
+
+      {tscdLine && (
+        <TscdConfirmDialog
+          open={tscdOpen}
+          onOpenChange={setTscdOpen}
+          amount={tscdLine.debit}
+          description={tscdLine.memo ?? entries[0]?.description}
+          suggestedKind={tscdKind}
+          suggestedYears={tscdKind === "intangible" ? 3 : 5}
+          busy={busy === "approve"}
+          onConfirm={(r) => doApprove({ tscd: r })}
+        />
+      )}
     </div>
   );
 }
