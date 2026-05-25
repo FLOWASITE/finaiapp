@@ -385,6 +385,7 @@ export const approveProposal = createServerFn({ method: "POST" })
     // ====== Promote kind_v2 vào ai_line_classifications (chỉ cho hóa đơn mua) ======
     if (!isSales) {
       try {
+        const { learnLineClassificationsFromApproval } = await import("./categorize/learn-line-classifications.server");
         await learnLineClassificationsFromApproval(supabase, {
           tenantId,
           userId,
