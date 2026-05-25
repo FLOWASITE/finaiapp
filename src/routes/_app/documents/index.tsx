@@ -1389,7 +1389,8 @@ function PurchaseInvoicesTable({
                   {isOpen && hasLines && (
                     <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
                       <TableCell></TableCell>
-                      <TableCell colSpan={9} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
+
                         <div className="p-3">
                           <div className="mb-2 text-xs font-medium text-muted-foreground">
                             Chi tiết mặt hàng ({lines.length} dòng)
