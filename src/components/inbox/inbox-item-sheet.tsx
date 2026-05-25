@@ -956,7 +956,23 @@ function MissingMasterDataPanel({
                         (MST {r.tax_id})
                       </span>
                     ) : null}
+                    {r.suggestion ? (
+                      <span
+                        className="ml-1.5 inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200"
+                        title={r.suggestion.reason ?? ""}
+                      >
+                        <Sparkles className="h-2.5 w-2.5" />
+                        {ITEM_TYPE_OPTIONS.find((o) => o.value === r.suggestion!.item_type)?.label ??
+                          r.suggestion.item_type}
+                        {r.suggestion.confidence > 0 ? (
+                          <span className="text-amber-700/70 dark:text-amber-300/70">
+                            · {r.suggestion.confidence}%
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : null}
                   </span>
+
                 </div>
                 {isDone ? (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
