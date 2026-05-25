@@ -13,12 +13,22 @@ async function activeTenant(supabase: any, userId: string): Promise<string | nul
 }
 
 const KindEnum = z.enum(["goods", "fixed_asset", "ccdc", "service"]);
+const KindV2Enum = z.enum([
+  "goods_for_resale",
+  "raw_material",
+  "tools",
+  "prepaid",
+  "fixed_asset_tangible",
+  "fixed_asset_intangible",
+  "service",
+]);
 
 const SaveInput = z.object({
   supplier_tax_id: z.string().min(1).max(20).nullable().optional(),
   supplier_id: z.string().uuid().nullable().optional(),
   line_name: z.string().min(1).max(500),
   kind: KindEnum,
+  kind_v2: KindV2Enum.nullable().optional(),
   account: z.string().min(2).max(16),
 });
 
