@@ -765,18 +765,51 @@ function InvoiceActionRow({ item }: { item: InboxItem }) {
   );
 }
 
-function MissingMasterDataPanel({ missing }: { missing?: MissingMasterData }) {
+type MissingRowEntity = "customer" | "supplier" | "product" | "service";
+type MissingItemType =
+  | "goods"
+  | "service"
+  | "material"
+  | "tool"
+  | "asset_alloc"
+  | "asset_tangible"
+  | "asset_intangible";
+
+const ITEM_TYPE_OPTIONS: { value: MissingItemType; label: string }[] = [
+  { value: "goods", label: "Hàng hoá (TK 156)" },
+  { value: "material", label: "Nguyên vật liệu (TK 152)" },
+  { value: "tool", label: "Công cụ dụng cụ (TK 153)" },
+  { value: "asset_alloc", label: "Tài sản phân bổ (TK 242)" },
+  { value: "asset_tangible", label: "TSCĐ hữu hình (TK 211)" },
+  { value: "asset_intangible", label: "TSCĐ vô hình (TK 213)" },
+  { value: "service", label: "Dịch vụ" },
+];
+
+function MissingMasterDataPanel({
+  missing,
+  sourceDocumentId,
+}: {
+  missing?: MissingMasterData;
+  sourceDocumentId?: string;
+}) {
   const qc = useQueryClient();
   const createFn = useServerFn(createMissingMaster);
+  const updateFn = useServerFn(updateMissingMasterAndLearn);
   const [pending, setPending] = useState<string | null>(null);
   const [doneKeys, setDoneKeys] = useState<Set<string>>(() => new Set());
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ name: string; tax_id: string; item_type: MissingItemType }>({
+    name: "",
+    tax_id: "",
+    item_type: "goods",
+  });
 
   if (!missing) return null;
   type Row = {
     key: string;
     label: string;
     value: string;
-    entity: "customer" | "supplier" | "product" | "service";
+    entity: MissingRowEntity;
     tax_id?: string;
   };
   const rows: Row[] = [];
@@ -797,30 +830,67 @@ function MissingMasterDataPanel({ missing }: { missing?: MissingMasterData }) {
       tax_id: missing.supplier_tax_id,
     });
   for (const p of missing.products ?? [])
-    rows.push({ key: `product:${p}`, label: "Hàng hóa / Dịch vụ", value: p, entity: "product" });
+    rows.push({ key: `product:${p}`, label: "Hàng hoá / Dịch vụ", value: p, entity: "product" });
   if (rows.length === 0) return null;
+
+  const invalidate = (entity: MissingRowEntity) => {
+    qc.invalidateQueries({ queryKey: ["inbox-ai"] });
+    if (entity === "customer") qc.invalidateQueries({ queryKey: ["customers"] });
+    if (entity === "supplier") qc.invalidateQueries({ queryKey: ["suppliers"] });
+    if (entity === "product" || entity === "service")
+      qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["ai-memory"] });
+  };
 
   const handleCreate = async (r: Row) => {
     setPending(r.key);
     try {
       const res = await createFn({ data: { entity: r.entity, name: r.value, tax_id: r.tax_id } });
-      setDoneKeys((prev) => {
-        const next = new Set(prev);
-        next.add(r.key);
-        return next;
-      });
+      setDoneKeys((prev) => new Set(prev).add(r.key));
       toast.success(
         res.existed
           ? `${r.label} đã có trong hệ thống`
           : `Đã tạo mới ${r.label.toLowerCase()}: ${r.value}`,
       );
-      qc.invalidateQueries({ queryKey: ["inbox-ai"] });
-      if (r.entity === "customer") qc.invalidateQueries({ queryKey: ["customers"] });
-      if (r.entity === "supplier") qc.invalidateQueries({ queryKey: ["suppliers"] });
-      if (r.entity === "product" || r.entity === "service")
-        qc.invalidateQueries({ queryKey: ["products"] });
+      invalidate(r.entity);
     } catch (e: any) {
       toast.error(e?.message ?? "Không tạo được");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const openEdit = (r: Row) => {
+    setEditingKey(r.key);
+    setDraft({
+      name: r.value,
+      tax_id: r.tax_id ?? "",
+      item_type: r.entity === "service" ? "service" : "goods",
+    });
+  };
+
+  const handleSaveEdit = async (r: Row) => {
+    setPending(r.key);
+    try {
+      const isParty = r.entity === "customer" || r.entity === "supplier";
+      await updateFn({
+        data: {
+          entity: r.entity,
+          original_name: r.value,
+          corrected: {
+            name: draft.name.trim() || r.value,
+            tax_id: isParty ? draft.tax_id.trim() || undefined : undefined,
+            item_type: !isParty ? draft.item_type : undefined,
+          },
+          source_document_id: sourceDocumentId,
+        },
+      });
+      setDoneKeys((prev) => new Set(prev).add(r.key));
+      setEditingKey(null);
+      toast.success(`Đã lưu & dạy AI: ${draft.name}`);
+      invalidate(r.entity);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không lưu được");
     } finally {
       setPending(null);
     }
@@ -832,47 +902,132 @@ function MissingMasterDataPanel({ missing }: { missing?: MissingMasterData }) {
         <AlertTriangle className="h-3.5 w-3.5" />
         Cần tạo mới vào hệ thống
       </div>
+      <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+        Khi bấm <b>Duyệt &amp; ghi sổ</b>, hệ thống sẽ tự tạo các mục bên dưới theo gợi ý của Fin.
+        Nếu gợi ý chưa đúng, bấm <b>Sửa</b> để chỉnh và dạy lại AI.
+      </p>
       <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-200">
         {rows.map((r) => {
           const isDone = doneKeys.has(r.key);
           const isPending = pending === r.key;
+          const isEditing = editingKey === r.key;
+          const isParty = r.entity === "customer" || r.entity === "supplier";
+
           return (
             <li
               key={r.key}
-              className="flex items-center justify-between gap-2 rounded-lg bg-background/40 px-2 py-1.5"
+              className="rounded-lg bg-background/40 px-2 py-1.5 space-y-2"
             >
-              <div className="flex items-start gap-1.5 min-w-0">
-                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
-                <span className="min-w-0">
-                  <span className="font-semibold">{r.label}:</span>{" "}
-                  <span className="font-medium break-words">{r.value}</span>
-                  {r.tax_id ? (
-                    <span className="ml-1 text-amber-700/70 dark:text-amber-300/70">
-                      (MST {r.tax_id})
-                    </span>
-                  ) : null}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+                  <span className="min-w-0">
+                    <span className="font-semibold">{r.label}:</span>{" "}
+                    <span className="font-medium break-words">{r.value}</span>
+                    {r.tax_id ? (
+                      <span className="ml-1 text-amber-700/70 dark:text-amber-300/70">
+                        (MST {r.tax_id})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                {isDone ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                    Đã tạo
+                  </span>
+                ) : (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!isEditing ? (
+                      <button
+                        type="button"
+                        onClick={() => openEdit(r)}
+                        disabled={isPending}
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-background/60 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-200"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Sửa
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => handleCreate(r)}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-200"
+                    >
+                      {isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      Tạo mới
+                    </button>
+                  </div>
+                )}
               </div>
-              {isDone ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                  <Check className="h-3 w-3" strokeWidth={3} />
-                  Đã tạo
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleCreate(r)}
-                  disabled={isPending}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-200"
-                >
-                  {isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3" />
-                  )}
-                  Tạo mới
-                </button>
-              )}
+
+              {isEditing && !isDone ? (
+                <div className="rounded-md border border-amber-500/30 bg-background/70 p-2 space-y-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label className="text-[11px] font-medium text-amber-800 dark:text-amber-200 space-y-1">
+                      <span>Tên đúng</span>
+                      <input
+                        type="text"
+                        value={draft.name}
+                        onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      />
+                    </label>
+                    {isParty ? (
+                      <label className="text-[11px] font-medium text-amber-800 dark:text-amber-200 space-y-1">
+                        <span>MST</span>
+                        <input
+                          type="text"
+                          value={draft.tax_id}
+                          onChange={(e) => setDraft({ ...draft, tax_id: e.target.value })}
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                        />
+                      </label>
+                    ) : (
+                      <label className="text-[11px] font-medium text-amber-800 dark:text-amber-200 space-y-1">
+                        <span>Loại</span>
+                        <select
+                          value={draft.item_type}
+                          onChange={(e) =>
+                            setDraft({ ...draft, item_type: e.target.value as MissingItemType })
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                        >
+                          {ITEM_TYPE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditingKey(null)}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted/50 disabled:opacity-60"
+                    >
+                      Huỷ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveEdit(r)}
+                      disabled={isPending || !draft.name.trim()}
+                      className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                    >
+                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                      Lưu &amp; dạy AI
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </li>
           );
         })}
