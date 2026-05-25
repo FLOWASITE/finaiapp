@@ -447,6 +447,136 @@ async function assertNoDuplicateEInvoice(
   }
 }
 
+// ============================================================
+// Enrich Inbox items with posted_voucher + missing master data
+// ============================================================
+function normName(s: string | null | undefined): string {
+  return (s ?? "").toString().trim().toLowerCase();
+}
+
+async function enrichDocumentItems(
+  supabase: any,
+  tenantId: string,
+  items: InboxItem[],
+): Promise<void> {
+  const docItems = items.filter((it) => it.source === "document" && it.id.startsWith("document:"));
+  if (docItems.length === 0) return;
+  const docIds = docItems.map((it) => it.external_id);
+
+  // 1) Lấy quyết định approve gần nhất cho mỗi document
+  const { data: decisions } = await supabase
+    .from("inbox_decisions")
+    .select("item_external_id, journal_entry_id, decided_at")
+    .eq("tenant_id", tenantId)
+    .eq("item_source", "document")
+    .eq("action", "approve")
+    .in("item_external_id", docIds)
+    .order("decided_at", { ascending: false });
+  const docToEntry = new Map<string, string>();
+  for (const d of (decisions ?? []) as any[]) {
+    if (!docToEntry.has(d.item_external_id) && d.journal_entry_id) {
+      docToEntry.set(d.item_external_id, d.journal_entry_id);
+    }
+  }
+
+  // 2) Lookup phiếu bán hàng / mua hàng theo journal_entry_id
+  const entryIds = Array.from(new Set(Array.from(docToEntry.values())));
+  const entryToVoucher = new Map<string, { kind: "sales_voucher" | "purchase_voucher"; id: string; voucher_no: string }>();
+  if (entryIds.length > 0) {
+    const [sv, pv] = await Promise.all([
+      supabase
+        .from("sales_vouchers")
+        .select("id, voucher_no, journal_entry_id, status")
+        .eq("tenant_id", tenantId)
+        .in("journal_entry_id", entryIds),
+      supabase
+        .from("purchase_vouchers")
+        .select("id, voucher_no, journal_entry_id, status")
+        .eq("tenant_id", tenantId)
+        .in("journal_entry_id", entryIds),
+    ]);
+    for (const r of (sv.data ?? []) as any[]) {
+      if (r.status !== "void") {
+        entryToVoucher.set(r.journal_entry_id, { kind: "sales_voucher", id: r.id, voucher_no: r.voucher_no });
+      }
+    }
+    for (const r of (pv.data ?? []) as any[]) {
+      if (r.status !== "void") {
+        entryToVoucher.set(r.journal_entry_id, { kind: "purchase_voucher", id: r.id, voucher_no: r.voucher_no });
+      }
+    }
+  }
+
+  // 3) Batch load master data để check missing
+  const [custRes, supRes, prodRes] = await Promise.all([
+    supabase.from("customers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
+    supabase.from("suppliers").select("id, name, tax_id").eq("tenant_id", tenantId).limit(2000),
+    supabase.from("products").select("id, code, name, item_type").eq("tenant_id", tenantId).limit(2000),
+  ]);
+  const custByTax = new Map<string, any>();
+  const custByName = new Set<string>();
+  for (const r of (custRes.data ?? []) as any[]) {
+    if (r.tax_id) custByTax.set(String(r.tax_id).trim(), r);
+    if (r.name) custByName.add(normName(r.name));
+  }
+  const supByTax = new Map<string, any>();
+  const supByName = new Set<string>();
+  for (const r of (supRes.data ?? []) as any[]) {
+    if (r.tax_id) supByTax.set(String(r.tax_id).trim(), r);
+    if (r.name) supByName.add(normName(r.name));
+  }
+  const prodByName = new Set<string>();
+  for (const r of (prodRes.data ?? []) as any[]) {
+    if (r.name) prodByName.add(normName(r.name));
+  }
+
+  // 4) Áp dụng cho từng item
+  for (const it of docItems) {
+    const entryId = docToEntry.get(it.external_id);
+    if (entryId) {
+      const v = entryToVoucher.get(entryId);
+      if (v) {
+        it.posted_voucher = v;
+        (it as any).processing_status = "posted";
+      } else {
+        (it as any).processing_status = "posted";
+      }
+    }
+
+    const meta = it.proposal.meta ?? {};
+    const kind = it.proposal.voucher_kind;
+    const missing: { customer?: string; supplier?: string; products?: string[]; services?: string[] } = {};
+
+    if (kind === "sales_invoice") {
+      const taxId = meta.customer_tax_id ? String(meta.customer_tax_id).trim() : "";
+      const name = meta.customer_name ? String(meta.customer_name).trim() : "";
+      const found = (taxId && custByTax.has(taxId)) || (name && custByName.has(normName(name)));
+      if (!found && name) missing.customer = name;
+    } else if (kind === "purchase_invoice") {
+      const taxId = meta.supplier_tax_id ? String(meta.supplier_tax_id).trim() : "";
+      const name = meta.supplier_name ? String(meta.supplier_name).trim() : "";
+      const found = (taxId && supByTax.has(taxId)) || (name && supByName.has(normName(name)));
+      if (!found && name) missing.supplier = name;
+    }
+
+    const itemsArr = it.proposal.items ?? [];
+    const missingProducts: string[] = [];
+    for (const li of itemsArr) {
+      const nm = (li.name ?? "").toString().trim();
+      if (!nm || nm === "—") continue;
+      if (!prodByName.has(normName(nm))) missingProducts.push(nm);
+    }
+    if (missingProducts.length > 0) missing.products = missingProducts.slice(0, 8);
+
+    if (missing.customer || missing.supplier || (missing.products && missing.products.length > 0)) {
+      it.missing = missing;
+    }
+  }
+}
+
+
+
+
 const ListInput = z.object({
   tab: z.enum(["inbox", "posted", "review", "documents"]).default("inbox"),
   search: z.string().max(200).optional().default(""),
@@ -544,6 +674,8 @@ export const listInboxAi = createServerFn({ method: "POST" })
     }
     for (const i of (insightsRes.data ?? []) as any[]) items.push(buildInsightItem(i));
 
+    // ============ Enrich document items: posted_voucher + missing master data ============
+    await enrichDocumentItems(supabase, tenantId, items);
 
     const q = data.search.trim().toLowerCase();
     const filtered = q
@@ -642,7 +774,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     );
     if (linesErr) throw new Error(linesErr.message);
 
-    // Mark source as handled
+    let postedVoucher: { kind: "sales_voucher" | "purchase_voucher"; id: string; voucher_no: string } | null = null;
     if (data.source === "bank_statement") {
       await supabase
         .from("bank_transactions")
@@ -653,9 +785,6 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
-      // Hoá đơn BÁN RA → vật chất hoá sang sales_invoices (cho danh sách HĐ bán)
-      // và sales_vouchers (cho danh sách Phiếu bán hàng). Nếu fail thì THROW
-      // để UI thấy lỗi thật, không báo "Đã ghi sổ" giả.
       const { data: docMeta } = await supabase
         .from("documents")
         .select("doc_kind")
@@ -669,7 +798,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           entryDate: data.entry_date,
           journalEntryId: entry.id,
         });
-        await materializeSalesVoucherFromDocument(supabase, {
+        const svId = await materializeSalesVoucherFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
           userId,
@@ -677,6 +806,23 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           journalEntryId: entry.id,
           salesInvoiceId,
         });
+        if (svId) {
+          const { data: svRow } = await supabase
+            .from("sales_vouchers")
+            .select("id, voucher_no")
+            .eq("id", svId)
+            .maybeSingle();
+          if (svRow) postedVoucher = { kind: "sales_voucher", id: svRow.id, voucher_no: svRow.voucher_no };
+        }
+      } else if (docMeta?.doc_kind === "purchase_invoice") {
+        // Tìm phiếu mua hàng đã liên kết bút toán này (nếu có)
+        const { data: pvRow } = await supabase
+          .from("purchase_vouchers")
+          .select("id, voucher_no")
+          .eq("tenant_id", tenantId)
+          .eq("journal_entry_id", entry.id)
+          .maybeSingle();
+        if (pvRow) postedVoucher = { kind: "purchase_voucher", id: pvRow.id, voucher_no: pvRow.voucher_no };
       }
     } else if (data.source === "ai_insight") {
       await supabase
@@ -711,7 +857,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
       invalidateCategorizeCache(tenantId);
     } catch {}
 
-    return { journal_entry_id: entry.id };
+    return { journal_entry_id: entry.id, posted_voucher: postedVoucher };
   });
 
 const SkipInput = z.object({
