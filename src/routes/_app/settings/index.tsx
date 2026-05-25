@@ -782,8 +782,8 @@ function OrganizationTab() {
                     <div className="flex gap-2">
                       <Select
                         disabled={!canEdit}
-                        value={String(fyDay)}
-                        onValueChange={(v) => setFyDay(Number(v))}
+                        value={String(form.fiscal_year_start_day ?? 1)}
+                        onValueChange={(v) => set("fiscal_year_start_day", Number(v))}
                       >
                         <SelectTrigger className="w-20">
                           <SelectValue />
