@@ -323,7 +323,7 @@ export const listPurchaseInvoices = createServerFn({ method: "POST" })
 
 // ============ VAT INPUT REPORT ============
 export const getInputVatReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { year: number; month: number }) =>
     z.object({ year: z.number().int().min(2000).max(2100), month: z.number().int().min(1).max(12) }).parse(i),
   )
@@ -335,6 +335,7 @@ export const getInputVatReport = createServerFn({ method: "POST" })
     const { data: invoices, error } = await context.supabase
       .from("invoices")
       .select("id, invoice_no, issue_date, supplier_name, supplier_tax_id, subtotal, vat_amount, total")
+      .eq("tenant_id", context.tenantId)
       .gte("issue_date", from)
       .lte("issue_date", to)
       .in("status", ["approved", "extracted", "reviewed"])
