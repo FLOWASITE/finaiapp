@@ -92,12 +92,13 @@ const ListSchema = z.object({
 });
 
 export const listSalesOrders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => ListSchema.parse(i ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("sales_orders")
       .select("*, customers(name, code), sales_order_lines(qty_ordered, qty_delivered)")
+      .eq("tenant_id", context.tenantId)
       .order("order_date", { ascending: false })
       .limit(500);
     if (data.customerId) q = q.eq("customer_id", data.customerId);
