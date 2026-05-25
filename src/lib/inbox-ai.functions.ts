@@ -989,7 +989,33 @@ const CreateMissingInput = z.object({
   entity: z.enum(["customer", "supplier", "product", "service"]),
   name: z.string().min(1).max(255),
   tax_id: z.string().max(32).optional(),
+  item_type: z
+    .enum(["goods", "service", "material", "tool", "asset_alloc", "asset_tangible", "asset_intangible"])
+    .optional(),
 });
+
+/** Map item_type guess → { item_type, stock_account } cho bảng products. */
+function accountForItemType(
+  itemType?: string,
+): { item_type: "goods" | "service"; stock_account: string; unit: string } {
+  switch (itemType) {
+    case "service":
+      return { item_type: "service", stock_account: "156", unit: "lần" };
+    case "material":
+      return { item_type: "goods", stock_account: "152", unit: "cái" };
+    case "tool":
+      return { item_type: "goods", stock_account: "153", unit: "cái" };
+    case "asset_alloc":
+      return { item_type: "goods", stock_account: "242", unit: "cái" };
+    case "asset_tangible":
+      return { item_type: "goods", stock_account: "211", unit: "cái" };
+    case "asset_intangible":
+      return { item_type: "goods", stock_account: "213", unit: "cái" };
+    case "goods":
+    default:
+      return { item_type: "goods", stock_account: "156", unit: "cái" };
+  }
+}
 
 function slugCode(name: string, prefix: string): string {
   const base = name
