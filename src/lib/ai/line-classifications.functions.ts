@@ -92,6 +92,7 @@ export const saveLineClassification = createServerFn({ method: "POST" })
         line_name: data.line_name,
         line_name_norm: norm,
         kind: data.kind,
+        kind_v2: kindV2,
         account: data.account,
         source: "user_override",
         created_by: userId,
