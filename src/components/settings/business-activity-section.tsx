@@ -177,11 +177,13 @@ export function BusinessActivitySection({ showWhyPanel = true }: { showWhyPanel?
           </Label>
           <Input
             id="ccdc-threshold"
-            type="number"
-            min={0}
-            step={1_000_000}
-            value={threshold}
-            onChange={(e) => setThreshold(Number(e.target.value) || 0)}
+            inputMode="numeric"
+            value={threshold ? threshold.toLocaleString("vi-VN") : ""}
+            onChange={(e) => {
+              const n = Number(e.target.value.replace(/\D/g, "")) || 0;
+              setThreshold(n);
+            }}
+            placeholder="5.000.000"
           />
           <p className="text-[11px] text-muted-foreground">
             CCDC ≥ ngưỡng (mặc định 5tr) → TK 242, phân bổ nhiều kỳ thay vì 153.
