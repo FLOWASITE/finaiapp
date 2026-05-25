@@ -391,15 +391,10 @@ function OrganizationTab() {
     if (!diffShipping) payload.shipping_address = null;
     payload.billing_address = null;
     payload.fax = null;
-    mutate.mutate(payload);
-
+    ["id", "user_id", "created_at", "updated_at", "setup_completed", "setup_completed_at"].forEach(
       (k) => delete payload[k],
     );
     mutate.mutate(payload);
-    try {
-      if (data?.tenant?.id)
-        localStorage.setItem(`${FY_DAY_KEY}:${data.tenant.id}`, String(fyDay));
-    } catch {}
   };
 
   const ROLE_LABEL: Record<string, string> = {
