@@ -644,9 +644,10 @@ export const getStatusHistory = createServerFn({ method: "GET" })
   });
 
 export const deleteDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     const { count } = await context.supabase
       .from("document_links")
       .select("document_id", { count: "exact", head: true })
@@ -656,10 +657,15 @@ export const deleteDocument = createServerFn({ method: "POST" })
     }
     const { data: doc } = await context.supabase
       .from("documents")
-      .select("storage_bucket,storage_path")
+      .select("storage_bucket,storage_path,tenant_id")
       .eq("id", data.id)
       .maybeSingle();
-    const { error } = await context.supabase.from("documents").delete().eq("id", data.id);
+    if (!doc || doc.tenant_id !== tenantId) throw new Error("Không tìm thấy tài liệu");
+    const { error } = await context.supabase
+      .from("documents")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     if (doc?.storage_bucket && doc?.storage_path) {
       await context.supabase.storage.from(doc.storage_bucket).remove([doc.storage_path]);
