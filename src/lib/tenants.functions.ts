@@ -169,6 +169,7 @@ const UpdateTenantSchema = z.object({
   accounting_standard: z.enum(["TT133", "TT200", "TT99"]).nullish(),
   base_currency: z.string().max(10).nullish(),
   fiscal_year_start: z.number().int().min(1).max(12).nullish(),
+  fiscal_year_start_day: z.number().int().min(1).max(31).nullish(),
   logo_url: z.string().nullish(),
   signature_url: z.string().nullish(),
   stamp_url: z.string().nullish(),
