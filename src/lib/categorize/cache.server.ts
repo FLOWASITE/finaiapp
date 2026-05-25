@@ -214,6 +214,59 @@ export async function getVendorHistoryDistCached(
 }
 
 // ============================================================
+// V2 history distribution — đếm theo kind_v2 từ ai_line_classifications
+// ============================================================
+const V2_KINDS: LineKindV2[] = [
+  "goods_for_resale",
+  "raw_material",
+  "tools",
+  "prepaid",
+  "fixed_asset_tangible",
+  "fixed_asset_intangible",
+  "service",
+];
+
+export async function getVendorHistoryDistV2Cached(
+  supabase: SupabaseClient,
+  tenantId: string,
+  taxId: string | null,
+  supplierId: string | null,
+): Promise<Partial<Record<LineKindV2, number>> | null> {
+  const key = `${tenantId}:${taxId ?? "_"}:${supplierId ?? "_"}`;
+  const cached = getEntry(historyStoreV2, key);
+  if (cached !== undefined) return cached;
+  if (!taxId && !supplierId) {
+    setEntry(historyStoreV2, key, null);
+    return null;
+  }
+  const q = taxId
+    ? supabase
+        .from("ai_line_classifications")
+        .select("kind_v2, hit_count")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_tax_id", taxId)
+        .not("kind_v2", "is", null)
+        .limit(500)
+    : supabase
+        .from("ai_line_classifications")
+        .select("kind_v2, hit_count")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_id", supplierId!)
+        .not("kind_v2", "is", null)
+        .limit(500);
+  const { data } = await q;
+  const dist: Partial<Record<LineKindV2, number>> = {};
+  for (const r of (data ?? []) as any[]) {
+    const k = String(r.kind_v2 ?? "") as LineKindV2;
+    if (!V2_KINDS.includes(k)) continue;
+    dist[k] = (dist[k] ?? 0) + Number(r.hit_count ?? 1);
+  }
+  const value = Object.keys(dist).length > 0 ? dist : null;
+  setEntry(historyStoreV2, key, value);
+  return value;
+}
+
+// ============================================================
 // Prewarm + Invalidate
 // ============================================================
 export async function prewarmCategorizeCache(
