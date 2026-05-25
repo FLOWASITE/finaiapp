@@ -969,12 +969,14 @@ function PurchaseVouchersPage() {
 // ---------- create dialog ----------
 
 function CreateVoucherDialog({
-  open, onOpenChange, onCreated, initialParty,
+  open, onOpenChange, onCreated, onUpdated, initialParty, editId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
+  onUpdated?: () => void;
   initialParty?: { id: string; name: string; tax_id?: string; address?: string } | null;
+  editId?: string | null;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
   const postFn = useServerFn(postPurchaseVoucher);
