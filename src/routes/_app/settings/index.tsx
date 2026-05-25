@@ -85,6 +85,7 @@ import { IndustryCombobox } from "@/components/industry-combobox";
 import { SectionNav } from "@/components/settings-section-nav";
 import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
 import { DigestSettingsCard } from "@/components/settings/digest-settings-card";
+import { BusinessActivitySection } from "@/components/settings/business-activity-section";
 
 export const Route = createFileRoute("/_app/settings/")({ component: SettingsPage });
 
@@ -560,7 +561,6 @@ function OrganizationTab() {
                       onChange={(u) => set("logo_url", u)}
                       prefix="logo"
                       disabled={!canEdit}
-                      compact
                     />
                   </Field>
                   <Field label="Tên Công ty" required className="md:col-span-5">
