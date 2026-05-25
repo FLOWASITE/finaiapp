@@ -1167,7 +1167,21 @@ function PurchaseInvoicesTable({
   onOpenDoc: (id: string) => void;
 }) {
   const listFn = useServerFn(listPurchaseDocuments);
+  const deleteFn = useServerFn(deleteDocument);
+  const qc = useQueryClient();
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá tài liệu");
+      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      setPendingDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [limit, setLimit] = useState(PAGE_SIZE);
+
   const { data, isLoading } = useQuery({
     queryKey: ["purchase-documents", filters, limit],
     queryFn: () =>
