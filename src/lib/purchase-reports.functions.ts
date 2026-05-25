@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const RangeSchema = z.object({
   from: z.string().min(10).max(10),
@@ -9,10 +10,11 @@ const RangeSchema = z.object({
 
 const ACTIVE_STATUSES = ["reviewed", "posted"];
 
-async function fetchInvoicesAndLines(supabase: any, from: string, to: string) {
+async function fetchInvoicesAndLines(supabase: any, tenantId: string, from: string, to: string) {
   const { data: invs = [] } = await supabase
     .from("invoices")
     .select("id, invoice_no, issue_date, supplier_id, supplier_name, status, total, vat_amount, subtotal")
+    .eq("tenant_id", tenantId)
     .gte("issue_date", from)
     .lte("issue_date", to)
     .in("status", ACTIVE_STATUSES)
