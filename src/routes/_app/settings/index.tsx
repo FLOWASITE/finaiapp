@@ -896,7 +896,7 @@ function OrganizationTab() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <UsersIcon className="h-4 w-4 text-primary" />
-                  Người đại diện & Chữ ký
+                  Người ký Báo cáo
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -918,29 +918,6 @@ function OrganizationTab() {
                         value={form.legal_rep_title ?? ""}
                         onChange={(e) => set("legal_rep_title", e.target.value)}
                         placeholder="VD: Giám đốc"
-                      />
-                    </Field>
-                    <Field label="Số CCCD / CMND">
-                      <Input
-                        disabled={!canEdit}
-                        value={form.legal_rep_id_no ?? ""}
-                        onChange={(e) => set("legal_rep_id_no", e.target.value)}
-                        placeholder="9 hoặc 12 số"
-                      />
-                    </Field>
-                    <Field label="Ngày cấp CCCD">
-                      <Input
-                        type="date"
-                        disabled={!canEdit}
-                        value={form.legal_rep_id_date ?? ""}
-                        onChange={(e) => set("legal_rep_id_date", e.target.value || null)}
-                      />
-                    </Field>
-                    <Field label="Điện thoại" className="md:col-span-2">
-                      <Input
-                        disabled={!canEdit}
-                        value={form.legal_rep_phone ?? ""}
-                        onChange={(e) => set("legal_rep_phone", e.target.value)}
                       />
                     </Field>
                   </div>
