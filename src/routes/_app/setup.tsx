@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
 import { IndustryCombobox } from "@/components/industry-combobox";
 import { SetupStepper } from "@/components/setup-stepper";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/setup")({
   beforeLoad: async () => {
