@@ -9,6 +9,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LineKind } from "@/lib/ai/classify-line";
+import type { LineKindV2 } from "@/lib/ai/classify-line-v2";
 import type { ProposalLine } from "./types";
 
 const TTL_MS = 5 * 60 * 1000;
