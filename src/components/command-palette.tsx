@@ -58,7 +58,7 @@ const GO_ITEMS: GoItem[] = [
   { label: "Phải thu", to: "/receivables", group: "Công nợ", icon: CircleDollarSign, keywords: ["ar"] },
   { label: "Phải trả", to: "/payables", group: "Công nợ", icon: Wallet, keywords: ["ap"] },
 
-  { label: "Hàng hoá & Dịch vụ", to: "/items", group: "Kế toán", icon: Package, keywords: ["items", "products"] },
+  { label: "Khai báo mặt hàng", to: "/items", group: "Kế toán", icon: Package, keywords: ["items", "products", "hang hoa", "dich vu", "khai bao mat hang"] },
   { label: "Kho — Tồn kho", to: "/inventory", group: "Kế toán", icon: Boxes, keywords: ["kho", "inventory"] },
   { label: "Ngân hàng", to: "/bank", group: "Kế toán", icon: Banknote, keywords: ["bank"] },
   { label: "Đối soát ngân hàng", to: "/bank/reconcile", group: "Kế toán", icon: Landmark, keywords: ["reconcile", "doi soat"] },
