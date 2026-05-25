@@ -443,6 +443,232 @@ async function materializeSalesVoucherFromDocument(
   return voucher.id as string;
 }
 
+/**
+ * Tạo Phiếu mua hàng từ document (purchase_invoice) khi duyệt ghi sổ.
+ * Idempotent theo journal_entry_id.
+ */
+async function materializePurchaseVoucherFromDocument(
+  supabase: any,
+  opts: {
+    documentId: string;
+    tenantId: string;
+    userId: string;
+    entryDate: string;
+    journalEntryId: string;
+  },
+): Promise<string | null> {
+  const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
+
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id, doc_kind, ai_upload_id, ocr_extracted, original_filename")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.doc_kind !== "purchase_invoice") return null;
+
+  const { data: existing } = await supabase
+    .from("purchase_vouchers")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("journal_entry_id", journalEntryId)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+  const seller = ein?.seller ?? ext?.seller ?? ext?.supplier ?? {};
+  const totals = ein?.totals ?? {};
+  const rawLines: any[] = Array.isArray(ein?.lines)
+    ? ein.lines
+    : Array.isArray(ext?.items)
+    ? ext.items
+    : Array.isArray(ext?.lines)
+    ? ext.lines
+    : Array.isArray(ext?.line_items)
+    ? ext.line_items
+    : [];
+
+  const invoiceNo: string | null =
+    ein?.invoice_no ?? ext?.invoice_no ?? ext?.invoice_number ?? null;
+  const rawDate = ein?.issue_date ?? ext?.invoice_date ?? ext?.issue_date ?? entryDate;
+  const issueDate = (() => {
+    if (!rawDate || typeof rawDate !== "string") return entryDate;
+    const m = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : rawDate.slice(0, 10);
+  })();
+
+  const subtotal = Number(totals.subtotal ?? ext.subtotal ?? 0);
+  const vat = Number(totals.vat_amount ?? ext.vat_amount ?? 0);
+  const total = Number(
+    totals.total ?? ext.total_amount ?? ext.total ?? subtotal + vat,
+  );
+
+  let supplierId: string | null = null;
+  const sellerName: string =
+    (seller.name ?? seller.supplier_name ?? "Nhà cung cấp lẻ").toString().trim();
+  const sellerTaxId: string | null = seller.tax_id
+    ? String(seller.tax_id).trim()
+    : seller.supplier_tax_id
+    ? String(seller.supplier_tax_id).trim()
+    : null;
+  const sellerAddress: string | null = seller.address
+    ? String(seller.address).trim()
+    : null;
+
+  if (sellerTaxId) {
+    const { data: sup } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("tax_id", sellerTaxId)
+      .maybeSingle();
+    if (sup?.id) supplierId = sup.id;
+  } else {
+    const { data: matches } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("name", sellerName)
+      .limit(1);
+    if (matches && matches.length > 0) supplierId = matches[0].id;
+  }
+  if (!supplierId) {
+    const { data: lastSup } = await supabase
+      .from("suppliers")
+      .select("code")
+      .eq("tenant_id", tenantId)
+      .ilike("code", "NCC%")
+      .order("code", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    let n = 1;
+    if (lastSup?.code) {
+      const m = /(\d+)$/.exec(lastSup.code);
+      if (m) n = parseInt(m[1], 10) + 1;
+    }
+    const code = `NCC${String(n).padStart(5, "0")}`;
+    const { data: created, error: sErr } = await supabase
+      .from("suppliers")
+      .insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        code,
+        name: sellerName,
+        tax_id: sellerTaxId,
+        email: seller.email || null,
+        phone: seller.phone || null,
+        address: sellerAddress,
+      })
+      .select("id")
+      .single();
+    if (sErr) throw new Error("Không tạo được nhà cung cấp: " + sErr.message);
+    supplierId = created?.id ?? null;
+  }
+
+  const yyyy = String(new Date(issueDate).getFullYear());
+  const prefix = `PM${yyyy}-`;
+  const { data: last } = await supabase
+    .from("purchase_vouchers")
+    .select("voucher_no")
+    .eq("tenant_id", tenantId)
+    .ilike("voucher_no", `${prefix}%`)
+    .order("voucher_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let next = 1;
+  if (last?.voucher_no) {
+    const m = /(\d+)$/.exec(last.voucher_no);
+    if (m) next = parseInt(m[1], 10) + 1;
+  }
+  const voucherNo = `${prefix}${String(next).padStart(5, "0")}`;
+
+  const vatRateHeader = subtotal > 0 ? Math.round((vat / subtotal) * 100) : 0;
+
+  const { data: voucher, error: vErr } = await supabase
+    .from("purchase_vouchers")
+    .insert({
+      user_id: userId,
+      tenant_id: tenantId,
+      voucher_no: voucherNo,
+      voucher_date: issueDate,
+      supplier_id: supplierId,
+      supplier_name: sellerName,
+      supplier_tax_id: sellerTaxId,
+      supplier_address: sellerAddress,
+      invoice_no: invoiceNo,
+      invoice_date: issueDate,
+      reason: `Hóa đơn ${invoiceNo ?? ""} — ${sellerName}`.trim(),
+      currency: ein?.currency ?? "VND",
+      exchange_rate: 1,
+      subtotal,
+      vat_rate: vatRateHeader,
+      vat_amount: vat,
+      total,
+      paid_amount: 0,
+      debit_account: "156",
+      credit_account: "331",
+      vat_account: vat > 0 ? "1331" : null,
+      payment_method: "credit",
+      payment_status: "unpaid",
+      pay_now: false,
+      create_stock_voucher: false,
+      status: "posted",
+      posted_at: new Date().toISOString(),
+      journal_entry_id: journalEntryId,
+      notes: `Tự tạo từ Inbox AI khi duyệt chứng từ (${doc.original_filename ?? ""}).`,
+    })
+    .select("id")
+    .single();
+  if (vErr || !voucher) {
+    throw new Error("Không tạo được phiếu mua hàng: " + (vErr?.message ?? "unknown"));
+  }
+
+  if (rawLines.length > 0) {
+    const lineRows = rawLines.map((l: any, i: number) => {
+      const qty = Number(l.qty ?? l.quantity ?? 1);
+      const unitPrice = Number(l.unit_price ?? 0);
+      const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
+      const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
+      const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
+      const stockAcc = l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      return {
+        voucher_id: voucher.id,
+        line_order: i,
+        product_id: null,
+        product_code: l.product_code ?? null,
+        product_name: l.item_name ?? l.name ?? l.product_name ?? l.description ?? "—",
+        description: l.description ?? l.item_name ?? l.name ?? null,
+        unit: l.unit ?? null,
+        qty,
+        unit_price: unitPrice,
+        amount,
+        discount_pct: 0,
+        discount_amount: 0,
+        vat_rate: lineVatRate,
+        vat_amount: lineVat,
+        total: amount + lineVat,
+        debit_account: String(stockAcc),
+        vat_account: lineVat > 0 ? "1331" : null,
+        line_type: "goods",
+      };
+    });
+    const { error: lErr } = await supabase
+      .from("purchase_voucher_lines")
+      .insert(lineRows);
+    if (lErr) console.error("[materializePurchaseVoucher] lines insert failed", lErr);
+  }
+
+  return voucher.id as string;
+}
+
 /** Throw nếu hóa đơn điện tử (series + no) đã được ghi sổ (phiếu chưa void). */
 async function assertNoDuplicateEInvoice(
   supabase: any,
@@ -454,7 +680,8 @@ async function assertNoDuplicateEInvoice(
     .select("doc_kind, ai_upload_id, ocr_extracted")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc || doc.doc_kind !== "sales_invoice") return;
+  if (!doc) return;
+  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return;
   let ein: any = null;
   if (doc.ai_upload_id) {
     const { data: up } = await supabase
@@ -468,17 +695,30 @@ async function assertNoDuplicateEInvoice(
   const series: string | null = ein?.series ?? ext?.invoice_series ?? null;
   const invoiceNo: string | null = ein?.invoice_no ?? ext?.invoice_no ?? ext?.invoice_number ?? null;
   if (!invoiceNo) return;
-  let q = supabase
-    .from("sales_vouchers")
-    .select("id, voucher_no, status")
-    .eq("tenant_id", tenantId)
-    .eq("einvoice_no", invoiceNo)
-    .neq("status", "void");
-  if (series) q = q.eq("einvoice_series", series);
-  const { data: dups } = await q;
-  if (dups && dups.length > 0) {
-    const label = `${series ? series + "-" : ""}${invoiceNo}`;
-    throw new Error(`Hóa đơn ${label} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+
+  if (doc.doc_kind === "sales_invoice") {
+    let q = supabase
+      .from("sales_vouchers")
+      .select("id, voucher_no, status")
+      .eq("tenant_id", tenantId)
+      .eq("einvoice_no", invoiceNo)
+      .neq("status", "void");
+    if (series) q = q.eq("einvoice_series", series);
+    const { data: dups } = await q;
+    if (dups && dups.length > 0) {
+      const label = `${series ? series + "-" : ""}${invoiceNo}`;
+      throw new Error(`Hóa đơn ${label} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+    }
+  } else {
+    const { data: dups } = await supabase
+      .from("purchase_vouchers")
+      .select("id, voucher_no, status")
+      .eq("tenant_id", tenantId)
+      .eq("invoice_no", invoiceNo)
+      .neq("status", "void");
+    if (dups && dups.length > 0) {
+      throw new Error(`Hóa đơn ${invoiceNo} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+    }
   }
 }
 
