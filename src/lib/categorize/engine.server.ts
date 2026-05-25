@@ -564,11 +564,13 @@ export async function proposeJournalForInvoice(
     return finalize(0.5, { ai_fallback: 1 }, "ai_fallback", [fallbackEntry], false);
   }
 
-  const { classified, signals: clsSignals } = await classifyLines(supabase, inv);
+  const { classified, signals: clsSignals, warnings: clsWarnings, usedV2 } =
+    await classifyLines(supabase, inv);
   signals.push(...clsSignals);
+  warnings.push(...clsWarnings);
   const memoryHits = classified.filter((c) => c.from_memory).length;
   const source: JournalProposalDTO["source"] = memoryHits > 0 ? "learned_lines" : "classify_rule";
-  appliedRules.push(`classify-line-v1`);
+  appliedRules.push(usedV2 ? "classify-line-v2" : "classify-line-v1");
   if (memoryHits > 0) appliedRules.push(`ai_line_classifications:${memoryHits}`);
 
   const { entries, warnings: composeWarnings } = composeEntries(inv, classified, paymentAccount);
