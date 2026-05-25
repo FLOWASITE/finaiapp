@@ -1672,6 +1672,22 @@ function SalesInvoicesTable({
                         {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {r.posted ? (
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-medium text-emerald-700 dark:text-emerald-400">
+                            PBH: {r.posted.voucher_no}
+                          </div>
+                          {r.posted.stock_voucher_no && (
+                            <div className="text-muted-foreground">
+                              PXK: {r.posted.stock_voucher_no}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Tooltip>
@@ -1707,8 +1723,23 @@ function SalesInvoicesTable({
                           </TooltipTrigger>
                           <TooltipContent>Chi tiết tài liệu</TooltipContent>
                         </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setPendingDelete(doc.id)}
+                              aria-label="Xoá tài liệu"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xoá tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
+
                   </TableRow>
                   {isOpen && hasLines && (
                     <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
