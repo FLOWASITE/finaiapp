@@ -1833,9 +1833,32 @@ function SalesInvoicesTable({
         onOpenDrawer={onOpenDoc}
         onClose={() => setViewerRow(null)}
       />
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá tài liệu này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              File gốc và mọi liên kết của tài liệu sẽ bị xoá. Hành động không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={delMut.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingDelete) delMut.mutate(pendingDelete);
+              }}
+            >
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
 
 function InvoiceViewerDialog({
   docId,
