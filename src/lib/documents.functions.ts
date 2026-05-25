@@ -694,7 +694,7 @@ export const listLinkedDocuments = createServerFn({ method: "GET" })
   });
 
 export const listAttachableDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -707,6 +707,7 @@ export const listAttachableDocuments = createServerFn({ method: "GET" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     const { data: existing } = await context.supabase
       .from("document_links")
       .select("document_id")
@@ -717,6 +718,7 @@ export const listAttachableDocuments = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("documents")
       .select("id, original_filename, doc_kind, mime_type, size_bytes, ocr_status, created_at")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
