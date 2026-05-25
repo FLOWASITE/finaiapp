@@ -774,7 +774,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     );
     if (linesErr) throw new Error(linesErr.message);
 
-    // Mark source as handled
+    let postedVoucher: { kind: "sales_voucher" | "purchase_voucher"; id: string; voucher_no: string } | null = null;
     if (data.source === "bank_statement") {
       await supabase
         .from("bank_transactions")
@@ -785,9 +785,6 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
-      // Hoá đơn BÁN RA → vật chất hoá sang sales_invoices (cho danh sách HĐ bán)
-      // và sales_vouchers (cho danh sách Phiếu bán hàng). Nếu fail thì THROW
-      // để UI thấy lỗi thật, không báo "Đã ghi sổ" giả.
       const { data: docMeta } = await supabase
         .from("documents")
         .select("doc_kind")
@@ -801,7 +798,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           entryDate: data.entry_date,
           journalEntryId: entry.id,
         });
-        await materializeSalesVoucherFromDocument(supabase, {
+        const svId = await materializeSalesVoucherFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
           userId,
@@ -809,6 +806,23 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           journalEntryId: entry.id,
           salesInvoiceId,
         });
+        if (svId) {
+          const { data: svRow } = await supabase
+            .from("sales_vouchers")
+            .select("id, voucher_no")
+            .eq("id", svId)
+            .maybeSingle();
+          if (svRow) postedVoucher = { kind: "sales_voucher", id: svRow.id, voucher_no: svRow.voucher_no };
+        }
+      } else if (docMeta?.doc_kind === "purchase_invoice") {
+        // Tìm phiếu mua hàng đã liên kết bút toán này (nếu có)
+        const { data: pvRow } = await supabase
+          .from("purchase_vouchers")
+          .select("id, voucher_no")
+          .eq("tenant_id", tenantId)
+          .eq("journal_entry_id", entry.id)
+          .maybeSingle();
+        if (pvRow) postedVoucher = { kind: "purchase_voucher", id: pvRow.id, voucher_no: pvRow.voucher_no };
       }
     } else if (data.source === "ai_insight") {
       await supabase
@@ -843,7 +857,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
       invalidateCategorizeCache(tenantId);
     } catch {}
 
-    return { journal_entry_id: entry.id };
+    return { journal_entry_id: entry.id, posted_voucher: postedVoucher };
   });
 
 const SkipInput = z.object({
