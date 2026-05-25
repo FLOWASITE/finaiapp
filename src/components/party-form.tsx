@@ -175,7 +175,7 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
         });
       }
       return supplierFn({
-        data: { ...base, payable_account: v.counter_account } as any,
+        data: { ...base, payable_account: v.counter_account, roles: v.roles ?? [] } as any,
       });
     },
     onSuccess: (r) => {
