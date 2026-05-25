@@ -661,8 +661,10 @@ function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
 
 function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
   if (!items || items.length === 0) return null;
+  const nfQty = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 });
+  const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
   return (
-    <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+    <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/30 p-4">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           Hàng hoá / dịch vụ
@@ -671,32 +673,48 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
           {items.length} dòng
         </span>
       </div>
-      <ul className="space-y-2">
-        {items.map((it, i) => {
-          const hasQty = it.qty != null && it.unit_price != null;
-          return (
-            <li
-              key={i}
-              className="grid grid-cols-[20px_1fr_auto] items-start gap-3 text-xs"
-            >
-              <span className="pt-0.5 text-[10px] font-mono text-muted-foreground">
-                {i + 1}.
-              </span>
-              <div className="min-w-0">
-                <div className="truncate font-medium text-foreground">{it.name}</div>
-                {hasQty && (
-                  <div className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
-                    {it.qty} × {VND(it.unit_price!)}
-                  </div>
-                )}
-              </div>
-              <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                {VND(it.amount)}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border/60 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="py-1.5 pr-2 text-left font-semibold w-6">#</th>
+              <th className="py-1.5 pr-2 text-left font-semibold">Tên</th>
+              <th className="py-1.5 pr-2 text-right font-semibold">SL</th>
+              <th className="py-1.5 pr-2 text-right font-semibold">Đơn giá</th>
+              <th className="py-1.5 text-right font-semibold">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={i} className="border-b border-border/40 last:border-0 align-top">
+                <td className="py-1.5 pr-2 font-mono text-[10px] text-muted-foreground">
+                  {i + 1}
+                </td>
+                <td className="py-1.5 pr-2 font-medium text-foreground">{it.name}</td>
+                <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
+                  {it.qty != null ? nfQty.format(it.qty) : "—"}
+                </td>
+                <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
+                  {it.unit_price != null ? VND(it.unit_price) : "—"}
+                </td>
+                <td className="py-1.5 text-right font-mono font-semibold tabular-nums text-foreground">
+                  {VND(it.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border">
+              <td colSpan={4} className="py-2 pr-2 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Tổng cộng (trước VAT)
+              </td>
+              <td className="py-2 text-right font-mono text-sm font-bold tabular-nums text-foreground">
+                {VND(total)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }
