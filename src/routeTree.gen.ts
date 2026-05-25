@@ -73,6 +73,7 @@ import { Route as AppSettingsProjectsRouteImport } from './routes/_app/settings/
 import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/settings/fiscal-periods'
 import { Route as AppSettingsDepartmentsRouteImport } from './routes/_app/settings/departments'
 import { Route as AppSettingsCostCentersRouteImport } from './routes/_app/settings/cost-centers'
+import { Route as AppSettingsBusinessActivityRouteImport } from './routes/_app/settings/business-activity'
 import { Route as AppSettingsBranchesRouteImport } from './routes/_app/settings/branches'
 import { Route as AppSettingsAiFeedbackRouteImport } from './routes/_app/settings/ai-feedback'
 import { Route as AppSalesVouchersRouteImport } from './routes/_app/sales/vouchers'
@@ -498,6 +499,12 @@ const AppSettingsCostCentersRoute = AppSettingsCostCentersRouteImport.update({
   path: '/settings/cost-centers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsBusinessActivityRoute =
+  AppSettingsBusinessActivityRouteImport.update({
+    id: '/settings/business-activity',
+    path: '/settings/business-activity',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSettingsBranchesRoute = AppSettingsBranchesRouteImport.update({
   id: '/settings/branches',
   path: '/settings/branches',
@@ -1115,6 +1122,7 @@ export interface FileRoutesByFullPath {
   '/sales/vouchers': typeof AppSalesVouchersRoute
   '/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
+  '/settings/business-activity': typeof AppSettingsBusinessActivityRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
@@ -1276,6 +1284,7 @@ export interface FileRoutesByTo {
   '/sales/vouchers': typeof AppSalesVouchersRoute
   '/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/settings/branches': typeof AppSettingsBranchesRoute
+  '/settings/business-activity': typeof AppSettingsBusinessActivityRoute
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
@@ -1446,6 +1455,7 @@ export interface FileRoutesById {
   '/_app/sales/vouchers': typeof AppSalesVouchersRoute
   '/_app/settings/ai-feedback': typeof AppSettingsAiFeedbackRoute
   '/_app/settings/branches': typeof AppSettingsBranchesRoute
+  '/_app/settings/business-activity': typeof AppSettingsBusinessActivityRoute
   '/_app/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/_app/settings/departments': typeof AppSettingsDepartmentsRoute
   '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
@@ -1616,6 +1626,7 @@ export interface FileRouteTypes {
     | '/sales/vouchers'
     | '/settings/ai-feedback'
     | '/settings/branches'
+    | '/settings/business-activity'
     | '/settings/cost-centers'
     | '/settings/departments'
     | '/settings/fiscal-periods'
@@ -1777,6 +1788,7 @@ export interface FileRouteTypes {
     | '/sales/vouchers'
     | '/settings/ai-feedback'
     | '/settings/branches'
+    | '/settings/business-activity'
     | '/settings/cost-centers'
     | '/settings/departments'
     | '/settings/fiscal-periods'
@@ -1946,6 +1958,7 @@ export interface FileRouteTypes {
     | '/_app/sales/vouchers'
     | '/_app/settings/ai-feedback'
     | '/_app/settings/branches'
+    | '/_app/settings/business-activity'
     | '/_app/settings/cost-centers'
     | '/_app/settings/departments'
     | '/_app/settings/fiscal-periods'
@@ -2497,6 +2510,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/cost-centers'
       fullPath: '/settings/cost-centers'
       preLoaderRoute: typeof AppSettingsCostCentersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/business-activity': {
+      id: '/_app/settings/business-activity'
+      path: '/settings/business-activity'
+      fullPath: '/settings/business-activity'
+      preLoaderRoute: typeof AppSettingsBusinessActivityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings/branches': {
@@ -3513,6 +3533,7 @@ interface AppRouteChildren {
   AppSalesVouchersRoute: typeof AppSalesVouchersRoute
   AppSettingsAiFeedbackRoute: typeof AppSettingsAiFeedbackRoute
   AppSettingsBranchesRoute: typeof AppSettingsBranchesRoute
+  AppSettingsBusinessActivityRoute: typeof AppSettingsBusinessActivityRoute
   AppSettingsCostCentersRoute: typeof AppSettingsCostCentersRoute
   AppSettingsDepartmentsRoute: typeof AppSettingsDepartmentsRoute
   AppSettingsFiscalPeriodsRoute: typeof AppSettingsFiscalPeriodsRoute
@@ -3615,6 +3636,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesVouchersRoute: AppSalesVouchersRoute,
   AppSettingsAiFeedbackRoute: AppSettingsAiFeedbackRoute,
   AppSettingsBranchesRoute: AppSettingsBranchesRoute,
+  AppSettingsBusinessActivityRoute: AppSettingsBusinessActivityRoute,
   AppSettingsCostCentersRoute: AppSettingsCostCentersRoute,
   AppSettingsDepartmentsRoute: AppSettingsDepartmentsRoute,
   AppSettingsFiscalPeriodsRoute: AppSettingsFiscalPeriodsRoute,
