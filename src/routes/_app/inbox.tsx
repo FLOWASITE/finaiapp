@@ -1043,6 +1043,72 @@ function formatDateVi(s?: string | number | null) {
   return null;
 }
 
+function FilterBar({
+  posted,
+  onPosted,
+  kind,
+  onKind,
+  q,
+  onQ,
+  total,
+  shown,
+}: {
+  posted: "all" | "posted" | "open";
+  onPosted: (v: "all" | "posted" | "open") => void;
+  kind: "all" | "sales" | "purchase";
+  onKind: (v: "all" | "sales" | "purchase") => void;
+  q: string;
+  onQ: (v: string) => void;
+  total: number;
+  shown: number;
+}) {
+  const Seg = <T extends string>(props: {
+    value: T;
+    current: T;
+    onClick: (v: T) => void;
+    label: string;
+  }) => (
+    <button
+      type="button"
+      onClick={() => props.onClick(props.value)}
+      className={cn(
+        "rounded-md px-2.5 py-1 text-[11px] font-medium transition",
+        props.current === props.value
+          ? "bg-foreground text-background shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {props.label}
+    </button>
+  );
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-card/50 px-2.5 py-2 backdrop-blur">
+      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+        <Seg value="all" current={posted} onClick={onPosted} label="Tất cả" />
+        <Seg value="posted" current={posted} onClick={onPosted} label="Đã ghi sổ" />
+        <Seg value="open" current={posted} onClick={onPosted} label="Chưa ghi" />
+      </div>
+      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+        <Seg value="all" current={kind} onClick={onKind} label="Mọi loại" />
+        <Seg value="sales" current={kind} onClick={onKind} label="Bán" />
+        <Seg value="purchase" current={kind} onClick={onKind} label="Mua" />
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <input
+          value={q}
+          onChange={(e) => onQ(e.target.value)}
+          placeholder="Số phiếu (BH/PX) hoặc số HĐ…"
+          className="h-7 w-56 rounded-md border border-border/50 bg-background px-2 text-[12px] placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+        />
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {shown}/{total}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+
 function ItemCard({
   item,
   active,
