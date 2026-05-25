@@ -391,7 +391,8 @@ function OrganizationTab() {
     if (!diffShipping) payload.shipping_address = null;
     payload.billing_address = null;
     payload.fax = null;
-    ["id", "user_id", "created_at", "updated_at", "setup_completed", "setup_completed_at"].forEach(
+    mutate.mutate(payload);
+
       (k) => delete payload[k],
     );
     mutate.mutate(payload);
