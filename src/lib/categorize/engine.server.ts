@@ -227,13 +227,19 @@ async function classifyLines(
     description: string;
     amount: number;
     kind: LineKind;
+    kind_v2?: LineKindV2;
     account: string;
     confidence: number;
     from_memory: boolean;
+    amortize_months?: number | null;
+    need_useful_life_confirm?: boolean;
   }>;
   signals: ProposalSignal[];
+  warnings: ProposalWarning[];
+  usedV2: boolean;
 }> {
   const signals: ProposalSignal[] = [];
+  const warnings: ProposalWarning[] = [];
 
   // Memory lookup — load 1 lần toàn bộ tenant (cached), filter trong RAM
   const norms = inv.lines.map((l) => normalizeLineName(l.description));
@@ -252,7 +258,18 @@ async function classifyLines(
     inv.supplier_id,
   );
 
+  // V2 context — chỉ kích hoạt nếu tenant đã cấu hình business_types
+  const tenantCfg = await getTenantClassifyContext(supabase, inv.tenant_id);
+  const usedV2 = tenantCfg.business_types.length > 0;
+  const vendorInfo = usedV2
+    ? await getVendorRolesAndVsic(supabase, inv.supplier_id)
+    : null;
+  const ctxV2 = usedV2
+    ? buildClassifyContextV2(tenantCfg, vendorInfo ?? undefined)
+    : null;
+
   let memoryHits = 0;
+  let v2Hits = 0;
   const classified = inv.lines.map((l) => {
     const norm = normalizeLineName(l.description);
     const mem = norm ? memoryMap.get(norm) : null;
@@ -266,6 +283,22 @@ async function classifyLines(
         account: mem.account,
         confidence: Math.min(0.98, 0.7 + Math.min(0.25, mem.hit_count * 0.05)),
         from_memory: true,
+      };
+    }
+    if (ctxV2) {
+      const r = classifyLineV2(l, ctxV2);
+      v2Hits++;
+      return {
+        idx: l.idx,
+        description: String(l.description ?? ""),
+        amount: Number(l.amount ?? 0),
+        kind: v2ToLegacyKind(r.kind),
+        kind_v2: r.kind,
+        account: r.account,
+        confidence: r.confidence / 100,
+        from_memory: false,
+        amortize_months: r.amortize_months ?? null,
+        need_useful_life_confirm: r.need_useful_life_confirm ?? false,
       };
     }
     const c = classifyLine(l, {
@@ -291,6 +324,13 @@ async function classifyLines(
       ok: true,
     });
   }
+  if (v2Hits > 0) {
+    signals.push({
+      label: `Phân loại theo bối cảnh DN (${tenantCfg.business_types.join("+") || "—"}, ${tenantCfg.accounting_standard})`,
+      weight: 18,
+      ok: true,
+    });
+  }
   if (industryHint) {
     signals.push({ label: industryHint.label, weight: 15, ok: true });
   }
@@ -298,7 +338,25 @@ async function classifyLines(
     signals.push({ label: `Có lịch sử ${Object.keys(historyDist).length} loại với NCC này`, weight: 12, ok: true });
   }
 
-  return { classified, signals };
+  // Cảnh báo TSCĐ — yêu cầu KTT xác nhận thời gian sử dụng > 1 năm
+  for (const c of classified) {
+    if (c.need_useful_life_confirm) {
+      warnings.push({
+        code: "cat-tscd-confirm",
+        severity: "info",
+        message: `"${c.description.slice(0, 50)}" được nhận diện là TSCĐ (TK ${c.account}) — cần KTT xác nhận thời gian sử dụng > 1 năm`,
+      });
+    }
+    if (c.kind_v2 === "prepaid" && c.amortize_months) {
+      warnings.push({
+        code: "cat-242-allocate",
+        severity: "info",
+        message: `"${c.description.slice(0, 50)}" → 242, phân bổ ${c.amortize_months} kỳ`,
+      });
+    }
+  }
+
+  return { classified, signals, warnings, usedV2 };
 }
 
 // ============================================================
