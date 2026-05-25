@@ -72,7 +72,9 @@ export type PostedVoucherRef = {
 
 export type MissingMasterData = {
   customer?: string;
+  customer_tax_id?: string;
   supplier?: string;
+  supplier_tax_id?: string;
   products?: string[];
   services?: string[];
 };
