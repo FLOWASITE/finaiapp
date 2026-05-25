@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 export const ALLOWED_DOC_TABLES = [
   "invoices",
@@ -50,7 +51,7 @@ export const transitionStatus = createServerFn({ method: "POST" })
   });
 
 export const listDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -66,9 +67,11 @@ export const listDocuments = createServerFn({ method: "GET" })
       .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     let q = context.supabase
       .from("documents")
       .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .range(data.offset, data.offset + data.limit - 1);
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
@@ -101,7 +104,7 @@ export const listDocuments = createServerFn({ method: "GET" })
 
 
 export const listPurchaseDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -120,9 +123,11 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
       .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     let q = context.supabase
       .from("documents")
       .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .eq("doc_kind", "purchase_invoice")
       .order("created_at", { ascending: false });
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
@@ -256,7 +261,7 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
   });
 
 export const listSalesDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -275,9 +280,11 @@ export const listSalesDocuments = createServerFn({ method: "GET" })
       .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     let q = context.supabase
       .from("documents")
       .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .eq("doc_kind", "sales_invoice")
       .order("created_at", { ascending: false });
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
@@ -508,13 +515,15 @@ export const uploadDocument = createServerFn({ method: "POST" })
 
 
 export const getDocument = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     const { data: doc, error } = await context.supabase
       .from("documents")
       .select("*")
       .eq("id", data.id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!doc) throw new Error("Không tìm thấy tài liệu");
@@ -551,14 +560,15 @@ export const getDocument = createServerFn({ method: "GET" })
   });
 
 export const reparseDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context as any;
+    const { supabase, userId, tenantId } = context as any;
     const { data: doc, error } = await supabase
       .from("documents")
       .select("*")
       .eq("id", data.id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!doc) throw new Error("Không tìm thấy tài liệu");
@@ -634,9 +644,10 @@ export const getStatusHistory = createServerFn({ method: "GET" })
   });
 
 export const deleteDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     const { count } = await context.supabase
       .from("document_links")
       .select("document_id", { count: "exact", head: true })
@@ -646,10 +657,15 @@ export const deleteDocument = createServerFn({ method: "POST" })
     }
     const { data: doc } = await context.supabase
       .from("documents")
-      .select("storage_bucket,storage_path")
+      .select("storage_bucket,storage_path,tenant_id")
       .eq("id", data.id)
       .maybeSingle();
-    const { error } = await context.supabase.from("documents").delete().eq("id", data.id);
+    if (!doc || doc.tenant_id !== tenantId) throw new Error("Không tìm thấy tài liệu");
+    const { error } = await context.supabase
+      .from("documents")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
     if (doc?.storage_bucket && doc?.storage_path) {
       await context.supabase.storage.from(doc.storage_bucket).remove([doc.storage_path]);
@@ -678,7 +694,7 @@ export const listLinkedDocuments = createServerFn({ method: "GET" })
   });
 
 export const listAttachableDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -691,6 +707,7 @@ export const listAttachableDocuments = createServerFn({ method: "GET" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     const { data: existing } = await context.supabase
       .from("document_links")
       .select("document_id")
@@ -701,6 +718,7 @@ export const listAttachableDocuments = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("documents")
       .select("id, original_filename, doc_kind, mime_type, size_bytes, ocr_status, created_at")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
