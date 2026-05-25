@@ -12,6 +12,7 @@ export const REQUIRED_TENANT_FIELDS: { key: string; label: string }[] = [
   { key: "vat_period", label: "Kỳ kê khai GTGT" },
   { key: "legal_rep_name", label: "Đại diện pháp luật" },
   { key: "legal_rep_title", label: "Chức danh đại diện" },
+  { key: "business_types", label: "Loại hình hoạt động (Hoạt động & Mặt hàng)" },
 ];
 
 export function computeTenantSetupProgress(tenant: any | null | undefined) {
