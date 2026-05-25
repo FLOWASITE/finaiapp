@@ -36,7 +36,17 @@ function CategorizePage() {
   const stats = data?.stats ?? { pending: 0, auto_today: 0, accuracy_7d: null };
 
   const eligibleIds = useMemo(
-    () => items.filter((i: any) => i.status === "pending" && !(i.warnings ?? []).some((w: any) => w.severity === "error")).map((i: any) => i.id),
+    () =>
+      items
+        .filter((i: any) => {
+          if (i.status !== "pending") return false;
+          const ws = (i.warnings ?? []) as any[];
+          if (ws.some((w) => w.severity === "error")) return false;
+          // TSCĐ & 242 cần xác nhận riêng từng cái — không cho batch
+          if (ws.some((w) => w.code === "cat-tscd-confirm" || w.code === "cat-242-allocate")) return false;
+          return true;
+        })
+        .map((i: any) => i.id),
     [items],
   );
 
