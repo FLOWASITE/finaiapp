@@ -111,61 +111,99 @@ function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-6 space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">
           Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền
         </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2">
-        {[
-          {
-            to: "/settings/business-activity",
-            label: "Hoạt động & Mặt hàng",
-            icon: <Wand2 className="h-4 w-4" />,
-            highlight: true,
-          },
-          {
-            to: "/items",
-            label: "Khai báo mặt hàng",
-            icon: <Package className="h-4 w-4" />,
-            highlight: true,
-          },
-          { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
-          {
-            to: "/settings/departments",
-            label: "Phòng ban",
-            icon: <UsersIcon className="h-4 w-4" />,
-          },
-          { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
-          {
-            to: "/settings/cost-centers",
-            label: "Bộ phận chi phí",
-            icon: <Calculator className="h-4 w-4" />,
-          },
-          {
-            to: "/settings/fiscal-periods",
-            label: "Kỳ kế toán",
-            icon: <Lock className="h-4 w-4" />,
-          },
-        ].map((it) => (
-          <Button
-            key={it.to}
-            asChild
-            variant="outline"
-            title={it.label}
-            className={`justify-start h-auto py-2 ${it.highlight ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : ""}`}
-          >
-            <Link to={it.to as any}>
-              {it.icon}
-              <span className="ml-2 whitespace-normal break-words text-left leading-tight">
-                {it.label}
-              </span>
-            </Link>
-          </Button>
-        ))}
+
+      {/* Shortcut: nhóm 1 — Khai báo trọng yếu */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Khai báo trọng yếu
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            {
+              to: "/settings/business-activity",
+              label: "Hoạt động & Mặt hàng",
+              desc: "Cấu hình ngành nghề & ánh xạ tài khoản",
+              icon: <Wand2 className="h-5 w-5" />,
+            },
+            {
+              to: "/items",
+              label: "Khai báo mặt hàng",
+              desc: "Danh mục hàng hoá, dịch vụ, NVL, CCDC",
+              icon: <Package className="h-5 w-5" />,
+            },
+            {
+              to: "/settings/fiscal-periods",
+              label: "Kỳ kế toán",
+              desc: "Mở/khoá sổ theo tháng, quý, năm",
+              icon: <Lock className="h-5 w-5" />,
+            },
+          ].map((it) => (
+            <Button
+              key={it.to}
+              asChild
+              variant="outline"
+              className="group h-auto justify-start gap-3 border-primary/30 bg-primary/5 px-4 py-3 hover:border-primary/50 hover:bg-primary/10"
+            >
+              <Link to={it.to as any}>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary group-hover:bg-primary/25">
+                  {it.icon}
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block text-sm font-semibold leading-tight">{it.label}</span>
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground leading-snug">
+                    {it.desc}
+                  </span>
+                </span>
+              </Link>
+            </Button>
+          ))}
+        </div>
       </div>
+
+      {/* Shortcut: nhóm 2 — Cơ cấu tổ chức */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Cơ cấu tổ chức
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
+            { to: "/settings/departments", label: "Phòng ban", icon: <UsersIcon className="h-4 w-4" /> },
+            { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
+            { to: "/settings/cost-centers", label: "Bộ phận chi phí", icon: <Calculator className="h-4 w-4" /> },
+          ].map((it) => (
+            <Button
+              key={it.to}
+              asChild
+              variant="outline"
+              size="sm"
+              title={it.label}
+              className="justify-start h-auto py-2"
+            >
+              <Link to={it.to as any}>
+                {it.icon}
+                <span className="ml-2 whitespace-normal break-words text-left leading-tight text-xs">
+                  {it.label}
+                </span>
+              </Link>
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <DigestSettingsCard />
       <Tabs value={tab} onValueChange={handleTabChange}>
         <div
