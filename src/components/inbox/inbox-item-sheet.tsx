@@ -299,6 +299,11 @@ export function InboxItemSheet({
               {/* Cảnh báo cần tạo mới đối tác / hàng hóa */}
               <MissingMasterDataPanel missing={item.missing} />
 
+              {/* Đối soát hóa đơn ↔ bút toán */}
+              <ReconciliationPanel item={item} />
+
+
+
               {/* Voucher meta grid */}
               <VoucherMetaGrid meta={item.proposal.meta} />
 
