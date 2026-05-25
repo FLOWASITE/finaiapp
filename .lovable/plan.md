@@ -1,100 +1,75 @@
+## Mục tiêu
+Hoàn thiện UI hai luồng "khai báo & đặt tổ chức":
+1. Trang `/settings` — lưới shortcut + tab "Tổ chức" (hero, banner, form 4 section).
+2. Dialog "Tạo tổ chức mới" trong `tenant-switcher`.
 
-## Hoàn thiện V2 classifier & Product catalog — Plan triển khai
-
-Đã chốt 3 câu hỏi:
-1. **A1 — TSCĐ**: dùng bảng `fixed_assets` hiện có, auto chọn `fa_category` mặc định theo `asset_kind` (211/213), KTT sửa sau.
-2. **A2 — 242**: chỉ tạo record `allocated_assets` ở trạng thái `pending`, KTT vào trang Phân bổ duyệt từng kỳ.
-3. **B1 — Roles NCC**: 4 checkbox đơn giản trong form NCC.
-
----
-
-### Bước 1 — Chặn rò rỉ TSCĐ & 242 (A1 + A2 + A3)
-
-**Server (`src/lib/categorize.functions.ts` — `approveProposal`)**
-- Mở rộng Zod schema:
-  ```
-  tscd_confirm: z.object({
-    useful_life_years: z.number().int().min(1).max(50),
-    asset_kind: z.enum(['tangible','intangible']),
-  }).optional(),
-  allocate_242: z.object({
-    months: z.number().int().min(1).max(60),
-  }).optional(),
-  ```
-- Sau khi insert `journal_entries` + `journal_lines` thành công:
-  - **Nếu có `tscd_confirm`**: tìm line có account bắt đầu `211`/`213`, insert vào `fixed_assets` với:
-    - `cost = debit của line đó`, `useful_life_years`, `start_date = entry_date`
-    - `fa_category_id`: chọn category mặc định theo `asset_kind` (query `fa_categories` lấy 1 row tương ứng, hoặc null nếu chưa có — KTT sửa sau)
-    - `supplier_id`, `tenant_id`, `description` từ invoice
-  - **Nếu line nào có account = `242`**: insert vào `allocated_assets` với `status='pending'`, `total_amount = debit`, `months_allocated = allocate_242.months ?? amortize_months trong dto`, `start_date = entry_date`, `account_target` mặc định (642 — hoặc lấy từ tenant.default_cost_center).
-
-**Frontend (`ProposalCard.tsx` + `/categorize` batch bar)**
-- Đã có `TscdConfirmDialog` mở khi single approve. Bổ sung:
-  - Khi `cat-242-allocate` warning có mặt → mở thêm `Allocate242Dialog` nhỏ (chỉ 1 ô input `months`, default từ warning), kết quả gửi vào `allocate_242`.
-  - **Batch approve**: filter `eligibleIds` để loại proposal có warning `cat-tscd-confirm` hoặc `cat-242-allocate`. Tooltip: "Cần xác nhận từng cái — bấm vào để mở".
+Phạm vi: chỉ UI/UX/responsive — không đổi logic lưu, không đổi schema, không đổi server function.
 
 ---
 
-### Bước 2 — UI Roles NCC (B1)
+## 1. Lưới shortcut ở đầu trang Cài đặt
+Vấn đề: 7 nút cùng cấp, hai nút highlight (`Hoạt động & Mặt hàng`, `Khai báo mặt hàng`) trộn lẫn với nút phụ → khó quét mắt; mobile bị chật.
 
-**Migration**: cột `suppliers.roles text[]` đã có (đã verify). Không cần migration mới.
+Đổi sang **bố cục 2 nhóm có nhãn**:
+- "Khai báo trọng yếu" (nổi bật, card lớn icon trái + tiêu đề + mô tả 1 dòng): Hoạt động & Mặt hàng, Khai báo mặt hàng, Kỳ kế toán.
+- "Cơ cấu tổ chức" (nút outline gọn): Chi nhánh, Phòng ban, Dự án, Bộ phận chi phí.
+- Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` cho card lớn; `grid-cols-2 sm:grid-cols-4` cho nút phụ.
 
-**`src/components/parties/party-form.tsx`** (hoặc tương đương)
-- Thêm section "Vai trò cho AI hạch toán" (chỉ hiện cho supplier, không cho customer):
-  - 4 checkbox: "Nguồn hàng bán lại (156)", "Nguồn NVL (152)", "NCC dịch vụ (642/641)", "NCC tài sản (211/242)"
-  - Lưu vào `roles` array
-- Bonus: filter chip trong danh sách `/suppliers`.
+## 2. Tab "Tổ chức"
+
+### 2.1 Hero card
+- Avatar 14×14 → giữ; thêm cụm meta phải: MST · Loại hình · Trạng thái hồ sơ (badge `pct%`).
+- Nút hành động trong hero: "Cập nhật từ MST" (nếu có tax_id) và "Đổi logo" (kéo từ section Branding lên cho dễ thấy).
+- Trên mobile xếp dọc, badge xuống dòng dưới tên.
+
+### 2.2 Banner & thông báo
+- Gộp banner "chưa hoàn tất" + chip "đã hoàn tất" thành **một thanh trạng thái thống nhất**: progress bar mảnh + text trạng thái + CTA Wizard. Khi 100% → biến thành dải xanh mảnh có icon check, không chiếm chỗ.
+- Card "Đồng bộ Trí nhớ AI" thu lại thành banner mảnh (1 dòng, icon + link), bỏ màu indigo cứng → dùng token `accent`/`muted`.
+
+### 2.3 SectionNav
+- Hiện chỉ desktop. Thêm phiên bản **tab cuộn ngang dính trên** cho mobile (`sticky top-0`, chip nhỏ, scroll-snap), dùng cùng dữ liệu `SECTIONS`.
+- Mỗi mục thêm chấm trạng thái: xanh khi đủ trường bắt buộc của section, hổ phách khi thiếu.
+
+### 2.4 Các section form
+- Đồng nhất `CardHeader`: thêm dòng mô tả ngắn dưới CardTitle (vì sao cần khai báo).
+- Trong "Hồ sơ pháp lý": gom cụm MST + nút "Cập nhật từ MST" + checkbox "ghi đè" vào **một panel viền nhạt** thay vì dải hint dài; checkbox đổi thành Switch nhỏ kèm tooltip.
+- "Liên hệ & Địa chỉ": switch "địa chỉ giao hàng riêng" đổi sang dạng toggle inline trong header section, gọn hơn khối border-dashed.
+- "Cấu hình kế toán": chia thành 2 nhóm con có label nhỏ — "Chuẩn & tiền tệ" / "Kê khai thuế" — để giảm cảm giác form dày.
+- "Người đại diện": chuyển 2 cụm (pháp luật / kế toán trưởng) sang **Accordion** mặc định mở cụm 1, đóng cụm 2 — giảm scroll.
+- "Thương hiệu & Chữ ký": preview chữ ký/logo trên nền giả lập hoá đơn nhỏ để biết hiển thị thực tế.
+
+### 2.5 Sticky save bar
+- Thanh hành động cố định đáy (đã có pb-24): cải tiến hiển thị số trường thay đổi, nút "Hoàn tác" + "Lưu" + đếm lỗi nếu có trường required trống.
+- Trên mobile full-width, chia 2 nút bằng nhau.
+
+## 3. Dialog "Tạo tổ chức mới"
+
+- Mở rộng `DialogContent` → `sm:max-w-lg` (hiện mặc định hơi chật cho block "Đã lấy từ MST").
+- Thứ tự lại các bước: (1) Nhập MST → tra cứu; (2) Khối "Đã lấy từ MST" hiện ngay dưới input MST khi có dữ liệu (thay vì cuối dialog) để người dùng thấy giá trị trước khi sửa; (3) Các trường còn lại pre-fill, có icon nhỏ "đã lấy tự động" bên cạnh.
+- "Tên hiển thị" thêm hint "Dùng trong menu chọn tổ chức — thường viết tắt".
+- Validation inline: nút Tạo disabled như cũ + hiển thị lý do (Tooltip "Cần điền Tên pháp nhân & Tên hiển thị").
+- Footer: thêm checkbox "Đặt làm tổ chức đang dùng sau khi tạo" (mặc định bật) — chỉ UI, gọi `switchTenant` ngay sau `createTenant` thành công (đã có invalidate, chỉ thêm 1 call).
+- Mobile: dialog full-screen sheet (`max-h-[100dvh]` + scroll trong body).
+
+## 4. Responsive tổng thể
+- `max-w-5xl` của trang → đổi `max-w-6xl` để section nav 220px + form không bị bóp ở 1280–1440.
+- Tabs cuộn ngang giữ nguyên; thêm gradient mờ 2 mép cho biết có thể cuộn.
+- Mọi `grid-cols-2` form trên màn `<400px` → 1 cột (đã có `md:grid-cols-2`, kiểm tra lại cụm Hồ sơ pháp lý/Liên hệ).
+
+## 5. Token & nhất quán
+- Bỏ màu hardcode `#C7D2FE / #EEF2FF / #4F46C7` trong card AI Memory → dùng `bg-accent / text-accent-foreground / border-accent`.
+- Banner amber dùng `bg-warning/10 border-warning/40 text-warning-foreground` nếu token tồn tại, fallback giữ amber nhưng qua biến CSS đã có trong `styles.css`.
 
 ---
 
-### Bước 3 — Ghi & dùng `kind_v2` (B3 + B2)
+## File sẽ chỉnh
+- `src/routes/_app/settings/index.tsx` — lưới shortcut, hero, banner, SectionNav mobile, accordion section "Người đại diện", sticky save bar, token màu.
+- `src/components/tenant-switcher.tsx` — chỉ phần `CreateTenantDialog`: layout, thứ tự, mobile sheet, checkbox "đặt làm active", + 1 call `switchTenant` sau tạo.
+- (nếu cần) `src/components/settings-section-nav.tsx` — thêm biến thể `variant="chips"` cho mobile.
 
-**B3 — Ghi `kind_v2`**:
-- Tại nơi insert `ai_line_classifications` (tìm trong `feedback/emit.server.ts` và bất cứ chỗ nào ghi memory), thêm `kind_v2: classified.kind_v2 ?? null`.
+Không đụng: server functions, schema, tax-id-lookup, logic `applyLookup`, các tab khác của Settings.
 
-**B2 — History boost v2**:
-- Sửa `getVendorHistoryDistCached` để trả về thêm `dist_v2` (group by `kind_v2` thay vì `kind`).
-- `engine.classifyLines` truyền `historyDist: dist_v2` vào `ctxV2` qua `buildClassifyContextV2({...ctx, historyDist})`. Mở rộng signature `buildClassifyContextV2` để nhận historyDist.
-
----
-
-### Bước 4 — Onboarding step (B4)
-
-**`src/components/onboarding/setup-stepper.tsx`** (hoặc nơi định nghĩa steps):
-- Thêm step "Hoạt động kinh doanh & Danh mục mặt hàng" trỏ tới `/settings/business-activity`.
-- Copy ngắn: "Giúp Fin hạch toán đúng 152/153/156/211/213/242 cho từng mặt hàng. Bỏ qua bước này → Fin sẽ phải đoán."
-- Mark step done khi `business_types.length > 0`.
-
----
-
-### Bước 5 — Mở rộng v2 sang bulk intake & sales (C1 + C2)
-
-**C1 — Bulk intake**:
-- `src/lib/ai/classify-import.functions.ts` + `bulk-intake.server.ts`: thay `classifyLine` bằng `classifyLineV2` khi `tenantCfg.business_types.length > 0`, fallback v1 khi rỗng.
-
-**C2 — Sales engine**:
-- `sales-engine.server.ts`: dùng v2 để chọn 156 vs 1561 cho DN trading. Tác động thấp, làm cuối.
-
----
-
-### Bước 6 — Import CSV catalog (C3)
-
-- Trong trang `/settings/business-activity`, thêm nút "Import CSV":
-  - Format: `name,sku,aliases,note` (aliases phân cách bằng `|`)
-  - Parse client-side với PapaParse (đã có trong dự án nếu không thì `bun add papaparse`), gọi `upsertProductCatalog` tuần tự.
-
----
-
-### Database changes
-
-Không cần migration mới — tất cả cột (`suppliers.roles`, `ai_line_classifications.kind_v2`, `tenant_product_catalog`, `tenants.business_types/ccdc_allocation_threshold/default_cost_center`) đã có ở migration `20260525035002`.
-
-### Thứ tự build đề nghị
-
-1. **Bước 1** — Critical, chặn rò rỉ TSCĐ. Build trước.
-2. **Bước 2** — Unlock signal mạnh nhất của v2.
-3. **Bước 3** — Học vendor pattern v2.
-4. **Bước 4** — Đưa vào onboarding.
-5. **Bước 5–6** — Mở rộng phạm vi (làm sau khi 1–4 ổn).
-
-Sau khi bạn duyệt plan, mình sẽ build từ Bước 1.
+## Kiểm thử nhanh sau khi build
+- Desktop 1440 & 1280: lưới shortcut 2 nhóm, SectionNav dính, sticky save.
+- Mobile 390: tab cuộn ngang, SectionNav chip, dialog tạo tổ chức full-screen.
+- Tạo tổ chức mới với MST hợp lệ → thấy block "Đã lấy từ MST" ngay dưới input; sau khi tạo tự switch sang tổ chức mới.
