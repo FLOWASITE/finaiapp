@@ -179,9 +179,9 @@ function ItemsListPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Hàng hoá & Dịch vụ</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Khai báo mặt hàng</h1>
           <p className="text-sm text-muted-foreground">
-            Danh mục mặt hàng dùng chung cho bán hàng, mua hàng, hoá đơn. Để xem tồn kho & nhập/xuất, vào{" "}
+            Khai báo hàng hoá, dịch vụ dùng chung cho bán hàng, mua hàng, hoá đơn. Để xem tồn kho & nhập/xuất, vào{" "}
             <Link to="/inventory" className="text-primary hover:underline inline-flex items-center gap-1">
               <Warehouse className="h-3 w-3" /> Kho
             </Link>
