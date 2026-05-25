@@ -92,24 +92,14 @@ export function TenantSwitcher() {
   });
 
   const createMut = useMutation({
-    mutationFn: (v: {
-      name: string;
-      company_name?: string;
-      tax_id?: string;
-      address?: string;
-      legal_rep_name?: string;
-      trade_name?: string;
-      phone?: string;
-      email?: string;
-      tax_authority?: string;
-      business_reg_no?: string;
-      business_reg_date?: string;
-      established_date?: string;
-      legal_form?: "llc"|"jsc"|"partnership"|"sole_prop"|"household"|"branch"|"other";
-      industry_code?: string;
-      industry_name?: string;
-    }) =>
-      create({ data: { ...v, accounting_standard: "TT133", base_currency: "VND" } }),
+    mutationFn: async (v: CreateTenantPayload & { setActive?: boolean }) => {
+      const { setActive, ...payload } = v;
+      const r = await create({ data: { ...payload, accounting_standard: "TT133", base_currency: "VND" } });
+      if (setActive && (r as any)?.id) {
+        try { await sw({ data: { tenantId: (r as any).id } }); } catch {}
+      }
+      return r;
+    },
     onSuccess: (_d, vars) => {
       const bonusKeys = ["trade_name","phone","email","tax_authority","business_reg_no","business_reg_date","established_date","legal_form","industry_code","industry_name"] as const;
       const n = bonusKeys.filter((k) => (vars as any)[k]).length;
@@ -120,6 +110,7 @@ export function TenantSwitcher() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const active = data?.tenants?.find((t) => t.is_active);
 
