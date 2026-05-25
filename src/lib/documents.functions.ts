@@ -444,7 +444,9 @@ export const listSalesDocuments = createServerFn({ method: "GET" })
             },
         lines: finalLines,
         lines_summary,
+        posted: invId ? (svByInvoiceId[invId] ?? null) : null,
       };
+
     });
 
     const termNo = (data.invoice_no || "").trim().toLowerCase();
