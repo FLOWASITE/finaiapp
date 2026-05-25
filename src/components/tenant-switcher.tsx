@@ -70,6 +70,16 @@ export function TenantSwitcher() {
     placeholderData: (prev) => prev,
   });
   const [openCreate, setOpenCreate] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = React.useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return data?.tenants ?? [];
+    return (data?.tenants ?? []).filter((t) => {
+      const hay = `${t.company_name || ""} ${t.name || ""} ${t.tax_id || ""}`.toLowerCase();
+      return hay.includes(s);
+    });
+  }, [data?.tenants, search]);
 
   const switchMut = useMutation({
     mutationFn: (tenantId: string) => sw({ data: { tenantId } }),
