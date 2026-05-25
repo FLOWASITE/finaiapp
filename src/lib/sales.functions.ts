@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { calcLineTax, vatHasOutputTax, vatRate, type VatCode } from "@/lib/vat-codes";
 
 const VAT_CODES = ["0", "5", "8", "10", "KCT", "KKKNT"] as const;
@@ -69,12 +70,13 @@ function computeTotals(data: z.infer<typeof InvoiceSchema>) {
 }
 
 export const listSalesInvoices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data, error } = await supabase
       .from("sales_invoices")
       .select("*, customers(name, code)")
+      .eq("tenant_id", tenantId)
       .order("issue_date", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
@@ -82,14 +84,15 @@ export const listSalesInvoices = createServerFn({ method: "GET" })
   });
 
 export const salesDashboardStats = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date().toISOString().slice(0, 10);
     const first = today.slice(0, 8) + "01";
     const { data: month } = await supabase
       .from("sales_invoices")
       .select("total, status, payment_status, paid_amount, due_date")
+      .eq("tenant_id", tenantId)
       .gte("issue_date", first)
       .neq("status", "void");
     const issued = (month ?? []).filter((r) => r.status === "issued");
@@ -101,6 +104,7 @@ export const salesDashboardStats = createServerFn({ method: "GET" })
     const { data: overdueRows } = await supabase
       .from("sales_invoices")
       .select("total, paid_amount")
+      .eq("tenant_id", tenantId)
       .lt("due_date", today)
       .in("payment_status", ["unpaid", "partial", "overdue"])
       .neq("status", "void");

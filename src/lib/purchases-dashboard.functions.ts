@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { withLatency } from "@/lib/with-latency";
 
 function dayStr(d: Date) {
@@ -12,9 +13,9 @@ function addDays(d: Date, n: number) {
 }
 
 export const purchasesDashboard = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(withLatency("purchasesDashboard", async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date();
     const todayStr = dayStr(today);
     const d30 = dayStr(addDays(today, -30));
@@ -33,6 +34,7 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const { data: summaryRows = [] } = await supabase
       .from("monthly_summary")
       .select("year_month, purchase_expense, purchase_count, paid")
+      .eq("tenant_id", tenantId)
       .gte("year_month", firstMonth);
     const summaryMap = new Map<string, { expense: number; paid: number; count: number }>();
     for (const r of summaryRows ?? []) {
@@ -51,6 +53,7 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const { data: payments = [] } = await supabase
       .from("supplier_payments")
       .select("amount, method, pay_date, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .gte("pay_date", d90);
     const paid30 = (payments ?? []).filter((p: any) => p.pay_date >= d30).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
     const paid60 = (payments ?? []).filter((p: any) => p.pay_date >= d60).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
@@ -60,10 +63,12 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const { data: allInvs = [] } = await supabase
       .from("invoices")
       .select("id, invoice_no, supplier_id, supplier_name, issue_date, total")
+      .eq("tenant_id", tenantId)
       .neq("status", "void");
     const { data: allPays = [] } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
     const paidMap = new Map<string, number>();
     for (const p of allPays ?? []) {
       if (p.invoice_id)

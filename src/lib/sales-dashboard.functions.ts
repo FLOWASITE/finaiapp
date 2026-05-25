@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { withLatency } from "@/lib/with-latency";
 
 function dayStr(d: Date) {
@@ -12,9 +13,9 @@ function addDays(d: Date, n: number) {
 }
 
 export const salesDashboard = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(withLatency("salesDashboard", async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date();
     const todayStr = dayStr(today);
     const d30 = dayStr(addDays(today, -30));
@@ -34,6 +35,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: summaryRows = [] } = await supabase
       .from("monthly_summary")
       .select("year_month, sales_revenue, sales_count, collected")
+      .eq("tenant_id", tenantId)
       .gte("year_month", firstMonth);
     const summaryMap = new Map<string, { revenue: number; collected: number; count: number }>();
     for (const r of summaryRows ?? []) {
@@ -52,6 +54,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: receipts = [] } = await supabase
       .from("customer_receipts")
       .select("amount, method, pay_date")
+      .eq("tenant_id", tenantId)
       .gte("pay_date", d90);
     const collected30 = (receipts ?? []).filter((r: any) => r.pay_date >= d30).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
     const collected60 = (receipts ?? []).filter((r: any) => r.pay_date >= d60).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
@@ -61,6 +64,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: openInvoices = [] } = await supabase
       .from("sales_invoices")
       .select("id, invoice_no, customer_id, customer_name, issue_date, due_date, total, paid_amount, payment_status")
+      .eq("tenant_id", tenantId)
       .eq("status", "issued")
       .in("payment_status", ["unpaid", "partial", "overdue"]);
 

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
 import { nextStockVoucherNo } from "@/lib/inventory.functions";
 
@@ -180,7 +181,7 @@ async function upsertSalesEinvoice(
 // ============ LIST ============
 
 export const listSalesVouchers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((input: {
     search?: string;
     status?: string;
@@ -199,7 +200,7 @@ export const listSalesVouchers = createServerFn({ method: "POST" })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     let q = supabase
       .from("sales_vouchers")
       .select(
@@ -208,6 +209,7 @@ export const listSalesVouchers = createServerFn({ method: "POST" })
          payment_method, payment_status, status, posted_at,
          journal_entry_id, einvoice_id, stock_voucher_id, cash_voucher_id, bank_voucher_id, created_at`,
       )
+      .eq("tenant_id", tenantId)
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);

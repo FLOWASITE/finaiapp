@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const RangeSchema = z.object({
   from: z.string().min(10).max(10),
@@ -9,10 +10,11 @@ const RangeSchema = z.object({
 
 const ACTIVE_STATUSES = ["reviewed", "posted"];
 
-async function fetchInvoicesAndLines(supabase: any, from: string, to: string) {
+async function fetchInvoicesAndLines(supabase: any, tenantId: string, from: string, to: string) {
   const { data: invs = [] } = await supabase
     .from("invoices")
     .select("id, invoice_no, issue_date, supplier_id, supplier_name, status, total, vat_amount, subtotal")
+    .eq("tenant_id", tenantId)
     .gte("issue_date", from)
     .lte("issue_date", to)
     .in("status", ACTIVE_STATUSES)
@@ -46,11 +48,11 @@ async function fetchSupplierMap(supabase: any, ids: (string | null)[]) {
 
 // 1) Sổ chi tiết mua hàng
 export const purchaseDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((d) => RangeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { invoices, lines } = await fetchInvoicesAndLines(supabase, data.from, data.to);
+    const { supabase, tenantId } = context;
+    const { invoices, lines } = await fetchInvoicesAndLines(supabase, tenantId, data.from, data.to);
     const invMap = new Map(invoices.map((i: any) => [i.id, i] as const));
     const productMap = await fetchProductMap(supabase, lines.map((l: any) => l.product_id));
     const supplierMap = await fetchSupplierMap(supabase, invoices.map((i: any) => i.supplier_id));
@@ -88,11 +90,11 @@ export const purchaseDetail = createServerFn({ method: "POST" })
 
 // 2) Tổng hợp mua theo mặt hàng
 export const purchaseByItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((d) => RangeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { invoices, lines } = await fetchInvoicesAndLines(supabase, data.from, data.to);
+    const { supabase, tenantId } = context;
+    const { invoices, lines } = await fetchInvoicesAndLines(supabase, tenantId, data.from, data.to);
     const invMap = new Map(invoices.map((i: any) => [i.id, i] as const));
     const productMap = await fetchProductMap(supabase, lines.map((l: any) => l.product_id));
     const supplierMap = await fetchSupplierMap(supabase, invoices.map((i: any) => i.supplier_id));
