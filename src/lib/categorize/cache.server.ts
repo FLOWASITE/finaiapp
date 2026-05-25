@@ -286,6 +286,9 @@ export function invalidateCategorizeCache(tenantId: string): void {
   for (const k of Array.from(historyStore.keys())) {
     if (k.startsWith(`${tenantId}:`)) historyStore.delete(k);
   }
+  for (const k of Array.from(historyStoreV2.keys())) {
+    if (k.startsWith(`${tenantId}:`)) historyStoreV2.delete(k);
+  }
   // industry keyed by supplier_id — không xoá vì không liên quan trực tiếp
   // vsic_code rất hiếm khi đổi
 }
