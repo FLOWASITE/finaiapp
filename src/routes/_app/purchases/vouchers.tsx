@@ -1107,6 +1107,78 @@ function CreateVoucherDialog({
     if (groupName) setHeader((h) => (h.customer_group ? h : { ...h, customer_group: groupName }));
   }, [open, initialParty, suppliers, supplierGroupNameById]);
 
+  // Load edit data
+  const editLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !editId) { editLoadedRef.current = null; return; }
+    if (editLoadedRef.current === editId) return;
+    editLoadedRef.current = editId;
+    (async () => {
+      try {
+        const { voucher } = await getFn({ data: { id: editId } });
+        const v = voucher as any;
+        setHeader({
+          voucher_no: v.voucher_no ?? "",
+          voucher_date: v.voucher_date ?? today,
+          supplier_id: v.supplier_id ?? "",
+          supplier_name: v.supplier_name ?? "",
+          supplier_address: v.supplier_address ?? "",
+          customer_group: v.customer_group ?? "",
+          invoice_id: v.invoice_id ?? "",
+          invoice_no: v.invoice_no ?? "",
+          invoice_date: v.invoice_date ?? "",
+          invoice_file_path: "",
+          reason: v.reason ?? "",
+          currency: v.currency ?? "VND",
+          exchange_rate: v.exchange_rate ?? 1,
+          due_date: v.due_date ?? "",
+          debit_account_default: v.debit_account ?? "156",
+          credit_account: v.credit_account ?? "3311",
+          vat_account_default: v.vat_account ?? "1331",
+          payment_method: v.payment_method ?? "credit",
+          payment_account: v.payment_account ?? "1111",
+          payment_status: v.payment_status ?? "unpaid",
+          invoice_receipt_type: v.invoice_receipt_type ?? "with_invoice",
+          is_purchase_cost: v.is_purchase_cost ?? false,
+          is_non_deductible: v.is_non_deductible ?? false,
+          auto_allocate_cost: v.auto_allocate_cost ?? false,
+          pay_now: v.pay_now ?? false,
+          create_stock_voucher: v.create_stock_voucher ?? false,
+          warehouse_id: v.warehouse_id ?? "",
+          stock_voucher_no: v.stock_voucher_no ?? "",
+          stock_voucher_date: v.stock_voucher_date ?? "",
+          stock_voucher_reason: v.stock_voucher_reason ?? "",
+          discount_pct: v.discount_pct ?? 0,
+          discount_amount: v.discount_amount ?? 0,
+        });
+        setLines(
+          (v.purchase_voucher_lines ?? []).map((l: any) => ({
+            key: l.id || crypto.randomUUID(),
+            product_id: l.product_id ?? null,
+            product_code: l.product_code ?? "",
+            product_name: l.product_name ?? "",
+            description: l.description ?? "",
+            unit: l.unit ?? "",
+            qty: Number(l.qty ?? 1),
+            unit_price: Number(l.unit_price ?? 0),
+            amount: Number(l.amount ?? 0),
+            discount_pct: Number(l.discount_pct ?? 0),
+            discount_amount: Number(l.discount_amount ?? 0),
+            vat_rate: Number(l.vat_rate ?? 10),
+            vat_amount: Number(l.vat_amount ?? 0),
+            total: Number(l.total ?? 0),
+            debit_account: l.debit_account ?? v.debit_account ?? "156",
+            vat_account: l.vat_account ?? v.vat_account ?? "1331",
+            invoice_no: l.invoice_no ?? "",
+            line_type: l.line_type ?? "goods",
+          }))
+        );
+      } catch (e: any) {
+        toast.error(e?.message || "Không tải được phiếu");
+      }
+    })();
+  }, [open, editId]);
+
   // Auto-update "Diễn giải" khi user chưa chỉnh tay
   const [reasonTouched, setReasonTouched] = useState(false);
   useEffect(() => {
