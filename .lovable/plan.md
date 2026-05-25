@@ -1,75 +1,79 @@
+
 ## Mục tiêu
-Hoàn thiện UI hai luồng "khai báo & đặt tổ chức":
-1. Trang `/settings` — lưới shortcut + tab "Tổ chức" (hero, banner, form 4 section).
-2. Dialog "Tạo tổ chức mới" trong `tenant-switcher`.
+Sắp xếp lại tab **Tổ chức** trong `/settings` thành 3 section rõ ràng theo yêu cầu, đổi tên các thuật ngữ cho gần gũi với KTV Việt Nam, gộp trang **Hoạt động kinh doanh & Mặt hàng** (hiện ở `/settings/business-activity`) vào ngay trong tab này.
 
-Phạm vi: chỉ UI/UX/responsive — không đổi logic lưu, không đổi schema, không đổi server function.
+## Bố cục mới
 
----
+### 1. Thông tin doanh nghiệp (đổi từ "Hồ sơ pháp lý")
+Bố cục field theo từng dòng (md:grid-cols-12 để khớp tỉ lệ):
 
-## 1. Lưới shortcut ở đầu trang Cài đặt
-Vấn đề: 7 nút cùng cấp, hai nút highlight (`Hoạt động & Mặt hàng`, `Khai báo mặt hàng`) trộn lẫn với nút phụ → khó quét mắt; mobile bị chật.
+```text
+[ MST ] [ Logo (upload nhỏ) ] [ Tên Công ty ............... ]
+[ Đại diện pháp luật ] [ Ngày thành lập ] [ Website ]
+[ Loại hình DN: ◉ Công ty   ○ Hộ kinh doanh ]
+[ Địa chỉ ............ ] [ Điện thoại ] [ Email ]
+[ Ngành nghề kinh doanh (multi-select) ]
+```
 
-Đổi sang **bố cục 2 nhóm có nhãn**:
-- "Khai báo trọng yếu" (nổi bật, card lớn icon trái + tiêu đề + mô tả 1 dòng): Hoạt động & Mặt hàng, Khai báo mặt hàng, Kỳ kế toán.
-- "Cơ cấu tổ chức" (nút outline gọn): Chi nhánh, Phòng ban, Dự án, Bộ phận chi phí.
-- Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` cho card lớn; `grid-cols-2 sm:grid-cols-4` cho nút phụ.
+Thay đổi từ vựng:
+- "Tên pháp nhân" → **Tên Công ty**
+- Bỏ "Tên giao dịch / Thương hiệu", "Tên hiển thị nội bộ", "Cơ quan thuế quản lý" (chuyển sang section 2)
+- "Loại hình doanh nghiệp" rút còn 2 lựa chọn UI: **Công ty** / **Hộ kinh doanh** (map xuống `legal_form`: chọn "Công ty" giữ giá trị chi tiết hiện tại nếu có — `llc/jsc/partnership/sole_prop/branch/other`; chọn "Hộ kinh doanh" → `household`). Nếu DB đang có giá trị chi tiết, UI hiển thị radio "Công ty" được chọn.
+- Logo di chuyển từ section "Thương hiệu & Chữ ký" lên đây (upload thumbnail inline cạnh tên công ty). Chữ ký + con dấu giữ ở section "Người đại diện" (xem dưới).
 
-## 2. Tab "Tổ chức"
+### 2. Thông tin kế toán thuế (đổi từ "Cấu hình kế toán")
+```text
+[ Chế độ kế toán ] [ Ngày bắt đầu năm tài chính ] [ Đồng tiền ]
+[ Kỳ kê khai GTGT ] [ Phương pháp tính thuế ] [ Cơ quan thuế quản lý ]
+```
 
-### 2.1 Hero card
-- Avatar 14×14 → giữ; thêm cụm meta phải: MST · Loại hình · Trạng thái hồ sơ (badge `pct%`).
-- Nút hành động trong hero: "Cập nhật từ MST" (nếu có tax_id) và "Đổi logo" (kéo từ section Branding lên cho dễ thấy).
-- Trên mobile xếp dọc, badge xuống dòng dưới tên.
+Thay đổi từ vựng & field:
+- Tiêu đề: "Cấu hình kế toán" → **Thông tin kế toán thuế**
+- "Chuẩn kế toán áp dụng" → **Chế độ kế toán**
+- "Tháng bắt đầu năm tài chính" → **Ngày bắt đầu năm tài chính** (đổi từ Select tháng sang Day+Month picker, mặc định 01/01; lưu thêm field `fiscal_year_start_day` = 1, giữ `fiscal_year_start` cho tháng)
+- Đưa "Cơ quan thuế quản lý" sang đây (đang ở section 1 cũ)
+- Bỏ "Kỳ kê khai TNCN" khỏi section này (giữ field trong DB, ẩn UI — hoặc đưa xuống mục nâng cao nếu cần — mặc định ẩn theo yêu cầu)
 
-### 2.2 Banner & thông báo
-- Gộp banner "chưa hoàn tất" + chip "đã hoàn tất" thành **một thanh trạng thái thống nhất**: progress bar mảnh + text trạng thái + CTA Wizard. Khi 100% → biến thành dải xanh mảnh có icon check, không chiếm chỗ.
-- Card "Đồng bộ Trí nhớ AI" thu lại thành banner mảnh (1 dòng, icon + link), bỏ màu indigo cứng → dùng token `accent`/`muted`.
+### 3. Hoạt động kinh doanh (gộp từ `/settings/business-activity`)
+Đưa nội dung trang `/settings/business-activity` vào dạng section inline:
+```text
+Ngành nghề kinh doanh  (multi-select — share field `industries` với section 1, hiển thị readonly hoặc đồng bộ)
+Loại hình hoạt động    (checkbox: Thương mại / Sản xuất / Dịch vụ)
+Danh mục mặt hàng kinh doanh  (bảng + nút Thêm/Import CSV — y nguyên ProductDialog)
+```
+Trang `/settings/business-activity` giữ làm route riêng (cho shortcut) nhưng nội dung được tái sử dụng qua component dùng chung `<BusinessActivitySection />` để hiển thị trong tab Tổ chức.
 
-### 2.3 SectionNav
-- Hiện chỉ desktop. Thêm phiên bản **tab cuộn ngang dính trên** cho mobile (`sticky top-0`, chip nhỏ, scroll-snap), dùng cùng dữ liệu `SECTIONS`.
-- Mỗi mục thêm chấm trạng thái: xanh khi đủ trường bắt buộc của section, hổ phách khi thiếu.
+### Các section còn lại
+- **Người đại diện** (giữ nguyên) + dời "Chữ ký đại diện" và "Con dấu công ty" xuống đây (vì gắn với pháp nhân/đại diện)
+- Section **Liên hệ & Địa chỉ** (cũ) bị giải tán: địa chỉ/điện thoại/email gộp vào section 1; địa chỉ giao hàng (toggle) chuyển xuống cuối section 1.
+- Section **Thương hiệu & Chữ ký** (cũ) bỏ.
 
-### 2.4 Các section form
-- Đồng nhất `CardHeader`: thêm dòng mô tả ngắn dưới CardTitle (vì sao cần khai báo).
-- Trong "Hồ sơ pháp lý": gom cụm MST + nút "Cập nhật từ MST" + checkbox "ghi đè" vào **một panel viền nhạt** thay vì dải hint dài; checkbox đổi thành Switch nhỏ kèm tooltip.
-- "Liên hệ & Địa chỉ": switch "địa chỉ giao hàng riêng" đổi sang dạng toggle inline trong header section, gọn hơn khối border-dashed.
-- "Cấu hình kế toán": chia thành 2 nhóm con có label nhỏ — "Chuẩn & tiền tệ" / "Kê khai thuế" — để giảm cảm giác form dày.
-- "Người đại diện": chuyển 2 cụm (pháp luật / kế toán trưởng) sang **Accordion** mặc định mở cụm 1, đóng cụm 2 — giảm scroll.
-- "Thương hiệu & Chữ ký": preview chữ ký/logo trên nền giả lập hoá đơn nhỏ để biết hiển thị thực tế.
+## Side nav (SectionNav)
+Cập nhật danh sách 3 mục mới:
+- `sec-business` — Thông tin doanh nghiệp
+- `sec-tax` — Thông tin kế toán thuế
+- `sec-activity` — Hoạt động kinh doanh
+- `sec-reps` — Người đại diện (giữ)
 
-### 2.5 Sticky save bar
-- Thanh hành động cố định đáy (đã có pb-24): cải tiến hiển thị số trường thay đổi, nút "Hoàn tác" + "Lưu" + đếm lỗi nếu có trường required trống.
-- Trên mobile full-width, chia 2 nút bằng nhau.
+## Chi tiết kỹ thuật
+- File chính: `src/routes/_app/settings/index.tsx` — refactor `OrganizationTab`, cập nhật `SECTIONS`.
+- Tạo component dùng chung: `src/components/settings/business-activity-section.tsx` — copy logic từ `src/routes/_app/settings/business-activity.tsx`. Trang `/settings/business-activity` chuyển thành wrapper render component này.
+- Logo upload inline: tận dụng `CompactImageRow` thu nhỏ (chỉ icon + button "Tải logo").
+- Loại hình DN 2-option: dùng `RadioGroup` (shadcn). Mapping helper:
+  ```ts
+  // UI value 'company' | 'household'
+  const uiKind = form.legal_form === 'household' ? 'household' : 'company';
+  ```
+  Khi chuyển sang "Công ty" mà chưa có giá trị chi tiết → mặc định `llc`.
+- "Ngày bắt đầu năm tài chính": 2 select Day(1–31) + Month(1–12), validate hợp lệ. DB: thêm cột `fiscal_year_start_day INT DEFAULT 1` (migration nhỏ) — chỉ chạy khi user duyệt.
+- Không thay đổi logic save, RLS, hay business-activity functions.
 
-## 3. Dialog "Tạo tổ chức mới"
+## Phạm vi không thay đổi
+- Các tab khác (Hồ sơ cá nhân, Thành viên, Phân quyền, Khoá sổ, Tỷ giá): không đụng.
+- Shortcut cards phía trên: giữ nguyên.
+- Trang `/settings/business-activity`: giữ route, dùng lại component mới.
 
-- Mở rộng `DialogContent` → `sm:max-w-lg` (hiện mặc định hơi chật cho block "Đã lấy từ MST").
-- Thứ tự lại các bước: (1) Nhập MST → tra cứu; (2) Khối "Đã lấy từ MST" hiện ngay dưới input MST khi có dữ liệu (thay vì cuối dialog) để người dùng thấy giá trị trước khi sửa; (3) Các trường còn lại pre-fill, có icon nhỏ "đã lấy tự động" bên cạnh.
-- "Tên hiển thị" thêm hint "Dùng trong menu chọn tổ chức — thường viết tắt".
-- Validation inline: nút Tạo disabled như cũ + hiển thị lý do (Tooltip "Cần điền Tên pháp nhân & Tên hiển thị").
-- Footer: thêm checkbox "Đặt làm tổ chức đang dùng sau khi tạo" (mặc định bật) — chỉ UI, gọi `switchTenant` ngay sau `createTenant` thành công (đã có invalidate, chỉ thêm 1 call).
-- Mobile: dialog full-screen sheet (`max-h-[100dvh]` + scroll trong body).
-
-## 4. Responsive tổng thể
-- `max-w-5xl` của trang → đổi `max-w-6xl` để section nav 220px + form không bị bóp ở 1280–1440.
-- Tabs cuộn ngang giữ nguyên; thêm gradient mờ 2 mép cho biết có thể cuộn.
-- Mọi `grid-cols-2` form trên màn `<400px` → 1 cột (đã có `md:grid-cols-2`, kiểm tra lại cụm Hồ sơ pháp lý/Liên hệ).
-
-## 5. Token & nhất quán
-- Bỏ màu hardcode `#C7D2FE / #EEF2FF / #4F46C7` trong card AI Memory → dùng `bg-accent / text-accent-foreground / border-accent`.
-- Banner amber dùng `bg-warning/10 border-warning/40 text-warning-foreground` nếu token tồn tại, fallback giữ amber nhưng qua biến CSS đã có trong `styles.css`.
-
----
-
-## File sẽ chỉnh
-- `src/routes/_app/settings/index.tsx` — lưới shortcut, hero, banner, SectionNav mobile, accordion section "Người đại diện", sticky save bar, token màu.
-- `src/components/tenant-switcher.tsx` — chỉ phần `CreateTenantDialog`: layout, thứ tự, mobile sheet, checkbox "đặt làm active", + 1 call `switchTenant` sau tạo.
-- (nếu cần) `src/components/settings-section-nav.tsx` — thêm biến thể `variant="chips"` cho mobile.
-
-Không đụng: server functions, schema, tax-id-lookup, logic `applyLookup`, các tab khác của Settings.
-
-## Kiểm thử nhanh sau khi build
-- Desktop 1440 & 1280: lưới shortcut 2 nhóm, SectionNav dính, sticky save.
-- Mobile 390: tab cuộn ngang, SectionNav chip, dialog tạo tổ chức full-screen.
-- Tạo tổ chức mới với MST hợp lệ → thấy block "Đã lấy từ MST" ngay dưới input; sau khi tạo tự switch sang tổ chức mới.
+## Câu hỏi xác nhận
+1. **Ngành nghề kinh doanh** xuất hiện cả Section 1 và Section 3 — có ý là cùng 1 trường, hiển thị 2 nơi để tiện tra cứu, đúng không? (Tôi sẽ share state, sửa ở đâu cũng cập nhật cùng nhau.)
+2. **Tháng bắt đầu năm tài chính → Ngày bắt đầu**: cần cả ngày+tháng (vd 01/04) hay chỉ đổi label nhưng vẫn chọn tháng? Tôi mặc định ngày+tháng (cần migration cột mới).
+3. Có cần giữ field **Tên hiển thị nội bộ / Tên giao dịch** ở đâu đó (vd ẩn trong "Thêm tuỳ chọn") hay xoá luôn khỏi UI?
