@@ -1167,7 +1167,21 @@ function PurchaseInvoicesTable({
   onOpenDoc: (id: string) => void;
 }) {
   const listFn = useServerFn(listPurchaseDocuments);
+  const deleteFn = useServerFn(deleteDocument);
+  const qc = useQueryClient();
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá tài liệu");
+      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      setPendingDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [limit, setLimit] = useState(PAGE_SIZE);
+
   const { data, isLoading } = useQuery({
     queryKey: ["purchase-documents", filters, limit],
     queryFn: () =>
@@ -1234,7 +1248,9 @@ function PurchaseInvoicesTable({
               <TableHead className="text-right">VAT</TableHead>
               <TableHead className="text-right">Tổng sau thuế</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Đã ghi sổ</TableHead>
               <TableHead className="text-right">File</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1301,6 +1317,22 @@ function PurchaseInvoicesTable({
                         {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {r.posted ? (
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-medium text-emerald-700 dark:text-emerald-400">
+                            PMH: {r.posted.voucher_no}
+                          </div>
+                          {r.posted.stock_voucher_no && (
+                            <div className="text-muted-foreground">
+                              PNK: {r.posted.stock_voucher_no}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Tooltip>
@@ -1336,13 +1368,29 @@ function PurchaseInvoicesTable({
                           </TooltipTrigger>
                           <TooltipContent>Chi tiết tài liệu</TooltipContent>
                         </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setPendingDelete(doc.id)}
+                              aria-label="Xoá tài liệu"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xoá tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
+
                   </TableRow>
                   {isOpen && hasLines && (
                     <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
                       <TableCell></TableCell>
-                      <TableCell colSpan={9} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
+
                         <div className="p-3">
                           <div className="mb-2 text-xs font-medium text-muted-foreground">
                             Chi tiết mặt hàng ({lines.length} dòng)
@@ -1388,7 +1436,8 @@ function PurchaseInvoicesTable({
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-8">
+                <TableCell colSpan={11} className="py-8">
+
                   <EmptyState size="sm" bordered={false} title="Chưa có hoá đơn mua nào" />
                 </TableCell>
               </TableRow>
@@ -1431,9 +1480,32 @@ function PurchaseInvoicesTable({
         onOpenDrawer={onOpenDoc}
         onClose={() => setViewerRow(null)}
       />
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá tài liệu này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              File gốc và mọi liên kết của tài liệu sẽ bị xoá. Hành động không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={delMut.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingDelete) delMut.mutate(pendingDelete);
+              }}
+            >
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
 
 function SalesInvoicesTable({
   filters,
@@ -1443,7 +1515,21 @@ function SalesInvoicesTable({
   onOpenDoc: (id: string) => void;
 }) {
   const listFn = useServerFn(listSalesDocuments);
+  const deleteFn = useServerFn(deleteDocument);
+  const qc = useQueryClient();
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Đã xoá tài liệu");
+      qc.invalidateQueries({ queryKey: ["sales-documents"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      setPendingDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [limit, setLimit] = useState(PAGE_SIZE);
+
   const { data, isLoading } = useQuery({
     queryKey: ["sales-documents", filters, limit],
     queryFn: () =>
@@ -1510,7 +1596,9 @@ function SalesInvoicesTable({
               <TableHead className="text-right">VAT</TableHead>
               <TableHead className="text-right">Tổng sau thuế</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Đã ghi sổ</TableHead>
               <TableHead className="text-right">File</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1584,6 +1672,22 @@ function SalesInvoicesTable({
                         {OCR_LABELS[doc.ocr_status] ?? doc.ocr_status}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {r.posted ? (
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-medium text-emerald-700 dark:text-emerald-400">
+                            PBH: {r.posted.voucher_no}
+                          </div>
+                          {r.posted.stock_voucher_no && (
+                            <div className="text-muted-foreground">
+                              PXK: {r.posted.stock_voucher_no}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Tooltip>
@@ -1619,13 +1723,28 @@ function SalesInvoicesTable({
                           </TooltipTrigger>
                           <TooltipContent>Chi tiết tài liệu</TooltipContent>
                         </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setPendingDelete(doc.id)}
+                              aria-label="Xoá tài liệu"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Xoá tài liệu</TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
+
                   </TableRow>
                   {isOpen && hasLines && (
                     <TableRow key={`${doc.id}-lines`} className="bg-muted/20 hover:bg-muted/20">
                       <TableCell></TableCell>
-                      <TableCell colSpan={9} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
                         <div className="p-3">
                           <div className="mb-2 text-xs font-medium text-muted-foreground">
                             Chi tiết mặt hàng ({lines.length} dòng)
@@ -1671,7 +1790,7 @@ function SalesInvoicesTable({
             })}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-8">
+                <TableCell colSpan={11} className="py-8">
                   <EmptyState size="sm" bordered={false} title="Chưa có hoá đơn bán nào" />
                 </TableCell>
               </TableRow>
@@ -1714,9 +1833,32 @@ function SalesInvoicesTable({
         onOpenDrawer={onOpenDoc}
         onClose={() => setViewerRow(null)}
       />
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá tài liệu này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              File gốc và mọi liên kết của tài liệu sẽ bị xoá. Hành động không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={delMut.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingDelete) delMut.mutate(pendingDelete);
+              }}
+            >
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
 
 function InvoiceViewerDialog({
   docId,
