@@ -147,7 +147,7 @@ export function TenantSwitcher() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={(v) => { if (!v) setSearch(""); setOpen(v); }}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[380px]">
             {showSpinner ? (
