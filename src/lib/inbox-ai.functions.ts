@@ -1407,14 +1407,21 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           if (svRow) postedVoucher = { kind: "sales_voucher", id: svRow.id, voucher_no: svRow.voucher_no };
         }
       } else if (docMeta?.doc_kind === "purchase_invoice") {
-        // Tìm phiếu mua hàng đã liên kết bút toán này (nếu có)
-        const { data: pvRow } = await supabase
-          .from("purchase_vouchers")
-          .select("id, voucher_no")
-          .eq("tenant_id", tenantId)
-          .eq("journal_entry_id", entry.id)
-          .maybeSingle();
-        if (pvRow) postedVoucher = { kind: "purchase_voucher", id: pvRow.id, voucher_no: pvRow.voucher_no };
+        const pvId = await materializePurchaseVoucherFromDocument(supabase, {
+          documentId: data.external_id,
+          tenantId,
+          userId,
+          entryDate: data.entry_date,
+          journalEntryId: entry.id,
+        });
+        if (pvId) {
+          const { data: pvRow } = await supabase
+            .from("purchase_vouchers")
+            .select("id, voucher_no")
+            .eq("id", pvId)
+            .maybeSingle();
+          if (pvRow) postedVoucher = { kind: "purchase_voucher", id: pvRow.id, voucher_no: pvRow.voucher_no };
+        }
       }
     } else if (data.source === "ai_insight") {
       await supabase
