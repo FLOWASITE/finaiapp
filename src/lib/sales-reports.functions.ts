@@ -39,6 +39,7 @@ type LineRow = {
 
 async function fetchInvoicesAndLines(
   supabase: any,
+  tenantId: string,
   from: string,
   to: string,
 ) {
@@ -47,6 +48,7 @@ async function fetchInvoicesAndLines(
     .select(
       "id, invoice_no, issue_date, customer_id, customer_name, sales_order_id, status, total, paid_amount, vat_amount, subtotal",
     )
+    .eq("tenant_id", tenantId)
     .gte("issue_date", from)
     .lte("issue_date", to)
     .in("status", ACTIVE_STATUSES)
