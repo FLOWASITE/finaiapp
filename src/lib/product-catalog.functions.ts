@@ -88,6 +88,64 @@ export const deleteProductCatalog = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Bulk import từ CSV/Excel — payload đã được parse phía client
+const bulkSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        sku: z.string().max(64).nullable().optional(),
+        name: z.string().min(1).max(255),
+        aliases: z.array(z.string().min(1).max(255)).max(20).optional(),
+        note: z.string().max(500).nullable().optional(),
+      }),
+    )
+    .min(1)
+    .max(2000),
+});
+
+export const bulkImportProductCatalog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => bulkSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const tenantId = await activeTenantId(supabase, userId);
+
+    // De-dup theo name_norm trong batch
+    const seen = new Set<string>();
+    const rows = [];
+    let skipped = 0;
+    for (const it of data.items) {
+      const name_norm = normalizeLineName(it.name);
+      if (!name_norm) {
+        skipped++;
+        continue;
+      }
+      if (seen.has(name_norm)) {
+        skipped++;
+        continue;
+      }
+      seen.add(name_norm);
+      rows.push({
+        tenant_id: tenantId,
+        sku: it.sku ?? null,
+        name: it.name,
+        name_norm,
+        aliases: it.aliases ?? [],
+        note: it.note ?? null,
+        created_by: userId,
+      });
+    }
+    if (rows.length === 0) return { inserted: 0, skipped };
+
+    const { error, count } = await supabase
+      .from("tenant_product_catalog")
+      .upsert(rows, { onConflict: "tenant_id,name_norm", count: "exact" });
+    if (error) throw new Error(error.message);
+
+    invalidateTenantClassifyContext(tenantId);
+    return { inserted: count ?? rows.length, skipped };
+  });
+
 const businessSchema = z.object({
   business_types: z
     .array(z.enum(["trading", "manufacturing", "service"]))
