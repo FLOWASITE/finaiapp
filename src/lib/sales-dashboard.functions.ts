@@ -13,9 +13,9 @@ function addDays(d: Date, n: number) {
 }
 
 export const salesDashboard = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(withLatency("salesDashboard", async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date();
     const todayStr = dayStr(today);
     const d30 = dayStr(addDays(today, -30));
