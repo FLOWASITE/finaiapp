@@ -51,7 +51,7 @@ export const transitionStatus = createServerFn({ method: "POST" })
   });
 
 export const listDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -67,9 +67,11 @@ export const listDocuments = createServerFn({ method: "GET" })
       .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     let q = context.supabase
       .from("documents")
       .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .range(data.offset, data.offset + data.limit - 1);
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
