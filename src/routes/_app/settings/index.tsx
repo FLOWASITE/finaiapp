@@ -260,11 +260,10 @@ function SettingsPage() {
 }
 
 const SECTIONS = [
-  { id: "sec-legal", label: "Hồ sơ pháp lý", icon: <Scale className="h-4 w-4" /> },
-  { id: "sec-contact", label: "Liên hệ & Địa chỉ", icon: <MapPin className="h-4 w-4" /> },
-  { id: "sec-financial", label: "Cấu hình kế toán", icon: <Calculator className="h-4 w-4" /> },
-  { id: "sec-reps", label: "Người đại diện", icon: <UsersIcon className="h-4 w-4" /> },
-  { id: "sec-branding", label: "Thương hiệu & Chữ ký", icon: <ImageIcon className="h-4 w-4" /> },
+  { id: "sec-business", label: "Thông tin doanh nghiệp", icon: <Building2 className="h-4 w-4" /> },
+  { id: "sec-tax", label: "Thông tin kế toán thuế", icon: <Calculator className="h-4 w-4" /> },
+  { id: "sec-activity", label: "Hoạt động kinh doanh", icon: <Package className="h-4 w-4" /> },
+  { id: "sec-reps", label: "Người đại diện & Chữ ký", icon: <UsersIcon className="h-4 w-4" /> },
 ];
 
 // Suy luận loại hình doanh nghiệp từ tên pháp nhân (theo cụm từ phổ biến tiếng Việt).
@@ -284,6 +283,13 @@ function inferLegalForm(companyName: string | null | undefined): string | null {
   return null;
 }
 
+// Map legal_form chi tiết → kind UI đơn giản hoá (Công ty / Hộ KD)
+function legalFormToKind(lf: string | null | undefined): "company" | "household" {
+  return lf === "household" ? "household" : "company";
+}
+
+const FY_DAY_KEY = "settings.fiscal_year_start_day";
+
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
@@ -298,6 +304,8 @@ function OrganizationTab() {
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
   const [overwriteAll, setOverwriteAll] = React.useState(false);
+  // Day-of-month for fiscal year start (chỉ lưu localStorage; persist chính là tháng)
+  const [fyDay, setFyDay] = React.useState<number>(1);
   const loadedTenantIdRef = React.useRef<string | null>(null);
   const userEditedLegalFormRef = React.useRef(false);
   React.useEffect(() => {
@@ -309,6 +317,10 @@ function OrganizationTab() {
       setDiffShipping(
         !!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)),
       );
+      try {
+        const raw = localStorage.getItem(`${FY_DAY_KEY}:${t.id}`);
+        if (raw) setFyDay(Math.max(1, Math.min(31, Number(raw) || 1)));
+      } catch {}
     }
   }, [data]);
 
@@ -384,14 +396,16 @@ function OrganizationTab() {
   const save = () => {
     const payload: any = { ...form };
     if (!diffShipping) payload.shipping_address = null;
-    // Các trường đã gỡ khỏi UI — xoá hẳn dữ liệu khi lưu
     payload.billing_address = null;
     payload.fax = null;
-    // strip readonly keys
     ["id", "user_id", "created_at", "updated_at", "setup_completed", "setup_completed_at"].forEach(
       (k) => delete payload[k],
     );
     mutate.mutate(payload);
+    try {
+      if (data?.tenant?.id)
+        localStorage.setItem(`${FY_DAY_KEY}:${data.tenant.id}`, String(fyDay));
+    } catch {}
   };
 
   const ROLE_LABEL: Record<string, string> = {
@@ -409,6 +423,7 @@ function OrganizationTab() {
     .toUpperCase();
   const isComplete = !!progress.completed;
   const pct = progress.percent;
+  const kind = legalFormToKind(form.legal_form);
 
   return (
     <div className="space-y-5 pb-24">
@@ -444,11 +459,7 @@ function OrganizationTab() {
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {form.tax_id && <span>MST {form.tax_id}</span>}
-                {form.legal_form && (
-                  <span>
-                    {LEGAL_FORMS.find((f) => f.value === form.legal_form)?.label ?? form.legal_form}
-                  </span>
-                )}
+                <span>{kind === "household" ? "Hộ kinh doanh" : "Công ty"}</span>
                 {form.trade_name && <span className="truncate">{form.trade_name}</span>}
               </div>
             </div>
@@ -458,7 +469,10 @@ function OrganizationTab() {
                   <CheckCircle2 className="h-3 w-3" /> Hoàn tất
                 </Badge>
               ) : (
-                <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400">
+                <Badge
+                  variant="outline"
+                  className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400"
+                >
                   <AlertCircle className="h-3 w-3" /> {pct}%
                 </Badge>
               )}
@@ -475,7 +489,8 @@ function OrganizationTab() {
               <div className="flex flex-wrap items-center gap-2 bg-amber-50/50 dark:bg-amber-950/10 px-5 py-2.5 text-xs">
                 <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
                 <span className="flex-1 min-w-0">
-                  Còn <b>{progress?.missing?.length ?? 0}</b> trường bắt buộc theo chuẩn kế toán Việt Nam.
+                  Còn <b>{progress?.missing?.length ?? 0}</b> trường bắt buộc theo chuẩn kế toán
+                  Việt Nam.
                 </span>
                 <Button asChild size="sm" variant="outline" className="h-7">
                   <Link to="/setup">
@@ -489,7 +504,7 @@ function OrganizationTab() {
         </CardContent>
       </Card>
 
-      {/* AI Memory — banner mảnh, dùng token */}
+      {/* AI Memory banner */}
       <div className="flex flex-wrap items-center gap-3 rounded-md border bg-accent/40 px-4 py-2.5 text-xs">
         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
           AI
@@ -505,7 +520,6 @@ function OrganizationTab() {
         </Button>
       </div>
 
-
       {/* 2-col layout: side nav + form */}
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
         <aside className="hidden lg:block">
@@ -518,59 +532,38 @@ function OrganizationTab() {
         </aside>
 
         <div className="space-y-6 min-w-0">
-          {/* 1. Hồ sơ pháp lý */}
-          <section id="sec-legal" className="scroll-mt-20">
+          {/* 1. Thông tin doanh nghiệp */}
+          <section id="sec-business" className="scroll-mt-20">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <Scale className="h-4 w-4 text-primary" />
-                  Hồ sơ pháp lý
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Thông tin doanh nghiệp
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Mã số thuế" required className="md:col-span-2">
+                {/* Hàng 1: MST + Logo + Tên Công ty */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <Field label="Mã số thuế" required className="md:col-span-4">
                     <TaxIdLookupInput
                       disabled={!canEdit}
                       value={form.tax_id ?? ""}
                       onChange={(v) => set("tax_id", v)}
                       onResolved={applyLookup}
                     />
-                    <div className="flex flex-wrap items-center gap-3 mt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={
-                          !canEdit ||
-                          refetchMut.isPending ||
-                          !(form.tax_id ?? "").replace(/\D/g, "").length ||
-                          (form.tax_id ?? "").replace(/\D/g, "").length < 10
-                        }
-                        onClick={() => refetchMut.mutate((form.tax_id ?? "").replace(/\D/g, ""))}
-                      >
-                        {refetchMut.isPending ? (
-                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                        )}
-                        Cập nhật từ MST
-                      </Button>
-                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                        <Checkbox
-                          checked={overwriteAll}
-                          onCheckedChange={(v) => setOverwriteAll(!!v)}
-                          disabled={!canEdit}
-                        />
-                        Ghi đè dữ liệu hiện có
-                      </label>
-                    </div>
-                    <Hint>
-                      Tự điền các trường còn trống (Tên pháp nhân, Địa chỉ, Ngành nghề, Đại diện…).
-                      Vẫn cần bấm <b>Lưu</b> để xác nhận.
-                    </Hint>
                   </Field>
-                  <Field label="Tên pháp nhân (đầy đủ)" required className="md:col-span-2">
+                  <Field label="Logo công ty" className="md:col-span-3">
+                    <CompactImageRow
+                      label=""
+                      hint="PNG/JPG"
+                      url={form.logo_url}
+                      onChange={(u) => set("logo_url", u)}
+                      prefix="logo"
+                      disabled={!canEdit}
+                      compact
+                    />
+                  </Field>
+                  <Field label="Tên Công ty" required className="md:col-span-5">
                     <Input
                       disabled={!canEdit}
                       value={form.company_name ?? ""}
@@ -587,47 +580,49 @@ function OrganizationTab() {
                       }}
                       placeholder="VD: CÔNG TY TNHH ABC"
                     />
-                    <Hint>In trên hoá đơn, BCTC, hợp đồng. Loại hình DN sẽ tự suy ra từ tên.</Hint>
                   </Field>
-                  <Field label="Tên giao dịch / Thương hiệu">
+                </div>
+
+                {/* MST helpers */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !canEdit ||
+                      refetchMut.isPending ||
+                      !(form.tax_id ?? "").replace(/\D/g, "").length ||
+                      (form.tax_id ?? "").replace(/\D/g, "").length < 10
+                    }
+                    onClick={() => refetchMut.mutate((form.tax_id ?? "").replace(/\D/g, ""))}
+                  >
+                    {refetchMut.isPending ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    Cập nhật từ MST
+                  </Button>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox
+                      checked={overwriteAll}
+                      onCheckedChange={(v) => setOverwriteAll(!!v)}
+                      disabled={!canEdit}
+                    />
+                    Ghi đè dữ liệu hiện có
+                  </label>
+                </div>
+
+                {/* Hàng 2: Đại diện PL + Ngày thành lập + Website */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Đại diện pháp luật" required>
                     <Input
                       disabled={!canEdit}
-                      value={form.trade_name ?? ""}
-                      onChange={(e) => set("trade_name", e.target.value)}
-                      placeholder="VD: ABC Group"
+                      value={form.legal_rep_name ?? ""}
+                      onChange={(e) => set("legal_rep_name", e.target.value)}
+                      placeholder="Họ và tên"
                     />
-                  </Field>
-                  <Field label="Tên hiển thị nội bộ">
-                    <Input
-                      disabled={!canEdit}
-                      value={form.name ?? ""}
-                      onChange={(e) => set("name", e.target.value)}
-                      placeholder="VD: ABC"
-                    />
-                  </Field>
-                  <Field label="Loại hình doanh nghiệp" required>
-                    <Select
-                      disabled={!canEdit}
-                      value={form.legal_form ?? ""}
-                      onValueChange={(v) => {
-                        userEditedLegalFormRef.current = true;
-                        set("legal_form", v);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn loại hình…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LEGAL_FORMS.map((f) => (
-                          <SelectItem key={f.value} value={f.value}>
-                            {f.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Hint>
-                      Tự suy từ tên pháp nhân (TNHH → TNHH, CỔ PHẦN → Cổ phần…). Có thể sửa tay.
-                    </Hint>
                   </Field>
                   <Field label="Ngày thành lập">
                     <Input
@@ -637,46 +632,95 @@ function OrganizationTab() {
                       onChange={(e) => set("established_date", e.target.value || null)}
                     />
                   </Field>
-                  <Field label="Ngành nghề kinh doanh" className="md:col-span-2">
-                    <IndustryCombobox
-                      multi
-                      disabled={!canEdit}
-                      items={Array.isArray(form.industries) ? form.industries : []}
-                      onChangeMulti={(items) => setForm({ ...form, industries: items })}
-                    />
-                  </Field>
-                  <Field label="Cơ quan thuế quản lý" className="md:col-span-2">
+                  <Field label="Website">
                     <Input
                       disabled={!canEdit}
-                      value={form.tax_authority ?? ""}
-                      onChange={(e) => set("tax_authority", e.target.value)}
-                      placeholder="VD: Chi cục Thuế Quận 1"
+                      value={form.website ?? ""}
+                      onChange={(e) => set("website", e.target.value)}
+                      placeholder="https://congty.com"
                     />
                   </Field>
                 </div>
-              </CardContent>
-            </Card>
-          </section>
 
-          {/* 2. Liên hệ */}
-          <section id="sec-contact" className="scroll-mt-20">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  Liên hệ & Địa chỉ
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Field label="Địa chỉ trụ sở chính" required>
-                  <Textarea
-                    disabled={!canEdit}
-                    value={form.address ?? ""}
-                    onChange={(e) => set("address", e.target.value)}
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                    rows={2}
-                  />
+                {/* Loại hình DN: 2 lựa chọn */}
+                <Field label="Loại hình doanh nghiệp" required>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: "company", label: "Công ty" },
+                      { value: "household", label: "Hộ kinh doanh" },
+                    ].map((opt) => {
+                      const checked = kind === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={!canEdit}
+                          onClick={() => {
+                            userEditedLegalFormRef.current = true;
+                            if (opt.value === "household") {
+                              set("legal_form", "household");
+                            } else {
+                              // giữ giá trị chi tiết nếu đã có (jsc/llc/...); nếu chưa thì mặc định llc
+                              const cur = form.legal_form;
+                              const detailed =
+                                cur && cur !== "household" ? cur : "llc";
+                              set("legal_form", detailed);
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-md border text-sm transition ${
+                            checked
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-input hover:border-muted-foreground/40"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {kind === "company" && form.legal_form && form.legal_form !== "household" && (
+                    <Hint>
+                      Loại hình chi tiết:{" "}
+                      <b>
+                        {LEGAL_FORMS.find((f) => f.value === form.legal_form)?.label ??
+                          form.legal_form}
+                      </b>{" "}
+                      (tự suy từ tên Công ty)
+                    </Hint>
+                  )}
                 </Field>
+
+                {/* Hàng 4: Địa chỉ + ĐT + Email */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <Field label="Địa chỉ trụ sở" required className="md:col-span-6">
+                    <Textarea
+                      disabled={!canEdit}
+                      value={form.address ?? ""}
+                      onChange={(e) => set("address", e.target.value)}
+                      placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP"
+                      rows={2}
+                    />
+                  </Field>
+                  <Field label="Điện thoại" className="md:col-span-3">
+                    <Input
+                      disabled={!canEdit}
+                      value={form.phone ?? ""}
+                      onChange={(e) => set("phone", e.target.value)}
+                      placeholder="02838123456"
+                    />
+                  </Field>
+                  <Field label="Email" className="md:col-span-3">
+                    <Input
+                      type="email"
+                      disabled={!canEdit}
+                      value={form.email ?? ""}
+                      onChange={(e) => set("email", e.target.value)}
+                      placeholder="ketoan@congty.com"
+                    />
+                  </Field>
+                </div>
+
+                {/* Toggle địa chỉ giao hàng */}
                 <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
                   <Switch
                     disabled={!canEdit}
@@ -700,74 +744,90 @@ function OrganizationTab() {
                     />
                   </Field>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Điện thoại">
-                    <Input
-                      disabled={!canEdit}
-                      value={form.phone ?? ""}
-                      onChange={(e) => set("phone", e.target.value)}
-                      placeholder="VD: 02838123456"
-                    />
-                  </Field>
-                  <Field label="Email">
-                    <Input
-                      type="email"
-                      disabled={!canEdit}
-                      value={form.email ?? ""}
-                      onChange={(e) => set("email", e.target.value)}
-                      placeholder="ketoan@congty.com"
-                    />
-                  </Field>
-                  <Field label="Website" className="md:col-span-2">
-                    <Input
-                      disabled={!canEdit}
-                      value={form.website ?? ""}
-                      onChange={(e) => set("website", e.target.value)}
-                      placeholder="https://congty.com"
-                    />
-                  </Field>
-                </div>
+
+                {/* Ngành nghề kinh doanh */}
+                <Field label="Ngành nghề kinh doanh">
+                  <IndustryCombobox
+                    multi
+                    disabled={!canEdit}
+                    items={Array.isArray(form.industries) ? form.industries : []}
+                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                  />
+                </Field>
               </CardContent>
             </Card>
           </section>
 
-          {/* 3. Cấu hình kế toán */}
-          <section id="sec-financial" className="scroll-mt-20">
+          {/* 2. Thông tin kế toán thuế */}
+          <section id="sec-tax" className="scroll-mt-20">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <Calculator className="h-4 w-4 text-primary" />
-                  Cấu hình kế toán
+                  Thông tin kế toán thuế
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Field label="Chuẩn kế toán áp dụng" required>
-                  <Select
-                    disabled={!canEdit}
-                    value={form.accounting_standard ?? ""}
-                    onValueChange={(v) => set("accounting_standard", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn chuẩn…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TT133">
-                        TT 133/2016/TT-BTC — Doanh nghiệp nhỏ và vừa
-                      </SelectItem>
-                      <SelectItem value="TT99">TT 99/2025/TT-BTC — Áp dụng đầy đủ</SelectItem>
-                      {form.accounting_standard === "TT200" && (
-                        <SelectItem value="TT200">
-                          TT 200/2014/TT-BTC (cũ — sẽ thay bằng TT99)
+                {/* Hàng 1: Chế độ KT + Ngày bắt đầu NTC + Đồng tiền */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Chế độ kế toán" required>
+                    <Select
+                      disabled={!canEdit}
+                      value={form.accounting_standard ?? ""}
+                      onValueChange={(v) => set("accounting_standard", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn chế độ…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TT133">
+                          TT 133/2016 — DN nhỏ và vừa
                         </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Hint>
-                    Lưu ý: Sau khi phát sinh dữ liệu, đổi chuẩn có thể ảnh hưởng bảng tài khoản.
-                  </Hint>
-                </Field>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Đồng tiền hạch toán" required>
+                        <SelectItem value="TT99">TT 99/2025 — Áp dụng đầy đủ</SelectItem>
+                        {form.accounting_standard === "TT200" && (
+                          <SelectItem value="TT200">TT 200/2014 (cũ)</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Ngày bắt đầu năm tài chính" required>
+                    <div className="flex gap-2">
+                      <Select
+                        disabled={!canEdit}
+                        value={String(fyDay)}
+                        onValueChange={(v) => setFyDay(Number(v))}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <SelectItem key={d} value={String(d)}>
+                              {String(d).padStart(2, "0")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        disabled={!canEdit}
+                        value={String(form.fiscal_year_start ?? 1)}
+                        onValueChange={(v) => set("fiscal_year_start", Number(v))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                            <SelectItem key={m} value={String(m)}>
+                              Tháng {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Hint>Đa số DN Việt Nam bắt đầu năm tài chính từ 01/Tháng 1.</Hint>
+                  </Field>
+                  <Field label="Đồng tiền" required>
                     <Input
                       disabled={!canEdit}
                       value={form.base_currency ?? "VND"}
@@ -775,42 +835,10 @@ function OrganizationTab() {
                       maxLength={3}
                     />
                   </Field>
-                  <Field label="Tháng bắt đầu năm tài chính" required>
-                    <Select
-                      disabled={!canEdit}
-                      value={String(form.fiscal_year_start ?? 1)}
-                      onValueChange={(v) => set("fiscal_year_start", Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                          <SelectItem key={m} value={String(m)}>
-                            Tháng {m}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Phương pháp tính thuế GTGT" required>
-                    <Select
-                      disabled={!canEdit}
-                      value={form.tax_method ?? ""}
-                      onValueChange={(v) => set("tax_method", v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn phương pháp…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TAX_METHODS.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                </div>
+
+                {/* Hàng 2: Kỳ kê khai + PP thuế + CQ thuế */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Field label="Kỳ kê khai GTGT" required>
                     <Select
                       disabled={!canEdit}
@@ -829,36 +857,59 @@ function OrganizationTab() {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Kỳ kê khai TNCN">
+                  <Field label="Phương pháp tính thuế" required>
                     <Select
                       disabled={!canEdit}
-                      value={form.pit_period ?? ""}
-                      onValueChange={(v) => set("pit_period", v)}
+                      value={form.tax_method ?? ""}
+                      onValueChange={(v) => set("tax_method", v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Chọn kỳ…" />
+                        <SelectValue placeholder="Chọn phương pháp…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {DECLARE_PERIODS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
+                        {TAX_METHODS.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </Field>
+                  <Field label="Cơ quan thuế quản lý">
+                    <Input
+                      disabled={!canEdit}
+                      value={form.tax_authority ?? ""}
+                      onChange={(e) => set("tax_authority", e.target.value)}
+                      placeholder="VD: Chi cục Thuế Quận 1"
+                    />
                   </Field>
                 </div>
               </CardContent>
             </Card>
           </section>
 
-          {/* 4. Đại diện */}
+          {/* 3. Hoạt động kinh doanh */}
+          <section id="sec-activity" className="scroll-mt-20">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Package className="h-4 w-4 text-primary" />
+                  Hoạt động kinh doanh
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BusinessActivitySection showWhyPanel={false} />
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 4. Người đại diện & Chữ ký */}
           <section id="sec-reps" className="scroll-mt-20">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <UsersIcon className="h-4 w-4 text-primary" />
-                  Người đại diện
+                  Người đại diện & Chữ ký
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -942,46 +993,28 @@ function OrganizationTab() {
                     />
                   </Field>
                 </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* 5. Branding */}
-          <section id="sec-branding" className="scroll-mt-20">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <FileSignature className="h-4 w-4 text-primary" />
-                  Thương hiệu & Chữ ký
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <CompactImageRow
-                  label="Logo công ty"
-                  hint="PNG / JPG · nền trắng"
-                  url={form.logo_url}
-                  onChange={(u) => set("logo_url", u)}
-                  prefix="logo"
-                  disabled={!canEdit}
-                />
                 <Separator />
-                <CompactImageRow
-                  label="Chữ ký đại diện"
-                  hint="PNG nền trong"
-                  url={form.signature_url}
-                  onChange={(u) => set("signature_url", u)}
-                  prefix="signature"
-                  disabled={!canEdit}
-                />
-                <Separator />
-                <CompactImageRow
-                  label="Con dấu công ty"
-                  hint="PNG nền trong"
-                  url={form.stamp_url}
-                  onChange={(u) => set("stamp_url", u)}
-                  prefix="stamp"
-                  disabled={!canEdit}
-                />
+                <div className="space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Chữ ký & Con dấu
+                  </p>
+                  <CompactImageRow
+                    label="Chữ ký đại diện"
+                    hint="PNG nền trong"
+                    url={form.signature_url}
+                    onChange={(u) => set("signature_url", u)}
+                    prefix="signature"
+                    disabled={!canEdit}
+                  />
+                  <CompactImageRow
+                    label="Con dấu công ty"
+                    hint="PNG nền trong"
+                    url={form.stamp_url}
+                    onChange={(u) => set("stamp_url", u)}
+                    prefix="stamp"
+                    disabled={!canEdit}
+                  />
+                </div>
               </CardContent>
             </Card>
           </section>
