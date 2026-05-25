@@ -502,3 +502,58 @@ function GroupSelect({
     </Select>
   );
 }
+
+type SupplierRoleId = "resale_source" | "raw_material_source" | "service_provider" | "asset_vendor";
+const ROLE_OPTIONS: { id: SupplierRoleId; label: string; hint: string }[] = [
+  { id: "resale_source", label: "NCC hàng bán lại (156)", hint: "Mua về để bán" },
+  { id: "raw_material_source", label: "NCC nguyên vật liệu (152)", hint: "Phục vụ sản xuất" },
+  { id: "service_provider", label: "NCC dịch vụ (chi phí)", hint: "Điện, nước, thuê, tư vấn…" },
+  { id: "asset_vendor", label: "NCC tài sản (211/242)", hint: "TSCĐ hoặc tài sản phân bổ" },
+];
+
+function RolesPicker({
+  value,
+  onChange,
+}: {
+  value: SupplierRoleId[];
+  onChange: (next: SupplierRoleId[]) => void;
+}) {
+  const toggle = (id: SupplierRoleId) => {
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  };
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+      <div className="text-xs font-medium text-muted-foreground uppercase">
+        Vai trò cho AI hạch toán
+      </div>
+      <div className="text-xs text-muted-foreground">
+        Tick để giúp Fin gợi ý đúng tài khoản khi gặp NCC này.
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        {ROLE_OPTIONS.map((r) => {
+          const checked = value.includes(r.id);
+          return (
+            <label
+              key={r.id}
+              className={cn(
+                "flex items-start gap-2 rounded-md border p-2 cursor-pointer text-xs",
+                checked ? "border-primary bg-primary/5" : "border-border",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(r.id)}
+                className="mt-0.5"
+              />
+              <div>
+                <div className="font-medium">{r.label}</div>
+                <div className="text-muted-foreground">{r.hint}</div>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
