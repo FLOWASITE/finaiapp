@@ -73,7 +73,7 @@ const SECTIONS: NavSection[] = [
           { to: "/suppliers", label: "Nhà cung cấp" },
         ],
       },
-      { to: "/items", label: "Hàng hoá & Dịch vụ", icon: Package },
+      { to: "/items", label: "Khai báo mặt hàng", icon: Package },
       { to: "/inventory", label: "Kho", icon: Warehouse },
     ],
   },
@@ -114,6 +114,7 @@ const FRONT_SECTIONS: NavSection[] = [
     label: "Thư viện",
     entries: [
       { to: "/documents", label: "Trung tâm tài liệu", icon: FileText, badgeTone: "muted" },
+      { to: "/items", label: "Khai báo mặt hàng", icon: Package },
       { to: "/customers", label: "Đối tác", icon: ContactIcon },
     ],
   },
