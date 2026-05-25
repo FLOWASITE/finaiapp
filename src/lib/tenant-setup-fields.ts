@@ -21,6 +21,7 @@ export function computeTenantSetupProgress(tenant: any | null | undefined) {
   }
   const missing = REQUIRED_TENANT_FIELDS.filter((f) => {
     const v = tenant[f.key];
+    if (Array.isArray(v)) return v.length === 0;
     return v === null || v === undefined || v === "";
   });
   const percent = Math.round(
