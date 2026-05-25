@@ -845,15 +845,16 @@ export const stickStockVoucher = createServerFn({ method: "POST" })
 // ============ List for autosuggest: invoices mua chưa có phiếu ============
 
 export const listLinkablePurchaseInvoices = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((input: { supplierId?: string }) =>
     z.object({ supplierId: z.string().uuid().optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     let q = supabase
       .from("invoices")
       .select("id, invoice_no, issue_date, supplier_name, subtotal, vat_amount, total, supplier_id, file_path")
+      .eq("tenant_id", tenantId)
       .neq("status", "void")
       .order("issue_date", { ascending: false })
       .limit(50);
