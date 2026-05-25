@@ -794,8 +794,9 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // Chặn ghi sổ trùng hóa đơn bán ra (kiểm tra trước khi tạo journal entry)
+    // Chặn ghi sổ hóa đơn không liên quan + trùng số
     if (data.source === "document") {
+      await assertInvoiceBelongsToTenant(supabase, tenantId, data.external_id);
       await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
     }
 
