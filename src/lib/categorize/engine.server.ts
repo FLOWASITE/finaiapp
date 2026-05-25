@@ -26,6 +26,7 @@ import {
   getTenantVendorTemplates,
   getSupplierIndustryCached,
   getVendorHistoryDistCached,
+  getVendorHistoryDistV2Cached,
   pickMemoryMap,
   pickVendorTemplate,
 } from "./cache.server";
