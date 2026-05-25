@@ -72,6 +72,7 @@ export const saveLineClassification = createServerFn({ method: "POST" })
         .from("ai_line_classifications")
         .update({
           kind: data.kind,
+          kind_v2: kindV2,
           account: data.account,
           source: "user_override",
           hit_count: (existing.hit_count ?? 0) + 1,
