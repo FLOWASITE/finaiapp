@@ -644,13 +644,16 @@ async function autoResolveMissingMaster(
     ? ext.line_items
     : [];
 
-  const names = Array.from(
-    new Set(
-      rawLines
-        .map((l: any) => (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim())
-        .filter((s: string) => s && s !== "—"),
-    ),
-  ).slice(0, 30);
+  const lineEntries = rawLines
+    .map((l: any) => ({
+      name: (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim(),
+      qty: Number(l.qty ?? l.quantity ?? 0) || null,
+      unit_price: Number(l.unit_price ?? l.price ?? 0) || null,
+      amount: Number(l.amount ?? l.total ?? 0) || null,
+      unit: (l.unit ?? l.uom ?? null) as string | null,
+    }))
+    .filter((l: any) => l.name && l.name !== "—");
+  const names = Array.from(new Set(lineEntries.map((l: any) => l.name))).slice(0, 30);
   if (names.length === 0) return;
 
   const { data: existing } = await supabase
@@ -659,19 +662,63 @@ async function autoResolveMissingMaster(
     .eq("tenant_id", tenantId)
     .in("name", names);
   const existSet = new Set<string>((existing ?? []).map((r: any) => String(r.name).toLowerCase()));
-  const toInsert = names.filter((n) => !existSet.has(n.toLowerCase()));
-  for (const nm of toInsert) {
+
+  // Build classify context (tenant + supplier nếu mua vào)
+  const tenantCfg = await getTenantClassifyContext(supabase, tenantId).catch(() => null);
+  let vendor: ClassifyContextV2["vendor"] | undefined;
+  if (tenantCfg && doc.doc_kind === "purchase_invoice") {
+    const seller = ein?.seller ?? ext?.seller ?? {};
+    const sellerTax = (seller.tax_id ?? ext?.supplier_tax_id ?? "").toString().trim();
+    if (sellerTax) {
+      const sup = await getVendorRolesAndVsic(
+        supabase,
+        await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", sellerTax)
+          .maybeSingle()
+          .then((r: any) => r.data?.id ?? null),
+      );
+      vendor = sup;
+    }
+  }
+  const ctxV2 = tenantCfg ? buildClassifyContextV2(tenantCfg, vendor) : null;
+
+  const seen = new Set<string>();
+  for (const li of lineEntries) {
+    const nm = li.name;
+    if (seen.has(nm.toLowerCase())) continue;
+    seen.add(nm.toLowerCase());
+    if (existSet.has(nm.toLowerCase())) continue;
+
+    let item_type: "goods" | "service" = "goods";
+    let stock_account = "156";
+    let unit = li.unit?.toString().trim() || "cái";
+    if (ctxV2) {
+      try {
+        const r = classifyLineV2(li, ctxV2);
+        const acct = accountForItemType(kindV2ToItemType(r.kind));
+        item_type = acct.item_type;
+        stock_account = acct.stock_account;
+        if (!li.unit) unit = acct.unit;
+      } catch {
+        /* fallback giữ nguyên */
+      }
+    }
+
     await supabase.from("products").insert({
       tenant_id: tenantId,
       user_id: userId,
       name: nm,
-      code: slug(nm, "HH"),
-      item_type: "goods",
-      stock_account: "156",
-      unit: "cái",
+      code: slug(nm, item_type === "service" ? "DV" : "HH"),
+      item_type,
+      stock_account,
+      unit,
     });
   }
 }
+
 // Enrich Inbox items with posted_voucher + missing master data
 // ============================================================
 function normName(s: string | null | undefined): string {
