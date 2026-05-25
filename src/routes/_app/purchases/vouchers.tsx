@@ -944,10 +944,12 @@ function PurchaseVouchersPage() {
       </Card>
 
       <CreateVoucherDialog
-        open={openCreate}
-        onOpenChange={(v) => { setOpenCreate(v); if (!v) setInitialParty(null); }}
-        onCreated={() => { refetch(); setOpenCreate(false); setInitialParty(null); }}
+        open={openCreate || !!editId}
+        onOpenChange={(v) => { setOpenCreate(v); setEditId(null); if (!v) setInitialParty(null); }}
+        onCreated={() => { refetch(); setOpenCreate(false); setEditId(null); setInitialParty(null); }}
+        onUpdated={() => { refetch(); setEditId(null); }}
         initialParty={initialParty}
+        editId={editId}
       />
 
       <VoidConfirmDialog
