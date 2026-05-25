@@ -804,6 +804,16 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     if (data.source === "document") {
       await assertInvoiceBelongsToTenant(supabase, tenantId, data.external_id);
       await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
+      // Auto-tạo KH/NCC/hàng hóa còn thiếu theo gợi ý AI (idempotent)
+      try {
+        await autoResolveMissingMaster(supabase, {
+          tenantId,
+          userId,
+          documentId: data.external_id,
+        });
+      } catch (e) {
+        console.error("[approveInboxItem] auto-resolve missing master failed", e);
+      }
     }
 
     const { data: entry, error } = await supabase
