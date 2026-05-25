@@ -48,6 +48,16 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
   const [expanded, setExpanded] = useState(false);
   const [edit, setEdit] = useState(false);
   const [entries, setEntries] = useState<ProposalEntry[]>(dto.entries);
+  const [tscdOpen, setTscdOpen] = useState(false);
+
+  // TSCĐ confirm gate — driven by engine warning `cat-tscd-confirm`
+  const tscdWarn = dto.warnings.find((w) => w.code === "cat-tscd-confirm");
+  const tscdLine = tscdWarn
+    ? entries[0]?.lines.find((l) => /^21[13]/.test(l.account_code) && l.debit > 0)
+    : undefined;
+  const tscdKind: "tangible" | "intangible" = tscdLine?.account_code.startsWith("213")
+    ? "intangible"
+    : "tangible";
 
   const src = SOURCE_LABEL[source] ?? SOURCE_LABEL.manual;
   const confPct = Math.round(confidence * 100);
