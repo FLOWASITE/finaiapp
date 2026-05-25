@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SalesTabs } from "@/components/sales/SalesTabs";
 import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
-import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark, PackagePlus } from "lucide-react";
+import { Plus, Trash2, RefreshCw, FileCheck2, Loader2, MoreHorizontal, X, FileText, Wallet, TrendingUp, FileX, Check, Paperclip, ChevronDown, Globe2, Upload, Printer, FileSpreadsheet, CircleDollarSign, Landmark, PackagePlus, Eye } from "lucide-react";
 
 import {
   listSalesVouchers,
@@ -1158,49 +1158,60 @@ function SalesVouchersPage() {
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(v.id)}>
-                                Mở phiếu
-                              </DropdownMenuItem>
-                              {!isPosted && (
-                                <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
-                                  <FileCheck2 className="h-4 w-4 mr-2" /> {v.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-primary hover:text-primary"
+                              onClick={() => openEdit(v.id)}
+                              title="Mở phiếu bán hàng"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(v.id)}>
+                                  <Eye className="h-4 w-4 mr-2" /> Mở phiếu
                                 </DropdownMenuItem>
-                              )}
-                              {isPosted && (
-                                <DropdownMenuItem
-                                  onClick={() => openVoidDialog(v.id)}
-                                  className="text-destructive"
-                                >
-                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
-                                </DropdownMenuItem>
-                              )}
-                              {!v.stock_voucher_id && (
-                                <DropdownMenuItem
-                                  onClick={() => setStickTarget({ kind: "sales", id: v.id, voucher_no: v.voucher_no })}
-                                >
-                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              {!isPosted && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
-                                  }}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" /> Xoá
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                {!isPosted && (
+                                  <DropdownMenuItem onClick={() => postMut.mutate(v.id)}>
+                                    <FileCheck2 className="h-4 w-4 mr-2" /> {v.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                                  </DropdownMenuItem>
+                                )}
+                                {isPosted && (
+                                  <DropdownMenuItem
+                                    onClick={() => openVoidDialog(v.id)}
+                                    className="text-destructive"
+                                  >
+                                    <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
+                                  </DropdownMenuItem>
+                                )}
+                                {!v.stock_voucher_id && (
+                                  <DropdownMenuItem
+                                    onClick={() => setStickTarget({ kind: "sales", id: v.id, voucher_no: v.voucher_no })}
+                                  >
+                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu xuất kho
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                {!isPosted && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (confirm("Xoá phiếu này?")) delMut.mutate(v.id);
+                                    }}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" /> Xoá
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

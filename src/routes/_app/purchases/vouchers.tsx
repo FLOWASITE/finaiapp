@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical, PackagePlus } from "lucide-react";
+import { Plus, FileText, Check, X, Trash2, PlusCircle, ChevronDown, Loader2, AlertCircle, Inbox, Upload, ExternalLink, FileX, Wallet, TrendingDown, Paperclip, MoreHorizontal, CircleDollarSign, Landmark, Calendar, MoreVertical, PackagePlus, Eye, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,6 +15,8 @@ import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 import {
   listPurchaseVouchers,
   createPurchaseVoucher,
+  updatePurchaseVoucher,
+  getPurchaseVoucher,
   postPurchaseVoucher,
   voidPurchaseVoucher,
   previewVoidPurchaseVoucher,
@@ -358,6 +360,7 @@ function PurchaseVouchersPage() {
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [initialParty, setInitialParty] = useState<{ id: string; name: string; tax_id?: string; address?: string } | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const searchParams = Route.useSearch();
   const navigateRoute = useNavigate();
@@ -766,6 +769,7 @@ function PurchaseVouchersPage() {
                       <TableRow
                         key={r.id}
                         className={`cursor-pointer hover:bg-accent/60 ${isSel ? "bg-primary/5" : ""}`}
+                        onClick={() => setEditId(r.id)}
                         style={{ height: 40 }}
                       >
                         <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
@@ -843,50 +847,64 @@ function PurchaseVouchersPage() {
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              {!isPosted && (
-                                <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
-                                  <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-primary hover:text-primary"
+                              onClick={() => setEditId(r.id)}
+                              title="Mở phiếu mua hàng"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => setEditId(r.id)}>
+                                  <Eye className="h-4 w-4 mr-2" /> Mở phiếu
                                 </DropdownMenuItem>
-                              )}
-                              {isPosted && (
+                                {!isPosted && (
+                                  <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
+                                    <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                                  </DropdownMenuItem>
+                                )}
+                                {isPosted && (
+                                  <DropdownMenuItem
+                                    onClick={() => openVoidDialog(r.id)}
+                                    className="text-destructive"
+                                  >
+                                    <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
+                                  </DropdownMenuItem>
+                                )}
+                                {r.journal_entry_id && (
+                                  <DropdownMenuItem asChild>
+                                    <Link to="/journal">
+                                      <FileText className="h-4 w-4 mr-2" /> Xem bút toán
+                                    </Link>
+                                  </DropdownMenuItem>
+                                )}
+                                {!r.stock_voucher_id && (
+                                  <DropdownMenuItem
+                                    onClick={() => setStickTarget({ kind: "purchase", id: r.id, voucher_no: r.voucher_no })}
+                                  >
+                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => openVoidDialog(r.id)}
-                                  className="text-destructive"
+                                  className="text-destructive focus:text-destructive"
+                                  disabled={isPosted}
+                                  onClick={() => delMut.mutate(r.id)}
                                 >
-                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
+                                  <Trash2 className="h-4 w-4 mr-2" /> Xoá
                                 </DropdownMenuItem>
-                              )}
-                              {r.journal_entry_id && (
-                                <DropdownMenuItem asChild>
-                                  <Link to="/journal">
-                                    <FileText className="h-4 w-4 mr-2" /> Xem bút toán
-                                  </Link>
-                                </DropdownMenuItem>
-                              )}
-                              {!r.stock_voucher_id && (
-                                <DropdownMenuItem
-                                  onClick={() => setStickTarget({ kind: "purchase", id: r.id, voucher_no: r.voucher_no })}
-                                >
-                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                disabled={isPosted}
-                                onClick={() => delMut.mutate(r.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Xoá
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -926,10 +944,12 @@ function PurchaseVouchersPage() {
       </Card>
 
       <CreateVoucherDialog
-        open={openCreate}
-        onOpenChange={(v) => { setOpenCreate(v); if (!v) setInitialParty(null); }}
-        onCreated={() => { refetch(); setOpenCreate(false); setInitialParty(null); }}
+        open={openCreate || !!editId}
+        onOpenChange={(v) => { setOpenCreate(v); setEditId(null); if (!v) setInitialParty(null); }}
+        onCreated={() => { refetch(); setOpenCreate(false); setEditId(null); setInitialParty(null); }}
+        onUpdated={() => { refetch(); setEditId(null); }}
         initialParty={initialParty}
+        editId={editId}
       />
 
       <VoidConfirmDialog
@@ -949,14 +969,18 @@ function PurchaseVouchersPage() {
 // ---------- create dialog ----------
 
 function CreateVoucherDialog({
-  open, onOpenChange, onCreated, initialParty,
+  open, onOpenChange, onCreated, onUpdated, initialParty, editId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
+  onUpdated?: () => void;
   initialParty?: { id: string; name: string; tax_id?: string; address?: string } | null;
+  editId?: string | null;
 }) {
   const createFn = useServerFn(createPurchaseVoucher);
+  const updateFn = useServerFn(updatePurchaseVoucher);
+  const getFn = useServerFn(getPurchaseVoucher);
   const postFn = useServerFn(postPurchaseVoucher);
   const suggestNoFn = useServerFn(suggestVoucherNo);
   const linkInvFn = useServerFn(listLinkablePurchaseInvoices);
@@ -1083,6 +1107,78 @@ function CreateVoucherDialog({
     if (groupName) setHeader((h) => (h.customer_group ? h : { ...h, customer_group: groupName }));
   }, [open, initialParty, suppliers, supplierGroupNameById]);
 
+  // Load edit data
+  const editLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !editId) { editLoadedRef.current = null; return; }
+    if (editLoadedRef.current === editId) return;
+    editLoadedRef.current = editId;
+    (async () => {
+      try {
+        const { voucher } = await getFn({ data: { id: editId } });
+        const v = voucher as any;
+        setHeader({
+          voucher_no: v.voucher_no ?? "",
+          voucher_date: v.voucher_date ?? today,
+          supplier_id: v.supplier_id ?? "",
+          supplier_name: v.supplier_name ?? "",
+          supplier_address: v.supplier_address ?? "",
+          customer_group: v.customer_group ?? "",
+          invoice_id: v.invoice_id ?? "",
+          invoice_no: v.invoice_no ?? "",
+          invoice_date: v.invoice_date ?? "",
+          invoice_file_path: "",
+          reason: v.reason ?? "",
+          currency: v.currency ?? "VND",
+          exchange_rate: v.exchange_rate ?? 1,
+          due_date: v.due_date ?? "",
+          debit_account_default: v.debit_account ?? "156",
+          credit_account: v.credit_account ?? "3311",
+          vat_account_default: v.vat_account ?? "1331",
+          payment_method: v.payment_method ?? "credit",
+          payment_account: v.payment_account ?? "1111",
+          payment_status: v.payment_status ?? "unpaid",
+          invoice_receipt_type: v.invoice_receipt_type ?? "with_invoice",
+          is_purchase_cost: v.is_purchase_cost ?? false,
+          is_non_deductible: v.is_non_deductible ?? false,
+          auto_allocate_cost: v.auto_allocate_cost ?? false,
+          pay_now: v.pay_now ?? false,
+          create_stock_voucher: v.create_stock_voucher ?? false,
+          warehouse_id: v.warehouse_id ?? "",
+          stock_voucher_no: v.stock_voucher_no ?? "",
+          stock_voucher_date: v.stock_voucher_date ?? "",
+          stock_voucher_reason: v.stock_voucher_reason ?? "",
+          discount_pct: v.discount_pct ?? 0,
+          discount_amount: v.discount_amount ?? 0,
+        });
+        setLines(
+          (v.purchase_voucher_lines ?? []).map((l: any) => ({
+            key: l.id || crypto.randomUUID(),
+            product_id: l.product_id ?? null,
+            product_code: l.product_code ?? "",
+            product_name: l.product_name ?? "",
+            description: l.description ?? "",
+            unit: l.unit ?? "",
+            qty: Number(l.qty ?? 1),
+            unit_price: Number(l.unit_price ?? 0),
+            amount: Number(l.amount ?? 0),
+            discount_pct: Number(l.discount_pct ?? 0),
+            discount_amount: Number(l.discount_amount ?? 0),
+            vat_rate: Number(l.vat_rate ?? 10),
+            vat_amount: Number(l.vat_amount ?? 0),
+            total: Number(l.total ?? 0),
+            debit_account: l.debit_account ?? v.debit_account ?? "156",
+            vat_account: l.vat_account ?? v.vat_account ?? "1331",
+            invoice_no: l.invoice_no ?? "",
+            line_type: l.line_type ?? "goods",
+          }))
+        );
+      } catch (e: any) {
+        toast.error(e?.message || "Không tải được phiếu");
+      }
+    })();
+  }, [open, editId]);
+
   // Auto-update "Diễn giải" khi user chưa chỉnh tay
   const [reasonTouched, setReasonTouched] = useState(false);
   useEffect(() => {
@@ -1198,6 +1294,10 @@ function CreateVoucherDialog({
             line_type: l.line_type,
           })),
       };
+      if (editId) {
+        await updateFn({ data: { id: editId, ...payload } });
+        return { id: editId };
+      }
       const created = await createFn({ data: payload });
       try {
         await postFn({ data: { id: created.id } });
@@ -1207,21 +1307,22 @@ function CreateVoucherDialog({
       return created;
     },
     onSuccess: () => {
-      toast.success("Đã lưu và ghi sổ");
+      toast.success(editId ? "Đã cập nhật phiếu" : "Đã lưu và ghi sổ");
       invalidateLedgers(qc);
       setHeader((h) => ({ ...h, voucher_no: "", reason: "" }));
       setLines([emptyLine()]);
-      onCreated();
+      if (editId) onUpdated?.();
+      else onCreated();
       onOpenChange(false);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi tạo phiếu"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : (editId ? "Lỗi cập nhật phiếu" : "Lỗi tạo phiếu")),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Tạo phiếu mua hàng</DialogTitle>
+          <DialogTitle>{editId ? "Phiếu mua hàng" : "Tạo phiếu mua hàng"}</DialogTitle>
         </DialogHeader>
 
         {/* Top toggle row */}
