@@ -166,7 +166,7 @@ export function TenantSwitcher() {
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted text-xs font-semibold">
                 {(t.company_name || t.name).charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-1">
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium whitespace-normal break-words" title={t.company_name || t.name}>{t.company_name || t.name}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
