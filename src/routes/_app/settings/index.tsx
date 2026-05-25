@@ -733,15 +733,6 @@ function OrganizationTab() {
                   </Field>
                 )}
 
-                {/* Ngành nghề kinh doanh */}
-                <Field label="Ngành nghề kinh doanh">
-                  <IndustryCombobox
-                    multi
-                    disabled={!canEdit}
-                    items={Array.isArray(form.industries) ? form.industries : []}
-                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
-                  />
-                </Field>
               </CardContent>
             </Card>
           </section>
