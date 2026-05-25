@@ -63,10 +63,12 @@ export const purchasesDashboard = createServerFn({ method: "GET" })
     const { data: allInvs = [] } = await supabase
       .from("invoices")
       .select("id, invoice_no, supplier_id, supplier_name, issue_date, total")
+      .eq("tenant_id", tenantId)
       .neq("status", "void");
     const { data: allPays = [] } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
     const paidMap = new Map<string, number>();
     for (const p of allPays ?? []) {
       if (p.invoice_id)
