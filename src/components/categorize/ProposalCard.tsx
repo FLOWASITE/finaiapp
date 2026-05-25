@@ -216,7 +216,10 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
                         <span className="font-semibold">{l.account_code}</span>
                       )}
                     </td>
-                    <td className="py-1 text-muted-foreground truncate max-w-[280px]">{l.memo ?? ""}</td>
+                    <td className="py-1 pl-1">
+                      {l.debit > 0 && <AccountKindBadge code={l.account_code} />}
+                    </td>
+                    <td className="py-1 text-muted-foreground truncate max-w-[260px]">{l.memo ?? ""}</td>
                     <td className="py-1 text-right font-semibold">
                       {edit ? (
                         <Input
