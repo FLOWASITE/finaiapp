@@ -111,61 +111,99 @@ function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-6 space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">
           Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền
         </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2">
-        {[
-          {
-            to: "/settings/business-activity",
-            label: "Hoạt động & Mặt hàng",
-            icon: <Wand2 className="h-4 w-4" />,
-            highlight: true,
-          },
-          {
-            to: "/items",
-            label: "Khai báo mặt hàng",
-            icon: <Package className="h-4 w-4" />,
-            highlight: true,
-          },
-          { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
-          {
-            to: "/settings/departments",
-            label: "Phòng ban",
-            icon: <UsersIcon className="h-4 w-4" />,
-          },
-          { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
-          {
-            to: "/settings/cost-centers",
-            label: "Bộ phận chi phí",
-            icon: <Calculator className="h-4 w-4" />,
-          },
-          {
-            to: "/settings/fiscal-periods",
-            label: "Kỳ kế toán",
-            icon: <Lock className="h-4 w-4" />,
-          },
-        ].map((it) => (
-          <Button
-            key={it.to}
-            asChild
-            variant="outline"
-            title={it.label}
-            className={`justify-start h-auto py-2 ${it.highlight ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : ""}`}
-          >
-            <Link to={it.to as any}>
-              {it.icon}
-              <span className="ml-2 whitespace-normal break-words text-left leading-tight">
-                {it.label}
-              </span>
-            </Link>
-          </Button>
-        ))}
+
+      {/* Shortcut: nhóm 1 — Khai báo trọng yếu */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Khai báo trọng yếu
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            {
+              to: "/settings/business-activity",
+              label: "Hoạt động & Mặt hàng",
+              desc: "Cấu hình ngành nghề & ánh xạ tài khoản",
+              icon: <Wand2 className="h-5 w-5" />,
+            },
+            {
+              to: "/items",
+              label: "Khai báo mặt hàng",
+              desc: "Danh mục hàng hoá, dịch vụ, NVL, CCDC",
+              icon: <Package className="h-5 w-5" />,
+            },
+            {
+              to: "/settings/fiscal-periods",
+              label: "Kỳ kế toán",
+              desc: "Mở/khoá sổ theo tháng, quý, năm",
+              icon: <Lock className="h-5 w-5" />,
+            },
+          ].map((it) => (
+            <Button
+              key={it.to}
+              asChild
+              variant="outline"
+              className="group h-auto justify-start gap-3 border-primary/30 bg-primary/5 px-4 py-3 hover:border-primary/50 hover:bg-primary/10"
+            >
+              <Link to={it.to as any}>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary group-hover:bg-primary/25">
+                  {it.icon}
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block text-sm font-semibold leading-tight">{it.label}</span>
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground leading-snug">
+                    {it.desc}
+                  </span>
+                </span>
+              </Link>
+            </Button>
+          ))}
+        </div>
       </div>
+
+      {/* Shortcut: nhóm 2 — Cơ cấu tổ chức */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Cơ cấu tổ chức
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
+            { to: "/settings/departments", label: "Phòng ban", icon: <UsersIcon className="h-4 w-4" /> },
+            { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
+            { to: "/settings/cost-centers", label: "Bộ phận chi phí", icon: <Calculator className="h-4 w-4" /> },
+          ].map((it) => (
+            <Button
+              key={it.to}
+              asChild
+              variant="outline"
+              size="sm"
+              title={it.label}
+              className="justify-start h-auto py-2"
+            >
+              <Link to={it.to as any}>
+                {it.icon}
+                <span className="ml-2 whitespace-normal break-words text-left leading-tight text-xs">
+                  {it.label}
+                </span>
+              </Link>
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <DigestSettingsCard />
       <Tabs value={tab} onValueChange={handleTabChange}>
         <div
@@ -373,96 +411,100 @@ function OrganizationTab() {
   const pct = progress.percent;
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Setup banner */}
-      {!isComplete && (
-        <Card className="border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10">
-          <CardContent className="flex flex-wrap items-center gap-3 py-3">
-            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-sm font-medium">Hồ sơ tổ chức chưa hoàn tất ({pct}%)</p>
-              <p className="text-xs text-muted-foreground">
-                Còn {progress?.missing?.length ?? 0} trường bắt buộc theo chuẩn kế toán Việt Nam.
-              </p>
+    <div className="space-y-5 pb-24">
+      {/* Hero card — gộp setup status + meta */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+            <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm shrink-0">
+              {form.logo_url ? (
+                <AvatarImage
+                  src={form.logo_url}
+                  alt={form.name}
+                  className="object-contain bg-white"
+                />
+              ) : null}
+              <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
+                {initials || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold truncate">
+                  {form.company_name || form.name || "(chưa đặt tên)"}
+                </h2>
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+                  {ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}
+                </Badge>
+                {!canEdit && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Chỉ đọc
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {form.tax_id && <span>MST {form.tax_id}</span>}
+                {form.legal_form && (
+                  <span>
+                    {LEGAL_FORMS.find((f) => f.value === form.legal_form)?.label ?? form.legal_form}
+                  </span>
+                )}
+                {form.trade_name && <span className="truncate">{form.trade_name}</span>}
+              </div>
             </div>
-            <Button asChild size="sm" variant="outline">
-              <Link to="/setup">
-                <Wand2 className="mr-1 h-3.5 w-3.5" />
-                Hoàn tất bằng Wizard
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-      {isComplete && (
-        <div className="flex items-center gap-2 text-xs text-emerald-600">
-          <CheckCircle2 className="h-3.5 w-3.5" /> Hồ sơ đã hoàn tất.
-        </div>
-      )}
-
-      {/* AI Memory link */}
-      <Card className="border-[#C7D2FE] bg-[#EEF2FF]">
-        <CardContent className="flex flex-wrap items-center gap-3 py-3 text-[#26215C]">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4F46C7] text-white text-[12px] font-bold">
-            AI
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-sm font-medium">Đồng bộ với Trí nhớ AI</p>
-            <p className="text-xs">
-              Tên pháp nhân, MST, địa chỉ, loại hình, liên hệ, người đại diện, ngành nghề và chế độ
-              kế toán tự động cập nhật vào Bối cảnh DN.
-            </p>
-          </div>
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            className="border-[#4F46C7] text-[#4F46C7] hover:bg-white"
-          >
-            <Link to="/ai/memory">Mở Trí nhớ AI</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Hero */}
-      <Card>
-        <CardContent className="flex items-center gap-4 py-5">
-          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm">
-            {form.logo_url ? (
-              <AvatarImage
-                src={form.logo_url}
-                alt={form.name}
-                className="object-contain bg-white"
-              />
-            ) : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
-              {initials || "?"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold truncate">
-                {form.company_name || form.name || "(chưa đặt tên)"}
-              </h2>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                {ROLE_LABEL[data?.myRole ?? ""] ?? data?.myRole}
-              </Badge>
-              {!canEdit && (
-                <Badge variant="outline" className="text-[10px]">
-                  Chỉ đọc
+            <div className="flex items-center gap-2 sm:self-center">
+              {isComplete ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Hoàn tất
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="h-3 w-3" /> {pct}%
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {form.trade_name ||
-                (form.name && form.name !== form.company_name
-                  ? form.name
-                  : "Hồ sơ tổ chức đang hoạt động")}
-              {form.tax_id ? ` · MST ${form.tax_id}` : ""}
-            </p>
           </div>
+          {!isComplete && (
+            <>
+              <div className="h-1 w-full bg-muted">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 bg-amber-50/50 dark:bg-amber-950/10 px-5 py-2.5 text-xs">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="flex-1 min-w-0">
+                  Còn <b>{progress?.missing?.length ?? 0}</b> trường bắt buộc theo chuẩn kế toán Việt Nam.
+                </span>
+                <Button asChild size="sm" variant="outline" className="h-7">
+                  <Link to="/setup">
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Hoàn tất bằng Wizard
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* AI Memory — banner mảnh, dùng token */}
+      <div className="flex flex-wrap items-center gap-3 rounded-md border bg-accent/40 px-4 py-2.5 text-xs">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+          AI
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <span className="font-medium text-foreground">Đồng bộ với Trí nhớ AI · </span>
+          <span className="text-muted-foreground">
+            Mọi thay đổi tổ chức tự cập nhật vào Bối cảnh DN.
+          </span>
+        </div>
+        <Button asChild size="sm" variant="ghost" className="h-7">
+          <Link to="/ai/memory">Mở Trí nhớ AI</Link>
+        </Button>
+      </div>
+
 
       {/* 2-col layout: side nav + form */}
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">

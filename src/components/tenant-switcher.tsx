@@ -92,24 +92,14 @@ export function TenantSwitcher() {
   });
 
   const createMut = useMutation({
-    mutationFn: (v: {
-      name: string;
-      company_name?: string;
-      tax_id?: string;
-      address?: string;
-      legal_rep_name?: string;
-      trade_name?: string;
-      phone?: string;
-      email?: string;
-      tax_authority?: string;
-      business_reg_no?: string;
-      business_reg_date?: string;
-      established_date?: string;
-      legal_form?: "llc"|"jsc"|"partnership"|"sole_prop"|"household"|"branch"|"other";
-      industry_code?: string;
-      industry_name?: string;
-    }) =>
-      create({ data: { ...v, accounting_standard: "TT133", base_currency: "VND" } }),
+    mutationFn: async (v: CreateTenantPayload & { setActive?: boolean }) => {
+      const { setActive, ...payload } = v;
+      const r = await create({ data: { ...payload, accounting_standard: "TT133", base_currency: "VND" } });
+      if (setActive && (r as any)?.id) {
+        try { await sw({ data: { tenantId: (r as any).id } }); } catch {}
+      }
+      return r;
+    },
     onSuccess: (_d, vars) => {
       const bonusKeys = ["trade_name","phone","email","tax_authority","business_reg_no","business_reg_date","established_date","legal_form","industry_code","industry_name"] as const;
       const n = bonusKeys.filter((k) => (vars as any)[k]).length;
@@ -120,6 +110,7 @@ export function TenantSwitcher() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const active = data?.tenants?.find((t) => t.is_active);
 
@@ -257,7 +248,7 @@ function CreateTenantDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: CreateTenantPayload) => void;
+  onSubmit: (v: CreateTenantPayload & { setActive?: boolean }) => void;
   pending: boolean;
 }) {
   const [taxId, setTaxId] = React.useState("");
@@ -267,12 +258,13 @@ function CreateTenantDialog({
   const [legalRep, setLegalRep] = React.useState("");
   const [userEditedName, setUserEditedName] = React.useState(false);
   const [lookup, setLookup] = React.useState<TaxLookupResult | null>(null);
+  const [setActive, setSetActive] = React.useState(true);
 
   React.useEffect(() => {
     if (!open) {
       setTaxId(""); setCompanyName(""); setName("");
       setAddress(""); setLegalRep(""); setUserEditedName(false);
-      setLookup(null);
+      setLookup(null); setSetActive(true);
     }
   }, [open]);
 
@@ -288,19 +280,25 @@ function CreateTenantDialog({
       ].filter(Boolean) as { label: string; value: string }[]
     : [];
 
+  const canSubmit = !!name.trim() && !!companyName.trim() && !pending;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tạo tổ chức mới</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label>Mã số thuế</Label>
+        <div className="space-y-4">
+          {/* B1: MST + lookup */}
+          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+            <Label className="text-xs flex items-center gap-1.5">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">1</span>
+              Nhập MST để tự điền hồ sơ
+            </Label>
             <TaxIdLookupInput
               value={taxId}
               onChange={setTaxId}
-              placeholder="Nhập MST rồi bấm tra cứu để tự điền"
+              placeholder="VD: 0312345678"
               onResolved={(r: TaxLookupResult) => {
                 setLookup(r);
                 setCompanyName(r.name);
@@ -309,84 +307,119 @@ function CreateTenantDialog({
                 if (r.director) setLegalRep(r.director);
               }}
             />
-          </div>
-          <div>
-            <Label>Tên pháp nhân</Label>
-            <Input
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="VD: Công ty TNHH ABC Việt Nam"
-            />
-          </div>
-          <div>
-            <Label>Tên hiển thị *</Label>
-            <Input
-              value={name}
-              onChange={(e) => { setName(e.target.value); setUserEditedName(true); }}
-              placeholder="VD: ABC"
-            />
-          </div>
-          <div>
-            <Label>Địa chỉ trụ sở</Label>
-            <Textarea
-              value={address}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAddress(e.target.value)}
-              placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP"
-              rows={2}
-            />
-          </div>
-          <div>
-            <Label>Đại diện pháp luật</Label>
-            <Input
-              value={legalRep}
-              onChange={(e) => setLegalRep(e.target.value)}
-              placeholder="Họ và tên người đại diện"
-            />
+            {bonus.length > 0 && (
+              <div className="rounded-md border bg-background p-2.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2Mini /> Đã lấy {bonus.length} trường từ MST
+                </div>
+                <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+                  {bonus.map((b) => (
+                    <React.Fragment key={b.label}>
+                      <dt className="text-muted-foreground">{b.label}</dt>
+                      <dd className="truncate" title={b.value}>{b.value}</dd>
+                    </React.Fragment>
+                  ))}
+                </dl>
+              </div>
+            )}
           </div>
 
-          {bonus.length > 0 && (
-            <div className="rounded-md border bg-muted/40 p-3 space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground">
-                Đã lấy từ MST ({bonus.length} trường sẽ tự lưu)
-              </div>
-              <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 text-xs">
-                {bonus.map((b) => (
-                  <React.Fragment key={b.label}>
-                    <dt className="text-muted-foreground">{b.label}</dt>
-                    <dd className="truncate" title={b.value}>{b.value}</dd>
-                  </React.Fragment>
-                ))}
-              </dl>
+          {/* B2: Thông tin cốt lõi */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-muted-foreground text-[10px] font-bold">2</span>
+              <span className="text-xs font-medium text-muted-foreground">Kiểm tra & chỉnh sửa</span>
             </div>
-          )}
+            <div>
+              <Label className="text-xs">Tên pháp nhân *</Label>
+              <Input
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="VD: Công ty TNHH ABC Việt Nam"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tên hiển thị *</Label>
+              <Input
+                value={name}
+                onChange={(e) => { setName(e.target.value); setUserEditedName(true); }}
+                placeholder="VD: ABC"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Hiển thị trong menu chọn tổ chức — thường viết tắt.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Địa chỉ trụ sở</Label>
+                <Textarea
+                  value={address}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAddress(e.target.value)}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP"
+                  rows={2}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Đại diện pháp luật</Label>
+                <Input
+                  value={legalRep}
+                  onChange={(e) => setLegalRep(e.target.value)}
+                  placeholder="Họ và tên người đại diện"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button
-            disabled={!name.trim() || !companyName.trim() || pending}
-            onClick={() => onSubmit({
-              name: name.trim(),
-              company_name: companyName.trim() || undefined,
-              tax_id: taxId.trim() || undefined,
-              address: address.trim() || undefined,
-              legal_rep_name: legalRep.trim() || undefined,
-              trade_name: lookup?.tradeName ?? undefined,
-              phone: lookup?.phone ?? undefined,
-              email: lookup?.email ?? undefined,
-              tax_authority: lookup?.taxAuthority ?? undefined,
-              business_reg_no: lookup?.registrationNo ?? undefined,
-              business_reg_date: lookup?.registrationDate ?? undefined,
-              established_date: lookup?.establishedDate ?? undefined,
-              legal_form: (lookup?.legalForm as any) ?? undefined,
-              industry_code: lookup?.industryCode ?? undefined,
-              industry_name: lookup?.industryName ?? undefined,
-            })}
-          >
-            {pending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-            Tạo
-          </Button>
+        <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer order-2 sm:order-1">
+            <input
+              type="checkbox"
+              checked={setActive}
+              onChange={(e) => setSetActive(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-input accent-primary"
+            />
+            Chuyển sang tổ chức này sau khi tạo
+          </label>
+          <div className="flex gap-2 order-1 sm:order-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
+            <Button
+              disabled={!canSubmit}
+              title={!canSubmit ? "Cần điền Tên pháp nhân và Tên hiển thị" : undefined}
+              onClick={() => onSubmit({
+                setActive,
+                name: name.trim(),
+                company_name: companyName.trim() || undefined,
+                tax_id: taxId.trim() || undefined,
+                address: address.trim() || undefined,
+                legal_rep_name: legalRep.trim() || undefined,
+                trade_name: lookup?.tradeName ?? undefined,
+                phone: lookup?.phone ?? undefined,
+                email: lookup?.email ?? undefined,
+                tax_authority: lookup?.taxAuthority ?? undefined,
+                business_reg_no: lookup?.registrationNo ?? undefined,
+                business_reg_date: lookup?.registrationDate ?? undefined,
+                established_date: lookup?.establishedDate ?? undefined,
+                legal_form: (lookup?.legalForm as any) ?? undefined,
+                industry_code: lookup?.industryCode ?? undefined,
+                industry_name: lookup?.industryName ?? undefined,
+              })}
+            >
+              {pending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              Tạo tổ chức
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+function CheckCircle2Mini() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
