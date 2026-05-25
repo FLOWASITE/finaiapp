@@ -756,28 +756,116 @@ function InvoiceActionRow({ item }: { item: InboxItem }) {
 }
 
 function MissingMasterDataPanel({ missing }: { missing?: MissingMasterData }) {
+  const qc = useQueryClient();
+  const createFn = useServerFn(createMissingMaster);
+  const [pending, setPending] = useState<string | null>(null);
+  const [doneKeys, setDoneKeys] = useState<Set<string>>(() => new Set());
+
   if (!missing) return null;
-  const rows: { label: string; value: string }[] = [];
-  if (missing.customer) rows.push({ label: "Khách hàng", value: missing.customer });
-  if (missing.supplier) rows.push({ label: "Nhà cung cấp", value: missing.supplier });
-  for (const p of missing.products ?? []) rows.push({ label: "Hàng hóa / Dịch vụ", value: p });
+  type Row = {
+    key: string;
+    label: string;
+    value: string;
+    entity: "customer" | "supplier" | "product" | "service";
+    tax_id?: string;
+  };
+  const rows: Row[] = [];
+  if (missing.customer)
+    rows.push({
+      key: `customer:${missing.customer}`,
+      label: "Khách hàng",
+      value: missing.customer,
+      entity: "customer",
+      tax_id: missing.customer_tax_id,
+    });
+  if (missing.supplier)
+    rows.push({
+      key: `supplier:${missing.supplier}`,
+      label: "Nhà cung cấp",
+      value: missing.supplier,
+      entity: "supplier",
+      tax_id: missing.supplier_tax_id,
+    });
+  for (const p of missing.products ?? [])
+    rows.push({ key: `product:${p}`, label: "Hàng hóa / Dịch vụ", value: p, entity: "product" });
   if (rows.length === 0) return null;
+
+  const handleCreate = async (r: Row) => {
+    setPending(r.key);
+    try {
+      const res = await createFn({ data: { entity: r.entity, name: r.value, tax_id: r.tax_id } });
+      setDoneKeys((prev) => {
+        const next = new Set(prev);
+        next.add(r.key);
+        return next;
+      });
+      toast.success(
+        res.existed
+          ? `${r.label} đã có trong hệ thống`
+          : `Đã tạo mới ${r.label.toLowerCase()}: ${r.value}`,
+      );
+      qc.invalidateQueries({ queryKey: ["inbox-ai"] });
+      if (r.entity === "customer") qc.invalidateQueries({ queryKey: ["customers"] });
+      if (r.entity === "supplier") qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (r.entity === "product" || r.entity === "service")
+        qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không tạo được");
+    } finally {
+      setPending(null);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
       <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
         <AlertTriangle className="h-3.5 w-3.5" />
         Cần tạo mới vào hệ thống
       </div>
-      <ul className="space-y-1 text-xs text-amber-800 dark:text-amber-200">
-        {rows.map((r, i) => (
-          <li key={i} className="flex items-start gap-1.5">
-            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
-            <span>
-              <span className="font-semibold">{r.label}:</span>{" "}
-              <span className="font-medium">{r.value}</span>
-            </span>
-          </li>
-        ))}
+      <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-200">
+        {rows.map((r) => {
+          const isDone = doneKeys.has(r.key);
+          const isPending = pending === r.key;
+          return (
+            <li
+              key={r.key}
+              className="flex items-center justify-between gap-2 rounded-lg bg-background/40 px-2 py-1.5"
+            >
+              <div className="flex items-start gap-1.5 min-w-0">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+                <span className="min-w-0">
+                  <span className="font-semibold">{r.label}:</span>{" "}
+                  <span className="font-medium break-words">{r.value}</span>
+                  {r.tax_id ? (
+                    <span className="ml-1 text-amber-700/70 dark:text-amber-300/70">
+                      (MST {r.tax_id})
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              {isDone ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                  Đã tạo
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleCreate(r)}
+                  disabled={isPending}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-200"
+                >
+                  {isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Tạo mới
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
