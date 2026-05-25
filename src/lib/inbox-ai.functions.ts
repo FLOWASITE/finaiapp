@@ -572,6 +572,9 @@ async function enrichDocumentItems(
       it.missing = missing;
     }
   }
+}
+
+
 
 
 const ListInput = z.object({
