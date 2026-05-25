@@ -496,7 +496,147 @@ async function assertInvoiceBelongsToTenant(
   );
 }
 
-// ============================================================
+/**
+ * Khi user bấm "Duyệt & ghi sổ" cho 1 document, tự tạo Khách hàng / Nhà cung cấp /
+ * Hàng hoá - Dịch vụ còn thiếu dựa trên dữ liệu eInvoice / OCR. Idempotent.
+ */
+async function autoResolveMissingMaster(
+  supabase: any,
+  opts: { tenantId: string; userId: string; documentId: string },
+): Promise<void> {
+  const { tenantId, userId, documentId } = opts;
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("doc_kind, ai_upload_id, ocr_extracted")
+    .eq("id", documentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!doc) return;
+  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return;
+
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+
+  const slug = (name: string, prefix: string) => slugCode(name, prefix);
+
+  // --- KH / NCC ---
+  if (doc.doc_kind === "sales_invoice") {
+    const buyer = ein?.buyer ?? ext?.buyer ?? {};
+    const name = (buyer.name ?? ext?.customer_name ?? "").toString().trim();
+    const taxId = (buyer.tax_id ?? ext?.customer_tax_id ?? "").toString().trim() || null;
+    if (name) {
+      let found = false;
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) found = true;
+      }
+      if (!found) {
+        const { data: byName } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("name", name)
+          .limit(1);
+        if (byName && byName.length > 0) found = true;
+      }
+      if (!found) {
+        await supabase.from("customers").insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slug(name, "KH"),
+        });
+      }
+    }
+  } else if (doc.doc_kind === "purchase_invoice") {
+    const seller = ein?.seller ?? ext?.seller ?? {};
+    const name = (seller.name ?? ext?.supplier_name ?? "").toString().trim();
+    const taxId = (seller.tax_id ?? ext?.supplier_tax_id ?? "").toString().trim() || null;
+    if (name) {
+      let found = false;
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) found = true;
+      }
+      if (!found) {
+        const { data: byName } = await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("name", name)
+          .limit(1);
+        if (byName && byName.length > 0) found = true;
+      }
+      if (!found) {
+        await supabase.from("suppliers").insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slug(name, "NCC"),
+        });
+      }
+    }
+  }
+
+  // --- Hàng hoá / Dịch vụ ---
+  const rawLines: any[] = Array.isArray(ein?.lines)
+    ? ein.lines
+    : Array.isArray(ext?.items)
+    ? ext.items
+    : Array.isArray(ext?.lines)
+    ? ext.lines
+    : Array.isArray(ext?.line_items)
+    ? ext.line_items
+    : [];
+
+  const names = Array.from(
+    new Set(
+      rawLines
+        .map((l: any) => (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim())
+        .filter((s: string) => s && s !== "—"),
+    ),
+  ).slice(0, 30);
+  if (names.length === 0) return;
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("name")
+    .eq("tenant_id", tenantId)
+    .in("name", names);
+  const existSet = new Set<string>((existing ?? []).map((r: any) => String(r.name).toLowerCase()));
+  const toInsert = names.filter((n) => !existSet.has(n.toLowerCase()));
+  for (const nm of toInsert) {
+    await supabase.from("products").insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      name: nm,
+      code: slug(nm, "HH"),
+      item_type: "goods",
+      stock_account: "156",
+      unit: "cái",
+    });
+  }
+}
 // Enrich Inbox items with posted_voucher + missing master data
 // ============================================================
 function normName(s: string | null | undefined): string {
@@ -804,6 +944,16 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     if (data.source === "document") {
       await assertInvoiceBelongsToTenant(supabase, tenantId, data.external_id);
       await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
+      // Auto-tạo KH/NCC/hàng hóa còn thiếu theo gợi ý AI (idempotent)
+      try {
+        await autoResolveMissingMaster(supabase, {
+          tenantId,
+          userId,
+          documentId: data.external_id,
+        });
+      } catch (e) {
+        console.error("[approveInboxItem] auto-resolve missing master failed", e);
+      }
     }
 
     const { data: entry, error } = await supabase
@@ -989,7 +1139,33 @@ const CreateMissingInput = z.object({
   entity: z.enum(["customer", "supplier", "product", "service"]),
   name: z.string().min(1).max(255),
   tax_id: z.string().max(32).optional(),
+  item_type: z
+    .enum(["goods", "service", "material", "tool", "asset_alloc", "asset_tangible", "asset_intangible"])
+    .optional(),
 });
+
+/** Map item_type guess → { item_type, stock_account } cho bảng products. */
+function accountForItemType(
+  itemType?: string,
+): { item_type: "goods" | "service"; stock_account: string; unit: string } {
+  switch (itemType) {
+    case "service":
+      return { item_type: "service", stock_account: "156", unit: "lần" };
+    case "material":
+      return { item_type: "goods", stock_account: "152", unit: "cái" };
+    case "tool":
+      return { item_type: "goods", stock_account: "153", unit: "cái" };
+    case "asset_alloc":
+      return { item_type: "goods", stock_account: "242", unit: "cái" };
+    case "asset_tangible":
+      return { item_type: "goods", stock_account: "211", unit: "cái" };
+    case "asset_intangible":
+      return { item_type: "goods", stock_account: "213", unit: "cái" };
+    case "goods":
+    default:
+      return { item_type: "goods", stock_account: "156", unit: "cái" };
+  }
+}
 
 function slugCode(name: string, prefix: string): string {
   const base = name
@@ -1064,9 +1240,17 @@ export const createMissingMaster = createServerFn({ method: "POST" })
       return { id: row!.id, entity: "supplier", existed: false };
     }
 
-    // product / service
-    const itemType = data.entity === "service" ? "service" : "goods";
-    const prefix = itemType === "service" ? "DV" : "HH";
+    // product / service — idempotent theo tên
+    const { data: existProd } = await supabase
+      .from("products")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("name", name)
+      .maybeSingle();
+    if (existProd?.id) return { id: existProd.id, entity: data.entity, existed: true };
+
+    const acct = accountForItemType(data.item_type ?? (data.entity === "service" ? "service" : "goods"));
+    const prefix = acct.item_type === "service" ? "DV" : "HH";
     const { data: row, error } = await supabase
       .from("products")
       .insert({
@@ -1074,13 +1258,169 @@ export const createMissingMaster = createServerFn({ method: "POST" })
         user_id: userId,
         name,
         code: slugCode(name, prefix),
-        item_type: itemType,
-        unit: itemType === "service" ? "lần" : "cái",
+        item_type: acct.item_type,
+        stock_account: acct.stock_account,
+        unit: acct.unit,
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     return { id: row!.id, entity: data.entity, existed: false };
+  });
+
+// ============================================================================
+// Sửa gợi ý AI + tạo bản ghi đúng + dạy Trí nhớ AI (ai_memory_partners)
+// ============================================================================
+const UpdateMissingInput = z.object({
+  entity: z.enum(["customer", "supplier", "product", "service"]),
+  original_name: z.string().min(1).max(255),
+  corrected: z.object({
+    name: z.string().min(1).max(255),
+    tax_id: z.string().max(32).optional(),
+    item_type: z
+      .enum(["goods", "service", "material", "tool", "asset_alloc", "asset_tangible", "asset_intangible"])
+      .optional(),
+  }),
+  source_document_id: z.string().uuid().optional(),
+});
+
+export const updateMissingMasterAndLearn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateMissingInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+
+    const name = data.corrected.name.trim();
+    const taxId = data.corrected.tax_id?.trim() || null;
+    const original = data.original_name.trim();
+
+    // 1) Tạo / lấy bản ghi theo giá trị đã sửa
+    let createdId: string | null = null;
+    let existed = false;
+
+    if (data.entity === "customer" || data.entity === "supplier") {
+      const table = data.entity === "customer" ? "customers" : "suppliers";
+      const codePrefix = data.entity === "customer" ? "KH" : "NCC";
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from(table)
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) {
+          createdId = ex.id;
+          existed = true;
+        }
+      }
+      if (!createdId) {
+        const { data: row, error } = await supabase
+          .from(table)
+          .insert({
+            tenant_id: tenantId,
+            user_id: userId,
+            name,
+            tax_id: taxId,
+            code: slugCode(name, codePrefix),
+          })
+          .select("id")
+          .single();
+        if (error) throw new Error(error.message);
+        createdId = row!.id;
+      } else {
+        await supabase.from(table).update({ name }).eq("id", createdId);
+      }
+    } else {
+      const acct = accountForItemType(
+        data.corrected.item_type ?? (data.entity === "service" ? "service" : "goods"),
+      );
+      const prefix = acct.item_type === "service" ? "DV" : "HH";
+      const { data: ex } = await supabase
+        .from("products")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("name", name)
+        .maybeSingle();
+      if (ex?.id) {
+        createdId = ex.id;
+        existed = true;
+        await supabase
+          .from("products")
+          .update({ item_type: acct.item_type, stock_account: acct.stock_account })
+          .eq("id", createdId);
+      } else {
+        const { data: row, error } = await supabase
+          .from("products")
+          .insert({
+            tenant_id: tenantId,
+            user_id: userId,
+            name,
+            code: slugCode(name, prefix),
+            item_type: acct.item_type,
+            stock_account: acct.stock_account,
+            unit: acct.unit,
+          })
+          .select("id")
+          .single();
+        if (error) throw new Error(error.message);
+        createdId = row!.id;
+      }
+    }
+
+    // 2) Ghi/upsert Trí nhớ AI để map tên cũ → bản ghi đúng
+    const partyKind =
+      data.entity === "customer" ? "customer" : data.entity === "supplier" ? "supplier" : "item";
+    const defaultAccount =
+      data.entity === "customer"
+        ? "131"
+        : data.entity === "supplier"
+        ? "331"
+        : accountForItemType(data.corrected.item_type).stock_account;
+
+    const { data: memEx } = await supabase
+      .from("ai_memory_partners")
+      .select("id, memo_keywords, sample_count")
+      .eq("tenant_id", tenantId)
+      .eq("party_kind", partyKind)
+      .eq("party_id", createdId)
+      .maybeSingle();
+
+    const memoSet = new Set<string>((memEx?.memo_keywords ?? []) as string[]);
+    if (original && original.toLowerCase() !== name.toLowerCase()) memoSet.add(original);
+
+    if (memEx?.id) {
+      await supabase
+        .from("ai_memory_partners")
+        .update({
+          display_name: name,
+          memo_keywords: Array.from(memoSet),
+          default_account: defaultAccount,
+          sample_count: (memEx.sample_count ?? 0) + 1,
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", memEx.id);
+    } else {
+      await supabase.from("ai_memory_partners").insert({
+        tenant_id: tenantId,
+        party_kind: partyKind,
+        party_id: createdId,
+        display_name: name,
+        behavior_text: data.source_document_id
+          ? `Học từ Inbox AI (chứng từ ${data.source_document_id.slice(0, 8)}…)`
+          : "Học từ Inbox AI khi user sửa gợi ý",
+        memo_keywords: Array.from(memoSet),
+        default_account: defaultAccount,
+        confidence: 0.9,
+        sample_count: 1,
+        last_seen_at: new Date().toISOString(),
+        created_by: userId,
+      });
+    }
+
+    return { id: createdId!, entity: data.entity, existed };
   });
 
 // ============================================================================

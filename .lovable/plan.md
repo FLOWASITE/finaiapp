@@ -1,79 +1,74 @@
-
 ## Mục tiêu
-Sắp xếp lại tab **Tổ chức** trong `/settings` thành 3 section rõ ràng theo yêu cầu, đổi tên các thuật ngữ cho gần gũi với KTV Việt Nam, gộp trang **Hoạt động kinh doanh & Mặt hàng** (hiện ở `/settings/business-activity`) vào ngay trong tab này.
 
-## Bố cục mới
+Trong Inbox AI → Đề xuất Fin, khi người dùng bấm **Duyệt & ghi sổ**:
+1. Hệ thống tự tạo Nhà cung cấp / Khách hàng / Hàng hoá / Dịch vụ đúng theo gợi ý AI (không phải bấm "Tạo mới" từng dòng).
+2. Nếu gợi ý sai, người dùng có nút **Sửa** trên từng dòng để chỉnh tên / MST / loại (HH, DV, NVL 152, CCDC 153, HH 156, TS 242, TSCĐ 211/213). Khi lưu, vừa tạo bản ghi đúng vừa ghi vào **Trí nhớ AI** để lần sau AI nhận diện đúng.
 
-### 1. Thông tin doanh nghiệp (đổi từ "Hồ sơ pháp lý")
-Bố cục field theo từng dòng (md:grid-cols-12 để khớp tỉ lệ):
+## Phạm vi thay đổi
 
-```text
-[ MST ] [ Logo (upload nhỏ) ] [ Tên Công ty ............... ]
-[ Đại diện pháp luật ] [ Ngày thành lập ] [ Website ]
-[ Loại hình DN: ◉ Công ty   ○ Hộ kinh doanh ]
-[ Địa chỉ ............ ] [ Điện thoại ] [ Email ]
-[ Ngành nghề kinh doanh (multi-select) ]
+### 1. Khối "Cần tạo mới vào hệ thống" (panel hiện có)
+
+File: `src/components/inbox/inbox-item-sheet.tsx` → component `MissingMasterDataPanel`.
+
+Thay đổi UI:
+- Mỗi dòng có 3 nút: **Sửa** · **Tạo mới** · trạng thái "Đã tạo".
+- Bấm **Sửa** → mở popover/inline-edit với các field:
+  - Tên (text)
+  - MST (text, chỉ KH/NCC)
+  - Loại (select, chỉ cho hàng hoá): Hàng hoá 156, NVL 152, CCDC 153, TS phân bổ 242, TSCĐ hữu hình 211, TSCĐ vô hình 213, Dịch vụ
+- Nút "Lưu & dạy AI" trong popover gọi 1 server fn mới (xem mục 3) để: cập nhật giá trị + ghi vào trí nhớ AI.
+
+### 2. Tự động tạo khi Duyệt & ghi sổ
+
+File: `src/lib/inbox-ai.functions.ts` → mở rộng `approveInboxItem`.
+
+Trước khi insert journal_entries / materialize voucher, chạy bước **auto-resolve master data**:
+- Với `source = "document"` và `doc_kind ∈ {purchase_invoice, sales_invoice}`:
+  - Đọc danh sách missing đã được Enrich (dùng lại logic tại dòng 559–627).
+  - Với mỗi item: gọi `createMissingMaster` (idempotent — đã có sẵn) cho KH/NCC/hàng/dịch vụ theo đúng tên + MST AI trích.
+- Đối với **purchase_invoice**: hiện chỉ tạo journal + không tạo `purchase_vouchers` từ document. Bổ sung helper `materializePurchaseVoucherFromDocument` đối xứng với bản sales — auto-create supplier (tương tự logic customer hiện có) và line bằng product đã resolve. (Phạm vi: chỉ tạo voucher khi document chứa đủ dữ liệu; nếu không, bỏ qua như hiện trạng.)
+- Sau khi resolve, khi build `sales_voucher_lines` / `purchase_voucher_lines`, set `product_id` đúng (hiện đang `null`).
+
+Kết quả: 1 cú bấm Duyệt → bút toán + phiếu + master data đầy đủ.
+
+### 3. Server fn mới: `updateMissingMasterAndLearn`
+
+File: `src/lib/inbox-ai.functions.ts`.
+
+Input:
+```
+{ entity: "customer"|"supplier"|"product"|"service",
+  original_name: string,
+  corrected: { name: string, tax_id?: string, item_type?: "goods"|"service"|"material"|"tool"|"asset_alloc"|"asset_tangible"|"asset_intangible" },
+  source_document_id?: string }
 ```
 
-Thay đổi từ vựng:
-- "Tên pháp nhân" → **Tên Công ty**
-- Bỏ "Tên giao dịch / Thương hiệu", "Tên hiển thị nội bộ", "Cơ quan thuế quản lý" (chuyển sang section 2)
-- "Loại hình doanh nghiệp" rút còn 2 lựa chọn UI: **Công ty** / **Hộ kinh doanh** (map xuống `legal_form`: chọn "Công ty" giữ giá trị chi tiết hiện tại nếu có — `llc/jsc/partnership/sole_prop/branch/other`; chọn "Hộ kinh doanh" → `household`). Nếu DB đang có giá trị chi tiết, UI hiển thị radio "Công ty" được chọn.
-- Logo di chuyển từ section "Thương hiệu & Chữ ký" lên đây (upload thumbnail inline cạnh tên công ty). Chữ ký + con dấu giữ ở section "Người đại diện" (xem dưới).
+Logic:
+1. Gọi `createMissingMaster` với giá trị đã sửa → trả về party_id / product_id.
+2. Ghi vào `ai_memory_partners` (cho KH/NCC):
+   - upsert theo `(tenant_id, party_kind, party_id)`.
+   - `display_name = corrected.name`, `memo_keywords` thêm `original_name` để lần sau OCR ra tên cũ vẫn map về đúng party.
+   - `default_account` set theo loại nếu cần (NCC → 331, KH → 131).
+3. Ghi vào `ai_memory_rules` (cho hàng/dịch vụ): rule kiểu `line_keyword → account` (156/152/153/242/211/213/5111).
+   - Trường `pattern = original_name`, `action_account = account_for(item_type)`, `confidence = 0.9`, `sample_count = 1`.
+4. Trả về id để UI hiển thị "Đã sửa & dạy AI".
 
-### 2. Thông tin kế toán thuế (đổi từ "Cấu hình kế toán")
-```text
-[ Chế độ kế toán ] [ Ngày bắt đầu năm tài chính ] [ Đồng tiền ]
-[ Kỳ kê khai GTGT ] [ Phương pháp tính thuế ] [ Cơ quan thuế quản lý ]
-```
+### 4. Hiển thị nguồn gốc tài liệu
 
-Thay đổi từ vựng & field:
-- Tiêu đề: "Cấu hình kế toán" → **Thông tin kế toán thuế**
-- "Chuẩn kế toán áp dụng" → **Chế độ kế toán**
-- "Tháng bắt đầu năm tài chính" → **Ngày bắt đầu năm tài chính** (đổi từ Select tháng sang Day+Month picker, mặc định 01/01; lưu thêm field `fiscal_year_start_day` = 1, giữ `fiscal_year_start` cho tháng)
-- Đưa "Cơ quan thuế quản lý" sang đây (đang ở section 1 cũ)
-- Bỏ "Kỳ kê khai TNCN" khỏi section này (giữ field trong DB, ẩn UI — hoặc đưa xuống mục nâng cao nếu cần — mặc định ẩn theo yêu cầu)
+Trong panel "Cần tạo mới", truyền `documentId` của item xuống để server fn lưu trace vào `ai_memory_partners.behavior_text` ("học từ HĐ ABC ngày dd/mm/yyyy").
 
-### 3. Hoạt động kinh doanh (gộp từ `/settings/business-activity`)
-Đưa nội dung trang `/settings/business-activity` vào dạng section inline:
-```text
-Ngành nghề kinh doanh  (multi-select — share field `industries` với section 1, hiển thị readonly hoặc đồng bộ)
-Loại hình hoạt động    (checkbox: Thương mại / Sản xuất / Dịch vụ)
-Danh mục mặt hàng kinh doanh  (bảng + nút Thêm/Import CSV — y nguyên ProductDialog)
-```
-Trang `/settings/business-activity` giữ làm route riêng (cho shortcut) nhưng nội dung được tái sử dụng qua component dùng chung `<BusinessActivitySection />` để hiển thị trong tab Tổ chức.
+## Files dự kiến chỉnh
 
-### Các section còn lại
-- **Người đại diện** (giữ nguyên) + dời "Chữ ký đại diện" và "Con dấu công ty" xuống đây (vì gắn với pháp nhân/đại diện)
-- Section **Liên hệ & Địa chỉ** (cũ) bị giải tán: địa chỉ/điện thoại/email gộp vào section 1; địa chỉ giao hàng (toggle) chuyển xuống cuối section 1.
-- Section **Thương hiệu & Chữ ký** (cũ) bỏ.
+- `src/lib/inbox-ai.functions.ts` — thêm auto-resolve trong `approveInboxItem`, helper `materializePurchaseVoucherFromDocument`, server fn `updateMissingMasterAndLearn`, util `accountForItemType`.
+- `src/components/inbox/inbox-item-sheet.tsx` — UI Sửa inline, gọi fn mới, vẫn giữ nút "Tạo mới" cho luồng thủ công.
+- `src/lib/ai/inbox-types.ts` — mở rộng `MissingMasterData` để mang `item_type_guess` (AI gợi ý loại) nếu engine extract đã có.
 
-## Side nav (SectionNav)
-Cập nhật danh sách 3 mục mới:
-- `sec-business` — Thông tin doanh nghiệp
-- `sec-tax` — Thông tin kế toán thuế
-- `sec-activity` — Hoạt động kinh doanh
-- `sec-reps` — Người đại diện (giữ)
+## Không nằm trong phạm vi (đề xuất xác nhận)
 
-## Chi tiết kỹ thuật
-- File chính: `src/routes/_app/settings/index.tsx` — refactor `OrganizationTab`, cập nhật `SECTIONS`.
-- Tạo component dùng chung: `src/components/settings/business-activity-section.tsx` — copy logic từ `src/routes/_app/settings/business-activity.tsx`. Trang `/settings/business-activity` chuyển thành wrapper render component này.
-- Logo upload inline: tận dụng `CompactImageRow` thu nhỏ (chỉ icon + button "Tải logo").
-- Loại hình DN 2-option: dùng `RadioGroup` (shadcn). Mapping helper:
-  ```ts
-  // UI value 'company' | 'household'
-  const uiKind = form.legal_form === 'household' ? 'household' : 'company';
-  ```
-  Khi chuyển sang "Công ty" mà chưa có giá trị chi tiết → mặc định `llc`.
-- "Ngày bắt đầu năm tài chính": 2 select Day(1–31) + Month(1–12), validate hợp lệ. DB: thêm cột `fiscal_year_start_day INT DEFAULT 1` (migration nhỏ) — chỉ chạy khi user duyệt.
-- Không thay đổi logic save, RLS, hay business-activity functions.
+- Bỏ hoàn toàn nút "Tạo mới" thủ công khỏi panel? — đề xuất GIỮ vì hữu ích khi user muốn tạo trước khi duyệt.
+- Đào tạo AI multi-tenant cross-share? — giữ phạm vi trong 1 tenant.
 
-## Phạm vi không thay đổi
-- Các tab khác (Hồ sơ cá nhân, Thành viên, Phân quyền, Khoá sổ, Tỷ giá): không đụng.
-- Shortcut cards phía trên: giữ nguyên.
-- Trang `/settings/business-activity`: giữ route, dùng lại component mới.
+## Câu hỏi cần xác nhận
 
-## Câu hỏi xác nhận
-1. **Ngành nghề kinh doanh** xuất hiện cả Section 1 và Section 3 — có ý là cùng 1 trường, hiển thị 2 nơi để tiện tra cứu, đúng không? (Tôi sẽ share state, sửa ở đâu cũng cập nhật cùng nhau.)
-2. **Tháng bắt đầu năm tài chính → Ngày bắt đầu**: cần cả ngày+tháng (vd 01/04) hay chỉ đổi label nhưng vẫn chọn tháng? Tôi mặc định ngày+tháng (cần migration cột mới).
-3. Có cần giữ field **Tên hiển thị nội bộ / Tên giao dịch** ở đâu đó (vd ẩn trong "Thêm tuỳ chọn") hay xoá luôn khỏi UI?
+1. Khi AI đoán **loại hàng** (152/153/156/242/211/213), nguồn dữ liệu lấy từ đâu hiện tại? Nếu chưa có, mặc định loại = "Hàng hoá 156" và để user sửa trong popover, OK chứ?
+2. Với purchase invoice, mình có nên tự tạo luôn `purchase_vouchers` (đối xứng sales) trong cùng PR này không, hay tách PR riêng?
