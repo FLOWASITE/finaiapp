@@ -390,6 +390,7 @@ export type Database = {
           hit_count: number
           id: string
           kind: string
+          kind_v2: string | null
           last_used_at: string
           line_name: string
           line_name_norm: string
@@ -406,6 +407,7 @@ export type Database = {
           hit_count?: number
           id?: string
           kind: string
+          kind_v2?: string | null
           last_used_at?: string
           line_name: string
           line_name_norm: string
@@ -422,6 +424,7 @@ export type Database = {
           hit_count?: number
           id?: string
           kind?: string
+          kind_v2?: string | null
           last_used_at?: string
           line_name?: string
           line_name_norm?: string
@@ -8255,6 +8258,7 @@ export type Database = {
           payment_terms_days: number
           phone: string | null
           risk_flag: string | null
+          roles: string[]
           tax_id: string | null
           tax_office: string | null
           tenant_id: string | null
@@ -8294,6 +8298,7 @@ export type Database = {
           payment_terms_days?: number
           phone?: string | null
           risk_flag?: string | null
+          roles?: string[]
           tax_id?: string | null
           tax_office?: string | null
           tenant_id?: string | null
@@ -8333,6 +8338,7 @@ export type Database = {
           payment_terms_days?: number
           phone?: string | null
           risk_flag?: string | null
+          roles?: string[]
           tax_id?: string | null
           tax_office?: string | null
           tenant_id?: string | null
@@ -8541,6 +8547,53 @@ export type Database = {
           },
         ]
       }
+      tenant_product_catalog: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          name_norm: string
+          note: string | null
+          sku: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          name_norm: string
+          note?: string | null
+          sku?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          name_norm?: string
+          note?: string | null
+          sku?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_product_catalog_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_usage: {
         Row: {
           ai_files_parsed: number
@@ -8588,10 +8641,13 @@ export type Database = {
           business_reg_date: string | null
           business_reg_no: string | null
           business_reg_place: string | null
+          business_types: string[]
+          ccdc_allocation_threshold: number
           chief_accountant_cert_no: string | null
           chief_accountant_name: string | null
           company_name: string | null
           created_at: string
+          default_cost_center: string
           email: string | null
           established_date: string | null
           fax: string | null
@@ -8636,10 +8692,13 @@ export type Database = {
           business_reg_date?: string | null
           business_reg_no?: string | null
           business_reg_place?: string | null
+          business_types?: string[]
+          ccdc_allocation_threshold?: number
           chief_accountant_cert_no?: string | null
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          default_cost_center?: string
           email?: string | null
           established_date?: string | null
           fax?: string | null
@@ -8684,10 +8743,13 @@ export type Database = {
           business_reg_date?: string | null
           business_reg_no?: string | null
           business_reg_place?: string | null
+          business_types?: string[]
+          ccdc_allocation_threshold?: number
           chief_accountant_cert_no?: string | null
           chief_accountant_name?: string | null
           company_name?: string | null
           created_at?: string
+          default_cost_center?: string
           email?: string | null
           established_date?: string | null
           fax?: string | null
