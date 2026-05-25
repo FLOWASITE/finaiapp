@@ -1294,6 +1294,10 @@ function CreateVoucherDialog({
             line_type: l.line_type,
           })),
       };
+      if (editId) {
+        await updateFn({ data: { id: editId, ...payload } });
+        return { id: editId };
+      }
       const created = await createFn({ data: payload });
       try {
         await postFn({ data: { id: created.id } });
@@ -1303,14 +1307,15 @@ function CreateVoucherDialog({
       return created;
     },
     onSuccess: () => {
-      toast.success("Đã lưu và ghi sổ");
+      toast.success(editId ? "Đã cập nhật phiếu" : "Đã lưu và ghi sổ");
       invalidateLedgers(qc);
       setHeader((h) => ({ ...h, voucher_no: "", reason: "" }));
       setLines([emptyLine()]);
-      onCreated();
+      if (editId) onUpdated?.();
+      else onCreated();
       onOpenChange(false);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi tạo phiếu"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : (editId ? "Lỗi cập nhật phiếu" : "Lỗi tạo phiếu")),
   });
 
   return (
