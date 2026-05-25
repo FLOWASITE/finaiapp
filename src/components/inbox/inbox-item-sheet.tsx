@@ -680,6 +680,7 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
               <th className="py-1.5 pr-2 text-left font-semibold w-6">#</th>
               <th className="py-1.5 pr-2 text-left font-semibold">Tên</th>
               <th className="py-1.5 pr-2 text-right font-semibold">SL</th>
+              <th className="py-1.5 pr-2 text-left font-semibold">ĐVT</th>
               <th className="py-1.5 pr-2 text-right font-semibold">Đơn giá</th>
               <th className="py-1.5 text-right font-semibold">Thành tiền</th>
             </tr>
@@ -694,6 +695,9 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
                 <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
                   {it.qty != null ? nfQty.format(it.qty) : "—"}
                 </td>
+                <td className="py-1.5 pr-2 text-muted-foreground">
+                  {it.unit ?? "—"}
+                </td>
                 <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
                   {it.unit_price != null ? VND(it.unit_price) : "—"}
                 </td>
@@ -705,7 +709,7 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border">
-              <td colSpan={4} className="py-2 pr-2 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <td colSpan={5} className="py-2 pr-2 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Tổng cộng (trước VAT)
               </td>
               <td className="py-2 text-right font-mono text-sm font-bold tabular-nums text-foreground">

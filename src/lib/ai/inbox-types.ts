@@ -20,6 +20,7 @@ export type VoucherMeta = Record<string, string | number | null | undefined>;
 export type ProposalItem = {
   name: string;
   qty?: number;
+  unit?: string;
   unit_price?: number;
   amount: number;
 };
