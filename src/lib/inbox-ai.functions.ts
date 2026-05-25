@@ -544,6 +544,8 @@ export const listInboxAi = createServerFn({ method: "POST" })
     }
     for (const i of (insightsRes.data ?? []) as any[]) items.push(buildInsightItem(i));
 
+    // ============ Enrich document items: posted_voucher + missing master data ============
+    await enrichDocumentItems(supabase, tenantId, items);
 
     const q = data.search.trim().toLowerCase();
     const filtered = q
