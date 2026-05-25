@@ -70,12 +70,13 @@ function computeTotals(data: z.infer<typeof InvoiceSchema>) {
 }
 
 export const listSalesInvoices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data, error } = await supabase
       .from("sales_invoices")
       .select("*, customers(name, code)")
+      .eq("tenant_id", tenantId)
       .order("issue_date", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
