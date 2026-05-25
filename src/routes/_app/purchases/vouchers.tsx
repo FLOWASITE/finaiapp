@@ -15,6 +15,8 @@ import { AttachInvoiceFile } from "@/components/AttachInvoiceFile";
 import {
   listPurchaseVouchers,
   createPurchaseVoucher,
+  updatePurchaseVoucher,
+  getPurchaseVoucher,
   postPurchaseVoucher,
   voidPurchaseVoucher,
   previewVoidPurchaseVoucher,
