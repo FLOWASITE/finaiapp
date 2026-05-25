@@ -64,6 +64,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: openInvoices = [] } = await supabase
       .from("sales_invoices")
       .select("id, invoice_no, customer_id, customer_name, issue_date, due_date, total, paid_amount, payment_status")
+      .eq("tenant_id", tenantId)
       .eq("status", "issued")
       .in("payment_status", ["unpaid", "partial", "overdue"]);
 
