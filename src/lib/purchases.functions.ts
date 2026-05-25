@@ -265,7 +265,7 @@ const ListSchema = z.object({
 });
 
 export const listPurchaseInvoices = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => ListSchema.parse(i ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -273,6 +273,7 @@ export const listPurchaseInvoices = createServerFn({ method: "POST" })
       .select(
         "id, supplier_name, supplier_id, invoice_no, issue_date, subtotal, vat_amount, total, status, payment_status",
       )
+      .eq("tenant_id", context.tenantId)
       .order("issue_date", { ascending: false, nullsFirst: false })
       .limit(200);
 
