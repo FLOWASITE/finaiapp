@@ -26,6 +26,7 @@ import {
   getTenantVendorTemplates,
   getSupplierIndustryCached,
   getVendorHistoryDistCached,
+  getVendorHistoryDistV2Cached,
   pickMemoryMap,
   pickVendorTemplate,
 } from "./cache.server";
@@ -264,8 +265,11 @@ async function classifyLines(
   const vendorInfo = usedV2
     ? await getVendorRolesAndVsic(supabase, inv.supplier_id)
     : null;
+  const historyDistV2 = usedV2
+    ? await getVendorHistoryDistV2Cached(supabase, inv.tenant_id, taxId, inv.supplier_id)
+    : null;
   const ctxV2 = usedV2
-    ? buildClassifyContextV2(tenantCfg, vendorInfo ?? undefined)
+    ? buildClassifyContextV2(tenantCfg, vendorInfo ?? undefined, historyDistV2)
     : null;
 
   let memoryHits = 0;

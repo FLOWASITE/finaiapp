@@ -54,6 +54,10 @@ const SupplierSchema = z
     opening_balance_credit: z.number().min(0).default(0),
     notes: optStr(1000),
     group_id: z.string().uuid().optional().nullable().or(z.literal("")).transform((v) => (v ? v : null)),
+    roles: z
+      .array(z.enum(["resale_source", "raw_material_source", "service_provider", "asset_vendor"]))
+      .optional()
+      .default([]),
     is_active: z.boolean().default(true),
   })
   .refine((d) => !(d.opening_balance_debit > 0 && d.opening_balance_credit > 0), {

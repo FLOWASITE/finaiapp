@@ -9,6 +9,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LineKind } from "@/lib/ai/classify-line";
+import type { LineKindV2 } from "@/lib/ai/classify-line-v2";
 import type { ProposalLine } from "./types";
 
 const TTL_MS = 5 * 60 * 1000;
@@ -38,6 +39,7 @@ const memoryStore = new Map<string, Entry<MemRow[]>>();
 const templateStore = new Map<string, Entry<TplRow[]>>();
 const industryStore = new Map<string, Entry<{ kind: LineKind; label: string } | null>>();
 const historyStore = new Map<string, Entry<Partial<Record<LineKind, number>> | null>>();
+const historyStoreV2 = new Map<string, Entry<Partial<Record<LineKindV2, number>> | null>>();
 
 function evictOldest<T>(map: Map<string, Entry<T>>) {
   if (map.size <= TENANT_CAP) return;
@@ -212,6 +214,59 @@ export async function getVendorHistoryDistCached(
 }
 
 // ============================================================
+// V2 history distribution — đếm theo kind_v2 từ ai_line_classifications
+// ============================================================
+const V2_KINDS: LineKindV2[] = [
+  "goods_for_resale",
+  "raw_material",
+  "tools",
+  "prepaid",
+  "fixed_asset_tangible",
+  "fixed_asset_intangible",
+  "service",
+];
+
+export async function getVendorHistoryDistV2Cached(
+  supabase: SupabaseClient,
+  tenantId: string,
+  taxId: string | null,
+  supplierId: string | null,
+): Promise<Partial<Record<LineKindV2, number>> | null> {
+  const key = `${tenantId}:${taxId ?? "_"}:${supplierId ?? "_"}`;
+  const cached = getEntry(historyStoreV2, key);
+  if (cached !== undefined) return cached;
+  if (!taxId && !supplierId) {
+    setEntry(historyStoreV2, key, null);
+    return null;
+  }
+  const q = taxId
+    ? supabase
+        .from("ai_line_classifications")
+        .select("kind_v2, hit_count")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_tax_id", taxId)
+        .not("kind_v2", "is", null)
+        .limit(500)
+    : supabase
+        .from("ai_line_classifications")
+        .select("kind_v2, hit_count")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_id", supplierId!)
+        .not("kind_v2", "is", null)
+        .limit(500);
+  const { data } = await q;
+  const dist: Partial<Record<LineKindV2, number>> = {};
+  for (const r of (data ?? []) as any[]) {
+    const k = String(r.kind_v2 ?? "") as LineKindV2;
+    if (!V2_KINDS.includes(k)) continue;
+    dist[k] = (dist[k] ?? 0) + Number(r.hit_count ?? 1);
+  }
+  const value = Object.keys(dist).length > 0 ? dist : null;
+  setEntry(historyStoreV2, key, value);
+  return value;
+}
+
+// ============================================================
 // Prewarm + Invalidate
 // ============================================================
 export async function prewarmCategorizeCache(
@@ -230,6 +285,9 @@ export function invalidateCategorizeCache(tenantId: string): void {
   // industry/history keyed differently — quét xoá entry liên quan tenant
   for (const k of Array.from(historyStore.keys())) {
     if (k.startsWith(`${tenantId}:`)) historyStore.delete(k);
+  }
+  for (const k of Array.from(historyStoreV2.keys())) {
+    if (k.startsWith(`${tenantId}:`)) historyStoreV2.delete(k);
   }
   // industry keyed by supplier_id — không xoá vì không liên quan trực tiếp
   // vsic_code rất hiếm khi đổi
