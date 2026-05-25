@@ -64,17 +64,26 @@ function SettingsPage() {
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         <p className="text-sm text-muted-foreground">Hồ sơ doanh nghiệp, kỳ kế toán, tỷ giá, phân quyền</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2">
         {[
-          { to: "/settings/business-activity", label: "Hoạt động & Mặt hàng", icon: <Wand2 className="h-4 w-4" /> },
+          { to: "/settings/business-activity", label: "Hoạt động & Mặt hàng", icon: <Wand2 className="h-4 w-4" />, highlight: true },
           { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
           { to: "/settings/departments", label: "Phòng ban", icon: <UsersIcon className="h-4 w-4" /> },
           { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
           { to: "/settings/cost-centers", label: "Bộ phận chi phí", icon: <Calculator className="h-4 w-4" /> },
           { to: "/settings/fiscal-periods", label: "Kỳ kế toán", icon: <Lock className="h-4 w-4" /> },
         ].map((it) => (
-          <Button key={it.to} asChild variant="outline" className="justify-start">
-            <Link to={it.to as any}>{it.icon}<span className="ml-2 truncate">{it.label}</span></Link>
+          <Button
+            key={it.to}
+            asChild
+            variant="outline"
+            title={it.label}
+            className={`justify-start h-auto py-2 ${it.highlight ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : ""}`}
+          >
+            <Link to={it.to as any}>
+              {it.icon}
+              <span className="ml-2 whitespace-normal break-words text-left leading-tight">{it.label}</span>
+            </Link>
           </Button>
         ))}
       </div>
