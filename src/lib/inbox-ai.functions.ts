@@ -496,7 +496,147 @@ async function assertInvoiceBelongsToTenant(
   );
 }
 
-// ============================================================
+/**
+ * Khi user bấm "Duyệt & ghi sổ" cho 1 document, tự tạo Khách hàng / Nhà cung cấp /
+ * Hàng hoá - Dịch vụ còn thiếu dựa trên dữ liệu eInvoice / OCR. Idempotent.
+ */
+async function autoResolveMissingMaster(
+  supabase: any,
+  opts: { tenantId: string; userId: string; documentId: string },
+): Promise<void> {
+  const { tenantId, userId, documentId } = opts;
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("doc_kind, ai_upload_id, ocr_extracted")
+    .eq("id", documentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!doc) return;
+  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return;
+
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+
+  const slug = (name: string, prefix: string) => slugCode(name, prefix);
+
+  // --- KH / NCC ---
+  if (doc.doc_kind === "sales_invoice") {
+    const buyer = ein?.buyer ?? ext?.buyer ?? {};
+    const name = (buyer.name ?? ext?.customer_name ?? "").toString().trim();
+    const taxId = (buyer.tax_id ?? ext?.customer_tax_id ?? "").toString().trim() || null;
+    if (name) {
+      let found = false;
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) found = true;
+      }
+      if (!found) {
+        const { data: byName } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("name", name)
+          .limit(1);
+        if (byName && byName.length > 0) found = true;
+      }
+      if (!found) {
+        await supabase.from("customers").insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slug(name, "KH"),
+        });
+      }
+    }
+  } else if (doc.doc_kind === "purchase_invoice") {
+    const seller = ein?.seller ?? ext?.seller ?? {};
+    const name = (seller.name ?? ext?.supplier_name ?? "").toString().trim();
+    const taxId = (seller.tax_id ?? ext?.supplier_tax_id ?? "").toString().trim() || null;
+    if (name) {
+      let found = false;
+      if (taxId) {
+        const { data: ex } = await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tax_id", taxId)
+          .maybeSingle();
+        if (ex?.id) found = true;
+      }
+      if (!found) {
+        const { data: byName } = await supabase
+          .from("suppliers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("name", name)
+          .limit(1);
+        if (byName && byName.length > 0) found = true;
+      }
+      if (!found) {
+        await supabase.from("suppliers").insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          name,
+          tax_id: taxId,
+          code: slug(name, "NCC"),
+        });
+      }
+    }
+  }
+
+  // --- Hàng hoá / Dịch vụ ---
+  const rawLines: any[] = Array.isArray(ein?.lines)
+    ? ein.lines
+    : Array.isArray(ext?.items)
+    ? ext.items
+    : Array.isArray(ext?.lines)
+    ? ext.lines
+    : Array.isArray(ext?.line_items)
+    ? ext.line_items
+    : [];
+
+  const names = Array.from(
+    new Set(
+      rawLines
+        .map((l: any) => (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim())
+        .filter((s: string) => s && s !== "—"),
+    ),
+  ).slice(0, 30);
+  if (names.length === 0) return;
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("name")
+    .eq("tenant_id", tenantId)
+    .in("name", names);
+  const existSet = new Set<string>((existing ?? []).map((r: any) => String(r.name).toLowerCase()));
+  const toInsert = names.filter((n) => !existSet.has(n.toLowerCase()));
+  for (const nm of toInsert) {
+    await supabase.from("products").insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      name: nm,
+      code: slug(nm, "HH"),
+      item_type: "goods",
+      stock_account: "156",
+      unit: "cái",
+    });
+  }
+}
 // Enrich Inbox items with posted_voucher + missing master data
 // ============================================================
 function normName(s: string | null | undefined): string {
