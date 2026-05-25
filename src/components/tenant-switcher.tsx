@@ -167,7 +167,20 @@ export function TenantSwitcher() {
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             Tổ chức của bạn
           </DropdownMenuLabel>
-          {(data?.tenants ?? []).map((t) => (
+          <div className="px-2 pb-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm theo tên hoặc MST…"
+                className="w-full h-8 pl-8 pr-2 text-xs rounded-md border bg-transparent outline-none focus:ring-1 focus:ring-ring"
+                onPointerDown={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          {filtered.map((t) => (
             <DropdownMenuItem
               key={t.id}
               onClick={() => !t.is_active && switchMut.mutate(t.id)}
