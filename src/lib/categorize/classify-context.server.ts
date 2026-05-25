@@ -113,9 +113,11 @@ export async function getVendorRolesAndVsic(
 export function buildClassifyContextV2(
   tenant: TenantCfg,
   vendor?: { mst?: string | null; vsic?: string | null; roles?: SupplierRole[] },
+  historyDist?: ClassifyContextV2["historyDist"],
 ): ClassifyContextV2 {
   return {
     tenant,
     vendor: vendor ?? undefined,
+    historyDist: historyDist ?? null,
   };
 }
