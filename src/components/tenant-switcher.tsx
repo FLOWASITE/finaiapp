@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Plus, Loader2, Search } from "lucide-react";
 import { listMyTenants, switchTenant, createTenant } from "@/lib/tenants.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
