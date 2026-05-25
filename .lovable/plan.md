@@ -1,74 +1,68 @@
-## Mục tiêu
+## Vấn đề
 
-Trong Inbox AI → Đề xuất Fin, khi người dùng bấm **Duyệt & ghi sổ**:
-1. Hệ thống tự tạo Nhà cung cấp / Khách hàng / Hàng hoá / Dịch vụ đúng theo gợi ý AI (không phải bấm "Tạo mới" từng dòng).
-2. Nếu gợi ý sai, người dùng có nút **Sửa** trên từng dòng để chỉnh tên / MST / loại (HH, DV, NVL 152, CCDC 153, HH 156, TS 242, TSCĐ 211/213). Khi lưu, vừa tạo bản ghi đúng vừa ghi vào **Trí nhớ AI** để lần sau AI nhận diện đúng.
+Khi nhấn **Duyệt & ghi sổ** hóa đơn mua (vd: HĐ 00000104 — 03/03/2026):
+- Bút toán (`journal_entries` + `journal_lines`) được tạo → badge "Đã ghi sổ" hiện.
+- Nhưng **không** có dòng nào được thêm vào `purchase_vouchers` → danh sách "Phiếu mua hàng" trống.
 
-## Phạm vi thay đổi
+Nguyên nhân: trong `approveInboxItem` (src/lib/inbox-ai.functions.ts, ~dòng 1169), nhánh `purchase_invoice` chỉ **TÌM** phiếu mua đã có sẵn (`select … where journal_entry_id = entry.id`) chứ không **TẠO** mới — trong khi nhánh `sales_invoice` gọi `materializeSalesVoucherFromDocument` để tự tạo.
 
-### 1. Khối "Cần tạo mới vào hệ thống" (panel hiện có)
+## Giải pháp
 
-File: `src/components/inbox/inbox-item-sheet.tsx` → component `MissingMasterDataPanel`.
+Bổ sung hàm đối xứng `materializePurchaseVoucherFromDocument` và gọi nó trong `approveInboxItem` (chỉ thay đổi backend, không đụng UI).
 
-Thay đổi UI:
-- Mỗi dòng có 3 nút: **Sửa** · **Tạo mới** · trạng thái "Đã tạo".
-- Bấm **Sửa** → mở popover/inline-edit với các field:
-  - Tên (text)
-  - MST (text, chỉ KH/NCC)
-  - Loại (select, chỉ cho hàng hoá): Hàng hoá 156, NVL 152, CCDC 153, TS phân bổ 242, TSCĐ hữu hình 211, TSCĐ vô hình 213, Dịch vụ
-- Nút "Lưu & dạy AI" trong popover gọi 1 server fn mới (xem mục 3) để: cập nhật giá trị + ghi vào trí nhớ AI.
+### 1. Thêm hàm `materializePurchaseVoucherFromDocument` (src/lib/inbox-ai.functions.ts)
 
-### 2. Tự động tạo khi Duyệt & ghi sổ
+Đối xứng với `materializeSalesVoucherFromDocument`, nhưng cho hóa đơn mua:
 
-File: `src/lib/inbox-ai.functions.ts` → mở rộng `approveInboxItem`.
+- Đọc document + `ai_uploads.parsed._einvoice` + `ocr_extracted` → lấy `seller` (NCC), `totals`, `lines`.
+- **Idempotent**: nếu đã có `purchase_vouchers` với cùng `journal_entry_id` → trả id, không tạo lại.
+- **Resolve supplier**:
+  - Khớp theo `supplier_tax_id` trong `suppliers`; nếu không có thì khớp theo `name`.
+  - Nếu vẫn chưa có → tự tạo NCC mới với code `NCC#####` (auto-increment giống `KH#####`).
+- **Sinh số phiếu** `PMYYYY-#####` (PM = Phiếu Mua) — query `purchase_vouchers.voucher_no ilike 'PMYYYY-%'` lấy max + 1.
+- **Tài khoản mặc định**:
+  - `debit_account = "156"` (cho dòng hàng — line-level sẽ override từ classification engine kết quả 152/153/156/242/211/213 nếu có trong `ai_uploads.parsed`).
+  - `credit_account = "331"` (công nợ NCC).
+  - `vat_account = "1331"` nếu `vat > 0`.
+- **Insert `purchase_vouchers`** với: `tenant_id`, `user_id`, `voucher_no`, `voucher_date = issue_date`, `supplier_*`, `invoice_no` (từ einvoice), `invoice_date`, `subtotal`, `vat_amount`, `vat_rate`, `total`, `payment_method = 'credit'`, `payment_status = 'unpaid'`, `status = 'posted'`, `posted_at = now()`, `journal_entry_id = entry.id`, `notes = "Tự tạo từ Inbox AI khi duyệt chứng từ"`.
+- **Insert `purchase_voucher_lines`** từ `rawLines` (qty/unit_price/amount/vat_rate/vat_amount/total, `line_type = 'goods'`, `debit_account` theo classification nếu có, fallback 156).
 
-Trước khi insert journal_entries / materialize voucher, chạy bước **auto-resolve master data**:
-- Với `source = "document"` và `doc_kind ∈ {purchase_invoice, sales_invoice}`:
-  - Đọc danh sách missing đã được Enrich (dùng lại logic tại dòng 559–627).
-  - Với mỗi item: gọi `createMissingMaster` (idempotent — đã có sẵn) cho KH/NCC/hàng/dịch vụ theo đúng tên + MST AI trích.
-- Đối với **purchase_invoice**: hiện chỉ tạo journal + không tạo `purchase_vouchers` từ document. Bổ sung helper `materializePurchaseVoucherFromDocument` đối xứng với bản sales — auto-create supplier (tương tự logic customer hiện có) và line bằng product đã resolve. (Phạm vi: chỉ tạo voucher khi document chứa đủ dữ liệu; nếu không, bỏ qua như hiện trạng.)
-- Sau khi resolve, khi build `sales_voucher_lines` / `purchase_voucher_lines`, set `product_id` đúng (hiện đang `null`).
+### 2. Cập nhật `approveInboxItem` (cùng file, ~dòng 1169)
 
-Kết quả: 1 cú bấm Duyệt → bút toán + phiếu + master data đầy đủ.
+Thay khối "chỉ tìm phiếu cũ" bằng:
 
-### 3. Server fn mới: `updateMissingMasterAndLearn`
-
-File: `src/lib/inbox-ai.functions.ts`.
-
-Input:
+```ts
+} else if (docMeta?.doc_kind === "purchase_invoice") {
+  const pvId = await materializePurchaseVoucherFromDocument(supabase, {
+    documentId: data.external_id,
+    tenantId, userId,
+    entryDate: data.entry_date,
+    journalEntryId: entry.id,
+  });
+  if (pvId) {
+    const { data: pvRow } = await supabase
+      .from("purchase_vouchers")
+      .select("id, voucher_no").eq("id", pvId).maybeSingle();
+    if (pvRow) postedVoucher = { kind: "purchase_voucher", id: pvRow.id, voucher_no: pvRow.voucher_no };
+  }
+}
 ```
-{ entity: "customer"|"supplier"|"product"|"service",
-  original_name: string,
-  corrected: { name: string, tax_id?: string, item_type?: "goods"|"service"|"material"|"tool"|"asset_alloc"|"asset_tangible"|"asset_intangible" },
-  source_document_id?: string }
-```
 
-Logic:
-1. Gọi `createMissingMaster` với giá trị đã sửa → trả về party_id / product_id.
-2. Ghi vào `ai_memory_partners` (cho KH/NCC):
-   - upsert theo `(tenant_id, party_kind, party_id)`.
-   - `display_name = corrected.name`, `memo_keywords` thêm `original_name` để lần sau OCR ra tên cũ vẫn map về đúng party.
-   - `default_account` set theo loại nếu cần (NCC → 331, KH → 131).
-3. Ghi vào `ai_memory_rules` (cho hàng/dịch vụ): rule kiểu `line_keyword → account` (156/152/153/242/211/213/5111).
-   - Trường `pattern = original_name`, `action_account = account_for(item_type)`, `confidence = 0.9`, `sample_count = 1`.
-4. Trả về id để UI hiển thị "Đã sửa & dạy AI".
+### 3. Mở rộng `assertNoDuplicateEInvoice` (chống ghi sổ trùng cho hóa đơn mua)
 
-### 4. Hiển thị nguồn gốc tài liệu
+Hiện hàm chỉ check `sales_invoice` ↔ `sales_vouchers`. Thêm nhánh cho `purchase_invoice`:
+- Query `purchase_vouchers` theo `invoice_no` (+ optional `series` nếu schema có cột tương ứng — schema hiện tại chỉ có `invoice_no`, dùng `invoice_no` thuần).
+- Throw lỗi tương tự nếu trùng và phiếu chưa void.
 
-Trong panel "Cần tạo mới", truyền `documentId` của item xuống để server fn lưu trace vào `ai_memory_partners.behavior_text` ("học từ HĐ ABC ngày dd/mm/yyyy").
+## Tệp cần sửa
 
-## Files dự kiến chỉnh
+- `src/lib/inbox-ai.functions.ts` — thêm 1 hàm helper, sửa 1 nhánh trong `approveInboxItem`, mở rộng `assertNoDuplicateEInvoice`.
 
-- `src/lib/inbox-ai.functions.ts` — thêm auto-resolve trong `approveInboxItem`, helper `materializePurchaseVoucherFromDocument`, server fn `updateMissingMasterAndLearn`, util `accountForItemType`.
-- `src/components/inbox/inbox-item-sheet.tsx` — UI Sửa inline, gọi fn mới, vẫn giữ nút "Tạo mới" cho luồng thủ công.
-- `src/lib/ai/inbox-types.ts` — mở rộng `MissingMasterData` để mang `item_type_guess` (AI gợi ý loại) nếu engine extract đã có.
+Không cần migration DB (schema `purchase_vouchers` đã đủ cột). Không thay đổi UI — sau khi sửa, HĐ 00000104 khi duyệt sẽ tự sinh phiếu `PM2026-00001` (hoặc số kế tiếp) và hiển thị trong danh sách Phiếu mua hàng.
 
-## Không nằm trong phạm vi (đề xuất xác nhận)
+## Kiểm thử sau khi build
 
-- Bỏ hoàn toàn nút "Tạo mới" thủ công khỏi panel? — đề xuất GIỮ vì hữu ích khi user muốn tạo trước khi duyệt.
-- Đào tạo AI multi-tenant cross-share? — giữ phạm vi trong 1 tenant.
-
-## Câu hỏi cần xác nhận
-
-1. Khi AI đoán **loại hàng** (152/153/156/242/211/213), nguồn dữ liệu lấy từ đâu hiện tại? Nếu chưa có, mặc định loại = "Hàng hoá 156" và để user sửa trong popover, OK chứ?
-2. Với purchase invoice, mình có nên tự tạo luôn `purchase_vouchers` (đối xứng sales) trong cùng PR này không, hay tách PR riêng?
+1. Vào Inbox AI → chọn HĐ mua chưa ghi sổ → Duyệt & ghi sổ.
+2. Kiểm tra danh sách **Phiếu mua hàng**: phải có phiếu mới với đúng NCC, số HĐ, tổng tiền.
+3. Duyệt lại lần 2 cùng HĐ → phải bị chặn (duplicate einvoice).
+4. Kiểm tra `journal_entry_id` của phiếu trỏ đúng bút toán vừa tạo.
