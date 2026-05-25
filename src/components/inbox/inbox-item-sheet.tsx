@@ -39,7 +39,7 @@ import {
   appendMessage,
 } from "@/lib/chat-threads.functions";
 import { getDocument } from "@/lib/documents.functions";
-import { createMissingMaster, reconcileInboxItem } from "@/lib/inbox-ai.functions";
+import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
