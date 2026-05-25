@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { calcLineTax, vatHasOutputTax, vatRate, type VatCode } from "@/lib/vat-codes";
 
 const VAT_CODES = ["0", "5", "8", "10", "KCT", "KKKNT"] as const;
