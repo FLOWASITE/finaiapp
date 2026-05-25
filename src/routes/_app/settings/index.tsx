@@ -289,8 +289,6 @@ function legalFormToKind(lf: string | null | undefined): "company" | "household"
   return lf === "household" ? "household" : "company";
 }
 
-const FY_DAY_KEY = "settings.fiscal_year_start_day";
-
 function OrganizationTab() {
   const get = useServerFn(getActiveTenant);
   const upd = useServerFn(updateActiveTenant);
@@ -305,8 +303,6 @@ function OrganizationTab() {
   const [form, setForm] = React.useState<any>(null);
   const [diffShipping, setDiffShipping] = React.useState(false);
   const [overwriteAll, setOverwriteAll] = React.useState(false);
-  // Day-of-month for fiscal year start (chỉ lưu localStorage; persist chính là tháng)
-  const [fyDay, setFyDay] = React.useState<number>(1);
   const loadedTenantIdRef = React.useRef<string | null>(null);
   const userEditedLegalFormRef = React.useRef(false);
   React.useEffect(() => {
@@ -318,10 +314,6 @@ function OrganizationTab() {
       setDiffShipping(
         !!(t.shipping_address && t.shipping_address !== (t.billing_address ?? t.address)),
       );
-      try {
-        const raw = localStorage.getItem(`${FY_DAY_KEY}:${t.id}`);
-        if (raw) setFyDay(Math.max(1, Math.min(31, Number(raw) || 1)));
-      } catch {}
     }
   }, [data]);
 
