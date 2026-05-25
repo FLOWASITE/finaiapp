@@ -360,6 +360,7 @@ function PurchaseVouchersPage() {
   
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [initialParty, setInitialParty] = useState<{ id: string; name: string; tax_id?: string; address?: string } | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const searchParams = Route.useSearch();
   const navigateRoute = useNavigate();
