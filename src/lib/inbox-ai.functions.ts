@@ -447,6 +447,55 @@ async function assertNoDuplicateEInvoice(
   }
 }
 
+/** Chặn ghi sổ hóa đơn không liên quan: MST DN phải khớp seller hoặc buyer. */
+async function assertInvoiceBelongsToTenant(
+  supabase: any,
+  tenantId: string,
+  documentId: string,
+): Promise<void> {
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("doc_kind, ai_upload_id, ocr_extracted")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc) return;
+  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("tax_id")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const tenantTax = String(tenant?.tax_id ?? "").replace(/\D/g, "");
+  if (!tenantTax) return; // DN chưa có MST → không chặn
+
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const ext = (doc.ocr_extracted ?? {}) as any;
+  const sellerTax = String(
+    ein?.seller?.tax_id ?? ext?.seller_tax_id ?? ext?.supplier_tax_id ?? "",
+  ).replace(/\D/g, "");
+  const buyerTax = String(
+    ein?.buyer?.tax_id ?? ext?.buyer_tax_id ?? ext?.customer_tax_id ?? "",
+  ).replace(/\D/g, "");
+
+  const norm = (t: string) => t.slice(0, 10); // bỏ phần chi nhánh
+  const tn = norm(tenantTax);
+  if (!sellerTax && !buyerTax) return; // không đủ dữ liệu để khẳng định
+  if (norm(sellerTax) === tn || norm(buyerTax) === tn) return;
+
+  throw new Error(
+    `Hóa đơn không liên quan đến doanh nghiệp (MST ${tenantTax}). MST bên bán: ${sellerTax || "—"}, bên mua: ${buyerTax || "—"}. Không thể ghi sổ.`,
+  );
+}
+
 // ============================================================
 // Enrich Inbox items with posted_voucher + missing master data
 // ============================================================
@@ -745,8 +794,9 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     });
     if (locked === true) throw new Error("Kỳ kế toán đã khoá");
 
-    // Chặn ghi sổ trùng hóa đơn bán ra (kiểm tra trước khi tạo journal entry)
+    // Chặn ghi sổ hóa đơn không liên quan + trùng số
     if (data.source === "document") {
+      await assertInvoiceBelongsToTenant(supabase, tenantId, data.external_id);
       await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
     }
 
