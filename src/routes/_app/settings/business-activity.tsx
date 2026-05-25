@@ -317,7 +317,12 @@ function BusinessActivityPage() {
               )}
             </CardDescription>
           </div>
-          <ProductDialog onSaved={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })} upsertCat={upsertCat} />
+          <div className="flex items-center gap-2">
+            <CsvImportButton
+              onDone={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })}
+            />
+            <ProductDialog onSaved={() => qc.invalidateQueries({ queryKey: ["product-catalog"] })} upsertCat={upsertCat} />
+          </div>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
