@@ -226,7 +226,7 @@ export async function buildDocumentItem(
       },
 
       reasoning: {
-        summary: `Hoá đơn BÁN RA (MST người bán = MST DN). Ghi nhận doanh thu 511 + VAT đầu ra 3331.`,
+        summary: "",
         signals: signalsS,
       },
       followups: [
