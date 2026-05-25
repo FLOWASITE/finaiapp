@@ -35,6 +35,7 @@ export const salesDashboard = createServerFn({ method: "GET" })
     const { data: summaryRows = [] } = await supabase
       .from("monthly_summary")
       .select("year_month, sales_revenue, sales_count, collected")
+      .eq("tenant_id", tenantId)
       .gte("year_month", firstMonth);
     const summaryMap = new Map<string, { revenue: number; collected: number; count: number }>();
     for (const r of summaryRows ?? []) {
