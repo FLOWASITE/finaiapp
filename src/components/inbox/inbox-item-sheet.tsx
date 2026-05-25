@@ -295,6 +295,9 @@ export function InboxItemSheet({
               {/* Invoice viewer / Open match */}
               <InvoiceActionRow item={item} />
 
+              {/* Cảnh báo cần tạo mới đối tác / hàng hóa */}
+              <MissingMasterDataPanel missing={item.missing} />
+
               {/* Voucher meta grid */}
               <VoucherMetaGrid meta={item.proposal.meta} />
 
