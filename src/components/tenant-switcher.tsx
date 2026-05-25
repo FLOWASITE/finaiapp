@@ -70,6 +70,7 @@ export function TenantSwitcher() {
     placeholderData: (prev) => prev,
   });
   const [openCreate, setOpenCreate] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
   const filtered = React.useMemo(() => {
