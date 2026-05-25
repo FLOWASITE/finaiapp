@@ -321,7 +321,7 @@ function InboxAiPage() {
           match_ref_invoice_id: it.match_ref?.kind === "invoice" ? it.match_ref.id : undefined,
         },
       }),
-    onSuccess: (_data, it) => {
+    onSuccess: (resp: any, it) => {
       // Refresh tất cả các danh sách bị ảnh hưởng
       qc.invalidateQueries({ queryKey: ["inbox-ai"] });
       qc.invalidateQueries({ queryKey: ["sales-invoices"] });
@@ -331,16 +331,25 @@ function InboxAiPage() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["dashboard-overview"] });
-      // Đánh dấu card vừa duyệt là "posted" trong khi chờ server trả dữ liệu mới
+      const postedVoucher = resp?.posted_voucher ?? undefined;
+      // Đánh dấu card vừa duyệt là "posted" + gắn phiếu vừa tạo
       qc.setQueryData(["inbox-ai", tab], (old: any) => {
         if (!old?.items) return old;
         return {
           ...old,
           items: old.items.map((x: InboxItem) =>
-            x.id === it.id ? { ...x, processing_status: "posted" } : x,
+            x.id === it.id
+              ? { ...x, processing_status: "posted", posted_voucher: postedVoucher ?? x.posted_voucher }
+              : x,
           ),
         };
       });
+      // Cập nhật luôn item đang mở trong sheet để hiển thị nút "Xem phiếu"
+      setSheetItem((cur) =>
+        cur && cur.id === it.id
+          ? { ...cur, processing_status: "posted", posted_voucher: postedVoucher ?? cur.posted_voucher }
+          : cur,
+      );
     },
   });
 
