@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, Plus, Loader2, Search } from "lucide-react";
 import { listMyTenants, switchTenant, createTenant } from "@/lib/tenants.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,17 @@ export function TenantSwitcher() {
     placeholderData: (prev) => prev,
   });
   const [openCreate, setOpenCreate] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = React.useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return data?.tenants ?? [];
+    return (data?.tenants ?? []).filter((t) => {
+      const hay = `${t.company_name || ""} ${t.name || ""} ${t.tax_id || ""}`.toLowerCase();
+      return hay.includes(s);
+    });
+  }, [data?.tenants, search]);
 
   const switchMut = useMutation({
     mutationFn: (tenantId: string) => sw({ data: { tenantId } }),
@@ -137,7 +148,7 @@ export function TenantSwitcher() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={(v) => { if (!v) setSearch(""); setOpen(v); }}>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 max-w-[380px]">
             {showSpinner ? (
@@ -157,7 +168,20 @@ export function TenantSwitcher() {
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             Tổ chức của bạn
           </DropdownMenuLabel>
-          {(data?.tenants ?? []).map((t) => (
+          <div className="px-2 pb-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm theo tên hoặc MST…"
+                className="w-full h-8 pl-8 pr-2 text-xs rounded-md border bg-transparent outline-none focus:ring-1 focus:ring-ring"
+                onPointerDown={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          {filtered.map((t) => (
             <DropdownMenuItem
               key={t.id}
               onClick={() => !t.is_active && switchMut.mutate(t.id)}
@@ -182,9 +206,9 @@ export function TenantSwitcher() {
               {t.is_active && <Check className="h-4 w-4 text-primary shrink-0 mt-1" />}
             </DropdownMenuItem>
           ))}
-          {(data?.tenants ?? []).length === 0 && !isPending && (
+          {filtered.length === 0 && !isPending && (
             <div className="px-2 py-3 text-xs text-muted-foreground">
-              Chưa có tổ chức nào.
+              {search.trim() ? "Không tìm thấy tổ chức phù hợp." : "Chưa có tổ chức nào."}
             </div>
           )}
           <DropdownMenuSeparator />
