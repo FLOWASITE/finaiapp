@@ -64,6 +64,19 @@ export type ProcessingStatus =
   | "posted"
   | "skipped";
 
+export type PostedVoucherRef = {
+  kind: "sales_voucher" | "purchase_voucher";
+  id: string;
+  voucher_no: string;
+};
+
+export type MissingMasterData = {
+  customer?: string;
+  supplier?: string;
+  products?: string[];
+  services?: string[];
+};
+
 export type InboxItem = {
   id: string;
   external_id: string;
@@ -84,4 +97,6 @@ export type InboxItem = {
   blocker?: { reason: string; notified?: string };
   followups: string[];
   href?: string;
+  posted_voucher?: PostedVoucherRef;
+  missing?: MissingMasterData;
 };
