@@ -847,50 +847,64 @@ function PurchaseVouchersPage() {
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              {!isPosted && (
-                                <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
-                                  <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-primary hover:text-primary"
+                              onClick={() => setEditId(r.id)}
+                              title="Mở phiếu mua hàng"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => setEditId(r.id)}>
+                                  <Eye className="h-4 w-4 mr-2" /> Mở phiếu
                                 </DropdownMenuItem>
-                              )}
-                              {isPosted && (
+                                {!isPosted && (
+                                  <DropdownMenuItem onClick={() => postMut.mutate(r.id)}>
+                                    <Check className="h-4 w-4 mr-2" /> {r.posted_at ? "Ghi sổ lại" : "Ghi sổ"}
+                                  </DropdownMenuItem>
+                                )}
+                                {isPosted && (
+                                  <DropdownMenuItem
+                                    onClick={() => openVoidDialog(r.id)}
+                                    className="text-destructive"
+                                  >
+                                    <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
+                                  </DropdownMenuItem>
+                                )}
+                                {r.journal_entry_id && (
+                                  <DropdownMenuItem asChild>
+                                    <Link to="/journal">
+                                      <FileText className="h-4 w-4 mr-2" /> Xem bút toán
+                                    </Link>
+                                  </DropdownMenuItem>
+                                )}
+                                {!r.stock_voucher_id && (
+                                  <DropdownMenuItem
+                                    onClick={() => setStickTarget({ kind: "purchase", id: r.id, voucher_no: r.voucher_no })}
+                                  >
+                                    <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => openVoidDialog(r.id)}
-                                  className="text-destructive"
+                                  className="text-destructive focus:text-destructive"
+                                  disabled={isPosted}
+                                  onClick={() => delMut.mutate(r.id)}
                                 >
-                                  <X className="h-4 w-4 mr-2" /> Huỷ ghi sổ
+                                  <Trash2 className="h-4 w-4 mr-2" /> Xoá
                                 </DropdownMenuItem>
-                              )}
-                              {r.journal_entry_id && (
-                                <DropdownMenuItem asChild>
-                                  <Link to="/journal">
-                                    <FileText className="h-4 w-4 mr-2" /> Xem bút toán
-                                  </Link>
-                                </DropdownMenuItem>
-                              )}
-                              {!r.stock_voucher_id && (
-                                <DropdownMenuItem
-                                  onClick={() => setStickTarget({ kind: "purchase", id: r.id, voucher_no: r.voucher_no })}
-                                >
-                                  <PackagePlus className="h-4 w-4 mr-2" /> Tạo phiếu nhập kho
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                disabled={isPosted}
-                                onClick={() => delMut.mutate(r.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Xoá
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
