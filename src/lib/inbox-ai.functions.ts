@@ -1082,3 +1082,280 @@ export const createMissingMaster = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { id: row!.id, entity: data.entity, existed: false };
   });
+
+// ============================================================================
+// Đối soát hóa đơn ↔ bút toán
+// Trả về các check khớp/lệch giữa dữ liệu eInvoice/OCR và bút toán đã ghi.
+// ============================================================================
+const ReconcileInput = z.object({
+  external_id: z.string().min(1).max(100),
+  source: z.enum(["document", "sales_invoice"]).default("document"),
+});
+
+type ReconcileSeverity = "info" | "warn" | "error";
+type ReconcileCheck = {
+  key: string;
+  label: string;
+  expected: string;
+  actual: string;
+  ok: boolean;
+  severity: ReconcileSeverity;
+  detail?: string;
+};
+
+function fmtVND(n: number): string {
+  return (Math.round(n) || 0).toLocaleString("vi-VN") + " đ";
+}
+function nearlyEqual(a: number, b: number, tol = 1): boolean {
+  return Math.abs((a || 0) - (b || 0)) <= tol;
+}
+function normDate(s: any): string | null {
+  if (!s || typeof s !== "string") return null;
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return s.slice(0, 10);
+}
+
+export const reconcileInboxItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ReconcileInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+
+    // 1) Tìm journal entry đã ghi cho item này
+    const { data: decisions } = await supabase
+      .from("inbox_decisions")
+      .select("journal_entry_id, decided_at")
+      .eq("tenant_id", tenantId)
+      .eq("item_source", data.source)
+      .eq("item_external_id", data.external_id)
+      .eq("action", "approve")
+      .order("decided_at", { ascending: false })
+      .limit(1);
+    const entryId = (decisions ?? [])[0]?.journal_entry_id ?? null;
+
+    if (!entryId) {
+      return {
+        status: "not_posted" as const,
+        checks: [] as ReconcileCheck[],
+        totals: null,
+        voucher: null,
+        entry_id: null,
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    // 2) Pull bút toán + voucher
+    const [entryRes, linesRes, svRes, pvRes] = await Promise.all([
+      supabase
+        .from("journal_entries")
+        .select("id, entry_date, description, tenant_id")
+        .eq("id", entryId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
+      supabase
+        .from("journal_lines")
+        .select("account_code, debit, credit, line_order")
+        .eq("entry_id", entryId)
+        .order("line_order", { ascending: true }),
+      supabase
+        .from("sales_vouchers")
+        .select("id, voucher_no, status, total_amount, vat_amount")
+        .eq("tenant_id", tenantId)
+        .eq("journal_entry_id", entryId)
+        .maybeSingle(),
+      supabase
+        .from("purchase_vouchers")
+        .select("id, voucher_no, status, total_amount, vat_amount")
+        .eq("tenant_id", tenantId)
+        .eq("journal_entry_id", entryId)
+        .maybeSingle(),
+    ]);
+    const entry = entryRes.data;
+    const lines: any[] = linesRes.data ?? [];
+    const voucher = svRes.data
+      ? { kind: "sales_voucher" as const, ...svRes.data }
+      : pvRes.data
+        ? { kind: "purchase_voucher" as const, ...pvRes.data }
+        : null;
+
+    if (!entry) {
+      return {
+        status: "not_posted" as const,
+        checks: [],
+        totals: null,
+        voucher: null,
+        entry_id: null,
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    // 3) Pull dữ liệu hóa đơn gốc (document → ai_uploads/ocr_extracted)
+    let invoiceData: any = null;
+    if (data.source === "document") {
+      const { data: doc } = await supabase
+        .from("documents")
+        .select("id, doc_kind, ai_upload_id, ocr_extracted, original_filename")
+        .eq("id", data.external_id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (doc) {
+        let ein: any = null;
+        if (doc.ai_upload_id) {
+          const { data: up } = await supabase
+            .from("ai_uploads")
+            .select("parsed")
+            .eq("id", doc.ai_upload_id)
+            .maybeSingle();
+          ein = up?.parsed?._einvoice ?? null;
+        }
+        const ext = (doc.ocr_extracted ?? {}) as any;
+        const totals = ein?.totals ?? {};
+        const subtotal = Number(totals.subtotal ?? ext.subtotal ?? 0);
+        const vat = Number(totals.vat_amount ?? ext.vat_amount ?? 0);
+        const total = Number(totals.total ?? ext.total_amount ?? ext.total ?? subtotal + vat);
+        const issueDate = normDate(ein?.issue_date ?? ext.invoice_date ?? ext.issue_date);
+        const invoiceNo = ein?.invoice_no ?? ext.invoice_no ?? ext.invoice_number ?? null;
+        const lineCount = Array.isArray(ein?.lines)
+          ? ein.lines.length
+          : Array.isArray(ext?.items)
+            ? ext.items.length
+            : Array.isArray(ext?.lines)
+              ? ext.lines.length
+              : 0;
+        invoiceData = {
+          doc_kind: doc.doc_kind,
+          subtotal,
+          vat,
+          total,
+          issueDate,
+          invoiceNo,
+          lineCount,
+        };
+      }
+    }
+
+    // 4) Tính toán từ journal lines
+    const sumDebit = lines.reduce((s, l) => s + Number(l.debit ?? 0), 0);
+    const sumCredit = lines.reduce((s, l) => s + Number(l.credit ?? 0), 0);
+    const isSales = !!svRes.data || invoiceData?.doc_kind === "sales_invoice";
+    const isPurchase = !!pvRes.data || invoiceData?.doc_kind === "purchase_invoice";
+
+    // VAT lines: 3331 bên Có (bán) hoặc 133 bên Nợ (mua)
+    const vatOut = lines
+      .filter((l) => String(l.account_code).startsWith("3331"))
+      .reduce((s, l) => s + Number(l.credit ?? 0), 0);
+    const vatIn = lines
+      .filter((l) => String(l.account_code).startsWith("133"))
+      .reduce((s, l) => s + Number(l.debit ?? 0), 0);
+    const revenue = lines
+      .filter((l) => String(l.account_code).startsWith("511"))
+      .reduce((s, l) => s + Number(l.credit ?? 0), 0);
+
+    const checks: ReconcileCheck[] = [];
+
+    // Check 1: Bút toán cân
+    checks.push({
+      key: "balance",
+      label: "Bút toán cân (Nợ = Có)",
+      expected: fmtVND(sumDebit),
+      actual: fmtVND(sumCredit),
+      ok: nearlyEqual(sumDebit, sumCredit),
+      severity: "error",
+    });
+
+    // Checks dựa trên dữ liệu hóa đơn
+    if (invoiceData) {
+      // Check 2: Tổng tiền hóa đơn vs tổng Nợ bút toán
+      checks.push({
+        key: "total",
+        label: "Tổng tiền hóa đơn",
+        expected: fmtVND(invoiceData.total),
+        actual: fmtVND(sumDebit),
+        ok: nearlyEqual(invoiceData.total, sumDebit),
+        severity: "error",
+      });
+
+      // Check 3: VAT
+      if (invoiceData.vat > 0 || vatIn > 0 || vatOut > 0) {
+        const actualVat = isSales ? vatOut : isPurchase ? vatIn : Math.max(vatIn, vatOut);
+        checks.push({
+          key: "vat",
+          label: isSales ? "VAT đầu ra (3331)" : "VAT đầu vào (133)",
+          expected: fmtVND(invoiceData.vat),
+          actual: fmtVND(actualVat),
+          ok: nearlyEqual(invoiceData.vat, actualVat),
+          severity: "error",
+        });
+      }
+
+      // Check 4: Doanh thu (chỉ bán)
+      if (isSales && invoiceData.subtotal > 0) {
+        checks.push({
+          key: "revenue",
+          label: "Doanh thu (511)",
+          expected: fmtVND(invoiceData.subtotal),
+          actual: fmtVND(revenue),
+          ok: nearlyEqual(invoiceData.subtotal, revenue),
+          severity: "warn",
+        });
+      }
+
+      // Check 5: Ngày
+      if (invoiceData.issueDate) {
+        const entryDate = (entry.entry_date ?? "").slice(0, 10);
+        checks.push({
+          key: "date",
+          label: "Ngày bút toán = ngày hóa đơn",
+          expected: invoiceData.issueDate,
+          actual: entryDate || "—",
+          ok: !!entryDate && entryDate === invoiceData.issueDate,
+          severity: "warn",
+        });
+      }
+
+      // Check 6: Có voucher liên kết
+      checks.push({
+        key: "voucher",
+        label: "Phiếu đã tạo",
+        expected: "Có",
+        actual: voucher ? `${voucher.voucher_no}` : "Chưa có",
+        ok: !!voucher,
+        severity: "warn",
+      });
+    } else {
+      checks.push({
+        key: "invoice_data",
+        label: "Dữ liệu hóa đơn gốc",
+        expected: "Đầy đủ",
+        actual: "Thiếu",
+        ok: false,
+        severity: "warn",
+        detail: "Không đọc được dữ liệu OCR/eInvoice để đối soát chi tiết.",
+      });
+    }
+
+    const hasError = checks.some((c) => !c.ok && c.severity === "error");
+    const hasWarn = checks.some((c) => !c.ok);
+
+    return {
+      status: (hasError ? "mismatched" : hasWarn ? "partial" : "matched") as
+        | "matched"
+        | "mismatched"
+        | "partial",
+      checks,
+      totals: {
+        invoice_total: invoiceData?.total ?? null,
+        sum_debit: sumDebit,
+        sum_credit: sumCredit,
+        diff: invoiceData ? Number(invoiceData.total) - sumDebit : 0,
+      },
+      voucher: voucher
+        ? { kind: voucher.kind, id: voucher.id, voucher_no: voucher.voucher_no }
+        : null,
+      entry_id: entry.id,
+      generated_at: new Date().toISOString(),
+    };
+  });

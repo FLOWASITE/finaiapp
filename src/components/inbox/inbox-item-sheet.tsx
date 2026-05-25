@@ -39,7 +39,7 @@ import {
   appendMessage,
 } from "@/lib/chat-threads.functions";
 import { getDocument } from "@/lib/documents.functions";
-import { createMissingMaster } from "@/lib/inbox-ai.functions";
+import { createMissingMaster, reconcileInboxItem } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -298,6 +298,11 @@ export function InboxItemSheet({
 
               {/* Cảnh báo cần tạo mới đối tác / hàng hóa */}
               <MissingMasterDataPanel missing={item.missing} />
+
+              {/* Đối soát hóa đơn ↔ bút toán */}
+              <ReconciliationPanel item={item} />
+
+
 
               {/* Voucher meta grid */}
               <VoucherMetaGrid meta={item.proposal.meta} />
@@ -913,5 +918,169 @@ function InvoiceViewerDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ReconciliationPanel({ item }: { item: InboxItem }) {
+  const reconcileFn = useServerFn(reconcileInboxItem);
+  const source =
+    item.source === "document"
+      ? "document"
+      : item.id.startsWith("sales_invoice:")
+        ? "sales_invoice"
+        : null;
+  const isPosted =
+    item.processing_status === "posted" || !!item.posted_voucher;
+
+  const q = useQuery({
+    queryKey: ["inbox-reconcile", item.id],
+    queryFn: () =>
+      reconcileFn({
+        data: { external_id: item.external_id, source: source as any },
+      }),
+    enabled: isPosted && (source === "document" || source === "sales_invoice"),
+    staleTime: 30_000,
+  });
+
+  if (!isPosted) return null;
+  if (q.isLoading) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/30 p-4 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Đang đối soát hóa đơn với bút toán…
+      </div>
+    );
+  }
+  if (q.isError) {
+    return (
+      <div className="rounded-2xl border border-rose-500/40 bg-rose-500/5 p-4 text-xs text-rose-700 dark:text-rose-300">
+        Không đối soát được:{" "}
+        {(q.error as any)?.message ?? "lỗi không xác định"}
+      </div>
+    );
+  }
+  const r = q.data;
+  if (!r || r.status === "not_posted") return null;
+
+  const tone =
+    r.status === "matched"
+      ? {
+          ring: "border-emerald-500/40 bg-emerald-500/5",
+          label: "text-emerald-700 dark:text-emerald-300",
+          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+          title: "Khớp 100% với bút toán",
+        }
+      : r.status === "mismatched"
+        ? {
+            ring: "border-rose-500/40 bg-rose-500/5",
+            label: "text-rose-700 dark:text-rose-300",
+            icon: <AlertTriangle className="h-3.5 w-3.5" />,
+            title: "Phát hiện chênh lệch",
+          }
+        : {
+            ring: "border-amber-500/40 bg-amber-500/5",
+            label: "text-amber-700 dark:text-amber-300",
+            icon: <AlertTriangle className="h-3.5 w-3.5" />,
+            title: "Khớp một phần",
+          };
+
+  const passed = r.checks.filter((c) => c.ok).length;
+  const total = r.checks.length;
+
+  return (
+    <div className={cn("rounded-2xl border p-4 space-y-3", tone.ring)}>
+      <div className="flex items-center justify-between gap-2">
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest",
+            tone.label,
+          )}
+        >
+          {tone.icon}
+          Đối soát hóa đơn ↔ bút toán
+        </div>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+            tone.label,
+            "bg-background/60",
+          )}
+        >
+          {passed}/{total} khớp
+        </span>
+      </div>
+      <p className={cn("text-xs font-semibold", tone.label)}>{tone.title}</p>
+      <div className="overflow-hidden rounded-xl border border-border/40 bg-background/60">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="border-b border-border/40 bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-2.5 py-1.5 text-left font-semibold">Chỉ tiêu</th>
+              <th className="px-2.5 py-1.5 text-right font-semibold">
+                Hóa đơn
+              </th>
+              <th className="px-2.5 py-1.5 text-right font-semibold">
+                Bút toán
+              </th>
+              <th className="px-2.5 py-1.5 text-center font-semibold w-10">
+                
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.checks.map((c) => (
+              <tr
+                key={c.key}
+                className="border-b border-border/30 last:border-b-0"
+              >
+                <td className="px-2.5 py-1.5 text-foreground/85">{c.label}</td>
+                <td className="px-2.5 py-1.5 text-right font-mono tabular-nums text-foreground/70">
+                  {c.expected}
+                </td>
+                <td
+                  className={cn(
+                    "px-2.5 py-1.5 text-right font-mono tabular-nums",
+                    c.ok
+                      ? "text-foreground/80"
+                      : c.severity === "error"
+                        ? "text-rose-700 dark:text-rose-300 font-semibold"
+                        : "text-amber-700 dark:text-amber-300 font-semibold",
+                  )}
+                >
+                  {c.actual}
+                </td>
+                <td className="px-2.5 py-1.5 text-center">
+                  {c.ok ? (
+                    <Check
+                      className="mx-auto h-3 w-3 text-emerald-500"
+                      strokeWidth={3}
+                    />
+                  ) : (
+                    <X
+                      className={cn(
+                        "mx-auto h-3 w-3",
+                        c.severity === "error"
+                          ? "text-rose-500"
+                          : "text-amber-500",
+                      )}
+                      strokeWidth={3}
+                    />
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {r.totals &&
+        r.totals.invoice_total != null &&
+        Math.abs(r.totals.diff) > 1 && (
+          <p className="text-[11px] text-muted-foreground">
+            Chênh lệch tổng tiền:{" "}
+            <span className="font-mono font-semibold text-foreground">
+              {(Math.round(r.totals.diff) || 0).toLocaleString("vi-VN")} đ
+            </span>
+          </p>
+        )}
+    </div>
   );
 }
