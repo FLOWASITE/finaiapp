@@ -1248,7 +1248,9 @@ function PurchaseInvoicesTable({
               <TableHead className="text-right">VAT</TableHead>
               <TableHead className="text-right">Tổng sau thuế</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Đã ghi sổ</TableHead>
               <TableHead className="text-right">File</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
