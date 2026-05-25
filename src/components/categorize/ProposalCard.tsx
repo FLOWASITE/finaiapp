@@ -399,6 +399,19 @@ export function ProposalCard({ proposalId, invoice, dto, confidence, source, onM
           Bỏ qua
         </Button>
       </div>
+
+      {tscdLine && (
+        <TscdConfirmDialog
+          open={tscdOpen}
+          onOpenChange={setTscdOpen}
+          amount={tscdLine.debit}
+          description={tscdLine.memo ?? entries[0]?.description}
+          suggestedKind={tscdKind}
+          suggestedYears={tscdKind === "intangible" ? 3 : 5}
+          busy={busy === "approve"}
+          onConfirm={(r) => doApprove({ tscd: r })}
+        />
+      )}
     </div>
   );
 }
