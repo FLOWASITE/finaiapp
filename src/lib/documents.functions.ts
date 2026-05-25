@@ -261,7 +261,7 @@ export const listPurchaseDocuments = createServerFn({ method: "GET" })
   });
 
 export const listSalesDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -280,9 +280,11 @@ export const listSalesDocuments = createServerFn({ method: "GET" })
       .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const { tenantId } = context;
     let q = context.supabase
       .from("documents")
       .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
       .eq("doc_kind", "sales_invoice")
       .order("created_at", { ascending: false });
     if (data.search) q = q.ilike("original_filename", `%${data.search}%`);
