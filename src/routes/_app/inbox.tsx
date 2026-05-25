@@ -673,23 +673,43 @@ function InboxAiPage() {
             ) : items.length === 0 ? (
               <EmptyInbox />
             ) : (
-              <ul className="space-y-3 p-4">
-                {items.map((it) => (
-                  <ItemCard
-                    key={it.id}
-                    item={it}
-                    active={activeId === it.id}
-                    onClick={() => handleCardClick(it.id)}
-                    registerRef={() => {}}
+              <>
+                <div className="p-4 pb-0">
+                  <FilterBar
+                    posted={filterPosted}
+                    onPosted={setFilterPosted}
+                    kind={filterKind}
+                    onKind={setFilterKind}
+                    q={filterQ}
+                    onQ={setFilterQ}
+                    total={items.length}
+                    shown={filteredItems.length}
                   />
-                ))}
-                {stats && stats.pending > items.length && (
-                  <li className="pt-1 text-center text-[11px] text-muted-foreground">
-                    + {stats.pending - items.length} mục khác
-                  </li>
-                )}
-              </ul>
+                </div>
+                <ul className="space-y-3 p-4">
+                  {filteredItems.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      active={activeId === it.id}
+                      onClick={() => handleCardClick(it.id)}
+                      registerRef={() => {}}
+                    />
+                  ))}
+                  {filteredItems.length === 0 && (
+                    <li className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                      Không có mục nào khớp bộ lọc.
+                    </li>
+                  )}
+                  {stats && stats.pending > items.length && (
+                    <li className="pt-1 text-center text-[11px] text-muted-foreground">
+                      + {stats.pending - items.length} mục khác
+                    </li>
+                  )}
+                </ul>
+              </>
             )}
+
           </div>
         ) : (
           <div className="h-full overflow-y-auto">
