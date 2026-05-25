@@ -606,8 +606,20 @@ function InboxAiPage() {
               <EmptyInbox />
             ) : (
               <>
+                <div className="mx-auto max-w-3xl px-4 pt-4">
+                  <FilterBar
+                    posted={filterPosted}
+                    onPosted={setFilterPosted}
+                    kind={filterKind}
+                    onKind={setFilterKind}
+                    q={filterQ}
+                    onQ={setFilterQ}
+                    total={items.length}
+                    shown={filteredItems.length}
+                  />
+                </div>
                 <ul className="mx-auto max-w-3xl space-y-3 p-4">
-                  {items.map((it) => (
+                  {filteredItems.map((it) => (
                     <ItemCard
                       key={it.id}
                       item={it}
@@ -619,6 +631,11 @@ function InboxAiPage() {
                       }}
                     />
                   ))}
+                  {filteredItems.length === 0 && (
+                    <li className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                      Không có mục nào khớp bộ lọc.
+                    </li>
+                  )}
                 </ul>
                 {stats && stats.pending > items.length && (
                   <div className="mx-auto max-w-3xl px-4 pb-6">
@@ -630,6 +647,7 @@ function InboxAiPage() {
               </>
             )}
           </div>
+
 
           {showScrollDown && (
             <button
