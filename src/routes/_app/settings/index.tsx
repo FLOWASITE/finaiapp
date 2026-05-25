@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2, RefreshCw, Loader2 } from "lucide-react";
+import { Lock, Unlock, Upload, X, UserPlus, Trash2, Building2, Calculator, FileSignature, Image as ImageIcon, RotateCcw, Save, Scale, MapPin, Users as UsersIcon, AlertCircle, CheckCircle2, Wand2, RefreshCw, Loader2, Package } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { lookupTaxId, type TaxLookupResult } from "@/lib/tax-lookup.functions";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +67,7 @@ function SettingsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2">
         {[
           { to: "/settings/business-activity", label: "Hoạt động & Mặt hàng", icon: <Wand2 className="h-4 w-4" />, highlight: true },
+          { to: "/items", label: "Khai báo mặt hàng", icon: <Package className="h-4 w-4" />, highlight: true },
           { to: "/settings/branches", label: "Chi nhánh", icon: <Building2 className="h-4 w-4" /> },
           { to: "/settings/departments", label: "Phòng ban", icon: <UsersIcon className="h-4 w-4" /> },
           { to: "/settings/projects", label: "Dự án", icon: <Wand2 className="h-4 w-4" /> },
