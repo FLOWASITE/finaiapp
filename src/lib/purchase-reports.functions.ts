@@ -48,11 +48,11 @@ async function fetchSupplierMap(supabase: any, ids: (string | null)[]) {
 
 // 1) Sổ chi tiết mua hàng
 export const purchaseDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((d) => RangeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { invoices, lines } = await fetchInvoicesAndLines(supabase, data.from, data.to);
+    const { supabase, tenantId } = context;
+    const { invoices, lines } = await fetchInvoicesAndLines(supabase, tenantId, data.from, data.to);
     const invMap = new Map(invoices.map((i: any) => [i.id, i] as const));
     const productMap = await fetchProductMap(supabase, lines.map((l: any) => l.product_id));
     const supplierMap = await fetchSupplierMap(supabase, invoices.map((i: any) => i.supplier_id));
@@ -90,11 +90,11 @@ export const purchaseDetail = createServerFn({ method: "POST" })
 
 // 2) Tổng hợp mua theo mặt hàng
 export const purchaseByItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((d) => RangeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { invoices, lines } = await fetchInvoicesAndLines(supabase, data.from, data.to);
+    const { supabase, tenantId } = context;
+    const { invoices, lines } = await fetchInvoicesAndLines(supabase, tenantId, data.from, data.to);
     const invMap = new Map(invoices.map((i: any) => [i.id, i] as const));
     const productMap = await fetchProductMap(supabase, lines.map((l: any) => l.product_id));
     const supplierMap = await fetchSupplierMap(supabase, invoices.map((i: any) => i.supplier_id));
