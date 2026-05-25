@@ -323,6 +323,13 @@ export function PartyForm({ mode, initial, onDone, compact }: Props) {
               />
             </Field>
           </div>
+
+          {!isCustomer && (
+            <RolesPicker
+              value={form.watch("roles") ?? []}
+              onChange={(next) => form.setValue("roles", next, { shouldDirty: true })}
+            />
+          )}
         </TabsContent>
 
         {/* CONTACT */}
