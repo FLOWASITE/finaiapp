@@ -1322,7 +1322,7 @@ function CreateVoucherDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Tạo phiếu mua hàng</DialogTitle>
+          <DialogTitle>{editId ? "Phiếu mua hàng" : "Tạo phiếu mua hàng"}</DialogTitle>
         </DialogHeader>
 
         {/* Top toggle row */}
