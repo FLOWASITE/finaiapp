@@ -181,6 +181,17 @@ export const approveProposal = createServerFn({ method: "POST" })
               .optional(),
           })
           .optional(),
+        tscd_confirm: z
+          .object({
+            useful_life_years: z.number().int().min(1).max(50),
+            asset_kind: z.enum(["tangible", "intangible"]),
+          })
+          .optional(),
+        allocate_242: z
+          .object({
+            months: z.number().int().min(1).max(60),
+          })
+          .optional(),
       })
       .parse(i),
   )
@@ -242,6 +253,116 @@ export const approveProposal = createServerFn({ method: "POST" })
     );
     if (jl_err) throw new Error(jl_err.message);
 
+    // ====== Tạo Fixed Asset nếu KTT xác nhận TSCĐ ======
+    let fixedAssetId: string | null = null;
+    if (data.tscd_confirm) {
+      const accPattern = data.tscd_confirm.asset_kind === "intangible" ? /^213/ : /^21[12]/;
+      const faLine =
+        (entry.lines as any[]).find((l) => accPattern.test(l.account_code) && Number(l.debit) > 0) ??
+        (entry.lines as any[]).find((l) => /^21[1-8]/.test(l.account_code) && Number(l.debit) > 0);
+      if (faLine) {
+        let supplierId: string | null = null;
+        if (!isSales) {
+          const { data: inv } = await supabase
+            .from("invoices")
+            .select("supplier_id")
+            .eq("id", p.invoice_id)
+            .maybeSingle();
+          supplierId = inv?.supplier_id ?? null;
+        }
+        const { data: cat } = await supabase
+          .from("fa_categories")
+          .select("id, default_asset_account, default_accumulated_account, default_expense_account")
+          .eq("tenant_id", tenantId)
+          .eq("asset_kind", data.tscd_confirm.asset_kind)
+          .eq("is_active", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        const code = `FA-${Date.now().toString().slice(-8)}`;
+        const usefulLifeMonths = data.tscd_confirm.useful_life_years * 12;
+        const { data: faRow, error: fa_err } = await supabase
+          .from("fixed_assets")
+          .insert({
+            user_id: userId,
+            tenant_id: tenantId,
+            category_id: cat?.id ?? null,
+            asset_kind: data.tscd_confirm.asset_kind,
+            code,
+            name: (faLine.memo ?? entry.description ?? "TSCĐ").slice(0, 200),
+            cost: Number(faLine.debit),
+            useful_life_months: usefulLifeMonths,
+            start_date: entry.entry_date,
+            method: "straight_line",
+            asset_account: cat?.default_asset_account ?? faLine.account_code,
+            accumulated_account:
+              cat?.default_accumulated_account ??
+              (data.tscd_confirm.asset_kind === "intangible" ? "2143" : "2141"),
+            expense_account: cat?.default_expense_account ?? "6422",
+            status: "active",
+            supplier_id: supplierId,
+            notes: `Tự tạo từ duyệt bút toán: ${entry.description.slice(0, 100)}`,
+          })
+          .select("id")
+          .single();
+        if (fa_err) {
+          console.error("[approveProposal] insert fixed_assets failed:", fa_err.message);
+        } else {
+          fixedAssetId = faRow?.id ?? null;
+        }
+      }
+    }
+
+    // ====== Tạo allocated_assets (242) pending nếu có line 242 ======
+    let allocatedAssetId: string | null = null;
+    const line242 = (entry.lines as any[]).find(
+      (l) => String(l.account_code).startsWith("242") && Number(l.debit) > 0,
+    );
+    if (line242) {
+      const dtoEntry: any = (p.dto as any).entries?.[data.entry_index];
+      const dtoMonths = dtoEntry?.amortize_months;
+      const months = data.allocate_242?.months ?? dtoMonths ?? 12;
+      const { data: t } = await supabase
+        .from("tenants")
+        .select("default_cost_center")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const dcc = (t?.default_cost_center as string) ?? "642";
+      const expenseAccount = dcc === "627" ? "6273" : dcc === "641" ? "6413" : "6423";
+      const code = `AA-${Date.now().toString().slice(-8)}`;
+      const { data: aaRow, error: aa_err } = await supabase
+        .from("allocated_assets")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          code,
+          name: (line242.memo ?? entry.description ?? "Chi phí trả trước").slice(0, 200),
+          category: "prepaid",
+          source_type: "from_invoice",
+          source_doc_table: isSales ? "sales_invoices" : "invoices",
+          source_doc_id: p.invoice_id,
+          quantity: 1,
+          cost: Number(line242.debit),
+          periods_total: months,
+          periods_done: 0,
+          period_unit: "month",
+          start_date: entry.entry_date,
+          method: "straight_line",
+          prepaid_account: "242",
+          expense_account: expenseAccount,
+          status: "pending",
+          notes: `Tự tạo từ duyệt bút toán — chờ KTT duyệt phân bổ từng kỳ`,
+        })
+        .select("id")
+        .single();
+      if (aa_err) {
+        console.error("[approveProposal] insert allocated_assets failed:", aa_err.message);
+      } else {
+        allocatedAssetId = aaRow?.id ?? null;
+      }
+    }
+
     await supabase
       .from("ai_journal_proposals")
       .update({
@@ -272,7 +393,13 @@ export const approveProposal = createServerFn({ method: "POST" })
             ? `Học template NCC (mẫu thứ ${learn.sample_count})`
             : `Duyệt bút toán mua — ${entry.description.slice(0, 80)}`,
           result: "success",
-          metadata: { entry_id: je.id, invoice_id: p.invoice_id, learned: learn.learned },
+          metadata: {
+            entry_id: je.id,
+            invoice_id: p.invoice_id,
+            learned: learn.learned,
+            fixed_asset_id: fixedAssetId,
+            allocated_asset_id: allocatedAssetId,
+          },
         });
       } else {
         await tryLogAgentActivity(supabase, userId, {
@@ -289,7 +416,12 @@ export const approveProposal = createServerFn({ method: "POST" })
       invalidateCategorizeCache(tenantId);
     } catch {}
 
-    return { ok: true, journal_entry_id: je.id };
+    return {
+      ok: true,
+      journal_entry_id: je.id,
+      fixed_asset_id: fixedAssetId,
+      allocated_asset_id: allocatedAssetId,
+    };
   });
 
 export const skipProposal = createServerFn({ method: "POST" })
