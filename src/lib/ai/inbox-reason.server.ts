@@ -174,6 +174,7 @@ export async function buildDocumentItem(
       .map((r: any) => ({
         name: String(r?.item_name ?? r?.name ?? r?.description ?? "—"),
         qty: Number(r?.quantity ?? r?.qty) || undefined,
+        unit: (r?.unit ?? r?.uom ?? r?.unit_name ?? undefined) as string | undefined,
         unit_price: Number(r?.unit_price) || undefined,
         amount: Number(r?.total_amount ?? r?.amount ?? 0),
       }))
