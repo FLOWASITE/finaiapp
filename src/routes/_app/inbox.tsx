@@ -270,7 +270,36 @@ function InboxAiPage() {
     : data?.stats;
   const highCount = items.filter((i) => i.confidence_band === "high" && !i.blocker).length;
 
+  // ───── Filters: posted / kind / voucher number ─────
+  const [filterPosted, setFilterPosted] = useState<"all" | "posted" | "open">("all");
+  const [filterKind, setFilterKind] = useState<"all" | "sales" | "purchase">("all");
+  const [filterQ, setFilterQ] = useState("");
+
+  const filteredItems = useMemo(() => {
+    const q = filterQ.trim().toLowerCase();
+    return items.filter((it) => {
+      if (filterPosted === "posted" && it.processing_status !== "posted") return false;
+      if (filterPosted === "open" && it.processing_status === "posted") return false;
+      if (filterKind !== "all") {
+        const k = it.proposal.voucher_kind;
+        const pv = it.posted_voucher?.kind;
+        const isSales = k === "sales_invoice" || pv === "sales_voucher";
+        const isPurchase = k === "purchase_invoice" || pv === "purchase_voucher";
+        if (filterKind === "sales" && !isSales) return false;
+        if (filterKind === "purchase" && !isPurchase) return false;
+      }
+      if (q) {
+        const vno = it.posted_voucher?.voucher_no?.toLowerCase() ?? "";
+        const ino = String(it.proposal.meta?.invoice_no ?? "").toLowerCase();
+        const title = it.title.toLowerCase();
+        if (!vno.includes(q) && !ino.includes(q) && !title.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, filterPosted, filterKind, filterQ]);
+
   const activeId = sheetItem?.id ?? null;
+
 
 
 
