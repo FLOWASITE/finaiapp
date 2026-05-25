@@ -887,6 +887,7 @@ function OrganizationTab() {
                 </Field>
                 <BusinessActivitySection showWhyPanel={false} />
               </CardContent>
+            </Card>
           </section>
 
           {/* 4. Người đại diện & Chữ ký */}
