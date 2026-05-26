@@ -813,6 +813,63 @@ function UploadDialog({
     setDragOver(false);
   };
 
+  const ACCEPTED_EXT = /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|tiff?|xml|xlsx|xls|docx?|csv|txt)$/i;
+  const MAX_BATCH = 200;
+
+  const filterAccepted = (files: File[] | FileList): { accepted: File[]; skipped: number } => {
+    const arr = Array.from(files);
+    const accepted: File[] = [];
+    let skipped = 0;
+    for (const f of arr) {
+      if (!f.name || f.name.startsWith(".")) { skipped++; continue; }
+      if (!ACCEPTED_EXT.test(f.name)) { skipped++; continue; }
+      accepted.push(f);
+    }
+    return { accepted, skipped };
+  };
+
+  const addFilesWithFilter = (files: File[] | FileList) => {
+    const { accepted, skipped } = filterAccepted(files);
+    let toAdd = accepted;
+    if (toAdd.length > MAX_BATCH) {
+      toast.warning(`Chỉ nhận tối đa ${MAX_BATCH} file mỗi lần. Đã bỏ ${toAdd.length - MAX_BATCH} file.`);
+      toAdd = toAdd.slice(0, MAX_BATCH);
+    }
+    if (skipped > 0) toast.info(`Đã bỏ qua ${skipped} file không hỗ trợ`);
+    if (toAdd.length > 0) addFiles(toAdd);
+  };
+
+  const collectFilesFromDataTransfer = async (dt: DataTransfer): Promise<File[]> => {
+    const items = dt.items;
+    if (!items || items.length === 0 || typeof (items[0] as any).webkitGetAsEntry !== "function") {
+      return Array.from(dt.files ?? []);
+    }
+    const entries: any[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const entry = (items[i] as any).webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+    }
+    const out: File[] = [];
+    const readDir = (dirReader: any): Promise<any[]> =>
+      new Promise((res, rej) => dirReader.readEntries(res, rej));
+    const walk = async (entry: any): Promise<void> => {
+      if (entry.isFile) {
+        await new Promise<void>((res) => entry.file((f: File) => { out.push(f); res(); }, () => res()));
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        // readEntries returns up to 100 entries per call — loop until empty
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const batch = await readDir(reader).catch(() => []);
+          if (!batch || batch.length === 0) break;
+          for (const e of batch) await walk(e);
+        }
+      }
+    };
+    for (const e of entries) await walk(e);
+    return out.length > 0 ? out : Array.from(dt.files ?? []);
+  };
+
   const addFiles = (files: FileList | File[]) => {
     const incoming = Array.from(files);
     setItems((prev) => {
