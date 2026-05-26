@@ -814,40 +814,57 @@ function UploadDialog({
   };
 
   const ACCEPTED_EXT = /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|tiff?|xml|xlsx|xls|docx?|csv|txt)$/i;
+  const XML_ONLY_EXT = /\.xml$/i;
   const MAX_BATCH = 200;
 
-  const filterAccepted = (files: File[] | FileList): { accepted: File[]; skipped: number } => {
+  const filterAccepted = (
+    files: File[] | FileList,
+    source: "file" | "folder" = "file",
+  ): { accepted: File[]; skipped: number } => {
     const arr = Array.from(files);
     const accepted: File[] = [];
     let skipped = 0;
+    const re = source === "folder" ? XML_ONLY_EXT : ACCEPTED_EXT;
     for (const f of arr) {
       if (!f.name || f.name.startsWith(".")) { skipped++; continue; }
-      if (!ACCEPTED_EXT.test(f.name)) { skipped++; continue; }
+      if (!re.test(f.name)) { skipped++; continue; }
       accepted.push(f);
     }
     return { accepted, skipped };
   };
 
-  const addFilesWithFilter = (files: File[] | FileList) => {
-    const { accepted, skipped } = filterAccepted(files);
+  const addFilesWithFilter = (files: File[] | FileList, source: "file" | "folder" = "file") => {
+    const { accepted, skipped } = filterAccepted(files, source);
     let toAdd = accepted;
     if (toAdd.length > MAX_BATCH) {
       toast.warning(`Chỉ nhận tối đa ${MAX_BATCH} file mỗi lần. Đã bỏ ${toAdd.length - MAX_BATCH} file.`);
       toAdd = toAdd.slice(0, MAX_BATCH);
     }
-    if (skipped > 0) toast.info(`Đã bỏ qua ${skipped} file không hỗ trợ`);
+    if (skipped > 0) {
+      if (source === "folder") {
+        toast.info(`Thư mục chỉ nhận file XML — đã bỏ qua ${skipped} file khác`);
+      } else {
+        toast.info(`Đã bỏ qua ${skipped} file không hỗ trợ`);
+      }
+    }
     if (toAdd.length > 0) addFiles(toAdd);
   };
 
-  const collectFilesFromDataTransfer = async (dt: DataTransfer): Promise<File[]> => {
+  const collectFilesFromDataTransfer = async (
+    dt: DataTransfer,
+  ): Promise<{ files: File[]; hasDir: boolean }> => {
     const items = dt.items;
     if (!items || items.length === 0 || typeof (items[0] as any).webkitGetAsEntry !== "function") {
-      return Array.from(dt.files ?? []);
+      return { files: Array.from(dt.files ?? []), hasDir: false };
     }
     const entries: any[] = [];
+    let hasDir = false;
     for (let i = 0; i < items.length; i++) {
       const entry = (items[i] as any).webkitGetAsEntry?.();
-      if (entry) entries.push(entry);
+      if (entry) {
+        entries.push(entry);
+        if (entry.isDirectory) hasDir = true;
+      }
     }
     const out: File[] = [];
     const readDir = (dirReader: any): Promise<any[]> =>
@@ -867,7 +884,8 @@ function UploadDialog({
       }
     };
     for (const e of entries) await walk(e);
-    return out.length > 0 ? out : Array.from(dt.files ?? []);
+    const files = out.length > 0 ? out : Array.from(dt.files ?? []);
+    return { files, hasDir };
   };
 
   const addFiles = (files: FileList | File[]) => {
