@@ -1657,10 +1657,13 @@ export const listPendingStockDocs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string } = {}) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let pq = supabase
       .from("purchase_vouchers")
       .select("id, voucher_no, voucher_date, supplier_name, total, status, stock_voucher_id, purchase_voucher_lines(product_id, line_type)")
+      .eq("tenant_id", tenantId)
       .is("stock_voucher_id", null)
       .order("voucher_date", { ascending: false })
       .limit(200);
@@ -1669,6 +1672,7 @@ export const listPendingStockDocs = createServerFn({ method: "POST" })
     let sq = supabase
       .from("sales_vouchers")
       .select("id, voucher_no, voucher_date, customer_name, total, status, stock_voucher_id, sales_voucher_lines(product_id, line_type)")
+      .eq("tenant_id", tenantId)
       .is("stock_voucher_id", null)
       .order("voucher_date", { ascending: false })
       .limit(200);
