@@ -1003,20 +1003,22 @@ function UploadDialog({
 
         <div className="space-y-4">
           {/* Drop zone */}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
+          <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault();
               setDragOver(false);
-              if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+              if (uploading) return;
+              const files = await collectFilesFromDataTransfer(e.dataTransfer);
+              if (files.length) addFilesWithFilter(files);
             }}
-            disabled={uploading}
+            role="button"
+            tabIndex={0}
+            onClick={() => !uploading && inputRef.current?.click()}
             className={cn(
               "w-full rounded-xl border-2 border-dashed transition-colors text-center px-4 py-8",
-              "flex flex-col items-center justify-center gap-2",
+              "flex flex-col items-center justify-center gap-2 cursor-pointer",
               dragOver
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-primary/50 hover:bg-muted/40",
@@ -1027,10 +1029,30 @@ function UploadDialog({
               <CloudUpload className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="text-sm font-medium">
-              {items.length === 0 ? "Kéo-thả file vào đây" : "Thêm file khác"}
+              {items.length === 0 ? "Kéo-thả file hoặc cả thư mục vào đây" : "Thêm file / thư mục khác"}
             </div>
             <div className="text-xs text-muted-foreground">
-              hoặc bấm để chọn · PDF, ảnh, Excel, XML, Word · tối đa 20MB/file
+              PDF, ảnh, Excel, XML, Word · tối đa 20MB/file
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={uploading}
+                onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+              >
+                Chọn file
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={uploading}
+                onClick={(e) => { e.stopPropagation(); dirInputRef.current?.click(); }}
+              >
+                Chọn thư mục
+              </Button>
             </div>
             <input
               ref={inputRef}
@@ -1039,11 +1061,24 @@ function UploadDialog({
               accept=".pdf,application/pdf,image/*,.xml,application/xml,text/xml,.xlsx,.xls,.docx,.csv,.doc,.txt"
               className="hidden"
               onChange={(e) => {
-                if (e.target.files?.length) addFiles(e.target.files);
+                if (e.target.files?.length) addFilesWithFilter(e.target.files);
                 e.target.value = "";
               }}
             />
-          </button>
+            <input
+              ref={dirInputRef}
+              type="file"
+              multiple
+              // @ts-expect-error non-standard attributes for folder picker
+              webkitdirectory=""
+              directory=""
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) addFilesWithFilter(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </div>
 
           {/* File list */}
           {items.length > 0 && (
