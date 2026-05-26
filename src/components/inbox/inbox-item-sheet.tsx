@@ -214,16 +214,8 @@ export function InboxItemSheet({
     } else { resetTransform(true); }
   };
 
-  const partnerName = item?.partner?.trim();
-  const hasPartner = !!partnerName && partnerName !== "—";
-  const confidence = item?.confidence ?? 0;
-  const confTone =
-    confidence >= 80 ? "emerald" : confidence >= 50 ? "amber" : "rose";
-  const confClasses = {
-    emerald: { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300" },
-    amber:   { text: "text-amber-600 dark:text-amber-400",   bar: "bg-amber-500",   chip: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" },
-    rose:    { text: "text-rose-600 dark:text-rose-400",    bar: "bg-rose-500",    chip: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300" },
-  }[confTone];
+
+
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
