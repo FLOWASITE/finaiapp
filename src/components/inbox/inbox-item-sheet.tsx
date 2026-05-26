@@ -316,11 +316,11 @@ export function InboxItemSheet({
               <ProposalItemsList items={item.proposal.items} />
 
               {/* Khớp mặt hàng với mã hệ thống */}
-              <ItemResolutionPanel
+              <ItemResolutionPanelWrapper
                 items={item.proposal.items}
                 meta={item.proposal.meta}
-                tenantId="active"
               />
+
 
 
 
