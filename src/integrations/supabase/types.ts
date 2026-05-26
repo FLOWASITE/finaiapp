@@ -2517,6 +2517,7 @@ export type Database = {
           invoice_id: string | null
           mime_type: string | null
           notes: string | null
+          ocr_error: string | null
           ocr_extracted: Json | null
           ocr_raw: Json | null
           ocr_status: string
@@ -2542,6 +2543,7 @@ export type Database = {
           invoice_id?: string | null
           mime_type?: string | null
           notes?: string | null
+          ocr_error?: string | null
           ocr_extracted?: Json | null
           ocr_raw?: Json | null
           ocr_status?: string
@@ -2567,6 +2569,7 @@ export type Database = {
           invoice_id?: string | null
           mime_type?: string | null
           notes?: string | null
+          ocr_error?: string | null
           ocr_extracted?: Json | null
           ocr_raw?: Json | null
           ocr_status?: string
