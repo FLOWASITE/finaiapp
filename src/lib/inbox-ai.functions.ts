@@ -45,14 +45,9 @@ const KIND_V2_LABEL: Record<LineKindV2, string> = {
 };
 
 
-async function activeTenant(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
+const activeTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 /**
  * Materialize a row in `sales_invoices` (+ lines) from a parsed XML e-invoice

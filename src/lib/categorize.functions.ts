@@ -1,15 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 
-async function activeTenant(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+const activeTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 /** Sinh đề xuất bút toán + cache vào ai_journal_proposals. */
 export const proposeJournal = createServerFn({ method: "POST" })
