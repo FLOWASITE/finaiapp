@@ -167,6 +167,49 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
   });
 
+  const askFin = async (idx: number, it: ProposalItem) => {
+    if (llmLoadingIdx != null) return;
+    setLlmLoadingIdx(idx);
+    try {
+      const out = await suggestFn({
+        data: {
+          raw_name: it.name,
+          raw_unit: it.unit ?? null,
+          unit_price: it.unit_price ?? null,
+          supplier_name: supplierName ?? null,
+        },
+      });
+      if (out.kind === "match" && q.data?.supplier_id) {
+        toast.success(`Fin gợi ý: ${out.product?.code} — ${out.product?.name}`);
+        confirmMut.mutate({
+          raw_name: it.name,
+          raw_unit: it.unit ?? null,
+          product_id: out.product_id,
+          unit_conversion_factor: 1,
+        });
+      } else if (out.kind === "create") {
+        setLlmPrefill((m) => ({
+          ...m,
+          [idx]: {
+            code: out.suggested_code,
+            name: out.suggested_name,
+            unit: out.suggested_unit,
+            item_type: out.item_type,
+            stock_account: out.stock_account,
+          },
+        }));
+        setCreatingIdx(idx);
+        toast.info(`Fin gợi ý tạo mã mới: ${out.suggested_code} (TK ${out.stock_account})`);
+      } else {
+        toast.warning(out.reason || "Fin chưa chắc — vui lòng chọn tay.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không gọi được Fin");
+    } finally {
+      setLlmLoadingIdx(null);
+    }
+  };
+
   if (!items || items.length === 0) return null;
   if (!supplierTaxId) return null;
 
