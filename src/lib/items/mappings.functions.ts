@@ -73,26 +73,48 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
     // Try update first; if no row, insert.
     const { data: existing } = await supabase
       .from("supplier_item_mappings")
-      .select("id, match_count")
+      .select("id, match_count, confidence, product_id")
       .eq("tenant_id", tenantId)
       .eq("supplier_id", data.supplier_id)
       .eq("raw_name_norm", raw_name_norm)
       .maybeSingle();
 
     if (existing) {
+      const acceptAsIs = existing.product_id === data.product_id;
+      const prevConf = Number(existing.confidence ?? 0.9);
+      const nextConfidence = acceptAsIs
+        ? Math.min(1, prevConf + 0.05) // củng cố niềm tin khi user đồng ý lựa chọn hiện tại
+        : 0.98;                         // user đổi sang product khác → reset niềm tin về mặc định cao
+      const nextCount = acceptAsIs ? (existing.match_count ?? 0) + 1 : 1;
       const { error } = await supabase
         .from("supplier_item_mappings")
         .update({
           product_id: data.product_id,
           raw_unit: data.raw_unit ?? null,
           unit_conversion_factor: data.unit_conversion_factor,
-          confidence: 0.98,
-          match_count: (existing.match_count ?? 0) + 1,
+          confidence: nextConfidence,
+          match_count: nextCount,
           last_seen: new Date().toISOString(),
           source: "user_confirm",
         })
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
+
+      if (!acceptAsIs) {
+        // Audit khi user đổi sang product khác — phục vụ calibrate trọng số sau này.
+        await supabase.from("item_resolution_log").insert({
+          tenant_id: tenantId,
+          supplier_id: data.supplier_id,
+          raw_name: data.raw_name,
+          raw_unit: data.raw_unit ?? null,
+          resolved_product_id: data.product_id,
+          method: "user_override",
+          score: 1,
+          signals: { prev_product_id: existing.product_id, prev_confidence: prevConf },
+        }).then(({ error: e }: any) => {
+          if (e) console.warn("[confirmItemMapping] override log failed", e.message);
+        });
+      }
     } else {
       const { error } = await supabase.from("supplier_item_mappings").insert({
         tenant_id: tenantId,
