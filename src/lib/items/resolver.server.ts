@@ -1,7 +1,8 @@
 // Server-only resolver: maps a vendor invoice line → master product code.
-// 4-layer architecture: cache → multi-signal fuzzy → (LLM, off by default) → human.
+// 4-layer architecture: cache → multi-signal fuzzy (+ semantic boost) → (LLM, off by default) → human.
 
 import { normalizeName, textSim } from "./normalize";
+import { semanticSearchProducts } from "./embeddings.server";
 
 export type ResolveInput = {
   rawName: string;
