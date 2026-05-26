@@ -18,6 +18,7 @@ import {
   type LineKind,
   type ClassifyContext,
 } from "@/lib/ai/classify-line";
+import { resolveVendorLine } from "@/lib/items/resolver.server";
 
 const InputSchema = z.object({
   fileBase64: z.string().min(1),
