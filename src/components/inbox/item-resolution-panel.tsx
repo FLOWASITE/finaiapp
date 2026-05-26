@@ -274,17 +274,26 @@ function NewProductForm(props: {
     item_type: "goods" | "service";
     stock_account: string;
     unit_price: number;
+    unit_conversion_factor: number;
   }) => void;
 }) {
   const [code, setCode] = useState(suggestCode(props.rawName));
   const [name, setName] = useState(props.rawName);
   const [unit, setUnit] = useState(props.rawUnit ?? "cái");
   const [typeIdx, setTypeIdx] = useState("0");
+  const [factor, setFactor] = useState("1");
+
+  const unitsDiffer = !!(props.rawUnit && unit.trim() && props.rawUnit.trim().toLowerCase() !== unit.trim().toLowerCase());
 
   const submit = () => {
     const t = ITEM_TYPES[Number(typeIdx)] ?? ITEM_TYPES[0];
     if (!code.trim() || !name.trim() || !unit.trim()) {
       toast.error("Nhập đủ mã, tên, ĐVT");
+      return;
+    }
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) {
+      toast.error("Hệ số quy đổi phải > 0");
       return;
     }
     props.onSubmit({
@@ -294,6 +303,7 @@ function NewProductForm(props: {
       item_type: t.v,
       stock_account: t.acct,
       unit_price: props.unitPrice || 0,
+      unit_conversion_factor: f,
     });
   };
 
