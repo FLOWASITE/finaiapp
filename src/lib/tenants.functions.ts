@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 // Liệt kê tất cả tổ chức user là thành viên + role + flag active
 export const listMyTenants = createServerFn({ method: "GET" })
