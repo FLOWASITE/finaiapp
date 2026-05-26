@@ -571,7 +571,56 @@ export const uploadDocument = createServerFn({ method: "POST" })
       }
       const { data: finalRow } = await supabase
         .from("documents").select("doc_kind").eq("id", docId).maybeSingle();
-      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages, doc_kind: finalRow?.doc_kind ?? (isAuto ? "other" : data.doc_kind) };
+      const finalKind = finalRow?.doc_kind ?? (isAuto ? "other" : data.doc_kind);
+
+      // === Đối chiếu MST/tên tổ chức với tenant ===
+      const { getTenantIdentity, matchDocumentToTenant } = await import(
+        "@/lib/ai/tenant-match.server"
+      );
+      const tenantIdentity = await getTenantIdentity(supabase, tenantId);
+      const match = matchDocumentToTenant(
+        typeof result.parsed === "object" ? result.parsed : {},
+        finalKind,
+        tenantIdentity,
+      );
+
+      if (match.status === "reject") {
+        // Xoá file khỏi storage để không lưu dữ liệu doanh nghiệp khác
+        try {
+          await supabase.storage.from("invoices").remove([path]);
+        } catch {}
+        await supabase
+          .from("documents")
+          .update({
+            ocr_status: "rejected",
+            ocr_error: match.reason,
+            notes: match.reason.slice(0, 1000),
+          })
+          .eq("id", docId);
+        return {
+          id: docId,
+          ocr_status: "rejected" as const,
+          rejection: match,
+          doc_kind: finalKind,
+        };
+      }
+
+      if (match.status === "warn") {
+        await supabase
+          .from("documents")
+          .update({ notes: match.reason.slice(0, 1000) })
+          .eq("id", docId);
+      }
+
+      return {
+        id: docId,
+        ocr_status: "done" as const,
+        parser: result.parser,
+        pages: result.pages,
+        doc_kind: finalKind,
+        tenant_match: match.status,
+        tenant_match_reason: match.reason,
+      };
     } catch (e: any) {
       await supabase
         .from("documents")
