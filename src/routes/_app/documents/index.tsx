@@ -102,7 +102,6 @@ import {
   File as FileIcon,
   CheckCircle2,
   XCircle,
-  Plus,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
