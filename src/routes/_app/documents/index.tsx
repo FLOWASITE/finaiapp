@@ -235,7 +235,7 @@ function DocumentsPage() {
   const search = useSearch({ from: "/_app/documents/" });
   const navigate = useNavigate();
 
-  const currentTab: TabValue = search.tab ?? "all";
+  const currentTab: TabValue = (search.tab as TabValue) ?? "purchase";
   const tabMeta = TAB_PRESETS[currentTab];
 
   const [searchText, setSearchText] = useState("");
