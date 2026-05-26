@@ -1235,6 +1235,19 @@ function CreateVoucherDialog({
 
   const mut = useMutation({
     mutationFn: async () => {
+      if (header.create_stock_voucher) {
+        if (!header.warehouse_id) {
+          throw new Error("Vui lòng chọn kho để tạo phiếu nhập kho");
+        }
+        const hasGoodsWithProduct = lines.some(
+          (l) => l.line_type === "goods" && l.product_id && Number(l.qty || 0) > 0,
+        );
+        if (!hasGoodsWithProduct) {
+          throw new Error(
+            "Phiếu nhập kho yêu cầu ít nhất một dòng hàng hoá có chọn sản phẩm từ danh mục và số lượng > 0. Hãy chọn sản phẩm ở cột Mặt hàng.",
+          );
+        }
+      }
       const payload: any = {
         voucher_no: header.voucher_no,
         voucher_date: header.voucher_date,
