@@ -175,6 +175,7 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
       suppliers,
       partners: (partnersRes.data ?? []) as GraphPartnerRow[],
       classifications: (classRes.data ?? []) as GraphClassificationRow[],
+      itemMappings,
       supplierHistory,
       positions:
         (layoutRes.data?.positions as Record<string, { x: number; y: number }>) ??
