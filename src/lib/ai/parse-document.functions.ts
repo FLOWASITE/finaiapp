@@ -944,6 +944,92 @@ async function enrichInvoiceWithSupplierSignals(
   }
 }
 
+/**
+ * Resolve each invoice line against the tenant's product catalog using the
+ * supplier_item_mappings cache + fuzzy resolver. Attaches `_resolution`
+ * (status + best candidate + top candidates) and, when status='auto', sets
+ * `product_id` so downstream classifiers can pick TK 152/153/156 correctly.
+ */
+async function enrichInvoiceWithItemResolution(
+  parsed: any,
+  supabase: any,
+  userId?: string,
+): Promise<any> {
+  try {
+    if (!parsed || !supabase || !userId) return parsed;
+    if (!Array.isArray(parsed.lines) || parsed.lines.length === 0) return parsed;
+    const rawTax = String(parsed.vendor_tax_id ?? "").replace(/\D+/g, "");
+    if (!rawTax) return parsed;
+
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const tenantId = prof?.active_tenant_id;
+    if (!tenantId) return parsed;
+
+    const { data: sup } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("tax_id", rawTax)
+      .maybeSingle();
+    if (!sup?.id) return parsed;
+
+    const newLines = await Promise.all(
+      parsed.lines.map(async (l: any) => {
+        const name = String(l?.description ?? l?.name ?? "").trim();
+        if (!name) return l;
+        try {
+          const res = await resolveVendorLine(supabase, {
+            tenantId,
+            supplierId: sup.id,
+            rawName: name,
+            rawUnit: l?.unit ?? null,
+            qty: l?.qty ?? null,
+            price: l?.unit_price ?? null,
+          });
+          const _resolution = {
+            status: res.status,
+            method: res.method,
+            best: res.best
+              ? {
+                  product_id: res.best.product_id,
+                  code: res.best.code,
+                  name: res.best.name,
+                  unit: res.best.unit,
+                  score: res.best.score,
+                  match_count: res.best.cached?.match_count ?? null,
+                }
+              : null,
+            candidates: res.candidates.slice(0, 3).map((c: any) => ({
+              product_id: c.product_id,
+              code: c.code,
+              name: c.name,
+              unit: c.unit,
+              score: c.score,
+            })),
+          };
+          return {
+            ...l,
+            _resolution,
+            product_id: res.status === "auto" && res.best ? res.best.product_id : (l.product_id ?? null),
+          };
+        } catch {
+          return l;
+        }
+      }),
+    );
+
+    return { ...parsed, lines: newLines };
+  } catch (e: any) {
+    console.warn("[parse-document] enrichInvoiceWithItemResolution failed:", e?.message);
+    return parsed;
+  }
+}
+
+
 
 
 export type ParsePhaseEvent = {
