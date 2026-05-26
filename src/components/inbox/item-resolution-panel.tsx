@@ -346,11 +346,40 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   );
 }
 
+function FinSuggestButton(props: {
+  loading: boolean;
+  disabled?: boolean;
+  inline?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      disabled={props.disabled || props.loading}
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+        "bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300",
+        "disabled:opacity-50",
+        props.inline && "ml-1",
+      )}
+    >
+      {props.loading ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Sparkles className="h-3 w-3" />
+      )}
+      Nhờ Fin gợi ý
+    </button>
+  );
+}
+
 function NewProductForm(props: {
   rawName: string;
   rawUnit: string | null;
   unitPrice: number;
   isPending: boolean;
+  prefill?: NewProductPrefill;
   onCancel: () => void;
   onSubmit: (v: {
     code: string;
@@ -362,10 +391,12 @@ function NewProductForm(props: {
     unit_conversion_factor: number;
   }) => void;
 }) {
-  const [code, setCode] = useState(suggestCode(props.rawName));
-  const [name, setName] = useState(props.rawName);
-  const [unit, setUnit] = useState(props.rawUnit ?? "cái");
-  const [typeIdx, setTypeIdx] = useState("0");
+  const [code, setCode] = useState(props.prefill?.code ?? suggestCode(props.rawName));
+  const [name, setName] = useState(props.prefill?.name ?? props.rawName);
+  const [unit, setUnit] = useState(props.prefill?.unit ?? props.rawUnit ?? "cái");
+  const [typeIdx, setTypeIdx] = useState(
+    typeIdxFor(props.prefill?.item_type, props.prefill?.stock_account),
+  );
   const [factor, setFactor] = useState("1");
 
   const unitsDiffer = !!(props.rawUnit && unit.trim() && props.rawUnit.trim().toLowerCase() !== unit.trim().toLowerCase());
