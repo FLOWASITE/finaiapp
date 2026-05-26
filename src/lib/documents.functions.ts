@@ -717,8 +717,6 @@ export const reparseDocument = createServerFn({ method: "POST" })
         supabase,
         userId,
       });
-      // parseFileCore đã update ai_uploads + documents qua ai_upload_id.
-      // Trường hợp document không có ai_upload_id (manual upload), update trực tiếp.
       if (!doc.ai_upload_id) {
         await supabase
           .from("documents")
@@ -729,11 +727,44 @@ export const reparseDocument = createServerFn({ method: "POST" })
           })
           .eq("id", doc.id);
       }
+
+      // === Đối chiếu MST/tên tổ chức — chặn bypass qua parse lại ===
+      try {
+        const { getTenantIdentity, matchDocumentToTenant } = await import(
+          "@/lib/ai/tenant-match.server"
+        );
+        const tenantIdentity = await getTenantIdentity(supabase, tenantId);
+        const { data: freshDoc } = await supabase
+          .from("documents").select("doc_kind").eq("id", doc.id).maybeSingle();
+        const finalKind = freshDoc?.doc_kind ?? doc.doc_kind;
+        const match = matchDocumentToTenant(
+          typeof result.parsed === "object" ? result.parsed : {},
+          finalKind,
+          tenantIdentity,
+        );
+        if (match.status === "reject") {
+          try { await supabase.storage.from(doc.storage_bucket).remove([doc.storage_path]); } catch {}
+          await supabase.from("documents").update({
+            ocr_status: "rejected",
+            ocr_error: match.reason,
+            notes: match.reason.slice(0, 1000),
+          }).eq("id", doc.id);
+          return { ok: false, rejected: true, reason: match.reason };
+        }
+        if (match.status === "warn") {
+          await supabase.from("documents").update({
+            notes: match.reason.slice(0, 1000),
+          }).eq("id", doc.id);
+        }
+      } catch (mErr: any) {
+        console.warn("[reparseDocument] tenant-match failed:", mErr?.message);
+      }
+
       return { ok: true, parser: result.parser, pages: result.pages };
     } catch (e: any) {
       await supabase
         .from("documents")
-        .update({ ocr_status: "failed", notes: (e?.message || "Parse failed").slice(0, 500) })
+        .update({ ocr_status: "failed", ocr_error: (e?.message || "Parse failed").slice(0, 500) })
         .eq("id", doc.id);
       throw new Error(e?.message || "Parse failed");
     }
