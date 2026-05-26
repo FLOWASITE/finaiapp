@@ -38,8 +38,10 @@ const UploadOnlyInputSchema = InputSchema.pick({
 // ---------- Schemas ----------------------------------------------------
 
 const PurchaseInvoiceSchema = z.object({
-  vendor_name: z.string().nullable(),
-  vendor_tax_id: z.string().nullable(),
+  vendor_name: z.string().nullable().describe("Tên người BÁN (seller)"),
+  vendor_tax_id: z.string().nullable().describe("MST người BÁN (seller). 10 hoặc 13 chữ số."),
+  buyer_name: z.string().nullable().describe("Tên người MUA (buyer)").optional(),
+  buyer_tax_id: z.string().nullable().describe("MST người MUA (buyer). 10 hoặc 13 chữ số.").optional(),
   invoice_no: z.string().nullable(),
   issue_date: z.string().nullable().describe("YYYY-MM-DD"),
   currency: z.string().nullable(),
@@ -201,6 +203,8 @@ function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNot
     ...source,
     vendor_name: toNullableString(source.vendor_name),
     vendor_tax_id: toNullableString(source.vendor_tax_id),
+    buyer_name: toNullableString(source.buyer_name),
+    buyer_tax_id: toNullableString(source.buyer_tax_id),
     invoice_no: toNullableString(source.invoice_no),
     issue_date: toNullableString(source.issue_date),
     currency: toNullableString(source.currency) || "VND",
@@ -276,6 +280,8 @@ function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>)
   return {
     vendor_name: parsed.seller.name || null,
     vendor_tax_id: parsed.seller.tax_id || null,
+    buyer_name: parsed.buyer?.name || null,
+    buyer_tax_id: parsed.buyer?.tax_id || null,
     invoice_no: parsed.invoice_no || null,
     issue_date: parsed.issue_date,
     currency: parsed.currency || "VND",
