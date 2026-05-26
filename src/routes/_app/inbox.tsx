@@ -1242,14 +1242,32 @@ function ItemCard({
 
         {/* Goods/services line */}
         {firstItem && (
-          <div className="flex items-start gap-1.5 text-[11.5px] text-muted-foreground">
-            <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
-            <span className="truncate">
-              {firstItem}
-              {moreItems > 0 && (
-                <span className="ml-1 text-muted-foreground/70">+{moreItems} mục</span>
-              )}
-            </span>
+          <div className="flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
+            <div className="flex items-start gap-1.5 min-w-0">
+              <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
+              <span className="truncate">
+                {firstItem}
+                {moreItems > 0 && (
+                  <span className="ml-1 text-muted-foreground/70">+{moreItems} mục</span>
+                )}
+              </span>
+            </div>
+            {showResBadge && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium shrink-0",
+                  matched === items.length
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : needsReview > 0
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+                )}
+                title={`Fin tự khớp ${matched}/${items.length} mã hệ thống${needsReview ? ` · ${needsReview} cần xem` : ""}${isNew ? ` · ${isNew} mới` : ""}`}
+              >
+                <Sparkles className="h-2.5 w-2.5" />
+                AI khớp {matched}/{items.length}
+              </span>
+            )}
           </div>
         )}
 
