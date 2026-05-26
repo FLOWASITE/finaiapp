@@ -169,6 +169,7 @@ export const createProductFromRaw = createServerFn({ method: "POST" })
       item_type: ItemType.default("goods"),
       stock_account: z.string().max(20).default("156"),
       unit_price: z.number().nonnegative().default(0),
+      unit_conversion_factor: z.number().positive().default(1),
     }).parse(i),
   )
   .handler(async ({ context, data }) => {
@@ -198,7 +199,7 @@ export const createProductFromRaw = createServerFn({ method: "POST" })
       raw_name: data.raw_name,
       raw_name_norm,
       raw_unit: data.raw_unit ?? null,
-      unit_conversion_factor: 1,
+      unit_conversion_factor: data.unit_conversion_factor,
       confidence: 0.98,
       match_count: 1,
       source: "user_create",
@@ -206,4 +207,107 @@ export const createProductFromRaw = createServerFn({ method: "POST" })
     });
 
     return { product_id: prod.id as string };
+  });
+
+/** Update which product a mapping rule points to (KTV edit inline). */
+export const updateMappingProduct = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      product_id: z.string().uuid(),
+      unit_conversion_factor: z.number().positive().optional(),
+    }).parse(i),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId } = context;
+    const patch: Record<string, any> = {
+      product_id: data.product_id,
+      source: "user_confirm",
+      last_seen: new Date().toISOString(),
+    };
+    if (data.unit_conversion_factor != null) {
+      patch.unit_conversion_factor = data.unit_conversion_factor;
+    }
+    const { error } = await supabase
+      .from("supplier_item_mappings")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Search products in active tenant catalog (for inline edit combobox). */
+export const searchProductsForMapping = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({
+      search: z.string().max(255).optional().nullable(),
+      limit: z.number().int().min(1).max(50).default(20),
+    }).parse(i),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId } = context;
+    let q = supabase
+      .from("products")
+      .select("id, code, name, unit, item_type, stock_account")
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .order("code")
+      .limit(data.limit);
+    const s = (data.search ?? "").trim();
+    if (s) {
+      q = q.or(`code.ilike.%${s}%,name.ilike.%${s}%`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { rows: rows ?? [] };
+  });
+
+/**
+ * Detect raw_name strings that have been mapped to ≥2 different product_ids
+ * across this tenant (possibly different suppliers) — likely confusion.
+ */
+export const listMappingConflicts = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ limit: z.number().int().min(1).max(100).default(50) }).parse(i ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId } = context;
+    const { data: rows, error } = await supabase
+      .from("supplier_item_mappings")
+      .select(
+        "id, raw_name, raw_name_norm, supplier_id, product_id, match_count, " +
+          "suppliers!supplier_id(name), products!product_id(code, name, unit)",
+      )
+      .eq("tenant_id", tenantId)
+      .limit(2000);
+    if (error) throw new Error(error.message);
+
+    const groups = new Map<string, any[]>();
+    for (const r of (rows ?? []) as any[]) {
+      const k = r.raw_name_norm || "";
+      if (!k) continue;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(r);
+    }
+    const conflicts: Array<{
+      raw_name_norm: string;
+      sample_raw_name: string;
+      entries: any[];
+    }> = [];
+    for (const [k, entries] of groups) {
+      const distinct = new Set(entries.map((e) => e.product_id));
+      if (distinct.size >= 2) {
+        conflicts.push({ raw_name_norm: k, sample_raw_name: entries[0].raw_name, entries });
+      }
+    }
+    conflicts.sort(
+      (a, b) =>
+        b.entries.reduce((s, e) => s + (e.match_count ?? 0), 0) -
+        a.entries.reduce((s, e) => s + (e.match_count ?? 0), 0),
+    );
+    return { conflicts: conflicts.slice(0, data.limit) };
   });
