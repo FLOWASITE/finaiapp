@@ -161,6 +161,29 @@ export async function resolveVendorLine(
     }
   }
 
+  // ---- Layer 2.5: semantic search via pgvector (best-effort, no-op if no key) ----
+  try {
+    const semantic = await semanticSearchProducts(supabase, input.tenantId, rawNorm, 5);
+    const semanticIds = new Set(semantic.map((s) => s.product_id));
+    const knownIds = new Set(candidateProducts.map((p) => p.id));
+    const missing = [...semanticIds].filter((id) => !knownIds.has(id));
+    if (missing.length > 0) {
+      const { data: extras } = await supabase
+        .from("products")
+        .select("id, code, name, unit, item_type, stock_account, expense_account, unit_cost, aliases")
+        .eq("tenant_id", input.tenantId)
+        .in("id", missing);
+      if (extras) candidateProducts.push(...extras);
+    }
+    // Stash similarity for use in scoring (boosts text signal a bit).
+    (candidateProducts as any).__semantic = new Map(
+      semantic.map((s) => [s.product_id, s.similarity]),
+    );
+  } catch {
+    // Vector layer is enrichment; never block the resolve.
+  }
+
+
   const scored: Candidate[] = candidateProducts.map((p) => {
     const aliasBest = (p.aliases ?? []).reduce(
       (m: number, al: string) => Math.max(m, textSim(rawNorm, al)),
