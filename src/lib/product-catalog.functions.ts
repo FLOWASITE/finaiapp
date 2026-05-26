@@ -10,8 +10,23 @@ async function activeTenantId(supabase: any, userId: string): Promise<string> {
     .select("active_tenant_id")
     .eq("id", userId)
     .maybeSingle();
-  if (!data?.active_tenant_id) throw new Error("Chưa chọn doanh nghiệp");
-  return data.active_tenant_id as string;
+  const tenantId = data?.active_tenant_id as string | undefined;
+  if (!tenantId) throw new Error("Chưa chọn doanh nghiệp");
+
+  // Xác thực: user phải là thành viên active của tenant này.
+  // Ngăn trường hợp profile.active_tenant_id bị set sang tenant khác
+  // mà user không có quyền truy cập (RLS là backstop, đây là gate chính).
+  const { data: member, error: memberErr } = await supabase
+    .from("tenant_members")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (memberErr) throw new Error(memberErr.message);
+  if (!member) throw new Error("Không có quyền truy cập doanh nghiệp này");
+
+  return tenantId;
 }
 
 export const listProductCatalog = createServerFn({ method: "GET" })
