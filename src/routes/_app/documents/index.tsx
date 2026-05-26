@@ -1465,10 +1465,13 @@ function PurchaseInvoicesTable({
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  // reset page when filters change
+  useEffect(() => { setPage(1); }, [filters]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["purchase-documents", filters, limit],
+    queryKey: ["purchase-documents", filters, page, pageSize],
     queryFn: () =>
       listFn({
         data: {
@@ -1481,12 +1484,13 @@ function PurchaseInvoicesTable({
           supplier_search: filters.supplier_search,
           issue_from_date: filters.issue_from_date,
           issue_to_date: filters.issue_to_date,
-          limit,
-          offset: 0,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
         },
       }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
