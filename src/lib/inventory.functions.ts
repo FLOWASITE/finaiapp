@@ -563,8 +563,14 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
 export const listCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase.from("product_categories").select("*").order("name");
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
+    const { data, error } = await supabase
+      .from("product_categories")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("name");
     if (error) throw new Error(error.message);
     return data;
   });
