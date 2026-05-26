@@ -93,14 +93,19 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   };
 
   const confirmMut = useMutation({
-    mutationFn: (vars: { raw_name: string; raw_unit?: string | null; product_id: string }) =>
+    mutationFn: (vars: {
+      raw_name: string;
+      raw_unit?: string | null;
+      product_id: string;
+      unit_conversion_factor: number;
+    }) =>
       confirmFn({
         data: {
           supplier_id: q.data?.supplier_id!,
           product_id: vars.product_id,
           raw_name: vars.raw_name,
           raw_unit: vars.raw_unit ?? null,
-          unit_conversion_factor: 1,
+          unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
     onSuccess: () => {
@@ -120,6 +125,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
       item_type: "goods" | "service";
       stock_account: string;
       unit_price: number;
+      unit_conversion_factor: number;
     }) =>
       createFn({
         data: {
@@ -132,6 +138,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           item_type: vars.item_type,
           stock_account: vars.stock_account,
           unit_price: vars.unit_price,
+          unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
     onSuccess: () => {
