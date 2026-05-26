@@ -80,15 +80,28 @@ export function BusinessActivitySection({ showWhyPanel = true }: { showWhyPanel?
   const listCat = useServerFn(listProductCatalog);
   const upsertCat = useServerFn(upsertProductCatalog);
   const deleteCat = useServerFn(deleteProductCatalog);
+  const listTenantsFn = useServerFn(listMyTenants);
+
+  // Lấy tổ chức đang active — dùng làm khoá cache, tránh rò dữ liệu giữa các tổ chức
+  const tenantsQ = useQuery({
+    queryKey: ["my-tenants"],
+    queryFn: () => listTenantsFn(),
+    staleTime: 60_000,
+  });
+  const activeTenantId =
+    tenantsQ.data?.tenants?.find((t: any) => t.is_active)?.id ?? null;
 
   const cfgQ = useQuery({
-    queryKey: ["business-config"],
+    queryKey: ["business-config", activeTenantId],
     queryFn: () => getCfg(),
+    enabled: !!activeTenantId,
   });
   const catQ = useQuery({
-    queryKey: ["product-catalog"],
+    queryKey: ["product-catalog", activeTenantId],
     queryFn: () => listCat(),
+    enabled: !!activeTenantId,
   });
+
 
   const [bizTypes, setBizTypes] = React.useState<string[]>([]);
   const [threshold, setThreshold] = React.useState<number>(5_000_000);
