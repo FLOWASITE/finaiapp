@@ -51,6 +51,7 @@ function ItemMappingsPage() {
   const [debounced, setDebounced] = React.useState("");
   const [supplierId, setSupplierId] = React.useState<string>("__all__");
   const [tab, setTab] = React.useState("rules");
+  const [bulkOpen, setBulkOpen] = React.useState(false);
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
