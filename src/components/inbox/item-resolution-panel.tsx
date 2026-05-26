@@ -400,3 +400,86 @@ function NewProductForm(props: {
     </div>
   );
 }
+
+type ReviewCandidate = {
+  product_id: string;
+  code: string;
+  name: string;
+  unit?: string | null;
+  score: number;
+};
+
+function ReviewCandidates(props: {
+  rawName: string;
+  rawUnit: string | null;
+  candidates: ReviewCandidate[];
+  isPending: boolean;
+  onConfirm: (c: ReviewCandidate, factor: number) => void;
+  onCreateNew: () => void;
+}) {
+  const [factor, setFactor] = useState("1");
+  const anyDiff = props.candidates.some(
+    (c) => props.rawUnit && c.unit && c.unit.trim().toLowerCase() !== props.rawUnit.trim().toLowerCase(),
+  );
+
+  const handleClick = (c: ReviewCandidate) => {
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) {
+      toast.error("Hệ số quy đổi phải > 0");
+      return;
+    }
+    props.onConfirm(c, f);
+  };
+
+  return (
+    <div className="mt-1 space-y-1">
+      <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+        <AlertCircle className="h-3 w-3" />
+        Fin gợi ý — chọn 1:
+      </div>
+      {anyDiff && (
+        <div className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px]">
+          <Label className="text-[10px] text-amber-700 dark:text-amber-300">
+            Quy đổi: 1 {props.rawUnit} =
+          </Label>
+          <Input
+            type="number"
+            min="0"
+            step="any"
+            value={factor}
+            onChange={(e) => setFactor(e.target.value)}
+            className="h-6 w-16 text-xs font-mono"
+          />
+          <span className="text-[10px] text-muted-foreground">ĐVT chuẩn</span>
+        </div>
+      )}
+      {props.candidates.map((c) => (
+        <button
+          key={c.product_id}
+          type="button"
+          disabled={props.isPending}
+          onClick={() => handleClick(c)}
+          className={cn(
+            "flex w-full items-center gap-1.5 rounded border border-border/60 bg-muted/30 px-2 py-1 text-left text-[11px] transition-colors hover:bg-muted",
+          )}
+        >
+          <span className="font-mono text-foreground">{c.code}</span>
+          <span className="truncate text-foreground/80">{c.name}</span>
+          {c.unit && (
+            <span className="shrink-0 text-[10px] text-muted-foreground">({c.unit})</span>
+          )}
+          <span className="ml-auto shrink-0 font-mono text-muted-foreground">
+            {Math.round(c.score * 100)}%
+          </span>
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={props.onCreateNew}
+        className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+      >
+        Không khớp — tạo mã mới
+      </button>
+    </div>
+  );
+}
