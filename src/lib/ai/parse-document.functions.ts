@@ -280,6 +280,8 @@ function parsedXmlToPurchaseInvoice(parsed: ReturnType<typeof parseEinvoiceXml>)
   return {
     vendor_name: parsed.seller.name || null,
     vendor_tax_id: parsed.seller.tax_id || null,
+    buyer_name: parsed.buyer?.name || null,
+    buyer_tax_id: parsed.buyer?.tax_id || null,
     invoice_no: parsed.invoice_no || null,
     issue_date: parsed.issue_date,
     currency: parsed.currency || "VND",
