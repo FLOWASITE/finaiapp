@@ -12,6 +12,8 @@ import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
 import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
+import { UploadQueueProvider } from "@/lib/upload-queue";
+import { UploadDock } from "@/components/upload-dock";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
