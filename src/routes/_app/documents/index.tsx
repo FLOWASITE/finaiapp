@@ -206,7 +206,8 @@ const SOURCE_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(SOURCE_META).map(([k, v]) => [k, v.label]),
 );
 
-const UPLOAD_KINDS: Array<{ value: string; label: string }> = [
+const UPLOAD_KINDS: Array<{ value: string; label: string; hint?: string }> = [
+  { value: "auto", label: "Tự xác định", hint: "Fin sẽ tự nhận diện loại tài liệu" },
   { value: "purchase_invoice", label: "Hoá đơn mua" },
   { value: "sales_invoice", label: "Hoá đơn bán" },
   { value: "einvoice", label: "Hoá đơn điện tử" },
