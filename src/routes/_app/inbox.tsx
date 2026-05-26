@@ -276,10 +276,21 @@ function InboxAiPage() {
   const [filterPosted, setFilterPosted] = useState<"all" | "posted" | "open">("all");
   const [filterKind, setFilterKind] = useState<"all" | "sales" | "purchase">("all");
   const [filterQ, setFilterQ] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "amount" | "confidence">("recent");
+
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const q = filterQ.trim().toLowerCase();
-    return items.filter((it) => {
+    const arr = items.filter((it) => {
       if (filterPosted === "posted" && it.processing_status !== "posted") return false;
       if (filterPosted === "open" && it.processing_status === "posted") return false;
       if (filterKind !== "all") {
@@ -298,9 +309,28 @@ function InboxAiPage() {
       }
       return true;
     });
-  }, [items, filterPosted, filterKind, filterQ]);
+    const sorted = [...arr];
+    if (sortBy === "amount") {
+      sorted.sort((a, b) => Math.abs(b.amount || 0) - Math.abs(a.amount || 0));
+    } else if (sortBy === "confidence") {
+      sorted.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    } else {
+      sorted.sort(
+        (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+      );
+    }
+    return sorted;
+  }, [items, filterPosted, filterKind, filterQ, sortBy]);
 
   const activeId = sheetItem?.id ?? null;
+
+  // Desktop: auto-select first item when none selected
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (!sheetItem && filteredItems.length > 0) {
+      setSheetItem(filteredItems[0]);
+    }
+  }, [isDesktop, filteredItems, sheetItem]);
 
 
 
