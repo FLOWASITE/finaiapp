@@ -4636,6 +4636,82 @@ export type Database = {
           },
         ]
       }
+      item_resolution_log: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_line_id: string | null
+          method: string
+          price: number | null
+          qty: number | null
+          raw_name: string
+          raw_unit: string | null
+          resolved_product_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          score: number | null
+          signals: Json
+          supplier_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_line_id?: string | null
+          method: string
+          price?: number | null
+          qty?: number | null
+          raw_name: string
+          raw_unit?: string | null
+          resolved_product_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score?: number | null
+          signals?: Json
+          supplier_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_line_id?: string | null
+          method?: string
+          price?: number | null
+          qty?: number | null
+          raw_name?: string
+          raw_unit?: string | null
+          resolved_product_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score?: number | null
+          signals?: Json
+          supplier_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_resolution_log_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_resolution_log_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_resolution_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           branch_id: string | null
@@ -5993,6 +6069,7 @@ export type Database = {
       }
       products: {
         Row: {
+          aliases: string[]
           barcode: string | null
           can_be_purchased: boolean
           can_be_sold: boolean
@@ -6019,6 +6096,7 @@ export type Database = {
           vat_rate: number
         }
         Insert: {
+          aliases?: string[]
           barcode?: string | null
           can_be_purchased?: boolean
           can_be_sold?: boolean
@@ -6045,6 +6123,7 @@ export type Database = {
           vat_rate?: number
         }
         Update: {
+          aliases?: string[]
           barcode?: string | null
           can_be_purchased?: boolean
           can_be_sold?: boolean
@@ -8111,6 +8190,85 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "supplier_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_item_mappings: {
+        Row: {
+          confidence: number
+          created_at: string
+          created_by: string | null
+          id: string
+          last_seen: string
+          match_count: number
+          product_id: string
+          raw_name: string
+          raw_name_norm: string
+          raw_unit: string | null
+          reasoning: string | null
+          source: string
+          supplier_id: string
+          tenant_id: string
+          unit_conversion_factor: number
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_seen?: string
+          match_count?: number
+          product_id: string
+          raw_name: string
+          raw_name_norm: string
+          raw_unit?: string | null
+          reasoning?: string | null
+          source?: string
+          supplier_id: string
+          tenant_id: string
+          unit_conversion_factor?: number
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_seen?: string
+          match_count?: number
+          product_id?: string
+          raw_name?: string
+          raw_name_norm?: string
+          raw_unit?: string | null
+          reasoning?: string | null
+          source?: string
+          supplier_id?: string
+          tenant_id?: string
+          unit_conversion_factor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_item_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_item_mappings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_item_mappings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

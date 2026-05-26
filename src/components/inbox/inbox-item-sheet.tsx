@@ -41,6 +41,7 @@ import {
 import { getDocument } from "@/lib/documents.functions";
 import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
+import { ItemResolutionPanel } from "@/components/inbox/item-resolution-panel";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -313,6 +314,13 @@ export function InboxItemSheet({
 
               {/* Items (goods / services) */}
               <ProposalItemsList items={item.proposal.items} />
+
+              {/* Khớp mặt hàng với mã hệ thống */}
+              <ItemResolutionPanel
+                items={item.proposal.items}
+                meta={item.proposal.meta}
+                tenantId="active"
+              />
 
 
 
