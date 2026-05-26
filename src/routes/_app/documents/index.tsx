@@ -17,6 +17,7 @@ import {
   listSalesDocuments,
 } from "@/lib/documents.functions";
 import { useUploadQueue } from "@/lib/upload-queue";
+import { TablePagination } from "@/components/table-pagination";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,7 +110,7 @@ import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { CategorizeTab } from "@/components/categorize/CategorizeTab";
 
-const TAB_VALUES = ["all", "purchase", "sales", "bank"] as const;
+const TAB_VALUES = ["purchase", "sales", "bank"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 const SearchSchema = z.object({
@@ -131,11 +132,6 @@ const TAB_PRESETS: Record<TabValue, {
   legacyLabel?: string;
   description: string;
 }> = {
-  all: {
-    label: "Tất cả",
-    kinds: null,
-    description: "Mọi tài liệu — sao kê, hoá đơn, chứng từ từ mọi nguồn.",
-  },
   purchase: {
     label: "Hoá đơn mua",
     kinds: ["purchase_invoice"],
@@ -240,7 +236,7 @@ function DocumentsPage() {
   const search = useSearch({ from: "/_app/documents/" });
   const navigate = useNavigate();
 
-  const currentTab: TabValue = search.tab ?? "all";
+  const currentTab: TabValue = (search.tab as TabValue) ?? "purchase";
   const tabMeta = TAB_PRESETS[currentTab];
 
   const [searchText, setSearchText] = useState("");
@@ -369,7 +365,7 @@ function DocumentsPage() {
   const setTab = (t: TabValue) => {
     navigate({
       to: "/documents",
-      search: (s: any) => ({ ...s, tab: t === "all" ? undefined : t }),
+      search: (s: any) => ({ ...s, tab: t === "purchase" ? undefined : t }),
     });
   };
 
@@ -1469,10 +1465,13 @@ function PurchaseInvoicesTable({
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  // reset page when filters change
+  useEffect(() => { setPage(1); }, [filters]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["purchase-documents", filters, limit],
+    queryKey: ["purchase-documents", filters, page, pageSize],
     queryFn: () =>
       listFn({
         data: {
@@ -1485,12 +1484,13 @@ function PurchaseInvoicesTable({
           supplier_search: filters.supplier_search,
           issue_from_date: filters.issue_from_date,
           issue_to_date: filters.issue_to_date,
-          limit,
-          offset: 0,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
         },
       }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
@@ -1500,7 +1500,7 @@ function PurchaseInvoicesTable({
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const canLoadMore = rows.length < total;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const sumSub = rows.reduce((s: number, r: any) => s + Number(r.invoice?.subtotal ?? 0), 0);
   const sumVat = rows.reduce((s: number, r: any) => s + Number(r.invoice?.vat_amount ?? 0), 0);
@@ -1734,16 +1734,15 @@ function PurchaseInvoicesTable({
           </TableBody>
         </Table>
       </div>
-      {rows.length > 0 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Hiển thị {rows.length}/{total} hoá đơn</span>
-          {canLoadMore && (
-            <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-              Tải thêm
-            </Button>
-          )}
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        total={total}
+        setPage={setPage}
+        setPageSize={(n) => { setPageSize(n); setPage(1); }}
+      />
+
       <InvoiceViewerDialog
         docId={viewerRow?.doc?.id ?? null}
         invoiceInfo={
@@ -1817,10 +1816,12 @@ function SalesInvoicesTable({
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  useEffect(() => { setPage(1); }, [filters]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sales-documents", filters, limit],
+    queryKey: ["sales-documents", filters, page, pageSize],
     queryFn: () =>
       listFn({
         data: {
@@ -1833,12 +1834,13 @@ function SalesInvoicesTable({
           customer_search: filters.customer_search,
           issue_from_date: filters.issue_from_date,
           issue_to_date: filters.issue_to_date,
-          limit,
-          offset: 0,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
         },
       }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
@@ -1848,7 +1850,7 @@ function SalesInvoicesTable({
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const canLoadMore = rows.length < total;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const sumSub = rows.reduce((s: number, r: any) => s + Number(r.invoice?.subtotal ?? 0), 0);
   const sumVat = rows.reduce((s: number, r: any) => s + Number(r.invoice?.vat_amount ?? 0), 0);
@@ -2087,16 +2089,15 @@ function SalesInvoicesTable({
           </TableBody>
         </Table>
       </div>
-      {rows.length > 0 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Hiển thị {rows.length}/{total} hoá đơn</span>
-          {canLoadMore && (
-            <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-              Tải thêm
-            </Button>
-          )}
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        total={total}
+        setPage={setPage}
+        setPageSize={(n) => { setPageSize(n); setPage(1); }}
+      />
+
       <InvoiceViewerDialog
         docId={viewerRow?.doc?.id ?? null}
         invoiceInfo={
