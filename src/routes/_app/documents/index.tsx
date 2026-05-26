@@ -1816,10 +1816,12 @@ function SalesInvoicesTable({
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  useEffect(() => { setPage(1); }, [filters]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sales-documents", filters, limit],
+    queryKey: ["sales-documents", filters, page, pageSize],
     queryFn: () =>
       listFn({
         data: {
@@ -1832,12 +1834,13 @@ function SalesInvoicesTable({
           customer_search: filters.customer_search,
           issue_from_date: filters.issue_from_date,
           issue_to_date: filters.issue_to_date,
-          limit,
-          offset: 0,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
         },
       }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
+
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) =>
