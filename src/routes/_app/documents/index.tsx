@@ -97,7 +97,14 @@ import {
   X,
   ChevronRight,
   FileSearch,
+  CloudUpload,
+  FileImage,
+  File as FileIcon,
+  CheckCircle2,
+  XCircle,
+  Plus,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
