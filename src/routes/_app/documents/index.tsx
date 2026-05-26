@@ -364,7 +364,7 @@ function DocumentsPage() {
   const setTab = (t: TabValue) => {
     navigate({
       to: "/documents",
-      search: (s: any) => ({ ...s, tab: t === "all" ? undefined : t }),
+      search: (s: any) => ({ ...s, tab: t === "purchase" ? undefined : t }),
     });
   };
 
