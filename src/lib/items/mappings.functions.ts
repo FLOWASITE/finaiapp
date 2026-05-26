@@ -127,8 +127,7 @@ export const listSupplierItemMappings = createServerFn({ method: "POST" })
       .from("supplier_item_mappings")
       .select(
         "id, supplier_id, raw_name, raw_unit, product_id, unit_conversion_factor, confidence, match_count, last_seen, source, created_at, " +
-          "suppliers:suppliers!supplier_item_mappings_supplier_id_fkey(name), " +
-          "products:products!supplier_item_mappings_product_id_fkey(code, name, unit)",
+          "suppliers!supplier_id(name), products!product_id(code, name, unit)",
       )
       .eq("tenant_id", tenantId)
       .order("match_count", { ascending: false })
