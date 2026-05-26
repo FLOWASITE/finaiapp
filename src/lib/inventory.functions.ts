@@ -503,7 +503,15 @@ export const getMovement = createServerFn({ method: "POST" })
 export const inventoryDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) {
+      return {
+        total_value: 0, sku_count: 0, goods_count: 0, service_count: 0,
+        low_stock_count: 0, movements_30d: 0, in_value_30d: 0, out_value_30d: 0,
+        low_stock_items: [], top_value_items: [],
+      };
+    }
     const today = new Date();
     const d30 = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10);
 
@@ -511,10 +519,12 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
       supabase
         .from("products")
         .select("id, code, name, unit, item_type, on_hand, unit_cost, min_stock, is_active")
+        .eq("tenant_id", tenantId)
         .eq("is_active", true),
       supabase
         .from("stock_movements")
         .select("movement_type, qty, unit_cost")
+        .eq("tenant_id", tenantId)
         .gte("movement_date", d30),
     ]);
 
