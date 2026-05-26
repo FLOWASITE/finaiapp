@@ -511,12 +511,13 @@ export const uploadDocument = createServerFn({ method: "POST" })
       .upload(path, buf, { contentType: data.mimeType, upsert: false });
     if (upErr) throw new Error(upErr.message);
 
+    const isAuto = data.doc_kind === "auto";
     const { data: row, error: insErr } = await supabase
       .from("documents")
       .insert({
         tenant_id: tenantId,
         user_id: userId,
-        doc_kind: data.doc_kind,
+        doc_kind: isAuto ? "other" : data.doc_kind,
         source: "manual",
         storage_bucket: "invoices",
         storage_path: path,
@@ -538,7 +539,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
       bank_statement: "bank_statement",
       cash_voucher: "cash_voucher",
     };
-    const kind = kindMap[data.doc_kind] ?? "auto";
+    const kind = isAuto ? "auto" : (kindMap[data.doc_kind] ?? "auto");
 
     await supabase.from("documents").update({ ocr_status: "processing" }).eq("id", docId);
 
