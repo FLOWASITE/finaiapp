@@ -24,6 +24,7 @@ import {
   suggestVoucherNo,
   listLinkablePurchaseInvoices,
   recordPurchaseVoucherPayment,
+  stickStockVoucher,
 } from "@/lib/purchase-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
 import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
@@ -982,6 +983,7 @@ function CreateVoucherDialog({
   const updateFn = useServerFn(updatePurchaseVoucher);
   const getFn = useServerFn(getPurchaseVoucher);
   const postFn = useServerFn(postPurchaseVoucher);
+  const stickFn = useServerFn(stickStockVoucher);
   const suggestNoFn = useServerFn(suggestVoucherNo);
   const linkInvFn = useServerFn(listLinkablePurchaseInvoices);
   const suppliersFn = useServerFn(listSuppliers);
@@ -1307,17 +1309,31 @@ function CreateVoucherDialog({
             line_type: l.line_type,
           })),
       };
+      const vid = editId ?? (await createFn({ data: payload })).id;
       if (editId) {
         await updateFn({ data: { id: editId, ...payload } });
-        return { id: editId };
       }
-      const created = await createFn({ data: payload });
       try {
-        await postFn({ data: { id: created.id } });
+        await postFn({ data: { id: vid } });
       } catch (e: any) {
-        toast.error(e?.message || "Đã lưu nháp nhưng ghi sổ thất bại");
+        const msg = String(e?.message || "");
+        if (!/đã ghi sổ/i.test(msg)) {
+          toast.error(msg || "Đã lưu nháp nhưng ghi sổ thất bại");
+        }
       }
-      return created;
+      // Fallback: nếu tick Nhập kho mà post chưa sinh phiếu kho, gọi stickStockVoucher.
+      if (header.create_stock_voucher && header.warehouse_id) {
+        try {
+          await stickFn({ data: { id: vid, warehouseId: header.warehouse_id } });
+        } catch (e: any) {
+          const msg = String(e?.message || "");
+          // Bỏ qua nếu phiếu đã có phiếu nhập kho (post đã tạo thành công).
+          if (!/đã có phiếu nhập kho/i.test(msg)) {
+            toast.error(msg || "Không tạo được phiếu nhập kho");
+          }
+        }
+      }
+      return { id: vid };
     },
     onSuccess: () => {
       toast.success(editId ? "Đã cập nhật phiếu" : "Đã lưu và ghi sổ");
