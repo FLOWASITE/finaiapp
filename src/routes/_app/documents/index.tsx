@@ -1734,16 +1734,15 @@ function PurchaseInvoicesTable({
           </TableBody>
         </Table>
       </div>
-      {rows.length > 0 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Hiển thị {rows.length}/{total} hoá đơn</span>
-          {canLoadMore && (
-            <Button variant="outline" size="sm" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-              Tải thêm
-            </Button>
-          )}
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        total={total}
+        setPage={setPage}
+        setPageSize={(n) => { setPageSize(n); setPage(1); }}
+      />
+
       <InvoiceViewerDialog
         docId={viewerRow?.doc?.id ?? null}
         invoiceInfo={
