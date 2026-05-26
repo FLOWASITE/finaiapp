@@ -1127,6 +1127,8 @@ function FilterBar({
   onKind,
   q,
   onQ,
+  sortBy,
+  onSortBy,
   total,
   shown,
 }: {
@@ -1136,6 +1138,8 @@ function FilterBar({
   onKind: (v: "all" | "sales" | "purchase") => void;
   q: string;
   onQ: (v: string) => void;
+  sortBy: "recent" | "amount" | "confidence";
+  onSortBy: (v: "recent" | "amount" | "confidence") => void;
   total: number;
   shown: number;
 }) {
@@ -1149,7 +1153,7 @@ function FilterBar({
       type="button"
       onClick={() => props.onClick(props.value)}
       className={cn(
-        "rounded-md px-2.5 py-1 text-[11px] font-medium transition",
+        "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
         props.current === props.value
           ? "bg-foreground text-background shadow-sm"
           : "text-muted-foreground hover:text-foreground",
@@ -1159,16 +1163,21 @@ function FilterBar({
     </button>
   );
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-card/50 px-2.5 py-2 backdrop-blur">
-      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+    <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
         <Seg value="all" current={posted} onClick={onPosted} label="Tất cả" />
         <Seg value="posted" current={posted} onClick={onPosted} label="Đã ghi sổ" />
         <Seg value="open" current={posted} onClick={onPosted} label="Chưa ghi" />
       </div>
-      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
         <Seg value="all" current={kind} onClick={onKind} label="Mọi loại" />
         <Seg value="sales" current={kind} onClick={onKind} label="Bán" />
         <Seg value="purchase" current={kind} onClick={onKind} label="Mua" />
+      </div>
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
+        <Seg value="recent" current={sortBy} onClick={onSortBy} label="Mới nhất" />
+        <Seg value="amount" current={sortBy} onClick={onSortBy} label="Số tiền" />
+        <Seg value="confidence" current={sortBy} onClick={onSortBy} label="Tin cậy" />
       </div>
       <div className="ml-auto flex items-center gap-2">
         <input
@@ -1180,6 +1189,62 @@ function FilterBar({
         <span className="text-[11px] tabular-nums text-muted-foreground">
           {shown}/{total}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function InboxInvoicePane({ item }: { item: InboxItem }) {
+  const isDoc = item.source === "document";
+  const getDocumentFn = useServerFn(getDocument);
+  const q = useQuery({
+    queryKey: ["inbox-doc-viewer", item.external_id],
+    queryFn: () => getDocumentFn({ data: { id: item.external_id } }),
+    enabled: isDoc,
+    staleTime: 60_000,
+  });
+
+  if (!isDoc) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <EmptyState
+          mood="thinking"
+          title="Không có file đính kèm"
+          description="Mục này đến từ sao kê hoặc cảnh báo AI — không có file để xem."
+          bordered={false}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          <FileText className="h-3.5 w-3.5" />
+          {item.proposal.voucher_kind === "sales_invoice" ? "Hoá đơn ra" : "Hoá đơn mua"}
+        </div>
+        <span className="truncate text-[11px] text-muted-foreground">
+          {q.data?.doc?.original_filename ?? ""}
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        {q.isLoading ? (
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : q.isError ? (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
+            Không tải được hoá đơn: {(q.error as any)?.message ?? "lỗi không xác định"}
+          </div>
+        ) : (
+          <InvoiceFileViewer
+            einvoice={(q.data?.doc?.ocr_extracted as any)?._einvoice ?? null}
+            signedUrl={q.data?.signedUrl ?? null}
+            mimeType={q.data?.doc?.mime_type ?? null}
+            filename={q.data?.doc?.original_filename ?? null}
+          />
+        )}
       </div>
     </div>
   );
