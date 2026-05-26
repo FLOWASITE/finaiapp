@@ -221,14 +221,14 @@ export const updateMappingProduct = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, tenantId } = context;
-    const patch: Record<string, any> = {
+    const patch = {
       product_id: data.product_id,
       source: "user_confirm",
       last_seen: new Date().toISOString(),
+      ...(data.unit_conversion_factor != null
+        ? { unit_conversion_factor: data.unit_conversion_factor }
+        : {}),
     };
-    if (data.unit_conversion_factor != null) {
-      patch.unit_conversion_factor = data.unit_conversion_factor;
-    }
     const { error } = await supabase
       .from("supplier_item_mappings")
       .update(patch)
