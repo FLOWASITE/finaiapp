@@ -204,7 +204,50 @@ export function adaptDbToGraph(input: GraphDbData): AdaptedGraphInput {
     });
   }
 
+  // --- Items (confirmed product mappings from supplier_item_mappings) ---
+  // These are richer than ai_line_classifications: they point to actual products,
+  // so we use product code as item id to avoid duplication.
+  function kindFromStockAccount(acc: string | null | undefined, itemType: string | null | undefined): ItemEntity["kind"] {
+    if (itemType === "service") return "service";
+    if (acc === "211" || acc === "213") return "fixed_asset";
+    if (acc === "153") return "ccdc";
+    return "goods";
+  }
+  for (const m of input.itemMappings ?? []) {
+    if (!m.product_id || !m.product_code) continue;
+    const key = `prod:${m.product_id}`;
+    const kind = kindFromStockAccount(m.stock_account, m.item_type);
+    const account = m.stock_account ?? "156";
+    accountSet.add(account);
+    let it = itemsMap.get(key);
+    if (!it) {
+      it = {
+        id: key,
+        name: `${m.product_code} — ${m.product_name}`,
+        kind,
+        hitCount: 0,
+        defaultAccount: account,
+      };
+      itemsMap.set(key, it);
+    }
+    it.hitCount += m.match_count ?? 1;
+    itemLinks.push({
+      vendorId: m.supplier_id,
+      itemId: key,
+      account,
+      hits: m.match_count ?? 1,
+      label: m.product_code,
+    });
+  }
+
   const items = Array.from(itemsMap.values());
+
+  // Re-derive accounts list in case stock_account introduced new ones
+  for (const code of accountSet) {
+    if (!accounts.find((a) => a.code === code)) {
+      accounts.push({ id: `a-${code}`, code, name: accountName(code) });
+    }
+  }
 
   // Extra edges: partner-default (vendor→account), and item routing (vendor→item, item→account)
   const extraEdges: ExtraEdge[] = [];

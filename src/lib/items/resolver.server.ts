@@ -1,7 +1,8 @@
 // Server-only resolver: maps a vendor invoice line → master product code.
-// 4-layer architecture: cache → multi-signal fuzzy → (LLM, off by default) → human.
+// 4-layer architecture: cache → multi-signal fuzzy (+ semantic boost) → (LLM, off by default) → human.
 
 import { normalizeName, textSim } from "./normalize";
+import { semanticSearchProducts } from "./embeddings.server";
 
 export type ResolveInput = {
   rawName: string;
@@ -160,12 +161,37 @@ export async function resolveVendorLine(
     }
   }
 
+  // ---- Layer 2.5: semantic search via pgvector (best-effort, no-op if no key) ----
+  try {
+    const semantic = await semanticSearchProducts(supabase, input.tenantId, rawNorm, 5);
+    const semanticIds = new Set(semantic.map((s) => s.product_id));
+    const knownIds = new Set(candidateProducts.map((p) => p.id));
+    const missing = [...semanticIds].filter((id) => !knownIds.has(id));
+    if (missing.length > 0) {
+      const { data: extras } = await supabase
+        .from("products")
+        .select("id, code, name, unit, item_type, stock_account, expense_account, unit_cost, aliases")
+        .eq("tenant_id", input.tenantId)
+        .in("id", missing);
+      if (extras) candidateProducts.push(...extras);
+    }
+    // Stash similarity for use in scoring (boosts text signal a bit).
+    (candidateProducts as any).__semantic = new Map(
+      semantic.map((s) => [s.product_id, s.similarity]),
+    );
+  } catch {
+    // Vector layer is enrichment; never block the resolve.
+  }
+
+
+  const semanticMap: Map<string, number> = (candidateProducts as any).__semantic ?? new Map();
   const scored: Candidate[] = candidateProducts.map((p) => {
     const aliasBest = (p.aliases ?? []).reduce(
       (m: number, al: string) => Math.max(m, textSim(rawNorm, al)),
       0,
     );
-    const text = Math.max(textSim(rawNorm, p.name), aliasBest);
+    const sem = semanticMap.get(p.id) ?? 0;
+    const text = Math.max(textSim(rawNorm, p.name), aliasBest, sem * 0.95);
     const unit = isCompatibleUnit(input.rawUnit, p.unit);
     const price = priceScore(input.price ?? null, Number(p.unit_cost ?? 0));
     const history = historyIds.has(p.id) ? 1 : 0;

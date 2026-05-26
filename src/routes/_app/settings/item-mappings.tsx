@@ -21,9 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { ProductPicker } from "@/components/items/product-picker";
+import { BulkImportMappingsDialog } from "@/components/items/bulk-import-dialog";
 
 export const Route = createFileRoute("/_app/settings/item-mappings")({
   component: ItemMappingsPage,
@@ -50,6 +51,7 @@ function ItemMappingsPage() {
   const [debounced, setDebounced] = React.useState("");
   const [supplierId, setSupplierId] = React.useState<string>("__all__");
   const [tab, setTab] = React.useState("rules");
+  const [bulkOpen, setBulkOpen] = React.useState(false);
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
@@ -127,14 +129,21 @@ function ItemMappingsPage() {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Brain className="h-5 w-5" />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-semibold">Trí nhớ mặt hàng theo NCC</h1>
           <p className="text-sm text-muted-foreground">
             Mỗi dòng là một rule: khi NCC này ghi tên này, Fin tự khớp về mã hệ thống tương ứng.
             Bạn có thể chỉnh hoặc xoá nếu sai.
           </p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+          <Upload className="h-3.5 w-3.5 mr-1" />
+          Nhập từ CSV
+        </Button>
       </div>
+
+      <BulkImportMappingsDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

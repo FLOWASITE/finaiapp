@@ -311,3 +311,131 @@ export const listMappingConflicts = createServerFn({ method: "POST" })
     );
     return { conflicts: conflicts.slice(0, data.limit) };
   });
+
+/**
+ * Bulk import vendor→product mapping rules from CSV/paste.
+ * Each row: supplier (name or tax_id), product (code), raw_name, [raw_unit], [factor].
+ * Skips rows where supplier or product can't be resolved and reports them back.
+ */
+const BulkRowInput = z.object({
+  supplier_ref: z.string().min(1).max(200), // name OR tax_id
+  product_code: z.string().min(1).max(64),
+  raw_name: z.string().min(1).max(500),
+  raw_unit: z.string().max(64).optional().nullable(),
+  unit_conversion_factor: z.number().positive().optional(),
+});
+
+export const bulkImportMappings = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ rows: z.array(BulkRowInput).min(1).max(1000) }).parse(i),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId, userId } = context;
+
+    // Pre-load tenant suppliers + products to resolve refs locally.
+    const [{ data: suppliers }, { data: products }] = await Promise.all([
+      supabase
+        .from("suppliers")
+        .select("id, name, tax_id")
+        .eq("tenant_id", tenantId)
+        .limit(5000),
+      supabase
+        .from("products")
+        .select("id, code")
+        .eq("tenant_id", tenantId)
+        .limit(5000),
+    ]);
+
+    const supByTax = new Map<string, string>();
+    const supByName = new Map<string, string>();
+    for (const s of (suppliers ?? []) as any[]) {
+      if (s.tax_id) supByTax.set(String(s.tax_id).trim(), s.id);
+      if (s.name) supByName.set(normalizeName(s.name), s.id);
+    }
+    const prodByCode = new Map<string, string>();
+    for (const p of (products ?? []) as any[]) {
+      if (p.code) prodByCode.set(String(p.code).trim().toLowerCase(), p.id);
+    }
+
+    const errors: Array<{ row: number; reason: string }> = [];
+    const inserts: any[] = [];
+    let inserted = 0;
+    let updated = 0;
+
+    for (let i = 0; i < data.rows.length; i++) {
+      const r = data.rows[i];
+      const refTrim = r.supplier_ref.trim();
+      const supplierId =
+        supByTax.get(refTrim) ?? supByName.get(normalizeName(refTrim)) ?? null;
+      if (!supplierId) {
+        errors.push({ row: i + 1, reason: `Không tìm thấy NCC "${r.supplier_ref}"` });
+        continue;
+      }
+      const productId = prodByCode.get(r.product_code.trim().toLowerCase()) ?? null;
+      if (!productId) {
+        errors.push({ row: i + 1, reason: `Không tìm thấy mã hệ thống "${r.product_code}"` });
+        continue;
+      }
+      const raw_name_norm = normalizeName(r.raw_name);
+      if (!raw_name_norm) {
+        errors.push({ row: i + 1, reason: "raw_name rỗng" });
+        continue;
+      }
+
+      // Upsert: check existence
+      const { data: existing } = await supabase
+        .from("supplier_item_mappings")
+        .select("id, match_count")
+        .eq("tenant_id", tenantId)
+        .eq("supplier_id", supplierId)
+        .eq("raw_name_norm", raw_name_norm)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("supplier_item_mappings")
+          .update({
+            product_id: productId,
+            raw_unit: r.raw_unit ?? null,
+            unit_conversion_factor: r.unit_conversion_factor ?? 1,
+            confidence: 0.98,
+            source: "imported",
+            last_seen: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (error) errors.push({ row: i + 1, reason: error.message });
+        else updated++;
+      } else {
+        inserts.push({
+          tenant_id: tenantId,
+          supplier_id: supplierId,
+          product_id: productId,
+          raw_name: r.raw_name,
+          raw_name_norm,
+          raw_unit: r.raw_unit ?? null,
+          unit_conversion_factor: r.unit_conversion_factor ?? 1,
+          confidence: 0.98,
+          match_count: 1,
+          source: "imported",
+          created_by: userId,
+        });
+      }
+    }
+
+    if (inserts.length > 0) {
+      const { error } = await supabase.from("supplier_item_mappings").insert(inserts);
+      if (error) {
+        errors.push({ row: 0, reason: `Insert lỗi: ${error.message}` });
+      } else {
+        inserted = inserts.length;
+      }
+    }
+
+    return {
+      inserted,
+      updated,
+      errors,
+      total: data.rows.length,
+    };
+  });
