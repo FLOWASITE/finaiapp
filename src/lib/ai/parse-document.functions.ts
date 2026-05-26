@@ -995,6 +995,8 @@ async function enrichInvoiceWithItemResolution(
             qty: l?.qty ?? null,
             price: l?.unit_price ?? null,
           });
+          const factor = res.method === "cache" ? Number(res.best?.cached?.unit_factor ?? 1) : 1;
+          const applyFactor = res.status === "auto" && factor && factor !== 1;
           const _resolution = {
             status: res.status,
             method: res.method,
@@ -1006,7 +1008,11 @@ async function enrichInvoiceWithItemResolution(
                   unit: res.best.unit,
                   score: res.best.score,
                   match_count: res.best.cached?.match_count ?? null,
+                  unit_factor: res.best.cached?.unit_factor ?? null,
                 }
+              : null,
+            unit_converted: applyFactor
+              ? { factor, from: l?.unit ?? null, to: res.best!.unit }
               : null,
             candidates: res.candidates.slice(0, 3).map((c: any) => ({
               product_id: c.product_id,
@@ -1016,8 +1022,13 @@ async function enrichInvoiceWithItemResolution(
               score: c.score,
             })),
           };
+          const qtyOut = applyFactor && l?.qty != null ? Number(l.qty) * factor : l?.qty;
+          const priceOut = applyFactor && l?.unit_price != null ? Number(l.unit_price) / factor : l?.unit_price;
           return {
             ...l,
+            qty: qtyOut,
+            unit_price: priceOut,
+            unit: applyFactor ? res.best!.unit : l?.unit,
             _resolution,
             product_id: res.status === "auto" && res.best ? res.best.product_id : (l.product_id ?? null),
           };
