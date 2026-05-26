@@ -12,11 +12,11 @@ import {
   getDocument,
   deleteDocument,
   unlinkDocument,
-  uploadDocument,
   reparseDocument,
   listPurchaseDocuments,
   listSalesDocuments,
 } from "@/lib/documents.functions";
+import { useUploadQueue } from "@/lib/upload-queue";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -796,20 +796,18 @@ function UploadDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const upload = useServerFn(uploadDocument);
-  const qc = useQueryClient();
+  const { enqueue } = useUploadQueue();
   const [items, setItems] = useState<FileItem[]>([]);
   const [docKind, setDocKind] = useState("auto");
   const [notes, setNotes] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
+  const uploading = false; // legacy flag preserved for child JSX below
 
   const reset = () => {
     setItems([]);
     setNotes("");
-    setUploading(false);
     setDragOver(false);
   };
 
@@ -874,7 +872,6 @@ function UploadDialog({
         await new Promise<void>((res) => entry.file((f: File) => { out.push(f); res(); }, () => res()));
       } else if (entry.isDirectory) {
         const reader = entry.createReader();
-        // readEntries returns up to 100 entries per call — loop until empty
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const batch = await readDir(reader).catch(() => []);
@@ -909,90 +906,19 @@ function UploadDialog({
   const removeItem = (id: string) =>
     setItems((prev) => prev.filter((p) => p.id !== id));
 
-  const updateItem = (id: string, patch: Partial<FileItem>) =>
-    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-
-  const submit = async () => {
+  const submit = () => {
     const valid = items.filter((i) => i.file.size <= MAX_SIZE);
     if (valid.length === 0) return;
-    setUploading(true);
-    let okCount = 0;
-    let ocrOk = 0;
-    let ocrFail = 0;
-    let rejectedCount = 0;
-
-    for (const it of valid) {
-      updateItem(it.id, { status: "uploading" });
-      const f = it.file;
-      try {
-        const buf = await f.arrayBuffer();
-        const b64 = btoa(
-          new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ""),
-        );
-        const res: any = await upload({
-          data: {
-            fileBase64: b64,
-            filename: f.name,
-            mimeType: f.type || "application/octet-stream",
-            doc_kind: docKind as any,
-            notes: notes || undefined,
-          },
-        });
-        const isRejected = res?.ocr_status === "rejected";
-        if (isRejected) {
-          rejectedCount++;
-          updateItem(it.id, {
-            status: "rejected",
-            ocrStatus: "rejected",
-            detectedKind: res?.doc_kind,
-            tenantMatch: "reject",
-            tenantMatchReason: res?.rejection?.reason ?? "Không thuộc tổ chức",
-            message: res?.rejection?.reason ?? "Tài liệu không thuộc tổ chức đang hoạt động",
-          });
-          continue;
-        }
-        okCount++;
-        if (res?.ocr_status === "done") ocrOk++;
-        else if (res?.ocr_status === "failed") ocrFail++;
-        updateItem(it.id, {
-          status: res?.ocr_status === "failed" ? "failed" : "done",
-          ocrStatus: res?.ocr_status,
-          detectedKind: res?.doc_kind,
-          tenantMatch: res?.tenant_match,
-          tenantMatchReason: res?.tenant_match_reason,
-          message:
-            res?.ocr_status === "failed"
-              ? "OCR lỗi — có thể chạy lại ở chi tiết"
-              : res?.tenant_match === "warn"
-                ? res?.tenant_match_reason
-                : undefined,
-        });
-      } catch (e: any) {
-        updateItem(it.id, { status: "failed", message: e?.message ?? "Lỗi" });
-      }
-    }
-
-    if (okCount > 0 || rejectedCount > 0) {
-      const parts = [`Đã tải ${okCount}/${valid.length} file`];
-      if (ocrOk) parts.push(`OCR ${ocrOk} ok`);
-      if (ocrFail) parts.push(`${ocrFail} OCR lỗi`);
-      if (rejectedCount) parts.push(`${rejectedCount} bị từ chối (không thuộc tổ chức)`);
-      if (rejectedCount > 0 && okCount === 0) toast.error(parts.join(" · "));
-      else toast.success(parts.join(" · "));
-      qc.invalidateQueries({ queryKey: ["documents"] });
-      qc.invalidateQueries({ queryKey: ["sales-documents"] });
-      qc.invalidateQueries({ queryKey: ["purchase-documents"] });
-      qc.invalidateQueries({ queryKey: ["sidebar-counts"] });
-    }
-    setUploading(false);
-    // tự đóng sau 1.2s nếu mọi thứ thành công, không có rejection
-    if (ocrFail === 0 && rejectedCount === 0 && okCount === valid.length) {
-      setTimeout(() => {
-        reset();
-        onOpenChange(false);
-      }, 900);
-    }
+    enqueue({
+      files: valid.map((v) => v.file),
+      docKind,
+      notes: notes || undefined,
+    });
+    finToast.info(`Đang tải ${valid.length} file ở chế độ nền — xem góc dưới phải`);
+    reset();
+    onOpenChange(false);
   };
+
 
   const totalBytes = items.reduce((s, i) => s + i.file.size, 0);
   const validCount = items.filter((i) => i.file.size <= MAX_SIZE).length;
@@ -1237,19 +1163,11 @@ function UploadDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={uploading}>
               Huỷ
             </Button>
-            <Button onClick={submit} disabled={uploading || validCount === 0}>
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Đang tải…
-                </>
-              ) : (
-                <>
-                  <ArrowUpToLine className="h-4 w-4 mr-1.5" />
-                  Tải lên {validCount > 0 ? `${validCount} file` : ""}
-                </>
-              )}
+            <Button onClick={submit} disabled={validCount === 0}>
+              <ArrowUpToLine className="h-4 w-4 mr-1.5" />
+              Tải lên nền {validCount > 0 ? `(${validCount} file)` : ""}
             </Button>
+
           </div>
         </DialogFooter>
       </DialogContent>
