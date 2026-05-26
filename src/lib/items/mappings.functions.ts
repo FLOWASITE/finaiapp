@@ -112,6 +112,49 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const listSupplierItemMappings = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({
+      supplier_id: z.string().uuid().optional().nullable(),
+      search: z.string().max(255).optional().nullable(),
+      limit: z.number().int().min(1).max(500).default(200),
+    }).parse(i),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId } = context;
+    let q = supabase
+      .from("supplier_item_mappings")
+      .select(
+        "id, supplier_id, raw_name, raw_unit, product_id, unit_conversion_factor, confidence, match_count, last_seen, source, created_at, " +
+          "suppliers:suppliers!supplier_item_mappings_supplier_id_fkey(name), " +
+          "products:products!supplier_item_mappings_product_id_fkey(code, name, unit)",
+      )
+      .eq("tenant_id", tenantId)
+      .order("match_count", { ascending: false })
+      .order("last_seen", { ascending: false, nullsFirst: false })
+      .limit(data.limit);
+    if (data.supplier_id) q = q.eq("supplier_id", data.supplier_id);
+    if (data.search) q = q.ilike("raw_name", `%${data.search}%`);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { rows: rows ?? [] };
+  });
+
+export const deleteSupplierItemMapping = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ context, data }) => {
+    const { supabase, tenantId } = context;
+    const { error } = await supabase
+      .from("supplier_item_mappings")
+      .delete()
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 const ItemType = z.enum(["goods", "service", "combo"]);
 
 export const createProductFromRaw = createServerFn({ method: "POST" })
