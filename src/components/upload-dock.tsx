@@ -213,6 +213,7 @@ export function UploadDock() {
           <ProgressTwoLayer pctDone={overallPct} pctInflight={overallPct} />
         </div>
       )}
-    </motion.div>
+    </div>
+
   );
 }
