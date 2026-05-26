@@ -1163,19 +1163,11 @@ function UploadDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={uploading}>
               Huỷ
             </Button>
-            <Button onClick={submit} disabled={uploading || validCount === 0}>
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Đang tải…
-                </>
-              ) : (
-                <>
-                  <ArrowUpToLine className="h-4 w-4 mr-1.5" />
-                  Tải lên {validCount > 0 ? `${validCount} file` : ""}
-                </>
-              )}
+            <Button onClick={submit} disabled={validCount === 0}>
+              <ArrowUpToLine className="h-4 w-4 mr-1.5" />
+              Tải lên nền {validCount > 0 ? `(${validCount} file)` : ""}
             </Button>
+
           </div>
         </DialogFooter>
       </DialogContent>
