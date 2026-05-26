@@ -450,10 +450,13 @@ export const listMovements = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string; product_id?: string; type?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("stock_movements")
       .select("*, products(code, name, unit), warehouses(code, name)")
+      .eq("tenant_id", tenantId)
       .order("movement_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
