@@ -243,6 +243,15 @@ export const updateMappingProduct = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, tenantId } = context;
+    // Lấy bản ghi cũ để biết product_id trước → log user_override khi đổi.
+    const { data: prev } = await supabase
+      .from("supplier_item_mappings")
+      .select("id, supplier_id, product_id, raw_name, raw_unit, confidence")
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!prev) throw new Error("Không tìm thấy mapping");
+
     const patch = {
       product_id: data.product_id,
       source: "user_confirm",
@@ -257,6 +266,21 @@ export const updateMappingProduct = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("tenant_id", tenantId);
     if (error) throw new Error(error.message);
+
+    if (prev.product_id && prev.product_id !== data.product_id) {
+      await supabase.from("item_resolution_log").insert({
+        tenant_id: tenantId,
+        supplier_id: prev.supplier_id,
+        raw_name: prev.raw_name,
+        raw_unit: prev.raw_unit,
+        resolved_product_id: data.product_id,
+        method: "user_override",
+        score: 1,
+        signals: { prev_product_id: prev.product_id, prev_confidence: Number(prev.confidence ?? 0) },
+      }).then(({ error: e }: any) => {
+        if (e) console.warn("[updateMappingProduct] override log failed", e.message);
+      });
+    }
     return { ok: true };
   });
 
