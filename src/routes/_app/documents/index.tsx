@@ -843,6 +843,7 @@ function UploadDialog({
     let okCount = 0;
     let ocrOk = 0;
     let ocrFail = 0;
+    let rejectedCount = 0;
 
     for (const it of valid) {
       updateItem(it.id, { status: "uploading" });
@@ -861,6 +862,19 @@ function UploadDialog({
             notes: notes || undefined,
           },
         });
+        const isRejected = res?.ocr_status === "rejected";
+        if (isRejected) {
+          rejectedCount++;
+          updateItem(it.id, {
+            status: "rejected",
+            ocrStatus: "rejected",
+            detectedKind: res?.doc_kind,
+            tenantMatch: "reject",
+            tenantMatchReason: res?.rejection?.reason ?? "Không thuộc tổ chức",
+            message: res?.rejection?.reason ?? "Tài liệu không thuộc tổ chức đang hoạt động",
+          });
+          continue;
+        }
         okCount++;
         if (res?.ocr_status === "done") ocrOk++;
         else if (res?.ocr_status === "failed") ocrFail++;
@@ -868,28 +882,35 @@ function UploadDialog({
           status: res?.ocr_status === "failed" ? "failed" : "done",
           ocrStatus: res?.ocr_status,
           detectedKind: res?.doc_kind,
+          tenantMatch: res?.tenant_match,
+          tenantMatchReason: res?.tenant_match_reason,
           message:
             res?.ocr_status === "failed"
               ? "OCR lỗi — có thể chạy lại ở chi tiết"
-              : undefined,
+              : res?.tenant_match === "warn"
+                ? res?.tenant_match_reason
+                : undefined,
         });
       } catch (e: any) {
         updateItem(it.id, { status: "failed", message: e?.message ?? "Lỗi" });
       }
     }
 
-    if (okCount > 0) {
-      toast.success(
-        `Đã tải lên ${okCount}/${valid.length} file · OCR ${ocrOk} thành công${ocrFail ? `, ${ocrFail} lỗi` : ""}`,
-      );
+    if (okCount > 0 || rejectedCount > 0) {
+      const parts = [`Đã tải ${okCount}/${valid.length} file`];
+      if (ocrOk) parts.push(`OCR ${ocrOk} ok`);
+      if (ocrFail) parts.push(`${ocrFail} OCR lỗi`);
+      if (rejectedCount) parts.push(`${rejectedCount} bị từ chối (không thuộc tổ chức)`);
+      if (rejectedCount > 0 && okCount === 0) toast.error(parts.join(" · "));
+      else toast.success(parts.join(" · "));
       qc.invalidateQueries({ queryKey: ["documents"] });
       qc.invalidateQueries({ queryKey: ["sales-documents"] });
       qc.invalidateQueries({ queryKey: ["purchase-documents"] });
       qc.invalidateQueries({ queryKey: ["sidebar-counts"] });
     }
     setUploading(false);
-    // tự đóng sau 1.2s nếu mọi thứ thành công
-    if (ocrFail === 0 && okCount === valid.length) {
+    // tự đóng sau 1.2s nếu mọi thứ thành công, không có rejection
+    if (ocrFail === 0 && rejectedCount === 0 && okCount === valid.length) {
       setTimeout(() => {
         reset();
         onOpenChange(false);
@@ -901,7 +922,7 @@ function UploadDialog({
   const validCount = items.filter((i) => i.file.size <= MAX_SIZE).length;
   const oversizeCount = items.length - validCount;
   const doneCount = items.filter((i) => i.status === "done").length;
-  const failedCount = items.filter((i) => i.status === "failed").length;
+  const failedCount = items.filter((i) => i.status === "failed" || i.status === "rejected").length;
   const progressPct = items.length === 0 ? 0 : Math.round(((doneCount + failedCount) / items.length) * 100);
   const selectedKind = UPLOAD_KINDS.find((k) => k.value === docKind);
 
