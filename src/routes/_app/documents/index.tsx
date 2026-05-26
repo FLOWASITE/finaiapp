@@ -1050,7 +1050,7 @@ function UploadDialog({
               {items.length === 0 ? "Kéo-thả file hoặc cả thư mục vào đây" : "Thêm file / thư mục khác"}
             </div>
             <div className="text-xs text-muted-foreground">
-              PDF, ảnh, Excel, XML, Word · tối đa 20MB/file
+              PDF, ảnh, Excel, XML, Word · tối đa 20MB/file · <span className="font-medium">Thư mục: chỉ nhận .xml</span>
             </div>
             <div className="flex items-center gap-2 pt-1">
               <Button
@@ -1068,8 +1068,9 @@ function UploadDialog({
                 variant="outline"
                 disabled={uploading}
                 onClick={(e) => { e.stopPropagation(); dirInputRef.current?.click(); }}
+                title="Chỉ nhận file .xml"
               >
-                Chọn thư mục
+                Chọn thư mục (XML)
               </Button>
             </div>
             <input
@@ -1079,7 +1080,7 @@ function UploadDialog({
               accept=".pdf,application/pdf,image/*,.xml,application/xml,text/xml,.xlsx,.xls,.docx,.csv,.doc,.txt"
               className="hidden"
               onChange={(e) => {
-                if (e.target.files?.length) addFilesWithFilter(e.target.files);
+                if (e.target.files?.length) addFilesWithFilter(e.target.files, "file");
                 e.target.value = "";
               }}
             />
@@ -1087,12 +1088,13 @@ function UploadDialog({
               ref={dirInputRef}
               type="file"
               multiple
+              accept=".xml,application/xml,text/xml"
               // @ts-expect-error non-standard attributes for folder picker
               webkitdirectory=""
               directory=""
               className="hidden"
               onChange={(e) => {
-                if (e.target.files?.length) addFilesWithFilter(e.target.files);
+                if (e.target.files?.length) addFilesWithFilter(e.target.files, "folder");
                 e.target.value = "";
               }}
             />
