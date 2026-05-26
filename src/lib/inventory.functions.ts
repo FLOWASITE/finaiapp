@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertTenantMember } from "@/lib/auth/active-tenant.server";
+import { assertTenantMember, resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 
 const ProductSchema = z.object({
   id: z.string().optional(),
