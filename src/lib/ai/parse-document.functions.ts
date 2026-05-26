@@ -682,7 +682,7 @@ async function upsertDocumentForUpload(opts: {
       .eq("id", opts.userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id;
-    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
+    if (tenantId) await assertTenantMember(opts.supabase, opts.userId, tenantId);
     if (!tenantId) return;
 
     // Existing doc on same path? Just link it.

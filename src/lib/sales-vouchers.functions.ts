@@ -334,7 +334,7 @@ export const suggestSalesVoucherNo = createServerFn({ method: "POST" })
     z.object({ voucher_date: z.string() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles")
       .select("active_tenant_id")
