@@ -118,20 +118,11 @@ function JobCard({ job }: { job: UploadJob }) {
         <ProgressTwoLayer pctDone={s.pctDone} pctInflight={s.pctInflight} />
       </div>
       <ul className="max-h-44 divide-y overflow-y-auto border-t">
-        <AnimatePresence initial={false}>
-          {job.items.map((it) => (
-            <motion.div
-              key={it.id}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <ItemRow job={job} item={it} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {job.items.map((it) => (
+          <ItemRow key={it.id} job={job} item={it} />
+        ))}
       </ul>
+
     </div>
   );
 }
