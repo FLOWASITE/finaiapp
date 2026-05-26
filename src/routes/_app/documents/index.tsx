@@ -97,7 +97,13 @@ import {
   X,
   ChevronRight,
   FileSearch,
+  CloudUpload,
+  FileImage,
+  File as FileIcon,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SyncTctDialog } from "@/components/sync-tct-dialog";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
@@ -206,7 +212,8 @@ const SOURCE_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(SOURCE_META).map(([k, v]) => [k, v.label]),
 );
 
-const UPLOAD_KINDS: Array<{ value: string; label: string }> = [
+const UPLOAD_KINDS: Array<{ value: string; label: string; hint?: string }> = [
+  { value: "auto", label: "Tự xác định", hint: "Fin sẽ tự nhận diện loại tài liệu" },
   { value: "purchase_invoice", label: "Hoá đơn mua" },
   { value: "sales_invoice", label: "Hoá đơn bán" },
   { value: "einvoice", label: "Hoá đơn điện tử" },
@@ -757,6 +764,27 @@ function DocumentRow({
   );
 }
 
+type FileStatus = "pending" | "uploading" | "done" | "failed";
+type FileItem = {
+  id: string;
+  file: File;
+  status: FileStatus;
+  message?: string;
+  ocrStatus?: string;
+  detectedKind?: string;
+};
+
+const MAX_SIZE = 20 * 1024 * 1024;
+
+function fileIconFor(mime: string, name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (mime.startsWith("image/")) return FileImage;
+  if (mime === "application/pdf" || ext === "pdf") return FileText;
+  if (["xlsx", "xls", "csv"].includes(ext)) return FileSpreadsheet;
+  if (["doc", "docx"].includes(ext)) return FileSignature;
+  return FileIcon;
+}
+
 function UploadDialog({
   open,
   onOpenChange,
@@ -766,28 +794,55 @@ function UploadDialog({
 }) {
   const upload = useServerFn(uploadDocument);
   const qc = useQueryClient();
-  const [files, setFiles] = useState<File[]>([]);
-  const [docKind, setDocKind] = useState("purchase_invoice");
+  const [items, setItems] = useState<FileItem[]>([]);
+  const [docKind, setDocKind] = useState("auto");
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
-    setFiles([]);
+    setItems([]);
     setNotes("");
     setUploading(false);
+    setDragOver(false);
   };
 
+  const addFiles = (files: FileList | File[]) => {
+    const incoming = Array.from(files);
+    setItems((prev) => {
+      const existing = new Set(prev.map((p) => `${p.file.name}-${p.file.size}`));
+      const next: FileItem[] = [...prev];
+      for (const f of incoming) {
+        const key = `${f.name}-${f.size}`;
+        if (existing.has(key)) continue;
+        next.push({
+          id: `${key}-${Math.random().toString(36).slice(2, 8)}`,
+          file: f,
+          status: "pending",
+        });
+      }
+      return next;
+    });
+  };
+
+  const removeItem = (id: string) =>
+    setItems((prev) => prev.filter((p) => p.id !== id));
+
+  const updateItem = (id: string, patch: Partial<FileItem>) =>
+    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
   const submit = async () => {
-    if (files.length === 0) return;
+    const valid = items.filter((i) => i.file.size <= MAX_SIZE);
+    if (valid.length === 0) return;
     setUploading(true);
     let okCount = 0;
     let ocrOk = 0;
     let ocrFail = 0;
-    for (const f of files) {
-      if (f.size > 20 * 1024 * 1024) {
-        toast.error(`${f.name}: vượt 20MB`);
-        continue;
-      }
+
+    for (const it of valid) {
+      updateItem(it.id, { status: "uploading" });
+      const f = it.file;
       try {
         const buf = await f.arrayBuffer();
         const b64 = btoa(
@@ -804,88 +859,241 @@ function UploadDialog({
         });
         okCount++;
         if (res?.ocr_status === "done") ocrOk++;
-        else if (res?.ocr_status === "failed") {
-          ocrFail++;
-          toast.warning(`${f.name}: OCR lỗi — có thể chạy lại trong chi tiết`);
-        }
+        else if (res?.ocr_status === "failed") ocrFail++;
+        updateItem(it.id, {
+          status: res?.ocr_status === "failed" ? "failed" : "done",
+          ocrStatus: res?.ocr_status,
+          detectedKind: res?.doc_kind,
+          message:
+            res?.ocr_status === "failed"
+              ? "OCR lỗi — có thể chạy lại ở chi tiết"
+              : undefined,
+        });
       } catch (e: any) {
-        toast.error(`${f.name}: ${e.message ?? "lỗi"}`);
+        updateItem(it.id, { status: "failed", message: e?.message ?? "Lỗi" });
       }
     }
+
     if (okCount > 0) {
-      toast.success(`Đã tải lên ${okCount}/${files.length} file · OCR ${ocrOk} thành công${ocrFail ? `, ${ocrFail} lỗi` : ""}`);
+      toast.success(
+        `Đã tải lên ${okCount}/${valid.length} file · OCR ${ocrOk} thành công${ocrFail ? `, ${ocrFail} lỗi` : ""}`,
+      );
       qc.invalidateQueries({ queryKey: ["documents"] });
       qc.invalidateQueries({ queryKey: ["sales-documents"] });
       qc.invalidateQueries({ queryKey: ["purchase-documents"] });
       qc.invalidateQueries({ queryKey: ["sidebar-counts"] });
     }
-    reset();
-    onOpenChange(false);
+    setUploading(false);
+    // tự đóng sau 1.2s nếu mọi thứ thành công
+    if (ocrFail === 0 && okCount === valid.length) {
+      setTimeout(() => {
+        reset();
+        onOpenChange(false);
+      }, 900);
+    }
   };
 
+  const totalBytes = items.reduce((s, i) => s + i.file.size, 0);
+  const validCount = items.filter((i) => i.file.size <= MAX_SIZE).length;
+  const oversizeCount = items.length - validCount;
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const failedCount = items.filter((i) => i.status === "failed").length;
+  const progressPct = items.length === 0 ? 0 : Math.round(((doneCount + failedCount) / items.length) * 100);
+  const selectedKind = UPLOAD_KINDS.find((k) => k.value === docKind);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Tải lên tài liệu</DialogTitle>
-          <DialogDescription>
-            File được lưu vào kho tài liệu chung. Chưa OCR — bạn có thể "Parse lại" sau khi tải lên.
-          </DialogDescription>
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <CloudUpload className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <DialogTitle>Tải lên tài liệu</DialogTitle>
+              <DialogDescription>
+                Hỗ trợ PDF, ảnh, Excel, XML, Word — tối đa 20MB mỗi file. Fin sẽ tự OCR và nhận diện loại tài liệu.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium mb-1 block">Loại tài liệu</label>
-            <Select value={docKind} onValueChange={setDocKind}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {UPLOAD_KINDS.map((k) => (
-                  <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">Tệp ({files.length})</label>
-            <Input
+        <div className="space-y-4">
+          {/* Drop zone */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+            }}
+            disabled={uploading}
+            className={cn(
+              "w-full rounded-xl border-2 border-dashed transition-colors text-center px-4 py-8",
+              "flex flex-col items-center justify-center gap-2",
+              dragOver
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50 hover:bg-muted/40",
+              uploading && "opacity-60 cursor-not-allowed",
+            )}
+          >
+            <div className="rounded-full bg-muted p-3">
+              <CloudUpload className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-sm font-medium">
+              {items.length === 0 ? "Kéo-thả file vào đây" : "Thêm file khác"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              hoặc bấm để chọn · PDF, ảnh, Excel, XML, Word · tối đa 20MB/file
+            </div>
+            <input
+              ref={inputRef}
               type="file"
               multiple
-              accept=".pdf,image/*,.xml,.xlsx,.xls,.docx"
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              accept=".pdf,image/*,.xml,.xlsx,.xls,.docx,.csv,.doc"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) addFiles(e.target.files);
+                e.target.value = "";
+              }}
             />
-            {files.length > 0 && (
-              <ul className="mt-2 max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-0.5">
-                {files.map((f, i) => (
-                  <li key={i} className="flex justify-between">
-                    <span className="truncate">{f.name}</span>
-                    <span className="tabular-nums">{formatBytes(f.size)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          </button>
 
-          <div>
-            <label className="text-sm font-medium mb-1 block">Ghi chú (tuỳ chọn)</label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          {/* File list */}
+          {items.length > 0 && (
+            <div className="rounded-lg border bg-card">
+              <div className="flex items-center justify-between px-3 py-2 border-b text-xs text-muted-foreground">
+                <span>
+                  {items.length} file · {formatBytes(totalBytes)}
+                  {oversizeCount > 0 && (
+                    <span className="text-destructive ml-1">· {oversizeCount} vượt 20MB</span>
+                  )}
+                </span>
+                {uploading && (
+                  <span className="tabular-nums">{doneCount + failedCount}/{items.length}</span>
+                )}
+              </div>
+              {uploading && <Progress value={progressPct} className="h-1 rounded-none" />}
+              <ul className="max-h-56 overflow-y-auto divide-y">
+                {items.map((it) => {
+                  const Icon = fileIconFor(it.file.type, it.file.name);
+                  const oversize = it.file.size > MAX_SIZE;
+                  return (
+                    <li key={it.id} className="flex items-center gap-3 px-3 py-2">
+                      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">{it.file.name}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span>{formatBytes(it.file.size)}</span>
+                          {oversize && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">Vượt 20MB</Badge>
+                          )}
+                          {it.detectedKind && (
+                            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                              {UPLOAD_KINDS.find((k) => k.value === it.detectedKind)?.label ?? it.detectedKind}
+                            </Badge>
+                          )}
+                          {it.message && (
+                            <span className="text-destructive truncate">{it.message}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {it.status === "uploading" && (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        )}
+                        {it.status === "done" && (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        )}
+                        {it.status === "failed" && (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        {it.status === "pending" && !uploading && (
+                          <button
+                            onClick={() => removeItem(it.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                            aria-label="Xoá"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Kind + notes */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Loại tài liệu</label>
+              <Select value={docKind} onValueChange={setDocKind} disabled={uploading}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {UPLOAD_KINDS.map((k) => (
+                    <SelectItem key={k.value} value={k.value}>
+                      <div className="flex items-center gap-2">
+                        {k.value === "auto" && <Sparkles className="h-3.5 w-3.5 text-primary" />}
+                        <span>{k.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedKind?.hint && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> {selectedKind.hint}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Ghi chú (tuỳ chọn)</label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                disabled={uploading}
+                placeholder="VD: HĐ tháng 5, lô nhập kho…"
+              />
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={uploading}>
-            Huỷ
-          </Button>
-          <Button onClick={submit} disabled={uploading || files.length === 0}>
-            {uploading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-            Tải lên
-          </Button>
+        <DialogFooter className="sm:justify-between gap-2">
+          <div className="text-xs text-muted-foreground self-center">
+            {items.length > 0
+              ? `Tổng: ${formatBytes(totalBytes)} · ${validCount} file hợp lệ`
+              : "Chưa chọn file"}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={uploading}>
+              Huỷ
+            </Button>
+            <Button onClick={submit} disabled={uploading || validCount === 0}>
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Đang tải…
+                </>
+              ) : (
+                <>
+                  <ArrowUpToLine className="h-4 w-4 mr-1.5" />
+                  Tải lên {validCount > 0 ? `${validCount} file` : ""}
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function DocumentDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   const getDoc = useServerFn(getDocument);

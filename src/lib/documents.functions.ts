@@ -487,6 +487,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
         filename: z.string().min(1).max(255),
         mimeType: z.string().min(3).max(100),
         doc_kind: z.enum([
+          "auto",
           "purchase_invoice","sales_invoice","einvoice","cash_voucher","bank_voucher",
           "bank_statement","receipt","payment","contract","other"
         ]),
@@ -510,12 +511,13 @@ export const uploadDocument = createServerFn({ method: "POST" })
       .upload(path, buf, { contentType: data.mimeType, upsert: false });
     if (upErr) throw new Error(upErr.message);
 
+    const isAuto = data.doc_kind === "auto";
     const { data: row, error: insErr } = await supabase
       .from("documents")
       .insert({
         tenant_id: tenantId,
         user_id: userId,
-        doc_kind: data.doc_kind,
+        doc_kind: isAuto ? "other" : data.doc_kind,
         source: "manual",
         storage_bucket: "invoices",
         storage_path: path,
@@ -537,7 +539,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
       bank_statement: "bank_statement",
       cash_voucher: "cash_voucher",
     };
-    const kind = kindMap[data.doc_kind] ?? "auto";
+    const kind = isAuto ? "auto" : (kindMap[data.doc_kind] ?? "auto");
 
     await supabase.from("documents").update({ ocr_status: "processing" }).eq("id", docId);
 
@@ -567,7 +569,9 @@ export const uploadDocument = createServerFn({ method: "POST" })
           })
           .eq("id", docId);
       }
-      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages };
+      const { data: finalRow } = await supabase
+        .from("documents").select("doc_kind").eq("id", docId).maybeSingle();
+      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages, doc_kind: finalRow?.doc_kind ?? (isAuto ? "other" : data.doc_kind) };
     } catch (e: any) {
       await supabase
         .from("documents")
