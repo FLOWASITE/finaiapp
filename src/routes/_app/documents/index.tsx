@@ -1028,8 +1028,8 @@ function UploadDialog({
               e.preventDefault();
               setDragOver(false);
               if (uploading) return;
-              const files = await collectFilesFromDataTransfer(e.dataTransfer);
-              if (files.length) addFilesWithFilter(files);
+              const { files, hasDir } = await collectFilesFromDataTransfer(e.dataTransfer);
+              if (files.length) addFilesWithFilter(files, hasDir ? "folder" : "file");
             }}
             role="button"
             tabIndex={0}
