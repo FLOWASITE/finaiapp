@@ -1,142 +1,60 @@
+## Rà soát tiến độ — Vendor Item Reconciliation
 
-# Kế hoạch: Đối chiếu mặt hàng NCC ↔ Master Data (Vendor Item Reconciliation)
+So với `.lovable/plan.md` (MVP đề ra 4 lớp + power-user shell):
 
-Mục tiêu: khi hóa đơn mua về, Fin tự resolve `raw_name` từ NCC sang mã chuẩn trong master data của DN (`products`), với 4 lớp ưu tiên — cached → fuzzy multi-signal → LLM → human confirm. Mỗi lần KTV xác nhận = thêm một "memory" để lần sau auto.
+### Đã xong
 
-Tình trạng hiện tại (đã đọc DB):
-- Đã có `products` (master data đầy đủ: code, name, unit, item_type 152/153/156…, default accounts).
-- Đã có `tenant_product_catalog` (chỉ là từ điển tên + alias, không gắn với supplier).
-- Đã có `suppliers`, `product_unit_conversions`.
-- **Chưa có** bảng mapping (NCC × raw_name → product) và **chưa có** audit log resolve.
+**Hạ tầng dữ liệu**
+- Migration `20260526042648_*` đã tạo: `supplier_item_mappings` (có `unit_conversion_factor`, `confidence`, `match_count`, `source`), `item_resolution_log` (audit JSONB signals), `products.aliases text[]`. RLS theo `tenant_id` + role. ✅
+- `pgvector` / `embedding` — bỏ qua đúng kế hoạch (để V2). ✅
 
-## Phạm vi & không trong phạm vi
+**Resolver core (`src/lib/items/`)**
+- `normalize.ts`: NFD strip dấu, collapse space, Jaccard + Levenshtein. ✅
+- `resolver.server.ts` Lớp 1 (cache exact, ngưỡng `confidence ≥ 0.9 & match_count ≥ 3` → auto). ✅
+- Lớp 2 (multi-signal: text 0.55 + unit 0.2 + price 0.1 + history 0.1 + sku 0.05, hard-reject khi đơn vị khác nhóm). ✅
+- Ghi `item_resolution_log` cho mọi quyết định (best-effort). ✅
 
-Trong phạm vi (MVP đợt này):
-- Lớp 1 (cached lookup) + Lớp 2 (multi-signal scoring, có/không embedding) + Lớp 4 (UX confirm trong Inbox).
-- Unit conversion factor (case #1 — quan trọng nhất).
-- Hỗ trợ case "tạo mã mới 1-click" (case #6).
-- Audit log mọi quyết định.
+**Server fns (`mappings.functions.ts`)**
+- `resolveInvoiceLines` (qua `supplier_id` hoặc `supplier_tax_id`). ✅
+- `confirmItemMapping` (upsert rule, tăng `match_count`, `source='user_confirm'`). ✅
+- `createProductFromRaw` (tạo product + tạo mapping luôn). ✅
+- `listSupplierItemMappings` + `deleteSupplierItemMapping`. ✅
 
-V2 / sau MVP — chỉ thiết kế chỗ chừa, không build:
-- Lớp 3 (LLM reasoning có structured output) — hook sẵn nhưng tắt mặc định.
-- Embedding semantic (case rất generic) — cột `embedding vector(768)` chừa sẵn, không backfill.
-- Combo/BOM (case #7), conflict detector, Memory Graph view, Bulk import mapping.
+**UX trong Inbox sheet**
+- `ItemResolutionPanel` mount trong `inbox-item-sheet.tsx`, nhận đúng `activeTenantId` (đã fix turn vừa rồi). ✅
+- 3 trạng thái: 🟢 Auto (badge + số lần đã ghép) / 🟡 Review (radio top-3, 1-click confirm + "tạo mã mới") / 🔵 New (inline form: mã gợi ý từ tên, ĐVT, chọn 156/152/153/dịch vụ). ✅
 
-## Kiến trúc dữ liệu
+**Power-user**
+- `/settings/item-mappings`: bảng tất cả rule, search theo `raw_name`, xoá. Shortcut card trên trang Cài đặt. ✅
 
-### Bảng mới: `supplier_item_mappings`
-```text
-id uuid pk
-tenant_id uuid (RLS theo tenant)
-supplier_id uuid → suppliers(id)
-raw_name text                  -- nguyên văn NCC ghi
-raw_name_norm text             -- đã NFD strip dấu, collapse space, lowercase
-raw_unit text                  -- ĐVT NCC ghi
-product_id uuid → products(id)
-unit_conversion_factor numeric default 1   -- raw_unit → base_unit
-confidence numeric             -- 0..1
-match_count int default 1
-last_seen timestamptz
-source text check in ('auto','user_confirm','user_create','imported','llm')
-reasoning text                 -- nếu do LLM resolve
-created_by uuid, created_at, updated_at
-unique (tenant_id, supplier_id, raw_name_norm)
-index (tenant_id, supplier_id, raw_name_norm)
-```
+### Còn thiếu / lệch kế hoạch
 
-### Bảng mới: `item_resolution_log` (audit)
-```text
-id, tenant_id, invoice_line_id (nullable, FK soft)
-supplier_id, raw_name, raw_unit, qty, price
-resolved_product_id (nullable)
-method text  -- 'cache' | 'fuzzy' | 'llm' | 'manual' | 'new_product'
-score numeric
-signals jsonb  -- {text:0.81, semantic:null, unit:1, price:0.7, history:0.9, sku:0}
-reviewed_by, reviewed_at
-created_at
-```
+| # | Mục | Trạng thái | Ghi chú |
+|---|-----|-----------|---------|
+| 1 | **Tích hợp resolver vào pipeline parse hoá đơn** | ❌ Chưa | Hiện resolver chỉ chạy **lazy** khi KTV mở sheet. Plan ban đầu là "gọi sau khi có lines, trước khi propose journal" để Agent Hạch toán có `product_id` mà chọn TK 152/153/156 chính xác. |
+| 2 | **Unit conversion factor (case #1)** | ⚠️ Nửa | Schema có cột, nhưng UI `confirm` / `create` đang hardcode `factor=1`. Khi NCC ghi "thùng" mà product là "lon" thì không hỏi quy đổi → kho sẽ sai khi tự khớp. |
+| 3 | **UX vị trí** | ⚠️ Lệch | Plan đề xuất "inline + thêm cột 'Mã hệ thống' + badge" trong bảng goods/services hiện có. Đã build là **section riêng phía dưới** bảng. Xài được, nhưng KTV phải nhìn 2 chỗ. |
+| 4 | **Lớp 3 — LLM fallback** | ❌ Chưa | Đúng plan (V2, tắt mặc định). Hook chưa cắm. |
+| 5 | **Power-user nâng cao** | ⚠️ Sơ sài | Trang `item-mappings` mới có: list + search + delete. Chưa có: filter theo NCC dropdown, edit inline (đổi product_id), merge/split, conflict detector ("cùng raw_name nhưng map 2 product khác nhau giữa các NCC"), bulk import CSV. |
+| 6 | **Smoke test 3 dòng (cache / review / new)** | ❌ Chưa | Chưa chạy. |
+| 7 | **Tab "Trí nhớ AI" / nhãn dán** | ❌ N/A | Plan có nhắc, nhưng app chưa có panel `ai-memory` để hook vào. |
 
-### Mở rộng `products` (chừa chỗ cho v2)
-- `aliases text[] default '{}'`
-- `embedding vector(768)` (nullable; tạo extension `vector` if not exists; KHÔNG backfill ở MVP)
+### Đề xuất ưu tiên cho lần build tiếp theo
 
-### RLS
-Cả 2 bảng mới: chỉ thành viên tenant đọc/ghi, dùng `is_tenant_member(auth.uid(), tenant_id)` + role check (`accountant|admin|owner`) cho insert/update/delete, theo đúng pattern `products` hiện tại.
+**P0 — đóng MVP đúng nghĩa**
+1. **Hỏi unit conversion factor khi confirm/create** nếu `raw_unit ≠ product.unit`: 1 ô input nhỏ "1 [raw_unit] = ? [product.unit]". Đây là gốc rễ chính xác kho — không thể bỏ.
+2. **Tích hợp resolver vào parse pipeline**: sau khi `parse-document` xong và có `supplier_tax_id`, gọi `resolveVendorLine` cho từng dòng → gắn `product_id` (nếu auto) vào `proposal.items[i].product_id` để Agent Hạch toán dùng đúng TK 152/153/156 (giải bài toán lõi của project).
 
-## Module code
+**P1 — power user**
+3. Filter theo NCC (dropdown) + edit inline product_id trong `/settings/item-mappings`.
+4. Conflict detector: nhóm các raw_name_norm có ≥2 product_id khác nhau (chỉ cảnh báo, không auto-merge).
 
-### 1. `src/lib/items/normalize.ts` (client-safe)
-- `normalizeName(s)`: NFD → strip diacritics → lowercase → collapse whitespace → strip punctuation rìa.
-- `normalizeUnit(s)`: dùng lại `findCommonUnit` (đã có ở `src/lib/common-units.ts`).
-- Token hóa cho text similarity.
+**P2 — V2 (chừa)**
+5. Lớp 3 LLM (nút "Nhờ Fin gợi ý" trong panel khi status='new').
+6. Embedding semantic, Memory Graph view, bulk import.
 
-### 2. `src/lib/items/resolver.server.ts` (server-only)
-Hàm `resolveVendorLine({ tenantId, supplierId, rawName, rawUnit, qty, price })`:
+### Câu cần chốt trước khi build tiếp
 
-1. **Lớp 1 — cache**: query `supplier_item_mappings` exact `(supplier_id, raw_name_norm)`. Nếu hit & `confidence ≥ 0.9` & `match_count ≥ 3` → trả về `{ method: 'cache' }`. Nếu hit nhưng yếu hơn → coi như "ứng viên rất mạnh" và đi tiếp lớp 2 để cross-check.
-
-2. **Lớp 2 — multi-signal scoring** trên top-N candidate (top 50 theo trigram/`name_norm` ILIKE + tất cả mapping của supplier):
-   - text (Jaro-Winkler hoặc Levenshtein ratio) — 30%
-   - semantic (skip ở MVP, weight phân bổ lại sang text) — 25%
-   - unit match (hard filter; nếu khác hẳn nhóm như kg vs cái → reject; nếu khớp/đổi được qua `product_unit_conversions` → 20%)
-   - price band (±30% giá lịch sử cùng product) — 10%
-   - supplier history (NCC này đã từng giao product này?) — 10%
-   - SKU/code chứa trong raw_name — 5%
-   - Threshold: `≥0.9` auto, `0.7..0.9` đề xuất top 3, `<0.7` flag "mặt hàng mới".
-
-3. **Lớp 3 — LLM** (đặt sau flag, mặc định off): gọi `google/gemini-3-flash-preview` qua Lovable AI với tool-call `resolve_vendor_item` (structured output: product_id, confidence, reasoning, unit_factor). Chỉ chạy khi `<0.7` và đã có category gợi ý từ classifier 152/153/156.
-
-4. Ghi `item_resolution_log` cho mọi lần gọi.
-
-### 3. `src/lib/items/mappings.functions.ts` (createServerFn)
-- `getResolutionForLines({ invoiceId })`: chạy resolver cho từng dòng → trả về proposal hiển thị trong sheet.
-- `confirmMapping({ supplierId, rawName, rawUnit, productId, unitFactor })`: upsert vào `supplier_item_mappings` với `source='user_confirm'`, tăng `match_count`, set `confidence=0.98`.
-- `createProductFromRaw({ supplierId, rawName, rawUnit, itemType, defaultAccount, suggestedCode })`: tạo `products` mới + tạo mapping luôn.
-- `splitMapping(...)` / `rejectMapping(...)` cho UX.
-
-### 4. UX trong `inbox-item-sheet.tsx` (bảng hàng hóa hiện có)
-Mỗi dòng goods/services hiển thị **trạng thái resolve**:
-- 🟢 Auto-matched (≥0.9, đã có cache): badge "Đã ghép tự động (X lần, Y%)" + link "Đổi".
-- 🟡 Cần xác nhận (0.7–0.9): inline radio top-3 + nút "Xác nhận và lưu rule cho lần sau".
-- 🔵 Mặt hàng mới (<0.7): form rút gọn (mã đề xuất, tên, loại 152/153/156, ĐVT) + 3 nút "Tạo mã" / "Chọn mã đã có" / "Bỏ qua".
-
-Khi sheet mở: gọi `getResolutionForLines` (React Query, key có `tenantId` — đã sửa cross-tenant ở các turn trước, tiếp tục giữ pattern). Khi confirm/tạo → invalidate keys `["resolution", invoiceId]`, `["mappings", supplierId]`.
-
-### 5. Power user (gói Tăng trưởng) — chỉ tạo route shell, để v2 build chi tiết
-- `/_app/settings/item-mappings` — bảng mapping filter theo NCC, edit inline, merge/split.
-- Hook trong `ai-memory` panel: "Trí nhớ mặt hàng theo NCC — X dòng".
-
-## Mối quan hệ với 6 agent
-- Resolver là **service độc lập** trong `src/lib/items/`, không thuộc agent nào. Cả Trích xuất → Hạch toán → Đối soát → Báo cáo đều gọi.
-- Agent Hạch toán sau khi có `product_id` mới quyết TK Nợ/Có dựa trên `products.stock_account` / `expense_account` + business rules 152/153/156 (đã có ở `classify-line-v2.ts`).
-
-## Edge cases — xử lý ở MVP
-| Case | Cách xử lý MVP |
-|------|----------------|
-| 1. Quy cách khác (ream/thùng) | `unit_conversion_factor` trong mapping; UI hỏi khi confirm lần đầu |
-| 2. Tên generic ("Giấy A4") | Khi confirm lần đầu, lưu mapping cụ thể cho NCC đó |
-| 3. Brand tương đương | Không auto-merge, buộc KTV chọn |
-| 4. NCC nhiều variant → 1 mã hệ thống | Nhiều raw_name cùng map 1 product_id (đã hỗ trợ) |
-| 5. Hệ thống chi tiết, NCC gộp | Reject auto, flag "cần split tay" |
-| 6. Item mới | Form tạo nhanh 1-click |
-| 7. Combo/BOM | V2 — MVP cứ tạo product `item_type='combo'` treo riêng |
-| 8. Sai chính tả nặng | `normalizeName` robust (NFD, strip dấu, collapse space) |
-
-## Migrations cần chạy
-1. `create extension if not exists vector;` (chừa cho v2; nếu Supabase chưa bật, bỏ qua cột embedding, thêm sau).
-2. Tạo `supplier_item_mappings` + RLS + indexes.
-3. Tạo `item_resolution_log` + RLS.
-4. `alter table products add column aliases text[] default '{}'`, `add column embedding vector(768)` (cột embedding optional).
-
-## Việc cần làm (build mode)
-1. Migration DB (1 file, gộp 4 mục trên).
-2. `src/lib/items/normalize.ts` + `resolver.server.ts` + `mappings.functions.ts`.
-3. Tích hợp resolver vào pipeline parse hóa đơn đầu vào (gọi sau khi có lines, trước khi propose journal).
-4. Cập nhật `inbox-item-sheet.tsx`: cột "Mã hệ thống" + 3 trạng thái UX (auto / confirm / new).
-5. Đảm bảo query keys có `tenantId` (giữ pattern đã sửa).
-6. Smoke test: 1 hóa đơn 3 dòng (1 đã có cache, 1 mới gặp, 1 hoàn toàn mới) → kiểm 3 trạng thái render đúng.
-
-## Câu hỏi cần chốt trước khi build
-1. Có bật `pgvector` ngay để chừa cột `embedding`, hay để v2 mới thêm? (em đề xuất: để v2, MVP không cần.)
-2. Lớp 3 (LLM) — bật mặc định hay tắt (chỉ chạy khi KTV bấm "Nhờ Fin gợi ý")? (em đề xuất: tắt, có nút).
-3. UX trạng thái resolve hiển thị **inline trong bảng hàng hóa hiện tại** của Đề xuất Fin, hay tách **section riêng "Khớp mặt hàng"** phía trên bảng? (em đề xuất: inline, thêm 1 cột "Mã hệ thống" + badge).
+1. Làm P0 (#1 unit factor + #2 tích hợp parse pipeline) trước, hay làm P1 (power-user nâng cao) trước?
+2. UX: giữ section riêng như hiện tại, hay refactor thành **cột "Mã hệ thống"** ngay trong bảng `ProposalItemsList` (đúng plan ban đầu)?
+3. Khi auto-match ở pipeline parse (P0 #2): có hiển thị visual cue ngay trong bảng goods chính (vd badge nhỏ cạnh tên hàng) để KTV biết đã được resolve không?
