@@ -487,6 +487,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
         filename: z.string().min(1).max(255),
         mimeType: z.string().min(3).max(100),
         doc_kind: z.enum([
+          "auto",
           "purchase_invoice","sales_invoice","einvoice","cash_voucher","bank_voucher",
           "bank_statement","receipt","payment","contract","other"
         ]),
