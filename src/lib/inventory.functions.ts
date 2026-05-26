@@ -450,10 +450,13 @@ export const listMovements = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string; product_id?: string; type?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("stock_movements")
       .select("*, products(code, name, unit), warehouses(code, name)")
+      .eq("tenant_id", tenantId)
       .order("movement_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
@@ -500,7 +503,15 @@ export const getMovement = createServerFn({ method: "POST" })
 export const inventoryDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) {
+      return {
+        total_value: 0, sku_count: 0, goods_count: 0, service_count: 0,
+        low_stock_count: 0, movements_30d: 0, in_value_30d: 0, out_value_30d: 0,
+        low_stock_items: [], top_value_items: [],
+      };
+    }
     const today = new Date();
     const d30 = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10);
 
@@ -508,10 +519,12 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
       supabase
         .from("products")
         .select("id, code, name, unit, item_type, on_hand, unit_cost, min_stock, is_active")
+        .eq("tenant_id", tenantId)
         .eq("is_active", true),
       supabase
         .from("stock_movements")
         .select("movement_type, qty, unit_cost")
+        .eq("tenant_id", tenantId)
         .gte("movement_date", d30),
     ]);
 
@@ -550,8 +563,14 @@ export const inventoryDashboard = createServerFn({ method: "GET" })
 export const listCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase.from("product_categories").select("*").order("name");
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
+    const { data, error } = await supabase
+      .from("product_categories")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("name");
     if (error) throw new Error(error.message);
     return data;
   });
@@ -601,10 +620,12 @@ export const deleteCategory = createServerFn({ method: "POST" })
 export const listCategoriesTree = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     const [{ data: cats, error: cErr }, { data: prods, error: pErr }] = await Promise.all([
-      supabase.from("product_categories").select("id, name, parent_id").order("name"),
-      supabase.from("products").select("category_id"),
+      supabase.from("product_categories").select("id, name, parent_id").eq("tenant_id", tenantId).order("name"),
+      supabase.from("products").select("category_id").eq("tenant_id", tenantId),
     ]);
     if (cErr) throw new Error(cErr.message);
     if (pErr) throw new Error(pErr.message);
@@ -731,10 +752,13 @@ export const listProductsByCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { category_id: string | null }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("products")
       .select("id, code, name, unit, item_type, on_hand, is_active")
+      .eq("tenant_id", tenantId)
       .order("code");
     if (data.category_id === null) q = q.is("category_id", null);
     else q = q.eq("category_id", data.category_id);
@@ -1136,10 +1160,13 @@ export const listStockVouchers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { type?: "in" | "out" | "transfer" | "all"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("stock_vouchers")
       .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
+      .eq("tenant_id", tenantId)
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
@@ -1630,10 +1657,13 @@ export const listPendingStockDocs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { from?: string; to?: string } = {}) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let pq = supabase
       .from("purchase_vouchers")
       .select("id, voucher_no, voucher_date, supplier_name, total, status, stock_voucher_id, purchase_voucher_lines(product_id, line_type)")
+      .eq("tenant_id", tenantId)
       .is("stock_voucher_id", null)
       .order("voucher_date", { ascending: false })
       .limit(200);
@@ -1642,6 +1672,7 @@ export const listPendingStockDocs = createServerFn({ method: "POST" })
     let sq = supabase
       .from("sales_vouchers")
       .select("id, voucher_no, voucher_date, customer_name, total, status, stock_voucher_id, sales_voucher_lines(product_id, line_type)")
+      .eq("tenant_id", tenantId)
       .is("stock_voucher_id", null)
       .order("voucher_date", { ascending: false })
       .limit(200);
