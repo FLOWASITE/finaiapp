@@ -269,6 +269,8 @@ export async function buildDocumentItem(
       unit: (r?.unit ?? r?.uom ?? r?.unit_name ?? undefined) as string | undefined,
       unit_price: Number(r?.unit_price) || undefined,
       amount: Number(r?.total_amount ?? r?.amount ?? 0),
+      product_id: r?.product_id ?? null,
+      resolution: r?._resolution ?? null,
     }))
     .filter((it) => it.name && it.name !== "—" || it.amount > 0);
 
