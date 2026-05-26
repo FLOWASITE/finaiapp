@@ -361,6 +361,21 @@ function NewProductForm(props: {
             </SelectContent>
           </Select>
         </div>
+        {unitsDiffer && (
+          <div className="col-span-2 space-y-0.5 rounded border border-amber-500/30 bg-amber-500/5 p-1.5">
+            <Label className="text-[10px] text-amber-700 dark:text-amber-300">
+              Quy đổi: 1 {props.rawUnit} = ? {unit}
+            </Label>
+            <Input
+              type="number"
+              min="0"
+              step="any"
+              value={factor}
+              onChange={(e) => setFactor(e.target.value)}
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+        )}
       </div>
       <div className="flex justify-end gap-1.5">
         <Button
