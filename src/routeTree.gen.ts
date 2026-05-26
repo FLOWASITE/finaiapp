@@ -70,6 +70,7 @@ import { Route as AppSuperadminAiModelRouteImport } from './routes/_app/superadm
 import { Route as AppSuperadminAiAgentsRouteImport } from './routes/_app/superadmin/ai-agents'
 import { Route as AppSuperadminAccountsRouteImport } from './routes/_app/superadmin/accounts'
 import { Route as AppSettingsProjectsRouteImport } from './routes/_app/settings/projects'
+import { Route as AppSettingsItemMappingsRouteImport } from './routes/_app/settings/item-mappings'
 import { Route as AppSettingsFiscalPeriodsRouteImport } from './routes/_app/settings/fiscal-periods'
 import { Route as AppSettingsDepartmentsRouteImport } from './routes/_app/settings/departments'
 import { Route as AppSettingsCostCentersRouteImport } from './routes/_app/settings/cost-centers'
@@ -481,6 +482,11 @@ const AppSuperadminAccountsRoute = AppSuperadminAccountsRouteImport.update({
 const AppSettingsProjectsRoute = AppSettingsProjectsRouteImport.update({
   id: '/settings/projects',
   path: '/settings/projects',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsItemMappingsRoute = AppSettingsItemMappingsRouteImport.update({
+  id: '/settings/item-mappings',
+  path: '/settings/item-mappings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsFiscalPeriodsRoute =
@@ -1126,6 +1132,7 @@ export interface FileRoutesByFullPath {
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
+  '/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
@@ -1288,6 +1295,7 @@ export interface FileRoutesByTo {
   '/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/settings/departments': typeof AppSettingsDepartmentsRoute
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
+  '/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
   '/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
@@ -1459,6 +1467,7 @@ export interface FileRoutesById {
   '/_app/settings/cost-centers': typeof AppSettingsCostCentersRoute
   '/_app/settings/departments': typeof AppSettingsDepartmentsRoute
   '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
+  '/_app/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/_app/settings/projects': typeof AppSettingsProjectsRoute
   '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
   '/_app/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
@@ -1630,6 +1639,7 @@ export interface FileRouteTypes {
     | '/settings/cost-centers'
     | '/settings/departments'
     | '/settings/fiscal-periods'
+    | '/settings/item-mappings'
     | '/settings/projects'
     | '/superadmin/accounts'
     | '/superadmin/ai-agents'
@@ -1792,6 +1802,7 @@ export interface FileRouteTypes {
     | '/settings/cost-centers'
     | '/settings/departments'
     | '/settings/fiscal-periods'
+    | '/settings/item-mappings'
     | '/settings/projects'
     | '/superadmin/accounts'
     | '/superadmin/ai-agents'
@@ -1962,6 +1973,7 @@ export interface FileRouteTypes {
     | '/_app/settings/cost-centers'
     | '/_app/settings/departments'
     | '/_app/settings/fiscal-periods'
+    | '/_app/settings/item-mappings'
     | '/_app/settings/projects'
     | '/_app/superadmin/accounts'
     | '/_app/superadmin/ai-agents'
@@ -2489,6 +2501,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/projects'
       fullPath: '/settings/projects'
       preLoaderRoute: typeof AppSettingsProjectsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/item-mappings': {
+      id: '/_app/settings/item-mappings'
+      path: '/settings/item-mappings'
+      fullPath: '/settings/item-mappings'
+      preLoaderRoute: typeof AppSettingsItemMappingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings/fiscal-periods': {
@@ -3537,6 +3556,7 @@ interface AppRouteChildren {
   AppSettingsCostCentersRoute: typeof AppSettingsCostCentersRoute
   AppSettingsDepartmentsRoute: typeof AppSettingsDepartmentsRoute
   AppSettingsFiscalPeriodsRoute: typeof AppSettingsFiscalPeriodsRoute
+  AppSettingsItemMappingsRoute: typeof AppSettingsItemMappingsRoute
   AppSettingsProjectsRoute: typeof AppSettingsProjectsRoute
   AppSuppliersIdRoute: typeof AppSuppliersIdRoute
   AppSuppliersGroupsRoute: typeof AppSuppliersGroupsRoute
@@ -3640,6 +3660,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsCostCentersRoute: AppSettingsCostCentersRoute,
   AppSettingsDepartmentsRoute: AppSettingsDepartmentsRoute,
   AppSettingsFiscalPeriodsRoute: AppSettingsFiscalPeriodsRoute,
+  AppSettingsItemMappingsRoute: AppSettingsItemMappingsRoute,
   AppSettingsProjectsRoute: AppSettingsProjectsRoute,
   AppSuppliersIdRoute: AppSuppliersIdRoute,
   AppSuppliersGroupsRoute: AppSuppliersGroupsRoute,

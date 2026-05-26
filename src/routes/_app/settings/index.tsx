@@ -143,6 +143,12 @@ function SettingsPage() {
               icon: <Package className="h-5 w-5" />,
             },
             {
+              to: "/settings/item-mappings",
+              label: "Trí nhớ mặt hàng theo NCC",
+              desc: "Rule khớp raw_name NCC → mã hệ thống",
+              icon: <Wand2 className="h-5 w-5" />,
+            },
+            {
               to: "/settings/fiscal-periods",
               label: "Kỳ kế toán",
               desc: "Mở/khoá sổ theo tháng, quý, năm",
