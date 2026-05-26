@@ -766,7 +766,7 @@ function DocumentRow({
   );
 }
 
-type FileStatus = "pending" | "uploading" | "done" | "failed";
+type FileStatus = "pending" | "uploading" | "done" | "failed" | "rejected";
 type FileItem = {
   id: string;
   file: File;
@@ -774,6 +774,8 @@ type FileItem = {
   message?: string;
   ocrStatus?: string;
   detectedKind?: string;
+  tenantMatch?: "ok" | "warn" | "reject" | "skip";
+  tenantMatchReason?: string;
 };
 
 const MAX_SIZE = 20 * 1024 * 1024;
