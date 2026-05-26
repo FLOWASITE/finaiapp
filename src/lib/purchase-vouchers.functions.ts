@@ -5,6 +5,7 @@ import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
 import { nextStockVoucherNo } from "@/lib/inventory.functions";
+import { resolveStockLineProducts } from "@/lib/items/auto-resolve-products.server";
 
 // ============ Schemas ============
 
@@ -210,7 +211,10 @@ export const createPurchaseVoucher = createServerFn({ method: "POST" })
     if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
-    const { lines, id: _ignore, ...header } = data;
+    const { lines: rawLines, id: _ignore, ...header } = data;
+    const lines = header.create_stock_voucher
+      ? await resolveStockLineProducts(supabase, tenantId, userId, rawLines)
+      : rawLines;
 
     const { data: row, error } = await supabase
       .from("purchase_vouchers")
@@ -240,18 +244,22 @@ export const updatePurchaseVoucher = createServerFn({ method: "POST" })
     VoucherUpsertSchema.extend({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { id, lines, ...header } = data;
+    const { supabase, userId } = context;
+    const { id, lines: rawLines, ...header } = data;
 
     const { data: cur } = await supabase
       .from("purchase_vouchers")
-      .select("status")
+      .select("status, tenant_id")
       .eq("id", id)
       .single();
     if (!cur) throw new Error("Không tìm thấy phiếu");
     if (!["uploaded", "ai_read", "reviewed", "draft", "void", "posted"].includes(cur.status)) {
       throw new Error("Phiếu đã ghi sổ — không thể sửa");
     }
+
+    const lines = header.create_stock_voucher && cur.tenant_id
+      ? await resolveStockLineProducts(supabase, cur.tenant_id as string, userId, rawLines)
+      : rawLines;
 
     const { error } = await supabase
       .from("purchase_vouchers")
