@@ -57,9 +57,13 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const resolveFn = useServerFn(resolveInvoiceLines);
   const confirmFn = useServerFn(confirmItemMapping);
   const createFn = useServerFn(createProductFromRaw);
+  const suggestFn = useServerFn(suggestItemMappingWithLLM);
 
   const supplierTaxId = (meta?.supplier_tax_id as string | undefined) ?? undefined;
+  const supplierName = (meta?.supplier_name as string | undefined) ?? undefined;
   const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
+  const [llmPrefill, setLlmPrefill] = useState<Record<number, NewProductPrefill>>({});
+  const [llmLoadingIdx, setLlmLoadingIdx] = useState<number | null>(null);
 
   const payloadLines = useMemo(
     () =>
