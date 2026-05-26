@@ -38,8 +38,10 @@ const UploadOnlyInputSchema = InputSchema.pick({
 // ---------- Schemas ----------------------------------------------------
 
 const PurchaseInvoiceSchema = z.object({
-  vendor_name: z.string().nullable(),
-  vendor_tax_id: z.string().nullable(),
+  vendor_name: z.string().nullable().describe("Tên người BÁN (seller)"),
+  vendor_tax_id: z.string().nullable().describe("MST người BÁN (seller). 10 hoặc 13 chữ số."),
+  buyer_name: z.string().nullable().describe("Tên người MUA (buyer)").optional(),
+  buyer_tax_id: z.string().nullable().describe("MST người MUA (buyer). 10 hoặc 13 chữ số.").optional(),
   invoice_no: z.string().nullable(),
   issue_date: z.string().nullable().describe("YYYY-MM-DD"),
   currency: z.string().nullable(),
