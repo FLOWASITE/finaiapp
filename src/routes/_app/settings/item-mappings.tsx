@@ -147,6 +147,19 @@ function ItemMappingsPage() {
           <Upload className="h-3.5 w-3.5 mr-1" />
           Nhập từ CSV
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => backfillMut.mutate()}
+          disabled={backfillMut.isPending}
+        >
+          {backfillMut.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+          )}
+          Backfill embedding
+        </Button>
       </div>
 
       <BulkImportMappingsDialog open={bulkOpen} onOpenChange={setBulkOpen} />
