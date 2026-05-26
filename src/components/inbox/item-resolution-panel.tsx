@@ -93,14 +93,19 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   };
 
   const confirmMut = useMutation({
-    mutationFn: (vars: { raw_name: string; raw_unit?: string | null; product_id: string }) =>
+    mutationFn: (vars: {
+      raw_name: string;
+      raw_unit?: string | null;
+      product_id: string;
+      unit_conversion_factor: number;
+    }) =>
       confirmFn({
         data: {
           supplier_id: q.data?.supplier_id!,
           product_id: vars.product_id,
           raw_name: vars.raw_name,
           raw_unit: vars.raw_unit ?? null,
-          unit_conversion_factor: 1,
+          unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
     onSuccess: () => {
@@ -120,6 +125,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
       item_type: "goods" | "service";
       stock_account: string;
       unit_price: number;
+      unit_conversion_factor: number;
     }) =>
       createFn({
         data: {
@@ -132,6 +138,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           item_type: vars.item_type,
           stock_account: vars.stock_account,
           unit_price: vars.unit_price,
+          unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
     onSuccess: () => {
@@ -195,42 +202,21 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                 )}
 
                 {status === "review" && res && (
-                  <div className="mt-1 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
-                      <AlertCircle className="h-3 w-3" />
-                      Fin gợi ý — chọn 1:
-                    </div>
-                    {res.candidates.map((c) => (
-                      <button
-                        key={c.product_id}
-                        type="button"
-                        disabled={confirmMut.isPending}
-                        onClick={() =>
-                          confirmMut.mutate({
-                            raw_name: it.name,
-                            raw_unit: it.unit ?? null,
-                            product_id: c.product_id,
-                          })
-                        }
-                        className={cn(
-                          "flex w-full items-center gap-1.5 rounded border border-border/60 bg-muted/30 px-2 py-1 text-left text-[11px] transition-colors hover:bg-muted",
-                        )}
-                      >
-                        <span className="font-mono text-foreground">{c.code}</span>
-                        <span className="truncate text-foreground/80">{c.name}</span>
-                        <span className="ml-auto shrink-0 font-mono text-muted-foreground">
-                          {Math.round(c.score * 100)}%
-                        </span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setCreatingIdx(idx)}
-                      className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
-                    >
-                      Không khớp — tạo mã mới
-                    </button>
-                  </div>
+                  <ReviewCandidates
+                    rawName={it.name}
+                    rawUnit={it.unit ?? null}
+                    candidates={res.candidates}
+                    isPending={confirmMut.isPending}
+                    onConfirm={(c, factor) =>
+                      confirmMut.mutate({
+                        raw_name: it.name,
+                        raw_unit: it.unit ?? null,
+                        product_id: c.product_id,
+                        unit_conversion_factor: factor,
+                      })
+                    }
+                    onCreateNew={() => setCreatingIdx(idx)}
+                  />
                 )}
 
                 {status === "new" && !q.isLoading && !isCreating && (
@@ -288,17 +274,26 @@ function NewProductForm(props: {
     item_type: "goods" | "service";
     stock_account: string;
     unit_price: number;
+    unit_conversion_factor: number;
   }) => void;
 }) {
   const [code, setCode] = useState(suggestCode(props.rawName));
   const [name, setName] = useState(props.rawName);
   const [unit, setUnit] = useState(props.rawUnit ?? "cái");
   const [typeIdx, setTypeIdx] = useState("0");
+  const [factor, setFactor] = useState("1");
+
+  const unitsDiffer = !!(props.rawUnit && unit.trim() && props.rawUnit.trim().toLowerCase() !== unit.trim().toLowerCase());
 
   const submit = () => {
     const t = ITEM_TYPES[Number(typeIdx)] ?? ITEM_TYPES[0];
     if (!code.trim() || !name.trim() || !unit.trim()) {
       toast.error("Nhập đủ mã, tên, ĐVT");
+      return;
+    }
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) {
+      toast.error("Hệ số quy đổi phải > 0");
       return;
     }
     props.onSubmit({
@@ -308,6 +303,7 @@ function NewProductForm(props: {
       item_type: t.v,
       stock_account: t.acct,
       unit_price: props.unitPrice || 0,
+      unit_conversion_factor: f,
     });
   };
 
@@ -365,6 +361,21 @@ function NewProductForm(props: {
             </SelectContent>
           </Select>
         </div>
+        {unitsDiffer && (
+          <div className="col-span-2 space-y-0.5 rounded border border-amber-500/30 bg-amber-500/5 p-1.5">
+            <Label className="text-[10px] text-amber-700 dark:text-amber-300">
+              Quy đổi: 1 {props.rawUnit} = ? {unit}
+            </Label>
+            <Input
+              type="number"
+              min="0"
+              step="any"
+              value={factor}
+              onChange={(e) => setFactor(e.target.value)}
+              className="h-7 text-xs font-mono"
+            />
+          </div>
+        )}
       </div>
       <div className="flex justify-end gap-1.5">
         <Button
@@ -386,6 +397,89 @@ function NewProductForm(props: {
           Tạo & lưu rule
         </Button>
       </div>
+    </div>
+  );
+}
+
+type ReviewCandidate = {
+  product_id: string;
+  code: string;
+  name: string;
+  unit?: string | null;
+  score: number;
+};
+
+function ReviewCandidates(props: {
+  rawName: string;
+  rawUnit: string | null;
+  candidates: ReviewCandidate[];
+  isPending: boolean;
+  onConfirm: (c: ReviewCandidate, factor: number) => void;
+  onCreateNew: () => void;
+}) {
+  const [factor, setFactor] = useState("1");
+  const anyDiff = props.candidates.some(
+    (c) => props.rawUnit && c.unit && c.unit.trim().toLowerCase() !== props.rawUnit.trim().toLowerCase(),
+  );
+
+  const handleClick = (c: ReviewCandidate) => {
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) {
+      toast.error("Hệ số quy đổi phải > 0");
+      return;
+    }
+    props.onConfirm(c, f);
+  };
+
+  return (
+    <div className="mt-1 space-y-1">
+      <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+        <AlertCircle className="h-3 w-3" />
+        Fin gợi ý — chọn 1:
+      </div>
+      {anyDiff && (
+        <div className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px]">
+          <Label className="text-[10px] text-amber-700 dark:text-amber-300">
+            Quy đổi: 1 {props.rawUnit} =
+          </Label>
+          <Input
+            type="number"
+            min="0"
+            step="any"
+            value={factor}
+            onChange={(e) => setFactor(e.target.value)}
+            className="h-6 w-16 text-xs font-mono"
+          />
+          <span className="text-[10px] text-muted-foreground">ĐVT chuẩn</span>
+        </div>
+      )}
+      {props.candidates.map((c) => (
+        <button
+          key={c.product_id}
+          type="button"
+          disabled={props.isPending}
+          onClick={() => handleClick(c)}
+          className={cn(
+            "flex w-full items-center gap-1.5 rounded border border-border/60 bg-muted/30 px-2 py-1 text-left text-[11px] transition-colors hover:bg-muted",
+          )}
+        >
+          <span className="font-mono text-foreground">{c.code}</span>
+          <span className="truncate text-foreground/80">{c.name}</span>
+          {c.unit && (
+            <span className="shrink-0 text-[10px] text-muted-foreground">({c.unit})</span>
+          )}
+          <span className="ml-auto shrink-0 font-mono text-muted-foreground">
+            {Math.round(c.score * 100)}%
+          </span>
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={props.onCreateNew}
+        className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+      >
+        Không khớp — tạo mã mới
+      </button>
     </div>
   );
 }

@@ -697,6 +697,7 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
             <tr className="border-b border-border/60 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="py-1.5 pr-2 text-left font-semibold w-6">#</th>
               <th className="py-1.5 pr-2 text-left font-semibold">Tên</th>
+              <th className="py-1.5 pr-2 text-left font-semibold">Mã hệ thống</th>
               <th className="py-1.5 pr-2 text-right font-semibold">SL</th>
               <th className="py-1.5 pr-2 text-left font-semibold">ĐVT</th>
               <th className="py-1.5 pr-2 text-right font-semibold">Đơn giá</th>
@@ -704,30 +705,53 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
             </tr>
           </thead>
           <tbody>
-            {items.map((it, i) => (
-              <tr key={i} className="border-b border-border/40 last:border-0 align-top">
-                <td className="py-1.5 pr-2 font-mono text-[10px] text-muted-foreground">
-                  {i + 1}
-                </td>
-                <td className="py-1.5 pr-2 font-medium text-foreground">{it.name}</td>
-                <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                  {it.qty != null ? nfQty.format(it.qty) : "—"}
-                </td>
-                <td className="py-1.5 pr-2 text-muted-foreground">
-                  {it.unit ?? "—"}
-                </td>
-                <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                  {it.unit_price != null ? VND(it.unit_price) : "—"}
-                </td>
-                <td className="py-1.5 text-right font-mono font-semibold tabular-nums text-foreground">
-                  {VND(it.amount)}
-                </td>
-              </tr>
-            ))}
+            {items.map((it, i) => {
+              const r = it.resolution;
+              return (
+                <tr key={i} className="border-b border-border/40 last:border-0 align-top">
+                  <td className="py-1.5 pr-2 font-mono text-[10px] text-muted-foreground">
+                    {i + 1}
+                  </td>
+                  <td className="py-1.5 pr-2 font-medium text-foreground">{it.name}</td>
+                  <td className="py-1.5 pr-2">
+                    {r?.status === "auto" && r.best ? (
+                      <div className="flex items-center gap-1">
+                        <Check className="h-3 w-3 text-emerald-600 shrink-0" strokeWidth={3} />
+                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
+                          {r.best.code}
+                        </span>
+                      </div>
+                    ) : r?.status === "review" ? (
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Cần chọn
+                      </span>
+                    ) : r?.status === "new" ? (
+                      <span className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300">
+                        Mới
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
+                    {it.qty != null ? nfQty.format(it.qty) : "—"}
+                  </td>
+                  <td className="py-1.5 pr-2 text-muted-foreground">
+                    {it.unit ?? "—"}
+                  </td>
+                  <td className="py-1.5 pr-2 text-right font-mono tabular-nums text-muted-foreground">
+                    {it.unit_price != null ? VND(it.unit_price) : "—"}
+                  </td>
+                  <td className="py-1.5 text-right font-mono font-semibold tabular-nums text-foreground">
+                    {VND(it.amount)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border">
-              <td colSpan={5} className="py-2 pr-2 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <td colSpan={6} className="py-2 pr-2 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Tổng cộng (trước VAT)
               </td>
               <td className="py-2 text-right font-mono text-sm font-bold tabular-nums text-foreground">
