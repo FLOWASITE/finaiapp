@@ -5981,6 +5981,41 @@ export type Database = {
           },
         ]
       }
+      product_embeddings: {
+        Row: {
+          embedding: string
+          model: string
+          product_id: string
+          source_text: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          embedding: string
+          model?: string
+          product_id: string
+          source_text: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          embedding?: string
+          model?: string
+          product_id?: string
+          source_text?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_embeddings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_unit_conversions: {
         Row: {
           created_at: string
@@ -9122,6 +9157,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_raw_embeddings: {
+        Row: {
+          embedding: string
+          model: string
+          raw_name_norm: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          embedding: string
+          model?: string
+          raw_name_norm: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          embedding?: string
+          model?: string
+          raw_name_norm?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       warehouses: {
         Row: {
           address: string | null
@@ -9443,6 +9502,17 @@ export type Database = {
         Returns: boolean
       }
       is_tenant_suspended: { Args: { _tenant: string }; Returns: boolean }
+      match_products_for_vendor: {
+        Args: {
+          p_limit?: number
+          p_query_embedding: string
+          p_tenant_id: string
+        }
+        Returns: {
+          product_id: string
+          similarity: number
+        }[]
+      }
       merge_parties: {
         Args: { p_kind: string; p_primary: string; p_secondary: string }
         Returns: Json
