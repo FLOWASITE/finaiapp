@@ -291,16 +291,40 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                     >
                       Tạo mã
                     </button>
+                    <FinSuggestButton
+                      loading={llmLoadingIdx === idx}
+                      disabled={llmLoadingIdx != null}
+                      onClick={() => askFin(idx, it)}
+                    />
+                  </div>
+                )}
+
+                {status === "review" && res && (
+                  <div className="mt-1">
+                    <FinSuggestButton
+                      loading={llmLoadingIdx === idx}
+                      disabled={llmLoadingIdx != null || confirmMut.isPending}
+                      onClick={() => askFin(idx, it)}
+                      inline
+                    />
                   </div>
                 )}
 
                 {isCreating && (
                   <NewProductForm
+                    key={`new-${idx}-${llmPrefill[idx]?.code ?? "blank"}`}
                     rawName={it.name}
                     rawUnit={it.unit ?? null}
                     unitPrice={it.unit_price ?? 0}
+                    prefill={llmPrefill[idx]}
                     isPending={createMut.isPending}
-                    onCancel={() => setCreatingIdx(null)}
+                    onCancel={() => {
+                      setCreatingIdx(null);
+                      setLlmPrefill((m) => {
+                        const { [idx]: _, ...rest } = m;
+                        return rest;
+                      });
+                    }}
                     onSubmit={(v) =>
                       createMut.mutate({
                         raw_name: it.name,
