@@ -163,6 +163,7 @@ const OCR_LABELS: Record<string, string> = {
   done: "Hoàn tất",
   failed: "Lỗi",
   skipped: "Bỏ qua",
+  rejected: "Không thuộc tổ chức",
 };
 const OCR_TONE: Record<string, string> = {
   pending: "bg-muted text-muted-foreground",
@@ -170,6 +171,7 @@ const OCR_TONE: Record<string, string> = {
   done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   failed: "bg-destructive/15 text-destructive",
   skipped: "bg-muted text-muted-foreground",
+  rejected: "bg-destructive/15 text-destructive",
 };
 
 const KIND_LABELS: Record<string, string> = {
