@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { COMMON_UNITS as COMMON_UNITS_LIST, findCommonUnit } from "./common-units";
 
 const UnitSchema = z.object({
@@ -91,6 +92,7 @@ export const seedCommonUnits = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
     const { data: existing } = await supabase
       .from("product_units").select("code");
     const have = new Set((existing ?? []).map((r: any) => r.code.toLowerCase()));

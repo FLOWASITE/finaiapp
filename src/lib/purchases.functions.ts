@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 
 
@@ -92,6 +93,7 @@ export const upsertSupplier = createServerFn({ method: "POST" })
       .eq("id", userId)
       .single();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     const { id, ...rest } = data;
     if (id) {

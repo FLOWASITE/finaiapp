@@ -1,3 +1,4 @@
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 /**
  * Server-only: phân loại nhanh 1 file (PDF/ảnh/Excel) → loại chứng từ
  * (hoá đơn vào / hoá đơn ra / sao kê / phiếu thu chi / không liên quan).
@@ -70,6 +71,7 @@ async function getTenantTaxId(supabase: any, userId: string): Promise<string> {
       .eq("id", userId)
       .maybeSingle();
     const tid = prof?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) return "";
     const { data: t } = await supabase
       .from("tenants")

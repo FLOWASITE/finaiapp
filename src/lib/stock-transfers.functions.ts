@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 const TransferLineSchema = z.object({
   product_id: z.string().uuid(),
@@ -74,6 +75,7 @@ export const createStockTransfer = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     const voucherNo = data.voucher_no?.trim() || (await nextTransferNo(supabase, userId, data.voucher_date));
 

@@ -1,16 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { normalizeLineName } from "@/lib/ai/classify-line";
 
-async function activeTenant(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+const activeTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 const KindEnum = z.enum(["goods", "fixed_asset", "ccdc", "service"]);
 const KindV2Enum = z.enum([

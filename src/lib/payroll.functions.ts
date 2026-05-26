@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 // VN PIT progressive 2024 (monthly, after personal+dependent deduction)
 const PIT_BRACKETS: [number, number][] = [
@@ -35,6 +36,7 @@ async function currentTenant(supabase: any, userId: string): Promise<string> {
     .eq("id", userId)
     .single();
   const t = data?.active_tenant_id;
+    if (t) await assertTenantMember(supabase, userId, t);
   if (!t) throw new Error("Chưa chọn doanh nghiệp hoạt động");
   return t;
 }

@@ -4,17 +4,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { scanAndCalibrateTenant } from "./calibrate.server";
 import { DEFAULT_WEIGHTS } from "@/lib/categorize/calibration.server";
 
-async function activeTenant(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+const activeTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 export const runCalibrationForTenant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

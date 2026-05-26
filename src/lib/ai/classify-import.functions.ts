@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 // ---------- Helpers ----------
 
@@ -45,6 +46,7 @@ export const classifyImports = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     // Preload bank accounts
     const { data: bankAccts } = await supabase
@@ -315,6 +317,7 @@ export const resolveBankAccount = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     const norm = normAcctNo(data.account_no);
     if (!norm) throw new Error("Số tài khoản không hợp lệ");

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 const normalizeTaxId = (s: string) => (s || "").replace(/\D+/g, "");
 
@@ -80,6 +81,7 @@ export const quickCreateSupplier = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenant_id = prof?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     // Avoid duplicate by tax_id within tenant
     const { data: existing } = await supabase

@@ -4,16 +4,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { scanAndPromoteRules } from "./promote-rules.server";
 
-async function activeTenant(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+const activeTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 export const runPromoteRulesForTenant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -207,20 +207,30 @@ export const askAccountingStream = createServerFn({ method: "POST" })
       const roles = (rolesRes.data ?? []).map((r: any) => r.role).join(", ") || "user";
       let tenantLine = "";
       if (p.active_tenant_id) {
-        const { data: t } = await supabase
-          .from("tenants")
-          .select(
-            "name, company_name, tax_id, address, industry_name, accounting_standard, base_currency, fiscal_year_start"
-          )
-          .eq("id", p.active_tenant_id)
+        // Xác thực user là thành viên active của tenant trước khi đọc dữ liệu tenant
+        const { data: mem } = await supabase
+          .from("tenant_members")
+          .select("user_id")
+          .eq("tenant_id", p.active_tenant_id)
+          .eq("user_id", userId)
+          .eq("status", "active")
           .maybeSingle();
-        if (t) {
-          tenantLine = [
-            `- Doanh nghiệp: ${t.company_name || t.name}${t.tax_id ? ` (MST ${t.tax_id})` : ""}`,
-            t.industry_name ? `- Ngành: ${t.industry_name}` : "",
-            t.address ? `- Địa chỉ: ${t.address}` : "",
-            `- Chế độ KT: ${t.accounting_standard} · Tiền tệ gốc: ${t.base_currency} · Năm tài chính bắt đầu tháng ${t.fiscal_year_start}`,
-          ].filter(Boolean).join("\n");
+        if (mem) {
+          const { data: t } = await supabase
+            .from("tenants")
+            .select(
+              "name, company_name, tax_id, address, industry_name, accounting_standard, base_currency, fiscal_year_start"
+            )
+            .eq("id", p.active_tenant_id)
+            .maybeSingle();
+          if (t) {
+            tenantLine = [
+              `- Doanh nghiệp: ${t.company_name || t.name}${t.tax_id ? ` (MST ${t.tax_id})` : ""}`,
+              t.industry_name ? `- Ngành: ${t.industry_name}` : "",
+              t.address ? `- Địa chỉ: ${t.address}` : "",
+              `- Chế độ KT: ${t.accounting_standard} · Tiền tệ gốc: ${t.base_currency} · Năm tài chính bắt đầu tháng ${t.fiscal_year_start}`,
+            ].filter(Boolean).join("\n");
+          }
         }
       }
       const today = new Date().toLocaleDateString("vi-VN", {

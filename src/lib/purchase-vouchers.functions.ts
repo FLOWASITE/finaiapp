@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
 import { nextStockVoucherNo } from "@/lib/inventory.functions";
@@ -182,12 +183,13 @@ export const suggestVoucherNo = createServerFn({ method: "POST" })
     z.object({ voucher_date: z.string() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles")
       .select("active_tenant_id")
       .single();
     const tenantId = profile?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
     const no = await nextVoucherNo(supabase, tenantId, data.voucher_date);
     return { voucher_no: no };
@@ -205,6 +207,7 @@ export const createPurchaseVoucher = createServerFn({ method: "POST" })
       .select("active_tenant_id")
       .single();
     const tenantId = profile?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
     const { lines, id: _ignore, ...header } = data;

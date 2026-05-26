@@ -1,3 +1,4 @@
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 /**
  * Server-only helper to log AI agent activity from inside other server functions
  * (e.g. parseDocument, classify pipelines). Non-fatal: swallows all errors so a
@@ -21,6 +22,7 @@ export async function tryLogAgentActivity(
       .eq("id", userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) return;
     await supabase.from("ai_agent_activity_logs").insert({
       tenant_id: tenantId,

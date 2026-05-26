@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 
 // ===================== BANK ACCOUNTS =====================
@@ -16,14 +17,8 @@ const BankAccountSchema = z.object({
   opening_balance: z.number().default(0),
 });
 
-async function getTenant(supabase: any, userId: string) {
-  const { data: p } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return p?.active_tenant_id ?? null;
-}
+const getTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 export const listBankAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

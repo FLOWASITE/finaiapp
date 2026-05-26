@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 function yyyymm(d: Date) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -56,6 +57,7 @@ export const upsertSalesOrderDeposit = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     const payload: any = {
       user_id: userId,

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const LineSchema = z.object({
@@ -157,6 +158,7 @@ export const upsertSalesOrder = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     const enriched = data.lines.map((l, idx) => {
       const c = computeLine(l);

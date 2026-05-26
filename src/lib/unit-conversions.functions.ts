@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 const ConversionSchema = z.object({
   id: z.string().uuid().optional(),
@@ -52,6 +53,7 @@ export const upsertConversion = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     // Disallow conflict with the base unit of the product
     const { data: product } = await supabase

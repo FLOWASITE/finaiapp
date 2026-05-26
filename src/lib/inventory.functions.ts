@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 const ProductSchema = z.object({
   id: z.string().optional(),
@@ -83,7 +84,9 @@ export const upsertProduct = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-    const payload: any = { ...data, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
+    const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (data.id) {
       const { error } = await supabase.from("products").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
@@ -147,8 +150,10 @@ export const previewStockVoucherNo = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+    const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     const code = await nextStockVoucherNo(
-      supabase, profile?.active_tenant_id ?? null, userId, data.type, data.movement_date,
+      supabase, tenantId, userId, data.type, data.movement_date,
     );
     return { code };
   });
@@ -559,7 +564,9 @@ export const upsertCategory = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-    const payload: any = { ...data, user_id: userId, tenant_id: profile?.active_tenant_id ?? null };
+    const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
+    const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
     if (data.id) {
       const { error } = await supabase.from("product_categories").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
@@ -985,6 +992,7 @@ export const createStockVoucher = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     const voucherNo =
       data.voucher_no?.trim() ||

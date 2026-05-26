@@ -1,15 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 
-async function getTenant(supabase: any, userId: string) {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.active_tenant_id ?? null;
-}
+const getTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
 
 export const emitManualFeedback = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
