@@ -1011,7 +1011,7 @@ function UploadDialog({
                       <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm truncate">{it.file.name}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                           <span>{formatBytes(it.file.size)}</span>
                           {oversize && (
                             <Badge variant="destructive" className="h-4 px-1 text-[10px]">Vượt 20MB</Badge>
@@ -1021,8 +1021,30 @@ function UploadDialog({
                               {UPLOAD_KINDS.find((k) => k.value === it.detectedKind)?.label ?? it.detectedKind}
                             </Badge>
                           )}
+                          {it.tenantMatch === "reject" && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                              Không thuộc tổ chức
+                            </Badge>
+                          )}
+                          {it.tenantMatch === "warn" && (
+                            <Badge variant="outline" className="h-4 px-1 text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400">
+                              Cần kiểm tra
+                            </Badge>
+                          )}
                           {it.message && (
-                            <span className="text-destructive truncate">{it.message}</span>
+                            <span
+                              className={cn(
+                                "truncate",
+                                it.status === "rejected" || it.status === "failed"
+                                  ? "text-destructive"
+                                  : it.tenantMatch === "warn"
+                                    ? "text-amber-700 dark:text-amber-400"
+                                    : "text-muted-foreground",
+                              )}
+                              title={it.message}
+                            >
+                              {it.message}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -1034,6 +1056,9 @@ function UploadDialog({
                           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                         )}
                         {it.status === "failed" && (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        {it.status === "rejected" && (
                           <XCircle className="h-4 w-4 text-destructive" />
                         )}
                         {it.status === "pending" && !uploading && (
