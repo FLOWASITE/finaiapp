@@ -1391,6 +1391,7 @@ export async function parseFileCore(opts: {
     }
     if (effectiveKind === "purchase_invoice") {
       parsed = await enrichInvoiceWithSupplierSignals(parsed, opts.supabase, opts.userId);
+      parsed = await enrichInvoiceWithItemResolution(parsed, opts.supabase, opts.userId);
     }
     const structurerMs = Date.now() - structStart;
     emitPhase({ name: "extract", status: "done", ms: structurerMs });
