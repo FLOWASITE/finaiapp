@@ -1239,12 +1239,12 @@ function CreateVoucherDialog({
         if (!header.warehouse_id) {
           throw new Error("Vui lòng chọn kho để tạo phiếu nhập kho");
         }
-        const hasGoodsWithProduct = lines.some(
-          (l) => l.line_type === "goods" && l.product_id && Number(l.qty || 0) > 0,
+        const hasGoodsRow = lines.some(
+          (l) => l.line_type === "goods" && Number(l.qty || 0) > 0 && (l.product_name || l.product_code),
         );
-        if (!hasGoodsWithProduct) {
+        if (!hasGoodsRow) {
           throw new Error(
-            "Phiếu nhập kho yêu cầu ít nhất một dòng hàng hoá có chọn sản phẩm từ danh mục và số lượng > 0. Hãy chọn sản phẩm ở cột Mặt hàng.",
+            "Phiếu nhập kho yêu cầu ít nhất một dòng hàng hoá có tên/mã và số lượng > 0.",
           );
         }
       }
