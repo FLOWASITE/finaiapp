@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertTenantMember } from "@/lib/auth/active-tenant.server";
+import { assertTenantMember, resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 
 const ProductSchema = z.object({
   id: z.string().optional(),
@@ -39,11 +39,15 @@ const ProductSchema = z.object({
 export const listProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
+    let q = supabase
       .from("products")
       .select("*, product_categories(name)")
+      .eq("tenant_id", tenantId)
       .order("code");
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data;
   });
