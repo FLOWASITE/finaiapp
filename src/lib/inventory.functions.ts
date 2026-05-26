@@ -752,10 +752,13 @@ export const listProductsByCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { category_id: string | null }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("products")
       .select("id, code, name, unit, item_type, on_hand, is_active")
+      .eq("tenant_id", tenantId)
       .order("code");
     if (data.category_id === null) q = q.is("category_id", null);
     else q = q.eq("category_id", data.category_id);
