@@ -21,9 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { ProductPicker } from "@/components/items/product-picker";
+import { BulkImportMappingsDialog } from "@/components/items/bulk-import-dialog";
 
 export const Route = createFileRoute("/_app/settings/item-mappings")({
   component: ItemMappingsPage,
