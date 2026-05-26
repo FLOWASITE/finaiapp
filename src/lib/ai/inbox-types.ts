@@ -27,6 +27,12 @@ export type ProposalItemResolution = {
     unit?: string | null;
     score?: number;
     match_count?: number | null;
+    unit_factor?: number | null;
+  } | null;
+  unit_converted?: {
+    factor: number;
+    from?: string | null;
+    to?: string | null;
   } | null;
   candidates?: Array<{
     product_id: string;
