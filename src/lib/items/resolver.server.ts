@@ -184,12 +184,14 @@ export async function resolveVendorLine(
   }
 
 
+  const semanticMap: Map<string, number> = (candidateProducts as any).__semantic ?? new Map();
   const scored: Candidate[] = candidateProducts.map((p) => {
     const aliasBest = (p.aliases ?? []).reduce(
       (m: number, al: string) => Math.max(m, textSim(rawNorm, al)),
       0,
     );
-    const text = Math.max(textSim(rawNorm, p.name), aliasBest);
+    const sem = semanticMap.get(p.id) ?? 0;
+    const text = Math.max(textSim(rawNorm, p.name), aliasBest, sem * 0.95);
     const unit = isCompatibleUnit(input.rawUnit, p.unit);
     const price = priceScore(input.price ?? null, Number(p.unit_cost ?? 0));
     const history = historyIds.has(p.id) ? 1 : 0;
