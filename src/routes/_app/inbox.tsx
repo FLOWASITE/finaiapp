@@ -1135,6 +1135,14 @@ function ItemCard({
   const items = item.proposal.items ?? [];
   const firstItem = items[0]?.name;
   const moreItems = items.length > 1 ? items.length - 1 : 0;
+  // Visual cue: AI item resolution coverage
+  const resolvable = items.filter((i) => i.resolution && i.resolution.status !== "none");
+  const matched = items.filter(
+    (i) => i.resolution?.status === "auto" || (i.product_id && i.resolution?.status !== "new"),
+  ).length;
+  const needsReview = items.filter((i) => i.resolution?.status === "review").length;
+  const isNew = items.filter((i) => i.resolution?.status === "new").length;
+  const showResBadge = resolvable.length > 0;
 
   return (
     <li
