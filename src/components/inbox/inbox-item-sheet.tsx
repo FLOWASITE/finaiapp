@@ -715,11 +715,18 @@ function ProposalItemsList({ items }: { items?: ProposalItem[] }) {
                   <td className="py-1.5 pr-2 font-medium text-foreground">{it.name}</td>
                   <td className="py-1.5 pr-2">
                     {r?.status === "auto" && r.best ? (
-                      <div className="flex items-center gap-1">
-                        <Check className="h-3 w-3 text-emerald-600 shrink-0" strokeWidth={3} />
-                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
-                          {r.best.code}
-                        </span>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1">
+                          <Check className="h-3 w-3 text-emerald-600 shrink-0" strokeWidth={3} />
+                          <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300">
+                            {r.best.code}
+                          </span>
+                        </div>
+                        {r.unit_converted ? (
+                          <span className="text-[9px] text-muted-foreground italic">
+                            1 {r.unit_converted.from ?? "?"} → {r.unit_converted.factor} {r.unit_converted.to}
+                          </span>
+                        ) : null}
                       </div>
                     ) : r?.status === "review" ? (
                       <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">

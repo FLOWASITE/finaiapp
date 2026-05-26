@@ -1,34 +1,25 @@
 ## Rà soát tiến độ — Vendor Item Reconciliation
 
-### Đã xong
+### P0–P3 đã xong (tóm tắt)
+- Hạ tầng dữ liệu (mappings, log, embeddings, RPC, RLS).
+- Resolver 4 lớp (cache / fuzzy multi-signal / pgvector / LLM).
+- Pipeline + UX (inbox badge, panel, /settings/item-mappings, bulk import CSV, Memory Graph, backfill).
+- Auto embed khi tạo/sửa product.
 
-**Hạ tầng dữ liệu** — `supplier_item_mappings`, `item_resolution_log`, `products.aliases`, pgvector + `product_embeddings` + `vendor_raw_embeddings` + RPC `match_products_for_vendor`. RLS theo tenant. ✅
-
-**Resolver core (`src/lib/items/`)** — `normalize.ts`, `resolver.server.ts` Layer 1 (cache) + Layer 2 (multi-signal, hard-reject khác đơn vị) + **Layer 2.5 semantic (pgvector, best-effort)** + Layer 3 LLM fallback (`llm-suggest.functions.ts`), audit log. ✅
-
-**Server fns (`mappings.functions.ts`)** — `resolveInvoiceLines`, `confirmItemMapping`, `createProductFromRaw`, `list/deleteSupplierItemMapping`, `updateMappingProduct`, `searchProductsForMapping`, `listMappingConflicts`, **`bulkImportMappings`**. ✅
-
-**Embeddings (`embeddings.server.ts`)** — `embedText`, `ensureProductEmbedding`, `semanticSearchProducts` qua Lovable AI Gateway (`google/gemini-embedding-001`, 768 dims). No-op nếu thiếu API key. ✅
-
-**Pipeline integration (P0)**
-- `enrichInvoiceWithItemResolution` chạy sau parse, gắn `product_id` khi `auto`. ✅
-- Resolution metadata propagate qua `ProposalItem` → `inbox-reason.server.ts`. ✅
-
-**UX (P0 + P1 + P2)**
-- Cột "Mã hệ thống" với badge 🟢/🟡/🔵 trong `inbox-item-sheet.tsx`. ✅
-- `ItemResolutionPanel` hỏi `unit_conversion_factor`. ✅
-- "Nhờ Fin gợi ý" (Layer 3 LLM) trong panel. ✅
-- **Badge "AI khớp X/Y" trên card inbox** (xanh nếu khớp 100%, vàng nếu có review, xanh dương nếu có mới). ✅
-- `/settings/item-mappings`: filter NCC, inline edit qua `ProductPicker`, tab Xung đột, **dialog Nhập từ CSV** (paste/upload, parse + báo lỗi từng dòng). ✅
-
-**Memory Graph** — `getMemoryGraphData` + `adaptDbToGraph` đọc thêm `supplier_item_mappings`, tạo node `prod:<id>` (label = mã sản phẩm) và cạnh vendor→item→account theo `stock_account`. Đã hiển thị trong tab "Trí nhớ AI". ✅
+### P3.5 đã xong (vòng này)
+- **A. Cache auto nhanh hơn**: ngưỡng kép `confidence ≥ 0.95 ∧ match_count ≥ 1` HOẶC `≥ 0.9 ∧ ≥ 3`. `confirmItemMapping` bump confidence (+0.05) khi user accept-as-is. Log `user_override` khi user đổi product (cả `confirmItemMapping` lẫn `updateMappingProduct`).
+- **D. Áp dụng `unit_conversion_factor`** trong `enrichInvoiceWithItemResolution`: chỉ khi `auto` từ cache, qty *= factor, unit_price /= factor, gắn `unit_converted` metadata. Badge phụ "1 thùng → 24 chai" trong inbox-item-sheet.
+- **F. HNSW index** cho `product_embeddings.embedding` và `vendor_raw_embeddings.embedding` (cosine, m=16, ef_construction=64).
 
 ### Còn lại
 
 | # | Mục | Ưu tiên |
 |---|-----|---------|
-| 1 | Smoke test 3 dòng (cache / review / new) trên hoá đơn thật | P1 |
-
-### P3 đã xong
-- Trigger upsert embedding khi tạo/sửa `products` (hook trong `upsertProduct`). ✅
-- Nút "Backfill embedding" thủ công ở `/settings/item-mappings` gọi `backfillProductEmbeddings` (lô 200). ✅
+| J | Smoke test 3 hoá đơn thật (cache / review / new) | Chờ data |
+| C | (đã làm 1 phần ở P3.5) — calibrate trọng số từ `user_override` log | P4 |
+| G | Tách `semantic` thành signal riêng (weight ~0.15) thay vì pha vào text | P4 |
+| E | `supplier_item_last_price` cho priceScore chính xác theo NCC | P4 |
+| B | pg_trgm thay heuristic 2-từ-đầu khi lấy candidate L2 | P4 |
+| H | Backfill embedding paginate + cron tự chạy | P5 |
+| I | Flow gộp xung đột (giữ A xoá B + dồn match_count) | P5 |
+| K | Phân biệt mapping nguồn LLM trong `source` | P5 |

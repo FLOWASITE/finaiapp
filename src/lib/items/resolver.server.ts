@@ -99,7 +99,13 @@ export async function resolveVendorLine(
     .eq("raw_name_norm", rawNorm)
     .maybeSingle();
 
-  if (cached?.products && cached.confidence >= 0.9 && cached.match_count >= 3) {
+  // Auto if either:
+  //   - confidence ≥ 0.95 và đã có ít nhất 1 lần khớp (user đã confirm hoặc accept-as-is); hoặc
+  //   - confidence ≥ 0.9  và đã khớp ≥ 3 lần (tin theo lịch sử).
+  const cConf = Number(cached?.confidence ?? 0);
+  const cCount = Number(cached?.match_count ?? 0);
+  const cacheAutoOk = cached?.products && ((cConf >= 0.95 && cCount >= 1) || (cConf >= 0.9 && cCount >= 3));
+  if (cacheAutoOk) {
     const p = cached.products;
     const cand: Candidate = {
       product_id: p.id,
@@ -111,11 +117,11 @@ export async function resolveVendorLine(
       expense_account: p.expense_account,
       unit_cost: Number(p.unit_cost ?? 0),
       aliases: p.aliases ?? [],
-      score: Number(cached.confidence),
+      score: cConf,
       signals: { text: 1, unit: 1, price: 1, history: 1, sku: 0 },
       cached: {
-        match_count: cached.match_count,
-        confidence: Number(cached.confidence),
+        match_count: cCount,
+        confidence: cConf,
         unit_factor: Number(cached.unit_conversion_factor ?? 1),
       },
     };
