@@ -203,6 +203,8 @@ function normalizePurchaseInvoice(value: any, rawText?: string | null, parserNot
     ...source,
     vendor_name: toNullableString(source.vendor_name),
     vendor_tax_id: toNullableString(source.vendor_tax_id),
+    buyer_name: toNullableString(source.buyer_name),
+    buyer_tax_id: toNullableString(source.buyer_tax_id),
     invoice_no: toNullableString(source.invoice_no),
     issue_date: toNullableString(source.issue_date),
     currency: toNullableString(source.currency) || "VND",
