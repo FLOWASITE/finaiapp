@@ -953,7 +953,7 @@ function UploadDialog({
               ref={inputRef}
               type="file"
               multiple
-              accept=".pdf,image/*,.xml,.xlsx,.xls,.docx,.csv,.doc"
+              accept=".pdf,application/pdf,image/*,.xml,application/xml,text/xml,.xlsx,.xls,.docx,.csv,.doc,.txt"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files?.length) addFiles(e.target.files);
