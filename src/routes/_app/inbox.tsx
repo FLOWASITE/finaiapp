@@ -627,7 +627,7 @@ function InboxAiPage() {
       </div>
 
       {/* Body — Desktop: 3-column layout (list | invoice | detail) */}
-      <div className="hidden min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[520px_minmax(0,1fr)_600px] xl:grid-cols-[560px_minmax(420px,1fr)_640px]">
+      <div className="hidden min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[1.2fr_1.8fr_1.2fr]">
         {/* Left: list */}
         <div className="flex min-h-0 flex-col border-r border-border/40">
           <div className="shrink-0 border-b border-border/40 p-3">
