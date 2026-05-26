@@ -620,10 +620,12 @@ export const deleteCategory = createServerFn({ method: "POST" })
 export const listCategoriesTree = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     const [{ data: cats, error: cErr }, { data: prods, error: pErr }] = await Promise.all([
-      supabase.from("product_categories").select("id, name, parent_id").order("name"),
-      supabase.from("products").select("category_id"),
+      supabase.from("product_categories").select("id, name, parent_id").eq("tenant_id", tenantId).order("name"),
+      supabase.from("products").select("category_id").eq("tenant_id", tenantId),
     ]);
     if (cErr) throw new Error(cErr.message);
     if (pErr) throw new Error(pErr.message);
