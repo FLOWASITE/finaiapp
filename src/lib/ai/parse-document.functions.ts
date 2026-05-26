@@ -1097,6 +1097,7 @@ export async function parseFileCore(opts: {
         let parsed = parsedXmlToPurchaseInvoice(parsedXml);
         if (actualKind === "purchase_invoice") {
           parsed = await enrichInvoiceWithSupplierSignals(parsed, opts.supabase, opts.userId);
+          parsed = await enrichInvoiceWithItemResolution(parsed, opts.supabase, opts.userId);
         }
         // Đánh dấu hướng để UI/lower layers biết
         if (parsed && typeof parsed === "object") {
