@@ -74,7 +74,7 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
   .middleware([withTenant])
   .handler(async ({ context }): Promise<GraphDbData> => {
     const { supabase, tenantId, userId } = context;
-    const [rulesRes, suppliersRes, partnersRes, classRes, layoutRes] =
+    const [rulesRes, suppliersRes, partnersRes, classRes, mapRes, layoutRes] =
       await Promise.all([
         supabase
           .from("ai_memory_rules")
@@ -101,6 +101,14 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
           .order("hit_count", { ascending: false })
           .limit(300),
         supabase
+          .from("supplier_item_mappings")
+          .select(
+            "id, supplier_id, product_id, raw_name, match_count, products!inner(code, name, unit, item_type, stock_account)",
+          )
+          .eq("tenant_id", tenantId)
+          .order("match_count", { ascending: false })
+          .limit(500),
+        supabase
           .from("ai_memory_graph_layout")
           .select("positions")
           .eq("user_id", userId)
@@ -113,6 +121,20 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
     if (partnersRes.error) throw new Error(partnersRes.error.message);
     if (classRes.error) throw new Error(classRes.error.message);
     // layoutRes can have null data; ignore not-found
+    // mapRes: missing table errors swallowed below
+
+    const itemMappings: GraphItemMappingRow[] = ((mapRes.data ?? []) as any[]).map((r) => ({
+      id: r.id,
+      supplier_id: r.supplier_id,
+      product_id: r.product_id,
+      raw_name: r.raw_name,
+      match_count: r.match_count ?? 1,
+      product_code: r.products?.code ?? "",
+      product_name: r.products?.name ?? "",
+      product_unit: r.products?.unit ?? null,
+      item_type: r.products?.item_type ?? null,
+      stock_account: r.products?.stock_account ?? null,
+    }));
 
     const suppliers = (suppliersRes.data ?? []) as GraphSupplierRow[];
 
