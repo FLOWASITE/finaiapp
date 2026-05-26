@@ -1500,7 +1500,7 @@ function PurchaseInvoicesTable({
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const canLoadMore = rows.length < total;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const sumSub = rows.reduce((s: number, r: any) => s + Number(r.invoice?.subtotal ?? 0), 0);
   const sumVat = rows.reduce((s: number, r: any) => s + Number(r.invoice?.vat_amount ?? 0), 0);
