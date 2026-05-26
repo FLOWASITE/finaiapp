@@ -43,7 +43,7 @@ import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } 
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { ItemResolutionPanel } from "@/components/inbox/item-resolution-panel";
 import { listMyTenants } from "@/lib/tenants.functions";
-import type { ProposalItem, VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
+import type { VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
 
 function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: VoucherMetaType }) {
   const tenantsFn = useServerFn(listMyTenants);
