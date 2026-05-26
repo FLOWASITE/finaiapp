@@ -42,6 +42,16 @@ import { getDocument } from "@/lib/documents.functions";
 import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { ItemResolutionPanel } from "@/components/inbox/item-resolution-panel";
+import { listMyTenants } from "@/lib/tenants.functions";
+import type { ProposalItem, VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
+
+function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: VoucherMetaType }) {
+  const tenantsFn = useServerFn(listMyTenants);
+  const tenantsQ = useQuery({ queryKey: ["my-tenants"], queryFn: () => tenantsFn() });
+  const activeTenantId =
+    (tenantsQ.data?.tenants as any[] | undefined)?.find((t) => t.is_active)?.id ?? null;
+  return <ItemResolutionPanel items={props.items} meta={props.meta} tenantId={activeTenantId} />;
+}
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
