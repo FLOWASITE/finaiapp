@@ -317,7 +317,7 @@ export const postPurchaseVoucher = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (e0 || !v) throw new Error("Không tìm thấy phiếu");
-    if (v.status === "posted") throw new Error("Phiếu đã ghi sổ");
+    if (v.status === "posted") return { ok: true, alreadyPosted: true };
     
 
     // Kỳ khoá
