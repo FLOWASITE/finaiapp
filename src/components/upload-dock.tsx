@@ -14,7 +14,7 @@ import {
   Ban,
   FileIcon,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 
 function fmtEta(sec: number) {
   if (sec < 60) return `~${sec}s`;
