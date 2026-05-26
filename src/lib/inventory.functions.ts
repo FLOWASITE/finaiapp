@@ -91,14 +91,31 @@ export const upsertProduct = createServerFn({ method: "POST" })
     const tenantId = profile?.active_tenant_id ?? null;
     if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     const payload: any = { ...data, user_id: userId, tenant_id: tenantId };
+    let productId: string;
     if (data.id) {
       const { error } = await supabase.from("products").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
-      return { id: data.id };
+      productId = data.id;
+    } else {
+      const { data: row, error } = await supabase.from("products").insert(payload).select("id").single();
+      if (error) throw new Error(error.message);
+      productId = row!.id;
     }
-    const { data: row, error } = await supabase.from("products").insert(payload).select("id").single();
-    if (error) throw new Error(error.message);
-    return { id: row!.id };
+    // Refresh embedding for semantic item resolution (best-effort)
+    if (tenantId) {
+      try {
+        const { ensureProductEmbedding } = await import("@/lib/items/embeddings.server");
+        await ensureProductEmbedding(supabase, tenantId, {
+          id: productId,
+          code: data.code,
+          name: data.name,
+          aliases: null,
+        });
+      } catch (e) {
+        console.warn("[upsertProduct] embedding refresh failed", e);
+      }
+    }
+    return { id: productId };
   });
 
 const MovementSchema = z.object({

@@ -21,10 +21,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle, Upload } from "lucide-react";
+import { ArrowLeft, Trash2, Search, Loader2, Brain, AlertTriangle, Upload, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ProductPicker } from "@/components/items/product-picker";
 import { BulkImportMappingsDialog } from "@/components/items/bulk-import-dialog";
+import { backfillProductEmbeddings } from "@/lib/items/backfill-embeddings.functions";
 
 export const Route = createFileRoute("/_app/settings/item-mappings")({
   component: ItemMappingsPage,
@@ -52,6 +53,12 @@ function ItemMappingsPage() {
   const [supplierId, setSupplierId] = React.useState<string>("__all__");
   const [tab, setTab] = React.useState("rules");
   const [bulkOpen, setBulkOpen] = React.useState(false);
+  const backfillFn = useServerFn(backfillProductEmbeddings);
+  const backfillMut = useMutation({
+    mutationFn: () => backfillFn({ data: { limit: 200 } }),
+    onSuccess: (r: any) => toast.success(`Đã tạo embedding: ${r.ok}/${r.total} (lỗi: ${r.failed})`),
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi backfill"),
+  });
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
@@ -139,6 +146,19 @@ function ItemMappingsPage() {
         <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
           <Upload className="h-3.5 w-3.5 mr-1" />
           Nhập từ CSV
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => backfillMut.mutate()}
+          disabled={backfillMut.isPending}
+        >
+          {backfillMut.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+          )}
+          Backfill embedding
         </Button>
       </div>
 
