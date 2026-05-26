@@ -45,6 +45,19 @@ export type GraphClassificationRow = {
   hit_count: number | null;
 };
 
+export type GraphItemMappingRow = {
+  id: string;
+  supplier_id: string;
+  product_id: string;
+  raw_name: string;
+  match_count: number | null;
+  product_code: string;
+  product_name: string;
+  product_unit: string | null;
+  item_type: string | null;
+  stock_account: string | null;
+};
+
 export type SupplierHistoryDist = Partial<Record<LineKind, number>>;
 
 export type GraphDbData = {
@@ -52,6 +65,7 @@ export type GraphDbData = {
   suppliers: GraphSupplierRow[];
   partners: GraphPartnerRow[];
   classifications: GraphClassificationRow[];
+  itemMappings: GraphItemMappingRow[];
   supplierHistory: Record<string, SupplierHistoryDist>;
   positions: Record<string, { x: number; y: number }>;
 };
