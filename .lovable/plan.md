@@ -1,59 +1,85 @@
+
 ## Mục tiêu
-1. **Upload chạy nền**: khi user bấm "Tải lên", dialog có thể đóng/thu nhỏ ngay, quá trình upload tiếp tục chạy ngầm — user vẫn dùng được các phần khác của app.
-2. **Cải thiện UI tiến độ**: thanh tiến độ rõ ràng hơn (tổng quan + per-file), có ETA, đếm done/failed/rejected, có thể chạy song song nhiều file (concurrency) thay vì tuần tự chậm như hiện tại.
 
-## Kiến trúc
+Tái cấu trúc trang `/inbox` cho khớp ảnh tham chiếu: bỏ kiểu "list + Sheet pop‑up", chuyển sang **bố cục 3 cột cố định** kế toán nhìn được mọi thứ cùng lúc. Chỉ chỉnh UI; không đổi logic duyệt / skip / rule / server functions.
 
-### A. Upload store toàn app (Zustand-style đơn giản qua React Context + reducer)
-Tạo `src/lib/upload-queue.tsx` cung cấp:
-- `UploadQueueProvider` đặt trong `src/routes/_app.tsx` (bọc toàn bộ app sau khi đăng nhập) — nhờ vậy state sống ngoài `UploadDialog`, không bị unmount khi đóng dialog.
-- Hook `useUploadQueue()` trả về:
-  - `jobs`: danh sách job (mỗi job = 1 batch upload từ 1 lần bấm submit). Mỗi job có `id, createdAt, docKind, notes, items[], status, startedAt, finishedAt`.
-  - `enqueue(opts)`: tạo job mới + bắt đầu chạy ngay; trả `jobId`.
-  - `cancel(jobId)` / `dismiss(jobId)` / `retryItem(jobId,itemId)`.
-- Mỗi `item` giữ: `file (giữ tham chiếu File để đọc lại khi retry), name, size, mime, status (pending|uploading|done|failed|rejected), message, ocrStatus, detectedKind, tenantMatch, tenantMatchReason, startedAt, finishedAt`.
-- **Concurrency**: chạy song song tối đa 4 file/job (constant `MAX_CONCURRENCY = 4`) bằng worker pool đơn giản. Tăng tốc đáng kể so với for-loop tuần tự hiện tại.
-- Sau mỗi item done/failed/rejected → `queryClient.invalidateQueries` các key liên quan (documents, sales-documents, purchase-documents, sidebar-counts) bằng debounce 800ms để không spam.
-- Khi job done → toast tổng kết (giống logic hiện tại trong `submit()`).
-- Không persist sang localStorage (file object không serialize được); nếu user reload thì các job đang chạy mất — chấp nhận, hiển thị cảnh báo `beforeunload` nếu còn job đang chạy.
+## Bố cục mới (desktop ≥ lg)
 
-### B. Dock nổi "Đang tải lên" (UploadDock)
-File mới `src/components/upload-dock.tsx`, render trong `_app.tsx` (cùng cấp với chat dock).
-- Vị trí: cố định góc dưới-phải (above chat dock), `z-50`, có animation slide-up bằng framer-motion.
-- 2 trạng thái:
-  - **Thu gọn (mặc định khi minimize)**: pill nhỏ `[icon spin] Đang tải 12/30 file · 40%` + nút mở rộng + nút đóng (chỉ ẩn dock, không hủy job).
-  - **Mở rộng**: card ~360px rộng, tối đa ~420px cao, có:
-    - Header: tổng quan tất cả job đang chạy/finished gần đây (gộp số liệu).
-    - Body: list từng job (collapsible từng job nếu >1) → trong mỗi job: thanh progress tổng + list per-file rút gọn (icon + tên truncate + badge trạng thái + spinner).
-    - Footer mỗi job done: nút "Đóng" để xóa khỏi dock; nút "Xem chi tiết" → mở lại dialog ở chế độ kết quả (read-only).
-- Dock chỉ hiện khi có ít nhất 1 job đang chạy hoặc job vừa xong chưa được dismiss. Tự ẩn 5s sau khi tất cả job done & không có lỗi.
+```text
+┌───────── Header (giữ nguyên) ─────────┐
+│  Stats strip + "Duyệt tất cả tin cậy cao (n)"  │
+│  Tabs: Inbox AI · Đã hạch toán · Cần xem lại · Tài liệu · Báo cáo │
+├──────────────────────────────────────┤
+│ FilterBar (pill row, full width)     │
+├────────────┬───────────────┬─────────┤
+│ List (380) │ Invoice (1fr) │ Fin (420)│
+│ ItemCard   │ FilePreview   │ Proposal │
+│ ItemCard   │  (XML/PDF)    │ Reasons  │
+│ …          │               │ Composer │
+│            │               ├─────────┤
+│            │               │ Duyệt ▸  │  (action bar dính đáy cột phải)
+└────────────┴───────────────┴─────────┘
+```
 
-### C. UploadDialog (`src/routes/_app/documents/index.tsx`) chỉnh lại
-- Bỏ logic upload nội bộ trong `submit()` — chuyển sang gọi `enqueue({ items, docKind, notes })` từ store.
-- Sau khi `enqueue` thành công:
-  - Đóng dialog ngay (`onOpenChange(false)`); reset state.
-  - Toast nhỏ: `"Đang tải {n} file ở chế độ nền — xem góc dưới-phải"` (dùng `finToast.info`).
-- Thêm nút phụ "Thu nhỏ" cạnh nút "Tải lên" — tác dụng giống "Tải lên" rồi đóng (đây là default behavior mới luôn).
-- Trong khi user còn đang chọn file (dialog chưa submit) thì giữ nguyên hành vi hiện tại (filter folder XML, drag-drop, v.v.).
-- Khi tab `documents` đang mở mà có item vừa done → đã có invalidateQueries từ store, list tự refresh.
+- 3 cột scroll độc lập, `min-h-0 overflow-y-auto`.
+- < lg: giữ behaviour cũ (list full-width + mở `InboxItemSheet` như hiện tại).
 
-### D. UI tiến độ tốt hơn (áp dụng trong dock + dialog kết quả)
-- Thanh progress 2 lớp: `Progress` chính (% done) + lớp mờ phía dưới (% đang chạy gồm `uploading`).
-- Hiển thị: `12 ✓ · 1 ✗ · 2 ⏳ / 30` + `40%` + ETA tính bằng trung bình thời gian/file đã xong × số còn lại (chỉ hiện khi ≥3 file đã xong, tránh số ảo).
-- Per-file dòng: icon + tên + badge:
-  - `pending` → dot xám
-  - `uploading` → spinner xanh
-  - `done` → check xanh + (nếu có) badge OCR
-  - `failed` → ❌ + tooltip message + nút "Thử lại"
-  - `rejected` → 🚫 + reason ngắn
-- Dùng `framer-motion` để fade item khi đổi trạng thái.
+## Thay đổi chi tiết
 
-## File thay đổi
-- **Mới**: `src/lib/upload-queue.tsx`, `src/components/upload-dock.tsx`, `src/components/upload-progress-bar.tsx` (thanh progress 2 lớp + ETA, dùng chung).
-- **Sửa**: `src/routes/_app.tsx` (gắn Provider + Dock), `src/routes/_app/documents/index.tsx` (UploadDialog dùng `enqueue` thay cho upload trực tiếp; thêm hiển thị file list trong dialog vẫn ok khi đang chạy — nhưng đóng dialog vẫn tiếp tục).
+### 1) FilterBar (mới, trong `src/routes/_app/inbox.tsx`)
+Pill nhóm theo ảnh, thay cho FilterBar cũ:
+- Nhóm trạng thái: **Tất cả · Đã ghi sổ · Chưa ghi** (map sang `filterPosted`).
+- Nhóm loại: **Mọi loại · Bán · Mua** (map sang `filterKind`).
+- Nhóm sắp xếp **mới**: **Mới nhất · Số tiền · Tin cậy** (`sortBy` state local, sort `filteredItems`).
+- Ô tìm kiếm bên phải: placeholder `Số phiếu (BH/PX) hoặc số HĐ…`, badge `shown/total` (vd `40/40`).
+- Pill dùng `rounded-full border` + active = `bg-foreground text-background`.
 
-## Giới hạn / lưu ý
-- Concurrency 4 là an toàn cho server function hiện tại; nếu thấy throttle có thể giảm về 2 — để hằng số dễ chỉnh.
-- File `File` giữ trong RAM trong suốt vòng đời job; sau khi `dismiss` job sẽ giải phóng.
-- Nếu user navigate sang route khác trong khi upload chạy: Dock vẫn hiển thị, jobs vẫn chạy (vì sống trong `_app` Provider). Khi quay về `documents`, list refresh tự động.
-- Reload trang sẽ hủy job đang chạy; thêm `beforeunload` warning để cảnh báo.
+### 2) ItemCard (chỉnh `src/routes/_app/inbox.tsx`)
+- Bỏ rail màu trái nhiều màu; dùng border + dot tin cậy nhỏ ở góc phải.
+- Hàng 1: badge `HOÁ ĐƠN VÀO` (outline cam) + badge nhỏ `Hóa đơn vào` + meta `29 phút trước · HĐ 2691 · 26/01/2026`. Bên phải: pill trạng thái `Sẵn sàng duyệt` + dòng số tiền lớn `60.000 đ`.
+- Hàng 2: tiêu đề đối tác (1 dòng, truncate).
+- Hàng 3: mô tả ngắn (memo / chi tiết hoá đơn).
+- Hàng 4: chip tài khoản dạng `Nợ 642 · 55.556` / `Có 331 · 60.000` (đã có data trong `proposal.lines`).
+- Footer card: nút phụ `Tổng chi cho {partner} năm nay?` mở `openAskAi(...)`.
+- Card chọn (`active`) = `border-primary bg-primary/5`, không dùng ring nặng.
+
+### 3) Cột giữa — Invoice viewer
+- Tạo component nhỏ `InboxInvoicePane` (cùng file) hiển thị:
+  - Header: `HOÁ ĐƠN MUA` + tên file XML/PDF ở phải.
+  - Khung preview dùng `<InvoiceFileViewer/>` đã có (`src/components/invoice-viewer/invoice-file-viewer.tsx`).
+  - Toolbar: nút `Xem lớn`, badge loại `GTGT`, pill `ĐÃ KÝ SỐ` (xanh) nếu `meta.signed`.
+  - Khi chưa chọn item → empty state mascot + "Chọn một mục bên trái".
+
+### 4) Cột phải — Đề xuất của Fin
+Tách `ItemResolutionPanel` hiện có thành layout dọc giống ảnh:
+- Header: `Đề xuất của Fin` · `TIN CẬY {n}%` (màu theo band) · `PHIẾU MUA HÀNG` (theo `voucher_kind`).
+- Khối đối tác: tên, MST nhỏ, số tiền lớn bên phải có dấu `+`, mốc thời gian.
+- Nút `Xem hoá đơn` (mở file viewer fullscreen).
+- Khối cảnh báo "CẦN TẠO MỚI VÀO HỆ THỐNG" (giữ nguyên data, đổi style banner amber + hàng `Nhà cung cấp / Hàng hoá …` với 2 nút `Sửa` / `Tạo mới`).
+- `BÚT TOÁN ĐỀ XUẤT` + badge `CÂN BẰNG`, bảng `Nợ/Có · TK · mô tả · số tiền` + nút `+ Nợ` `+ Có`.
+- Hàng chip kiểm tra: `OCR đã đọc đầy đủ`, `Tổng chi cho {partner} năm nay?`.
+- `Lý do đề xuất:` 1 đoạn + chip nguồn (`Phân loại / Đã đọc đủ / Hồi tác MỚI / cần tạo`).
+- Khối `LỊCH SỬ TRAO ĐỔI VỚI AI` (placeholder) + nút `Hỏi AI về mục này`.
+- **Action bar dính đáy cột**: thanh xanh `Duyệt & ghi sổ` (primary), nút `Sửa`, nút `Bỏ qua`, có composer 1 dòng `Hỏi trợ lý AI bất cứ điều gì…` ngay dưới (mở `openAskAi`).
+
+### 5) Bỏ Sheet ở desktop
+- Desktop ≥ lg không mở `InboxItemSheet` nữa; thay bằng `selectedItem` set trực tiếp cột phải.
+- Mobile/tablet giữ `InboxItemSheet` cũ để không vỡ trải nghiệm hẹp.
+
+### 6) Misc
+- Thêm sort `sortBy: "recent" | "amount" | "confidence"` trong state.
+- Mặc định chọn item đầu tiên khi `filteredItems` thay đổi nếu chưa có lựa chọn.
+- Persist độ rộng 3 cột bằng `grid-cols-[380px_minmax(0,1fr)_420px]`; ẩn cột giữa nếu không có file (`xl:` breakpoint), fallback 2 cột.
+
+## File ảnh hưởng
+
+- `src/routes/_app/inbox.tsx` — bố cục 3 cột, FilterBar mới, ItemCard mới, chọn item không mở Sheet ở desktop.
+- `src/components/inbox/item-resolution-panel.tsx` — refactor sang layout dọc theo ảnh (giữ props hiện tại).
+- (Mới) sub‑component `InboxInvoicePane` nội bộ trong `inbox.tsx` dùng lại `InvoiceFileViewer`.
+- Không đổi: server functions, mutations, `inbox-item-sheet.tsx` (giữ cho mobile).
+
+## Không nằm trong phạm vi
+
+- Không đổi schema, server fn, OCR, agents.
+- Không sửa các tab khác (Đã hạch toán / Cần xem lại / Tài liệu / Báo cáo).
+- Không thêm logic "Tạo mới đối tác/hàng hoá" thực — nút `Tạo mới` chỉ wire UI (có thể `toast.info('Sắp ra mắt')` nếu chưa có endpoint).
