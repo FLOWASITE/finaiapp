@@ -17,12 +17,34 @@ export type VoucherKind =
 
 export type VoucherMeta = Record<string, string | number | null | undefined>;
 
+export type ProposalItemResolution = {
+  status: "auto" | "review" | "new" | "none";
+  method?: "cache" | "fuzzy" | "none";
+  best?: {
+    product_id: string;
+    code: string;
+    name: string;
+    unit?: string | null;
+    score?: number;
+    match_count?: number | null;
+  } | null;
+  candidates?: Array<{
+    product_id: string;
+    code: string;
+    name: string;
+    unit?: string | null;
+    score?: number;
+  }>;
+};
+
 export type ProposalItem = {
   name: string;
   qty?: number;
   unit?: string;
   unit_price?: number;
   amount: number;
+  product_id?: string | null;
+  resolution?: ProposalItemResolution | null;
 };
 
 export type Proposal = {
