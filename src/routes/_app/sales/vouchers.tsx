@@ -19,6 +19,7 @@ import {
   previewVoidSalesVoucher,
   suggestSalesVoucherNo,
   recordSalesVoucherReceipt,
+  stickSalesStockVoucher,
 } from "@/lib/sales-vouchers.functions";
 import { VoidConfirmDialog } from "@/components/void-confirm-dialog";
 import { StickStockVoucherDialog, type StickStockTarget } from "@/components/stick-stock-voucher-dialog";
@@ -396,6 +397,7 @@ function SalesVouchersPage() {
   const update = useServerFn(updateSalesVoucher);
   const del = useServerFn(deleteSalesVoucher);
   const post = useServerFn(postSalesVoucher);
+  const stickSales = useServerFn(stickSalesStockVoucher);
   const voidFn = useServerFn(voidSalesVoucher);
   const previewVoidFn = useServerFn(previewVoidSalesVoucher);
   const branchFnPage = useServerFn(listBranches);
@@ -746,12 +748,27 @@ function SalesVouchersPage() {
         ? form.id
         : (await create({ data: payload })).id;
       if (form.id) await update({ data: { id: form.id, ...payload } });
+      let postError: string | undefined;
       try {
         await post({ data: { id } });
-        return { posted: true as const };
       } catch (e: any) {
-        return { posted: false as const, postError: e?.message as string };
+        const msg = String(e?.message || "");
+        if (!/đã ghi sổ/i.test(msg)) postError = msg;
       }
+      // Fallback: nếu tick Xuất kho mà post chưa sinh phiếu kho, gọi stickSalesStockVoucher.
+      if (form.create_stock_voucher && form.warehouse_id) {
+        try {
+          await stickSales({ data: { id, warehouseId: form.warehouse_id } });
+        } catch (e: any) {
+          const msg = String(e?.message || "");
+          if (!/đã có phiếu xuất kho/i.test(msg)) {
+            postError = postError || msg;
+          }
+        }
+      }
+      return postError
+        ? { posted: false as const, postError }
+        : { posted: true as const };
     },
     onSuccess: (res) => {
       if (res.posted) toast.success("Đã lưu và ghi sổ");
