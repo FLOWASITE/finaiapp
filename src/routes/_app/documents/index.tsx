@@ -131,11 +131,6 @@ const TAB_PRESETS: Record<TabValue, {
   legacyLabel?: string;
   description: string;
 }> = {
-  all: {
-    label: "Tất cả",
-    kinds: null,
-    description: "Mọi tài liệu — sao kê, hoá đơn, chứng từ từ mọi nguồn.",
-  },
   purchase: {
     label: "Hoá đơn mua",
     kinds: ["purchase_invoice"],
