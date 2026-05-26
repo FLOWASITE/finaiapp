@@ -18,17 +18,33 @@ export const resolveInvoiceLines = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i: unknown) =>
     z.object({
-      supplier_id: z.string().uuid(),
+      supplier_id: z.string().uuid().optional(),
+      supplier_tax_id: z.string().min(1).max(32).optional(),
       lines: z.array(LineInput).min(1).max(100),
+    }).refine((v) => !!(v.supplier_id || v.supplier_tax_id), {
+      message: "Cần supplier_id hoặc supplier_tax_id",
     }).parse(i),
   )
   .handler(async ({ context, data }) => {
     const { supabase, tenantId } = context;
+    let supplierId = data.supplier_id ?? null;
+    if (!supplierId && data.supplier_tax_id) {
+      const { data: sup } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tax_id", data.supplier_tax_id)
+        .maybeSingle();
+      supplierId = sup?.id ?? null;
+    }
+    if (!supplierId) {
+      return { supplier_id: null, items: [] as Array<{ line: z.infer<typeof LineInput>; result: ResolveResult }> };
+    }
     const out: Array<{ line: z.infer<typeof LineInput>; result: ResolveResult }> = [];
     for (const line of data.lines) {
       const result = await resolveVendorLine(supabase, {
         tenantId,
-        supplierId: data.supplier_id,
+        supplierId,
         rawName: line.raw_name,
         rawUnit: line.raw_unit ?? null,
         qty: line.qty ?? null,
@@ -36,7 +52,7 @@ export const resolveInvoiceLines = createServerFn({ method: "POST" })
       });
       out.push({ line, result });
     }
-    return { items: out };
+    return { supplier_id: supplierId, items: out };
   });
 
 export const confirmItemMapping = createServerFn({ method: "POST" })
