@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, AlertCircle, Plus, Loader2, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, Plus, Loader2, X, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   confirmItemMapping,
   createProductFromRaw,
 } from "@/lib/items/mappings.functions";
+import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
 
 type Props = {
   items?: ProposalItem[];
@@ -34,6 +35,19 @@ const ITEM_TYPES: Array<{ v: "goods" | "service"; label: string; acct: string }>
   { v: "goods", label: "Công cụ dụng cụ (153)", acct: "153" },
   { v: "service", label: "Dịch vụ", acct: "642" },
 ];
+
+type NewProductPrefill = {
+  code?: string;
+  name?: string;
+  unit?: string;
+  item_type?: "goods" | "service";
+  stock_account?: string;
+};
+
+function typeIdxFor(item_type?: string, acct?: string): string {
+  const idx = ITEM_TYPES.findIndex((t) => t.v === item_type && t.acct === acct);
+  return String(idx >= 0 ? idx : 0);
+}
 
 function suggestCode(rawName: string): string {
   const norm = rawName
@@ -56,9 +70,13 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const resolveFn = useServerFn(resolveInvoiceLines);
   const confirmFn = useServerFn(confirmItemMapping);
   const createFn = useServerFn(createProductFromRaw);
+  const suggestFn = useServerFn(suggestItemMappingWithLLM);
 
   const supplierTaxId = (meta?.supplier_tax_id as string | undefined) ?? undefined;
+  const supplierName = (meta?.supplier_name as string | undefined) ?? undefined;
   const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
+  const [llmPrefill, setLlmPrefill] = useState<Record<number, NewProductPrefill>>({});
+  const [llmLoadingIdx, setLlmLoadingIdx] = useState<number | null>(null);
 
   const payloadLines = useMemo(
     () =>
@@ -149,6 +167,49 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
   });
 
+  const askFin = async (idx: number, it: ProposalItem) => {
+    if (llmLoadingIdx != null) return;
+    setLlmLoadingIdx(idx);
+    try {
+      const out = await suggestFn({
+        data: {
+          raw_name: it.name,
+          raw_unit: it.unit ?? null,
+          unit_price: it.unit_price ?? null,
+          supplier_name: supplierName ?? null,
+        },
+      });
+      if (out.kind === "match" && q.data?.supplier_id) {
+        toast.success(`Fin gợi ý: ${out.product?.code} — ${out.product?.name}`);
+        confirmMut.mutate({
+          raw_name: it.name,
+          raw_unit: it.unit ?? null,
+          product_id: out.product_id,
+          unit_conversion_factor: 1,
+        });
+      } else if (out.kind === "create") {
+        setLlmPrefill((m) => ({
+          ...m,
+          [idx]: {
+            code: out.suggested_code,
+            name: out.suggested_name,
+            unit: out.suggested_unit,
+            item_type: out.item_type,
+            stock_account: out.stock_account,
+          },
+        }));
+        setCreatingIdx(idx);
+        toast.info(`Fin gợi ý tạo mã mới: ${out.suggested_code} (TK ${out.stock_account})`);
+      } else {
+        toast.warning(out.reason || "Fin chưa chắc — vui lòng chọn tay.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không gọi được Fin");
+    } finally {
+      setLlmLoadingIdx(null);
+    }
+  };
+
   if (!items || items.length === 0) return null;
   if (!supplierTaxId) return null;
 
@@ -230,16 +291,40 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                     >
                       Tạo mã
                     </button>
+                    <FinSuggestButton
+                      loading={llmLoadingIdx === idx}
+                      disabled={llmLoadingIdx != null}
+                      onClick={() => askFin(idx, it)}
+                    />
+                  </div>
+                )}
+
+                {status === "review" && res && (
+                  <div className="mt-1">
+                    <FinSuggestButton
+                      loading={llmLoadingIdx === idx}
+                      disabled={llmLoadingIdx != null || confirmMut.isPending}
+                      onClick={() => askFin(idx, it)}
+                      inline
+                    />
                   </div>
                 )}
 
                 {isCreating && (
                   <NewProductForm
+                    key={`new-${idx}-${llmPrefill[idx]?.code ?? "blank"}`}
                     rawName={it.name}
                     rawUnit={it.unit ?? null}
                     unitPrice={it.unit_price ?? 0}
+                    prefill={llmPrefill[idx]}
                     isPending={createMut.isPending}
-                    onCancel={() => setCreatingIdx(null)}
+                    onCancel={() => {
+                      setCreatingIdx(null);
+                      setLlmPrefill((m) => {
+                        const { [idx]: _, ...rest } = m;
+                        return rest;
+                      });
+                    }}
                     onSubmit={(v) =>
                       createMut.mutate({
                         raw_name: it.name,
@@ -261,11 +346,40 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   );
 }
 
+function FinSuggestButton(props: {
+  loading: boolean;
+  disabled?: boolean;
+  inline?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      disabled={props.disabled || props.loading}
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+        "bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300",
+        "disabled:opacity-50",
+        props.inline && "ml-1",
+      )}
+    >
+      {props.loading ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Sparkles className="h-3 w-3" />
+      )}
+      Nhờ Fin gợi ý
+    </button>
+  );
+}
+
 function NewProductForm(props: {
   rawName: string;
   rawUnit: string | null;
   unitPrice: number;
   isPending: boolean;
+  prefill?: NewProductPrefill;
   onCancel: () => void;
   onSubmit: (v: {
     code: string;
@@ -277,10 +391,12 @@ function NewProductForm(props: {
     unit_conversion_factor: number;
   }) => void;
 }) {
-  const [code, setCode] = useState(suggestCode(props.rawName));
-  const [name, setName] = useState(props.rawName);
-  const [unit, setUnit] = useState(props.rawUnit ?? "cái");
-  const [typeIdx, setTypeIdx] = useState("0");
+  const [code, setCode] = useState(props.prefill?.code ?? suggestCode(props.rawName));
+  const [name, setName] = useState(props.prefill?.name ?? props.rawName);
+  const [unit, setUnit] = useState(props.prefill?.unit ?? props.rawUnit ?? "cái");
+  const [typeIdx, setTypeIdx] = useState(
+    typeIdxFor(props.prefill?.item_type, props.prefill?.stock_account),
+  );
   const [factor, setFactor] = useState("1");
 
   const unitsDiffer = !!(props.rawUnit && unit.trim() && props.rawUnit.trim().toLowerCase() !== unit.trim().toLowerCase());
