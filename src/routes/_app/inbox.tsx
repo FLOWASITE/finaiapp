@@ -43,6 +43,7 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
+import { getDocument } from "@/lib/documents.functions";
 import type { InboxItem, ConfidenceBand, VoucherKind } from "@/lib/ai/inbox-types";
 import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,8 @@ import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
+import { InboxItemSheet, InboxItemDetail } from "@/components/inbox/inbox-item-sheet";
+import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -274,10 +276,21 @@ function InboxAiPage() {
   const [filterPosted, setFilterPosted] = useState<"all" | "posted" | "open">("all");
   const [filterKind, setFilterKind] = useState<"all" | "sales" | "purchase">("all");
   const [filterQ, setFilterQ] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "amount" | "confidence">("recent");
+
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const q = filterQ.trim().toLowerCase();
-    return items.filter((it) => {
+    const arr = items.filter((it) => {
       if (filterPosted === "posted" && it.processing_status !== "posted") return false;
       if (filterPosted === "open" && it.processing_status === "posted") return false;
       if (filterKind !== "all") {
@@ -296,9 +309,28 @@ function InboxAiPage() {
       }
       return true;
     });
-  }, [items, filterPosted, filterKind, filterQ]);
+    const sorted = [...arr];
+    if (sortBy === "amount") {
+      sorted.sort((a, b) => Math.abs(b.amount || 0) - Math.abs(a.amount || 0));
+    } else if (sortBy === "confidence") {
+      sorted.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    } else {
+      sorted.sort(
+        (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+      );
+    }
+    return sorted;
+  }, [items, filterPosted, filterKind, filterQ, sortBy]);
 
   const activeId = sheetItem?.id ?? null;
+
+  // Desktop: auto-select first item when none selected
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (!sheetItem && filteredItems.length > 0) {
+      setSheetItem(filteredItems[0]);
+    }
+  }, [isDesktop, filteredItems, sheetItem]);
 
 
 
@@ -594,10 +626,25 @@ function InboxAiPage() {
         ))}
       </div>
 
-      {/* Body — Desktop: single full-width list */}
-      <div className="hidden min-h-0 flex-1 overflow-hidden lg:block">
-        <div className="relative h-full min-h-0 overflow-hidden">
-          <div ref={listRef} className="h-full overflow-y-auto">
+      {/* Body — Desktop: 3-column layout (list | invoice | detail) */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[380px_minmax(0,1fr)_440px]">
+        {/* Left: list */}
+        <div className="flex min-h-0 flex-col border-r border-border/40">
+          <div className="shrink-0 border-b border-border/40 p-3">
+            <FilterBar
+              posted={filterPosted}
+              onPosted={setFilterPosted}
+              kind={filterKind}
+              onKind={setFilterKind}
+              q={filterQ}
+              onQ={setFilterQ}
+              sortBy={sortBy}
+              onSortBy={setSortBy}
+              total={items.length}
+              shown={filteredItems.length}
+            />
+          </div>
+          <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto">
             {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
               <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
             ) : isLoading ? (
@@ -606,19 +653,7 @@ function InboxAiPage() {
               <EmptyInbox />
             ) : (
               <>
-                <div className="mx-auto max-w-3xl px-4 pt-4">
-                  <FilterBar
-                    posted={filterPosted}
-                    onPosted={setFilterPosted}
-                    kind={filterKind}
-                    onKind={setFilterKind}
-                    q={filterQ}
-                    onQ={setFilterQ}
-                    total={items.length}
-                    shown={filteredItems.length}
-                  />
-                </div>
-                <ul className="mx-auto max-w-3xl space-y-3 p-4">
+                <ul className="space-y-2.5 p-3">
                   {filteredItems.map((it) => (
                     <ItemCard
                       key={it.id}
@@ -638,7 +673,7 @@ function InboxAiPage() {
                   )}
                 </ul>
                 {stats && stats.pending > items.length && (
-                  <div className="mx-auto max-w-3xl px-4 pb-6">
+                  <div className="px-3 pb-4">
                     <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
                       + {stats.pending - items.length} mục khác
                     </div>
@@ -646,20 +681,57 @@ function InboxAiPage() {
                 )}
               </>
             )}
+            {showScrollDown && (
+              <button
+                type="button"
+                onClick={() =>
+                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
+                }
+                className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
+                aria-label="Cuộn xuống"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+            )}
           </div>
+        </div>
 
+        {/* Middle: invoice viewer */}
+        <div className="flex min-h-0 flex-col overflow-hidden border-r border-border/40 bg-muted/10">
+          {sheetItem ? (
+            <InboxInvoicePane item={sheetItem} />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <EmptyState
+                mood="thinking"
+                title="Chọn một mục bên trái"
+                description="Hoá đơn / chứng từ sẽ hiển thị ở đây."
+                bordered={false}
+              />
+            </div>
+          )}
+        </div>
 
-          {showScrollDown && (
-            <button
-              type="button"
-              onClick={() =>
-                listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
-              }
-              className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
-              aria-label="Cuộn xuống"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </button>
+        {/* Right: detail / proposal */}
+        <div className="flex min-h-0 flex-col overflow-hidden bg-background">
+          {sheetItem ? (
+            <InboxItemDetail
+              item={sheetItem}
+              onApprove={handleApproveItem}
+              onSkip={handleSkipItem}
+              onRule={handleRuleItem}
+              onEdit={handleEditItem}
+              approving={approveM.isPending}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <EmptyState
+                mood="happy"
+                title="Đề xuất của Fin sẽ hiện ở đây"
+                description="Chọn một mục để xem bút toán đề xuất và duyệt nhanh."
+                bordered={false}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -682,6 +754,8 @@ function InboxAiPage() {
                     onKind={setFilterKind}
                     q={filterQ}
                     onQ={setFilterQ}
+                    sortBy={sortBy}
+                    onSortBy={setSortBy}
                     total={items.length}
                     shown={filteredItems.length}
                   />
@@ -718,16 +792,19 @@ function InboxAiPage() {
         )}
       </div>
 
-      {/* Sheet chi tiết item */}
-      <InboxItemSheet
-        item={sheetItem}
-        onClose={() => setSheetItem(null)}
-        onApprove={handleApproveItem}
-        onSkip={handleSkipItem}
-        onRule={handleRuleItem}
-        onEdit={handleEditItem}
-        approving={approveM.isPending}
-      />
+      {/* Sheet chi tiết item — chỉ mobile/tablet */}
+      {!isDesktop && (
+        <InboxItemSheet
+          item={sheetItem}
+          onClose={() => setSheetItem(null)}
+          onApprove={handleApproveItem}
+          onSkip={handleSkipItem}
+          onRule={handleRuleItem}
+          onEdit={handleEditItem}
+          approving={approveM.isPending}
+        />
+      )}
+
 
 
 
@@ -1050,6 +1127,8 @@ function FilterBar({
   onKind,
   q,
   onQ,
+  sortBy,
+  onSortBy,
   total,
   shown,
 }: {
@@ -1059,6 +1138,8 @@ function FilterBar({
   onKind: (v: "all" | "sales" | "purchase") => void;
   q: string;
   onQ: (v: string) => void;
+  sortBy: "recent" | "amount" | "confidence";
+  onSortBy: (v: "recent" | "amount" | "confidence") => void;
   total: number;
   shown: number;
 }) {
@@ -1072,7 +1153,7 @@ function FilterBar({
       type="button"
       onClick={() => props.onClick(props.value)}
       className={cn(
-        "rounded-md px-2.5 py-1 text-[11px] font-medium transition",
+        "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
         props.current === props.value
           ? "bg-foreground text-background shadow-sm"
           : "text-muted-foreground hover:text-foreground",
@@ -1082,16 +1163,21 @@ function FilterBar({
     </button>
   );
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-card/50 px-2.5 py-2 backdrop-blur">
-      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+    <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
         <Seg value="all" current={posted} onClick={onPosted} label="Tất cả" />
         <Seg value="posted" current={posted} onClick={onPosted} label="Đã ghi sổ" />
         <Seg value="open" current={posted} onClick={onPosted} label="Chưa ghi" />
       </div>
-      <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/30 p-0.5">
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
         <Seg value="all" current={kind} onClick={onKind} label="Mọi loại" />
         <Seg value="sales" current={kind} onClick={onKind} label="Bán" />
         <Seg value="purchase" current={kind} onClick={onKind} label="Mua" />
+      </div>
+      <div className="flex items-center gap-0.5 rounded-full border border-border/40 bg-muted/30 p-0.5">
+        <Seg value="recent" current={sortBy} onClick={onSortBy} label="Mới nhất" />
+        <Seg value="amount" current={sortBy} onClick={onSortBy} label="Số tiền" />
+        <Seg value="confidence" current={sortBy} onClick={onSortBy} label="Tin cậy" />
       </div>
       <div className="ml-auto flex items-center gap-2">
         <input
@@ -1103,6 +1189,62 @@ function FilterBar({
         <span className="text-[11px] tabular-nums text-muted-foreground">
           {shown}/{total}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function InboxInvoicePane({ item }: { item: InboxItem }) {
+  const isDoc = item.source === "document";
+  const getDocumentFn = useServerFn(getDocument);
+  const q = useQuery({
+    queryKey: ["inbox-doc-viewer", item.external_id],
+    queryFn: () => getDocumentFn({ data: { id: item.external_id } }),
+    enabled: isDoc,
+    staleTime: 60_000,
+  });
+
+  if (!isDoc) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <EmptyState
+          mood="thinking"
+          title="Không có file đính kèm"
+          description="Mục này đến từ sao kê hoặc cảnh báo AI — không có file để xem."
+          bordered={false}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          <FileText className="h-3.5 w-3.5" />
+          {item.proposal.voucher_kind === "sales_invoice" ? "Hoá đơn ra" : "Hoá đơn mua"}
+        </div>
+        <span className="truncate text-[11px] text-muted-foreground">
+          {q.data?.doc?.original_filename ?? ""}
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        {q.isLoading ? (
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : q.isError ? (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">
+            Không tải được hoá đơn: {(q.error as any)?.message ?? "lỗi không xác định"}
+          </div>
+        ) : (
+          <InvoiceFileViewer
+            einvoice={(q.data?.doc?.ocr_extracted as any)?._einvoice ?? null}
+            signedUrl={q.data?.signedUrl ?? null}
+            mimeType={q.data?.doc?.mime_type ?? null}
+            filename={q.data?.doc?.original_filename ?? null}
+          />
+        )}
       </div>
     </div>
   );
