@@ -569,7 +569,9 @@ export const uploadDocument = createServerFn({ method: "POST" })
           })
           .eq("id", docId);
       }
-      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages };
+      const { data: finalRow } = await supabase
+        .from("documents").select("doc_kind").eq("id", docId).maybeSingle();
+      return { id: docId, ocr_status: "done" as const, parser: result.parser, pages: result.pages, doc_kind: finalRow?.doc_kind ?? (isAuto ? "other" : data.doc_kind) };
     } catch (e: any) {
       await supabase
         .from("documents")
