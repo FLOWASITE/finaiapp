@@ -12,7 +12,7 @@ import {
   getDocument,
   deleteDocument,
   unlinkDocument,
-  uploadDocument,
+  reparseDocument,
   reparseDocument,
   listPurchaseDocuments,
   listSalesDocuments,
