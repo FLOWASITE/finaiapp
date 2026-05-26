@@ -1154,6 +1154,7 @@ export async function parseFileCore(opts: {
           : cached.parsed;
         if (opts.kind === "purchase_invoice") {
           cachedParsed = await enrichInvoiceWithSupplierSignals(cachedParsed, opts.supabase, opts.userId);
+          cachedParsed = await enrichInvoiceWithItemResolution(cachedParsed, opts.supabase, opts.userId);
         }
         if (opts.kind === "purchase_invoice" && mimeType === "application/pdf" && isEmptyPurchaseInvoice(cachedParsed)) {
           console.warn("[parse-document] ignoring empty invoice cache for PDF, retrying parser");
