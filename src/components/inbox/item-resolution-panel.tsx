@@ -202,42 +202,21 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                 )}
 
                 {status === "review" && res && (
-                  <div className="mt-1 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
-                      <AlertCircle className="h-3 w-3" />
-                      Fin gợi ý — chọn 1:
-                    </div>
-                    {res.candidates.map((c) => (
-                      <button
-                        key={c.product_id}
-                        type="button"
-                        disabled={confirmMut.isPending}
-                        onClick={() =>
-                          confirmMut.mutate({
-                            raw_name: it.name,
-                            raw_unit: it.unit ?? null,
-                            product_id: c.product_id,
-                          })
-                        }
-                        className={cn(
-                          "flex w-full items-center gap-1.5 rounded border border-border/60 bg-muted/30 px-2 py-1 text-left text-[11px] transition-colors hover:bg-muted",
-                        )}
-                      >
-                        <span className="font-mono text-foreground">{c.code}</span>
-                        <span className="truncate text-foreground/80">{c.name}</span>
-                        <span className="ml-auto shrink-0 font-mono text-muted-foreground">
-                          {Math.round(c.score * 100)}%
-                        </span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setCreatingIdx(idx)}
-                      className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
-                    >
-                      Không khớp — tạo mã mới
-                    </button>
-                  </div>
+                  <ReviewCandidates
+                    rawName={it.name}
+                    rawUnit={it.unit ?? null}
+                    candidates={res.candidates}
+                    isPending={confirmMut.isPending}
+                    onConfirm={(c, factor) =>
+                      confirmMut.mutate({
+                        raw_name: it.name,
+                        raw_unit: it.unit ?? null,
+                        product_id: c.product_id,
+                        unit_conversion_factor: factor,
+                      })
+                    }
+                    onCreateNew={() => setCreatingIdx(idx)}
+                  />
                 )}
 
                 {status === "new" && !q.isLoading && !isCreating && (
