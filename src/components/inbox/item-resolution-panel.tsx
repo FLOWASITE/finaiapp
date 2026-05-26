@@ -36,6 +36,19 @@ const ITEM_TYPES: Array<{ v: "goods" | "service"; label: string; acct: string }>
   { v: "service", label: "Dịch vụ", acct: "642" },
 ];
 
+type NewProductPrefill = {
+  code?: string;
+  name?: string;
+  unit?: string;
+  item_type?: "goods" | "service";
+  stock_account?: string;
+};
+
+function typeIdxFor(item_type?: string, acct?: string): string {
+  const idx = ITEM_TYPES.findIndex((t) => t.v === item_type && t.acct === acct);
+  return String(idx >= 0 ? idx : 0);
+}
+
 function suggestCode(rawName: string): string {
   const norm = rawName
     .normalize("NFD")
