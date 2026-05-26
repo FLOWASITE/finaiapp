@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { accountToKind, vsicToKindHint, type LineKind } from "@/lib/ai/classify-line";
 
 const normalizeTaxId = (s: string) => (s || "").replace(/\D+/g, "");
@@ -40,6 +41,7 @@ export const lookupSupplierSignals = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) return empty;
 
     const { data: sup } = await supabase

@@ -1,11 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 async function currentTenant(supabase: any, userId: string): Promise<string> {
   const { data } = await supabase
     .from("profiles").select("active_tenant_id").eq("id", userId).single();
   const t = data?.active_tenant_id;
+    if (t) await assertTenantMember(supabase, userId, t);
   if (!t) throw new Error("Chưa chọn doanh nghiệp hoạt động");
   return t;
 }

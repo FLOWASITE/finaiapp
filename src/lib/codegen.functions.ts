@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 export type CodeEntity =
   | "sale_invoice"
@@ -99,6 +100,7 @@ export const nextEntityCode = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenantId = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
 
     let q = supabase.from(cfg.table).select(cfg.column).like(cfg.column, likePattern);
     if (tenantId) {

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 
 export const ALLOWED_DOC_TABLES = [
@@ -498,6 +499,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
     const { data: prof } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenantId = prof?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
     const buf = Buffer.from(data.fileBase64, "base64");

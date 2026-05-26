@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 // =================== crypto helpers (AES-GCM with EINVOICE_ENC_KEY) ===================
 async function getKey(): Promise<CryptoKey> {
@@ -54,6 +55,7 @@ async function resolveTenant(supabase: any, userId: string) {
     .eq("id", userId)
     .maybeSingle();
   const tenantId: string | null = profile?.active_tenant_id ?? null;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
   let tenantTaxId = String(profile?.tax_id ?? "").replace(/\D/g, "");
   if (tenantId) {
     const { data: t } = await supabase

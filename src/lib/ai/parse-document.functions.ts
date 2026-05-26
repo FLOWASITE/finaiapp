@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
 import {
   isLlamaParseEnabled,
@@ -654,6 +655,7 @@ async function getTenantTaxIdQuick(supabase: any, userId?: string): Promise<stri
     const { data: prof } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tid = prof?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) return "";
     const { data: t } = await supabase
       .from("tenants").select("tax_id").eq("id", tid).maybeSingle();
@@ -680,6 +682,7 @@ async function upsertDocumentForUpload(opts: {
       .eq("id", opts.userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) return;
 
     // Existing doc on same path? Just link it.
@@ -863,6 +866,7 @@ async function enrichInvoiceWithSupplierSignals(
       .eq("id", userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) return parsed;
 
     let sup: { id: string; industry_code: string | null } | null = null;
@@ -967,6 +971,7 @@ async function enrichInvoiceWithItemResolution(
       .eq("id", userId)
       .maybeSingle();
     const tenantId = prof?.active_tenant_id;
+    if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) return parsed;
 
     const { data: sup } = await supabase

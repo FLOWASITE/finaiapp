@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 const WarehouseSchema = z.object({
   id: z.string().uuid().optional(),
@@ -27,6 +28,7 @@ export async function ensureDefaultWarehouseId(
     .eq("id", userId)
     .maybeSingle();
   const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
   let scoped = supabase.from("warehouses").select("id, is_default, code").order("code");
   scoped = tenant_id ? scoped.eq("tenant_id", tenant_id) : scoped.eq("user_id", userId);
@@ -112,6 +114,7 @@ export const upsertWarehouse = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     // If is_default, clear other defaults first
     if (data.is_default) {
@@ -166,6 +169,7 @@ export const setDefaultWarehouse = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     let q = supabase.from("warehouses").update({ is_default: false });
     q = tenant_id ? q.eq("tenant_id", tenant_id) : q.eq("user_id", userId);

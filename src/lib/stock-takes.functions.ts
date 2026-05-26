@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 
 export const listStockTakes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -39,6 +40,7 @@ export const createStockTake = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
     const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
 
     // generate code KK-YYYYMM-XXX
     const ym = data.take_date.slice(0, 7).replace("-", "");
