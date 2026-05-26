@@ -5,6 +5,7 @@ import { assertTenantMember } from "@/lib/auth/active-tenant.server";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { ensureDefaultWarehouseId } from "@/lib/warehouses.functions";
 import { nextStockVoucherNo } from "@/lib/inventory.functions";
+import { resolveStockLineProducts } from "@/lib/items/auto-resolve-products.server";
 
 // ============ Schemas ============
 
@@ -361,7 +362,10 @@ export const createSalesVoucher = createServerFn({ method: "POST" })
     if (tenantId) await assertTenantMember(supabase, userId, tenantId);
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
-    const { lines, einvoice, id: _ignore, ...header } = data;
+    const { lines: rawLines, einvoice, id: _ignore, ...header } = data;
+    const lines = header.create_stock_voucher
+      ? await resolveStockLineProducts(supabase, tenantId, userId, rawLines)
+      : rawLines;
 
     const { data: row, error } = await supabase
       .from("sales_vouchers")
@@ -410,7 +414,7 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { id, lines, einvoice, ...header } = data;
+    const { id, lines: rawLines, einvoice, ...header } = data;
 
     const { data: cur } = await supabase
       .from("sales_vouchers")
@@ -421,6 +425,10 @@ export const updateSalesVoucher = createServerFn({ method: "POST" })
     if (!["uploaded", "ai_read", "reviewed", "draft", "void", "posted"].includes(cur.status)) {
       throw new Error("Phiếu đã ghi sổ — không thể sửa");
     }
+
+    const lines = header.create_stock_voucher && cur.tenant_id
+      ? await resolveStockLineProducts(supabase, cur.tenant_id as string, userId, rawLines)
+      : rawLines;
 
     const { error } = await supabase
       .from("sales_vouchers")
