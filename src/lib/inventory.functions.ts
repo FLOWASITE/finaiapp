@@ -1136,10 +1136,13 @@ export const listStockVouchers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { type?: "in" | "out" | "transfer" | "all"; from?: string; to?: string; warehouse_id?: string; status?: "all" | "posted" | "unposted" }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) return [];
     let q = supabase
       .from("stock_vouchers")
       .select("*, warehouses!stock_vouchers_warehouse_id_fkey(code, name), stock_movements(qty, unit_cost, product_id, products(code, name, unit))")
+      .eq("tenant_id", tenantId)
       .order("voucher_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
