@@ -207,6 +207,7 @@ export const updateActiveTenant = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) throw new Error("Chưa chọn tổ chức");
 
     const patch: Record<string, any> = {};
@@ -247,6 +248,7 @@ export const getSetupProgress = createServerFn({ method: "GET" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) return { percent: 0, missing: REQUIRED_FIELDS, completed: false };
     const { data: t } = await supabase.from("tenants").select("*").eq("id", tid).single();
     if (!t) return { percent: 0, missing: REQUIRED_FIELDS, completed: false };
@@ -265,6 +267,7 @@ export const completeTenantSetup = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) throw new Error("Chưa chọn tổ chức");
     const { data: t } = await supabase.from("tenants").select("*").eq("id", tid).single();
     if (!t) throw new Error("Không tìm thấy tổ chức");
@@ -293,6 +296,7 @@ export const getActiveTenant = createServerFn({ method: "GET" })
       .eq("id", userId)
       .single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) return { tenant: null, myRole: null };
     // Fetch tenant + membership role in parallel (was sequential).
     const [tenantRes, memberRes] = await Promise.all([
@@ -315,6 +319,7 @@ export const listTenantMembers = createServerFn({ method: "GET" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) return { members: [], myRole: null };
 
     const { data: members } = await supabase
@@ -352,6 +357,7 @@ export const inviteTenantMember = createServerFn({ method: "POST" })
     const { data: profile } = await supabase
       .from("profiles").select("active_tenant_id").eq("id", userId).single();
     const tid = profile?.active_tenant_id;
+    if (tid) await assertTenantMember(supabase, userId, tid);
     if (!tid) throw new Error("Chưa chọn tổ chức");
 
     // Check role
