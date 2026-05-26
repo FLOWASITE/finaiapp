@@ -151,16 +151,14 @@ export function UploadDock() {
   const anyRunning = totals.running > 0;
 
   return (
-    <motion.div
-      initial={{ y: 40, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 40, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 280, damping: 26 }}
+    <div
       className={cn(
         "fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)]",
         "rounded-xl border bg-background/95 shadow-2xl backdrop-blur-md",
+        "animate-in slide-in-from-bottom-4 fade-in duration-200",
       )}
     >
+
       {/* Header */}
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <div className="rounded-md bg-primary/10 p-1 text-primary">
