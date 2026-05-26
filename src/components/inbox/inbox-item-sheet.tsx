@@ -314,6 +314,13 @@ export function InboxItemSheet({
               {/* Items (goods / services) */}
               <ProposalItemsList items={item.proposal.items} />
 
+              {/* Khớp mặt hàng với mã hệ thống */}
+              <ItemResolutionPanel
+                items={item.proposal.items}
+                meta={item.proposal.meta}
+                tenantId="active"
+              />
+
 
 
 
