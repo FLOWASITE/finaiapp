@@ -28,5 +28,7 @@
 | # | Mục | Ưu tiên |
 |---|-----|---------|
 | 1 | Smoke test 3 dòng (cache / review / new) trên hoá đơn thật | P1 |
-| 2 | Backfill `product_embeddings` cho catalog hiện có (cron / nút thủ công ở `/settings/item-mappings`) | P3 |
-| 3 | Trigger upsert embedding khi tạo/sửa `products` | P3 |
+
+### P3 đã xong
+- Trigger upsert embedding khi tạo/sửa `products` (hook trong `upsertProduct`). ✅
+- Nút "Backfill embedding" thủ công ở `/settings/item-mappings` gọi `backfillProductEmbeddings` (lô 200). ✅
