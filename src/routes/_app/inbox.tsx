@@ -626,10 +626,25 @@ function InboxAiPage() {
         ))}
       </div>
 
-      {/* Body — Desktop: single full-width list */}
-      <div className="hidden min-h-0 flex-1 overflow-hidden lg:block">
-        <div className="relative h-full min-h-0 overflow-hidden">
-          <div ref={listRef} className="h-full overflow-y-auto">
+      {/* Body — Desktop: 3-column layout (list | invoice | detail) */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden lg:grid lg:grid-cols-[380px_minmax(0,1fr)_440px]">
+        {/* Left: list */}
+        <div className="flex min-h-0 flex-col border-r border-border/40">
+          <div className="shrink-0 border-b border-border/40 p-3">
+            <FilterBar
+              posted={filterPosted}
+              onPosted={setFilterPosted}
+              kind={filterKind}
+              onKind={setFilterKind}
+              q={filterQ}
+              onQ={setFilterQ}
+              sortBy={sortBy}
+              onSortBy={setSortBy}
+              total={items.length}
+              shown={filteredItems.length}
+            />
+          </div>
+          <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto">
             {tab === "reports" || tab === "documents" || tab === "posted" || tab === "review" ? (
               <EmptyTab label={TABS.find((t) => t.key === tab)!.label} />
             ) : isLoading ? (
@@ -638,19 +653,7 @@ function InboxAiPage() {
               <EmptyInbox />
             ) : (
               <>
-                <div className="mx-auto max-w-3xl px-4 pt-4">
-                  <FilterBar
-                    posted={filterPosted}
-                    onPosted={setFilterPosted}
-                    kind={filterKind}
-                    onKind={setFilterKind}
-                    q={filterQ}
-                    onQ={setFilterQ}
-                    total={items.length}
-                    shown={filteredItems.length}
-                  />
-                </div>
-                <ul className="mx-auto max-w-3xl space-y-3 p-4">
+                <ul className="space-y-2.5 p-3">
                   {filteredItems.map((it) => (
                     <ItemCard
                       key={it.id}
@@ -670,7 +673,7 @@ function InboxAiPage() {
                   )}
                 </ul>
                 {stats && stats.pending > items.length && (
-                  <div className="mx-auto max-w-3xl px-4 pb-6">
+                  <div className="px-3 pb-4">
                     <div className="inline-flex items-center rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
                       + {stats.pending - items.length} mục khác
                     </div>
@@ -678,20 +681,57 @@ function InboxAiPage() {
                 )}
               </>
             )}
+            {showScrollDown && (
+              <button
+                type="button"
+                onClick={() =>
+                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
+                }
+                className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
+                aria-label="Cuộn xuống"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+            )}
           </div>
+        </div>
 
+        {/* Middle: invoice viewer */}
+        <div className="flex min-h-0 flex-col overflow-hidden border-r border-border/40 bg-muted/10">
+          {sheetItem ? (
+            <InboxInvoicePane item={sheetItem} />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <EmptyState
+                mood="thinking"
+                title="Chọn một mục bên trái"
+                description="Hoá đơn / chứng từ sẽ hiển thị ở đây."
+                bordered={false}
+              />
+            </div>
+          )}
+        </div>
 
-          {showScrollDown && (
-            <button
-              type="button"
-              onClick={() =>
-                listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" })
-              }
-              className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background shadow-lg transition hover:bg-muted"
-              aria-label="Cuộn xuống"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </button>
+        {/* Right: detail / proposal */}
+        <div className="flex min-h-0 flex-col overflow-hidden bg-background">
+          {sheetItem ? (
+            <InboxItemDetail
+              item={sheetItem}
+              onApprove={handleApproveItem}
+              onSkip={handleSkipItem}
+              onRule={handleRuleItem}
+              onEdit={handleEditItem}
+              approving={approveM.isPending}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <EmptyState
+                mood="happy"
+                title="Đề xuất của Fin sẽ hiện ở đây"
+                description="Chọn một mục để xem bút toán đề xuất và duyệt nhanh."
+                bordered={false}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -714,6 +754,8 @@ function InboxAiPage() {
                     onKind={setFilterKind}
                     q={filterQ}
                     onQ={setFilterQ}
+                    sortBy={sortBy}
+                    onSortBy={setSortBy}
                     total={items.length}
                     shown={filteredItems.length}
                   />
@@ -750,16 +792,19 @@ function InboxAiPage() {
         )}
       </div>
 
-      {/* Sheet chi tiết item */}
-      <InboxItemSheet
-        item={sheetItem}
-        onClose={() => setSheetItem(null)}
-        onApprove={handleApproveItem}
-        onSkip={handleSkipItem}
-        onRule={handleRuleItem}
-        onEdit={handleEditItem}
-        approving={approveM.isPending}
-      />
+      {/* Sheet chi tiết item — chỉ mobile/tablet */}
+      {!isDesktop && (
+        <InboxItemSheet
+          item={sheetItem}
+          onClose={() => setSheetItem(null)}
+          onApprove={handleApproveItem}
+          onSkip={handleSkipItem}
+          onRule={handleRuleItem}
+          onEdit={handleEditItem}
+          approving={approveM.isPending}
+        />
+      )}
+
 
 
 
