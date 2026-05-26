@@ -53,6 +53,12 @@ function ItemMappingsPage() {
   const [supplierId, setSupplierId] = React.useState<string>("__all__");
   const [tab, setTab] = React.useState("rules");
   const [bulkOpen, setBulkOpen] = React.useState(false);
+  const backfillFn = useServerFn(backfillProductEmbeddings);
+  const backfillMut = useMutation({
+    mutationFn: () => backfillFn({ data: { limit: 200 } }),
+    onSuccess: (r: any) => toast.success(`Đã tạo embedding: ${r.ok}/${r.total} (lỗi: ${r.failed})`),
+    onError: (e: any) => toast.error(e?.message ?? "Lỗi backfill"),
+  });
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
