@@ -43,6 +43,7 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
+import { getDocument } from "@/lib/documents.functions";
 import type { InboxItem, ConfidenceBand, VoucherKind } from "@/lib/ai/inbox-types";
 import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,8 @@ import { openAskAi } from "@/lib/open-ask-ai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { InboxItemSheet } from "@/components/inbox/inbox-item-sheet";
+import { InboxItemSheet, InboxItemDetail } from "@/components/inbox/inbox-item-sheet";
+import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
