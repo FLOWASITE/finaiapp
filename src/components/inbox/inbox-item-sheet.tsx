@@ -496,7 +496,7 @@ export function InboxItemDetail({
                       item.posted_voucher!.kind === "purchase_voucher"
                         ? "/purchases/vouchers"
                         : "/sales/vouchers";
-                    navigate({ to });
+                    navigate({ to, search: { edit: item.posted_voucher!.id } as any });
                   }}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-border bg-background px-3 py-3.5 text-xs font-semibold text-foreground/80 transition-colors hover:bg-muted"
                 >
