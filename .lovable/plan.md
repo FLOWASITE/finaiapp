@@ -1,44 +1,32 @@
 ## Mục tiêu
-Hoàn tất việc thay thế SAMPLE_ITEMS bằng dữ liệu thật (products + tenant_product_catalog) cho tab "Hàng hóa & Dịch vụ", và bật CRUD ghi thẳng xuống DB.
+Hoàn tất 2 yêu cầu UI cho màn "Danh mục hàng hóa, dịch vụ":
+1. Thêm chế độ xem dạng **List** (bên cạnh Grid hiện tại) + toggle.
+2. Xóa dòng "Cty TNHH Aurora F&B · TT 99" trên header.
 
-## Các bước còn lại
+## Thay đổi
 
-### 1. Wire loader cho route `/items`
-File: `src/routes/_app/items/index.tsx`
-- Thêm `loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions)`
-- Thêm `errorComponent` và `notFoundComponent` cơ bản
+### 1. `src/components/catalog/CatalogHeader.tsx`
+- Xóa block hiển thị company name + `RegimeSwitch` (dòng `<div className="flex flex-wrap items-center gap-2 ...">`).
+- Giữ lại `<h1>` tiêu đề.
+- Thêm cụm điều khiển bên phải (cạnh nút "Tạo mới"): toggle 2 nút **Grid / List** (icon `LayoutGrid` + `List` từ lucide-react), bind vào `viewMode` / `setViewMode` của store. Nút active style `bg-[#0F6E56] text-white`, inactive `text-muted-foreground`.
 
-### 2. Cập nhật `src/stores/catalogStore.ts`
-- Bỏ import `SAMPLE_ITEMS`; `items` khởi tạo `[]`
-- Thêm action `setItems(items: CatalogItem[])` để CatalogPage sync dữ liệu từ server vào store
-- Giữ nguyên các UI state khác (filters, selectedId...)
+### 2. `src/components/catalog/ItemList.tsx`
+- Đọc `viewMode` từ store.
+- Khi `viewMode === "list"`: render dạng bảng / hàng ngang thay vì grid cards.
+  - Cấu trúc: `<div className="divide-y border rounded-lg">` chứa các row.
+  - Mỗi row hiển thị compact 1 dòng: mã | tên | category badge | itemType badge | TK mặc định | VAT% | usage30d | actions (mở drawer).
+  - Vẫn tôn trọng phân nhóm "Dùng gần đây" / "Khác" ở tab `mine`.
+  - Tab `suggested`: list dùng layout đơn giản hơn nhưng vẫn cho phép "Thêm vào danh mục" inline.
+- Khi `viewMode === "grid"`: giữ nguyên code hiện tại.
+- Tách helper `<ItemListRow item={...} />` mới (file cùng thư mục hoặc inline) để giữ ItemList gọn.
 
-### 3. Cập nhật `src/components/catalog/CatalogPage.tsx`
-- `useSuspenseQuery(catalogQueryOptions)` để đọc data
-- `useEffect` đồng bộ data → `setItems` trong store (để các filter/search hiện có vẫn chạy)
-- Không đổi UI
+### 3. (Tùy chọn) Vị trí `RegimeSwitch`
+- Vì đang xóa khỏi header, chuyển `RegimeSwitch` xuống cạnh search bar hoặc bỏ hẳn khỏi trang này? **Đề xuất: bỏ khỏi trang Catalog** (regime là setting toàn cục, không cần thao tác ở đây). Nếu user muốn giữ, sẽ chuyển vào Settings sau.
 
-### 4. Bật CRUD ghi DB
-Tạo thêm server-fn trong `src/lib/catalog/catalog.functions.ts`:
-- `upsertCatalogItem({ data: CatalogItem })` → map ngược về cột `products` (code, name, unit, item_type, unit_cost, unit_price, category_id, aliases, notes, is_active) và `upsert` vào `products`
-- `deleteCatalogItem({ id })` → soft delete bằng `is_active = false` trên `products`
+## Phạm vi không đụng
+- Không sửa store thêm (đã có `viewMode` + `setViewMode` từ pass trước).
+- Không sửa DB, server functions, filter/search/category logic.
+- Không sửa ItemCard / drawer.
 
-Cập nhật các điểm gọi mutate trong CatalogPage / ItemCard / ItemDetailDrawer / ItemCreateDialog / ItemEditDialog:
-- Thay `createItem/updateItem/removeItemFromMine` bằng `useMutation` gọi `upsertCatalogItem` / `deleteCatalogItem`
-- `onSuccess`: `queryClient.invalidateQueries({ queryKey: ["catalog"] })` và `["products-picker"]` để form Phiếu mua/bán thấy ngay
-- Toast báo lỗi/thành công
-
-### 5. Field mapping & default
-Các field chỉ-frontend (amortization, allocationMethod, foreignSupplierTax, frequency, vatReductionEligible, deductible, industryRelevance, fctVatRate, fctCitRate) **không lưu DB** ở đợt này — adapter đã fill default khi đọc. Sẽ thêm cột sau nếu cần.
-
-Items từ `tenant_product_catalog` (gợi ý AI) khi user "Thêm vào mặt hàng của tôi" sẽ tạo bản ghi `products` mới qua `upsertCatalogItem`.
-
-### 6. Kiểm thử
-- Mở `/items` → thấy 16 sản phẩm thật + gợi ý từ tenant_product_catalog
-- Tạo / sửa / xoá → reload thấy thay đổi
-- Mở Phiếu mua/bán → ProductPicker thấy item mới ngay
-
-## Phạm vi KHÔNG đổi
-- UI/layout CatalogPage, ItemCard, sidebar category
-- Form Phiếu mua/bán, ProductPickerCell
-- Schema DB (không migration mới)
+## Câu hỏi xác nhận
+- `RegimeSwitch` — **bỏ hẳn khỏi trang Catalog** hay **chuyển sang vị trí khác** (ví dụ cạnh search)? Mặc định plan này sẽ **bỏ hẳn**.
