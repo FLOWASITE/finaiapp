@@ -185,6 +185,7 @@ export const Route = createFileRoute("/_app/sales/vouchers")({
     party_name: typeof s.party_name === "string" ? s.party_name : undefined,
     party_tax_id: typeof s.party_tax_id === "string" ? s.party_tax_id : undefined,
     party_address: typeof s.party_address === "string" ? s.party_address : undefined,
+    edit: typeof s.edit === "string" ? s.edit : undefined,
   }),
 });
 
@@ -521,9 +522,17 @@ function SalesVouchersPage() {
         search: {},
         replace: true,
       });
+    } else if (search.edit) {
+      autoOpenedRef.current = true;
+      openEdit(search.edit).catch(() => {});
+      navigateRoute({
+        to: "/sales/vouchers",
+        search: {},
+        replace: true,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search.new, search.party_id]);
+  }, [search.new, search.party_id, search.edit]);
 
   // Warm-up cache cho dialog tạo phiếu (gọi khi hover/focus nút)
   function prefetchCreate() {
