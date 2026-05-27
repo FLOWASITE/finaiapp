@@ -362,6 +362,7 @@ function SummaryRow({
         </button>
       </td>
       <td className="p-2 border-r"></td>
+      <td className="p-2 border-r"></td>
       <td className="p-2 text-right">{fmtQty(row.opening_qty)}</td>
       <td className="p-2 text-right">{fmt(row.opening_value)}</td>
       <td className="p-2 text-right border-r text-muted-foreground">{fmt(avg(row.opening_value, row.opening_qty))}</td>
