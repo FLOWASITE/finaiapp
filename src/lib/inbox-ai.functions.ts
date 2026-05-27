@@ -67,12 +67,23 @@ async function materializeSalesInvoiceFromDocument(
 ): Promise<string | null> {
   const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
 
-  const { data: doc } = await supabase
+  let { data: doc } = await supabase
     .from("documents")
     .select("id, doc_kind, ai_upload_id, sales_invoice_id, original_filename")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc || doc.doc_kind !== "sales_invoice") return null;
+  if (!doc) return null;
+  if (doc.doc_kind !== "sales_invoice") {
+    if (!doc.ai_upload_id) return null;
+    const { data: sibling } = await supabase
+      .from("documents")
+      .select("id, doc_kind, ai_upload_id, sales_invoice_id, original_filename")
+      .eq("ai_upload_id", doc.ai_upload_id)
+      .eq("doc_kind", "sales_invoice")
+      .maybeSingle();
+    if (!sibling) return null;
+    doc = sibling;
+  }
 
   if (doc.sales_invoice_id) {
     await supabase
