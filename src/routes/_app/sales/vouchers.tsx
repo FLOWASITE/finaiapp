@@ -1416,7 +1416,7 @@ function VoucherDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[95vh] flex flex-col p-0 gap-0">
+      <DialogContent className="w-[99vw] sm:w-[98vw] sm:max-w-[1800px] xl:max-w-[1950px] max-h-[97vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b shrink-0 flex flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <DialogTitle className="text-primary">Phiếu bán hàng</DialogTitle>
@@ -1835,32 +1835,32 @@ function VoucherDialog({
 
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto border rounded">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[1550px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-2 py-1.5 text-left w-10">STT</th>
-                    <th className="px-2 py-1.5 text-left min-w-[200px]">
+                    <th className="px-2 py-1.5 text-left min-w-[220px]">
                       Tên sản phẩm <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left">Mã</th>
-                    <th className="px-2 py-1.5 text-left">
+                    <th className="px-2 py-1.5 text-left w-28">Mã</th>
+                    <th className="px-2 py-1.5 text-left w-24">
                       Tk nợ <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left">
+                    <th className="px-2 py-1.5 text-left w-24">
                       Tk có <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left">Đơn vị</th>
-                    <th className="px-2 py-1.5 text-right">Số lượng (*)</th>
-                    <th className="px-2 py-1.5 text-right">Đơn giá (*)</th>
-                    <th className="px-2 py-1.5 text-right">Giá trị trước thuế</th>
-                    <th className="px-2 py-1.5 text-right">Giảm giá (%)</th>
-                    <th className="px-2 py-1.5 text-right">Giảm giá</th>
-                    <th className="px-2 py-1.5 text-left">
+                    <th className="px-2 py-1.5 text-left w-20">Đơn vị</th>
+                    <th className="px-2 py-1.5 text-right w-24">Số lượng (*)</th>
+                    <th className="px-2 py-1.5 text-right w-32">Đơn giá (*)</th>
+                    <th className="px-2 py-1.5 text-right w-32">Giá trị trước thuế</th>
+                    <th className="px-2 py-1.5 text-right w-20">Giảm giá (%)</th>
+                    <th className="px-2 py-1.5 text-right w-28">Giảm giá</th>
+                    <th className="px-2 py-1.5 text-left w-28">
                       TK thuế GTGT <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-right">Thuế GTGT(%)</th>
-                    <th className="px-2 py-1.5 text-right">Tiền thuế</th>
-                    <th className="px-2 py-1.5 text-right">Thành tiền</th>
+                    <th className="px-2 py-1.5 text-right w-20">Thuế GTGT(%)</th>
+                    <th className="px-2 py-1.5 text-right w-32">Tiền thuế</th>
+                    <th className="px-2 py-1.5 text-right w-32">Thành tiền</th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
