@@ -1782,9 +1782,18 @@ function VoucherDialog({
                       <td className="px-2 py-1 text-center">{i + 1}</td>
                       <td className="px-1 py-1">
                         <ProductPickerCell
+                          mode="sales"
                           value={l.product_name}
+                          code={l.product_code}
                           products={(products ?? []) as any[]}
-                          onPick={(p) => {
+                          onClear={() =>
+                            updateLine(i, {
+                              product_id: null,
+                              product_code: "",
+                              product_name: "",
+                            })
+                          }
+                          onPick={(p: any) => {
                             updateLine(i, {
                               product_id: p.id,
                               product_code: p.code ?? "",
