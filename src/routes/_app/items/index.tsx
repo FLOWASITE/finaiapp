@@ -133,7 +133,7 @@ function ItemsListPage() {
   });
 
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
+  const [typeFilter, setTypeFilter] = useState<ItemType>("goods");
   const [categoryId, setCategoryId] = useState("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "sell" | "buy" | "both">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
