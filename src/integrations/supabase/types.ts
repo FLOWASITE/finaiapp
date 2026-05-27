@@ -8773,42 +8773,57 @@ export type Database = {
       tenant_product_catalog: {
         Row: {
           aliases: string[]
+          category: string | null
           created_at: string
           created_by: string | null
+          default_account: string | null
           id: string
           is_global: boolean
+          item_type: string | null
           name: string
           name_norm: string
           note: string | null
           sku: string | null
+          subcategory: string | null
           tenant_id: string | null
           updated_at: string
+          vat_rate: number | null
         }
         Insert: {
           aliases?: string[]
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          default_account?: string | null
           id?: string
           is_global?: boolean
+          item_type?: string | null
           name: string
           name_norm: string
           note?: string | null
           sku?: string | null
+          subcategory?: string | null
           tenant_id?: string | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Update: {
           aliases?: string[]
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          default_account?: string | null
           id?: string
           is_global?: boolean
+          item_type?: string | null
           name?: string
           name_norm?: string
           note?: string | null
           sku?: string | null
+          subcategory?: string | null
           tenant_id?: string | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Relationships: [
           {
