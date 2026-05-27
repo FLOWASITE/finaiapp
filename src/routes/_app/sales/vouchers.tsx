@@ -1043,12 +1043,12 @@ function SalesVouchersPage() {
                     <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
-                    <TableHead className="whitespace-nowrap">Kỳ hạch toán</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày hoá đơn</TableHead>
                     <TableHead className="min-w-[200px]">Khách hàng</TableHead>
                     <TableHead className="min-w-[260px]">Mô tả</TableHead>
                     <TableHead className="whitespace-nowrap">Loại phiếu</TableHead>
                     <TableHead className="whitespace-nowrap">Phiếu xuất kho</TableHead>
-                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">TT xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
