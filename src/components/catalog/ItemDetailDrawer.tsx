@@ -1,4 +1,5 @@
-import { ExternalLink, Info, X } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Info, Pencil, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { useCatalogStore } from "@/stores/catalogStore";
 import { getAccountLabel } from "@/data/account-labels";
 import { ItemBadges } from "./ItemBadges";
 import { RegimeSwitch } from "./RegimeSwitch";
+import { ItemEditDialog } from "./ItemEditDialog";
 import { ALLOCATION_LABEL, AMORTIZATION_LABEL, FREQUENCY_LABEL } from "@/lib/catalog-format";
 import { toast } from "sonner";
 
