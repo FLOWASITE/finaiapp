@@ -1,4 +1,5 @@
-import { ExternalLink, Info, X } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Info, Pencil, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { useCatalogStore } from "@/stores/catalogStore";
 import { getAccountLabel } from "@/data/account-labels";
 import { ItemBadges } from "./ItemBadges";
 import { RegimeSwitch } from "./RegimeSwitch";
+import { ItemEditDialog } from "./ItemEditDialog";
 import { ALLOCATION_LABEL, AMORTIZATION_LABEL, FREQUENCY_LABEL } from "@/lib/catalog-format";
 import { toast } from "sonner";
 
@@ -51,6 +53,7 @@ export function ItemDetailDrawer() {
   const regime = useCatalogStore((s) => s.company.accountingRegime);
   const addItem = useCatalogStore((s) => s.addItemToMine);
   const removeItem = useCatalogStore((s) => s.removeItemFromMine);
+  const [editOpen, setEditOpen] = useState(false);
 
   const item = items.find((i) => i.code === code);
   const open = !!item;
@@ -199,30 +202,44 @@ export function ItemDetailDrawer() {
               >
                 Tham khảo Thông tư 99/2025/TT-BTC <ExternalLink className="h-3 w-3" />
               </a>
-              {item.isActive ? (
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
-                  className="text-red-600 border-red-200 hover:bg-red-50"
-                  onClick={() => {
-                    removeItem(item.code);
-                    toast.success(`Đã gỡ "${item.name}" khỏi danh mục`);
-                    openDrawer(null);
-                  }}
+                  onClick={() => setEditOpen(true)}
+                  className="border-[#0F6E56]/30 text-[#0F6E56] hover:bg-[#E1F5EE]"
                 >
-                  Gỡ khỏi danh mục
+                  <Pencil className="h-4 w-4 mr-1.5" /> Sửa
                 </Button>
-              ) : (
-                <Button
-                  className="bg-[#0F6E56] hover:bg-[#085041] text-white"
-                  onClick={() => {
-                    addItem(item.code);
-                    toast.success(`Đã thêm "${item.name}" vào danh mục`);
-                  }}
-                >
-                  Thêm vào danh mục
-                </Button>
-              )}
+                {item.isActive ? (
+                  <Button
+                    variant="outline"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => {
+                      removeItem(item.code);
+                      toast.success(`Đã gỡ "${item.name}" khỏi danh mục`);
+                      openDrawer(null);
+                    }}
+                  >
+                    Gỡ khỏi danh mục
+                  </Button>
+                ) : (
+                  <Button
+                    className="bg-[#0F6E56] hover:bg-[#085041] text-white"
+                    onClick={() => {
+                      addItem(item.code);
+                      toast.success(`Đã thêm "${item.name}" vào danh mục`);
+                    }}
+                  >
+                    Thêm vào danh mục
+                  </Button>
+                )}
+              </div>
             </div>
+            <ItemEditDialog
+              itemCode={item.code}
+              open={editOpen}
+              onOpenChange={setEditOpen}
+            />
           </>
         )}
       </SheetContent>
