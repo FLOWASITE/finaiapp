@@ -1486,12 +1486,11 @@ function CreateVoucherDialog({
 
             {/* Lines — desktop table */}
             <div className="hidden sm:block overflow-x-auto border rounded-md">
-              <Table className="min-w-[1550px] text-sm">
+              <Table className="min-w-[1430px] text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
                     <TableHead className="min-w-[220px]">Tên sản phẩm (*)</TableHead>
-                    <TableHead className="w-28">Mã</TableHead>
                     <TableHead className="w-32">Hoá đơn</TableHead>
                     <TableHead className="w-24">TK nợ</TableHead>
                     <TableHead className="w-20">ĐVT</TableHead>
