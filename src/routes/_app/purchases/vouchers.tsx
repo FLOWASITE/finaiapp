@@ -1637,8 +1637,10 @@ function CreateVoucherDialog({
                   </CardHeader>
                   <CardContent className="p-3 space-y-2">
                     <ProductPickerCell
+                      mode="purchase"
                       value={l.product_name}
-                      onPick={(p) => updateLine(l.key, {
+                      code={l.product_code}
+                      onPick={(p: any) => updateLine(l.key, {
                         product_id: p.id,
                         product_code: p.code ?? "",
                         product_name: p.name ?? "",
@@ -1651,7 +1653,6 @@ function CreateVoucherDialog({
                             : (p.stock_account ?? l.debit_account),
                         line_type: p.item_type === "service" ? "service" : "goods",
                       })}
-
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
