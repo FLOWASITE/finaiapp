@@ -26,12 +26,13 @@ type Product = {
   on_hand?: number | null;
   item_type?: string | null;
   stock_account?: string | null;
+  expense_account?: string | null;
+  revenue_account?: string | null;
+  vat_rate?: number | null;
   can_be_sold?: boolean;
   can_be_purchased?: boolean;
   barcode?: string | null;
   usage_count?: number | null;
-  // Cho phép các field khác (vat_rate, expense_account, revenue_account…) được forward khi pick.
-  [key: string]: unknown;
 };
 
 function normalizeVi(s: string) {
