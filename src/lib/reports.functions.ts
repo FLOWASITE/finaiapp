@@ -25,6 +25,12 @@ async function resolveIsMapping(supabase: any, userId: string): Promise<{ mappin
   return { mapping: B02_TT99, circular: "TT99" };
 }
 
+async function resolveCfMapping(supabase: any, userId: string): Promise<{ mapping: CFItem[]; circular: "TT99" | "TT133" }> {
+  const std = await resolveTenantStandard(supabase, userId);
+  if (std === "TT133") return { mapping: B03_TT133, circular: "TT133" };
+  return { mapping: B03_TT99, circular: "TT99" };
+}
+
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
