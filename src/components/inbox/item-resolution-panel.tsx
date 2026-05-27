@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, AlertCircle, Plus, Loader2, X, Sparkles } from "lucide-react";
+import { CheckCircle2, AlertCircle, Plus, Loader2, X, Sparkles, BookMarked } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   createProductFromRaw,
 } from "@/lib/items/mappings.functions";
 import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
+import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
 
 type Props = {
   items?: ProposalItem[];
@@ -71,6 +72,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const confirmFn = useServerFn(confirmItemMapping);
   const createFn = useServerFn(createProductFromRaw);
   const suggestFn = useServerFn(suggestItemMappingWithLLM);
+  const promoteFn = useServerFn(promoteCatalogToProduct);
 
   const supplierTaxId = (meta?.supplier_tax_id as string | undefined) ?? undefined;
   const supplierName = (meta?.supplier_name as string | undefined) ?? undefined;
@@ -167,6 +169,29 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
   });
 
+  const promoteMut = useMutation({
+    mutationFn: (vars: {
+      catalog_id: string;
+      raw_name: string;
+      raw_unit?: string | null;
+      unit_price?: number | null;
+    }) =>
+      promoteFn({
+        data: {
+          catalog_id: vars.catalog_id,
+          supplier_id: q.data?.supplier_id ?? null,
+          raw_name: vars.raw_name,
+          raw_unit: vars.raw_unit ?? null,
+          unit_price: vars.unit_price ?? null,
+        },
+      }),
+    onSuccess: (res: any) => {
+      toast.success(`Đã thêm "${res?.product?.name ?? ""}" vào Mục của tôi`);
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không thêm được"),
+  });
+
   const askFin = async (idx: number, it: ProposalItem) => {
     if (llmLoadingIdx != null) return;
     setLlmLoadingIdx(idx);
@@ -259,6 +284,55 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                         đã ghép {best.cached.match_count} lần
                       </Badge>
                     )}
+                  </div>
+                )}
+
+                {status === "library_suggestion" && res && (
+                  <div className="mt-1 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-violet-700 dark:text-violet-300">
+                      <BookMarked className="h-3 w-3" />
+                      Gợi ý từ Thư viện chuẩn:
+                    </div>
+                    {res.candidates.map((c: any) => (
+                      <div
+                        key={c.fromLibrary?.catalog_id}
+                        className="flex items-center gap-1.5 rounded border border-violet-500/30 bg-violet-500/5 px-2 py-1 text-[11px]"
+                      >
+                        <span className="truncate text-foreground/90">{c.name}</span>
+                        {c.fromLibrary?.default_account && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                            TK {c.fromLibrary.default_account}
+                          </Badge>
+                        )}
+                        {c.fromLibrary?.vat_rate != null && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                            VAT {Math.round(Number(c.fromLibrary.vat_rate) * (Number(c.fromLibrary.vat_rate) <= 1 ? 100 : 1))}%
+                          </Badge>
+                        )}
+                        <button
+                          type="button"
+                          disabled={promoteMut.isPending}
+                          onClick={() =>
+                            promoteMut.mutate({
+                              catalog_id: c.fromLibrary!.catalog_id,
+                              raw_name: it.name,
+                              raw_unit: it.unit ?? null,
+                              unit_price: it.unit_price ?? null,
+                            })
+                          }
+                          className="ml-auto shrink-0 rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 hover:bg-violet-500/30 dark:text-violet-300"
+                        >
+                          {promoteMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+ Thêm & dùng"}
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setCreatingIdx(idx)}
+                      className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      Không khớp — tạo mã mới
+                    </button>
                   </div>
                 )}
 
