@@ -120,7 +120,31 @@ export const listPurchaseVouchers = createServerFn({ method: "POST" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { rows: rows ?? [] };
+    const list = (rows ?? []) as any[];
+
+    // Enrich stock voucher info from stock_vouchers when not denormalised on the row
+    const stockIds = Array.from(
+      new Set(list.map((r) => r.stock_voucher_id).filter(Boolean) as string[]),
+    );
+    const stockMap = new Map<string, { no: string | null; date: string | null }>();
+    if (stockIds.length) {
+      const { data: sv } = await supabase
+        .from("stock_vouchers")
+        .select("id, voucher_no, voucher_date")
+        .in("id", stockIds);
+      for (const r of (sv ?? []) as any[]) {
+        stockMap.set(r.id, { no: r.voucher_no ?? null, date: r.voucher_date ?? null });
+      }
+    }
+    const enriched = list.map((r) => {
+      const s = r.stock_voucher_id ? stockMap.get(r.stock_voucher_id) : null;
+      return {
+        ...r,
+        stock_voucher_no: r.stock_voucher_no ?? s?.no ?? null,
+        stock_voucher_date: r.stock_voucher_date ?? s?.date ?? null,
+      };
+    });
+    return { rows: enriched };
   });
 
 // ============ GET ============
