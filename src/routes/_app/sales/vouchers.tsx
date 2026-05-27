@@ -1416,7 +1416,7 @@ function VoucherDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[95vh] flex flex-col p-0 gap-0">
+      <DialogContent className="w-[99vw] sm:w-[98vw] sm:max-w-[1800px] xl:max-w-[1950px] max-h-[97vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b shrink-0 flex flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <DialogTitle className="text-primary">Phiếu bán hàng</DialogTitle>
