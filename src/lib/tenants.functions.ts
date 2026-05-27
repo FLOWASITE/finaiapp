@@ -71,7 +71,7 @@ const CreateTenantSchema = z.object({
   tax_id: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   legal_rep_name: z.string().max(255).optional(),
-  accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
+  accounting_standard: z.enum(["TT99", "TT133"]).default("TT99"),
   base_currency: z.string().max(10).default("VND"),
   // Bonus auto-fill từ MST lookup
   trade_name: z.string().max(255).optional(),
@@ -167,7 +167,7 @@ const UpdateTenantSchema = z.object({
   email: optionalEmail.optional(),
   website: optionalUrl.optional(),
   fax: z.string().max(50).nullish(),
-  accounting_standard: z.enum(["TT133", "TT200", "TT99"]).nullish(),
+  accounting_standard: z.enum(["TT99", "TT133"]).nullish(),
   base_currency: z.string().max(10).nullish(),
   fiscal_year_start: z.number().int().min(1).max(12).nullish(),
   fiscal_year_start_day: z.number().int().min(1).max(31).nullish(),

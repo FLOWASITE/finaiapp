@@ -29,7 +29,7 @@ const ProfileSchema = z.object({
   preparer_name: z.string().max(100).optional().nullable(),
   signature_url: z.string().max(500).optional().nullable(),
   stamp_url: z.string().max(500).optional().nullable(),
-  accounting_standard: z.enum(["TT133", "TT200"]).default("TT133"),
+  accounting_standard: z.enum(["TT99", "TT133"]).default("TT99"),
   fiscal_year_start: z.number().int().min(1).max(12).default(1),
   base_currency: z.string().max(10).default("VND"),
   display_name: z.string().max(100).optional().nullable(),

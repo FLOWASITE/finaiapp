@@ -1,10 +1,10 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
-import { listChartOfAccounts, type CoaRow } from "@/lib/coa.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { listChartOfAccounts, getActiveCoaCircular, type CoaRow } from "@/lib/coa.functions";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, BookOpenCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpenCheck, Settings as SettingsIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_app/coa/")({ component: CoaPage });
 
@@ -39,11 +39,21 @@ const TYPE_VARIANT: Record<string, "default" | "secondary" | "outline" | "destru
 
 function CoaPage() {
   const fn = useServerFn(listChartOfAccounts);
+  const circFn = useServerFn(getActiveCoaCircular);
   const { data = [], isLoading } = useQuery<CoaRow[]>({
     queryKey: ["coa"],
     queryFn: () => fn(),
     ...QUERY_PRESETS.REFERENCE,
   });
+  const { data: circ } = useQuery({
+    queryKey: ["coa-circular"],
+    queryFn: () => circFn(),
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const effective = circ?.effective ?? "TT99";
+  const circularLabel = effective === "TT133"
+    ? "Thông tư 133/2016/TT-BTC"
+    : "Thông tư 99/2025/TT-BTC";
   const [q, setQ] = React.useState("");
   const [type, setType] = React.useState<string>("ALL");
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
@@ -100,7 +110,14 @@ function CoaPage() {
             Hệ thống tài khoản kế toán
           </h1>
           <p className="text-sm text-muted-foreground">
-            Danh mục TK theo Thông tư 99/2025/TT-BTC — {total} tài khoản · {activeTotal} đang sử dụng
+            Danh mục TK theo {circularLabel} — {total} tài khoản
+            {effective === "TT99" && <> · {activeTotal} đang sử dụng</>}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+            <span>Đang hiển thị theo chế độ kế toán của tổ chức.</span>
+            <Link to="/settings" className="inline-flex items-center gap-1 text-primary hover:underline">
+              <SettingsIcon className="h-3 w-3" /> Đổi chế độ
+            </Link>
           </p>
         </div>
       </div>

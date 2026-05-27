@@ -765,13 +765,10 @@ function OrganizationTab() {
                         <SelectValue placeholder="Chọn chế độ…" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="TT99">TT 99/2025 — Áp dụng đầy đủ</SelectItem>
                         <SelectItem value="TT133">
                           TT 133/2016 — DN nhỏ và vừa
                         </SelectItem>
-                        <SelectItem value="TT99">TT 99/2025 — Áp dụng đầy đủ</SelectItem>
-                        {form.accounting_standard === "TT200" && (
-                          <SelectItem value="TT200">TT 200/2014 (cũ)</SelectItem>
-                        )}
                       </SelectContent>
                     </Select>
                   </Field>

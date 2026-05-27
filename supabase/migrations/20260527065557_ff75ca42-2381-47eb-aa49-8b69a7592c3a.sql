@@ -1,0 +1,156 @@
+
+-- Bảng tham chiếu danh mục TK Thông tư 133/2016
+CREATE TABLE public.chart_of_accounts_tt133 (
+  code text PRIMARY KEY,
+  name text NOT NULL,
+  parent_code text,
+  type text NOT NULL CHECK (type IN ('ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE','RESULT','OTHER')),
+  level integer,
+  is_active boolean NOT NULL DEFAULT true
+);
+
+GRANT SELECT ON public.chart_of_accounts_tt133 TO authenticated;
+GRANT ALL ON public.chart_of_accounts_tt133 TO service_role;
+
+ALTER TABLE public.chart_of_accounts_tt133 ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone authenticated can read TT133 COA"
+ON public.chart_of_accounts_tt133
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Seed TT133 (Thông tư 133/2016/TT-BTC) — danh mục TK chuẩn cho DN nhỏ & vừa
+INSERT INTO public.chart_of_accounts_tt133 (code, name, parent_code, type, level) VALUES
+-- Loại 1: Tài sản
+('111','Tiền mặt',NULL,'ASSET',1),
+('1111','Tiền Việt Nam','111','ASSET',2),
+('1112','Ngoại tệ','111','ASSET',2),
+('1113','Vàng tiền tệ','111','ASSET',2),
+('112','Tiền gửi ngân hàng',NULL,'ASSET',1),
+('1121','Tiền Việt Nam','112','ASSET',2),
+('1122','Ngoại tệ','112','ASSET',2),
+('1123','Vàng tiền tệ','112','ASSET',2),
+('121','Chứng khoán kinh doanh',NULL,'ASSET',1),
+('128','Đầu tư nắm giữ đến ngày đáo hạn',NULL,'ASSET',1),
+('1281','Tiền gửi có kỳ hạn','128','ASSET',2),
+('1288','Các khoản đầu tư khác','128','ASSET',2),
+('131','Phải thu của khách hàng',NULL,'ASSET',1),
+('133','Thuế GTGT được khấu trừ',NULL,'ASSET',1),
+('1331','Thuế GTGT được khấu trừ của hàng hóa, dịch vụ','133','ASSET',2),
+('1332','Thuế GTGT được khấu trừ của TSCĐ','133','ASSET',2),
+('136','Phải thu nội bộ',NULL,'ASSET',1),
+('1361','Vốn kinh doanh ở đơn vị trực thuộc','136','ASSET',2),
+('1368','Phải thu nội bộ khác','136','ASSET',2),
+('138','Phải thu khác',NULL,'ASSET',1),
+('1381','Tài sản thiếu chờ xử lý','138','ASSET',2),
+('1386','Cầm cố, thế chấp, ký quỹ, ký cược','138','ASSET',2),
+('1388','Phải thu khác','138','ASSET',2),
+('141','Tạm ứng',NULL,'ASSET',1),
+('151','Hàng mua đang đi đường',NULL,'ASSET',1),
+('152','Nguyên liệu, vật liệu',NULL,'ASSET',1),
+('153','Công cụ, dụng cụ',NULL,'ASSET',1),
+('154','Chi phí sản xuất, kinh doanh dở dang',NULL,'ASSET',1),
+('155','Thành phẩm',NULL,'ASSET',1),
+('156','Hàng hóa',NULL,'ASSET',1),
+('157','Hàng gửi đi bán',NULL,'ASSET',1),
+('211','Tài sản cố định',NULL,'ASSET',1),
+('2111','Tài sản cố định hữu hình','211','ASSET',2),
+('2112','Tài sản cố định thuê tài chính','211','ASSET',2),
+('2113','Tài sản cố định vô hình','211','ASSET',2),
+('214','Hao mòn tài sản cố định',NULL,'ASSET',1),
+('2141','Hao mòn TSCĐ hữu hình','214','ASSET',2),
+('2142','Hao mòn TSCĐ thuê tài chính','214','ASSET',2),
+('2143','Hao mòn TSCĐ vô hình','214','ASSET',2),
+('2147','Hao mòn BĐS đầu tư','214','ASSET',2),
+('217','Bất động sản đầu tư',NULL,'ASSET',1),
+('228','Đầu tư góp vốn vào đơn vị khác',NULL,'ASSET',1),
+('2281','Đầu tư vào công ty liên doanh, liên kết','228','ASSET',2),
+('2288','Đầu tư khác','228','ASSET',2),
+('229','Dự phòng tổn thất tài sản',NULL,'ASSET',1),
+('2291','Dự phòng giảm giá chứng khoán kinh doanh','229','ASSET',2),
+('2292','Dự phòng tổn thất đầu tư vào đơn vị khác','229','ASSET',2),
+('2293','Dự phòng phải thu khó đòi','229','ASSET',2),
+('2294','Dự phòng giảm giá hàng tồn kho','229','ASSET',2),
+('241','Xây dựng cơ bản dở dang',NULL,'ASSET',1),
+('2411','Mua sắm TSCĐ','241','ASSET',2),
+('2412','Xây dựng cơ bản','241','ASSET',2),
+('2413','Sửa chữa lớn TSCĐ','241','ASSET',2),
+('242','Chi phí trả trước',NULL,'ASSET',1),
+-- Loại 3: Nợ phải trả
+('331','Phải trả cho người bán',NULL,'LIABILITY',1),
+('333','Thuế và các khoản phải nộp Nhà nước',NULL,'LIABILITY',1),
+('3331','Thuế GTGT phải nộp','333','LIABILITY',2),
+('33311','Thuế GTGT đầu ra','3331','LIABILITY',3),
+('33312','Thuế GTGT hàng nhập khẩu','3331','LIABILITY',3),
+('3332','Thuế tiêu thụ đặc biệt','333','LIABILITY',2),
+('3333','Thuế xuất, nhập khẩu','333','LIABILITY',2),
+('3334','Thuế thu nhập doanh nghiệp','333','LIABILITY',2),
+('3335','Thuế thu nhập cá nhân','333','LIABILITY',2),
+('3336','Thuế tài nguyên','333','LIABILITY',2),
+('3337','Thuế nhà đất, tiền thuê đất','333','LIABILITY',2),
+('3338','Thuế bảo vệ môi trường và các loại thuế khác','333','LIABILITY',2),
+('3339','Phí, lệ phí và các khoản phải nộp khác','333','LIABILITY',2),
+('334','Phải trả người lao động',NULL,'LIABILITY',1),
+('3341','Phải trả công nhân viên','334','LIABILITY',2),
+('3348','Phải trả người lao động khác','334','LIABILITY',2),
+('335','Chi phí phải trả',NULL,'LIABILITY',1),
+('336','Phải trả nội bộ',NULL,'LIABILITY',1),
+('338','Phải trả, phải nộp khác',NULL,'LIABILITY',1),
+('3381','Tài sản thừa chờ giải quyết','338','LIABILITY',2),
+('3382','Kinh phí công đoàn','338','LIABILITY',2),
+('3383','Bảo hiểm xã hội','338','LIABILITY',2),
+('3384','Bảo hiểm y tế','338','LIABILITY',2),
+('3385','Bảo hiểm thất nghiệp','338','LIABILITY',2),
+('3386','Nhận ký quỹ, ký cược','338','LIABILITY',2),
+('3387','Doanh thu chưa thực hiện','338','LIABILITY',2),
+('3388','Phải trả, phải nộp khác','338','LIABILITY',2),
+('341','Vay và nợ thuê tài chính',NULL,'LIABILITY',1),
+('3411','Các khoản đi vay','341','LIABILITY',2),
+('3412','Nợ thuê tài chính','341','LIABILITY',2),
+('352','Dự phòng phải trả',NULL,'LIABILITY',1),
+('3521','Dự phòng bảo hành sản phẩm hàng hóa','352','LIABILITY',2),
+('3522','Dự phòng bảo hành công trình xây dựng','352','LIABILITY',2),
+('3523','Dự phòng tái cơ cấu doanh nghiệp','352','LIABILITY',2),
+('3524','Dự phòng phải trả khác','352','LIABILITY',2),
+('353','Quỹ khen thưởng, phúc lợi',NULL,'LIABILITY',1),
+('3531','Quỹ khen thưởng','353','LIABILITY',2),
+('3532','Quỹ phúc lợi','353','LIABILITY',2),
+('3533','Quỹ phúc lợi đã hình thành TSCĐ','353','LIABILITY',2),
+('3534','Quỹ thưởng ban quản lý điều hành công ty','353','LIABILITY',2),
+('356','Quỹ phát triển khoa học và công nghệ',NULL,'LIABILITY',1),
+-- Loại 4: Vốn chủ sở hữu
+('411','Vốn đầu tư của chủ sở hữu',NULL,'EQUITY',1),
+('4111','Vốn góp của chủ sở hữu','411','EQUITY',2),
+('4112','Thặng dư vốn cổ phần','411','EQUITY',2),
+('4118','Vốn khác','411','EQUITY',2),
+('413','Chênh lệch tỷ giá hối đoái',NULL,'EQUITY',1),
+('418','Các quỹ thuộc vốn chủ sở hữu',NULL,'EQUITY',1),
+('419','Cổ phiếu quỹ',NULL,'EQUITY',1),
+('421','Lợi nhuận sau thuế chưa phân phối',NULL,'EQUITY',1),
+('4211','LNST chưa phân phối năm trước','421','EQUITY',2),
+('4212','LNST chưa phân phối năm nay','421','EQUITY',2),
+-- Loại 5: Doanh thu
+('511','Doanh thu bán hàng và cung cấp dịch vụ',NULL,'REVENUE',1),
+('5111','Doanh thu bán hàng hóa','511','REVENUE',2),
+('5112','Doanh thu bán thành phẩm','511','REVENUE',2),
+('5113','Doanh thu cung cấp dịch vụ','511','REVENUE',2),
+('5118','Doanh thu khác','511','REVENUE',2),
+('515','Doanh thu hoạt động tài chính',NULL,'REVENUE',1),
+-- Loại 6: Chi phí SXKD
+('611','Mua hàng (KKĐK)',NULL,'EXPENSE',1),
+('631','Giá thành sản xuất (KKĐK)',NULL,'EXPENSE',1),
+('632','Giá vốn hàng bán',NULL,'EXPENSE',1),
+('635','Chi phí tài chính',NULL,'EXPENSE',1),
+('642','Chi phí quản lý kinh doanh',NULL,'EXPENSE',1),
+('6421','Chi phí bán hàng','642','EXPENSE',2),
+('6422','Chi phí quản lý doanh nghiệp','642','EXPENSE',2),
+-- Loại 7,8,9
+('711','Thu nhập khác',NULL,'REVENUE',1),
+('811','Chi phí khác',NULL,'EXPENSE',1),
+('821','Chi phí thuế thu nhập doanh nghiệp',NULL,'EXPENSE',1),
+('911','Xác định kết quả kinh doanh',NULL,'RESULT',1);
+
+-- Chuẩn hoá dữ liệu cũ: TT200 → TT99 (TT200 đã bị thay thế)
+UPDATE public.tenants SET accounting_standard = 'TT99' WHERE accounting_standard = 'TT200';
+UPDATE public.profiles SET accounting_standard = 'TT99' WHERE accounting_standard = 'TT200';
