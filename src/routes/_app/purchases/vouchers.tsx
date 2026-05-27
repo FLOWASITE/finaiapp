@@ -790,6 +790,7 @@ function PurchaseVouchersPage() {
                         <TableCell className="whitespace-nowrap">{fmtDateVN(r.voucher_date)}</TableCell>
                         <TableCell className="font-mono whitespace-nowrap">{r.voucher_no}</TableCell>
                         <TableCell className="font-mono text-muted-foreground whitespace-nowrap">{r.invoice_no ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{r.invoice_date ? fmtDateVN(r.invoice_date) : "—"}</TableCell>
                         <TableCell className="font-mono text-muted-foreground whitespace-nowrap">{r.invoice_series ?? "—"}</TableCell>
                         <TableCell className="truncate max-w-[260px]" title={r.supplier_name ?? ""}>{r.supplier_name ?? "—"}</TableCell>
                         <TableCell className="truncate max-w-[320px]" title={r.reason ?? ""}>{r.reason ?? "—"}</TableCell>
@@ -797,7 +798,7 @@ function PurchaseVouchersPage() {
                         <TableCell className="whitespace-nowrap text-muted-foreground">{r.branch_name ?? "—"}</TableCell>
                         <TableCell className="text-center"><StatusDot ok={!!r.is_purchase_cost} /></TableCell>
                         <TableCell className="font-mono whitespace-nowrap text-muted-foreground">{r.stock_voucher_no ?? "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{r.invoice_date ? fmtDateVN(r.invoice_date) : "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{r.stock_voucher_date ? fmtDateVN(r.stock_voucher_date) : "—"}</TableCell>
                         <TableCell className="text-center"><StatusDot ok={!!r.stock_voucher_id} /></TableCell>
                         <TableCell className="text-center">
                           {isVoid ? (
