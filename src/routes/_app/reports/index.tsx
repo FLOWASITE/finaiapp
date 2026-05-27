@@ -160,8 +160,8 @@ function ReportsPage() {
 
 
         <TabsContent value="b01">
-          <ReportCard title="Báo cáo tình hình tài chính (Mẫu B01-DN)" subtitle={`Tại ngày ${to}${compareEnabled ? ` — So sánh với ${prevAsOf}` : ""}`} onExport={() => handleExport("B01")}>
-            <PrintHeader profile={profile} title="BÁO CÁO TÌNH HÌNH TÀI CHÍNH" subtitle={`Mẫu số B01-DN — Tại ngày ${to}`} />
+          <ReportCard title={`Báo cáo tình hình tài chính (Mẫu ${(bs.data as any)?.circular === "TT133" ? "B01a-DNN — TT133" : "B01-DN — TT99"})`} subtitle={`Tại ngày ${to}${compareEnabled ? ` — So sánh với ${prevAsOf}` : ""}`} onExport={() => handleExport("B01")}>
+            <PrintHeader profile={profile} title="BÁO CÁO TÌNH HÌNH TÀI CHÍNH" subtitle={`Mẫu số ${(bs.data as any)?.circular === "TT133" ? "B01a-DNN (Thông tư 133/2016/TT-BTC)" : "B01-DN (Thông tư 99/2025/TT-BTC)"} — Tại ngày ${to}`} />
             {!bs.data ? <Loading /> : (
               <>
                 {!bs.data.balanced && (
