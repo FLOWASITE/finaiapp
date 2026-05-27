@@ -1,22 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { mergeCatalog, type DbProductRow, type DbTpcRow } from "./adapt";
 import type { CatalogItem } from "@/types/catalog";
-
-async function activeTenantId(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("active_tenant_id")
-    .eq("id", userId)
-    .maybeSingle();
-  return (data?.active_tenant_id as string | undefined) ?? null;
-}
 
 export const loadCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ items: CatalogItem[] }> => {
     const { supabase, userId } = context;
-    const tenantId = await activeTenantId(supabase, userId);
+    const tenantId = await resolveActiveTenantId(supabase, userId);
     if (!tenantId) return { items: [] };
 
     const [productsRes, tpcRes] = await Promise.all([
@@ -42,4 +35,106 @@ export const loadCatalog = createServerFn({ method: "GET" })
       (tpcRes.data ?? []) as DbTpcRow[],
     );
     return { items };
+  });
+
+// ---------------------------------------------------------------------------
+// CRUD: ghi thẳng vào bảng `products`
+// ---------------------------------------------------------------------------
+
+const CatalogItemInput = z
+  .object({
+    id: z.string().optional(),
+    code: z.string().min(1).max(50),
+    name: z.string().min(1).max(255),
+    itemType: z.enum(["service", "goods", "mixed"]).default("goods"),
+    defaultAccountTT99: z.string().min(2).max(10).optional(),
+    aliases: z.array(z.string()).optional(),
+    notes: z.string().nullable().optional(),
+    vatRateStandard: z.number().min(0).max(1).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .passthrough();
+
+function makeProductPayload(
+  item: z.infer<typeof CatalogItemInput>,
+  userId: string,
+  tenantId: string,
+) {
+  const itemType: "goods" | "service" =
+    item.itemType === "service" ? "service" : "goods";
+  const acct = item.defaultAccountTT99 || (itemType === "service" ? "642" : "156");
+  return {
+    user_id: userId,
+    tenant_id: tenantId,
+    code: item.code,
+    name: item.name,
+    item_type: itemType,
+    unit: "cái",
+    stock_account: itemType === "goods" ? acct : "156",
+    expense_account: itemType === "service" ? acct : null,
+    revenue_account: "511",
+    cogs_account: "632",
+    vat_rate: Math.round(((item.vatRateStandard ?? 0.1) as number) * 100),
+    aliases: item.aliases ?? [],
+    notes: item.notes ?? null,
+    is_active: item.isActive !== false,
+  };
+}
+
+export const upsertCatalogItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ item: CatalogItemInput }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+
+    const payload = makeProductPayload(data.item, userId, tenantId);
+
+    // Nếu có id, kiểm tra xem có phải là bản ghi products (không phải TPC)
+    let productId: string | null = null;
+    if (data.item.id) {
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id")
+        .eq("id", data.item.id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (existing) productId = existing.id;
+    }
+
+    if (productId) {
+      const { error } = await supabase
+        .from("products")
+        .update(payload)
+        .eq("id", productId);
+      if (error) throw new Error(error.message);
+      return { id: productId };
+    }
+
+    const { data: row, error } = await supabase
+      .from("products")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: row!.id };
+  });
+
+export const softDeleteCatalogItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
+    if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
+    const { error } = await supabase
+      .from("products")
+      .update({ is_active: false })
+      .eq("id", data.id)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
