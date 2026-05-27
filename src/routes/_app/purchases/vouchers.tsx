@@ -62,6 +62,7 @@ export const Route = createFileRoute("/_app/purchases/vouchers")({
     party_name: typeof s.party_name === "string" ? s.party_name : undefined,
     party_tax_id: typeof s.party_tax_id === "string" ? s.party_tax_id : undefined,
     party_address: typeof s.party_address === "string" ? s.party_address : undefined,
+    edit: typeof s.edit === "string" ? s.edit : undefined,
   }),
 });
 
@@ -378,9 +379,13 @@ function PurchaseVouchersPage() {
       });
       setOpenCreate(true);
       navigateRoute({ to: "/purchases/vouchers", search: {}, replace: true });
+    } else if (searchParams.edit) {
+      autoOpenedRef.current = true;
+      setEditId(searchParams.edit);
+      navigateRoute({ to: "/purchases/vouchers", search: {}, replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.new, searchParams.party_id]);
+  }, [searchParams.new, searchParams.party_id, searchParams.edit]);
 
   const payFn = useServerFn(recordPurchaseVoucherPayment);
   const payMut = useMutation({
