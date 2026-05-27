@@ -2,17 +2,27 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withLatency } from "@/lib/with-latency";
-import { B01_TT99, B01_TT133, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
-async function resolveBsMapping(supabase: any, userId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
+async function resolveTenantStandard(supabase: any, userId: string): Promise<"TT99" | "TT133"> {
   const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-  let std: string | null = null;
   if (profile?.active_tenant_id) {
     const { data: t } = await supabase.from("tenants").select("accounting_standard").eq("id", profile.active_tenant_id).maybeSingle();
-    std = (t as any)?.accounting_standard ?? null;
+    if ((t as any)?.accounting_standard === "TT133") return "TT133";
   }
+  return "TT99";
+}
+
+async function resolveBsMapping(supabase: any, userId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
+  const std = await resolveTenantStandard(supabase, userId);
   if (std === "TT133") return { mapping: B01_TT133, circular: "TT133", totalAssetCode: "200", totalEquityCode: "500" };
   return { mapping: B01_TT99, circular: "TT99", totalAssetCode: "280", totalEquityCode: "440" };
+}
+
+async function resolveIsMapping(supabase: any, userId: string): Promise<{ mapping: ISItem[]; circular: "TT99" | "TT133" }> {
+  const std = await resolveTenantStandard(supabase, userId);
+  if (std === "TT133") return { mapping: B02_TT133, circular: "TT133" };
+  return { mapping: B02_TT99, circular: "TT99" };
 }
 
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
@@ -112,11 +122,15 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
     }
 
     let b01Mapping: BSItem[] = B01_TT99;
+    let b02Mapping: ISItem[] = B02_TT99;
     if (data.report === "B01") {
       const r = await resolveBsMapping(supabase, userId);
       b01Mapping = r.mapping;
+    } else if (data.report === "B02") {
+      const r = await resolveIsMapping(supabase, userId);
+      b02Mapping = r.mapping;
     }
-    const item = (data.report === "B01" ? b01Mapping : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
+    const item = (data.report === "B01" ? b01Mapping : b02Mapping).find((x) => x.ma_so === data.ma_so) as any;
     if (!item || !item.accounts || item.accounts.length === 0) {
       return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
     }
@@ -307,6 +321,7 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
   .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
   .handler(withLatency("getIncomeStatementTT99", async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { mapping, circular } = await resolveIsMapping(supabase, userId);
     const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
     const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
 
@@ -322,19 +337,20 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
 
     const vCur: Record<string, number> = {};
     const vPrev: Record<string, number> = {};
-    for (const item of B02_TT99) {
+    for (const item of mapping) {
       vCur[item.ma_so] = computeItem(item, cur, vCur);
       vPrev[item.ma_so] = computeItem(item, prev, vPrev);
     }
 
     return {
-      items: B02_TT99.map(it => ({
+      items: mapping.map(it => ({
         ma_so: it.ma_so, name: it.name, bold: !!it.bold,
         current: Math.round(vCur[it.ma_so] ?? 0),
         previous: Math.round(vPrev[it.ma_so] ?? 0),
       })),
       period: { from: data.from ?? null, to: data.to ?? null },
       comparePeriod: data.compareFrom ? { from: data.compareFrom, to: data.compareTo } : null,
+      circular,
     };
   }));
 
@@ -598,8 +614,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
 
+    const tenantStd = await resolveTenantStandard(supabase, userId);
+    const b02Label = tenantStd === "TT133" ? "B02-DNN" : "B02-DN";
     const title = data.report === "B01" ? "BÁO CÁO TÌNH HÌNH TÀI CHÍNH (B01-DN)"
-      : data.report === "B02" ? "BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (B02-DN)"
+      : data.report === "B02" ? `BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (${b02Label})`
       : "BÁO CÁO LƯU CHUYỂN TIỀN TỆ (B03-DN)";
     ws.getCell("A5").value = title;
     ws.getCell("A5").font = { bold: true, size: 12 };
@@ -631,11 +649,12 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     } else if (data.report === "B02") {
       const lines = await fetchLines(supabase, userId, data.from, data.to);
       const v: Record<string, number> = {};
-      for (const it of B02_TT99) {
+      const { mapping: isMap } = await resolveIsMapping(supabase, userId);
+      for (const it of isMap) {
         if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => s + periodAmountForPrefix(lines, a.prefix, a.nature) * a.sign, 0);
         else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
       }
-      for (const it of B02_TT99) {
+      for (const it of isMap) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);

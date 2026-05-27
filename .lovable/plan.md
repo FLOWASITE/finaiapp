@@ -1,57 +1,52 @@
-## Bối cảnh
-
-- Tổ chức có cài đặt **Chế độ kế toán** (`tenants.accounting_standard` / `profiles.accounting_standard`) trong `/settings`.
-- Chỉ còn **2 chế độ hợp lệ**: `TT99` (Thông tư 99/2025 — áp dụng đầy đủ) và `TT133` (Thông tư 133/2016 — DN nhỏ và vừa). **TT200 đã bị thay thế bởi TT99** — loại bỏ khỏi toàn bộ UI lựa chọn.
-- Bảng `chart_of_accounts` hiện chỉ chứa danh mục **TT99** (167 dòng). Trang `/coa` luôn hiển thị TT99, không bám theo cài đặt của tổ chức.
-- File Excel `he-thong-tai-khoan-ke-toan-tt-133.xlsx` (~110 TK) sẽ dùng để seed TT133.
-
 ## Mục tiêu
+Bổ sung mẫu Báo cáo Kết quả hoạt động kinh doanh **B02-DNN** theo Thông tư 133/2016/TT-BTC, tương tự cách đã làm cho Bảng cân đối (B01a-DNN). Khi tổ chức đặt `accounting_standard = 'TT133'`, tab "B02 — KQKD" hiển thị cấu trúc B02-DNN; ngược lại giữ nguyên B02-DN (TT99).
 
-Trang `/coa` (và các nơi tra cứu COA) tự động hiển thị danh mục TK đúng với chế độ kế toán mà tổ chức đang chọn:
-- `TT99` → bảng TK Thông tư 99/2025 (đã có).
-- `TT133` → bảng TK Thông tư 133/2016 (bổ sung mới).
-- Nếu còn dữ liệu cũ có `accounting_standard = 'TT200'` → tự động coi như `TT99` khi đọc (TT99 đã thay thế TT200), không hiển thị tuỳ chọn TT200 trên UI nữa.
+## So sánh cấu trúc B02-DNN (TT133) vs B02-DN (TT99)
 
-## Thay đổi
+| Mã | Chỉ tiêu (TT133) | Khác biệt so với TT99 |
+|----|------------------|-----------------------|
+| 01 | Doanh thu bán hàng và CCDV | giống |
+| 02 | Các khoản giảm trừ doanh thu | giống |
+| 10 | Doanh thu thuần (= 01 − 02) | giống |
+| 11 | Giá vốn hàng bán | giống |
+| 20 | Lợi nhuận gộp (= 10 − 11) | giống |
+| 21 | Doanh thu hoạt động tài chính | giống |
+| 22 | Chi phí tài chính | giống |
+| 23 | — Trong đó: Chi phí lãi vay | giống |
+| **24** | **Chi phí quản lý kinh doanh** | **Gộp 641 + 642** (TT99 tách 25/26) |
+| 30 | LN thuần HĐKD (= 20 + 21 − 22 − 24) | công thức khác |
+| 31 | Thu nhập khác | giống |
+| 32 | Chi phí khác | giống |
+| 40 | Lợi nhuận khác (= 31 − 32) | giống |
+| 50 | Tổng LN trước thuế (= 30 + 40) | giống |
+| **51** | **Chi phí thuế TNDN** | **Gộp** (TT99 tách 51/52) |
+| 60 | LN sau thuế (= 50 − 51) | TT133 không có mã 52, không có EPS (70) |
 
-### 1. Database (migration)
-- Thêm cột `circular text not null default 'TT99'` vào `chart_of_accounts`.
-- Đổi PK: drop PK trên `(code)`, tạo PK mới `(circular, code)` để cùng mã (vd 156) tồn tại ở cả 2 thông tư.
-- Giữ FK hiện tại của `journal_lines.account_code` → tạo **partial unique index** `UNIQUE (code) WHERE circular = 'TT99'` để không phá ràng buộc nghiệp vụ.
-- Insert ~110 dòng TT133 (cấp 1, cấp 2, cấp 3 như 33311/33312/33381/33382) với `circular = 'TT133'`.
-- Data fix: `UPDATE tenants SET accounting_standard = 'TT99' WHERE accounting_standard = 'TT200'` (và tương tự cho `profiles`) — chuẩn hoá dữ liệu cũ.
+Hạch toán theo TT133: dùng TK **642 "Chi phí quản lý kinh doanh"** cho mã 24, và **821** cho mã 51.
 
-### 2. Server function `listChartOfAccounts` (`src/lib/coa.functions.ts`)
-- Đọc `accounting_standard` của tenant hiện tại.
-- Map `TT200 → TT99` (an toàn cho dữ liệu cũ).
-- Query `chart_of_accounts` filter theo `circular` tương ứng.
-- Trả về thêm `effective_circular` để UI hiển thị label đúng.
+## Thay đổi mã
 
-### 3. UI Cài đặt (`src/routes/_app/settings/index.tsx`)
-- Bỏ tuỳ chọn `TT200` trong Select "Chế độ kế toán" (kể cả nhánh điều kiện `form.accounting_standard === "TT200"` đang còn).
-- Chỉ còn 2 mục:
-  - `TT99` — "TT 99/2025 — Áp dụng đầy đủ"
-  - `TT133` — "TT 133/2016 — DN nhỏ và vừa"
-- Cập nhật schema Zod ở `src/lib/settings.functions.ts` và `src/lib/tenants.functions.ts`: `accounting_standard: z.enum(["TT99", "TT133"])` (bỏ `TT200`). Tại các nơi đọc giá trị từ DB, vẫn chấp nhận `TT200` cũ và quy về `TT99` để không vỡ runtime trước khi data fix chạy xong.
-- Trang superadmin Organizations (`src/routes/_app/superadmin/organizations.tsx`): bỏ `<SelectItem value="TT200">`, đổi default `TT133` → giữ nguyên.
+### 1. `src/lib/report-mappings.ts`
+- Thêm hằng `B02_TT133: ISItem[]` với cấu trúc 16 dòng ở trên:
+  - 24: `accounts: [E("641"), E("642")]` (gồm cả chi phí bán hàng + QLDN theo TT133)
+  - 30: `formula: [20:+, 21:+, 22:−, 24:−]`
+  - 51: `accounts: [E("821")]`
+  - 60: `formula: [50:+, 51:−]`
+  - Bỏ mã 25, 26, 52, 70.
 
-### 4. UI trang `/coa` (`src/routes/_app/coa/index.tsx`)
-- Mô tả động theo `effective_circular`:
-  - TT99 → "Danh mục TK theo Thông tư 99/2025/TT-BTC"
-  - TT133 → "Danh mục TK theo Thông tư 133/2016/TT-BTC"
-- Thêm dòng phụ nhỏ: "Đang dùng theo chế độ kế toán của tổ chức" + link "Đổi chế độ" dẫn về `/settings`.
+### 2. `src/lib/reports.functions.ts`
+- Thêm hàm `resolveIsMapping(standard)` → trả về `B02_TT133` hoặc `B02_TT99`.
+- Cập nhật `getIncomeStatementTT99` (handler B02): dùng mapping động theo `tenant.accounting_standard`.
+- Cập nhật phần drilldown (`getReportDrilldown`) ở nhánh `data.report === "B02"`: dùng mapping động thay vì hard-code `B02_TT99`.
+- Cập nhật export CSV: lặp qua mapping động.
 
-## Không làm
+### 3. `src/routes/_app/reports/index.tsx`
+- Tab "B02 — KQKD": tiêu đề và `PrintHeader` đổi động theo standard:
+  - TT133 → "Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DNN — Thông tư 133/2016/TT-BTC)"
+  - TT99 → giữ nguyên "Mẫu B02-DN — Thông tư 99/2025/TT-BTC"
+- Tận dụng `getActiveCoaCircular` đã có để biết standard hiện hành.
 
-- Không sửa logic định khoản AI / categorize (các nhánh TT200 vẫn còn trong code AI có thể giữ lại như fallback an toàn — sẽ dọn ở pass riêng).
-- Không sửa danh mục mặc định trên phiếu mua/bán.
-- `/coa` vẫn read-only — không CRUD trên TT133.
-
-## Files sẽ đụng
-
-- `supabase/migrations/<new>.sql` — thêm cột `circular`, đổi PK, partial unique index, seed TT133, normalize TT200→TT99.
-- `src/lib/coa.functions.ts`
-- `src/lib/settings.functions.ts`, `src/lib/tenants.functions.ts` — bỏ TT200 khỏi enum input.
-- `src/routes/_app/settings/index.tsx` — bỏ option TT200.
-- `src/routes/_app/superadmin/organizations.tsx` — bỏ option TT200.
-- `src/routes/_app/coa/index.tsx` — label động + link.
+## Không thay đổi
+- Schema DB (không cần bảng mới — đây là bản đồ tài khoản tĩnh trong code).
+- Logic B01, B03 và các phần khác.
+- UI/UX tổng thể, chỉ thay nhãn và cấu trúc dòng của tab B02.
