@@ -239,11 +239,6 @@ export function ProductPickerCell({
         align="start"
         sideOffset={4}
         className="w-[min(760px,92vw)] p-0"
-        onOpenAutoFocus={(e) => {
-          // Để input search được autoFocus một cách tự nhiên
-          e.preventDefault();
-          (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus();
-        }}
       >
         <div className="border-b p-2">
           <div className="relative">
