@@ -268,6 +268,7 @@ export function InboxItemDetail({
   onEdit,
   approving,
 }: InboxItemDetailProps) {
+  const navigate = useNavigate();
   const partnerName = item.partner?.trim();
   const hasPartner = !!partnerName && partnerName !== "—";
   const confidence = item.confidence ?? 0;
