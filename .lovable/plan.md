@@ -1,29 +1,36 @@
-# Plan — Bổ sung ngành VSIC 2025 + UI Chọn ngành (Settings & Setup)
+## Mục tiêu
 
-## ✅ Đã hoàn thành (Phase 1)
+Nạp toàn bộ dataset VSIC 2025 (L1: 22, L2: 88, L3: 158, L4: 91 — tổng ~359 nodes) từ JSON người dùng cung cấp vào `src/lib/vsic-2025.ts`, thay thế seed ~110 mã hiện tại. Component picker & integration giữ nguyên — chỉ swap dataset.
 
-1. **`src/lib/vsic-2025.ts`** — Dataset VSIC 2025:
-   - 22 ngành L1 đầy đủ (icon lucide, finaiSupported, finaiOverlaySlug, nonBusiness)
-   - ~110 mã L2-L5 phổ biến nhất (seed cho SMB Việt Nam)
-   - Helpers: `getChildren`, `getAncestors`, `lookupVsic`, `inferLevel`, `getL1CodeOf`, `searchVsic` (tìm không dấu, score-based)
+## Thay đổi
 
-2. **`src/components/industry/VsicIndustryPicker.tsx`** — Component mới:
-   - Multi-select chips với badge "Chính" + nút "Đặt chính"
-   - Popover picker 640px: search bar + L1 grid (22 card icon+mô tả) → drill-down L2→L5 với breadcrumb
-   - Toggle "Hiện/Ẩn ngành ngoài DN" (P/U/V)
-   - Search non-accent từ 2 ký tự
-   - Badge "Hỗ trợ FinAI" (sparkles) trên 6 ngành có overlay
+### 1. `src/lib/vsic-2025.ts`
 
-3. **Tích hợp:**
-   - `src/routes/_app/settings/index.tsx` — section "Hoạt động kinh doanh"
-   - `src/routes/_app/setup.tsx` — wizard onboarding (đồng bộ `industry_code/name` từ ngành chính)
+- **Giữ nguyên:**
+  - Type `VsicNode`, `VsicL1Industry`
+  - Mảng `VSIC_2025_LEVEL1` (22 ngành A-V) — đã có đủ, chỉ cập nhật nameVi cho khớp Quyết định 36/2025 (vd. K mới: "HOẠT ĐỘNG VIỄN THÔNG; LẬP TRÌNH MÁY TÍNH…", V mới: "HOẠT ĐỘNG CỦA CÁC TỔ CHỨC VÀ CƠ QUAN QUỐC TẾ"). Giữ nguyên `icon`, `nameViShort`, `description`, `finaiSupported`, `finaiOverlaySlug`, `nonBusiness`.
+  - Helpers: `getChildren`, `getAncestors`, `lookupVsic`, `inferLevel`, `getL1CodeOf`, `searchVsic`, `getVsicLevel1`, `getVsicNode`.
 
-4. **Tương thích:** Giữ shape `{code, name}` khi lưu xuống DB → không cần migration server.
+- **Thay thế:** mảng `VSIC_2025_NODES` — generate từ JSON người dùng:
+  - 88 node L2 (parent = mã L1 chữ cái)
+  - 158 node L3 (parent = mã L2 2 ký tự)
+  - 91 node L4 (parent = mã L3 3 ký tự)
+  - Mỗi node: `{ code, level, parentCode, nameVi }`
+  - L5 bỏ qua (dataset không có)
 
-## 🔜 Phase 2 (cần input)
+- **Metadata mới:** thêm constant `VSIC_2025_META` (source, effective_date, completeness) để hiển thị footer trong picker (optional, sẽ thêm 1 dòng nhỏ).
 
-Upload file dataset chính thức VSIC 2025 (xlsx/csv ~1.584 mã L2-L5 đầy đủ từ TCTK) → script parse sẽ generate phần còn lại của `VSIC_2025_NODES`. Cấu trúc đã sẵn sàng, chỉ append.
+### 2. `src/components/industry/VsicIndustryPicker.tsx`
 
-## File giữ nguyên
-- `src/components/industry-combobox.tsx` — vẫn dùng trong `EditIndustryDialog` (gắn ngành NCC)
-- `src/lib/vsic.ts` — `LEGAL_FORMS`, `TAX_METHODS`, `DECLARE_PERIODS` còn dùng nhiều nơi
+- Hiển thị thêm 1 dòng meta nhỏ ở footer popover: "Theo Quyết định 36/2025/QĐ-TTg, hiệu lực 15/11/2025" — để user yên tâm đang dùng phiên bản mới.
+- Không đổi logic nào khác.
+
+### 3. `.lovable/plan.md`
+
+- Đánh dấu Phase 2 hoàn thành (dataset đầy đủ L1-L4 từ Quyết định 36/2025).
+
+## Không đụng
+
+- `src/routes/_app/settings/index.tsx`, `src/routes/_app/setup.tsx` (đã tích hợp ở Phase 1)
+- `src/components/industry-combobox.tsx` (vẫn dùng cho EditIndustryDialog)
+- DB schema, server functions
