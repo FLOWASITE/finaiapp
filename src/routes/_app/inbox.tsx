@@ -91,7 +91,7 @@ export const Route = createFileRoute("/_app/inbox")({
 
 const TABS: Array<{ key: "inbox" | "posted" | "review" | "documents" | "reports"; label: string }> = [
   { key: "inbox", label: "Inbox AI" },
-  { key: "posted", label: "Đã hạch toán" },
+  { key: "posted", label: "Đã ghi sổ" },
   { key: "review", label: "Cần xem lại" },
   { key: "documents", label: "Tài liệu" },
   { key: "reports", label: "Báo cáo" },
