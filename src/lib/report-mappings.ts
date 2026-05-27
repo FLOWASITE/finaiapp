@@ -443,6 +443,32 @@ export const B02_TT99: ISItem[] = [
   { ma_so: "70", name: "19. Lãi cơ bản trên cổ phiếu (EPS)", accounts: [] },
 ];
 
+// ============ B02-DNN — Kết quả kinh doanh (Thông tư 133) ============
+export const B02_TT133: ISItem[] = [
+  { ma_so: "01", name: "1. Doanh thu bán hàng và cung cấp dịch vụ", accounts: [R("511")] },
+  { ma_so: "02", name: "2. Các khoản giảm trừ doanh thu", accounts: [R("521")] },
+  { ma_so: "10", name: "3. Doanh thu thuần về bán hàng và cung cấp dịch vụ (10 = 01 - 02)", bold: true,
+    formula: [{ ma_so: "01", sign: 1 }, { ma_so: "02", sign: -1 }] },
+  { ma_so: "11", name: "4. Giá vốn hàng bán", accounts: [E("632")] },
+  { ma_so: "20", name: "5. Lợi nhuận gộp về bán hàng và cung cấp dịch vụ (20 = 10 - 11)", bold: true,
+    formula: [{ ma_so: "10", sign: 1 }, { ma_so: "11", sign: -1 }] },
+  { ma_so: "21", name: "6. Doanh thu hoạt động tài chính", accounts: [R("515")] },
+  { ma_so: "22", name: "7. Chi phí tài chính", accounts: [E("635")] },
+  { ma_so: "23", name: "    - Trong đó: Chi phí lãi vay", accounts: [E("6351")] },
+  { ma_so: "24", name: "8. Chi phí quản lý kinh doanh", accounts: [E("641"), E("642")] },
+  { ma_so: "30", name: "9. Lợi nhuận thuần từ hoạt động kinh doanh (30 = 20 + 21 - 22 - 24)", bold: true,
+    formula: [{ ma_so: "20", sign: 1 }, { ma_so: "21", sign: 1 }, { ma_so: "22", sign: -1 }, { ma_so: "24", sign: -1 }] },
+  { ma_so: "31", name: "10. Thu nhập khác", accounts: [R("711")] },
+  { ma_so: "32", name: "11. Chi phí khác", accounts: [E("811")] },
+  { ma_so: "40", name: "12. Lợi nhuận khác (40 = 31 - 32)", bold: true,
+    formula: [{ ma_so: "31", sign: 1 }, { ma_so: "32", sign: -1 }] },
+  { ma_so: "50", name: "13. Tổng lợi nhuận kế toán trước thuế (50 = 30 + 40)", bold: true,
+    formula: [{ ma_so: "30", sign: 1 }, { ma_so: "40", sign: 1 }] },
+  { ma_so: "51", name: "14. Chi phí thuế TNDN", accounts: [E("821")] },
+  { ma_so: "60", name: "15. Lợi nhuận sau thuế thu nhập doanh nghiệp (60 = 50 - 51)", bold: true,
+    formula: [{ ma_so: "50", sign: 1 }, { ma_so: "51", sign: -1 }] },
+];
+
 // ============ B03 — Lưu chuyển tiền tệ (trực tiếp) ============
 export type CFItem = {
   ma_so: string;
