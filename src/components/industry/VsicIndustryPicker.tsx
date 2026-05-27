@@ -300,6 +300,11 @@ function PickerBody({
           existingCodes={existingCodes}
         />
       ) : null}
+
+      {/* Meta footer */}
+      <div className="border-t bg-muted/30 px-3 py-1.5 text-[10px] text-muted-foreground text-center">
+        Theo Quyết định 36/2025/QĐ-TTg · hiệu lực 15/11/2025 · L1-L4 (~360 ngành)
+      </div>
     </div>
   );
 }
