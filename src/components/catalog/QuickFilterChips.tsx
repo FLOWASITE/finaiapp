@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Globe, Wallet } from "lucide-react";
+import { AlertTriangle, Clock, Globe, Package, Wallet, Wrench } from "lucide-react";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -7,6 +7,8 @@ export const FILTER_KEYS = {
   HAS_WARNING: "has_warning",
   PREPAID: "prepaid",
   FOREIGN: "foreign",
+  GOODS: "goods",
+  SERVICES: "services",
 } as const;
 
 export function QuickFilterChips() {
