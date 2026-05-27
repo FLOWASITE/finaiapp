@@ -70,7 +70,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
 
   // library
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
       {items.map((it) => (
         <ItemCard key={it.code} item={it} />
       ))}
