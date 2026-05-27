@@ -4464,7 +4464,12 @@ export type Database = {
           line_type: string
           product_id: string | null
           qty: number | null
+          resolution_confidence: number | null
+          resolution_source: string | null
+          resolved_account: string | null
+          resolved_kind: string | null
           unit_price: number | null
+          user_override_kind: string | null
           vat_rate: number | null
         }
         Insert: {
@@ -4475,7 +4480,12 @@ export type Database = {
           line_type?: string
           product_id?: string | null
           qty?: number | null
+          resolution_confidence?: number | null
+          resolution_source?: string | null
+          resolved_account?: string | null
+          resolved_kind?: string | null
           unit_price?: number | null
+          user_override_kind?: string | null
           vat_rate?: number | null
         }
         Update: {
@@ -4486,7 +4496,12 @@ export type Database = {
           line_type?: string
           product_id?: string | null
           qty?: number | null
+          resolution_confidence?: number | null
+          resolution_source?: string | null
+          resolved_account?: string | null
+          resolved_kind?: string | null
           unit_price?: number | null
+          user_override_kind?: string | null
           vat_rate?: number | null
         }
         Relationships: [
