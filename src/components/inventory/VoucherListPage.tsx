@@ -23,7 +23,9 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  // Mặc định lấy từ đầu năm để không bỏ sót phiếu kho được tạo từ
+  // chứng từ mua/bán có ngày khác tháng hiện tại.
+  return new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10);
 };
 
 interface Props {
