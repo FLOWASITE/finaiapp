@@ -13,6 +13,7 @@ export type CategoryCode =
   | "FNB" | "HEALTHCARE" | "EDUCATION" | "MANUFACTURING" | "RETAIL" | "REALESTATE";
 
 export interface CatalogItem {
+  id?: string;
   code: string;
   name: string;
   nameEn?: string;
