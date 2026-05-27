@@ -1,28 +1,29 @@
-## Tóm tắt
-Thêm 2 chip lọc nhanh **"Chỉ Hàng hóa"** và **"Chỉ Dịch vụ"** vào hàng QuickFilter hiện tại của màn hình Danh mục Hàng hóa & Dịch vụ.
+# Plan — Bổ sung ngành VSIC 2025 + UI Chọn ngành (Settings & Setup)
 
-## Thay đổi cụ thể
+## ✅ Đã hoàn thành (Phase 1)
 
-### 1. `src/components/catalog/QuickFilterChips.tsx`
-- Thêm 2 key mới vào `FILTER_KEYS`: `GOODS` (`"goods"`) và `SERVICES` (`"services"`).
-- Thêm 2 chip mới vào mảng `chips`:
-  - "Chỉ Hàng hóa" — icon `Package`, tone mặc định.
-  - "Chỉ Dịch vụ" — icon `Wrench`, tone mặc định.
-- 2 chip này đặt cạnh 4 chip hiện tại trong cùng hàng flex-wrap.
+1. **`src/lib/vsic-2025.ts`** — Dataset VSIC 2025:
+   - 22 ngành L1 đầy đủ (icon lucide, finaiSupported, finaiOverlaySlug, nonBusiness)
+   - ~110 mã L2-L5 phổ biến nhất (seed cho SMB Việt Nam)
+   - Helpers: `getChildren`, `getAncestors`, `lookupVsic`, `inferLevel`, `getL1CodeOf`, `searchVsic` (tìm không dấu, score-based)
 
-### 2. `src/components/catalog/CatalogPage.tsx`
-- Trong hàm `filteredNoCategory`, thêm 2 điều kiện lọc:
-  - Nếu `GOODS` active: chỉ giữ item có `itemType === "goods"`.
-  - Nếu `SERVICES` active: chỉ giữ item có `itemType === "service"`.
-- Logic: nếu cả 2 chip cùng active → lọc theo cả 2 (tức hiển thị goods OR service, bỏ `mixed`).
+2. **`src/components/industry/VsicIndustryPicker.tsx`** — Component mới:
+   - Multi-select chips với badge "Chính" + nút "Đặt chính"
+   - Popover picker 640px: search bar + L1 grid (22 card icon+mô tả) → drill-down L2→L5 với breadcrumb
+   - Toggle "Hiện/Ẩn ngành ngoài DN" (P/U/V)
+   - Search non-accent từ 2 ký tự
+   - Badge "Hỗ trợ FinAI" (sparkles) trên 6 ngành có overlay
 
-### 3. Hành vi tương tác
-- Click chip → toggle trạng thái active/inactive (reuse `toggleFilter`).
-- Chip active: nền xanh `[#0F6E56]`, chữ trắng.
-- Chip inactive: nền trắng, viền xám.
-- Tương thích với các filter chip khác và search/category hiện tại.
+3. **Tích hợp:**
+   - `src/routes/_app/settings/index.tsx` — section "Hoạt động kinh doanh"
+   - `src/routes/_app/setup.tsx` — wizard onboarding (đồng bộ `industry_code/name` từ ngành chính)
 
-## Không thay đổi
-- Không đụng đến 3 tab Của tôi / Fin đề xuất / Thư viện.
-- Không đụng đến sidebar category, search bar, drawer, hay Zustand store ngoài việc reuse `activeFilters` và `toggleFilter`.
-- Không thay đổi dữ liệu mẫu `sample-catalog.ts`.
+4. **Tương thích:** Giữ shape `{code, name}` khi lưu xuống DB → không cần migration server.
+
+## 🔜 Phase 2 (cần input)
+
+Upload file dataset chính thức VSIC 2025 (xlsx/csv ~1.584 mã L2-L5 đầy đủ từ TCTK) → script parse sẽ generate phần còn lại của `VSIC_2025_NODES`. Cấu trúc đã sẵn sàng, chỉ append.
+
+## File giữ nguyên
+- `src/components/industry-combobox.tsx` — vẫn dùng trong `EditIndustryDialog` (gắn ngành NCC)
+- `src/lib/vsic.ts` — `LEGAL_FORMS`, `TAX_METHODS`, `DECLARE_PERIODS` còn dùng nhiều nơi

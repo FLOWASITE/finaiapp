@@ -81,7 +81,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
-import { IndustryCombobox } from "@/components/industry-combobox";
+import { VsicIndustryPicker, type VsicSelection } from "@/components/industry/VsicIndustryPicker";
 import { SectionNav } from "@/components/settings-section-nav";
 import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
 import { DigestSettingsCard } from "@/components/settings/digest-settings-card";
@@ -881,11 +881,11 @@ function OrganizationTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Field label="Ngành nghề kinh doanh">
-                  <IndustryCombobox
+                  <VsicIndustryPicker
                     multi
                     disabled={!canEdit}
-                    items={Array.isArray(form.industries) ? form.industries : []}
-                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                    value={Array.isArray(form.industries) ? form.industries : []}
+                    onChange={(items: VsicSelection[]) => setForm({ ...form, industries: items })}
                   />
                 </Field>
                 <BusinessActivitySection showWhyPanel={false} />

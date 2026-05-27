@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Building2, FileSignature, Image as ImageIcon, Calculator, MapPin, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
-import { IndustryCombobox } from "@/components/industry-combobox";
+import { VsicIndustryPicker, type VsicSelection } from "@/components/industry/VsicIndustryPicker";
 import { SetupStepper } from "@/components/setup-stepper";
 import { cn } from "@/lib/utils";
 
@@ -214,18 +214,24 @@ function LegalStep({ form, set, setForm }: any) {
           <Input value={form.business_reg_place ?? ""} onChange={(e) => set("business_reg_place", e.target.value)} placeholder="Sở KH-ĐT TP.HCM" />
         </Field>
       </div>
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <Field label="Ngành nghề chính">
-            <IndustryCombobox
-              code={form.industry_code}
-              name={form.industry_name}
-              onChange={(code, name) => setForm((p: any) => ({ ...p, industry_code: code, industry_name: name }))}
-            />
-          </Field>
-        </div>
-        <Field label="Hoặc nhập mã ngành" hint="4-6 chữ số nếu không có trong danh mục.">
-          <Input value={form.industry_code ?? ""} maxLength={6} onChange={(e) => set("industry_code", e.target.value.replace(/\D/g, ""))} placeholder="6920" />
+      <div>
+        <Field label="Ngành nghề kinh doanh" hint="Chọn ngành cấp 1 (VSIC 2025) cho FinAI gợi ý đúng catalog & tài khoản. Có thể chọn nhiều ngành và drill-down cấp 2-5.">
+          <VsicIndustryPicker
+            multi
+            value={
+              Array.isArray(form.industries) && form.industries.length > 0
+                ? form.industries
+                : (form.industry_code && form.industry_name
+                    ? [{ code: form.industry_code, name: form.industry_name }]
+                    : [])
+            }
+            onChange={(items: VsicSelection[]) => setForm((p: any) => ({
+              ...p,
+              industries: items,
+              industry_code: items[0]?.code ?? null,
+              industry_name: items[0]?.name ?? null,
+            }))}
+          />
         </Field>
       </div>
     </div>
