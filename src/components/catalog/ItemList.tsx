@@ -37,7 +37,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
         {recent.length > 0 && (
           <section>
             <SectionLabel>Dùng gần đây</SectionLabel>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
               {recent.map((it) => (
                 <ItemCard key={it.code} item={it} />
               ))}
@@ -47,7 +47,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
         {others.length > 0 && (
           <section>
             <SectionLabel>Khác trong danh mục</SectionLabel>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
               {others.map((it) => (
                 <ItemCard key={it.code} item={it} />
               ))}
@@ -60,7 +60,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
 
   if (activeTab === "suggested") {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
         {items.map((it) => (
           <AISuggestionCard key={it.code} item={it} />
         ))}
@@ -70,7 +70,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
 
   // library
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
       {items.map((it) => (
         <ItemCard key={it.code} item={it} />
       ))}
