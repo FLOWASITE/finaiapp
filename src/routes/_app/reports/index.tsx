@@ -185,11 +185,11 @@ function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="b02">
-          <ReportCard title="Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DN)" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B02")}>
+          <ReportCard title={`Báo cáo kết quả hoạt động kinh doanh (Mẫu ${(is.data as any)?.circular === "TT133" ? "B02-DNN — TT133" : "B02-DN — TT99"})`} subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B02")}>
             <div className="mb-3 print:hidden">
               <DimensionFilterBar value={dims} onChange={setDims} />
             </div>
-            <PrintHeader profile={profile} title="BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH" subtitle={`Mẫu số B02-DN — Kỳ từ ${from} đến ${to}`} />
+            <PrintHeader profile={profile} title="BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH" subtitle={`Mẫu số ${(is.data as any)?.circular === "TT133" ? "B02-DNN (Thông tư 133/2016/TT-BTC)" : "B02-DN (Thông tư 99/2025/TT-BTC)"} — Kỳ từ ${from} đến ${to}`} />
             {!is.data ? <Loading /> : (
               <ReportTable
                 cols={["Chỉ tiêu", "Mã số", "Kỳ này", compareEnabled ? "Kỳ trước" : null]}
