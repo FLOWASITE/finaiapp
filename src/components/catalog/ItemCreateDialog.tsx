@@ -195,7 +195,7 @@ export function ItemCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col max-h-[90vh]">
+      <DialogContent className="max-w-4xl p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-5 py-4 border-b">
           <DialogTitle>Tạo mặt hàng / dịch vụ mới</DialogTitle>
           <DialogDescription>
@@ -291,7 +291,7 @@ export function ItemCreateDialog({
                   placeholder="VD: 6277, 6417"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-[1.5fr_1fr] gap-3">
                 <div>
                   <Label>Phân loại</Label>
                   <Select
