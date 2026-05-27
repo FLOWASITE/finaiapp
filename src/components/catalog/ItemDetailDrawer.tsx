@@ -53,6 +53,7 @@ export function ItemDetailDrawer() {
   const regime = useCatalogStore((s) => s.company.accountingRegime);
   const addItem = useCatalogStore((s) => s.addItemToMine);
   const removeItem = useCatalogStore((s) => s.removeItemFromMine);
+  const [editOpen, setEditOpen] = useState(false);
 
   const item = items.find((i) => i.code === code);
   const open = !!item;
