@@ -8776,11 +8776,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_global: boolean
           name: string
           name_norm: string
           note: string | null
           sku: string | null
-          tenant_id: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -8788,11 +8789,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_global?: boolean
           name: string
           name_norm: string
           note?: string | null
           sku?: string | null
-          tenant_id: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -8800,11 +8802,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_global?: boolean
           name?: string
           name_norm?: string
           note?: string | null
           sku?: string | null
-          tenant_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Relationships: [

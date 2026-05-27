@@ -1,32 +1,51 @@
 ## Mục tiêu
-Hoàn tất 2 yêu cầu UI cho màn "Danh mục hàng hóa, dịch vụ":
-1. Thêm chế độ xem dạng **List** (bên cạnh Grid hiện tại) + toggle.
-2. Xóa dòng "Cty TNHH Aurora F&B · TT 99" trên header.
 
-## Thay đổi
+- 170 mặt hàng "Thư viện chuẩn" nằm trong DB (không nằm trong frontend bundle) để AI dùng để đối chiếu tên hàng trên hóa đơn.
+- Tab **Mục của tôi** chỉ hiển thị mặt hàng đã có giao dịch hoặc đã được copy thủ công từ thư viện → tức là các bản ghi trong bảng `products` của tenant hiện tại.
+- Popup chọn hàng trong **Phiếu mua hàng / bán hàng** (`ProductPickerCell`) chỉ lấy từ `products` (đã đúng, chỉ cần xác nhận và giữ nguyên).
+- Tab **Thư viện** đọc 170 mặt hàng từ DB; khi user "Thêm vào Mục của tôi" thì insert sang `products`.
 
-### 1. `src/components/catalog/CatalogHeader.tsx`
-- Xóa block hiển thị company name + `RegimeSwitch` (dòng `<div className="flex flex-wrap items-center gap-2 ...">`).
-- Giữ lại `<h1>` tiêu đề.
-- Thêm cụm điều khiển bên phải (cạnh nút "Tạo mới"): toggle 2 nút **Grid / List** (icon `LayoutGrid` + `List` từ lucide-react), bind vào `viewMode` / `setViewMode` của store. Nút active style `bg-[#0F6E56] text-white`, inactive `text-muted-foreground`.
+## Việc cần làm
 
-### 2. `src/components/catalog/ItemList.tsx`
-- Đọc `viewMode` từ store.
-- Khi `viewMode === "list"`: render dạng bảng / hàng ngang thay vì grid cards.
-  - Cấu trúc: `<div className="divide-y border rounded-lg">` chứa các row.
-  - Mỗi row hiển thị compact 1 dòng: mã | tên | category badge | itemType badge | TK mặc định | VAT% | usage30d | actions (mở drawer).
-  - Vẫn tôn trọng phân nhóm "Dùng gần đây" / "Khác" ở tab `mine`.
-  - Tab `suggested`: list dùng layout đơn giản hơn nhưng vẫn cho phép "Thêm vào danh mục" inline.
-- Khi `viewMode === "grid"`: giữ nguyên code hiện tại.
-- Tách helper `<ItemListRow item={...} />` mới (file cùng thư mục hoặc inline) để giữ ItemList gọn.
+### 1. Seed 170 mặt hàng vào DB (một lần)
 
-### 3. (Tùy chọn) Vị trí `RegimeSwitch`
-- Vì đang xóa khỏi header, chuyển `RegimeSwitch` xuống cạnh search bar hoặc bỏ hẳn khỏi trang này? **Đề xuất: bỏ khỏi trang Catalog** (regime là setting toàn cục, không cần thao tác ở đây). Nếu user muốn giữ, sẽ chuyển vào Settings sau.
+Đưa `SAMPLE_ITEMS` (đang hardcode ở `src/data/sample-catalog.ts`) vào bảng `tenant_product_catalog` dạng **template chung** (không gắn tenant). Vì bảng hiện có cột `tenant_id NOT NULL`, có hai lựa chọn:
 
-## Phạm vi không đụng
-- Không sửa store thêm (đã có `viewMode` + `setViewMode` từ pass trước).
-- Không sửa DB, server functions, filter/search/category logic.
-- Không sửa ItemCard / drawer.
+- **Cách A (đơn giản, đề xuất):** thêm cột `is_global boolean default false`, cho phép `tenant_id` NULL khi `is_global=true`; mergeCatalog đọc cả bản ghi global + bản ghi của tenant. Cần migration + cập nhật RLS (`SELECT` cho authenticated khi `is_global=true OR tenant_id=current_tenant`).
+- **Cách B:** seed 170 mặt hàng cho từng tenant khi tenant được tạo (trigger `on_tenant_created`). Tốn dung lượng, khó cập nhật thư viện sau này.
 
-## Câu hỏi xác nhận
-- `RegimeSwitch` — **bỏ hẳn khỏi trang Catalog** hay **chuyển sang vị trí khác** (ví dụ cạnh search)? Mặc định plan này sẽ **bỏ hẳn**.
+Chọn **Cách A**. Migration tạo cột + policy + insert 170 rows từ file `sample-catalog.ts` (script chạy 1 lần qua `supabase--insert`).
+
+### 2. Cập nhật `loadCatalog`
+
+`src/lib/catalog/catalog.functions.ts`:
+- Query `tenant_product_catalog` bổ sung điều kiện `tenant_id.eq.{tenantId},is_global.eq.true` (OR).
+- Vẫn truyền vào `mergeCatalog` như cũ. `mergeCatalog` đã đánh dấu `isActive:false, isAiSuggested:true` cho item từ TPC → đúng cho tab "Thư viện".
+
+### 3. Bỏ ghép `SAMPLE_ITEMS` ở frontend
+
+`src/components/catalog/CatalogPage.tsx`:
+- Xoá import `SAMPLE_ITEMS` và đoạn `libraryExtras` trong `tabItems`.
+- 3 tab dùng cùng một nguồn `items` (từ DB):
+  - `mine`: `items.filter(i => i.isActive && !i.isAiSuggested)` — chỉ bản ghi `products`.
+  - `library`: `items.filter(i => i.isAiSuggested)` — 170 từ TPC.
+  - `suggested`: như cũ.
+
+### 4. Xác nhận picker phiếu mua/bán
+
+`ProductPickerCell` đã gọi `listProducts` (chỉ đọc bảng `products`) → đúng yêu cầu, không sửa.
+
+### 5. Xoá file frontend `src/data/sample-catalog.ts`
+
+Sau khi seed xong DB và confirm tab Thư viện hiển thị đủ 170 mặt hàng, xoá file để giảm bundle (~120KB).
+
+## Chi tiết kỹ thuật
+
+- Migration: `ALTER TABLE tenant_product_catalog ADD COLUMN is_global boolean NOT NULL DEFAULT false; ALTER TABLE tenant_product_catalog ALTER COLUMN tenant_id DROP NOT NULL; ALTER TABLE tenant_product_catalog ADD CONSTRAINT tpc_tenant_or_global CHECK (is_global OR tenant_id IS NOT NULL);` + cập nhật RLS SELECT policy.
+- Seed: dùng `supabase--insert` với batch INSERT 170 rows (`sku`, `name`, `name_norm`, `aliases`, `note`, `is_global=true`, `tenant_id=null`).
+- Adapter `tpcToCatalogItem` có sẵn `isAiSuggested:true` → tab Thư viện sẽ tự lọc đúng.
+
+## Ngoài phạm vi
+
+- Chưa làm hành động "Sao chép sang Mục của tôi" trong UI thư viện (nếu chưa có sẽ làm ở turn sau).
+- Chưa làm logic AI matching dùng `tenant_product_catalog` (chỉ chuẩn bị dữ liệu).

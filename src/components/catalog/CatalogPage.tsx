@@ -16,7 +16,7 @@ import { CategorySidebar } from "./CategorySidebar";
 import { ItemList } from "./ItemList";
 import { ItemDetailDrawer } from "./ItemDetailDrawer";
 import { BulkActionBar } from "./BulkActionBar";
-import { SAMPLE_ITEMS } from "@/data/sample-catalog";
+
 
 export function CatalogPage() {
   const { data } = useSuspenseQuery(catalogQueryOptions);
@@ -64,16 +64,14 @@ export function CatalogPage() {
     return () => setMutator(null);
   }, [setMutator, upsertFn, removeFn, queryClient]);
 
-  // base list per tab
+  // base list per tab — tất cả nguồn từ DB
+  //  - mine: bản ghi `products` (đã có giao dịch hoặc đã copy thủ công từ thư viện)
+  //  - library: 170 mặt hàng thư viện chuẩn từ `tenant_product_catalog` (is_global)
+  //  - suggested: AI đề xuất
   const tabItems = useMemo(() => {
-    if (activeTab === "mine") return items.filter((i) => i.isActive);
+    if (activeTab === "mine") return items.filter((i) => i.isActive && !i.isAiSuggested);
     if (activeTab === "suggested") return items.filter((i) => !i.isActive && i.isAiSuggested);
-    // library: gộp thư viện chuẩn (170 mặt hàng) với items DB; tránh trùng theo code
-    const mineCodes = new Set(items.map((i) => i.code));
-    const libraryExtras = SAMPLE_ITEMS
-      .filter((s) => !mineCodes.has(s.code))
-      .map((s) => ({ ...s, isActive: false }));
-    return [...items, ...libraryExtras];
+    return items.filter((i) => i.isAiSuggested);
   }, [items, activeTab]);
 
   // search + filters (excluding category)
