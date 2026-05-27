@@ -110,7 +110,14 @@ function CoaPage() {
             Hệ thống tài khoản kế toán
           </h1>
           <p className="text-sm text-muted-foreground">
-            Danh mục TK theo Thông tư 99/2025/TT-BTC — {total} tài khoản · {activeTotal} đang sử dụng
+            Danh mục TK theo {circularLabel} — {total} tài khoản
+            {effective === "TT99" && <> · {activeTotal} đang sử dụng</>}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+            <span>Đang hiển thị theo chế độ kế toán của tổ chức.</span>
+            <Link to="/settings" className="inline-flex items-center gap-1 text-primary hover:underline">
+              <SettingsIcon className="h-3 w-3" /> Đổi chế độ
+            </Link>
           </p>
         </div>
       </div>
