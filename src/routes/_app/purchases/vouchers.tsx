@@ -751,7 +751,7 @@ function PurchaseVouchersPage() {
                     <TableHead className="whitespace-nowrap">Loại</TableHead>
                     <TableHead className="whitespace-nowrap">Chi nhánh</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Chi phí MH</TableHead>
-                    <TableHead className="whitespace-nowrap">Phiếu nhập kho</TableHead>
+                    <TableHead className="whitespace-nowrap">Số phiếu nhập</TableHead>
                     <TableHead className="whitespace-nowrap">Ngày nhập kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">TT nhập kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
