@@ -235,30 +235,34 @@ export const listSalesVouchers = createServerFn({ method: "POST" })
       new Set(list.map((r) => r.stock_voucher_id).filter(Boolean) as string[]),
     );
 
-    const einvMap = new Map<string, string>();
-    const stockMap = new Map<string, string>();
+    const einvMap = new Map<string, { no: string; date: string | null }>();
+    const stockMap = new Map<string, { no: string; date: string | null }>();
     if (einvoiceIds.length) {
       const { data: d } = await supabase
         .from("einvoices")
-        .select("id, invoice_no")
+        .select("id, invoice_no, issue_date")
         .in("id", einvoiceIds);
-      for (const r of (d ?? []) as any[]) einvMap.set(r.id, r.invoice_no);
+      for (const r of (d ?? []) as any[]) einvMap.set(r.id, { no: r.invoice_no, date: r.issue_date ?? null });
     }
     if (stockIds.length) {
       const { data: d } = await supabase
         .from("stock_vouchers")
-        .select("id, voucher_no")
+        .select("id, voucher_no, voucher_date")
         .in("id", stockIds);
-      for (const r of (d ?? []) as any[]) stockMap.set(r.id, r.voucher_no);
+      for (const r of (d ?? []) as any[]) stockMap.set(r.id, { no: r.voucher_no, date: r.voucher_date ?? null });
     }
 
-    const enriched = list.map((r) => ({
-      ...r,
-      einvoice_no: r.einvoice_id ? einvMap.get(r.einvoice_id) ?? null : null,
-      stock_voucher_no: r.stock_voucher_id
-        ? stockMap.get(r.stock_voucher_id) ?? null
-        : null,
-    }));
+    const enriched = list.map((r) => {
+      const e = r.einvoice_id ? einvMap.get(r.einvoice_id) : null;
+      const s = r.stock_voucher_id ? stockMap.get(r.stock_voucher_id) : null;
+      return {
+        ...r,
+        einvoice_no: e?.no ?? null,
+        einvoice_date: e?.date ?? null,
+        stock_voucher_no: s?.no ?? null,
+        stock_voucher_date: s?.date ?? null,
+      };
+    });
     return { rows: enriched };
   });
 
