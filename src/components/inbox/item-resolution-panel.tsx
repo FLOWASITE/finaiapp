@@ -22,6 +22,7 @@ import {
   createProductFromRaw,
 } from "@/lib/items/mappings.functions";
 import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
+import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
 
 type Props = {
   items?: ProposalItem[];
