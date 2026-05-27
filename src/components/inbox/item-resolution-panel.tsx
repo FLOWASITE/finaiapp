@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, AlertCircle, Plus, Loader2, X, Sparkles } from "lucide-react";
+import { CheckCircle2, AlertCircle, Plus, Loader2, X, Sparkles, BookMarked } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
