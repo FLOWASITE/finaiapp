@@ -74,6 +74,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
     })),
   updateItem: (code, updates) =>
     set((s) => ({ items: s.items.map((it) => (it.code === code ? { ...it, ...updates } : it)) })),
+  createItem: (item) => set((s) => ({ items: [{ ...item, isActive: true }, ...s.items] })),
   switchRegime: (regime) =>
     set((s) => ({ company: { ...s.company, accountingRegime: regime } })),
 }));
