@@ -169,6 +169,29 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
   });
 
+  const promoteMut = useMutation({
+    mutationFn: (vars: {
+      catalog_id: string;
+      raw_name: string;
+      raw_unit?: string | null;
+      unit_price?: number | null;
+    }) =>
+      promoteFn({
+        data: {
+          catalog_id: vars.catalog_id,
+          supplier_id: q.data?.supplier_id ?? null,
+          raw_name: vars.raw_name,
+          raw_unit: vars.raw_unit ?? null,
+          unit_price: vars.unit_price ?? null,
+        },
+      }),
+    onSuccess: (res: any) => {
+      toast.success(`Đã thêm "${res?.product?.name ?? ""}" vào Mục của tôi`);
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Không thêm được"),
+  });
+
   const askFin = async (idx: number, it: ProposalItem) => {
     if (llmLoadingIdx != null) return;
     setLlmLoadingIdx(idx);
