@@ -142,7 +142,7 @@ function ItemsListPage() {
     const s = search.trim().toLowerCase();
     return (products ?? []).filter((p: any) => {
       if (s && ![p.code, p.name, p.barcode].some((v) => v?.toLowerCase().includes(s))) return false;
-      if (typeFilter !== "all" && (p.item_type ?? "goods") !== typeFilter) return false;
+      if ((p.item_type ?? "goods") !== typeFilter) return false;
       if (categoryId !== "all" && p.category_id !== categoryId) return false;
       if (usageFilter === "sell" && !p.can_be_sold) return false;
       if (usageFilter === "buy" && !p.can_be_purchased) return false;
