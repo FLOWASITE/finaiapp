@@ -241,7 +241,7 @@ export function ProductPickerCell({
       <PopoverContent
         align="start"
         sideOffset={4}
-        className="w-[min(760px,92vw)] p-0"
+        className="w-[min(1080px,95vw)] p-0"
       >
         <div className="border-b p-2">
           <div className="relative">
@@ -258,7 +258,16 @@ export function ProductPickerCell({
         </div>
 
         <div ref={listRef} className="max-h-[420px] overflow-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[90px]" />
+              <col />
+              <col className="w-[120px]" />
+              <col className="w-[80px]" />
+              <col className="w-[120px]" />
+              <col className="w-[100px]" />
+              <col className="w-[130px]" />
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-2 py-1.5 font-medium">Mã</th>
@@ -268,14 +277,15 @@ export function ProductPickerCell({
                 <th className="px-2 py-1.5 text-right font-medium">
                   {mode === "purchase" ? "Giá mua" : "Giá bán"}
                 </th>
-                <th className="px-2 py-1.5 text-right font-medium">Tồn</th>
+                <th className="px-2 py-1.5 text-right font-medium">SL tồn</th>
+                <th className="px-2 py-1.5 text-right font-medium">GT tồn</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-t">
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-2 py-2">
                         <Skeleton className="h-3.5 w-full" />
                       </td>
@@ -284,7 +294,7 @@ export function ProductPickerCell({
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-2 py-8">
+                  <td colSpan={7} className="px-2 py-8">
                     <EmptyState
                       size="sm"
                       bordered={false}
