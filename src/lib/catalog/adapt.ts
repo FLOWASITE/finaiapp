@@ -5,6 +5,7 @@ import type {
   CategoryCode,
   ItemType,
 } from "@/types/catalog";
+import { CATEGORY_BY_CODE } from "@/data/categories";
 
 export interface DbProductRow {
   id: string;
