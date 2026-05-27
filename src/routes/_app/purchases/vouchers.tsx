@@ -53,6 +53,7 @@ import {
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 import { usePagination, TablePagination } from "@/components/table-pagination";
+import { ProductPickerCell } from "@/components/vouchers/ProductPickerCell";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
@@ -160,122 +161,7 @@ const PURCHASE_TABS: Array<{ label: string; to?: string; disabled?: boolean }> =
   { label: "Trả lại hàng mua", disabled: true },
 ];
 
-// ---------- product picker ----------
-
-function normalizeVi(s: string) {
-  return (s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
-}
-
-function productTypeLabel(p: any): string {
-  if (p?.item_type === "service") return "Dịch vụ";
-  if (p?.item_type === "combo") return "Combo";
-  if (p?.stock_account === "152") return "Nguyên vật liệu";
-  if (p?.stock_account === "153") return "Công cụ dụng cụ";
-  return "Hàng hóa";
-}
-
-function ProductPickerCell({
-  value,
-  onPick,
-  mode = "purchase",
-}: {
-  value: string;
-  onPick: (p: any) => void;
-  mode?: "purchase" | "sales";
-}) {
-  const fn = useServerFn(listProducts);
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-
-  const { data: products } = useQuery({
-    queryKey: ["products-picker"],
-    queryFn: () => fn(),
-    enabled: open,
-    ...QUERY_PRESETS.REFERENCE,
-  });
-
-  const filtered = useMemo(() => {
-    let list = (products ?? []) as any[];
-    list = list.filter((p) =>
-      mode === "purchase" ? p.can_be_purchased !== false : p.can_be_sold !== false,
-    );
-    if (!q.trim()) return list;
-    const nq = normalizeVi(q);
-    return list.filter((p) =>
-      normalizeVi(p.code).includes(nq) || normalizeVi(p.name).includes(nq),
-    );
-  }, [products, q, mode]);
-
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Input
-          value={value}
-          onChange={() => {}}
-          onClick={() => setOpen(true)}
-          readOnly
-          placeholder="Vui lòng chọn"
-          className="cursor-pointer"
-        />
-      </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={4} className="w-[920px] p-0">
-        <div className="p-2 border-b">
-          <Input
-            autoFocus
-            placeholder="Tìm theo mã hoặc tên sản phẩm…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
-        <div className="max-h-[420px] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/60 sticky top-0">
-              <tr className="text-left">
-                <th className="px-2 py-1.5 font-medium">Mã sản phẩm</th>
-                <th className="px-2 py-1.5 font-medium">Tên sản phẩm</th>
-                <th className="px-2 py-1.5 font-medium">Loại sản phẩm</th>
-                <th className="px-2 py-1.5 font-medium">Đơn vị</th>
-                <th className="px-2 py-1.5 font-medium text-right">Giá mua</th>
-                <th className="px-2 py-1.5 font-medium text-right">SL tồn</th>
-                <th className="px-2 py-1.5 font-medium text-right">GT tồn</th>
-                <th className="px-2 py-1.5 font-medium text-right">Giá xuất kho</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-2 py-6"><EmptyState size="sm" bordered={false} title="Không có dữ liệu" /></td></tr>
-              ) : filtered.map((p: any) => {
-                const onHand = Number(p.on_hand ?? 0);
-                const unitCost = Number(p.unit_cost ?? 0);
-                return (
-                  <tr
-                    key={p.id}
-                    className="border-t hover:bg-accent cursor-pointer"
-                    onClick={() => { onPick(p); setOpen(false); setQ(""); }}
-                  >
-                    <td className="px-2 py-1.5 font-mono">{p.code}</td>
-                    <td className="px-2 py-1.5">{p.name}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground">{productTypeLabel(p)}</td>
-                    <td className="px-2 py-1.5">{p.unit ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{fmtMoney(unitCost)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{fmtMoney(onHand)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{fmtMoney(onHand * unitCost)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{fmtMoney(p.unit_price ?? 0)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+// ProductPickerCell đã chuyển sang component dùng chung: @/components/vouchers/ProductPickerCell
 
 // ---------- line model ----------
 
@@ -1627,8 +1513,17 @@ function CreateVoucherDialog({
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
                         <ProductPickerCell
+                          mode="purchase"
                           value={l.product_name}
-                          onPick={(p) => updateLine(l.key, {
+                          code={l.product_code}
+                          onClear={() =>
+                            updateLine(l.key, {
+                              product_id: null,
+                              product_code: "",
+                              product_name: "",
+                            })
+                          }
+                          onPick={(p: any) => updateLine(l.key, {
                             product_id: p.id,
                             product_code: p.code ?? "",
                             product_name: p.name ?? "",
@@ -1641,7 +1536,6 @@ function CreateVoucherDialog({
                                 : (p.stock_account ?? l.debit_account),
                             line_type: p.item_type === "service" ? "service" : "goods",
                           })}
-
                         />
                       </TableCell>
                       <TableCell>
@@ -1725,8 +1619,10 @@ function CreateVoucherDialog({
                   </CardHeader>
                   <CardContent className="p-3 space-y-2">
                     <ProductPickerCell
+                      mode="purchase"
                       value={l.product_name}
-                      onPick={(p) => updateLine(l.key, {
+                      code={l.product_code}
+                      onPick={(p: any) => updateLine(l.key, {
                         product_id: p.id,
                         product_code: p.code ?? "",
                         product_name: p.name ?? "",
@@ -1739,7 +1635,6 @@ function CreateVoucherDialog({
                             : (p.stock_account ?? l.debit_account),
                         line_type: p.item_type === "service" ? "service" : "goods",
                       })}
-
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>

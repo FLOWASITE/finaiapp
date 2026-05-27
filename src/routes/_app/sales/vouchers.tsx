@@ -76,106 +76,9 @@ import { getPresetRange } from "@/lib/date-presets";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 import { usePagination, TablePagination } from "@/components/table-pagination";
+import { ProductPickerCell } from "@/components/vouchers/ProductPickerCell";
 
-function normalizeVi(s: string) {
-  return (s ?? "")
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/gi, "d")
-    .toLowerCase();
-}
-
-function ProductPickerCell({
-  value,
-  onPick,
-  products,
-}: {
-  value: string;
-  onPick: (p: any) => void;
-  products: any[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const filtered = useMemo(() => {
-    const base = (products ?? []).filter((p) => p.can_be_sold !== false);
-    if (!q.trim()) return base;
-    const nq = normalizeVi(q);
-    return base.filter(
-      (p) => normalizeVi(p.code).includes(nq) || normalizeVi(p.name).includes(nq),
-    );
-  }, [products, q]);
-
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Input
-          value={value}
-          onChange={() => {}}
-          onClick={() => setOpen(true)}
-          readOnly
-          placeholder="Vui lòng chọn"
-          className="h-8 cursor-pointer"
-        />
-      </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={4} className="w-[680px] p-0">
-        <div className="p-2 border-b">
-          <Input
-            autoFocus
-            placeholder="Tìm theo mã hoặc tên sản phẩm…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
-        <div className="max-h-[420px] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/60 sticky top-0">
-              <tr className="text-left">
-                <th className="px-2 py-1.5 font-medium">Mã</th>
-                <th className="px-2 py-1.5 font-medium">Tên</th>
-                <th className="px-2 py-1.5 font-medium">ĐVT</th>
-                <th className="px-2 py-1.5 font-medium text-right">Giá bán</th>
-                <th className="px-2 py-1.5 font-medium text-right">Tồn</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-2 py-6">
-                    <EmptyState size="sm" bordered={false} title="Không có dữ liệu" />
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((p: any) => (
-                  <tr
-                    key={p.id}
-                    className="border-t hover:bg-accent cursor-pointer"
-                    onClick={() => {
-                      onPick(p);
-                      setOpen(false);
-                      setQ("");
-                    }}
-                  >
-                    <td className="px-2 py-1.5 font-mono">{p.code}</td>
-                    <td className="px-2 py-1.5">{p.name}</td>
-                    <td className="px-2 py-1.5">{p.unit ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">
-                      {new Intl.NumberFormat("vi-VN").format(Number(p.unit_price ?? 0))}
-                    </td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">
-                      {new Intl.NumberFormat("vi-VN").format(Number(p.on_hand ?? 0))}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+// ProductPickerCell đã chuyển sang component dùng chung: @/components/vouchers/ProductPickerCell
 
 export const Route = createFileRoute("/_app/sales/vouchers")({
   component: SalesVouchersPage,
@@ -1870,9 +1773,18 @@ function VoucherDialog({
                       <td className="px-2 py-1 text-center">{i + 1}</td>
                       <td className="px-1 py-1">
                         <ProductPickerCell
+                          mode="sales"
                           value={l.product_name}
+                          code={l.product_code}
                           products={(products ?? []) as any[]}
-                          onPick={(p) => {
+                          onClear={() =>
+                            updateLine(i, {
+                              product_id: null,
+                              product_code: "",
+                              product_name: "",
+                            })
+                          }
+                          onPick={(p: any) => {
                             updateLine(i, {
                               product_id: p.id,
                               product_code: p.code ?? "",
@@ -2037,9 +1949,11 @@ function VoucherDialog({
                     </Button>
                   </div>
                   <ProductPickerCell
+                    mode="sales"
                     value={l.product_name}
+                    code={l.product_code}
                     products={(products ?? []) as any[]}
-                    onPick={(p) => {
+                    onPick={(p: any) => {
                       updateLine(i, {
                         product_id: p.id,
                         product_code: p.code ?? "",
