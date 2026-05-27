@@ -1,10 +1,10 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
-import { listChartOfAccounts, type CoaRow } from "@/lib/coa.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { listChartOfAccounts, getActiveCoaCircular, type CoaRow } from "@/lib/coa.functions";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, BookOpenCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpenCheck, Settings as SettingsIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_app/coa/")({ component: CoaPage });
 
