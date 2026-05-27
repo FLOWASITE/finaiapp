@@ -39,11 +39,21 @@ const TYPE_VARIANT: Record<string, "default" | "secondary" | "outline" | "destru
 
 function CoaPage() {
   const fn = useServerFn(listChartOfAccounts);
+  const circFn = useServerFn(getActiveCoaCircular);
   const { data = [], isLoading } = useQuery<CoaRow[]>({
     queryKey: ["coa"],
     queryFn: () => fn(),
     ...QUERY_PRESETS.REFERENCE,
   });
+  const { data: circ } = useQuery({
+    queryKey: ["coa-circular"],
+    queryFn: () => circFn(),
+    ...QUERY_PRESETS.REFERENCE,
+  });
+  const effective = circ?.effective ?? "TT99";
+  const circularLabel = effective === "TT133"
+    ? "Thông tư 133/2016/TT-BTC"
+    : "Thông tư 99/2025/TT-BTC";
   const [q, setQ] = React.useState("");
   const [type, setType] = React.useState<string>("ALL");
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
