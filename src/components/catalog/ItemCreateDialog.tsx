@@ -291,7 +291,7 @@ export function ItemCreateDialog({
                   placeholder="VD: 6277, 6417"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-[1.5fr_1fr] gap-3">
                 <div>
                   <Label>Phân loại</Label>
                   <Select
