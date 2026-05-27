@@ -18,7 +18,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Building2, FileSignature, Image as ImageIcon, Calculator, MapPin, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
-import { IndustryCombobox } from "@/components/industry-combobox";
 import { VsicIndustryPicker, type VsicSelection } from "@/components/industry/VsicIndustryPicker";
 import { SetupStepper } from "@/components/setup-stepper";
 import { cn } from "@/lib/utils";
