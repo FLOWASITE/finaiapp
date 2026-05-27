@@ -78,15 +78,6 @@ import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 import { usePagination, TablePagination } from "@/components/table-pagination";
 import { ProductPickerCell } from "@/components/vouchers/ProductPickerCell";
 
-function normalizeVi(s: string) {
-  return (s ?? "")
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/gi, "d")
-    .toLowerCase();
-}
-
 // ProductPickerCell đã chuyển sang component dùng chung: @/components/vouchers/ProductPickerCell
 
 export const Route = createFileRoute("/_app/sales/vouchers")({
