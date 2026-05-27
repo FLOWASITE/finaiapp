@@ -72,6 +72,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const confirmFn = useServerFn(confirmItemMapping);
   const createFn = useServerFn(createProductFromRaw);
   const suggestFn = useServerFn(suggestItemMappingWithLLM);
+  const promoteFn = useServerFn(promoteCatalogToProduct);
 
   const supplierTaxId = (meta?.supplier_tax_id as string | undefined) ?? undefined;
   const supplierName = (meta?.supplier_name as string | undefined) ?? undefined;
