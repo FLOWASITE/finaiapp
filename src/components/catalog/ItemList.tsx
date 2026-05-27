@@ -1,7 +1,7 @@
 import { CatalogItem } from "@/types/catalog";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { ItemCard } from "./ItemCard";
-import { ItemListRow } from "./ItemListRow";
+import { ItemListRow, ItemListHeader } from "./ItemListRow";
 import { AISuggestionCard } from "./AISuggestionCard";
 import { EmptyState } from "./EmptyState";
 
