@@ -53,6 +53,7 @@ import {
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 import { usePagination, TablePagination } from "@/components/table-pagination";
+import { ProductPickerCell } from "@/components/vouchers/ProductPickerCell";
 
 export const Route = createFileRoute("/_app/purchases/vouchers")({
   component: PurchaseVouchersPage,
