@@ -51,7 +51,7 @@ export function CategorySidebar({ visibleItems }: { visibleItems: CatalogItem[] 
   );
 
   const desktop = (
-    <aside className="hidden md:block w-[220px] shrink-0 border-r border-gray-200">
+    <aside className="hidden md:block w-[240px] xl:w-[260px] shrink-0 border-r border-gray-200">
       <div className="p-3 space-y-0.5">
         <button
           onClick={() => setSelectedCategory(null)}
