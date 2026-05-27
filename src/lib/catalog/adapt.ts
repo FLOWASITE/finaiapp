@@ -35,6 +35,11 @@ export interface DbTpcRow {
   name_norm: string | null;
   aliases: string[] | null;
   note: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  item_type?: string | null;
+  default_account?: string | null;
+  vat_rate?: number | string | null;
 }
 
 const ACC_TO_CATEGORY: Record<string, CategoryCode> = {
