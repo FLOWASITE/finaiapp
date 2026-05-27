@@ -40,7 +40,8 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
 
     // ===== B03 drill: replay cash-flow assignment, collect entries for chosen ma_so =====
     if (data.report === "B03") {
-      const item = B03_TT99.find((x) => x.ma_so === data.ma_so) as any;
+      const { mapping: b03Mapping } = await resolveCfMapping(supabase, userId);
+      const item = b03Mapping.find((x) => x.ma_so === data.ma_so) as any;
       if (!item || !item.counterpart) {
         return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
       }
