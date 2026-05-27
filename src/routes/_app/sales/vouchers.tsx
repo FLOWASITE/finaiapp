@@ -1047,7 +1047,7 @@ function SalesVouchersPage() {
                     <TableHead className="min-w-[200px]">Khách hàng</TableHead>
                     <TableHead className="min-w-[260px]">Mô tả</TableHead>
                     <TableHead className="whitespace-nowrap">Loại phiếu</TableHead>
-                    <TableHead className="whitespace-nowrap">Phiếu xuất kho</TableHead>
+                    <TableHead className="whitespace-nowrap">Số phiếu xuất</TableHead>
                     <TableHead className="whitespace-nowrap">Ngày xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">TT xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
