@@ -310,8 +310,8 @@ function OrgsPage() {
                 <Select value={form.accounting_standard} onValueChange={(v) => setForm({ ...form, accounting_standard: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="TT99">TT99</SelectItem>
                     <SelectItem value="TT133">TT133</SelectItem>
-                    <SelectItem value="TT200">TT200</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
