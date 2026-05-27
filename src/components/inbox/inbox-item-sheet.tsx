@@ -12,6 +12,7 @@ import {
   Wand2,
   Check,
   FileText,
+  Archive,
 } from "lucide-react";
 import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData } from "@/lib/ai/inbox-types";
 import {
