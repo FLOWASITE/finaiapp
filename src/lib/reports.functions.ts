@@ -625,9 +625,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
 
     const tenantStd = await resolveTenantStandard(supabase, userId);
     const b02Label = tenantStd === "TT133" ? "B02-DNN" : "B02-DN";
+    const b03Label = tenantStd === "TT133" ? "B03-DNN" : "B03-DN";
     const title = data.report === "B01" ? "BÁO CÁO TÌNH HÌNH TÀI CHÍNH (B01-DN)"
       : data.report === "B02" ? `BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (${b02Label})`
-      : "BÁO CÁO LƯU CHUYỂN TIỀN TỆ (B03-DN)";
+      : `BÁO CÁO LƯU CHUYỂN TIỀN TỆ (${b03Label})`;
     ws.getCell("A5").value = title;
     ws.getCell("A5").font = { bold: true, size: 12 };
     ws.mergeCells("A5:D5");
