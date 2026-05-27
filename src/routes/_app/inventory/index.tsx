@@ -156,7 +156,7 @@ function StockReportPage() {
       return n;
     });
 
-  const groupCols = 13; // SL+GT+TB cho 4 nhóm + LK nhập (2) + LK xuất (2) → see header
+  const groupCols = 16; // SL+GT+TB cho 4 nhóm + LK nhập (2) + LK xuất (2) → see header (+ cột mã hàng)
 
   return (
     <div className="p-6 space-y-4">
@@ -231,7 +231,8 @@ function StockReportPage() {
             <table className="w-full text-xs">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground sticky top-0">
                 <tr>
-                  <th rowSpan={2} className="p-2 text-left min-w-[260px] border-r">Kho / Hàng hoá</th>
+                  <th rowSpan={2} className="p-2 text-left min-w-[200px] border-r">Kho / Tên hàng hoá</th>
+                  <th rowSpan={2} className="p-2 text-left border-r">Mã hàng</th>
                   <th rowSpan={2} className="p-2 text-left border-r">ĐVT</th>
                   <th colSpan={3} className="p-2 text-center border-r bg-slate-50">Đầu kỳ</th>
                   <th colSpan={3} className="p-2 text-center border-r bg-emerald-50">Nhập kho</th>
@@ -290,10 +291,10 @@ function StockReportPage() {
                         <tr key={`${k}-${p.product_id}`} className="border-t hover:bg-muted/30">
                           <td className="p-2 pl-12 border-r">
                             <Link to="/inventory/$id" params={{ id: p.product_id }} className="hover:text-primary">
-                              <div className="font-medium">{p.code}</div>
-                              <div className="text-xs text-muted-foreground">{p.name}</div>
+                              <div className="font-medium">{p.name}</div>
                             </Link>
                           </td>
+                          <td className="p-2 border-r font-medium">{p.code}</td>
                           <td className="p-2 border-r">{p.unit}</td>
                           {/* Đầu kỳ */}
                           <td className="p-2 text-right">{fmtQty(p.opening_qty)}</td>
@@ -360,6 +361,7 @@ function SummaryRow({
           {label}
         </button>
       </td>
+      <td className="p-2 border-r"></td>
       <td className="p-2 border-r"></td>
       <td className="p-2 text-right">{fmtQty(row.opening_qty)}</td>
       <td className="p-2 text-right">{fmt(row.opening_value)}</td>
