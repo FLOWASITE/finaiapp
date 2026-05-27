@@ -2,7 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withLatency } from "@/lib/with-latency";
-import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+import { B01_TT99, B01_TT133, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+
+async function resolveBsMapping(supabase: any, userId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
+  const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+  let std: string | null = null;
+  if (profile?.active_tenant_id) {
+    const { data: t } = await supabase.from("tenants").select("accounting_standard").eq("id", profile.active_tenant_id).maybeSingle();
+    std = (t as any)?.accounting_standard ?? null;
+  }
+  if (std === "TT133") return { mapping: B01_TT133, circular: "TT133", totalAssetCode: "200", totalEquityCode: "500" };
+  return { mapping: B01_TT99, circular: "TT99", totalAssetCode: "280", totalEquityCode: "440" };
+}
 
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
