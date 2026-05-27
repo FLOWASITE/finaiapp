@@ -1065,9 +1065,6 @@ function SalesVouchersPage() {
                     const total = Number(v.total || 0);
                     const paid = Number(v.paid_amount || 0);
                     const remain = Math.max(0, total - paid);
-                    const period = v.voucher_date
-                      ? `T${String(new Date(v.voucher_date).getMonth() + 1).padStart(2, "0")}/${new Date(v.voucher_date).getFullYear()}`
-                      : "—";
                     const isSel = selected.has(v.id);
                     const isPosted = v.status === "posted";
                     const isVoid = v.status === "void";
