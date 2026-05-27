@@ -107,7 +107,7 @@ const GO_ITEMS: GoItem[] = [
   { label: "Phải trả", to: "/payables", group: "Công nợ", icon: Wallet, keywords: ["ap"] },
 
   {
-    label: "Khai báo mặt hàng",
+    label: "Hàng hóa & Dịch vụ",
     to: "/items",
     group: "Kế toán",
     icon: Package,

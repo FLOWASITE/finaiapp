@@ -138,7 +138,7 @@ function SettingsPage() {
             },
             {
               to: "/items",
-              label: "Khai báo mặt hàng",
+              label: "Hàng hóa & Dịch vụ",
               desc: "Danh mục hàng hoá, dịch vụ, NVL, CCDC",
               icon: <Package className="h-5 w-5" />,
             },
