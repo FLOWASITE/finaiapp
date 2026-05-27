@@ -614,8 +614,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
 
+    const tenantStd = await resolveTenantStandard(supabase, userId);
+    const b02Label = tenantStd === "TT133" ? "B02-DNN" : "B02-DN";
     const title = data.report === "B01" ? "BÁO CÁO TÌNH HÌNH TÀI CHÍNH (B01-DN)"
-      : data.report === "B02" ? "BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (B02-DN)"
+      : data.report === "B02" ? `BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (${b02Label})`
       : "BÁO CÁO LƯU CHUYỂN TIỀN TỆ (B03-DN)";
     ws.getCell("A5").value = title;
     ws.getCell("A5").font = { bold: true, size: 12 };
