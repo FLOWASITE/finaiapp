@@ -321,6 +321,7 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
   .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
   .handler(withLatency("getIncomeStatementTT99", async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { mapping, circular } = await resolveIsMapping(supabase, userId);
     const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
     const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
 
@@ -336,19 +337,20 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
 
     const vCur: Record<string, number> = {};
     const vPrev: Record<string, number> = {};
-    for (const item of B02_TT99) {
+    for (const item of mapping) {
       vCur[item.ma_so] = computeItem(item, cur, vCur);
       vPrev[item.ma_so] = computeItem(item, prev, vPrev);
     }
 
     return {
-      items: B02_TT99.map(it => ({
+      items: mapping.map(it => ({
         ma_so: it.ma_so, name: it.name, bold: !!it.bold,
         current: Math.round(vCur[it.ma_so] ?? 0),
         previous: Math.round(vPrev[it.ma_so] ?? 0),
       })),
       period: { from: data.from ?? null, to: data.to ?? null },
       comparePeriod: data.compareFrom ? { from: data.compareFrom, to: data.compareTo } : null,
+      circular,
     };
   }));
 
