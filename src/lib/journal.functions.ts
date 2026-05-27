@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateText, Output } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
+import { resolveLineKind } from "@/lib/items/resolve-line-kind.server";
 
 const SuggestionSchema = z.object({
   suggestions: z
