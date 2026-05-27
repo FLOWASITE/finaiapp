@@ -283,6 +283,122 @@ export const B01_TT99: BSItem[] = [
     formula: ["300", "400"] },
 ];
 
+// ============ B01a-DNN — Báo cáo tình hình tài chính theo Thông tư 133/2016/TT-BTC ============
+// Áp dụng cho doanh nghiệp nhỏ và vừa đáp ứng giả định hoạt động liên tục.
+// Tổng cộng tài sản: mã 200 = 110+120+130+140+150+160+170+180
+// Tổng cộng nguồn vốn: mã 500 = 300+400
+export const B01_TT133: BSItem[] = [
+  // ===== TÀI SẢN =====
+  { ma_so: "110", name: "I. Tiền và các khoản tương đương tiền", level: 1, group: "asset",
+    accounts: [D("111"), D("112"), D("113"), D("1281"), D("1288")] },
+
+  { ma_so: "120", name: "II. Đầu tư tài chính", level: 1, group: "asset",
+    formula: ["121", "122", "123", "124"] },
+  { ma_so: "121", name: "1. Chứng khoán kinh doanh", level: 2, group: "asset",
+    accounts: [D("121")] },
+  { ma_so: "122", name: "2. Đầu tư nắm giữ đến ngày đáo hạn", level: 2, group: "asset",
+    accounts: [D("128")] },
+  { ma_so: "123", name: "3. Đầu tư góp vốn vào đơn vị khác", level: 2, group: "asset",
+    accounts: [D("221"), D("222"), D("2281")] },
+  { ma_so: "124", name: "4. Dự phòng tổn thất đầu tư tài chính (*)", level: 2, group: "asset",
+    accounts: [C("229", -1)] },
+
+  { ma_so: "130", name: "III. Các khoản phải thu", level: 1, group: "asset",
+    formula: ["131", "132", "133", "134", "135", "136"] },
+  { ma_so: "131", name: "1. Phải thu của khách hàng", level: 2, group: "asset",
+    accounts: [D("131")] },
+  { ma_so: "132", name: "2. Trả trước cho người bán", level: 2, group: "asset",
+    accounts: [D("331")] },
+  { ma_so: "133", name: "3. Vốn kinh doanh ở đơn vị trực thuộc", level: 2, group: "asset",
+    accounts: [D("1361")] },
+  { ma_so: "134", name: "4. Phải thu khác", level: 2, group: "asset",
+    accounts: [D("1368"), D("138"), D("141"), D("244")] },
+  { ma_so: "135", name: "5. Tài sản thiếu chờ xử lý", level: 2, group: "asset",
+    accounts: [D("1381")] },
+  { ma_so: "136", name: "6. Dự phòng phải thu khó đòi (*)", level: 2, group: "asset",
+    accounts: [C("2293", -1)] },
+
+  { ma_so: "140", name: "IV. Hàng tồn kho", level: 1, group: "asset",
+    formula: ["141", "142"] },
+  { ma_so: "141", name: "1. Hàng tồn kho", level: 2, group: "asset",
+    accounts: [D("151"), D("152"), D("153"), D("154"), D("155"), D("156"), D("157"), D("158")] },
+  { ma_so: "142", name: "2. Dự phòng giảm giá hàng tồn kho (*)", level: 2, group: "asset",
+    accounts: [C("2294", -1)] },
+
+  { ma_so: "150", name: "V. Tài sản cố định", level: 1, group: "asset",
+    formula: ["151", "152"] },
+  { ma_so: "151", name: "    - Nguyên giá", level: 2, group: "asset",
+    accounts: [D("211"), D("213")] },
+  { ma_so: "152", name: "    - Giá trị hao mòn lũy kế (*)", level: 2, group: "asset",
+    accounts: [C("214", -1)] },
+
+  { ma_so: "160", name: "VI. Bất động sản đầu tư", level: 1, group: "asset",
+    formula: ["161", "162"] },
+  { ma_so: "161", name: "    - Nguyên giá", level: 2, group: "asset",
+    accounts: [D("217")] },
+  { ma_so: "162", name: "    - Giá trị hao mòn lũy kế (*)", level: 2, group: "asset",
+    accounts: [C("2147", -1)] },
+
+  { ma_so: "170", name: "VII. XDCB dở dang", level: 1, group: "asset",
+    accounts: [D("241")] },
+
+  { ma_so: "180", name: "VIII. Tài sản khác", level: 1, group: "asset",
+    formula: ["181", "182"] },
+  { ma_so: "181", name: "1. Thuế GTGT được khấu trừ", level: 2, group: "asset",
+    accounts: [D("133")] },
+  { ma_so: "182", name: "2. Tài sản khác", level: 2, group: "asset",
+    accounts: [D("242"), D("243")] },
+
+  { ma_so: "200", name: "TỔNG CỘNG TÀI SẢN (200 = 110+120+130+140+150+160+170+180)",
+    level: 0, group: "total", bold: true,
+    formula: ["110", "120", "130", "140", "150", "160", "170", "180"] },
+
+  // ===== NGUỒN VỐN =====
+  { ma_so: "300", name: "I. Nợ phải trả", level: 1, group: "liability",
+    formula: ["311", "312", "313", "314", "315", "316", "317", "318", "319", "320"] },
+  { ma_so: "311", name: "1. Phải trả người bán", level: 2, group: "liability",
+    accounts: [C("331")] },
+  { ma_so: "312", name: "2. Người mua trả tiền trước", level: 2, group: "liability",
+    accounts: [C("131")] },
+  { ma_so: "313", name: "3. Thuế và các khoản phải nộp Nhà nước", level: 2, group: "liability",
+    accounts: [C("333")] },
+  { ma_so: "314", name: "4. Phải trả người lao động", level: 2, group: "liability",
+    accounts: [C("334")] },
+  { ma_so: "315", name: "5. Phải trả khác", level: 2, group: "liability",
+    accounts: [C("338"), C("335")] },
+  { ma_so: "316", name: "6. Vay và nợ thuê tài chính", level: 2, group: "liability",
+    accounts: [C("341")] },
+  { ma_so: "317", name: "7. Phải trả nội bộ về vốn kinh doanh", level: 2, group: "liability",
+    accounts: [C("3361")] },
+  { ma_so: "318", name: "8. Dự phòng phải trả", level: 2, group: "liability",
+    accounts: [C("352")] },
+  { ma_so: "319", name: "9. Quỹ khen thưởng, phúc lợi", level: 2, group: "liability",
+    accounts: [C("353")] },
+  { ma_so: "320", name: "10. Quỹ phát triển khoa học và công nghệ", level: 2, group: "liability",
+    accounts: [C("356")] },
+
+  { ma_so: "400", name: "II. Vốn chủ sở hữu", level: 1, group: "equity",
+    formula: ["411", "412", "413", "414", "415", "416", "417"] },
+  { ma_so: "411", name: "1. Vốn góp của chủ sở hữu", level: 2, group: "equity",
+    accounts: [C("4111")] },
+  { ma_so: "412", name: "2. Thặng dư vốn cổ phần", level: 2, group: "equity",
+    accounts: [C("4112")] },
+  { ma_so: "413", name: "3. Vốn khác của chủ sở hữu", level: 2, group: "equity",
+    accounts: [C("4118")] },
+  { ma_so: "414", name: "4. Cổ phiếu quỹ (*)", level: 2, group: "equity",
+    accounts: [D("419", -1)] },
+  { ma_so: "415", name: "5. Chênh lệch tỷ giá hối đoái", level: 2, group: "equity",
+    accounts: [C("413")] },
+  { ma_so: "416", name: "6. Các quỹ thuộc vốn chủ sở hữu", level: 2, group: "equity",
+    accounts: [C("414"), C("418")] },
+  { ma_so: "417", name: "7. Lợi nhuận sau thuế chưa phân phối", level: 2, group: "equity",
+    accounts: [C("421")] },
+
+  { ma_so: "500", name: "TỔNG CỘNG NGUỒN VỐN (500 = 300 + 400)",
+    level: 0, group: "total", bold: true,
+    formula: ["300", "400"] },
+];
+
 // ============ B02 — Kết quả kinh doanh ============
 export type ISItem = {
   ma_so: string;

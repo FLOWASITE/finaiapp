@@ -2,7 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withLatency } from "@/lib/with-latency";
-import { B01_TT99, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+import { B01_TT99, B01_TT133, B02_TT99, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+
+async function resolveBsMapping(supabase: any, userId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
+  const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
+  let std: string | null = null;
+  if (profile?.active_tenant_id) {
+    const { data: t } = await supabase.from("tenants").select("accounting_standard").eq("id", profile.active_tenant_id).maybeSingle();
+    std = (t as any)?.accounting_standard ?? null;
+  }
+  if (std === "TT133") return { mapping: B01_TT133, circular: "TT133", totalAssetCode: "200", totalEquityCode: "500" };
+  return { mapping: B01_TT99, circular: "TT99", totalAssetCode: "280", totalEquityCode: "440" };
+}
 
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
@@ -100,7 +111,12 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
       };
     }
 
-    const item = (data.report === "B01" ? B01_TT99 : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
+    let b01Mapping: BSItem[] = B01_TT99;
+    if (data.report === "B01") {
+      const r = await resolveBsMapping(supabase, userId);
+      b01Mapping = r.mapping;
+    }
+    const item = (data.report === "B01" ? b01Mapping : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
     if (!item || !item.accounts || item.accounts.length === 0) {
       return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
     }
@@ -257,20 +273,22 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
     const valuesCur: Record<string, number> = {};
     const valuesPrev: Record<string, number> = {};
 
-    for (const item of B01_TT99) {
+    const { mapping, circular, totalAssetCode, totalEquityCode } = await resolveBsMapping(supabase, userId);
+
+    for (const item of mapping) {
       if (item.accounts) {
         valuesCur[item.ma_so] = computeItem(item, cur, niCur);
         valuesPrev[item.ma_so] = computeItem(item, prev, niPrev);
       }
     }
-    for (const item of B01_TT99) {
+    for (const item of mapping) {
       if (item.formula) {
         valuesCur[item.ma_so] = item.formula.reduce((s, m) => s + (valuesCur[m] ?? 0), 0);
         valuesPrev[item.ma_so] = item.formula.reduce((s, m) => s + (valuesPrev[m] ?? 0), 0);
       }
     }
 
-    const items = B01_TT99.map(it => ({
+    const items = mapping.map(it => ({
       ma_so: it.ma_so, name: it.name, level: it.level, group: it.group, bold: !!it.bold,
       current: Math.round(valuesCur[it.ma_so] ?? 0),
       previous: Math.round(valuesPrev[it.ma_so] ?? 0),
@@ -278,7 +296,8 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
 
     return {
       items, asOf: data.asOf ?? null, compareAsOf: data.compareAsOf ?? null,
-      balanced: Math.abs((valuesCur["280"] ?? 0) - (valuesCur["440"] ?? 0)) < 1,
+      balanced: Math.abs((valuesCur[totalAssetCode] ?? 0) - (valuesCur[totalEquityCode] ?? 0)) < 1,
+      circular,
     };
   }));
 
@@ -598,9 +617,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       const cur = await fetchLines(supabase, userId, undefined, data.asOf);
       const niCur = (() => { let r = 0, e = 0; for (const l of cur) { const c = l.account_code; if (c.startsWith("5") || c.startsWith("7")) r += l.credit - l.debit; else if (c.startsWith("6") || c.startsWith("8")) e += l.debit - l.credit; } return r - e; })();
       const v: Record<string, number> = {};
-      for (const it of B01_TT99) if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => { let x = balanceForPrefix(cur, a.prefix, a.nature) * a.sign; if (a.prefix === "421" && a.nature === "credit") x += niCur; return s + x; }, 0);
-      for (const it of B01_TT99) if (it.formula) v[it.ma_so] = it.formula.reduce((s, m) => s + (v[m] ?? 0), 0);
-      for (const it of B01_TT99) {
+      const { mapping: bsMap } = await resolveBsMapping(supabase, userId);
+      for (const it of bsMap) if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => { let x = balanceForPrefix(cur, a.prefix, a.nature) * a.sign; if (a.prefix === "421" && a.nature === "credit") x += niCur; return s + x; }, 0);
+      for (const it of bsMap) if (it.formula) v[it.ma_so] = it.formula.reduce((s, m) => s + (v[m] ?? 0), 0);
+      for (const it of bsMap) {
         ws.getCell(`A${row}`).value = (it.level === 2 ? "      " : it.level === 1 ? "  " : "") + it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
