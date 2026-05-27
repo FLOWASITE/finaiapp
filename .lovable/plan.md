@@ -1,87 +1,87 @@
-# Hoàn thiện UI chọn sản phẩm (Phiếu mua / Phiếu bán)
+## Mục tiêu
 
-## Vấn đề hiện tại
+Tab **Hàng hóa & Dịch vụ** (`/items`) hiện đang hiển thị 1 bộ dữ liệu mẫu cứng (`SAMPLE_ITEMS`, ~3000 dòng trong `src/data/sample-catalog.ts`). Sẽ thay hoàn toàn bằng dữ liệu thật, gộp 2 nguồn:
 
-Có **2 `ProductPickerCell` riêng** ở `src/routes/_app/purchases/vouchers.tsx` và `src/routes/_app/sales/vouchers.tsx` — trùng logic nhưng UI lệch nhau và thiếu nhiều UX cơ bản:
+- `products` (16 mặt hàng đang dùng ở Phiếu mua/bán, Kho) — nguồn chính.
+- `tenant_product_catalog` (catalog tinh gọn, dùng cho AI gợi ý) — bổ sung các mặt hàng chưa thành `product`.
 
-- Sales picker: popover 680px, 5 cột (Mã/Tên/ĐVT/Giá bán/Tồn) — không có loại sản phẩm, không có giá trị tồn.
-- Purchase picker: popover 920px, 8 cột — quá rộng so với cell, một số cột (GT tồn, Giá xuất kho) ít dùng khi nhập mua.
-- Cả hai đều thiếu:
-  - Bàn phím (↑ ↓ Enter Esc), không highlight dòng đang focus.
-  - Trạng thái Loading / Empty phân biệt rõ (chưa gõ vs. không có kết quả).
-  - Badge "Loại sản phẩm" (Hàng hoá / NVL / CCDC / DV / TSCĐ) — rất quan trọng để KTV chọn đúng.
-  - Cảnh báo tồn = 0 khi bán; cảnh báo "không bán/không mua" được lọc nhưng không hiển thị lý do.
-  - Nút **"+ Tạo sản phẩm mới"** ngay trong popover khi tìm không thấy.
-  - Hiển thị mã + tên gọn trong cell sau khi chọn (hiện chỉ show 1 string `value`).
-  - Footer tóm tắt: tổng kết quả, gợi ý phím tắt.
+Các thao tác Thêm / Sửa / Xóa / Kích hoạt trên CatalogPage sẽ ghi thẳng vào DB và làm mới cache để Phiếu mua/bán nhìn thấy ngay.
 
-## Giải pháp
+## Phạm vi & cách hiển thị 3 tab
 
-### 1. Tạo component dùng chung `src/components/vouchers/ProductPickerCell.tsx`
+- **Mặt hàng của tôi**: `products` có `is_active = true`.
+- **Gợi ý của AI**: `tenant_product_catalog` mà chưa có `product` tương ứng (so theo `name_norm`) — coi như catalog gợi ý chưa "đưa vào dùng".
+- **Thư viện**: union của hai nguồn trên (đọc-chỉ).
 
-Một component duy nhất, prop `mode: "purchase" | "sales"` để đổi cột & filter:
+Bộ lọc nhanh hiện có (Hàng hóa / Dịch vụ / Dùng tháng này / Có cảnh báo / Trả trước / NCC nước ngoài) sẽ map tốt nhất có thể với data thật; những field không có trong DB sẽ ẩn chip lọc tương ứng thay vì hiển thị filter rỗng.
 
-```text
-┌─ [ô input cell] mã + tên (truncate) ──────────────┐
-│ click → popover 760px                              │
-├────────────────────────────────────────────────────┤
-│  🔍 Tìm theo mã / tên / mã vạch…    [↑↓ Enter]    │
-├────────────────────────────────────────────────────┤
-│ Mã      Tên sản phẩm           Loại    ĐVT  Giá   │  ← sticky
-│ ──────────────────────────────────────────  Tồn   │
-│ SP001   Bánh quy AFC      [Hàng hóa]  Hộp  25.000 │ ← row có
-│                                              120  │   badge loại
-│ SP002   Dịch vụ vận chuyển [Dịch vụ]   —    —     │
-│ ...                                                │
-├────────────────────────────────────────────────────┤
-│ 12 sản phẩm · ↑↓ chọn · Enter xác nhận · Esc đóng │
-│                          [+ Tạo sản phẩm mới…]    │
-└────────────────────────────────────────────────────┘
-```
+## Mapping `products` → `CatalogItem`
 
-**Cột theo mode:**
+| CatalogItem | Nguồn |
+|---|---|
+| `code` | `products.code` |
+| `name` | `products.name` |
+| `itemType` | `products.item_type` ("goods" \| "service" \| "mixed"), default `goods` |
+| `defaultAccountTT99` / `defaultAccountTT133` | `stock_account` (cho goods) hoặc `expense_account` (cho service); cùng giá trị cho cả 2 chế độ vì DB không phân biệt |
+| `altAccounts` | `[revenue_account, cogs_account]` lọc null |
+| `vatRateStandard` | `products.vat_rate ?? 0.1` |
+| `aliases` | `products.aliases ?? []` |
+| `isActive` | `products.is_active` |
+| `category` | Map từ `product_categories.name` về một mã `CategoryCode` đã có; không khớp → "VAN_PHONG" (fallback) |
+| `subcategory` | `product_categories.name` (giữ nguyên tên gốc để CategorySidebar gom nhóm) |
+| `usageCount30Days` | 0 (không có sẵn — đợt sau) |
+| Các field còn lại (`amortization`, `allocationMethod`, `foreignSupplierTax`, `frequency`, `vatReductionEligible`, …) | Mặc định an toàn (`expense_immediately`, `single`, `none`, `monthly`, `false`, …) |
 
-| Cột          | Purchase | Sales |
-|--------------|:--------:|:-----:|
-| Mã           | ✓        | ✓     |
-| Tên          | ✓        | ✓     |
-| Loại (badge) | ✓        | ✓     |
-| ĐVT          | ✓        | ✓     |
-| Giá mua gần nhất | ✓    | —     |
-| Giá bán      | —        | ✓     |
-| Tồn kho      | ✓        | ✓ (đỏ khi = 0) |
+Mapping `tenant_product_catalog` → `CatalogItem`: chỉ điền `code = sku ?? "TPC-<id8>"`, `name`, `aliases`, `itemType = "goods"`, `isAiSuggested = true`, `isActive = false`, còn lại dùng default.
 
-Bỏ hai cột "GT tồn" và "Giá xuất kho" ở Purchase — ít dùng khi đang nhập phiếu, để picker gọn.
+## Thay đổi code
 
-### 2. UX nâng cấp
+### 1. `src/lib/catalog/adapt.ts` (mới)
+- `productToCatalogItem(p, categoryNameById)` — adapter
+- `tpcToCatalogItem(row)` — adapter
+- `mergeCatalog(products, tpcRows)` — gộp, loại trùng theo `name_norm`, trả về `CatalogItem[]`
+- Hàm pure, không phụ thuộc Supabase → test dễ.
 
-- **Bàn phím**: ↑ ↓ di chuyển highlight, Enter chọn, Esc đóng, Tab giữ focus trong popover. Tự cuộn dòng highlight vào viewport.
-- **Tìm kiếm**: debounce 120ms; hỗ trợ tìm theo mã vạch (`barcode`) nếu có. Highlight đoạn khớp trong tên.
-- **Trạng thái**:
-  - Đang tải: skeleton 5 dòng (không phải spinner full).
-  - Rỗng + chưa tìm: hiển thị 50 sản phẩm dùng nhiều nhất (sort theo `usage_count` nếu có; fallback theo `code`).
-  - Rỗng + có query: `EmptyState` "Không tìm thấy "<q>"" kèm CTA **+ Tạo sản phẩm "<q>"** (mở `ItemCreateDialog` với name prefill).
-- **Badge loại sản phẩm**: dùng `Badge` của shadcn với màu semantic — `hàng hoá` (default), `dịch vụ` (secondary), `NVL/CCDC` (outline), `TSCĐ` (warning tone).
-- **Cảnh báo**:
-  - Sales + tồn ≤ 0 → cột Tồn highlight `text-destructive`, tooltip "Hết tồn".
-  - Purchase + sản phẩm `can_be_purchased=false` → không lọc bỏ mà disable dòng + tooltip "Không cho phép mua".
-- **Cell hiển thị sau khi chọn**: `[SP001] Bánh quy AFC` — mã in mono, tên truncate, có nút × xoá nhanh khi hover.
-- **Width**: popover dùng `min-w-[720px] max-w-[92vw]` để không tràn trên cell hẹp; align="start" giữ nguyên.
+### 2. `src/lib/catalog/catalog.functions.ts` (mới)
+- `loadCatalog` server-fn: chạy song song `listProducts()`, `listProductCatalog()`, `listCategories()`; trả `{ items: CatalogItem[] }` (đã merge).
+- Lý do tách: gom 3 query về 1 round-trip cho route loader.
 
-### 3. Tích hợp
+### 3. `src/routes/_app/items/index.tsx`
+- Thêm `loader` prime cache `loadCatalog` qua `queryOptions` + `useSuspenseQuery` (theo pattern TanStack Query của project).
+- Truyền `initialItems` xuống `CatalogPage`.
 
-- Xoá `ProductPickerCell` cục bộ trong cả 2 file vouchers, import từ `@/components/vouchers/ProductPickerCell`.
-- Giữ nguyên contract `onPick(product)` để không phải sửa logic line.
-- Sales hiện truyền `products` prop từ ngoài → đổi sang dùng `useQuery` nội bộ (cùng `queryKey: ["products-picker"]`) như Purchase để cache dùng chung và không phải prefetch ở parent.
-- Hook nút "+ Tạo sản phẩm" vào `ItemCreateDialog` đã có (`src/components/catalog/ItemCreateDialog.tsx`), prefill `name = query`; sau khi tạo xong, refetch `products-picker` và auto-select sản phẩm mới.
+### 4. `src/stores/catalogStore.ts`
+- Bỏ import `SAMPLE_ITEMS`; `items` khởi tạo `[]`.
+- Thêm action `setItems(items: CatalogItem[])` để loader đổ data thật vào store.
+- Các action mutate đổi sang async, gọi server-fn rồi gọi `queryClient.invalidateQueries(["catalog"])`:
+  - `addItemToMine(code)` → `upsertProduct({ code, name, item_type, is_active: true, ... })`
+  - `removeItemFromMine(code)` → `upsertProduct({ id, is_active: false })` (mềm; không xóa cứng để tránh vỡ tham chiếu).
+  - `updateItem(code, updates)` → `upsertProduct({ id, ...changes })`
+  - `createItem(item)` → `upsertProduct({ ... })`
+- Vì store không có sẵn `queryClient`, sẽ inject bằng cách: actions trả `Promise` và component dùng `useMutation` để gọi; store chỉ giữ UI state. Refactor tối thiểu, không đập vỡ API hiện tại.
 
-## Phạm vi không đụng
+### 5. `src/components/catalog/CatalogPage.tsx`
+- Dùng `useSuspenseQuery(catalogQueryOptions)` để đọc data; sync vào store qua `useEffect(() => setItems(data.items), [data])`.
+- Bọc các button mutate (xóa khỏi mặt hàng của tôi, kích hoạt từ gợi ý) bằng `useMutation` để có loading + toast lỗi.
+- Sửa `ItemCard` và `ItemDetailDrawer`: cùng pattern useMutation cho action xóa/kích hoạt.
 
-- Không đổi server fn `listProducts`, không đổi schema, không đổi logic tính tiền/hạch toán dòng.
-- Không đổi layout tổng của trang Phiếu mua / Phiếu bán — chỉ thay cell picker.
+### 6. `ItemCreateDialog` / `ItemEditDialog`
+- Submit gọi `upsertProduct` (không còn `createItem` trực tiếp vào store).
+- Invalidate `["catalog"]` và `["products-picker"]` (cho Phiếu mua/bán cũng refresh).
 
-## Files dự kiến chạm
+### 7. Xóa rác
+- Xóa import `SAMPLE_ITEMS` ở mọi nơi. Giữ file `src/data/sample-catalog.ts` lại trong repo (chưa xóa) để khỏi đụng nếu nơi khác còn dùng, nhưng nếu grep xác nhận chỉ store dùng thì xóa luôn file đó cuối plan.
 
-- ➕ `src/components/vouchers/ProductPickerCell.tsx` (mới, ~260 dòng)
-- ✏️ `src/routes/_app/purchases/vouchers.tsx` (xoá ~100 dòng cục bộ, thêm 1 import)
-- ✏️ `src/routes/_app/sales/vouchers.tsx` (xoá ~90 dòng cục bộ, thêm 1 import; bỏ prop `products`)
+## Lưu ý kỹ thuật
+
+- **Schema lệch nhiều**: `CatalogItem` có ~25 field, bảng `products` chỉ phủ ~10. Adapter sẽ điền default an toàn cho phần còn lại để các filter/badge không vỡ; UI hiển thị "—" thay vì giá trị sai lệch khi không có dữ liệu (ItemBadges cần kiểm thêm).
+- **Category enum vs `product_categories`**: `CategoryCode` là enum cố định trong code, còn DB lưu category mở. CategorySidebar sẽ chuyển sang nhóm theo `subcategory` (= tên category DB) khi có, fallback theo `category` enum khi không. Việc này giữ trải nghiệm gom nhóm cũ mà không cần migrate DB.
+- **Không thêm migration**: bài này không sửa schema — chỉ đọc/ghi qua server-fn có sẵn (`listProducts`, `upsertProduct`, `listProductCatalog`).
+- **RLS**: các server-fn này đã có `requireSupabaseAuth` + tenant scoping → không cần đổi policy.
+- **Đồng bộ với Phiếu**: sau mỗi mutate, invalidate cả `["products-picker"]` để ProductPickerCell ở Phiếu mua/bán cập nhật ngay.
+
+## Ngoài phạm vi
+
+- Không sửa Phiếu mua/bán, không động vào `ProductPickerCell`.
+- Không tính lại `usageCount30Days` (sẽ làm khi có nhu cầu — cần đọc từ `purchase_invoice_lines` + `sales_invoice_lines`).
+- Không thêm field mới vào DB; nếu sau này cần `amortization`, `vat_reduction_eligible`, v.v. sẽ migrate riêng.
