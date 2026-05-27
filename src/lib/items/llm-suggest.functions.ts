@@ -150,20 +150,20 @@ export const suggestItemMappingWithLLM = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    let model;
     try {
-      ({ model } = await resolveAgentModel(
-        "classify_file",
-        "google/gemini-3.1-flash-lite-preview",
-      ));
-    } catch {
-      ({ model } = await resolveAgentModel(
-        "classify_file",
-        "google/gemini-3-flash-preview",
-      ));
-    }
+      let model;
+      try {
+        ({ model } = await resolveAgentModel(
+          "classify_file",
+          "google/gemini-3.1-flash-lite-preview",
+        ));
+      } catch {
+        ({ model } = await resolveAgentModel(
+          "classify_file",
+          "google/gemini-3-flash-preview",
+        ));
+      }
 
-    try {
       const { output } = await generateText({
         model,
         output: Output.object({ schema: Suggestion }),
