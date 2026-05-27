@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Globe, Wallet } from "lucide-react";
+import { AlertTriangle, Clock, Globe, Package, Wallet, Wrench } from "lucide-react";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -7,6 +7,8 @@ export const FILTER_KEYS = {
   HAS_WARNING: "has_warning",
   PREPAID: "prepaid",
   FOREIGN: "foreign",
+  GOODS: "goods",
+  SERVICES: "services",
 } as const;
 
 export function QuickFilterChips() {
@@ -49,6 +51,18 @@ export function QuickFilterChips() {
       key: FILTER_KEYS.FOREIGN,
       label: "NCC nước ngoài · FCT",
       icon: <Globe className="h-3.5 w-3.5" />,
+      tone: "default" as const,
+    },
+    {
+      key: FILTER_KEYS.GOODS,
+      label: "Chỉ Hàng hóa",
+      icon: <Package className="h-3.5 w-3.5" />,
+      tone: "default" as const,
+    },
+    {
+      key: FILTER_KEYS.SERVICES,
+      label: "Chỉ Dịch vụ",
+      icon: <Wrench className="h-3.5 w-3.5" />,
       tone: "default" as const,
     },
   ];

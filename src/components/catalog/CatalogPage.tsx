@@ -48,6 +48,13 @@ export function CatalogPage() {
         return false;
       if (activeFilters.has(FILTER_KEYS.FOREIGN) && it.foreignSupplierTax !== "fct_applicable")
         return false;
+      const goodsOn = activeFilters.has(FILTER_KEYS.GOODS);
+      const servicesOn = activeFilters.has(FILTER_KEYS.SERVICES);
+      if (goodsOn || servicesOn) {
+        const okGoods = goodsOn && it.itemType === "goods";
+        const okServices = servicesOn && it.itemType === "service";
+        if (!okGoods && !okServices) return false;
+      }
       return true;
     });
   }, [tabItems, search, activeFilters]);
