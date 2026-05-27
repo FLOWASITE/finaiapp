@@ -10,17 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import {
   VSIC_2025_LEVEL1,
   VsicL1Industry,
-  VsicL1Code,
-  VsicNode,
   getChildren,
-  getAncestors,
   getVsicLevel1,
   getVsicNode,
   inferLevel,
