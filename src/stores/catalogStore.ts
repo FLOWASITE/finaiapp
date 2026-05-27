@@ -24,6 +24,7 @@ interface CatalogState {
   addItemToMine: (code: string) => void;
   removeItemFromMine: (code: string) => void;
   updateItem: (code: string, updates: Partial<CatalogItem>) => void;
+  createItem: (item: CatalogItem) => void;
   switchRegime: (regime: AccountingRegime) => void;
 }
 
