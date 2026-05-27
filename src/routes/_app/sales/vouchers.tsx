@@ -1958,9 +1958,11 @@ function VoucherDialog({
                     </Button>
                   </div>
                   <ProductPickerCell
+                    mode="sales"
                     value={l.product_name}
+                    code={l.product_code}
                     products={(products ?? []) as any[]}
-                    onPick={(p) => {
+                    onPick={(p: any) => {
                       updateLine(i, {
                         product_id: p.id,
                         product_code: p.code ?? "",
