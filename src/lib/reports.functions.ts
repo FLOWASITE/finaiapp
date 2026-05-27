@@ -695,7 +695,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       const closeL = await fetchLines(supabase, userId, undefined, data.to);
       const cashBal = (ls: any[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
       const opening = cashBal(openL), closing = cashBal(closeL);
-      for (const it of B03_TT99) {
+      const { mapping: cfMap } = await resolveCfMapping(supabase, userId);
+      for (const it of cfMap) {
         if (it.cashBalance === "opening") { v[it.ma_so] = opening; continue; }
         if (it.counterpart) {
           const { prefixes, direction } = it.counterpart;
@@ -707,7 +708,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       }
       // dùng closing thực tế nếu lệch
       if (Math.abs((v["70"] ?? 0) - closing) > 0.5) v["70"] = closing;
-      for (const it of B03_TT99) {
+      for (const it of cfMap) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
