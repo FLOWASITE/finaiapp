@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { RegimeSwitch } from "./RegimeSwitch";
+import { ItemCreateDialog } from "./ItemCreateDialog";
 
 export function CatalogHeader() {
   const company = useCatalogStore((s) => s.company);
+  const [open, setOpen] = useState(false);
 
   return (
     <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -18,9 +21,13 @@ export function CatalogHeader() {
           <RegimeSwitch />
         </div>
       </div>
-      <Button className="bg-[#0F6E56] hover:bg-[#085041] text-white">
+      <Button
+        className="bg-[#0F6E56] hover:bg-[#085041] text-white"
+        onClick={() => setOpen(true)}
+      >
         <Plus className="h-4 w-4 mr-1.5" /> Tạo mới
       </Button>
+      <ItemCreateDialog open={open} onOpenChange={setOpen} />
     </header>
   );
 }
