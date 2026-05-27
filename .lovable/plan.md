@@ -1,52 +1,69 @@
 ## Mục tiêu
-Bổ sung mẫu **B03-DNN — Báo cáo lưu chuyển tiền tệ (trực tiếp)** theo Thông tư 133/2016/TT-BTC, áp dụng động theo `accounting_standard` của tổ chức (giống cách đã làm cho B01, B02). Bỏ qua phương pháp gián tiếp ở tài liệu — hệ thống hiện chỉ hỗ trợ phương pháp trực tiếp.
 
-## So sánh cấu trúc B03 trực tiếp: TT133 vs TT99
+Thay thế hoàn toàn trang `/items` hiện tại (đang nối DB Supabase) bằng màn hình **Danh mục Hàng hóa & Dịch vụ** mới theo spec v2.0 — chạy hoàn toàn trên state in-memory (Zustand) với dữ liệu mẫu, hỗ trợ chuyển đổi chế độ kế toán TT99/TT133.
 
-| Mã | TT133 (DNN) | Khác biệt |
-|----|-------------|-----------|
-| 01–07 | Hoạt động kinh doanh | **Giống TT99** |
-| 20 | LCT thuần HĐKD | giống |
-| **II. Hoạt động đầu tư** | | **TT133 gộp lại còn 5 dòng** |
-| 21 | Chi mua sắm, xây dựng TSCĐ, BĐSĐT, TS dài hạn khác | giống TT99 |
-| 22 | Thu từ thanh lý, nhượng bán TSCĐ, BĐSĐT… | giống TT99 |
-| **23** | **Chi cho vay, đầu tư góp vốn vào đơn vị khác (gộp)** | TT99 tách 23 + 25 |
-| **24** | **Thu hồi cho vay, đầu tư góp vốn vào đơn vị khác (gộp)** | TT99 tách 24 + 26 |
-| **25** | **Thu lãi cho vay, cổ tức và lợi nhuận được chia** | TT99 là mã 27 |
-| 30 | LCT thuần HĐ đầu tư | công thức theo 21..25 |
-| **III. Hoạt động tài chính** | | **TT133 gộp lại còn 5 dòng** |
-| 31 | Thu từ phát hành cổ phiếu, nhận vốn góp | giống |
-| 32 | Trả vốn góp, mua lại cổ phiếu | giống |
-| 33 | Thu từ đi vay | giống |
-| **34** | **Trả nợ gốc vay và nợ thuê tài chính (gộp)** | TT99 tách 34 + 35 |
-| **35** | **Cổ tức, lợi nhuận đã trả cho chủ sở hữu** | TT99 là mã 36 |
-| 40 | LCT thuần HĐ tài chính | công thức theo 31..35 |
-| 50, 60, 61, 70 | Tổng hợp | giống |
+## Lưu ý quan trọng
 
-## Thay đổi mã
+- Trang cũ `/items` (cùng `/items/categories`, `/items/units`) đang dùng DB thật qua `inventory.functions.ts`, `units.functions.ts`. Sau khi thay, **các route con và server functions cũ vẫn giữ nguyên** (không xoá DB, không xoá file functions) để tránh vỡ các nơi khác đang import (POS, hoá đơn mua/bán có thể đang dùng `listProducts`). Chỉ thay phần UI ở `src/routes/_app/items/index.tsx`.
+- Trang mới hoàn toàn độc lập với Supabase — không gọi server fn, không đọc DB.
+- Spec yêu cầu Zustand + Inter font. Sẽ cài `zustand` và load Inter qua Google Fonts trong `__root.tsx`.
+- Sample data: spec nói "tôi sẽ paste riêng `sample-catalog-data.ts`" — vì người dùng chưa paste, sẽ tự sinh ~30 item mẫu hợp lý (18 active, 8 AI-suggested, 4 library-only) bao quát các category cốt lõi (Tiện ích, Viễn thông, Marketing, F&B...). Khi user paste file thật sẽ thay bằng 1 edit.
 
-### 1. `src/lib/report-mappings.ts`
-- Thêm `export const B03_TT133: CFItem[]` với cấu trúc trên. Giữ nguyên kiểu `CFItem`. Counterpart prefixes:
-  - 23: `["1283", "128", "228", "221", "222"]` direction outflow (gộp cho vay + góp vốn)
-  - 24: cùng prefixes, direction inflow
-  - 25: `["515"]` inflow
-  - 34: `["341", "3431", "3432", "3412"]` outflow (gộp nợ gốc vay + thuê TC)
-  - 35: `["421", "3388"]` outflow (cổ tức)
-- Các mục I và tổng hợp giữ nguyên prefixes như TT99.
+## Cấu trúc file sẽ tạo
 
-### 2. `src/lib/reports.functions.ts`
-- Thêm helper `resolveCfMapping(supabase, userId) → { mapping: CFItem[]; circular: "TT99" | "TT133" }`.
-- `getCashFlowDirect`: dùng mapping động thay cho `B03_TT99` cứng; trả thêm `circular` trong response.
-- `drilldownReportItem` nhánh `data.report === "B03"`: tra cứu và replay theo mapping động (cả `find` ở dòng 37 lẫn vòng replay ở dòng 86).
-- `exportReportXlsx` nhánh B03 (dòng 688/700): dùng mapping động và đổi label tiêu đề `B03-DNN`/`B03-DN` theo standard.
+```
+src/
+├── types/catalog.ts
+├── data/
+│   ├── categories.ts
+│   ├── account-labels.ts
+│   └── sample-catalog.ts
+├── stores/catalogStore.ts
+├── lib/
+│   ├── catalog-search.ts
+│   └── catalog-format.ts
+└── components/catalog/
+    ├── CatalogPage.tsx
+    ├── CatalogHeader.tsx
+    ├── CatalogSearchBar.tsx
+    ├── CatalogTabs.tsx
+    ├── QuickFilterChips.tsx
+    ├── CategorySidebar.tsx
+    ├── ItemList.tsx
+    ├── ItemCard.tsx
+    ├── ItemBadges.tsx
+    ├── ItemDetailDrawer.tsx
+    ├── BulkActionBar.tsx
+    ├── EmptyState.tsx
+    ├── AISuggestionCard.tsx
+    └── RegimeSwitch.tsx
+```
 
-### 3. `src/routes/_app/reports/index.tsx`
-- Tab "B03 — LCTT": tiêu đề `ReportCard` và `PrintHeader` đổi động:
-  - TT133 → "Mẫu B03-DNN (Thông tư 133/2016/TT-BTC) — phương pháp trực tiếp"
-  - TT99 → giữ nguyên "Mẫu B03-DN (Thông tư 99/2025/TT-BTC) — phương pháp trực tiếp"
-- Đọc `(cf.data as any)?.circular` (đã thêm ở bước 2).
+Và **rewrite** `src/routes/_app/items/index.tsx` để chỉ render `<CatalogPage />`.
 
-## Không thay đổi
-- Schema DB.
-- Phương pháp gián tiếp (chưa hỗ trợ).
-- Logic B01, B02 và các phần khác.
+## Chi tiết kỹ thuật
+
+1. **Types & data** (`types/catalog.ts`, `data/categories.ts`, `data/account-labels.ts`, `data/sample-catalog.ts`) — copy nguyên văn từ spec, sample tự sinh.
+2. **Zustand store** (`stores/catalogStore.ts`) — đầy đủ setters: `setSearchQuery`, `setActiveTab`, `setSelectedCategory`, `toggleFilter`, `toggleItemSelection`, `clearSelection`, `openDrawer`, `addItemToMine` (set `isActive:true`), `removeItemFromMine`, `updateItem`, `switchRegime`.
+3. **Search** (`lib/catalog-search.ts`) — normalize NFD + bỏ dấu, match trên name/nameEn/code/aliases/typicalSuppliers/cả 2 account/subcategory.
+4. **Tokens màu** — thêm CSS vars FinAI vào `src/styles.css` (`--finai-teal-*`, semantic warn/caution/info/success/neutral) và class tiện ích để dùng trong components.
+5. **Components**:
+   - `CatalogHeader`: tiêu đề + company + `RegimeSwitch` (pill dropdown TT99/TT133) + nút "+ Tạo mới".
+   - `RegimeSwitch`: shadcn `DropdownMenu`, 2 option, check icon, đổi xong toast.
+   - `CatalogSearchBar`: input + Search icon, autofocus phím `/`, `Cmd/Ctrl+K`, clear button.
+   - `CatalogTabs`: 3 tab segmented control (Của tôi/Fin đề xuất/Thư viện) + badge count, tab "Fin đề xuất" có Sparkles teal-500.
+   - `QuickFilterChips`: 4 chip (Đang dùng tháng này / Có cảnh báo / Trả trước · 242 / NCC nước ngoài · FCT).
+   - `CategorySidebar`: 220px fixed, list category có ≥1 item trong view hiện tại.
+   - `ItemList`: group "DÙNG GẦN ĐÂY" + "FIN ĐỀ XUẤT THÊM" trong tab Của tôi; render `ItemCard` hoặc `AISuggestionCard`.
+   - `ItemCard` + `ItemBadges`: TK badge dynamic theo `company.accountingRegime`, tooltip tên TK từ `getAccountLabel`.
+   - `ItemDetailDrawer`: shadcn Sheet right-side, hiển thị song song 2 cột TT99/TT133, section "Chế độ kế toán áp dụng" trên cùng, footer link TT99/2025/TT-BTC.
+   - `BulkActionBar`: hiện khi `selectedItemCodes.size > 0`, fixed bottom.
+   - `EmptyState`: cho mỗi tab khi rỗng.
+6. **Phím tắt**: gắn listener global trong `CatalogPage` (`/`, `Esc`, `Cmd/Ctrl+K`).
+7. **Responsive**: `< 768px` sidebar thành dropdown phía trên list; RegimeSwitch xuống dòng riêng.
+8. **Cài đặt**: `bun add zustand`. Inter font: thêm `<link>` Google Fonts trong `<head>` của `__root.tsx` (giữ font hiện tại của app, chỉ áp dụng Inter cho CatalogPage qua class `font-[Inter]` ở root container).
+9. **Imports cũ cần giữ**: KHÔNG xoá `inventory.functions.ts`, KHÔNG xoá `/items/categories.tsx`, `/items/units.tsx`. Chỉ rewrite `index.tsx`.
+
+## Acceptance check cuối
+
+Sẽ verify build pass và tự kiểm tra: load trang, đổi regime đổi badge, search "tien dien" lọc đúng, drawer mở song song 2 cột, phím `/` focus search.

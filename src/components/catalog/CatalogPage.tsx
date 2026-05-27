@@ -1,0 +1,103 @@
+import { useEffect, useMemo, useRef } from "react";
+import { useCatalogStore } from "@/stores/catalogStore";
+import { matchesSearch } from "@/lib/catalog-search";
+import { CatalogHeader } from "./CatalogHeader";
+import { CatalogSearchBar } from "./CatalogSearchBar";
+import { CatalogTabs } from "./CatalogTabs";
+import { QuickFilterChips, FILTER_KEYS } from "./QuickFilterChips";
+import { CategorySidebar } from "./CategorySidebar";
+import { ItemList } from "./ItemList";
+import { ItemDetailDrawer } from "./ItemDetailDrawer";
+import { BulkActionBar } from "./BulkActionBar";
+
+export function CatalogPage() {
+  const items = useCatalogStore((s) => s.items);
+  const activeTab = useCatalogStore((s) => s.activeTab);
+  const search = useCatalogStore((s) => s.searchQuery);
+  const selectedCategory = useCatalogStore((s) => s.selectedCategory);
+  const activeFilters = useCatalogStore((s) => s.activeFilters);
+  const setSearch = useCatalogStore((s) => s.setSearchQuery);
+  const clearSelection = useCatalogStore((s) => s.clearSelection);
+  const openDrawer = useCatalogStore((s) => s.openDrawer);
+  const drawerItemCode = useCatalogStore((s) => s.drawerItemCode);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // base list per tab
+  const tabItems = useMemo(() => {
+    if (activeTab === "mine") return items.filter((i) => i.isActive);
+    if (activeTab === "suggested") return items.filter((i) => !i.isActive && i.isAiSuggested);
+    return items;
+  }, [items, activeTab]);
+
+  // search + filters (excluding category)
+  const filteredNoCategory = useMemo(() => {
+    return tabItems.filter((it) => {
+      if (!matchesSearch(it, search)) return false;
+      if (activeFilters.has(FILTER_KEYS.USED_THIS_MONTH) && (it.usageCount30Days ?? 0) === 0)
+        return false;
+      if (
+        activeFilters.has(FILTER_KEYS.HAS_WARNING) &&
+        !(
+          it.foreignSupplierTax === "fct_applicable" ||
+          it.allocationMethod === "manual_split" ||
+          it.amortization !== "expense_immediately"
+        )
+      )
+        return false;
+      if (activeFilters.has(FILTER_KEYS.PREPAID) && it.amortization === "expense_immediately")
+        return false;
+      if (activeFilters.has(FILTER_KEYS.FOREIGN) && it.foreignSupplierTax !== "fct_applicable")
+        return false;
+      return true;
+    });
+  }, [tabItems, search, activeFilters]);
+
+  // apply category last
+  const visibleItems = useMemo(() => {
+    if (!selectedCategory) return filteredNoCategory;
+    return filteredNoCategory.filter((i) => i.category === selectedCategory);
+  }, [filteredNoCategory, selectedCategory]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const inField = tag === "input" || tag === "textarea" || (e.target as HTMLElement | null)?.isContentEditable;
+      if (e.key === "Escape") {
+        if (drawerItemCode) openDrawer(null);
+        else if (search) setSearch("");
+        else clearSelection();
+        return;
+      }
+      if ((e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) && !inField) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerItemCode, search, openDrawer, setSearch, clearSelection]);
+
+  return (
+    <div className="min-h-full bg-[#F8F7F4] font-['Inter','Be_Vietnam_Pro',ui-sans-serif,system-ui,sans-serif]">
+      <div className="mx-auto max-w-[1280px] p-4 md:p-6 space-y-4">
+        <CatalogHeader />
+        <CatalogSearchBar ref={searchRef} />
+        <CatalogTabs />
+        <QuickFilterChips />
+
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="flex flex-col md:flex-row">
+            <CategorySidebar visibleItems={filteredNoCategory} />
+            <main className="flex-1 p-4 min-w-0">
+              <ItemList items={visibleItems} />
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <BulkActionBar />
+      <ItemDetailDrawer />
+    </div>
+  );
+}
