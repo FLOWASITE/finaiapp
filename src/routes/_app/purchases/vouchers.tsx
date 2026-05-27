@@ -1350,8 +1350,8 @@ function CreateVoucherDialog({
 
           {/* === Tab 1: PMH header === */}
           <TabsContent value="pmh" className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-x-3 gap-y-2 [&_label]:text-xs [&_label]:mb-0.5 [&_input]:h-9 [&_button[role=combobox]]:h-9">
-              <div className="lg:col-span-2">
+            <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-2 [&_label]:text-xs [&_label]:mb-0.5 [&_input]:h-9 [&_button[role=combobox]]:h-9">
+              <div className="col-span-2 lg:col-span-3">
                 <Label>Nhà cung cấp *</Label>
                 {suppliersLoading ? (
                   <div className="flex items-center gap-2 h-9 px-3 border rounded-md text-sm text-muted-foreground bg-muted/50">
@@ -1383,7 +1383,7 @@ function CreateVoucherDialog({
                 )}
               </div>
               <div className="lg:col-span-2">
-                <Label>TK công nợ phải trả *</Label>
+                <Label>TK công nợ *</Label>
                 <Select value={header.credit_account}
                   onValueChange={(v) => setHeader({ ...header, credit_account: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1394,34 +1394,34 @@ function CreateVoucherDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label>Số chứng từ *</Label>
                 <Input value={header.voucher_no}
                   onChange={(e) => setHeader({ ...header, voucher_no: e.target.value })} />
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label>Ngày chứng từ *</Label>
                 <Input type="date" value={header.voucher_date}
                   onChange={(e) => setHeader({ ...header, voucher_date: e.target.value })} />
               </div>
+              <div className="lg:col-span-3">
+                <Label>Hạn thanh toán</Label>
+                <Input type="date" value={header.due_date}
+                  onChange={(e) => setHeader({ ...header, due_date: e.target.value })} />
+              </div>
 
-              <div className="lg:col-span-2">
+              <div className="col-span-2 lg:col-span-3">
                 <Label>Địa chỉ</Label>
                 <Input value={header.supplier_address}
                   onChange={(e) => setHeader({ ...header, supplier_address: e.target.value })} />
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label>Nhóm khách hàng</Label>
                 <Input value={header.customer_group}
                   onChange={(e) => setHeader({ ...header, customer_group: e.target.value })}
                   placeholder="Vui lòng chọn" />
               </div>
-              <div>
-                <Label>Hạn thanh toán</Label>
-                <Input type="date" value={header.due_date}
-                  onChange={(e) => setHeader({ ...header, due_date: e.target.value })} />
-              </div>
-              <div>
+              <div className="lg:col-span-1">
                 <Label>Ngoại tệ</Label>
                 <Select value={header.currency}
                   onValueChange={(v) => setHeader({ ...header, currency: v, exchange_rate: v === "VND" ? 1 : header.exchange_rate })}>
@@ -1435,22 +1435,21 @@ function CreateVoucherDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="lg:col-span-1">
                 <Label>Tỷ giá</Label>
                 <Input type="number" value={header.exchange_rate}
                   onChange={(e) => setHeader({ ...header, exchange_rate: Number(e.target.value) })}
                   disabled={header.currency === "VND"} />
               </div>
-
-              <div className="sm:col-span-2 lg:col-span-5">
+              <div className="col-span-2 lg:col-span-3">
                 <Label>Diễn giải</Label>
                 <Input value={header.reason}
                   onChange={(e) => { setReasonTouched(true); setHeader({ ...header, reason: e.target.value }); }}
-                  placeholder={`Mua hàng từ nhà cung cấp ${header.supplier_name || "---"} theo hoá đơn số ${header.invoice_no || "---"}`} />
+                  placeholder={`Mua hàng NCC ${header.supplier_name || "---"}`} />
               </div>
-              <div className="lg:col-span-1 flex flex-col items-end justify-end">
-                <div className="text-xs text-muted-foreground">Tổng</div>
-                <div className="text-xl font-semibold text-primary break-all leading-tight">{fmtMoney(totals.total)}</div>
+              <div className="col-span-2 lg:col-span-2 flex flex-col items-end justify-end">
+                <div className="text-[11px] text-muted-foreground leading-none">Tổng</div>
+                <div className="text-lg font-semibold text-primary leading-tight tabular-nums">{fmtMoney(totals.total)}</div>
               </div>
             </div>
 
