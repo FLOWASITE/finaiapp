@@ -195,7 +195,7 @@ export function ItemCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col max-h-[90vh]">
+      <DialogContent className="max-w-4xl p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-5 py-4 border-b">
           <DialogTitle>Tạo mặt hàng / dịch vụ mới</DialogTitle>
           <DialogDescription>
