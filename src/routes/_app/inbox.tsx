@@ -91,7 +91,7 @@ export const Route = createFileRoute("/_app/inbox")({
 
 const TABS: Array<{ key: "inbox" | "posted" | "review" | "documents" | "reports"; label: string }> = [
   { key: "inbox", label: "Inbox AI" },
-  { key: "posted", label: "Đã hạch toán" },
+  { key: "posted", label: "Đã ghi sổ" },
   { key: "review", label: "Cần xem lại" },
   { key: "documents", label: "Tài liệu" },
   { key: "reports", label: "Báo cáo" },
@@ -184,7 +184,7 @@ const STATUS_META: Record<
     cls: "bg-indigo-500/10 text-indigo-700 border-indigo-500/30 dark:text-indigo-300",
   },
   posted: {
-    label: "Đã hạch toán",
+    label: "Đã ghi sổ",
     icon: Archive,
     cls: "bg-slate-500/10 text-slate-700 border-slate-500/30 dark:text-slate-300",
   },

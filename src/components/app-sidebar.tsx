@@ -176,7 +176,7 @@ const FRONT_SECTIONS: NavSection[] = [
       { to: "/inbox", label: "Inbox AI", icon: Inbox },
       { to: "/categorize", label: "Hạch toán", icon: Calculator },
       { to: "/inbox?tab=review", label: "Cần xem lại", icon: AlertTriangle },
-      { to: "/inbox?tab=posted", label: "Đã hạch toán", icon: BookOpenCheck },
+      { to: "/inbox?tab=posted", label: "Đã ghi sổ", icon: BookOpenCheck },
     ],
   },
   {
