@@ -24,6 +24,7 @@ interface CatalogState {
   addItemToMine: (code: string) => void;
   removeItemFromMine: (code: string) => void;
   updateItem: (code: string, updates: Partial<CatalogItem>) => void;
+  createItem: (item: CatalogItem) => void;
   switchRegime: (regime: AccountingRegime) => void;
 }
 
@@ -73,6 +74,7 @@ export const useCatalogStore = create<CatalogState>((set) => ({
     })),
   updateItem: (code, updates) =>
     set((s) => ({ items: s.items.map((it) => (it.code === code ? { ...it, ...updates } : it)) })),
+  createItem: (item) => set((s) => ({ items: [{ ...item, isActive: true }, ...s.items] })),
   switchRegime: (regime) =>
     set((s) => ({ company: { ...s.company, accountingRegime: regime } })),
 }));
