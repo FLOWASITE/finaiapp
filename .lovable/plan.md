@@ -1,40 +1,42 @@
 ## Vấn đề
 
-1. **Phiếu mua hàng JOY FOOD không xuất hiện**: Sau khi nhấn "Duyệt và ghi sổ" trong Inbox AI, bút toán được tạo (journal_entry `2763af47-…`) nhưng không có row nào trong bảng `purchase_vouchers`.
+Phiếu mua hàng PM2026-00004 (hóa đơn 00001444 — JOY FOOD) **CÓ** lines trong DB, nhưng cột `product_name` và `product_code` đều **NULL**, chỉ có `description` được điền:
 
-### Nguyên nhân lỗi tạo phiếu mua hàng
+```
+product_code | product_name | description
+NULL         | NULL         | Khay bã mía... (T304-G)
+NULL         | NULL         | Khay bã mía... (T002-G)
+```
 
-Khi user upload file XML hoá đơn `1C26MAA_00001444.xml`, hệ thống tạo **hai** rows trong `documents`:
+## Nguyên nhân
 
-- `5cd95fe0-…` với `doc_kind = "other"` (file gốc upload)
-- `c38e68ed-…` với `doc_kind = "purchase_invoice"` (bản parse e-invoice, cùng `ai_upload_id`)
+1. **Backfill migration sai trường** (`20260527022428_…sql`): Khi tôi tạo migration backfill cho JOY FOOD ở turn trước, lệnh `INSERT INTO purchase_voucher_lines` chỉ ghi vào cột `description`, **không** ghi `product_name` / `product_code`. Form Phiếu mua hàng hiển thị cột "Tên hàng" dựa trên `product_name` → trống.
 
-Item trong Inbox AI lại trỏ tới document "other" (`item_external_id = 5cd95fe0-…`). Khi duyệt, hàm `materializePurchaseVoucherFromDocument` ở `src/lib/inbox-ai.functions.ts:462` chặn ngay vì `doc_kind !== "purchase_invoice"` và trả về `null` âm thầm → không tạo phiếu, không báo lỗi.
+2. **Số phiếu chạy thành PM2026-00004** (không phải PM2026-00001 như dự kiến) vì lúc backfill đã tồn tại PM2026-00001/02/03.
 
-## Thay đổi cần làm
+3. **Hệ quả phụ**: vì `product_name` rỗng nên điều kiện ở `vouchers.tsx:1245` `(l.product_name || l.product_code)` loại bỏ dòng → không cho phép gắn Phiếu nhập kho.
 
+> Lưu ý: hàm `materializePurchaseVoucherFromDocument` trong `inbox-ai.functions.ts` (line 677) đã đúng — có fallback `l.item_name ?? l.name ?? l.product_name ?? l.description ?? "—"`. Vấn đề chỉ ở migration backfill thủ công.
 
-| &nbsp; | &nbsp; | &nbsp; |
-| ------ | ------ | ------ |
+## Cách sửa
 
+Chạy một migration nhỏ **UPDATE** 2 dòng đã có sẵn, copy `description` sang `product_name` (và trích `product_code` từ pattern `(T304-G)` / `(T002-G)` trong description):
 
-### 1.Sửa hàm materialize để chấp nhận document "other" có sibling là purchase_invoice
+```sql
+UPDATE purchase_voucher_lines
+SET product_name = description,
+    product_code = CASE
+      WHEN description LIKE '%(T304-G)%' THEN 'T304-G'
+      WHEN description LIKE '%(T002-G)%' THEN 'T002-G'
+      ELSE NULL
+    END
+WHERE voucher_id = 'e4868905-2cbe-484e-9455-2a0f2e306382'
+  AND product_name IS NULL;
+```
 
-`src/lib/inbox-ai.functions.ts`, hàm `materializePurchaseVoucherFromDocument` (~ dòng 445-462):
-
-- Nếu `doc.doc_kind !== "purchase_invoice"` nhưng `doc.ai_upload_id` tồn tại, query thêm 1 lần bảng `documents` để tìm sibling cùng `ai_upload_id` với `doc_kind = "purchase_invoice"`. Nếu có thì dùng sibling đó (đổi `documentId` nội bộ + reload `ai_upload_id`/`ocr_extracted`/`original_filename`). Nếu không có sibling phù hợp thì giữ nguyên hành vi `return null`.
-- Áp dụng cùng pattern cho `materializeSalesVoucherFromDocument` (và `materializeSalesInvoiceFromDocument` nếu có check tương tự) để tránh lặp lại vấn đề ở Phiếu bán hàng.
-
-### 2. Backfill phiếu mua hàng JOY FOOD đã mất
-
-Sau khi sửa code, gọi 1 lần handler duyệt lại sẽ vướng "Đề xuất đã approved". Vì vậy backfill bằng cách tạo trực tiếp `purchase_vouchers` (+ `purchase_voucher_lines`) cho `journal_entry_id = 2763af47-6edc-46be-b138-2044feae154e` dựa trên document `c38e68ed-…` (doc_kind=purchase_invoice). Có thể thực hiện bằng:
-
-- Một server function nội bộ một-lần (gọi `materializePurchaseVoucherFromDocument` với document purchase_invoice và journal_entry_id sẵn có), hoặc
-- Một SQL INSERT thủ công qua migration nếu logic phức tạp.
-
-Phương án ưu tiên: tạo server fn admin tạm thời `backfillJoyFoodVoucher` chạy 1 lần, sau đó xoá. Tránh đụng migration cho dữ liệu 1 record.
+Không cần đụng code — đường ghi sổ mới (qua Inbox AI sau fix turn trước) đã set `product_name` đúng. Đây là vá dữ liệu một lần cho riêng phiếu JOY FOOD.
 
 ## Kiểm tra sau khi xong
 
-1. Mở `/purchases/vouchers` → có dòng phiếu mua hàng cho CÔNG TY TNHH MỘT THÀNH VIÊN JOY FOOD.
-2. Upload 1 hoá đơn XML mới, duyệt từ Inbox AI → phiếu mua hàng xuất hiện ngay trên `/purchases/vouchers` (xác minh fix #2 hoạt động).
+1. Mở `/purchases/vouchers` → chọn PM2026-00004 → thấy 2 mặt hàng "Khay bã mía…" hiển thị đầy đủ.
+2. Có thể bấm "Gắn Phiếu nhập kho" cho phiếu này (điều kiện `product_name` đã thoả).
