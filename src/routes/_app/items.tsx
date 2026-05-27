@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_app/items")({ component: ItemsLayout });
 
 const TABS = [
-  { to: "/items", label: "Khai báo mặt hàng", exact: true },
+  { to: "/items", label: "Hàng hóa & Dịch vụ", exact: true },
   { to: "/items/categories", label: "Nhóm hàng hoá" },
   { to: "/items/units", label: "Đơn vị tính" },
 ];
