@@ -205,8 +205,8 @@ function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="b03">
-          <ReportCard title="Báo cáo lưu chuyển tiền tệ (Mẫu B03-DN) — phương pháp trực tiếp" subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B03")}>
-            <PrintHeader profile={profile} title="BÁO CÁO LƯU CHUYỂN TIỀN TỆ" subtitle={`Mẫu số B03-DN (trực tiếp) — Kỳ từ ${from} đến ${to}`} />
+          <ReportCard title={`Báo cáo lưu chuyển tiền tệ (Mẫu ${(cf.data as any)?.circular === "TT133" ? "B03-DNN — TT133" : "B03-DN — TT99"}) — phương pháp trực tiếp`} subtitle={`Kỳ từ ${from} đến ${to}`} onExport={() => handleExport("B03")}>
+            <PrintHeader profile={profile} title="BÁO CÁO LƯU CHUYỂN TIỀN TỆ" subtitle={`Mẫu số ${(cf.data as any)?.circular === "TT133" ? "B03-DNN (Thông tư 133/2016/TT-BTC)" : "B03-DN (Thông tư 99/2025/TT-BTC)"} (trực tiếp) — Kỳ từ ${from} đến ${to}`} />
             {!cf.data ? <Loading /> : (
               <CashFlowTable items={cf.data.items} hideZero={hideZero} onDrill={(code, name) => setDrill({ report: "B03", ma_so: code, name })} />
             )}
