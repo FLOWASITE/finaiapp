@@ -23,7 +23,7 @@ export const loadCatalog = createServerFn({ method: "GET" })
       supabase
         .from("tenant_product_catalog")
         .select("id, sku, name, name_norm, aliases, note")
-        .eq("tenant_id", tenantId)
+        .or(`tenant_id.eq.${tenantId},is_global.eq.true`)
         .order("name", { ascending: true }),
     ]);
 
