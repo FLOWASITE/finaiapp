@@ -881,11 +881,11 @@ function OrganizationTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Field label="Ngành nghề kinh doanh">
-                  <IndustryCombobox
+                  <VsicIndustryPicker
                     multi
                     disabled={!canEdit}
-                    items={Array.isArray(form.industries) ? form.industries : []}
-                    onChangeMulti={(items) => setForm({ ...form, industries: items })}
+                    value={Array.isArray(form.industries) ? form.industries : []}
+                    onChange={(items: VsicSelection[]) => setForm({ ...form, industries: items })}
                   />
                 </Field>
                 <BusinessActivitySection showWhyPanel={false} />
