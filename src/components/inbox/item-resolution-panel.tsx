@@ -287,6 +287,55 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                   </div>
                 )}
 
+                {status === "library_suggestion" && res && (
+                  <div className="mt-1 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-violet-700 dark:text-violet-300">
+                      <BookMarked className="h-3 w-3" />
+                      Gợi ý từ Thư viện chuẩn:
+                    </div>
+                    {res.candidates.map((c: any) => (
+                      <div
+                        key={c.fromLibrary?.catalog_id}
+                        className="flex items-center gap-1.5 rounded border border-violet-500/30 bg-violet-500/5 px-2 py-1 text-[11px]"
+                      >
+                        <span className="truncate text-foreground/90">{c.name}</span>
+                        {c.fromLibrary?.default_account && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                            TK {c.fromLibrary.default_account}
+                          </Badge>
+                        )}
+                        {c.fromLibrary?.vat_rate != null && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                            VAT {Math.round(Number(c.fromLibrary.vat_rate) * (Number(c.fromLibrary.vat_rate) <= 1 ? 100 : 1))}%
+                          </Badge>
+                        )}
+                        <button
+                          type="button"
+                          disabled={promoteMut.isPending}
+                          onClick={() =>
+                            promoteMut.mutate({
+                              catalog_id: c.fromLibrary!.catalog_id,
+                              raw_name: it.name,
+                              raw_unit: it.unit ?? null,
+                              unit_price: it.unit_price ?? null,
+                            })
+                          }
+                          className="ml-auto shrink-0 rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 hover:bg-violet-500/30 dark:text-violet-300"
+                        >
+                          {promoteMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+ Thêm & dùng"}
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setCreatingIdx(idx)}
+                      className="text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      Không khớp — tạo mã mới
+                    </button>
+                  </div>
+                )}
+
                 {status === "review" && res && (
                   <ReviewCandidates
                     rawName={it.name}
