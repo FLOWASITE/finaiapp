@@ -161,24 +161,6 @@ const PURCHASE_TABS: Array<{ label: string; to?: string; disabled?: boolean }> =
   { label: "Trả lại hàng mua", disabled: true },
 ];
 
-// ---------- product picker ----------
-
-function normalizeVi(s: string) {
-  return (s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
-}
-
-function productTypeLabel(p: any): string {
-  if (p?.item_type === "service") return "Dịch vụ";
-  if (p?.item_type === "combo") return "Combo";
-  if (p?.stock_account === "152") return "Nguyên vật liệu";
-  if (p?.stock_account === "153") return "Công cụ dụng cụ";
-  return "Hàng hóa";
-}
-
 // ProductPickerCell đã chuyển sang component dùng chung: @/components/vouchers/ProductPickerCell
 
 // ---------- line model ----------
