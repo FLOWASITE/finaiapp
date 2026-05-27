@@ -1414,8 +1414,8 @@ function VoucherDialog({
 
           <div className="space-y-2">
             <h3 className="text-primary font-semibold border-b pb-1">Phiếu bán hàng</h3>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-x-3 gap-y-2 [&_label]:text-xs [&_label]:mb-0.5 [&_input]:h-9 [&_button[role=combobox]]:h-9">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-3 gap-y-2 [&_label]:text-xs [&_label]:mb-0.5 [&_input]:h-9 [&_button[role=combobox]]:h-9">
+              <div className="col-span-2 lg:col-span-3">
                 <Label><span className="text-destructive">*</span> Khách hàng</Label>
                 <CustomerCombobox
                   value={form.customer_id}
@@ -1434,54 +1434,30 @@ function VoucherDialog({
                   }}
                 />
               </div>
-              <div className="md:col-span-2">
-                <Label><span className="text-destructive">*</span> TK công nợ phải thu</Label>
+              <div className="lg:col-span-2">
+                <Label><span className="text-destructive">*</span> TK công nợ</Label>
                 <AccountCombobox
                   value={form.debit_account}
                   onChange={(c) => setForm((f) => ({ ...f, debit_account: c }))}
                   filter={(c) => c.startsWith("131")}
                 />
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label><span className="text-destructive">*</span> Số chứng từ</Label>
                 <Input value={form.voucher_no}
                   onChange={(e) => setForm((f) => ({ ...f, voucher_no: e.target.value }))} />
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label><span className="text-destructive">*</span> Ngày chứng từ</Label>
                 <Input type="date" value={form.voucher_date}
                   onChange={(e) => setForm((f) => ({ ...f, voucher_date: e.target.value }))} />
               </div>
-
-              <div className="md:col-span-2">
-                <Label>Địa chỉ</Label>
-                <Input value={form.customer_address}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_address: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Nhóm khách hàng</Label>
-                <Input value={form.customer_group}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_group: e.target.value }))}
-                  placeholder="Vui lòng chọn" />
-              </div>
-              <div>
+              <div className="lg:col-span-2">
                 <Label>Hạn thanh toán</Label>
                 <Input type="date" value={form.due_date}
                   onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
               </div>
-              <div>
-                <Label>Chi nhánh</Label>
-                <Select value={form.branch_id ?? ""}
-                  onValueChange={(v) => setForm((f) => ({ ...f, branch_id: v || null }))}>
-                  <SelectTrigger><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
-                  <SelectContent>
-                    {(branches ?? []).map((b: any) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
+              <div className="lg:col-span-1">
                 <Label>Ngoại tệ</Label>
                 <Select value={form.currency}
                   onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
@@ -1494,25 +1470,42 @@ function VoucherDialog({
                 </Select>
               </div>
 
-              <div>
-                <Label>Nhân viên bán hàng</Label>
-                <Input value={form.buyer_name}
-                  onChange={(e) => setForm((f) => ({ ...f, buyer_name: e.target.value }))}
+              <div className="col-span-2 lg:col-span-2">
+                <Label>Địa chỉ</Label>
+                <Input value={form.customer_address}
+                  onChange={(e) => setForm((f) => ({ ...f, customer_address: e.target.value }))} />
+              </div>
+              <div className="lg:col-span-2">
+                <Label>Nhóm KH</Label>
+                <Input value={form.customer_group}
+                  onChange={(e) => setForm((f) => ({ ...f, customer_group: e.target.value }))}
                   placeholder="Vui lòng chọn" />
               </div>
-              <div>
+              <div className="lg:col-span-2">
+                <Label>Chi nhánh</Label>
+                <Select value={form.branch_id ?? ""}
+                  onValueChange={(v) => setForm((f) => ({ ...f, branch_id: v || null }))}>
+                  <SelectTrigger><SelectValue placeholder="Chọn chi nhánh" /></SelectTrigger>
+                  <SelectContent>
+                    {(branches ?? []).map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="lg:col-span-2">
                 <Label>Người mua hàng</Label>
                 <Input value={form.buyer_name}
                   onChange={(e) => setForm((f) => ({ ...f, buyer_name: e.target.value }))} />
               </div>
-              <div className="md:col-span-3">
+              <div className="col-span-2 lg:col-span-2">
                 <Label><span className="text-destructive">*</span> Mô tả</Label>
                 <Input value={form.reason}
                   onChange={(e) => { setReasonTouched(true); setForm((f) => ({ ...f, reason: e.target.value })); }} />
               </div>
-              <div className="flex flex-col items-end justify-end">
-                <Label className="!text-xs underline">Tổng</Label>
-                <div className="text-xl font-bold text-primary tabular-nums leading-tight break-all">
+              <div className="col-span-2 lg:col-span-2 flex flex-col items-end justify-end">
+                <div className="text-[11px] text-muted-foreground leading-none">Tổng</div>
+                <div className="text-lg font-bold text-primary tabular-nums leading-tight">
                   {fmtMoney(totals.total)}
                 </div>
               </div>
