@@ -1043,12 +1043,12 @@ function SalesVouchersPage() {
                     <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
-                    <TableHead className="whitespace-nowrap">Kỳ hạch toán</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày hoá đơn</TableHead>
                     <TableHead className="min-w-[200px]">Khách hàng</TableHead>
                     <TableHead className="min-w-[260px]">Mô tả</TableHead>
                     <TableHead className="whitespace-nowrap">Loại phiếu</TableHead>
                     <TableHead className="whitespace-nowrap">Phiếu xuất kho</TableHead>
-                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">TT xuất kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
@@ -1065,9 +1065,6 @@ function SalesVouchersPage() {
                     const total = Number(v.total || 0);
                     const paid = Number(v.paid_amount || 0);
                     const remain = Math.max(0, total - paid);
-                    const period = v.voucher_date
-                      ? `T${String(new Date(v.voucher_date).getMonth() + 1).padStart(2, "0")}/${new Date(v.voucher_date).getFullYear()}`
-                      : "—";
                     const isSel = selected.has(v.id);
                     const isPosted = v.status === "posted";
                     const isVoid = v.status === "void";
@@ -1099,7 +1096,7 @@ function SalesVouchersPage() {
                           {v.einvoice_no ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {period}
+                          {(v as any).einvoice_date ?? "—"}
                         </TableCell>
                         <TableCell className="truncate max-w-[260px]">
                           {v.customer_name ?? "—"}
@@ -1112,7 +1109,7 @@ function SalesVouchersPage() {
                           {v.stock_voucher_no ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {v.einvoice_no ? v.voucher_date : "—"}
+                          {(v as any).stock_voucher_date ?? "—"}
                         </TableCell>
                         <TableCell className="text-center">
                           <StatusDot ok={!!v.stock_voucher_id} />
