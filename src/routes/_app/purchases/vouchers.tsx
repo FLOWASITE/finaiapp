@@ -1486,12 +1486,11 @@ function CreateVoucherDialog({
 
             {/* Lines — desktop table */}
             <div className="hidden sm:block overflow-x-auto border rounded-md">
-              <Table className="min-w-[1550px] text-sm">
+              <Table className="min-w-[1430px] text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
                     <TableHead className="min-w-[220px]">Tên sản phẩm (*)</TableHead>
-                    <TableHead className="w-28">Mã</TableHead>
                     <TableHead className="w-32">Hoá đơn</TableHead>
                     <TableHead className="w-24">TK nợ</TableHead>
                     <TableHead className="w-20">ĐVT</TableHead>
@@ -1537,10 +1536,6 @@ function CreateVoucherDialog({
                             line_type: p.item_type === "service" ? "service" : "goods",
                           })}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Input value={l.product_code}
-                          onChange={(e) => updateLine(l.key, { product_code: e.target.value })} />
                       </TableCell>
                       <TableCell>
                         <Input value={l.invoice_no}
@@ -1590,7 +1585,7 @@ function CreateVoucherDialog({
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/30 font-medium">
-                    <TableCell colSpan={6} className="text-right">Tổng</TableCell>
+                    <TableCell colSpan={5} className="text-right">Tổng</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtMoney(lines.reduce((s, l) => s + Number(l.qty || 0), 0))}
                     </TableCell>
@@ -1637,11 +1632,6 @@ function CreateVoucherDialog({
                       })}
                     />
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">Mã</Label>
-                        <Input value={l.product_code}
-                          onChange={(e) => updateLine(l.key, { product_code: e.target.value })} />
-                      </div>
                       <div>
                         <Label className="text-xs">Hoá đơn</Label>
                         <Input value={l.invoice_no}

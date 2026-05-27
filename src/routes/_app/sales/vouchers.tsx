@@ -1738,14 +1738,13 @@ function VoucherDialog({
 
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto border rounded">
-              <table className="w-full min-w-[1550px] text-sm">
+              <table className="w-full min-w-[1430px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-2 py-1.5 text-left w-10">STT</th>
                     <th className="px-2 py-1.5 text-left min-w-[220px]">
                       Tên sản phẩm <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-left w-28">Mã</th>
                     <th className="px-2 py-1.5 text-left w-24">
                       Tk nợ <span className="text-destructive">(*)</span>
                     </th>
@@ -1795,19 +1794,10 @@ function VoucherDialog({
                               credit_account: p.revenue_account ?? l.credit_account,
                               line_type: p.item_type === "service" ? "service" : "goods",
                             });
-                          }}
-                        />
-                      </td>
-                      <td className="px-1 py-1">
-                        <Input
-                          className="h-8"
-                          value={l.product_code}
-                          onChange={(e) =>
-                            updateLine(i, { product_code: e.target.value })
-                          }
-                        />
-                      </td>
-                      <td className="px-1 py-1 w-[120px]">
+                      }}
+                    />
+                  </td>
+                  <td className="px-1 py-1 w-[120px]">
                         <Input
                           className="h-8"
                           value={l.debit_account}
@@ -1907,7 +1897,7 @@ function VoucherDialog({
                     </tr>
                   ))}
                   <tr className="border-t bg-muted/30 font-medium">
-                    <td colSpan={6} className="px-2 py-1.5">Tổng</td>
+                    <td colSpan={5} className="px-2 py-1.5">Tổng</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {fmtMoney(form.lines.reduce((s, l) => s + l.qty, 0))}
                     </td>
