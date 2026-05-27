@@ -30,6 +30,8 @@ type Product = {
   can_be_purchased?: boolean;
   barcode?: string | null;
   usage_count?: number | null;
+  // Cho phép các field khác (vat_rate, expense_account, revenue_account…) được forward khi pick.
+  [key: string]: unknown;
 };
 
 function normalizeVi(s: string) {
