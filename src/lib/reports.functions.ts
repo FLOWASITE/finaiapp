@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withLatency } from "@/lib/with-latency";
-import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, B03_TT133, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
 async function resolveTenantStandard(supabase: any, userId: string): Promise<"TT99" | "TT133"> {
   const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
