@@ -315,13 +315,16 @@ export function ProductPickerCell({
                 <TooltipProvider delayDuration={200}>
                   {filtered.map(({ p, disallowed }, idx) => {
                     const onHand = Number(p.on_hand ?? 0);
+                    const unitCost = Number(p.unit_cost ?? 0);
+                    const stockValue = onHand * unitCost;
                     const price =
                       mode === "purchase"
-                        ? Number(p.unit_cost ?? 0)
+                        ? unitCost
                         : Number(p.unit_price ?? 0);
                     const tip = productTypeLabel(p);
                     const isHi = idx === highlight;
                     const outOfStock = mode === "sales" && onHand <= 0;
+                    const isService = p.item_type === "service";
 
                     const row = (
                       <tr
@@ -337,18 +340,18 @@ export function ProductPickerCell({
                         onMouseEnter={() => !disallowed && setHighlight(idx)}
                         onClick={() => !disallowed && pick(p)}
                       >
-                        <td className="px-2 py-1.5 font-mono text-xs">
+                        <td className="truncate px-2 py-1.5 font-mono text-xs">
                           <HighlightedText text={p.code ?? ""} query={q} />
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="truncate px-2 py-1.5">
                           <HighlightedText text={p.name ?? ""} query={q} />
                         </td>
                         <td className="px-2 py-1.5">
-                          <Badge variant={tip.tone} className="font-normal">
+                          <Badge variant={tip.tone} className="whitespace-nowrap font-normal">
                             {tip.label}
                           </Badge>
                         </td>
-                        <td className="px-2 py-1.5 text-muted-foreground">
+                        <td className="truncate px-2 py-1.5 text-muted-foreground">
                           {p.unit ?? "—"}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
@@ -360,10 +363,19 @@ export function ProductPickerCell({
                             outOfStock && "text-destructive",
                           )}
                         >
-                          {p.item_type === "service" ? (
+                          {isService ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             fmt(onHand)
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">
+                          {isService ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : stockValue > 0 ? (
+                            fmt(stockValue)
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                       </tr>
