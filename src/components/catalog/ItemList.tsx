@@ -1,11 +1,16 @@
 import { CatalogItem } from "@/types/catalog";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { ItemCard } from "./ItemCard";
+import { ItemListRow } from "./ItemListRow";
 import { AISuggestionCard } from "./AISuggestionCard";
 import { EmptyState } from "./EmptyState";
 
+const GRID_CLASSES =
+  "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3";
+
 export function ItemList({ items }: { items: CatalogItem[] }) {
   const activeTab = useCatalogStore((s) => s.activeTab);
+  const viewMode = useCatalogStore((s) => s.viewMode);
 
   if (items.length === 0) {
     return (
@@ -26,6 +31,25 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
     );
   }
 
+  const renderGroup = (group: CatalogItem[]) => {
+    if (viewMode === "list") {
+      return (
+        <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white overflow-hidden">
+          {group.map((it) => (
+            <ItemListRow key={it.code} item={it} />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className={GRID_CLASSES}>
+        {group.map((it) => (
+          <ItemCard key={it.code} item={it} />
+        ))}
+      </div>
+    );
+  };
+
   if (activeTab === "mine") {
     const recent = items
       .filter((i) => (i.usageCount30Days ?? 0) > 0)
@@ -37,21 +61,13 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
         {recent.length > 0 && (
           <section>
             <SectionLabel>Dùng gần đây</SectionLabel>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-              {recent.map((it) => (
-                <ItemCard key={it.code} item={it} />
-              ))}
-            </div>
+            {renderGroup(recent)}
           </section>
         )}
         {others.length > 0 && (
           <section>
             <SectionLabel>Khác trong danh mục</SectionLabel>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-              {others.map((it) => (
-                <ItemCard key={it.code} item={it} />
-              ))}
-            </div>
+            {renderGroup(others)}
           </section>
         )}
       </div>
@@ -59,8 +75,9 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
   }
 
   if (activeTab === "suggested") {
+    // Gợi ý AI giữ card view riêng (CTA "Thêm vào danh mục" inline)
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+      <div className={GRID_CLASSES}>
         {items.map((it) => (
           <AISuggestionCard key={it.code} item={it} />
         ))}
@@ -69,13 +86,7 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
   }
 
   // library
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-      {items.map((it) => (
-        <ItemCard key={it.code} item={it} />
-      ))}
-    </div>
-  );
+  return renderGroup(items);
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
