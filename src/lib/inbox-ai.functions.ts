@@ -454,12 +454,25 @@ async function materializePurchaseVoucherFromDocument(
 ): Promise<string | null> {
   const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
 
-  const { data: doc } = await supabase
+  let { data: doc } = await supabase
     .from("documents")
     .select("id, doc_kind, ai_upload_id, ocr_extracted, original_filename")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc || doc.doc_kind !== "purchase_invoice") return null;
+  if (!doc) return null;
+  // Nếu doc được Inbox AI trỏ tới là raw upload (doc_kind != purchase_invoice)
+  // nhưng có sibling cùng ai_upload_id với doc_kind=purchase_invoice — dùng sibling đó.
+  if (doc.doc_kind !== "purchase_invoice") {
+    if (!doc.ai_upload_id) return null;
+    const { data: sibling } = await supabase
+      .from("documents")
+      .select("id, doc_kind, ai_upload_id, ocr_extracted, original_filename")
+      .eq("ai_upload_id", doc.ai_upload_id)
+      .eq("doc_kind", "purchase_invoice")
+      .maybeSingle();
+    if (!sibling) return null;
+    doc = sibling;
+  }
 
   const { data: existing } = await supabase
     .from("purchase_vouchers")
