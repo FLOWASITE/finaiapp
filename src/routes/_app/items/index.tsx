@@ -133,7 +133,7 @@ function ItemsListPage() {
   });
 
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
+  const [typeFilter, setTypeFilter] = useState<ItemType>("goods");
   const [categoryId, setCategoryId] = useState("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "sell" | "buy" | "both">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -142,7 +142,7 @@ function ItemsListPage() {
     const s = search.trim().toLowerCase();
     return (products ?? []).filter((p: any) => {
       if (s && ![p.code, p.name, p.barcode].some((v) => v?.toLowerCase().includes(s))) return false;
-      if (typeFilter !== "all" && (p.item_type ?? "goods") !== typeFilter) return false;
+      if ((p.item_type ?? "goods") !== typeFilter) return false;
       if (categoryId !== "all" && p.category_id !== categoryId) return false;
       if (usageFilter === "sell" && !p.can_be_sold) return false;
       if (usageFilter === "buy" && !p.can_be_purchased) return false;
@@ -225,29 +225,29 @@ function ItemsListPage() {
         </div>
       </div>
 
+      <Tabs value={typeFilter} onValueChange={(v) => setTypeFilter(v as ItemType)}>
+        <TabsList>
+          <TabsTrigger value="goods">
+            <Package className="h-4 w-4 mr-1.5" /> Hàng hóa
+          </TabsTrigger>
+          <TabsTrigger value="service">
+            <Wrench className="h-4 w-4 mr-1.5" /> Dịch vụ
+          </TabsTrigger>
+          <TabsTrigger value="combo">
+            <Boxes className="h-4 w-4 mr-1.5" /> Combo
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <Card>
-        <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4">
-          <div className="space-y-1 md:col-span-2">
+        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4">
+          <div className="space-y-1 md:col-span-1">
             <Label className="text-xs">Tìm kiếm</Label>
             <Input
               placeholder="Mã, tên hoặc mã vạch..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Loại</Label>
-            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="goods">Hàng hóa</SelectItem>
-                <SelectItem value="service">Dịch vụ</SelectItem>
-                <SelectItem value="combo">Combo</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Nhóm</Label>
