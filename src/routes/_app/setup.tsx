@@ -226,7 +226,7 @@ function LegalStep({ form, set, setForm }: any) {
                     ? [{ code: form.industry_code, name: form.industry_name }]
                     : [])
             }
-            onChange={(items) => setForm((p: any) => ({
+            onChange={(items: VsicSelection[]) => setForm((p: any) => ({
               ...p,
               industries: items,
               industry_code: items[0]?.code ?? null,
