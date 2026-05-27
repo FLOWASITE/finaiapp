@@ -268,20 +268,22 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
     const valuesCur: Record<string, number> = {};
     const valuesPrev: Record<string, number> = {};
 
-    for (const item of B01_TT99) {
+    const { mapping, circular, totalAssetCode, totalEquityCode } = await resolveBsMapping(supabase, userId);
+
+    for (const item of mapping) {
       if (item.accounts) {
         valuesCur[item.ma_so] = computeItem(item, cur, niCur);
         valuesPrev[item.ma_so] = computeItem(item, prev, niPrev);
       }
     }
-    for (const item of B01_TT99) {
+    for (const item of mapping) {
       if (item.formula) {
         valuesCur[item.ma_so] = item.formula.reduce((s, m) => s + (valuesCur[m] ?? 0), 0);
         valuesPrev[item.ma_so] = item.formula.reduce((s, m) => s + (valuesPrev[m] ?? 0), 0);
       }
     }
 
-    const items = B01_TT99.map(it => ({
+    const items = mapping.map(it => ({
       ma_so: it.ma_so, name: it.name, level: it.level, group: it.group, bold: !!it.bold,
       current: Math.round(valuesCur[it.ma_so] ?? 0),
       previous: Math.round(valuesPrev[it.ma_so] ?? 0),
@@ -289,7 +291,8 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
 
     return {
       items, asOf: data.asOf ?? null, compareAsOf: data.compareAsOf ?? null,
-      balanced: Math.abs((valuesCur["280"] ?? 0) - (valuesCur["440"] ?? 0)) < 1,
+      balanced: Math.abs((valuesCur[totalAssetCode] ?? 0) - (valuesCur[totalEquityCode] ?? 0)) < 1,
+      circular,
     };
   }));
 
