@@ -86,8 +86,8 @@ export function CatalogPage() {
   }, [drawerItemCode, search, openDrawer, setSearch, clearSelection]);
 
   return (
-    <div className="min-h-full bg-[#F8F7F4] font-['Inter','Be_Vietnam_Pro',ui-sans-serif,system-ui,sans-serif]">
-      <div className="mx-auto max-w-[1280px] p-4 md:p-6 space-y-4">
+    <div className="min-h-full bg-background font-['Inter','Be_Vietnam_Pro',ui-sans-serif,system-ui,sans-serif]">
+      <div className="w-full p-4 md:p-6 space-y-4">
         <CatalogHeader />
         <CatalogSearchBar ref={searchRef} />
         <CatalogTabs />
