@@ -1538,10 +1538,6 @@ function CreateVoucherDialog({
                         />
                       </TableCell>
                       <TableCell>
-                        <Input value={l.product_code}
-                          onChange={(e) => updateLine(l.key, { product_code: e.target.value })} />
-                      </TableCell>
-                      <TableCell>
                         <Input value={l.invoice_no}
                           onChange={(e) => updateLine(l.key, { invoice_no: e.target.value })}
                           placeholder="Số HĐ" />
