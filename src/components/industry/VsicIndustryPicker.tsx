@@ -105,7 +105,7 @@ export function VsicIndustryPicker({
     () => value.map((v) => {
       const lvl = inferLevel(v.code) ?? 1;
       const l1 = getL1CodeOf(v.code);
-      const l1Info = l1 ? getVsicLevel1(l1) : null;
+      const l1Info = (l1 ? getVsicLevel1(l1) : null) ?? null;
       return { ...v, level: lvl, l1Code: l1, l1Info };
     }),
     [value],
