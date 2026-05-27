@@ -16,6 +16,7 @@ import { CategorySidebar } from "./CategorySidebar";
 import { ItemList } from "./ItemList";
 import { ItemDetailDrawer } from "./ItemDetailDrawer";
 import { BulkActionBar } from "./BulkActionBar";
+import { SAMPLE_ITEMS } from "@/data/sample-catalog";
 
 export function CatalogPage() {
   const { data } = useSuspenseQuery(catalogQueryOptions);
