@@ -649,11 +649,12 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
     } else if (data.report === "B02") {
       const lines = await fetchLines(supabase, userId, data.from, data.to);
       const v: Record<string, number> = {};
-      for (const it of B02_TT99) {
+      const { mapping: isMap } = await resolveIsMapping(supabase, userId);
+      for (const it of isMap) {
         if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => s + periodAmountForPrefix(lines, a.prefix, a.nature) * a.sign, 0);
         else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
       }
-      for (const it of B02_TT99) {
+      for (const it of isMap) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
