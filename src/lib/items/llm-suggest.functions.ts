@@ -197,6 +197,10 @@ export const suggestItemMappingWithLLM = createServerFn({ method: "POST" })
       return output;
     } catch (e: any) {
       console.error("[suggestItemMappingWithLLM]", e?.message ?? e);
-      throw new Error("Không gọi được Fin — thử lại sau");
+      return {
+        kind: "unsure" as const,
+        reason: "Fin tạm thời không phản hồi — vui lòng chọn tay hoặc thử lại sau.",
+      };
     }
+
   });
