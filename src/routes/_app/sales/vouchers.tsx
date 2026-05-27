@@ -1099,7 +1099,7 @@ function SalesVouchersPage() {
                           {v.einvoice_no ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {period}
+                          {(v as any).einvoice_date ?? "—"}
                         </TableCell>
                         <TableCell className="truncate max-w-[260px]">
                           {v.customer_name ?? "—"}
@@ -1112,7 +1112,7 @@ function SalesVouchersPage() {
                           {v.stock_voucher_no ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {v.einvoice_no ? v.voucher_date : "—"}
+                          {(v as any).stock_voucher_date ?? "—"}
                         </TableCell>
                         <TableCell className="text-center">
                           <StatusDot ok={!!v.stock_voucher_id} />
