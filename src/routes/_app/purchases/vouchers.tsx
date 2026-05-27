@@ -1531,8 +1531,17 @@ function CreateVoucherDialog({
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
                         <ProductPickerCell
+                          mode="purchase"
                           value={l.product_name}
-                          onPick={(p) => updateLine(l.key, {
+                          code={l.product_code}
+                          onClear={() =>
+                            updateLine(l.key, {
+                              product_id: null,
+                              product_code: "",
+                              product_name: "",
+                            })
+                          }
+                          onPick={(p: any) => updateLine(l.key, {
                             product_id: p.id,
                             product_code: p.code ?? "",
                             product_name: p.name ?? "",
@@ -1545,7 +1554,6 @@ function CreateVoucherDialog({
                                 : (p.stock_account ?? l.debit_account),
                             line_type: p.item_type === "service" ? "service" : "goods",
                           })}
-
                         />
                       </TableCell>
                       <TableCell>
