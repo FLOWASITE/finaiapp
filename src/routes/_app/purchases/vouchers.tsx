@@ -934,7 +934,7 @@ function PurchaseVouchersPage() {
                   return (
                     <tfoot className="bg-muted/40 font-semibold border-t-2 border-border">
                       <tr style={{ height: 40 }}>
-                        <td colSpan={15} className="px-3 py-2 text-right">Tổng cộng ({rows.length} phiếu)</td>
+                        <td colSpan={16} className="px-3 py-2 text-right">Tổng cộng ({rows.length} phiếu)</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(t.total)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(t.discount)}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{fmtMoney(t.paid)}</td>
