@@ -156,7 +156,7 @@ function StockReportPage() {
       return n;
     });
 
-  const groupCols = 13; // SL+GT+TB cho 4 nhóm + LK nhập (2) + LK xuất (2) → see header
+  const groupCols = 16; // SL+GT+TB cho 4 nhóm + LK nhập (2) + LK xuất (2) → see header (+ cột mã hàng)
 
   return (
     <div className="p-6 space-y-4">
