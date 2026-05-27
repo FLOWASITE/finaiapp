@@ -744,6 +744,7 @@ function PurchaseVouchersPage() {
                     <TableHead className="whitespace-nowrap">Ngày chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số chứng từ</TableHead>
                     <TableHead className="whitespace-nowrap">Số hoá đơn</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày hoá đơn</TableHead>
                     <TableHead className="whitespace-nowrap">Ký hiệu</TableHead>
                     <TableHead className="min-w-[200px]">Nhà cung cấp</TableHead>
                     <TableHead className="min-w-[260px]">Mô tả</TableHead>
@@ -751,7 +752,7 @@ function PurchaseVouchersPage() {
                     <TableHead className="whitespace-nowrap">Chi nhánh</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Chi phí MH</TableHead>
                     <TableHead className="whitespace-nowrap">Phiếu nhập kho</TableHead>
-                    <TableHead className="whitespace-nowrap">Ngày HĐ</TableHead>
+                    <TableHead className="whitespace-nowrap">Ngày nhập kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">TT nhập kho</TableHead>
                     <TableHead className="text-center whitespace-nowrap">Trạng thái</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Giá trị đơn hàng</TableHead>
