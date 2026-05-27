@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { matchesSearch } from "@/lib/catalog-search";
+import { catalogQueryOptions } from "@/lib/catalog/queries";
+import {
+  upsertCatalogItem,
+  softDeleteCatalogItem,
+} from "@/lib/catalog/catalog.functions";
 import { CatalogHeader } from "./CatalogHeader";
 import { CatalogSearchBar } from "./CatalogSearchBar";
 import { CatalogTabs } from "./CatalogTabs";
@@ -11,7 +18,14 @@ import { ItemDetailDrawer } from "./ItemDetailDrawer";
 import { BulkActionBar } from "./BulkActionBar";
 
 export function CatalogPage() {
+  const { data } = useSuspenseQuery(catalogQueryOptions);
+  const queryClient = useQueryClient();
+  const upsertFn = useServerFn(upsertCatalogItem);
+  const removeFn = useServerFn(softDeleteCatalogItem);
+
   const items = useCatalogStore((s) => s.items);
+  const setItems = useCatalogStore((s) => s.setItems);
+  const setMutator = useCatalogStore((s) => s.setMutator);
   const activeTab = useCatalogStore((s) => s.activeTab);
   const search = useCatalogStore((s) => s.searchQuery);
   const selectedCategory = useCatalogStore((s) => s.selectedCategory);
@@ -21,6 +35,33 @@ export function CatalogPage() {
   const openDrawer = useCatalogStore((s) => s.openDrawer);
   const drawerItemCode = useCatalogStore((s) => s.drawerItemCode);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Sync dữ liệu server -> store (giữ nguyên logic filter/search hiện có)
+  useEffect(() => {
+    setItems(data.items);
+  }, [data.items, setItems]);
+
+  // Wire mutator để store actions tự ghi DB + invalidate cache
+  useEffect(() => {
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: ["catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["products-picker"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    };
+    setMutator({
+      upsert: async (item) => {
+        const res = await upsertFn({ data: { item: item as any } });
+        invalidate();
+        return res;
+      },
+      remove: async (id) => {
+        const res = await removeFn({ data: { id } });
+        invalidate();
+        return res;
+      },
+    });
+    return () => setMutator(null);
+  }, [setMutator, upsertFn, removeFn, queryClient]);
 
   // base list per tab
   const tabItems = useMemo(() => {
