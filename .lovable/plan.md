@@ -1,45 +1,56 @@
-## Vấn đề
-
-170 mặt hàng thư viện trong DB hiện không có thông tin nhóm danh mục. Hàm `tpcToCatalogItem` trong `src/lib/catalog/adapt.ts` đang hard-code `category: "VAN_PHONG"` cho mọi bản ghi `tenant_product_catalog`, nên khi mở tab **Thư viện**, sidebar "Nhóm danh mục" gom hết 170 item vào một nhóm duy nhất (Văn phòng – Hành chính), thay vì phân về 22 nhóm như thiết kế (Tiện ích, Viễn thông, Logistics, F&B, Healthcare…).
-
 ## Mục tiêu
 
-Khôi phục đúng `category` (và `subcategory`) cho 170 mặt hàng global, để:
-- Sidebar nhóm danh mục ở tab **Thư viện** đếm và lọc đúng theo 22 nhóm.
-- AI khi đối chiếu tên hàng trên hóa đơn nhận được gợi ý nhóm/tài khoản chính xác hơn.
-- Khi user "Sao chép sang Mục của tôi" (bước sau), `products` cũng kế thừa được nhóm đúng.
+Khi resolver không tìm thấy `products` (Mục của tôi) khớp tên trên hóa đơn, fallback sang **`tenant_product_catalog`** (170 items thư viện đã có category/account/VAT) → trả về dưới dạng **"gợi ý từ thư viện"**. KTV bấm 1 nút để promote item thư viện vào `products`, kế thừa đầy đủ metadata, và lần sau cache Layer 1 tự bắt.
+
+Đây là mảnh ghép biến 170 item tĩnh thành **dữ liệu sống** trong pipeline FinAI.
+
+## Pipeline sau khi sửa
+
+```text
+Hóa đơn dòng → resolveVendorLine()
+  ├─ L1 cache (supplier_item_mappings)         ─ auto
+  ├─ L2 fuzzy products + semantic              ─ auto / review
+  ├─ L2.5 [MỚI] fuzzy tenant_product_catalog   ─ library_suggestion
+  └─ L3 none                                    ─ new
+```
 
 ## Thay đổi
 
-### 1. DB — thêm cột phân loại cho thư viện
-Migration mới trên `public.tenant_product_catalog`:
-- `category text` (mã nhóm, ví dụ `TIEN_ICH`, `FNB`…)
-- `subcategory text NULL`
-- `item_type text NULL` (`service` / `goods` / `mixed`) — để adapter không phải đoán
-- `default_account text NULL` — tài khoản mặc định (TT133) gợi ý
-- `vat_rate numeric NULL` — thuế suất VAT chuẩn
-- Index phụ trợ: `idx_tpc_category (category) WHERE is_global = true`.
+### 1. `src/lib/items/resolver.server.ts`
+- Thêm type mới:
+  ```ts
+  method: "cache" | "fuzzy" | "library" | "none"
+  status: "auto" | "review" | "new" | "library_suggestion"
+  ```
+- `Candidate` thêm field optional `fromLibrary?: { catalog_id, category, subcategory, default_account, vat_rate, item_type }` — KHÔNG có `product_id` (chưa tồn tại trong `products`).
+- Sau khi L2 fuzzy fail (`top.length === 0` hoặc `best.score < 0.7`), gọi hàm mới `searchLibrary()`:
+  - Query `tenant_product_catalog` với `is_global=true` + ILIKE trên `name` và `aliases` + textSim scoring.
+  - Trả top-3 với score ≥ 0.6.
+  - Status = `"library_suggestion"`, method = `"library"`.
+- Log vẫn ghi vào `item_resolution_log` với `method="library"`, `resolved_product_id=null`.
 
-Không tạo bảng mới, không đổi RLS hiện hành.
+### 2. Server function mới: `src/lib/items/promote-from-library.functions.ts`
+- `promoteCatalogToProduct({ catalogId, supplierId?, rawName? })`:
+  - Đọc 1 row `tenant_product_catalog` (theo `catalogId`).
+  - INSERT `products` cho tenant hiện tại: code (auto-gen từ category prefix + sequence), name, unit, `item_type`, `stock_account`/`expense_account` derive từ `default_account` (152/153/156→stock, 642/242/211/213→expense), `vat_rate`, aliases (kế thừa + thêm `rawName` nếu có).
+  - Nếu có `supplierId` + `rawName`: insert `supplier_item_mappings` (confidence 0.9, match_count 1) để L1 cache bắt ngay lần sau.
+  - Return new product row.
 
-### 2. Backfill 170 bản ghi global
-Dùng `supabase--insert` chạy `UPDATE … WHERE sku = '…' AND is_global = true` theo lô, lấy dữ liệu gốc từ `SAMPLE_ITEMS` (vẫn còn trong git HEAD: `src/data/sample-catalog.ts`). Script sinh SQL được chạy trong sandbox, không commit file `sample-catalog.ts` trở lại repo.
+### 3. UI: nơi hiện candidates (ví dụ `InvoiceLineResolver` / `LineMappingDialog`)
+- Khi `status === "library_suggestion"`: render section "💡 Gợi ý từ Thư viện chuẩn" (badge khác màu với candidates từ "Mục của tôi").
+- Mỗi suggestion hiển thị: tên + nhóm (category badge) + TK (`default_account`) + VAT.
+- Nút **"Thêm vào Mục của tôi & dùng"** → gọi `promoteCatalogToProduct` → refetch resolver → auto-select item mới.
 
-Bản ghi nào không khớp SKU (rất hiếm) sẽ giữ NULL → adapter fallback về `VAN_PHONG` như hiện tại để không vỡ UI.
+### 4. (Không thay) RLS / migration
+- Không cần migration — chỉ đọc thêm từ bảng đã có. `tenant_product_catalog` đã có RLS cho `is_global=true` readable bởi mọi tenant.
 
-### 3. `src/lib/catalog/adapt.ts`
-- Mở rộng interface `DbTpcRow` thêm các cột mới ở (1).
-- `tpcToCatalogItem` đọc `category`, `subcategory`, `item_type`, `default_account`, `vat_rate` từ DB; fallback hợp lý khi NULL.
-- Đảm bảo `category` ép kiểu về `CategoryCode` an toàn (map qua `CATEGORY_BY_CODE`; nếu mã lạ → `VAN_PHONG`).
+## Ngoài phạm vi (làm sau)
 
-### 4. `src/lib/catalog/catalog.functions.ts`
-- Trong `loadCatalog`, mở rộng `.select(...)` của `tenant_product_catalog` để lấy thêm các cột mới.
+- Lọc library theo VSIC ngành tenant (hướng đi #3).
+- LLM Layer 3 reasoning khi cả products + library đều miss.
+- Bulk "promote nhiều items 1 lần" từ tab Thư viện (hướng đi #2 — "Sao chép sang Mục của tôi").
 
-### 5. Không đổi UI
-`CategorySidebar`, `CatalogPage`, `ItemList` giữ nguyên — chúng đã group theo `item.category` nên tự động hoạt động sau khi adapter trả về đúng nhóm.
+## Kết quả đo được
 
-## Out of scope
-
-- Hành động "Sao chép sang Mục của tôi" trong tab Thư viện.
-- Logic AI sử dụng `category` để gợi ý tài khoản (sẽ làm ở bước tiếp theo).
-- Thêm/sửa/xóa item global từ UI (vẫn chỉ qua migration/script).
+- Hóa đơn có tên "Tiền điện T5/2026" từ EVN → trước: status `new`, KTV phải tạo product tay + chọn TK + VAT. Sau: hiện gợi ý "DV - Tiền điện văn phòng (TK 6427, VAT 10%)" → 1 click xong.
+- Sau ~10 hóa đơn EVN, L1 cache đầy → auto 100%, không cần hỏi nữa.

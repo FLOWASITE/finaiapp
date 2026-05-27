@@ -38,11 +38,20 @@ export type Candidate = {
     confidence: number;
     unit_factor: number;
   };
+  // If suggested from global catalog library (not yet in Mục của tôi)
+  fromLibrary?: {
+    catalog_id: string;
+    category: string | null;
+    subcategory: string | null;
+    default_account: string | null;
+    vat_rate: number | null;
+    item_type: string | null;
+  };
 };
 
 export type ResolveResult = {
-  method: "cache" | "fuzzy" | "none";
-  status: "auto" | "review" | "new";
+  method: "cache" | "fuzzy" | "library" | "none";
+  status: "auto" | "review" | "new" | "library_suggestion";
   best?: Candidate;
   candidates: Candidate[];
 };
@@ -238,18 +247,109 @@ export async function resolveVendorLine(
   scored.sort((a, b) => b.score - a.score);
   const top = scored.slice(0, 3).filter((c) => c.score > 0);
 
-  if (top.length === 0) {
-    await logResolution(supabase, input, null, "none", 0, {});
-    return { method: "none", status: "new", candidates: [] };
+  const fuzzyBest = top[0];
+  // Layer 2 fuzzy gives an auto/review result only when we have a strong match.
+  if (fuzzyBest && fuzzyBest.score >= 0.7) {
+    const status: ResolveResult["status"] = fuzzyBest.score >= 0.9 ? "auto" : "review";
+    await logResolution(supabase, input, fuzzyBest.product_id, "fuzzy", fuzzyBest.score, fuzzyBest.signals);
+    return { method: "fuzzy", status, best: fuzzyBest, candidates: top };
   }
 
-  const best = top[0];
-  const status: ResolveResult["status"] =
-    best.score >= 0.9 ? "auto" : best.score >= 0.7 ? "review" : "new";
+  // ---- Layer 2.5: fallback to global library (tenant_product_catalog) ----
+  const libraryCandidates = await searchLibrary(supabase, input.tenantId, rawNorm, input.rawUnit ?? null);
+  if (libraryCandidates.length > 0) {
+    const best = libraryCandidates[0];
+    await logResolution(supabase, input, null, "library", best.score, best.signals);
+    return {
+      method: "library",
+      status: "library_suggestion",
+      best,
+      candidates: libraryCandidates,
+    };
+  }
 
-  await logResolution(supabase, input, status === "new" ? null : best.product_id, "fuzzy", best.score, best.signals);
+  // If fuzzy gave something weak (score < 0.7) and library was empty, still surface those.
+  if (top.length > 0) {
+    await logResolution(supabase, input, null, "fuzzy", fuzzyBest!.score, fuzzyBest!.signals);
+    return { method: "fuzzy", status: "new", candidates: top };
+  }
 
-  return { method: "fuzzy", status, best, candidates: top };
+  await logResolution(supabase, input, null, "none", 0, {});
+  return { method: "none", status: "new", candidates: [] };
+}
+
+async function searchLibrary(
+  supabase: any,
+  tenantId: string,
+  rawNorm: string,
+  rawUnit: string | null,
+): Promise<Candidate[]> {
+  if (!rawNorm) return [];
+  const firstTokens = rawNorm.split(" ").slice(0, 2).join("%");
+  const ilike = `%${firstTokens}%`;
+  // Pull global library + this tenant's own catalog rows.
+  const { data: rows } = await supabase
+    .from("tenant_product_catalog")
+    .select("id, name, name_norm, aliases, category, subcategory, item_type, default_account, vat_rate")
+    .or(`is_global.eq.true,tenant_id.eq.${tenantId}`)
+    .or(`name.ilike.${ilike},name_norm.ilike.${ilike}`)
+    .limit(80);
+
+  const list = (rows ?? []) as any[];
+  if (list.length === 0) return [];
+
+  const scored = list.map((r) => {
+    const aliasBest = (r.aliases ?? []).reduce(
+      (m: number, al: string) => Math.max(m, textSim(rawNorm, al)),
+      0,
+    );
+    const text = Math.max(textSim(rawNorm, r.name_norm || r.name), aliasBest);
+    // No real unit on library rows yet → neutral.
+    const unit = rawUnit ? 0.5 : 0.5;
+    const fallbackAcct = inferStockAccount(r.default_account, r.item_type);
+    return {
+      product_id: "", // not yet in `products`
+      code: "",
+      name: r.name as string,
+      unit: rawUnit ?? "",
+      item_type: (r.item_type as string) ?? "goods",
+      stock_account: fallbackAcct.stock,
+      expense_account: fallbackAcct.expense,
+      unit_cost: 0,
+      aliases: r.aliases ?? [],
+      score: text * 0.85 + unit * 0.15,
+      signals: { text, unit, price: 0, history: 0, sku: 0 },
+      fromLibrary: {
+        catalog_id: r.id as string,
+        category: r.category ?? null,
+        subcategory: r.subcategory ?? null,
+        default_account: r.default_account ?? null,
+        vat_rate: r.vat_rate != null ? Number(r.vat_rate) : null,
+        item_type: r.item_type ?? null,
+      },
+    } as Candidate;
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter((c) => c.score >= 0.45).slice(0, 3);
+}
+
+function inferStockAccount(
+  defaultAccount: string | null | undefined,
+  itemType: string | null | undefined,
+): { stock: string | null; expense: string | null } {
+  const acct = (defaultAccount ?? "").trim();
+  // Stock-like accounts → put on stock_account
+  if (["152", "153", "156", "211", "213"].includes(acct)) {
+    return { stock: acct, expense: null };
+  }
+  // Expense / prepaid → expense_account
+  if (acct.startsWith("6") || acct === "242") {
+    return { stock: null, expense: acct };
+  }
+  // Fallback by item_type
+  if (itemType === "service") return { stock: null, expense: "642" };
+  return { stock: "156", expense: null };
 }
 
 async function logResolution(
