@@ -14,7 +14,7 @@ export const listMyTenants = createServerFn({ method: "GET" })
     const [membershipsRes, profileRes] = await Promise.all([
       supabase
         .from("tenant_members")
-        .select("role, tenant_id, tenants(name, company_name, tax_id)")
+        .select("role, tenant_id, tenants(name, company_name, tax_id, accounting_standard)")
         .eq("user_id", userId)
         .eq("status", "active"),
       supabase
@@ -32,6 +32,7 @@ export const listMyTenants = createServerFn({ method: "GET" })
       name: m.tenants?.name ?? "(không tên)",
       company_name: m.tenants?.company_name ?? null,
       tax_id: m.tenants?.tax_id ?? null,
+      accounting_standard: (m.tenants?.accounting_standard ?? "TT99") as "TT99" | "TT133",
       is_active: m.tenant_id === activeId,
     }));
     return { tenants, activeId };

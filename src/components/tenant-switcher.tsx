@@ -183,7 +183,7 @@ export function TenantSwitcher() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium whitespace-normal break-words" title={t.company_name || t.name}>{t.company_name || t.name}</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                     {ROLE_LABEL[t.role] ?? t.role}
                   </Badge>
@@ -191,6 +191,11 @@ export function TenantSwitcher() {
                     <span className="text-[10px] text-muted-foreground truncate">
                       MST {t.tax_id}
                     </span>
+                  )}
+                  {(t as any).accounting_standard && (
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                      {(t as any).accounting_standard === "TT133" ? "TT 133" : "TT 99"}
+                    </Badge>
                   )}
                 </div>
               </div>
