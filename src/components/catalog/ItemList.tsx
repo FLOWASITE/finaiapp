@@ -34,10 +34,13 @@ export function ItemList({ items }: { items: CatalogItem[] }) {
   const renderGroup = (group: CatalogItem[]) => {
     if (viewMode === "list") {
       return (
-        <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white overflow-hidden">
-          {group.map((it) => (
-            <ItemListRow key={it.code} item={it} />
-          ))}
+        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+          <ItemListHeader />
+          <div className="divide-y divide-gray-100">
+            {group.map((it) => (
+              <ItemListRow key={it.code} item={it} />
+            ))}
+          </div>
         </div>
       );
     }
