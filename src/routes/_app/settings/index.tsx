@@ -81,7 +81,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { TaxIdLookupInput } from "@/components/tax-id-lookup-input";
-import { IndustryCombobox } from "@/components/industry-combobox";
+import { VsicIndustryPicker, type VsicSelection } from "@/components/industry/VsicIndustryPicker";
 import { SectionNav } from "@/components/settings-section-nav";
 import { LEGAL_FORMS, TAX_METHODS, DECLARE_PERIODS } from "@/lib/vsic";
 import { DigestSettingsCard } from "@/components/settings/digest-settings-card";
