@@ -68,7 +68,12 @@ export function CatalogPage() {
   const tabItems = useMemo(() => {
     if (activeTab === "mine") return items.filter((i) => i.isActive);
     if (activeTab === "suggested") return items.filter((i) => !i.isActive && i.isAiSuggested);
-    return items;
+    // library: gộp thư viện chuẩn (170 mặt hàng) với items DB; tránh trùng theo code
+    const mineCodes = new Set(items.map((i) => i.code));
+    const libraryExtras = SAMPLE_ITEMS
+      .filter((s) => !mineCodes.has(s.code))
+      .map((s) => ({ ...s, isActive: false }));
+    return [...items, ...libraryExtras];
   }, [items, activeTab]);
 
   // search + filters (excluding category)
