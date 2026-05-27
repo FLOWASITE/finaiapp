@@ -1,52 +1,52 @@
 ## Mục tiêu
-Bổ sung mẫu Báo cáo Kết quả hoạt động kinh doanh **B02-DNN** theo Thông tư 133/2016/TT-BTC, tương tự cách đã làm cho Bảng cân đối (B01a-DNN). Khi tổ chức đặt `accounting_standard = 'TT133'`, tab "B02 — KQKD" hiển thị cấu trúc B02-DNN; ngược lại giữ nguyên B02-DN (TT99).
+Bổ sung mẫu **B03-DNN — Báo cáo lưu chuyển tiền tệ (trực tiếp)** theo Thông tư 133/2016/TT-BTC, áp dụng động theo `accounting_standard` của tổ chức (giống cách đã làm cho B01, B02). Bỏ qua phương pháp gián tiếp ở tài liệu — hệ thống hiện chỉ hỗ trợ phương pháp trực tiếp.
 
-## So sánh cấu trúc B02-DNN (TT133) vs B02-DN (TT99)
+## So sánh cấu trúc B03 trực tiếp: TT133 vs TT99
 
-| Mã | Chỉ tiêu (TT133) | Khác biệt so với TT99 |
-|----|------------------|-----------------------|
-| 01 | Doanh thu bán hàng và CCDV | giống |
-| 02 | Các khoản giảm trừ doanh thu | giống |
-| 10 | Doanh thu thuần (= 01 − 02) | giống |
-| 11 | Giá vốn hàng bán | giống |
-| 20 | Lợi nhuận gộp (= 10 − 11) | giống |
-| 21 | Doanh thu hoạt động tài chính | giống |
-| 22 | Chi phí tài chính | giống |
-| 23 | — Trong đó: Chi phí lãi vay | giống |
-| **24** | **Chi phí quản lý kinh doanh** | **Gộp 641 + 642** (TT99 tách 25/26) |
-| 30 | LN thuần HĐKD (= 20 + 21 − 22 − 24) | công thức khác |
-| 31 | Thu nhập khác | giống |
-| 32 | Chi phí khác | giống |
-| 40 | Lợi nhuận khác (= 31 − 32) | giống |
-| 50 | Tổng LN trước thuế (= 30 + 40) | giống |
-| **51** | **Chi phí thuế TNDN** | **Gộp** (TT99 tách 51/52) |
-| 60 | LN sau thuế (= 50 − 51) | TT133 không có mã 52, không có EPS (70) |
-
-Hạch toán theo TT133: dùng TK **642 "Chi phí quản lý kinh doanh"** cho mã 24, và **821** cho mã 51.
+| Mã | TT133 (DNN) | Khác biệt |
+|----|-------------|-----------|
+| 01–07 | Hoạt động kinh doanh | **Giống TT99** |
+| 20 | LCT thuần HĐKD | giống |
+| **II. Hoạt động đầu tư** | | **TT133 gộp lại còn 5 dòng** |
+| 21 | Chi mua sắm, xây dựng TSCĐ, BĐSĐT, TS dài hạn khác | giống TT99 |
+| 22 | Thu từ thanh lý, nhượng bán TSCĐ, BĐSĐT… | giống TT99 |
+| **23** | **Chi cho vay, đầu tư góp vốn vào đơn vị khác (gộp)** | TT99 tách 23 + 25 |
+| **24** | **Thu hồi cho vay, đầu tư góp vốn vào đơn vị khác (gộp)** | TT99 tách 24 + 26 |
+| **25** | **Thu lãi cho vay, cổ tức và lợi nhuận được chia** | TT99 là mã 27 |
+| 30 | LCT thuần HĐ đầu tư | công thức theo 21..25 |
+| **III. Hoạt động tài chính** | | **TT133 gộp lại còn 5 dòng** |
+| 31 | Thu từ phát hành cổ phiếu, nhận vốn góp | giống |
+| 32 | Trả vốn góp, mua lại cổ phiếu | giống |
+| 33 | Thu từ đi vay | giống |
+| **34** | **Trả nợ gốc vay và nợ thuê tài chính (gộp)** | TT99 tách 34 + 35 |
+| **35** | **Cổ tức, lợi nhuận đã trả cho chủ sở hữu** | TT99 là mã 36 |
+| 40 | LCT thuần HĐ tài chính | công thức theo 31..35 |
+| 50, 60, 61, 70 | Tổng hợp | giống |
 
 ## Thay đổi mã
 
 ### 1. `src/lib/report-mappings.ts`
-- Thêm hằng `B02_TT133: ISItem[]` với cấu trúc 16 dòng ở trên:
-  - 24: `accounts: [E("641"), E("642")]` (gồm cả chi phí bán hàng + QLDN theo TT133)
-  - 30: `formula: [20:+, 21:+, 22:−, 24:−]`
-  - 51: `accounts: [E("821")]`
-  - 60: `formula: [50:+, 51:−]`
-  - Bỏ mã 25, 26, 52, 70.
+- Thêm `export const B03_TT133: CFItem[]` với cấu trúc trên. Giữ nguyên kiểu `CFItem`. Counterpart prefixes:
+  - 23: `["1283", "128", "228", "221", "222"]` direction outflow (gộp cho vay + góp vốn)
+  - 24: cùng prefixes, direction inflow
+  - 25: `["515"]` inflow
+  - 34: `["341", "3431", "3432", "3412"]` outflow (gộp nợ gốc vay + thuê TC)
+  - 35: `["421", "3388"]` outflow (cổ tức)
+- Các mục I và tổng hợp giữ nguyên prefixes như TT99.
 
 ### 2. `src/lib/reports.functions.ts`
-- Thêm hàm `resolveIsMapping(standard)` → trả về `B02_TT133` hoặc `B02_TT99`.
-- Cập nhật `getIncomeStatementTT99` (handler B02): dùng mapping động theo `tenant.accounting_standard`.
-- Cập nhật phần drilldown (`getReportDrilldown`) ở nhánh `data.report === "B02"`: dùng mapping động thay vì hard-code `B02_TT99`.
-- Cập nhật export CSV: lặp qua mapping động.
+- Thêm helper `resolveCfMapping(supabase, userId) → { mapping: CFItem[]; circular: "TT99" | "TT133" }`.
+- `getCashFlowDirect`: dùng mapping động thay cho `B03_TT99` cứng; trả thêm `circular` trong response.
+- `drilldownReportItem` nhánh `data.report === "B03"`: tra cứu và replay theo mapping động (cả `find` ở dòng 37 lẫn vòng replay ở dòng 86).
+- `exportReportXlsx` nhánh B03 (dòng 688/700): dùng mapping động và đổi label tiêu đề `B03-DNN`/`B03-DN` theo standard.
 
 ### 3. `src/routes/_app/reports/index.tsx`
-- Tab "B02 — KQKD": tiêu đề và `PrintHeader` đổi động theo standard:
-  - TT133 → "Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DNN — Thông tư 133/2016/TT-BTC)"
-  - TT99 → giữ nguyên "Mẫu B02-DN — Thông tư 99/2025/TT-BTC"
-- Tận dụng `getActiveCoaCircular` đã có để biết standard hiện hành.
+- Tab "B03 — LCTT": tiêu đề `ReportCard` và `PrintHeader` đổi động:
+  - TT133 → "Mẫu B03-DNN (Thông tư 133/2016/TT-BTC) — phương pháp trực tiếp"
+  - TT99 → giữ nguyên "Mẫu B03-DN (Thông tư 99/2025/TT-BTC) — phương pháp trực tiếp"
+- Đọc `(cf.data as any)?.circular` (đã thêm ở bước 2).
 
 ## Không thay đổi
-- Schema DB (không cần bảng mới — đây là bản đồ tài khoản tĩnh trong code).
-- Logic B01, B03 và các phần khác.
-- UI/UX tổng thể, chỉ thay nhãn và cấu trúc dòng của tab B02.
+- Schema DB.
+- Phương pháp gián tiếp (chưa hỗ trợ).
+- Logic B01, B02 và các phần khác.

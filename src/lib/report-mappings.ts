@@ -550,3 +550,69 @@ export const B03_TT99: CFItem[] = [
   { ma_so: "70", name: "Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)", section: "summary", bold: true,
     formula: [{ ma_so: "50", sign: 1 }, { ma_so: "60", sign: 1 }, { ma_so: "61", sign: 1 }] },
 ];
+
+// ============ B03-DNN — Lưu chuyển tiền tệ trực tiếp (Thông tư 133) ============
+export const B03_TT133: CFItem[] = [
+  // I. Hoạt động kinh doanh — giống TT99
+  { ma_so: "01", name: "1. Tiền thu từ bán hàng, cung cấp dịch vụ và doanh thu khác", section: "operating",
+    counterpart: { prefixes: ["131", "511", "3331"], direction: "inflow" } },
+  { ma_so: "02", name: "2. Tiền chi trả cho người cung cấp hàng hóa, dịch vụ", section: "operating",
+    counterpart: { prefixes: ["331", "152", "153", "156", "627", "641", "642"], direction: "outflow" } },
+  { ma_so: "03", name: "3. Tiền chi trả cho người lao động", section: "operating",
+    counterpart: { prefixes: ["334"], direction: "outflow" } },
+  { ma_so: "04", name: "4. Tiền lãi vay đã trả", section: "operating",
+    counterpart: { prefixes: ["635", "6351"], direction: "outflow" } },
+  { ma_so: "05", name: "5. Thuế thu nhập doanh nghiệp đã nộp", section: "operating",
+    counterpart: { prefixes: ["3334"], direction: "outflow" } },
+  { ma_so: "06", name: "6. Tiền thu khác từ hoạt động kinh doanh", section: "operating",
+    counterpart: { prefixes: ["138", "141", "344", "353", "356", "411", "711"], direction: "inflow" } },
+  { ma_so: "07", name: "7. Tiền chi khác cho hoạt động kinh doanh", section: "operating",
+    counterpart: { prefixes: ["3382", "3383", "3384", "3385", "3388", "3389", "3335", "811", "353", "356"], direction: "outflow" } },
+  { ma_so: "20", name: "Lưu chuyển tiền thuần từ hoạt động kinh doanh", section: "operating", bold: true,
+    formula: [
+      { ma_so: "01", sign: 1 }, { ma_so: "02", sign: -1 }, { ma_so: "03", sign: -1 },
+      { ma_so: "04", sign: -1 }, { ma_so: "05", sign: -1 }, { ma_so: "06", sign: 1 }, { ma_so: "07", sign: -1 },
+    ] },
+
+  // II. Hoạt động đầu tư — TT133 gộp còn 5 dòng
+  { ma_so: "21", name: "1. Tiền chi để mua sắm, xây dựng TSCĐ, BĐSĐT và các tài sản dài hạn khác", section: "investing",
+    counterpart: { prefixes: ["211", "212", "213", "217", "241"], direction: "outflow" } },
+  { ma_so: "22", name: "2. Tiền thu từ thanh lý, nhượng bán TSCĐ, BĐSĐT và các tài sản dài hạn khác", section: "investing",
+    counterpart: { prefixes: ["711", "211"], direction: "inflow" } },
+  { ma_so: "23", name: "3. Tiền chi cho vay, đầu tư góp vốn vào đơn vị khác", section: "investing",
+    counterpart: { prefixes: ["1283", "128", "228", "221", "222"], direction: "outflow" } },
+  { ma_so: "24", name: "4. Tiền thu hồi cho vay, đầu tư góp vốn vào đơn vị khác", section: "investing",
+    counterpart: { prefixes: ["1283", "128", "228", "221", "222"], direction: "inflow" } },
+  { ma_so: "25", name: "5. Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia", section: "investing",
+    counterpart: { prefixes: ["515"], direction: "inflow" } },
+  { ma_so: "30", name: "Lưu chuyển tiền thuần từ hoạt động đầu tư", section: "investing", bold: true,
+    formula: [
+      { ma_so: "21", sign: -1 }, { ma_so: "22", sign: 1 }, { ma_so: "23", sign: -1 },
+      { ma_so: "24", sign: 1 }, { ma_so: "25", sign: 1 },
+    ] },
+
+  // III. Hoạt động tài chính — TT133 gộp còn 5 dòng
+  { ma_so: "31", name: "1. Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu", section: "financing",
+    counterpart: { prefixes: ["411", "4111", "4112"], direction: "inflow" } },
+  { ma_so: "32", name: "2. Tiền trả lại vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành", section: "financing",
+    counterpart: { prefixes: ["411", "419"], direction: "outflow" } },
+  { ma_so: "33", name: "3. Tiền thu từ đi vay", section: "financing",
+    counterpart: { prefixes: ["341", "3431", "3432"], direction: "inflow" } },
+  { ma_so: "34", name: "4. Tiền trả nợ gốc vay và nợ thuê tài chính", section: "financing",
+    counterpart: { prefixes: ["341", "3431", "3432", "3412"], direction: "outflow" } },
+  { ma_so: "35", name: "5. Cổ tức, lợi nhuận đã trả cho chủ sở hữu", section: "financing",
+    counterpart: { prefixes: ["421", "3388"], direction: "outflow" } },
+  { ma_so: "40", name: "Lưu chuyển tiền thuần từ hoạt động tài chính", section: "financing", bold: true,
+    formula: [
+      { ma_so: "31", sign: 1 }, { ma_so: "32", sign: -1 }, { ma_so: "33", sign: 1 },
+      { ma_so: "34", sign: -1 }, { ma_so: "35", sign: -1 },
+    ] },
+
+  // Tổng hợp
+  { ma_so: "50", name: "Lưu chuyển tiền thuần trong kỳ (50 = 20 + 30 + 40)", section: "summary", bold: true,
+    formula: [{ ma_so: "20", sign: 1 }, { ma_so: "30", sign: 1 }, { ma_so: "40", sign: 1 }] },
+  { ma_so: "60", name: "Tiền và tương đương tiền đầu kỳ", section: "summary", cashBalance: "opening" },
+  { ma_so: "61", name: "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ", section: "summary" },
+  { ma_so: "70", name: "Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)", section: "summary", bold: true,
+    formula: [{ ma_so: "50", sign: 1 }, { ma_so: "60", sign: 1 }, { ma_so: "61", sign: 1 }] },
+];
