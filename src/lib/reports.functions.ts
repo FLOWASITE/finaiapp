@@ -85,12 +85,12 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
         const b: B = { entry_id: (e as any).id, entry_date: (e as any).entry_date, description: (e as any).description, cash_code: cashLines[0].account_code, counter, amount: Math.abs(cashDelta) };
         (cashDelta > 0 ? inflows : outflows).push(b);
       }
-      // Replay assignment in B03_TT99 order so "first match wins" matches displayed totals
+      // Replay assignment in mapping order so "first match wins" matches displayed totals
       const usedIn = new Set<number>(); const usedOut = new Set<number>();
       type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; counter_account: string; debit: number; credit: number; contribution: number };
       const collected: DLine[] = [];
       let total = 0;
-      for (const it of B03_TT99) {
+      for (const it of b03Mapping) {
         if (!it.counterpart) continue;
         const { prefixes, direction } = it.counterpart;
         const target = it.ma_so === data.ma_so;
