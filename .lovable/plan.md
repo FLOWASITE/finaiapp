@@ -1,51 +1,45 @@
+## Vấn đề
+
+170 mặt hàng thư viện trong DB hiện không có thông tin nhóm danh mục. Hàm `tpcToCatalogItem` trong `src/lib/catalog/adapt.ts` đang hard-code `category: "VAN_PHONG"` cho mọi bản ghi `tenant_product_catalog`, nên khi mở tab **Thư viện**, sidebar "Nhóm danh mục" gom hết 170 item vào một nhóm duy nhất (Văn phòng – Hành chính), thay vì phân về 22 nhóm như thiết kế (Tiện ích, Viễn thông, Logistics, F&B, Healthcare…).
+
 ## Mục tiêu
 
-- 170 mặt hàng "Thư viện chuẩn" nằm trong DB (không nằm trong frontend bundle) để AI dùng để đối chiếu tên hàng trên hóa đơn.
-- Tab **Mục của tôi** chỉ hiển thị mặt hàng đã có giao dịch hoặc đã được copy thủ công từ thư viện → tức là các bản ghi trong bảng `products` của tenant hiện tại.
-- Popup chọn hàng trong **Phiếu mua hàng / bán hàng** (`ProductPickerCell`) chỉ lấy từ `products` (đã đúng, chỉ cần xác nhận và giữ nguyên).
-- Tab **Thư viện** đọc 170 mặt hàng từ DB; khi user "Thêm vào Mục của tôi" thì insert sang `products`.
+Khôi phục đúng `category` (và `subcategory`) cho 170 mặt hàng global, để:
+- Sidebar nhóm danh mục ở tab **Thư viện** đếm và lọc đúng theo 22 nhóm.
+- AI khi đối chiếu tên hàng trên hóa đơn nhận được gợi ý nhóm/tài khoản chính xác hơn.
+- Khi user "Sao chép sang Mục của tôi" (bước sau), `products` cũng kế thừa được nhóm đúng.
 
-## Việc cần làm
+## Thay đổi
 
-### 1. Seed 170 mặt hàng vào DB (một lần)
+### 1. DB — thêm cột phân loại cho thư viện
+Migration mới trên `public.tenant_product_catalog`:
+- `category text` (mã nhóm, ví dụ `TIEN_ICH`, `FNB`…)
+- `subcategory text NULL`
+- `item_type text NULL` (`service` / `goods` / `mixed`) — để adapter không phải đoán
+- `default_account text NULL` — tài khoản mặc định (TT133) gợi ý
+- `vat_rate numeric NULL` — thuế suất VAT chuẩn
+- Index phụ trợ: `idx_tpc_category (category) WHERE is_global = true`.
 
-Đưa `SAMPLE_ITEMS` (đang hardcode ở `src/data/sample-catalog.ts`) vào bảng `tenant_product_catalog` dạng **template chung** (không gắn tenant). Vì bảng hiện có cột `tenant_id NOT NULL`, có hai lựa chọn:
+Không tạo bảng mới, không đổi RLS hiện hành.
 
-- **Cách A (đơn giản, đề xuất):** thêm cột `is_global boolean default false`, cho phép `tenant_id` NULL khi `is_global=true`; mergeCatalog đọc cả bản ghi global + bản ghi của tenant. Cần migration + cập nhật RLS (`SELECT` cho authenticated khi `is_global=true OR tenant_id=current_tenant`).
-- **Cách B:** seed 170 mặt hàng cho từng tenant khi tenant được tạo (trigger `on_tenant_created`). Tốn dung lượng, khó cập nhật thư viện sau này.
+### 2. Backfill 170 bản ghi global
+Dùng `supabase--insert` chạy `UPDATE … WHERE sku = '…' AND is_global = true` theo lô, lấy dữ liệu gốc từ `SAMPLE_ITEMS` (vẫn còn trong git HEAD: `src/data/sample-catalog.ts`). Script sinh SQL được chạy trong sandbox, không commit file `sample-catalog.ts` trở lại repo.
 
-Chọn **Cách A**. Migration tạo cột + policy + insert 170 rows từ file `sample-catalog.ts` (script chạy 1 lần qua `supabase--insert`).
+Bản ghi nào không khớp SKU (rất hiếm) sẽ giữ NULL → adapter fallback về `VAN_PHONG` như hiện tại để không vỡ UI.
 
-### 2. Cập nhật `loadCatalog`
+### 3. `src/lib/catalog/adapt.ts`
+- Mở rộng interface `DbTpcRow` thêm các cột mới ở (1).
+- `tpcToCatalogItem` đọc `category`, `subcategory`, `item_type`, `default_account`, `vat_rate` từ DB; fallback hợp lý khi NULL.
+- Đảm bảo `category` ép kiểu về `CategoryCode` an toàn (map qua `CATEGORY_BY_CODE`; nếu mã lạ → `VAN_PHONG`).
 
-`src/lib/catalog/catalog.functions.ts`:
-- Query `tenant_product_catalog` bổ sung điều kiện `tenant_id.eq.{tenantId},is_global.eq.true` (OR).
-- Vẫn truyền vào `mergeCatalog` như cũ. `mergeCatalog` đã đánh dấu `isActive:false, isAiSuggested:true` cho item từ TPC → đúng cho tab "Thư viện".
+### 4. `src/lib/catalog/catalog.functions.ts`
+- Trong `loadCatalog`, mở rộng `.select(...)` của `tenant_product_catalog` để lấy thêm các cột mới.
 
-### 3. Bỏ ghép `SAMPLE_ITEMS` ở frontend
+### 5. Không đổi UI
+`CategorySidebar`, `CatalogPage`, `ItemList` giữ nguyên — chúng đã group theo `item.category` nên tự động hoạt động sau khi adapter trả về đúng nhóm.
 
-`src/components/catalog/CatalogPage.tsx`:
-- Xoá import `SAMPLE_ITEMS` và đoạn `libraryExtras` trong `tabItems`.
-- 3 tab dùng cùng một nguồn `items` (từ DB):
-  - `mine`: `items.filter(i => i.isActive && !i.isAiSuggested)` — chỉ bản ghi `products`.
-  - `library`: `items.filter(i => i.isAiSuggested)` — 170 từ TPC.
-  - `suggested`: như cũ.
+## Out of scope
 
-### 4. Xác nhận picker phiếu mua/bán
-
-`ProductPickerCell` đã gọi `listProducts` (chỉ đọc bảng `products`) → đúng yêu cầu, không sửa.
-
-### 5. Xoá file frontend `src/data/sample-catalog.ts`
-
-Sau khi seed xong DB và confirm tab Thư viện hiển thị đủ 170 mặt hàng, xoá file để giảm bundle (~120KB).
-
-## Chi tiết kỹ thuật
-
-- Migration: `ALTER TABLE tenant_product_catalog ADD COLUMN is_global boolean NOT NULL DEFAULT false; ALTER TABLE tenant_product_catalog ALTER COLUMN tenant_id DROP NOT NULL; ALTER TABLE tenant_product_catalog ADD CONSTRAINT tpc_tenant_or_global CHECK (is_global OR tenant_id IS NOT NULL);` + cập nhật RLS SELECT policy.
-- Seed: dùng `supabase--insert` với batch INSERT 170 rows (`sku`, `name`, `name_norm`, `aliases`, `note`, `is_global=true`, `tenant_id=null`).
-- Adapter `tpcToCatalogItem` có sẵn `isAiSuggested:true` → tab Thư viện sẽ tự lọc đúng.
-
-## Ngoài phạm vi
-
-- Chưa làm hành động "Sao chép sang Mục của tôi" trong UI thư viện (nếu chưa có sẽ làm ở turn sau).
-- Chưa làm logic AI matching dùng `tenant_product_catalog` (chỉ chuẩn bị dữ liệu).
+- Hành động "Sao chép sang Mục của tôi" trong tab Thư viện.
+- Logic AI sử dụng `category` để gợi ý tài khoản (sẽ làm ở bước tiếp theo).
+- Thêm/sửa/xóa item global từ UI (vẫn chỉ qua migration/script).
