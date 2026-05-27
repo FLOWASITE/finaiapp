@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AccountingRegime, CatalogItem, CompanyContext } from "@/types/catalog";
 
 export type TabKey = "mine" | "suggested" | "library";
+export type ViewMode = "grid" | "list";
 
 export interface CatalogMutator {
   upsert: (item: CatalogItem) => Promise<unknown>;
@@ -14,6 +15,7 @@ interface CatalogState {
   company: CompanyContext;
   searchQuery: string;
   activeTab: TabKey;
+  viewMode: ViewMode;
   selectedCategory: string | null;
   activeFilters: Set<string>;
   selectedItemCodes: Set<string>;
@@ -24,6 +26,7 @@ interface CatalogState {
   setMutator: (m: CatalogMutator | null) => void;
   setSearchQuery: (q: string) => void;
   setActiveTab: (tab: TabKey) => void;
+  setViewMode: (v: ViewMode) => void;
   setSelectedCategory: (cat: string | null) => void;
   toggleFilter: (f: string) => void;
   toggleItemSelection: (code: string) => void;
@@ -53,6 +56,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   },
   searchQuery: "",
   activeTab: "mine",
+  viewMode: "grid",
   selectedCategory: null,
   activeFilters: new Set(),
   selectedItemCodes: new Set(),
@@ -63,6 +67,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   setMutator: (m) => set({ _mutator: m }),
   setSearchQuery: (q) => set({ searchQuery: q }),
   setActiveTab: (tab) => set({ activeTab: tab, selectedCategory: null, selectedItemCodes: new Set() }),
+  setViewMode: (v) => set({ viewMode: v }),
   setSelectedCategory: (cat) => set({ selectedCategory: cat }),
   toggleFilter: (f) =>
     set((s) => {
