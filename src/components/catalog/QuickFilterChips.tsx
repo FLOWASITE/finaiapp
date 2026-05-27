@@ -53,6 +53,18 @@ export function QuickFilterChips() {
       icon: <Globe className="h-3.5 w-3.5" />,
       tone: "default" as const,
     },
+    {
+      key: FILTER_KEYS.GOODS,
+      label: "Chỉ Hàng hóa",
+      icon: <Package className="h-3.5 w-3.5" />,
+      tone: "default" as const,
+    },
+    {
+      key: FILTER_KEYS.SERVICES,
+      label: "Chỉ Dịch vụ",
+      icon: <Wrench className="h-3.5 w-3.5" />,
+      tone: "default" as const,
+    },
   ];
 
   return (
