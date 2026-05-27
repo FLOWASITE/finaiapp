@@ -76,6 +76,7 @@ import { getPresetRange } from "@/lib/date-presets";
 import { VoucherFormDialog } from "@/components/voucher-form";
 import { BankVoucherFormDialog } from "@/components/bank-voucher-form";
 import { usePagination, TablePagination } from "@/components/table-pagination";
+import { ProductPickerCell } from "@/components/vouchers/ProductPickerCell";
 
 function normalizeVi(s: string) {
   return (s ?? "")
