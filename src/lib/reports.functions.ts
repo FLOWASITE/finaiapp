@@ -122,11 +122,15 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
     }
 
     let b01Mapping: BSItem[] = B01_TT99;
+    let b02Mapping: ISItem[] = B02_TT99;
     if (data.report === "B01") {
       const r = await resolveBsMapping(supabase, userId);
       b01Mapping = r.mapping;
+    } else if (data.report === "B02") {
+      const r = await resolveIsMapping(supabase, userId);
+      b02Mapping = r.mapping;
     }
-    const item = (data.report === "B01" ? b01Mapping : B02_TT99).find((x) => x.ma_so === data.ma_so) as any;
+    const item = (data.report === "B01" ? b01Mapping : b02Mapping).find((x) => x.ma_so === data.ma_so) as any;
     if (!item || !item.accounts || item.accounts.length === 0) {
       return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
     }
