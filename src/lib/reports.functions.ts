@@ -398,11 +398,12 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     const opening = cashBalance(openingLines);
     const closing = cashBalance(closingLines);
 
+    const { mapping: cfMapping, circular } = await resolveCfMapping(supabase, userId);
     const values: Record<string, number> = {};
     let usedInflow = new Set<number>();
     let usedOutflow = new Set<number>();
 
-    for (const item of B03_TT99) {
+    for (const item of cfMapping) {
       if (item.cashBalance === "opening") { values[item.ma_so] = opening; continue; }
       if (item.counterpart) {
         const { prefixes, direction } = item.counterpart;
@@ -422,16 +423,17 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
         values[item.ma_so] = total;
       }
     }
-    for (const item of B03_TT99) {
+    for (const item of cfMapping) {
       if (item.formula) values[item.ma_so] = item.formula.reduce((s, f) => s + (values[f.ma_so] ?? 0) * f.sign, 0);
     }
 
     return {
-      items: B03_TT99.map(it => ({
+      items: cfMapping.map(it => ({
         ma_so: it.ma_so, name: it.name, section: it.section, bold: !!it.bold,
         amount: Math.round(values[it.ma_so] ?? 0),
       })),
       period: { from: data.from ?? null, to: data.to ?? null },
+      circular,
     };
   }));
 
