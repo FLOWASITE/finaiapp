@@ -1600,24 +1600,24 @@ function CreateVoucherDialog({
 
             {/* Lines — desktop table */}
             <div className="hidden sm:block overflow-x-auto border rounded-md">
-              <Table className="min-w-[1100px] text-sm">
+              <Table className="min-w-[1550px] text-sm">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">STT</TableHead>
-                    <TableHead className="min-w-[180px]">Tên sản phẩm (*)</TableHead>
-                    <TableHead className="w-24">Mã</TableHead>
-                    <TableHead className="w-24">Hoá đơn</TableHead>
-                    <TableHead className="w-20">TK nợ</TableHead>
-                    <TableHead className="w-16">ĐVT</TableHead>
-                    <TableHead className="w-20 text-right">SL (*)</TableHead>
-                    <TableHead className="w-28 text-right">Đơn giá (*)</TableHead>
-                    <TableHead className="w-16 text-right">CK %</TableHead>
-                    <TableHead className="w-28 text-right">CK (đ)</TableHead>
-                    <TableHead className="w-28 text-right">Trước thuế</TableHead>
-                    <TableHead className="w-16 text-right">VAT %</TableHead>
-                    <TableHead className="w-24">TK thuế</TableHead>
-                    <TableHead className="w-28 text-right">Tiền thuế</TableHead>
-                    <TableHead className="w-28 text-right">Thành tiền</TableHead>
+                    <TableHead className="min-w-[220px]">Tên sản phẩm (*)</TableHead>
+                    <TableHead className="w-28">Mã</TableHead>
+                    <TableHead className="w-32">Hoá đơn</TableHead>
+                    <TableHead className="w-24">TK nợ</TableHead>
+                    <TableHead className="w-20">ĐVT</TableHead>
+                    <TableHead className="w-24 text-right">SL (*)</TableHead>
+                    <TableHead className="w-32 text-right">Đơn giá (*)</TableHead>
+                    <TableHead className="w-20 text-right">CK %</TableHead>
+                    <TableHead className="w-32 text-right">CK (đ)</TableHead>
+                    <TableHead className="w-32 text-right">Trước thuế</TableHead>
+                    <TableHead className="w-20 text-right">VAT %</TableHead>
+                    <TableHead className="w-28">TK thuế</TableHead>
+                    <TableHead className="w-32 text-right">Tiền thuế</TableHead>
+                    <TableHead className="w-32 text-right">Thành tiền</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
