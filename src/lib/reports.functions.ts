@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withLatency } from "@/lib/with-latency";
-import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, type BSItem, type ISItem, type CFItem } from "./report-mappings";
+import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, B03_TT133, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
 async function resolveTenantStandard(supabase: any, userId: string): Promise<"TT99" | "TT133"> {
   const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
@@ -25,6 +25,12 @@ async function resolveIsMapping(supabase: any, userId: string): Promise<{ mappin
   return { mapping: B02_TT99, circular: "TT99" };
 }
 
+async function resolveCfMapping(supabase: any, userId: string): Promise<{ mapping: CFItem[]; circular: "TT99" | "TT133" }> {
+  const std = await resolveTenantStandard(supabase, userId);
+  if (std === "TT133") return { mapping: B03_TT133, circular: "TT133" };
+  return { mapping: B03_TT99, circular: "TT99" };
+}
+
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -34,7 +40,8 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
 
     // ===== B03 drill: replay cash-flow assignment, collect entries for chosen ma_so =====
     if (data.report === "B03") {
-      const item = B03_TT99.find((x) => x.ma_so === data.ma_so) as any;
+      const { mapping: b03Mapping } = await resolveCfMapping(supabase, userId);
+      const item = b03Mapping.find((x) => x.ma_so === data.ma_so) as any;
       if (!item || !item.counterpart) {
         return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
       }
@@ -78,12 +85,12 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
         const b: B = { entry_id: (e as any).id, entry_date: (e as any).entry_date, description: (e as any).description, cash_code: cashLines[0].account_code, counter, amount: Math.abs(cashDelta) };
         (cashDelta > 0 ? inflows : outflows).push(b);
       }
-      // Replay assignment in B03_TT99 order so "first match wins" matches displayed totals
+      // Replay assignment in mapping order so "first match wins" matches displayed totals
       const usedIn = new Set<number>(); const usedOut = new Set<number>();
       type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; counter_account: string; debit: number; credit: number; contribution: number };
       const collected: DLine[] = [];
       let total = 0;
-      for (const it of B03_TT99) {
+      for (const it of b03Mapping) {
         if (!it.counterpart) continue;
         const { prefixes, direction } = it.counterpart;
         const target = it.ma_so === data.ma_so;
@@ -391,11 +398,12 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     const opening = cashBalance(openingLines);
     const closing = cashBalance(closingLines);
 
+    const { mapping: cfMapping, circular } = await resolveCfMapping(supabase, userId);
     const values: Record<string, number> = {};
     let usedInflow = new Set<number>();
     let usedOutflow = new Set<number>();
 
-    for (const item of B03_TT99) {
+    for (const item of cfMapping) {
       if (item.cashBalance === "opening") { values[item.ma_so] = opening; continue; }
       if (item.counterpart) {
         const { prefixes, direction } = item.counterpart;
@@ -415,16 +423,17 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
         values[item.ma_so] = total;
       }
     }
-    for (const item of B03_TT99) {
+    for (const item of cfMapping) {
       if (item.formula) values[item.ma_so] = item.formula.reduce((s, f) => s + (values[f.ma_so] ?? 0) * f.sign, 0);
     }
 
     return {
-      items: B03_TT99.map(it => ({
+      items: cfMapping.map(it => ({
         ma_so: it.ma_so, name: it.name, section: it.section, bold: !!it.bold,
         amount: Math.round(values[it.ma_so] ?? 0),
       })),
       period: { from: data.from ?? null, to: data.to ?? null },
+      circular,
     };
   }));
 
@@ -616,9 +625,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
 
     const tenantStd = await resolveTenantStandard(supabase, userId);
     const b02Label = tenantStd === "TT133" ? "B02-DNN" : "B02-DN";
+    const b03Label = tenantStd === "TT133" ? "B03-DNN" : "B03-DN";
     const title = data.report === "B01" ? "BÁO CÁO TÌNH HÌNH TÀI CHÍNH (B01-DN)"
       : data.report === "B02" ? `BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH (${b02Label})`
-      : "BÁO CÁO LƯU CHUYỂN TIỀN TỆ (B03-DN)";
+      : `BÁO CÁO LƯU CHUYỂN TIỀN TỆ (${b03Label})`;
     ws.getCell("A5").value = title;
     ws.getCell("A5").font = { bold: true, size: 12 };
     ws.mergeCells("A5:D5");
@@ -685,7 +695,8 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       const closeL = await fetchLines(supabase, userId, undefined, data.to);
       const cashBal = (ls: any[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
       const opening = cashBal(openL), closing = cashBal(closeL);
-      for (const it of B03_TT99) {
+      const { mapping: cfMap } = await resolveCfMapping(supabase, userId);
+      for (const it of cfMap) {
         if (it.cashBalance === "opening") { v[it.ma_so] = opening; continue; }
         if (it.counterpart) {
           const { prefixes, direction } = it.counterpart;
@@ -697,7 +708,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       }
       // dùng closing thực tế nếu lệch
       if (Math.abs((v["70"] ?? 0) - closing) > 0.5) v["70"] = closing;
-      for (const it of B03_TT99) {
+      for (const it of cfMap) {
         ws.getCell(`A${row}`).value = it.name;
         ws.getCell(`B${row}`).value = it.ma_so;
         ws.getCell(`C${row}`).value = Math.round(v[it.ma_so] ?? 0);
