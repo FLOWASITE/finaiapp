@@ -111,23 +111,38 @@ export function productToCatalogItem(p: DbProductRow): CatalogItem {
 }
 
 export function tpcToCatalogItem(t: DbTpcRow): CatalogItem {
+  const categoryRaw = (t.category ?? "").toUpperCase();
+  const category: CategoryCode =
+    categoryRaw && CATEGORY_BY_CODE[categoryRaw]
+      ? (categoryRaw as CategoryCode)
+      : "VAN_PHONG";
+  const itemType = normItemType(t.item_type);
+  const account =
+    t.default_account ?? (itemType === "service" ? "642" : "156");
+  const vatRate = t.vat_rate == null ? 0.1 : Number(t.vat_rate);
   return {
     id: t.id,
     code: t.sku ?? `TPC-${t.id.slice(0, 8)}`,
     name: t.name,
-    category: "VAN_PHONG",
-    itemType: "goods",
-    defaultAccountTT99: "156",
-    defaultAccountTT133: "156",
+    category,
+    subcategory: t.subcategory ?? undefined,
+    itemType,
+    defaultAccountTT99: account,
+    defaultAccountTT133: account,
     altAccounts: [],
-    vatRateStandard: 0.1,
+    vatRateStandard: Number.isFinite(vatRate) ? vatRate : 0.1,
     vatReductionEligible: false,
     deductible: true,
     aliases: t.aliases ?? [],
     typicalSuppliers: [],
     supplierCountry: "VN",
     frequency: "adhoc",
-    amortization: "expense_immediately",
+    amortization:
+      account === "242"
+        ? "prepaid_short"
+        : account === "211" || account === "213"
+          ? "prepaid_long"
+          : "expense_immediately",
     allocationMethod: "single",
     industryRelevance: [],
     foreignSupplierTax: "none",
