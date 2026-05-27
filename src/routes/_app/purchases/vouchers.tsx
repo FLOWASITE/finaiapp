@@ -1356,7 +1356,7 @@ function CreateVoucherDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] sm:w-[96vw] sm:max-w-[1600px] xl:max-w-[1750px] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[99vw] sm:w-[98vw] sm:max-w-[1800px] xl:max-w-[1950px] max-h-[95vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{editId ? "Phiếu mua hàng" : "Tạo phiếu mua hàng"}</DialogTitle>
         </DialogHeader>
