@@ -165,7 +165,6 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
       const r = await resolveLineKind(supabase, {
         description: line.description,
         qty: line.qty,
-        unit: line.unit,
         unit_price: line.unit_price,
         amount: line.amount,
         product_id: line.product_id,
