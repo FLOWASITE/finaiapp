@@ -201,11 +201,12 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
 
   const askFin = async (idx: number, it: ProposalItem) => {
     if (llmLoadingIdx != null) return;
+    const canonical = splits[idx]?.canonical_name || it.name;
     setLlmLoadingIdx(idx);
     try {
       const out = await suggestFn({
         data: {
-          raw_name: it.name,
+          raw_name: canonical,
           raw_unit: it.unit ?? null,
           unit_price: it.unit_price ?? null,
           supplier_name: supplierName ?? null,
@@ -214,7 +215,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
       if (out.kind === "match" && q.data?.supplier_id) {
         toast.success(`Fin gợi ý: ${out.product?.code} — ${out.product?.name}`);
         confirmMut.mutate({
-          raw_name: it.name,
+          raw_name: canonical,
           raw_unit: it.unit ?? null,
           product_id: out.product_id,
           unit_conversion_factor: 1,
