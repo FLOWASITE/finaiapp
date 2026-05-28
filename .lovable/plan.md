@@ -1,114 +1,165 @@
+# Mở rộng splitItemName — các trường hợp cần xử lý thêm
 
-# Xử lý tên mặt hàng dài trên hóa đơn
+Hiện tại `src/lib/items/split-item-name.ts` đã xử lý: biển số xe, ngày/kỳ tháng, tuyến HCM-HN, "từ X đến Y", số HĐ/LĐX/PO, ngoặc đơn (loại trừ quy cách SP).
 
-## Vấn đề
+Dưới đây là **các nhóm trường hợp thực tế** còn thiếu, gom theo domain. Kế hoạch là bổ sung rule cho từng nhóm, **giữ nguyên kiến trúc** (regex push → working string), thêm test fixtures, không động đến UI.
 
-Hóa đơn ghi: `Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69`
+---
 
-Phần thực sự là **mặt hàng/dịch vụ** chỉ là `Cước vận chuyển`. Phần còn lại là **metadata chuyến** (ngày, tuyến, biển số) — không nên đi vào tên SP, nhưng PHẢI giữ lại để:
-- Đối soát chuyến/lệnh điều xe
-- Giải trình thuế khi cần
-- Tìm kiếm lại sau này
+## 1) Điện / Nước / Viễn thông / Internet
 
-Nếu để nguyên cả chuỗi làm `raw_name`:
-- Fuzzy match với product catalog hỏng (mỗi hóa đơn 1 tên khác → không bao giờ cache rule được)
-- `classifyRoute` vẫn chạy được (đã có "vận chuyển" trong CLEAR_SERVICE_PATTERNS) nhưng resolve mặt hàng thì không tái sử dụng
-- UI hiển thị dài, rối
+Mẫu hay gặp trên hóa đơn EVN, viễn thông:
+- `"Tiền điện kỳ 2 tháng 03/2026 - CT 123456 - Công tơ ABC-456"`
+- `"Cước Internet FTTH gói F8 tháng 04/2026 - HĐ INET-2026-0412"`
+- `"Cước điện thoại số 0903xxx xxx tháng 5/2026"`
+- `"Tiền nước sinh hoạt kỳ 04/2026 - Đồng hồ DH-0123"`
 
-## Hướng giải quyết
+**Rule mới cần thêm:**
+- `mã KH/CT/HĐ`: `\b(CT|KH|MKH|HĐ|HD|HDT|HĐT)[:#\s-]*[A-Z0-9-]{3,}\b`
+- `công tơ / đồng hồ`: `\b(công\s*tơ|đồng\s*hồ|ĐH|CT)\s*[:#-]?\s*[A-Z0-9-]{2,}\b`
+- `số điện thoại`: `\b0\d{2,3}[\s.-]?\d{3}[\s.-]?\d{3,4}\b`
+- `gói cước`: `\bgói\s+[A-Z]\d+\b` (gói F8, gói M120…) — đưa vào note, không nuốt vào tên
 
-Tách **canonical_name** (tên ngắn, ổn định) ra khỏi **line_note** (metadata chuyến/lô/serial), giữ `raw_name` gốc để audit.
+→ canonical còn lại: "Tiền điện", "Cước Internet FTTH", "Cước điện thoại", "Tiền nước sinh hoạt".
 
-```text
-raw_name        : "Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69"
-canonical_name  : "Cước vận chuyển"                    ← dùng để match catalog + cache rule
-line_note       : "28/01/2026 · HCM-HN · Xe 50H-897.69" ← lưu kèm dòng phiếu, không match
-```
+---
 
-### 1. Trích xuất tự động (server-side, ở `resolveInvoiceLines` / extract)
+## 2) Xăng dầu / Nhiên liệu
 
-Thêm `splitItemName(rawName)` chạy trước fuzzy match. Quy tắc tách theo thứ tự ưu tiên (regex trên `rawName`, không phá NFD):
+- `"Xăng RON 95-III - Trụ 3 - 12.34 lít - BKS 30A-123.45"`
+- `"Dầu DO 0,05S-II - 50L - xe 51C-99999"`
+- `"Xăng E5 RON92 ngày 12/03/2026"`
 
-| Pattern | Ví dụ tách ra note |
-|---|---|
-| Ngày: `\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?` | `28/01/2026` |
-| Khoảng ngày: `... đến ...`, `từ ... đến ...` | `từ 01/01 đến 31/01` |
-| Biển số xe VN: `\d{2}[A-Z]{1,2}-?\d{3}\.?\d{2}` | `50H-897.69`, `72B-001.79` |
-| Số HĐ/lệnh: `số\s*[:#]?\s*\w+`, `LĐX\w+`, `BL\w+` | `Số 123` |
-| Tuyến: cụm 2 địa danh nối bằng `-`, `→`, `đến` (HCM, HN, ĐN…) | `HCM-HN` |
-| Tháng/kỳ: `tháng\s*\d+(/\d{2,4})?`, `kỳ \d+` | `tháng 01/2026` |
-| Serial/IMEI/SN: `S/?N[:\s]\w+`, `IMEI[:\s]\d+` | `SN ABC123` |
-| Cụm trong ngoặc `(...)`, `[...]` cuối chuỗi | nội dung trong ngoặc |
+**Rule mới:**
+- `trụ bơm`: `\btrụ\s*\d+\b`
+- `dung tích đo`: `\b\d+([.,]\d+)?\s*(lít|l|L)\b` (chỉ tách khi đứng riêng, **KHÔNG** tách khi nằm trong "RON 95")
+- Giữ nguyên `RON 95-III`, `E5 RON92`, `DO 0,05S-II` trong canonical (đây là spec sản phẩm).
 
-Output:
-```ts
-{ canonical_name: string, note_parts: string[], raw_name: string }
-```
+→ canonical: "Xăng RON 95-III", "Dầu DO 0,05S-II", "Xăng E5 RON92".
 
-`canonical_name` = `rawName` sau khi xoá các match, normalize whitespace, trim các từ nối thừa (`ngày`, `số`, `xe`, `tuyến`, `từ`, `đến`). Nếu kết quả ngắn < 3 ký tự hoặc rỗng → fallback giữ nguyên `rawName` (an toàn).
+---
 
-`line_note` = `note_parts.join(' · ')`.
+## 3) Vé / Phí cầu đường / BOT / ETC
 
-### 2. Schema
+- `"Phí BOT trạm Pháp Vân ngày 12/03/2026 - xe 30A-123.45"`
+- `"Vé máy bay VN1234 HAN-SGN ngày 28/01/2026 - hành khách Nguyễn Văn A"`
+- `"Phí ETC nạp tài khoản VETC-12345"`
+- `"Vé tàu SE1 ghế 23 toa 5 ngày 01/02"`
 
-Không thêm bảng. Thêm cột nullable trên dòng phiếu (`purchase_voucher_lines`):
-- `raw_name text` (đã có / giữ)
-- `line_note text null` — note tách tự động hoặc user gõ thêm
+**Rule mới:**
+- `số chuyến bay`: `\b[A-Z]{2}\d{2,4}\b` (VN1234, VJ142) — đặt SAU rule "biển số xe"
+- `tên hành khách`: `\bhành\s*khách\s*[:\-]?\s*[^,;]{2,40}` (khó — có thể bỏ qua, để user xoá tay)
+- `trạm BOT`: `\btrạm\s+[A-ZĐ][^\s,;]{1,30}` (Pháp Vân, Long Thành…) — match cụm "trạm + tên riêng"
+- `số ghế/toa`: `\b(ghế|toa|khoang)\s*\d+\b`
 
-Không lưu `canonical_name` riêng — nó chỉ là input cho matcher. Sau khi match xong, dòng phiếu trỏ về `product_id` (nguồn chân lý cho tên ngắn).
+→ canonical: "Phí BOT", "Vé máy bay", "Phí ETC nạp tài khoản", "Vé tàu".
 
-Trường hợp **tạo SP mới** (Loại "new" trong `ItemResolutionPanel`): prefill `name` = `canonical_name` thay vì `raw_name`. Hiện `NewProductForm` đang prefill `props.rawName` → đổi thành `canonical_name`.
+---
 
-### 3. UI (`item-resolution-panel.tsx`)
+## 4) Thuê / Dịch vụ định kỳ
 
-Trong mỗi row, hiển thị 2 dòng:
-```text
-Cước vận chuyển                          ← font-medium (canonical_name)
-28/01/2026 · HCM-HN · Xe 50H-897.69      ← text-[10px] text-muted (line_note, có thể edit)
-```
+- `"Tiền thuê văn phòng tháng 03/2026 - HĐ TVP-2024-001"`
+- `"Phí dịch vụ kế toán quý I/2026"`
+- `"Phí bảo trì thang máy kỳ 01-03/2026"`
+- `"Phí quản lý tòa nhà tháng 4/2026 - Tầng 5 phòng 502"`
 
-- Nếu chuỗi không tách được gì → chỉ hiện 1 dòng như cũ.
-- Cho phép user click vào line_note để chỉnh tay (inline edit), lưu vào `purchase_voucher_lines.line_note`.
-- Trong popover "khớp mã": **chỉ** truyền `canonical_name` vào `resolveInvoiceLines` và `confirmItemMapping` (cache rule), để lần sau cùng NCC + cùng "Cước vận chuyển" tự khớp bất kể chuyến nào.
+**Rule mới:**
+- `quý`: `\bquý\s*(I{1,3}|IV|[1-4])(?:[/-]\d{2,4})?\b`
+- `tầng / phòng / căn`: `\b(tầng|phòng|căn|lô|block)\s*[A-Z0-9-]{1,6}\b`
 
-### 4. Tác động lên các hệ thống đang có
+→ canonical: "Tiền thuê văn phòng", "Phí dịch vụ kế toán", "Phí bảo trì thang máy", "Phí quản lý tòa nhà".
 
-- **`classifyRoute` (route-line.ts):** đã `normalizeName` toàn chuỗi, vẫn match "vận chuyển" bình thường. **Không cần đổi.**
-- **`suggestPurchasePurpose`:** không đổi — vẫn nhận `description + itemNames` đầy đủ, vì purpose-picker cần ngữ cảnh rộng.
-- **Cache rule `supplier_item_mappings`:** key là `(supplier_id, raw_name)`. Đổi thành lưu theo `canonical_name` để rule tái sử dụng được. **Đây là thay đổi hành vi** — rule cũ vẫn match được nhờ `raw_name` còn nguyên trong DB; rule mới ghi `canonical_name` (cùng cột `raw_name` của bảng mappings nhưng giá trị đã tách).
-- **`ItemResolutionPanel.payloadLines`:** thêm bước `splitItemName` trước khi build payload; truyền cả `canonical_name` + `line_note` xuống server.
+---
 
-### 5. Test fixtures cần thêm (`__tests__/split-item-name.test.ts`)
+## 5) Lãi vay / Phí ngân hàng
 
-```text
-"Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69"
-  → canonical: "Cước vận chuyển", note: "28/01/2026 · HCM-HN · Xe 50H-897.69"
+- `"Lãi vay HĐTD số 12345/2025/HĐTD-NHCT kỳ 03/2026"`
+- `"Phí chuyển khoản liên ngân hàng ngày 15/03"`
+- `"Phí duy trì tài khoản tháng 03/2026"`
 
-"Tiền điện kỳ tháng 01/2026"
-  → canonical: "Tiền điện", note: "kỳ tháng 01/2026"
+**Rule mới:** mở rộng rule "Số HĐ" để bắt thêm `HĐTD`, `HĐVV`, `HĐMB`, `HĐKT` (đã gần đủ — chỉ cần thêm prefix vào regex hiện có).
 
-"Bia Tiger lon 330ml (thùng 24)"          ← KHÔNG tách "(thùng 24)" vì là quy cách SP
-  → canonical: "Bia Tiger lon 330ml (thùng 24)", note: ""
+→ canonical: "Lãi vay", "Phí chuyển khoản liên ngân hàng", "Phí duy trì tài khoản".
 
-"Dịch vụ tư vấn"                           ← ngắn, không có metadata
-  → canonical: "Dịch vụ tư vấn", note: ""
+---
 
-"Vận chuyển HN-HCM xe 29C-12345 ngày 15/3"
-  → canonical: "Vận chuyển", note: "HN-HCM · 29C-12345 · 15/3"
-```
+## 6) Bảo hiểm / Lệ phí / Thuế
 
-Edge case: cụm `(thùng 24)`, `(hộp 12)`, `(set 5)` là **quy cách**, KHÔNG phải metadata chuyến → whitelist không tách ngoặc khi nội dung match `(thùng|hộp|set|combo|pack|gói|chai|lon)\s*\d+`.
+- `"Phí bảo hiểm TNDS xe ô tô 30A-123.45 thời hạn 01/04/2026 - 31/03/2027"`
+- `"Lệ phí trước bạ xe 30A-123.45"`
+- `"Phí đăng kiểm xe tải 50H-897.69 chu kỳ 6 tháng"`
 
-## Phạm vi triển khai
+Đã có rule biển số + khoảng ngày. **Bổ sung:**
+- `chu kỳ N tháng/năm`: `\bchu\s*kỳ\s*\d+\s*(tháng|năm)\b`
 
-**Trong scope:**
-1. `src/lib/items/split-item-name.ts` (mới) — `splitItemName(raw)` + test fixtures
-2. `src/lib/items/mappings.functions.ts` — `resolveInvoiceLines` chạy `splitItemName` trên từng line, dùng `canonical_name` để fuzzy match, trả thêm `canonical_name` + `line_note` về client
-3. `src/components/inbox/item-resolution-panel.tsx` — hiển thị 2 dòng, prefill `NewProductForm.name` bằng `canonical_name`
-4. Migration: thêm cột `line_note text null` vào `purchase_voucher_lines` (+ GRANT)
-5. Khi tạo voucher từ inbox → lưu `line_note` vào DB
+→ canonical: "Phí bảo hiểm TNDS xe ô tô", "Lệ phí trước bạ xe", "Phí đăng kiểm xe tải".
 
-**Ngoài scope (đề xuất sau):**
-- Cho user kéo-thả token giữa canonical và note
-- Học từ chỉnh tay của user → cải thiện regex
-- Áp dụng tương tự cho hóa đơn bán ra
+---
+
+## 7) Vật tư / Sửa chữa có model + serial
+
+- `"Lốp Michelin 195/65R15 - serial MX-2026-001"`
+- `"Ắc quy GS 12V-70Ah - model N70 - xe 51C-99999"`
+- `"Thay nhớt Castrol 5W-30 4L - km hiện tại 45.678"`
+
+**Cẩn trọng** — đây là điểm khó nhất:
+- `195/65R15`, `12V-70Ah`, `5W-30`, `N70` là **spec sản phẩm**, PHẢI giữ trong canonical.
+- `serial …`, `model …` (khi giá trị là mã định danh cá biệt) → note.
+- `km hiện tại N` → note (số đo lúc thay).
+
+**Heuristic an toàn**: chỉ tách `serial/model` khi giá trị **chứa cả chữ và số và dấu nối** dài ≥ 5 ký tự VÀ **không nằm trong whitelist spec** (R15, V, Ah, W…). Nếu mơ hồ → KHÔNG tách (an toàn hơn là tách nhầm).
+
+→ canonical: "Lốp Michelin 195/65R15", "Ắc quy GS 12V-70Ah model N70" (giữ model vì là spec), "Thay nhớt Castrol 5W-30 4L".
+
+---
+
+## 8) Người / Đối tượng cụ thể
+
+- `"Lương tháng 03/2026 - Nguyễn Văn A - MSNV NV-001"`
+- `"Tạm ứng công tác phí Trần Thị B - chuyến HN ngày 05/04"`
+
+**Rule:**
+- `MSNV / MNV`: `\b(MSNV|MNV|NV)[:#\s-]*[A-Z0-9-]{2,}\b`
+- Tên người ở giữa rất khó tách tự động → **không làm**, để user tự sửa khi cần.
+
+→ canonical: "Lương", "Tạm ứng công tác phí" (kèm note còn lại).
+
+---
+
+## 9) Đơn vị tính lẫn trong tên
+
+Hiện tại đã giữ `(thùng 24)` qua SPEC_IN_PAREN. Mở rộng whitelist:
+- `vỉ`, `khay`, `block`, `ream`, `kiện`, `cuộn`, `cây`, `bịch`, `xấp`, `tép`
+
+(thêm vào regex `SPEC_IN_PAREN` hiện có.)
+
+---
+
+## 10) Nhiễu định dạng
+
+- Dấu `*`, `•`, `→`, `=>`, `||` ở đầu/giữa do copy từ Excel.
+- Nhiều khoảng trắng, tab, xuống dòng `\n` trong cell.
+- Tiền tố `STT.`, `1.`, `01)`, `- ` ở đầu dòng.
+
+**Rule clean-up cuối cùng** (chạy SAU tất cả rule khác, trước khi trả về):
+- Strip prefix số thứ tự: `^[\s\-*•]*(\d{1,3}[.)\]]\s*)+`
+- Collapse `\s+` → ` `, trim `[-–·,.;:*•|=>→\s]` ở 2 đầu.
+
+---
+
+## Kế hoạch triển khai
+
+1. **`src/lib/items/split-item-name.ts`** — thêm các rule theo thứ tự ưu tiên (cụ thể trước, chung sau). Sắp xếp lại danh sách `RULES` cho đúng thứ tự bóc tách.
+2. **Mở rộng `SPEC_IN_PAREN`** — thêm các đơn vị quy cách mới.
+3. **Thêm rule clean-up cuối** — strip prefix số thứ tự + ký tự nhiễu.
+4. **Test fixtures** — tạo `src/lib/items/__tests__/split-item-name.test.ts` (hoặc inline trong cùng file dưới dạng comment + assertion script) với ~20 case từ mỗi nhóm trên.
+5. **Không động đến UI** — `inbox-item-sheet.tsx` và `item-resolution-panel.tsx` đã đọc `canonical_name` + `line_note`, hưởng lợi tự động.
+
+## Out of scope (đề xuất riêng nếu cần)
+
+- **AI fallback**: khi splitter trả `note_parts` rỗng nhưng tên dài > 60 ký tự, gọi Lovable AI gemini-flash-lite tách 1 lần và cache kết quả vào `supplier_item_mappings.canonical_name`. Việc này cần bảng/cột mới — tách thành plan sau.
+- **UI cho phép user "khoá" canonical**: 1 nút "Đặt làm tên chuẩn" để ghi đè splitter cho NCC đó. Cũng tách plan riêng.
+
+## Câu hỏi xác nhận
+
+Em đề xuất làm **nhóm 1–4 và 9–10** trước (cover ~80% case thực tế, ít rủi ro nhận diện nhầm). Nhóm 5–8 có heuristic mong manh hơn — anh muốn em làm luôn cả 10 nhóm trong một lượt, hay chỉ làm 1–4 + 9–10 trước rồi xem kết quả với dữ liệu thật?
