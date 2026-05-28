@@ -149,22 +149,24 @@ function ActionParamsEditor({
   switch (action.type) {
     case "book":
       return (
-        <div className="grid grid-cols-2 gap-1.5">
-          <Input
-            placeholder="TK Nợ (vd 642)"
-            className="h-8 text-xs"
-            value={p.account_debit ?? ""}
-            onChange={(e) => onChange({ account_debit: e.target.value })}
-          />
-          <Input
-            placeholder="TK Có (vd 331)"
-            className="h-8 text-xs"
-            value={p.account_credit ?? ""}
-            onChange={(e) => onChange({ account_credit: e.target.value })}
-          />
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <AccountSelect
+              value={p.account_debit}
+              onChange={(v) => onChange({ account_debit: v })}
+              placeholder="TK Nợ"
+              options={DEBIT_ACCOUNT_PRESETS}
+            />
+            <AccountSelect
+              value={p.account_credit}
+              onChange={(v) => onChange({ account_credit: v })}
+              placeholder="TK Có"
+              options={CREDIT_ACCOUNT_PRESETS}
+            />
+          </div>
           <Input
             placeholder="Ghi chú (hỗ trợ {vendor.name})"
-            className="col-span-2 h-8 text-xs"
+            className="h-8 text-xs"
             value={p.note ?? ""}
             onChange={(e) => onChange({ note: e.target.value })}
           />
