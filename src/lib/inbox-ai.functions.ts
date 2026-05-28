@@ -751,6 +751,21 @@ async function materializePurchaseVoucherFromDocument(
     if (lErr) console.error("[materializePurchaseVoucher] lines insert failed", lErr);
   }
 
+  // Learning flywheel: ghi nhận purpose KTV chọn cho lần sau auto-match
+  if (purchasePurpose?.code) {
+    try {
+      await learnPurposeForLines(supabase, {
+        tenantId,
+        userId,
+        supplierId,
+        rawLines,
+        purposeCode: purchasePurpose.code,
+      });
+    } catch (e) {
+      console.error("[materializePurchaseVoucher] learnPurpose failed", e);
+    }
+  }
+
   return voucher.id as string;
 }
 
