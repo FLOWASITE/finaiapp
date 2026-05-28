@@ -563,3 +563,28 @@ export const previewRetroApply = createServerFn({ method: "GET" })
       samples: (rows ?? []) as RetroPreview["samples"],
     };
   });
+
+/** Học quy tắc ngay (nút "Học từ phiếu đã ghi sổ" ở empty state). */
+export const learnRulesNow = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .handler(async ({ context }): Promise<{ created: number }> => {
+    const { supabase, tenantId, userId } = context;
+    const { learnRulesFromPurchaseVouchers } = await import("./rules/learn-rules.server");
+    return learnRulesFromPurchaseVouchers(supabase, { tenantId, userId });
+  });
+
+/** Ghi nhận kết quả của một lần áp dụng rule: đúng/sai. */
+export const markApplicationOutcome = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z.object({ application_id: z.string().uuid(), correct: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("record_rule_outcome", {
+      _application_id: data.application_id,
+      _correct: data.correct,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

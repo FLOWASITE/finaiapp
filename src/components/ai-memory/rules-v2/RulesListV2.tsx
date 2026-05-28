@@ -18,6 +18,7 @@ import {
   enableRule,
   deleteRule,
   promoteSuggestion,
+  learnRulesNow,
 } from "@/lib/ai-memory.functions";
 import type { Rule } from "@/types/rule";
 
@@ -29,6 +30,7 @@ export function RulesListV2() {
   const enableFn = useServerFn(enableRule);
   const deleteFn = useServerFn(deleteRule);
   const promoteFn = useServerFn(promoteSuggestion);
+  const learnFn = useServerFn(learnRulesNow);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -93,6 +95,15 @@ export function RulesListV2() {
     onSuccess: () => {
       invalidate();
       toast.success("Đã xoá quy tắc");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const learnM = useMutation({
+    mutationFn: () => learnFn(),
+    onSuccess: (r) => {
+      invalidate();
+      if (r?.created) toast.success(`Đã học ${r.created} quy tắc mới từ phiếu đã ghi sổ`);
+      else toast.info("Chưa có pattern nào lặp lại đủ để học (cần ≥ 3 phiếu cùng nhà cung cấp + tài khoản)");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -184,9 +195,18 @@ export function RulesListV2() {
         <p className="mt-1 text-[12px] text-muted-foreground">
           AI sẽ tự tạo quy tắc khi thấy bạn lặp lại pattern 3–5 lần.
         </p>
-        <div className="mt-3 flex justify-center gap-2">
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
           <Button size="sm" onClick={() => setDraft(makeEmptyRule())}>
             <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc thủ công
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => learnM.mutate()}
+            disabled={learnM.isPending}
+          >
+            <Brain className="mr-1 h-3.5 w-3.5" />
+            {learnM.isPending ? "Đang học…" : "Học từ phiếu đã ghi sổ"}
           </Button>
         </div>
         {draft && (
@@ -208,10 +228,24 @@ export function RulesListV2() {
           {ordered.filter((r) => r.enabled).length} quy tắc đang chạy · {ordered.length} tổng
           {suggestions.length > 0 && ` · ${suggestions.length} đề xuất`}
         </div>
-        <Button size="sm" variant="outline" onClick={() => setDraft(makeEmptyRule())}>
-          <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => learnM.mutate()}
+            disabled={learnM.isPending}
+            className="text-xs"
+          >
+            <Brain className="mr-1 h-3.5 w-3.5" />
+            {learnM.isPending ? "Đang học…" : "Học từ phiếu"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDraft(makeEmptyRule())}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
+          </Button>
+        </div>
       </div>
+
+
 
       {suggestions.length > 0 && (
         <div className="space-y-2">

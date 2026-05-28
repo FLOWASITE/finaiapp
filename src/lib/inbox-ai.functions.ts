@@ -680,6 +680,35 @@ async function materializePurchaseVoucherFromDocument(
 
   const vatRateHeader = subtotal > 0 ? Math.round((vat / subtotal) * 100) : 0;
 
+  // === Trí nhớ AI — Quy tắc hạch toán: match & áp dụng rule mode=auto ===
+  let ruleAutoAccount: string | undefined;
+  let ruleMatchesForRecord: any[] = [];
+  try {
+    const { loadActiveRules: loadRules, applyRules, pickAutoBookOverride } = await import(
+      "./rules/apply-rules.server"
+    );
+    const rules = await loadRules(supabase, tenantId);
+    if (rules.length > 0) {
+      const matches = applyRules(rules, {
+        vendor: { name: sellerName, tax_id: sellerTaxId },
+        amount: total,
+        amount_before_tax: subtotal,
+        description: `Hóa đơn ${invoiceNo ?? ""} ${sellerName}`,
+        transaction_type: "purchase",
+        date: issueDate,
+        currency: ein?.currency ?? "VND",
+        doc_type: "purchase_invoice",
+        line_count: rawLines.length,
+      });
+      ruleMatchesForRecord = matches;
+      const auto = pickAutoBookOverride(matches);
+      if (auto?.account_debit) ruleAutoAccount = auto.account_debit;
+    }
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] applyRules failed", e);
+  }
+  const effectiveAccount = purposeOverride?.account ?? ruleAutoAccount ?? "156";
+
   const { data: voucher, error: vErr } = await supabase
     .from("purchase_vouchers")
     .insert({
@@ -701,7 +730,7 @@ async function materializePurchaseVoucherFromDocument(
       vat_amount: vat,
       total,
       paid_amount: 0,
-      debit_account: purposeOverride?.account ?? "156",
+      debit_account: effectiveAccount,
       credit_account: "331",
       vat_account: vat > 0 ? "1331" : null,
       payment_method: "credit",
@@ -726,7 +755,7 @@ async function materializePurchaseVoucherFromDocument(
       const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
       const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
       const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
-      const stockAcc = purposeOverride?.account ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const stockAcc = purposeOverride?.account ?? ruleAutoAccount ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
       const lineType = purposeOverride?.line_type ?? "goods";
       return {
         voucher_id: voucher.id,
@@ -782,6 +811,33 @@ async function materializePurchaseVoucherFromDocument(
     });
   } catch (e) {
     console.error("[materializePurchaseVoucher] learnFromPurchaseVoucher failed", e);
+  }
+
+  // Ghi nhận lịch sử áp dụng rule (mode auto + suggest) vào ai_rule_applications
+  if (ruleMatchesForRecord.length > 0) {
+    try {
+      const { recordRuleApplications } = await import("./rules/apply-rules.server");
+      await recordRuleApplications(supabase, {
+        tenantId,
+        userId,
+        matches: ruleMatchesForRecord,
+        documentTable: "purchase_vouchers",
+        documentId: voucher.id as string,
+        documentLabel: voucherNo,
+        journalEntryId,
+        journalCode: voucherNo,
+      });
+    } catch (e) {
+      console.error("[materializePurchaseVoucher] recordRuleApplications failed", e);
+    }
+  }
+
+  // Học quy tắc từ tất cả phiếu đã ghi sổ (best-effort, dedupe trong learner)
+  try {
+    const { learnRulesFromPurchaseVouchers } = await import("./rules/learn-rules.server");
+    await learnRulesFromPurchaseVouchers(supabase, { tenantId, userId });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnRules failed", e);
   }
 
   return voucher.id as string;
