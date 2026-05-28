@@ -1520,6 +1520,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           userId,
           entryDate: data.entry_date,
           journalEntryId: entry.id,
+          purchasePurpose: data.purchase_purpose,
         });
         if (pvId) {
           const { data: pvRow } = await supabase
