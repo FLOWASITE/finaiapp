@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AgentCard } from "./AgentCard";
+import { AutoPostCard } from "./AutoPostCard";
 import { AgentDetailDrawer } from "./AgentDetailDrawer";
 import { AgentIcon } from "./AgentIcon";
 import { listAgentOverrides, upsertAgentSettings } from "@/lib/ai-agents.functions";
