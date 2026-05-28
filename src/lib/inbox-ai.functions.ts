@@ -802,6 +802,53 @@ async function assertInvoiceBelongsToTenant(
 }
 
 /**
+ * Suy hướng hoá đơn: 'sales' | 'purchase' | null.
+ * Ưu tiên doc_kind; fallback theo ocr_extracted.direction; cuối cùng so
+ * MST tenant với seller/buyer trong _einvoice.
+ */
+async function inferDocDirection(
+  supabase: any,
+  tenantId: string,
+  documentId: string,
+): Promise<"sales" | "purchase" | null> {
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("doc_kind, ai_upload_id, ocr_extracted")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc) return null;
+  if (doc.doc_kind === "sales_invoice") return "sales";
+  if (doc.doc_kind === "purchase_invoice") return "purchase";
+
+  const ext = (doc.ocr_extracted ?? {}) as any;
+  if (ext?.direction === "sales_invoice") return "sales";
+  if (ext?.direction === "purchase_invoice") return "purchase";
+
+  let ein: any = null;
+  if (doc.ai_upload_id) {
+    const { data: up } = await supabase
+      .from("ai_uploads")
+      .select("parsed")
+      .eq("id", doc.ai_upload_id)
+      .maybeSingle();
+    ein = up?.parsed?._einvoice ?? null;
+  }
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("tax_id")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const tn = String(tenant?.tax_id ?? "").replace(/\D/g, "").slice(0, 10);
+  if (!tn) return null;
+  const sellerTax = String(ein?.seller?.tax_id ?? ext?._einvoice?.seller?.tax_id ?? "").replace(/\D/g, "").slice(0, 10);
+  const buyerTax = String(ein?.buyer?.tax_id ?? ext?._einvoice?.buyer?.tax_id ?? "").replace(/\D/g, "").slice(0, 10);
+  if (buyerTax && buyerTax === tn) return "purchase";
+  if (sellerTax && sellerTax === tn) return "sales";
+  return null;
+}
+
+
+/**
  * Khi user bấm "Duyệt & ghi sổ" cho 1 document, tự tạo Khách hàng / Nhà cung cấp /
  * Hàng hoá - Dịch vụ còn thiếu dựa trên dữ liệu eInvoice / OCR. Idempotent.
  */
