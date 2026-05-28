@@ -195,9 +195,18 @@ export function RulesListV2() {
         <p className="mt-1 text-[12px] text-muted-foreground">
           AI sẽ tự tạo quy tắc khi thấy bạn lặp lại pattern 3–5 lần.
         </p>
-        <div className="mt-3 flex justify-center gap-2">
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
           <Button size="sm" onClick={() => setDraft(makeEmptyRule())}>
             <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc thủ công
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => learnM.mutate({ data: undefined as never })}
+            disabled={learnM.isPending}
+          >
+            <Brain className="mr-1 h-3.5 w-3.5" />
+            {learnM.isPending ? "Đang học…" : "Học từ phiếu đã ghi sổ"}
           </Button>
         </div>
         {draft && (
