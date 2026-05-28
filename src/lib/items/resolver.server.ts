@@ -258,8 +258,10 @@ export async function resolveVendorLine(
     };
   });
 
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, 3).filter((c) => c.score > 0);
+  // Filter out rejected products (negative memory) before sorting.
+  const scoredFiltered = scored.filter((c) => !rejectedProductIds.has(c.product_id));
+  scoredFiltered.sort((a, b) => b.score - a.score);
+  const top = scoredFiltered.slice(0, 3).filter((c) => c.score > 0);
 
   const fuzzyBest = top[0];
   // Layer 2 fuzzy gives an auto/review result only when we have a strong match.
