@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Users, FileSearch, Lock, BarChart3, Download } from "lucide-react";
+import { Shield, Users, FileSearch, Lock, BarChart3, Database } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin")({
   beforeLoad: async () => {
@@ -22,7 +22,7 @@ const TABS = [
   { to: "/admin/members", label: "Thành viên", icon: Users },
   { to: "/admin/audit", label: "Nhật ký", icon: FileSearch },
   { to: "/admin/periods", label: "Khóa kỳ", icon: Lock },
-  { to: "/admin/backup", label: "Sao lưu", icon: Download },
+    { to: "/admin/data", label: "Quản lý dữ liệu", icon: Database },
 ];
 
 function AdminLayout() {

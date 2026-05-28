@@ -177,7 +177,10 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAdminDataImportRouteImport } from './routes/_app/admin/data/import'
+import { Route as AppAdminDataHistoryRouteImport } from './routes/_app/admin/data/history'
 import { Route as AppAdminDataExportRouteImport } from './routes/_app/admin/data/export'
+import { Route as AppAdminDataCarryForwardRouteImport } from './routes/_app/admin/data/carry-forward'
 import { Route as AppSalesOrdersIdPrintRouteImport } from './routes/_app/sales/orders.$id.print'
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
 import { Route as AppAssetsEventIdPrintRouteImport } from './routes/_app/assets/event.$id.print'
@@ -1042,11 +1045,27 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminDataImportRoute = AppAdminDataImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
+const AppAdminDataHistoryRoute = AppAdminDataHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
 const AppAdminDataExportRoute = AppAdminDataExportRouteImport.update({
   id: '/export',
   path: '/export',
   getParentRoute: () => AppAdminDataRoute,
 } as any)
+const AppAdminDataCarryForwardRoute =
+  AppAdminDataCarryForwardRouteImport.update({
+    id: '/carry-forward',
+    path: '/carry-forward',
+    getParentRoute: () => AppAdminDataRoute,
+  } as any)
 const AppSalesOrdersIdPrintRoute = AppSalesOrdersIdPrintRouteImport.update({
   id: '/print',
   path: '/print',
@@ -1195,7 +1214,10 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/admin/data/carry-forward': typeof AppAdminDataCarryForwardRoute
   '/admin/data/export': typeof AppAdminDataExportRoute
+  '/admin/data/history': typeof AppAdminDataHistoryRoute
+  '/admin/data/import': typeof AppAdminDataImportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1361,7 +1383,10 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/admin/data/carry-forward': typeof AppAdminDataCarryForwardRoute
   '/admin/data/export': typeof AppAdminDataExportRoute
+  '/admin/data/history': typeof AppAdminDataHistoryRoute
+  '/admin/data/import': typeof AppAdminDataImportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1536,7 +1561,10 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/admin/data/carry-forward': typeof AppAdminDataCarryForwardRoute
   '/_app/admin/data/export': typeof AppAdminDataExportRoute
+  '/_app/admin/data/history': typeof AppAdminDataHistoryRoute
+  '/_app/admin/data/import': typeof AppAdminDataImportRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1711,7 +1739,10 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/admin/data/carry-forward'
     | '/admin/data/export'
+    | '/admin/data/history'
+    | '/admin/data/import'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1877,7 +1908,10 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/admin/data/carry-forward'
     | '/admin/data/export'
+    | '/admin/data/history'
+    | '/admin/data/import'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -2051,7 +2085,10 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/admin/data/carry-forward'
     | '/_app/admin/data/export'
+    | '/_app/admin/data/history'
+    | '/_app/admin/data/import'
     | '/_app/assets/$id/card'
     | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
@@ -3290,11 +3327,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/data/import': {
+      id: '/_app/admin/data/import'
+      path: '/import'
+      fullPath: '/admin/data/import'
+      preLoaderRoute: typeof AppAdminDataImportRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
+    '/_app/admin/data/history': {
+      id: '/_app/admin/data/history'
+      path: '/history'
+      fullPath: '/admin/data/history'
+      preLoaderRoute: typeof AppAdminDataHistoryRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
     '/_app/admin/data/export': {
       id: '/_app/admin/data/export'
       path: '/export'
       fullPath: '/admin/data/export'
       preLoaderRoute: typeof AppAdminDataExportRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
+    '/_app/admin/data/carry-forward': {
+      id: '/_app/admin/data/carry-forward'
+      path: '/carry-forward'
+      fullPath: '/admin/data/carry-forward'
+      preLoaderRoute: typeof AppAdminDataCarryForwardRouteImport
       parentRoute: typeof AppAdminDataRoute
     }
     '/_app/sales/orders/$id/print': {
@@ -3354,11 +3412,17 @@ const AppOfficeRouteRouteWithChildren = AppOfficeRouteRoute._addFileChildren(
 )
 
 interface AppAdminDataRouteChildren {
+  AppAdminDataCarryForwardRoute: typeof AppAdminDataCarryForwardRoute
   AppAdminDataExportRoute: typeof AppAdminDataExportRoute
+  AppAdminDataHistoryRoute: typeof AppAdminDataHistoryRoute
+  AppAdminDataImportRoute: typeof AppAdminDataImportRoute
 }
 
 const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
+  AppAdminDataCarryForwardRoute: AppAdminDataCarryForwardRoute,
   AppAdminDataExportRoute: AppAdminDataExportRoute,
+  AppAdminDataHistoryRoute: AppAdminDataHistoryRoute,
+  AppAdminDataImportRoute: AppAdminDataImportRoute,
 }
 
 const AppAdminDataRouteWithChildren = AppAdminDataRoute._addFileChildren(
@@ -3804,13 +3868,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
