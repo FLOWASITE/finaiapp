@@ -243,6 +243,9 @@ export function RulesListV2() {
             <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
           </Button>
         </div>
+      </div>
+
+
 
       {suggestions.length > 0 && (
         <div className="space-y-2">
