@@ -755,7 +755,7 @@ async function materializePurchaseVoucherFromDocument(
       const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
       const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
       const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
-      const stockAcc = purposeOverride?.account ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const stockAcc = purposeOverride?.account ?? ruleAutoAccount ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
       const lineType = purposeOverride?.line_type ?? "goods";
       return {
         voucher_id: voucher.id,
