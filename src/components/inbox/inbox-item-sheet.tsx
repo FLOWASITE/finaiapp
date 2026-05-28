@@ -382,7 +382,7 @@ export function InboxItemDetail({
             Bút toán đề xuất
           </span>
           <div className="space-y-2.5">
-            {item.proposal.lines.map((l, i, arr) => {
+            {workingItem.proposal.lines.map((l, i, arr) => {
               const isDebit = (l.debit ?? 0) > 0;
               const amount = isDebit ? l.debit! : l.credit ?? 0;
               const sideLabel = isDebit ? "Nợ" : "Có";
@@ -417,20 +417,20 @@ export function InboxItemDetail({
               );
             })}
           </div>
-          <VatExplain meta={item.proposal.meta} items={item.proposal.items} />
+          <VatExplain meta={workingItem.proposal.meta} items={workingItem.proposal.items} />
         </div>
 
         {/* ③ Mục đích mua hàng (Vấn đề 3) */}
         <PurposePicker
-          voucherKind={item.proposal.voucher_kind}
-          lines={item.proposal.lines}
-          onEdit={() => onEdit(item)}
+          voucherKind={workingItem.proposal.voucher_kind}
+          value={purchasePurpose}
+          onChange={setPurchasePurpose}
         />
 
         {/* ④ Khi duyệt, Fin sẽ tự tạo (Vấn đề 5) */}
         <MissingMasterDataPanel
-          missing={item.missing}
-          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
+          missing={workingItem.missing}
+          sourceDocumentId={workingItem.source === "document" ? workingItem.external_id : undefined}
         />
 
         {/* Đối soát hóa đơn ↔ bút toán */}
