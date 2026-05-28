@@ -472,9 +472,11 @@ async function materializePurchaseVoucherFromDocument(
     userId: string;
     entryDate: string;
     journalEntryId: string;
+    purchasePurpose?: "resale" | "material" | "expense";
   },
 ): Promise<string | null> {
-  const { documentId, tenantId, userId, entryDate, journalEntryId } = opts;
+  const { documentId, tenantId, userId, entryDate, journalEntryId, purchasePurpose } = opts;
+  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
 
   let { data: doc } = await supabase
     .from("documents")
@@ -643,7 +645,7 @@ async function materializePurchaseVoucherFromDocument(
       vat_amount: vat,
       total,
       paid_amount: 0,
-      debit_account: "156",
+      debit_account: purposeOverride?.account ?? "156",
       credit_account: "331",
       vat_account: vat > 0 ? "1331" : null,
       payment_method: "credit",
@@ -668,7 +670,8 @@ async function materializePurchaseVoucherFromDocument(
       const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
       const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
       const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
-      const stockAcc = l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const stockAcc = purposeOverride?.account ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const lineType = purposeOverride?.line_type ?? "goods";
       return {
         voucher_id: voucher.id,
         line_order: i,
@@ -687,7 +690,7 @@ async function materializePurchaseVoucherFromDocument(
         total: amount + lineVat,
         debit_account: String(stockAcc),
         vat_account: lineVat > 0 ? "1331" : null,
-        line_type: "goods",
+        line_type: lineType,
       };
     });
     const { error: lErr } = await supabase
@@ -854,9 +857,10 @@ async function inferDocDirection(
  */
 async function autoResolveMissingMaster(
   supabase: any,
-  opts: { tenantId: string; userId: string; documentId: string },
+  opts: { tenantId: string; userId: string; documentId: string; purchasePurpose?: "resale" | "material" | "expense" },
 ): Promise<void> {
-  const { tenantId, userId, documentId } = opts;
+  const { tenantId, userId, documentId, purchasePurpose } = opts;
+  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
   const { data: doc } = await supabase
     .from("documents")
     .select("doc_kind, ai_upload_id, ocr_extracted")
@@ -1009,10 +1013,13 @@ async function autoResolveMissingMaster(
     seen.add(nm.toLowerCase());
     if (existSet.has(nm.toLowerCase())) continue;
 
-    let item_type: "goods" | "service" = "goods";
+    let item_type: "goods" | "service" | "material" = "goods";
     let stock_account = "156";
     let unit = li.unit?.toString().trim() || "cái";
-    if (ctxV2) {
+    if (purposeOverride) {
+      item_type = purposeOverride.item_type;
+      stock_account = purposeOverride.account;
+    } else if (ctxV2) {
       try {
         const r = classifyLineV2(li, ctxV2);
         const acct = accountForItemType(kindV2ToItemType(r.kind));
