@@ -2215,3 +2215,135 @@ export const reconcileInboxItem = createServerFn({ method: "POST" })
       generated_at: new Date().toISOString(),
     };
   });
+
+// ============================================================
+// THƯ VIỆN MỤC ĐÍCH CHI (Loại B) — listing + suggestion
+// ============================================================
+
+type TypeBRow = {
+  code: string;
+  name: string;
+  group_code: string;
+  account_tt99: string;
+  account_tt133: string;
+  line_kind: "goods" | "material" | "ccdc" | "asset" | "service";
+  needs_vat_output: boolean;
+  cit_warning: string | null;
+  cit_cap: string | null;
+  aliases: string[];
+  floating_goods: string[];
+  legal_basis: string | null;
+  sort_order: number;
+};
+
+type PurposeOption = {
+  code: string;
+  name: string;
+  group_code: string;
+  account: string;
+  line_kind: "goods" | "material" | "ccdc" | "asset" | "service";
+  needs_vat_output: boolean;
+  tax_warning?: string;
+  cit_cap?: string;
+  legal_basis?: string;
+  aliases: string[];
+};
+
+function pickAccount(row: TypeBRow, standard: string): string {
+  return standard === "tt133" ? row.account_tt133 : row.account_tt99;
+}
+
+function rowToOption(row: TypeBRow, standard: string): PurposeOption {
+  return {
+    code: row.code,
+    name: row.name,
+    group_code: row.group_code,
+    account: pickAccount(row, standard),
+    line_kind: row.line_kind,
+    needs_vat_output: row.needs_vat_output,
+    tax_warning: row.cit_warning ?? undefined,
+    cit_cap: row.cit_cap ?? undefined,
+    legal_basis: row.legal_basis ?? undefined,
+    aliases: row.aliases ?? [],
+  };
+}
+
+function norm(s: string): string {
+  return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+async function getTenantAccountingStandard(supabase: any, tenantId: string): Promise<string> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("accounting_standard")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const s = (data?.accounting_standard as string | null)?.toLowerCase() ?? "tt99";
+  return s === "tt133" ? "tt133" : "tt99";
+}
+
+/**
+ * Liệt kê toàn bộ Loại B đang active — đã chọn TK theo chuẩn KT của tenant.
+ * Trả kèm aliases + cảnh báo để UI hiển thị + search local.
+ */
+export const listPurposeCatalog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return { items: [] as PurposeOption[], standard: "tt99" as "tt99" | "tt133" };
+
+    const standard = await getTenantAccountingStandard(supabase, tenantId);
+    const { data, error } = await supabase
+      .from("typeb_purpose_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    const items = (data as TypeBRow[]).map((r) => rowToOption(r, standard));
+    return { items, standard: standard as "tt99" | "tt133" };
+  });
+
+const SuggestInput = z.object({
+  description: z.string().min(1).max(2000),
+  item_names: z.array(z.string().min(1).max(300)).max(50).optional(),
+});
+
+/**
+ * Gợi ý top mục đích Loại B cho một invoice / line dựa trên mô tả + tên mặt hàng.
+ * Logic match: aliases / floating_goods / name — score theo số lần khớp.
+ */
+export const suggestPurchasePurpose = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SuggestInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return { candidates: [] as PurposeOption[] };
+
+    const standard = await getTenantAccountingStandard(supabase, tenantId);
+    const { data: rows, error } = await supabase
+      .from("typeb_purpose_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const haystackParts = [data.description, ...(data.item_names ?? [])]
+      .filter(Boolean)
+      .map(norm);
+    const hay = haystackParts.join(" | ");
+
+    type Scored = { row: TypeBRow; score: number };
+    const scored: Scored[] = [];
+    for (const row of rows as TypeBRow[]) {
+      let score = 0;
+      for (const a of row.aliases ?? []) if (hay.includes(norm(a))) score += 3;
+      for (const f of row.floating_goods ?? []) if (hay.includes(norm(f))) score += 5;
+      if (hay.includes(norm(row.name))) score += 4;
+      if (score > 0) scored.push({ row, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 5).map((s) => rowToOption(s.row, standard));
+    return { candidates: top };
+  });
