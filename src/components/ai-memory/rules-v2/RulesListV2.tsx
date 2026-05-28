@@ -211,6 +211,7 @@ export function RulesListV2() {
         </div>
         {draft && (
           <RuleEditor
+            key={draft.id}
             rule={draft}
             open={!!draft}
             onOpenChange={(o) => !o && setDraft(null)}
