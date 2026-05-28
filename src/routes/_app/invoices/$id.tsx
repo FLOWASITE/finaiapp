@@ -12,6 +12,14 @@ import { Label } from "@/components/ui/label";
 import { useServerFn } from "@tanstack/react-start";
 import { suggestJournalEntry, approveJournalEntry } from "@/lib/journal.functions";
 import { getLinkedEInvoice } from "@/lib/einvoices.functions";
+import { getResolvedInvoiceLines, setLineOverrideKind, type ResolvedLine } from "@/lib/items/line-override.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/invoices/$id")({
   component: InvoiceDetail,
