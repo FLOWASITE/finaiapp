@@ -228,10 +228,21 @@ export function RulesListV2() {
           {ordered.filter((r) => r.enabled).length} quy tắc đang chạy · {ordered.length} tổng
           {suggestions.length > 0 && ` · ${suggestions.length} đề xuất`}
         </div>
-        <Button size="sm" variant="outline" onClick={() => setDraft(makeEmptyRule())}>
-          <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
-        </Button>
-      </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => learnM.mutate({ data: undefined as never })}
+            disabled={learnM.isPending}
+            className="text-xs"
+          >
+            <Brain className="mr-1 h-3.5 w-3.5" />
+            {learnM.isPending ? "Đang học…" : "Học từ phiếu"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDraft(makeEmptyRule())}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Tạo quy tắc
+          </Button>
+        </div>
 
       {suggestions.length > 0 && (
         <div className="space-y-2">
