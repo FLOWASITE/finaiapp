@@ -98,6 +98,15 @@ export function RulesListV2() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const learnM = useMutation({
+    mutationFn: learnFn,
+    onSuccess: (r) => {
+      invalidate();
+      if (r?.created) toast.success(`Đã học ${r.created} quy tắc mới từ phiếu đã ghi sổ`);
+      else toast.info("Chưa có pattern nào lặp lại đủ để học (cần ≥ 3 phiếu cùng nhà cung cấp + tài khoản)");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const handleToggle = (id: string, enabled: boolean, reason?: string) => {
     if (enabled) {
