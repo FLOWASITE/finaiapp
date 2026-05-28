@@ -1494,7 +1494,8 @@ function MissingMasterDataPanel({
   type Row = {
     key: string;
     label: string;
-    value: string;
+    value: string;          // tên ngắn để hiển thị + tạo SP
+    note?: string;          // metadata tách ra (ngày, biển số, tuyến...) — hiển thị nhỏ
     entity: MissingRowEntity;
     tax_id?: string;
     suggestion?: {
@@ -1523,10 +1524,12 @@ function MissingMasterDataPanel({
     });
   for (const p of missing.products ?? []) {
     const it = (p.item_type ?? "goods") as MissingItemType;
+    const split = splitItemName(p.name);
     rows.push({
       key: `product:${p.name}`,
       label: it === "service" ? "Dịch vụ" : "Hàng hoá",
-      value: p.name,
+      value: split.canonical_name,
+      note: split.line_note || undefined,
       entity: it === "service" ? "service" : "product",
       suggestion: {
         item_type: it,
