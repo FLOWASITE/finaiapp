@@ -4318,6 +4318,74 @@ export type Database = {
           },
         ]
       }
+      global_supplier_contributions: {
+        Row: {
+          at: string
+          display_name: string | null
+          industry_code: string | null
+          tax_id: string
+          tenant_id: string
+        }
+        Insert: {
+          at?: string
+          display_name?: string | null
+          industry_code?: string | null
+          tax_id: string
+          tenant_id: string
+        }
+        Update: {
+          at?: string
+          display_name?: string | null
+          industry_code?: string | null
+          tax_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_supplier_contributions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_supplier_registry: {
+        Row: {
+          confidence: number
+          contributor_count: number
+          display_name: string | null
+          first_seen: string
+          industry_code: string | null
+          industry_name: string | null
+          last_seen: string
+          tax_id: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          contributor_count?: number
+          display_name?: string | null
+          first_seen?: string
+          industry_code?: string | null
+          industry_name?: string | null
+          last_seen?: string
+          tax_id: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          contributor_count?: number
+          display_name?: string | null
+          first_seen?: string
+          industry_code?: string | null
+          industry_name?: string | null
+          last_seen?: string
+          tax_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       import_batches: {
         Row: {
           classification: Json
@@ -8338,6 +8406,57 @@ export type Database = {
           },
         ]
       }
+      supplier_default_routing: {
+        Row: {
+          confidence: number
+          debit_account: string | null
+          last_seen: string
+          line_kind: string
+          purpose_code: string | null
+          sample_count: number
+          supplier_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          debit_account?: string | null
+          last_seen?: string
+          line_kind: string
+          purpose_code?: string | null
+          sample_count?: number
+          supplier_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          debit_account?: string | null
+          last_seen?: string
+          line_kind?: string
+          purpose_code?: string | null
+          sample_count?: number
+          supplier_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_default_routing_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_default_routing_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_groups: {
         Row: {
           code: string | null
@@ -8384,10 +8503,13 @@ export type Database = {
       }
       supplier_item_mappings: {
         Row: {
+          archived_at: string | null
           confidence: number
+          correction_count: number
           created_at: string
           created_by: string | null
           id: string
+          last_correction_at: string | null
           last_seen: string
           match_count: number
           product_id: string | null
@@ -8401,12 +8523,16 @@ export type Database = {
           tenant_id: string
           unit_conversion_factor: number
           updated_at: string
+          vote_log: Json
         }
         Insert: {
+          archived_at?: string | null
           confidence?: number
+          correction_count?: number
           created_at?: string
           created_by?: string | null
           id?: string
+          last_correction_at?: string | null
           last_seen?: string
           match_count?: number
           product_id?: string | null
@@ -8420,12 +8546,16 @@ export type Database = {
           tenant_id: string
           unit_conversion_factor?: number
           updated_at?: string
+          vote_log?: Json
         }
         Update: {
+          archived_at?: string | null
           confidence?: number
+          correction_count?: number
           created_at?: string
           created_by?: string | null
           id?: string
+          last_correction_at?: string | null
           last_seen?: string
           match_count?: number
           product_id?: string | null
@@ -8439,6 +8569,7 @@ export type Database = {
           tenant_id?: string
           unit_conversion_factor?: number
           updated_at?: string
+          vote_log?: Json
         }
         Relationships: [
           {
@@ -8457,6 +8588,64 @@ export type Database = {
           },
           {
             foreignKeyName: "supplier_item_mappings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_item_rejections: {
+        Row: {
+          count: number
+          created_at: string
+          id: string
+          last_at: string
+          raw_name_norm: string
+          rejected_product_id: string | null
+          rejected_purpose_code: string | null
+          supplier_id: string
+          tenant_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          id?: string
+          last_at?: string
+          raw_name_norm: string
+          rejected_product_id?: string | null
+          rejected_purpose_code?: string | null
+          supplier_id: string
+          tenant_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          id?: string
+          last_at?: string
+          raw_name_norm?: string
+          rejected_product_id?: string | null
+          rejected_purpose_code?: string | null
+          supplier_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_item_rejections_rejected_product_id_fkey"
+            columns: ["rejected_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_item_rejections_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_item_rejections_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -9104,6 +9293,9 @@ export type Database = {
         Row: {
           accounting_standard: string
           address: string | null
+          auto_post_enabled: boolean
+          auto_post_max_amount: number
+          auto_post_min_confidence: number
           base_currency: string
           billing_address: string | null
           business_reg_date: string | null
@@ -9156,6 +9348,9 @@ export type Database = {
         Insert: {
           accounting_standard?: string
           address?: string | null
+          auto_post_enabled?: boolean
+          auto_post_max_amount?: number
+          auto_post_min_confidence?: number
           base_currency?: string
           billing_address?: string | null
           business_reg_date?: string | null
@@ -9208,6 +9403,9 @@ export type Database = {
         Update: {
           accounting_standard?: string
           address?: string | null
+          auto_post_enabled?: boolean
+          auto_post_max_amount?: number
+          auto_post_min_confidence?: number
           base_currency?: string
           billing_address?: string | null
           business_reg_date?: string | null
@@ -9714,6 +9912,7 @@ export type Database = {
         }[]
       }
       current_tenant_id: { Args: never; Returns: string }
+      fn_aggregate_global_registry: { Args: never; Returns: number }
       fn_auto_match_bank_txn: { Args: { p_txn_id: string }; Returns: undefined }
       fn_parse_then_text: { Args: { p_text: string }; Returns: Json }
       fn_parse_when_text: { Args: { p_text: string }; Returns: Json }
@@ -9729,6 +9928,7 @@ export type Database = {
         Args: { p_product: string; p_warehouse: string }
         Returns: number
       }
+      fn_recency_weighted_winner: { Args: { p_log: Json }; Returns: Json }
       fn_release_reservation_for_so_line: {
         Args: { p_line_id: string }
         Returns: undefined
