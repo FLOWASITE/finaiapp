@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AgentCard } from "./AgentCard";
+import { AutoPostCard } from "./AutoPostCard";
 import { AgentDetailDrawer } from "./AgentDetailDrawer";
 import { AgentIcon } from "./AgentIcon";
 import { listAgentOverrides, upsertAgentSettings } from "@/lib/ai-agents.functions";
@@ -143,7 +144,9 @@ export function AgentsOfFinPanel() {
           Mặc định Fin tự lo mọi việc — bạn chỉ chat. Tab này dành cho KTT/CFO muốn tinh
           chỉnh kiến trúc kỹ thuật: bật/tắt từng agent, đặt ngưỡng tin cậy riêng, debug
           khi Fin sai.
-        </div>
+      </div>
+
+      <AutoPostCard />
       </div>
 
       <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card px-4 py-3">

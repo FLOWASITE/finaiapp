@@ -49,11 +49,21 @@ export type Candidate = {
   };
 };
 
+export type SupplierDefaultHint = {
+  line_kind: string;
+  purpose_code: string | null;
+  debit_account: string | null;
+  confidence: number;
+  sample_count: number;
+};
+
 export type ResolveResult = {
   method: "cache" | "fuzzy" | "library" | "none";
   status: "auto" | "review" | "new" | "library_suggestion";
   best?: Candidate;
   candidates: Candidate[];
+  /** Layer 1.5: supplier-level defaults learned from history (Phase 2). */
+  supplierDefaults?: SupplierDefaultHint[];
 };
 
 const W = { text: 0.55, unit: 0.2, price: 0.1, history: 0.1, sku: 0.05 };
@@ -149,6 +159,30 @@ export async function resolveVendorLine(
       },
     };
     return { method: "cache", status: "auto", best: cand, candidates: [cand] };
+  }
+
+  // ---- Layer 1.5: supplier-level defaults (Phase 2) ----
+  // Best-effort hint; never blocks downstream layers.
+  let supplierDefaults: SupplierDefaultHint[] | undefined;
+  try {
+    const { data: defRows } = await supabase
+      .from("supplier_default_routing")
+      .select("line_kind, purpose_code, debit_account, confidence, sample_count")
+      .eq("tenant_id", input.tenantId)
+      .eq("supplier_id", input.supplierId)
+      .order("confidence", { ascending: false })
+      .limit(5);
+    if (defRows && defRows.length > 0) {
+      supplierDefaults = defRows.map((r: any) => ({
+        line_kind: r.line_kind,
+        purpose_code: r.purpose_code ?? null,
+        debit_account: r.debit_account ?? null,
+        confidence: Number(r.confidence ?? 0),
+        sample_count: Number(r.sample_count ?? 0),
+      }));
+    }
+  } catch (e) {
+    console.error("supplier_default_routing lookup failed", e);
   }
 
   // ---- Layer 2: fuzzy multi-signal ----
@@ -268,7 +302,7 @@ export async function resolveVendorLine(
   if (fuzzyBest && fuzzyBest.score >= 0.7) {
     const status: ResolveResult["status"] = fuzzyBest.score >= 0.9 ? "auto" : "review";
     await logResolution(supabase, input, fuzzyBest.product_id, "fuzzy", fuzzyBest.score, fuzzyBest.signals);
-    return { method: "fuzzy", status, best: fuzzyBest, candidates: top };
+    return { method: "fuzzy", status, best: fuzzyBest, candidates: top, supplierDefaults };
   }
 
   // ---- Layer 2.5: fallback to global library (tenant_product_catalog) ----
@@ -281,17 +315,18 @@ export async function resolveVendorLine(
       status: "library_suggestion",
       best,
       candidates: libraryCandidates,
+      supplierDefaults,
     };
   }
 
   // If fuzzy gave something weak (score < 0.7) and library was empty, still surface those.
   if (top.length > 0) {
     await logResolution(supabase, input, null, "fuzzy", fuzzyBest!.score, fuzzyBest!.signals);
-    return { method: "fuzzy", status: "new", candidates: top };
+    return { method: "fuzzy", status: "new", candidates: top, supplierDefaults };
   }
 
   await logResolution(supabase, input, null, "none", 0, {});
-  return { method: "none", status: "new", candidates: [] };
+  return { method: "none", status: "new", candidates: [], supplierDefaults };
 }
 
 async function searchLibrary(

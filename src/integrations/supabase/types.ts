@@ -9913,6 +9913,10 @@ export type Database = {
       }
       current_tenant_id: { Args: never; Returns: string }
       fn_aggregate_global_registry: { Args: never; Returns: number }
+      fn_aggregate_supplier_defaults: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       fn_auto_match_bank_txn: { Args: { p_txn_id: string }; Returns: undefined }
       fn_parse_then_text: { Args: { p_text: string }; Returns: Json }
       fn_parse_when_text: { Args: { p_text: string }; Returns: Json }
