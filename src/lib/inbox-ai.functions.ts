@@ -1388,6 +1388,16 @@ export const listInboxAi = createServerFn({ method: "POST" })
     };
   });
 
+const PurchasePurposeSchema = z.object({
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(200),
+  group_code: z.string().min(1).max(64).optional(),
+  account: z.string().min(2).max(16),
+  line_kind: z.enum(["goods", "material", "ccdc", "asset", "service"]),
+  needs_vat_output: z.boolean().optional(),
+  tax_warning: z.string().max(500).optional(),
+});
+
 const ApproveInput = z.object({
   source: z.enum(["document", "bank_statement", "ai_insight"]),
   external_id: z.string().min(1),
@@ -1405,17 +1415,22 @@ const ApproveInput = z.object({
     .min(1),
   confidence_at_decision: z.number().int().min(0).max(100).optional(),
   match_ref_invoice_id: z.string().uuid().optional(),
-  purchase_purpose: z.enum(["resale", "material", "expense"]).optional(),
+  purchase_purpose: PurchasePurposeSchema.optional(),
 });
 
-const PURCHASE_PURPOSE_OVERRIDE: Record<
-  "resale" | "material" | "expense",
-  { account: string; item_type: "goods" | "service" | "material"; line_type: string }
-> = {
-  resale:   { account: "156", item_type: "goods",    line_type: "goods" },
-  material: { account: "152", item_type: "material", line_type: "material" },
-  expense:  { account: "642", item_type: "service",  line_type: "service" },
-};
+type PurchasePurposeIn = z.infer<typeof PurchasePurposeSchema>;
+type PurposeOverride = { account: string; item_type: MissingItemTypeGuess; line_type: string };
+
+function buildPurposeOverride(p: PurchasePurposeIn | undefined): PurposeOverride | null {
+  if (!p) return null;
+  const item_type: MissingItemTypeGuess =
+    p.line_kind === "goods" ? "goods"
+    : p.line_kind === "material" ? "material"
+    : p.line_kind === "ccdc" ? "tool"
+    : p.line_kind === "asset" ? "asset_tangible"
+    : "service";
+  return { account: p.account, item_type, line_type: p.line_kind };
+}
 
 export const approveInboxItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
