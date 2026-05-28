@@ -1,82 +1,61 @@
+## Mục tiêu
+Sửa bug nghiệp vụ P0: không còn trạng thái bút toán tổng Nợ 156 nhưng mặt hàng lại được tạo/resolve theo TK 153. “Mục đích mua hàng” sẽ trở thành nguồn sự thật duy nhất cho cả bút toán, danh sách mặt hàng sẽ tạo, và dữ liệu gửi khi duyệt.
 
-# Redesign panel "Đề xuất của Fin"
+## Phạm vi sửa
 
-Chỉ sửa duy nhất phần body của `InboxItemSheetDetail` trong `src/components/inbox/inbox-item-sheet.tsx` (dòng 315–475). Không động vào server function, schema, hay logic confidence.
+### 1. P0 — Đồng bộ mục đích → bút toán → mặt hàng
+- Thêm state `purchasePurpose` ở màn Inbox, lưu theo từng `InboxItem` đang mở.
+- Suy ra mặc định từ bút toán hiện tại nếu có: `156 = resale`, `152 = material`, `642 = expense`; nếu không thì fallback theo đề xuất hiện tại.
+- Khi KTV chọn mục đích mới trong `PurposePicker`, không chỉ mở màn sửa nữa mà gọi `onPurposeChange` để tạo một bản `InboxItem` đã được propagate:
+  - Bút toán debit chính đổi sang đúng TK mục đích.
+  - Các dòng hàng/mặt hàng mới trong `missing.products` đổi cùng loại:
+    - `resale` → `item_type: goods`, `account: 156`
+    - `material` → `item_type: material`, `account: 152`
+    - `expense` → `item_type: service`, `account: 642`
+  - UI “Cần tạo mới” hiển thị ngay TK mới, không còn 153 khi đang chọn 156.
+- Khi bấm “Duyệt & ghi sổ”, client gửi thêm `purchase_purpose` vào `approveInboxItem` để server không phải đoán lại.
 
-## Thứ tự mới (top → bottom)
+### 2. P0 — Server dùng cùng một nguồn sự thật khi duyệt
+- Mở rộng input `approveInboxItem` nhận `purchase_purpose` cho chứng từ mua.
+- Truyền mục đích này vào `autoResolveMissingMaster` để tự tạo products theo đúng TK KTV đã duyệt, thay vì chạy lại classifier và tự rơi về 153.
+- Truyền mục đích này vào `materializePurchaseVoucherFromDocument` để:
+  - `purchase_vouchers.debit_account` khớp với bút toán đã ghi.
+  - `purchase_voucher_lines.debit_account` khớp từng dòng.
+  - Nếu mục đích là chi phí `642`, dòng sẽ là service/expense-style, không tạo tồn kho theo 156/153.
+- Thêm guard trước khi insert journal: nếu là purchase invoice và `purchase_purpose` có account mục tiêu, các dòng debit nghiệp vụ phải khớp account này; nếu lệch thì normalize hoặc báo lỗi rõ, tránh ghi sổ sai âm thầm.
 
+### 3. P1 — Bỏ default 153 nguy hiểm cho cây cảnh/new product trong flow này
+- Với missing products trong panel duyệt, nếu KTV đã chọn mục đích, nhãn phân loại lấy từ mục đích, không lấy lại confidence 99% từ classifier.
+- Không hiển thị “99%” như một khẳng định chắc chắn cho item mới khi thực chất chưa có mã trong hệ thống.
+- Đổi nhãn sang rõ nghĩa hơn, ví dụ “sẽ tạo TK 156” / “sẽ hạch toán 642”, hoặc chỉ hiển thị TK + loại.
+
+### 4. P2 — Dọn UI trùng lặp sau khi sync
+- Bỏ `ApprovalChecklist` chips ở footer vì đã trùng với block “Tin cậy 60% — cần anh xác nhận”.
+- Đưa thông tin “7 mặt hàng sẽ tạo với TK …” sát block “Mục đích mua hàng” hoặc làm subtitle trong block “Cần tạo mới”, để KTV thấy chọn radio sẽ ảnh hưởng trực tiếp tới mặt hàng.
+
+## File dự kiến sửa
+- `src/components/inbox/inbox-item-sheet.tsx`: biến `PurposePicker` thành control thật, propagate UI cho missing products, bỏ footer checklist.
+- `src/routes/_app/inbox.tsx`: giữ state mục đích theo item, truyền item đã sync vào duyệt, gửi `purchase_purpose` lên server.
+- `src/lib/ai/inbox-types.ts`: thêm type mục đích mua hàng dùng chung.
+- `src/lib/inbox-ai.functions.ts`: nhận `purchase_purpose`, auto-create product và materialize purchase voucher theo mục đích đã duyệt.
+
+## Kết quả sau fix
+```text
+KTV chọn Hàng hoá bán lại (156)
+  → Bút toán: Nợ 156
+  → 7 mặt hàng: sẽ tạo Hàng hoá / TK 156
+  → Products tạo ra: stock_account 156
+  → Purchase voucher lines: debit_account 156
+
+KTV chọn Chi phí sự kiện (642)
+  → Bút toán: Nợ 642
+  → 7 dòng: chi phí/dịch vụ, không nhập tồn kho
+  → Products/service nếu tạo: service / expense 642
+  → Purchase voucher lines: debit_account 642
 ```
-┌─ Header: Đề xuất của Fin · [Phiếu mua hàng]
-├─ Summary: Đối tác · Số tiền · ngày                (giữ)
-├─ ① Tin cậy 60% — cần xác nhận                   (MỚI: confidence breakdown)
-│    ✓ Mặt hàng khớp 99%
-│    ⚠ NCC mới — chưa có trong hệ thống (−25%)
-│    ❓ Mục đích mua chưa rõ (−15%)
-├─ ② BÚT TOÁN ĐỀ XUẤT                              (lên trên — Vấn đề 1)
-│    Nợ 156 … 9.888.000
-│    Có 331 … 9.888.000
-│    ⓘ Nông sản chưa chế biến — không chịu VAT     (Vấn đề 4)
-├─ ③ Mục đích mua hàng này? (nếu ambiguous)        (MỚI — Vấn đề 3)
-│    ◉ Hàng hoá bán lại → TK 156  (Fin đoán)
-│    ○ Nguyên liệu → TK 152
-│    ○ Chi phí sự kiện/trang trí → TK 642
-├─ ④ Khi duyệt, Fin sẽ tự tạo:                     (gộp + làm rõ — Vấn đề 5)
-│    🏪 NCC: … (Sửa)
-│    📦 2 mặt hàng mới · TK 156 · 99% (Xem)
-├─ ⑤ ▸ Đối chiếu hoá đơn gốc (collapsed)           (Vấn đề 6: gộp meta + items)
-├─ Reasoning summary (nếu có)
-├─ Blocker / chat history
-└─ Footer: [Duyệt & ghi sổ — tự tạo NCC + 2 mặt hàng]  (CTA nói rõ side-effect)
-         [Sửa] [Bỏ qua]
-         [Áp dụng quy tắc cho tương lai]
-```
 
-## Thay đổi từng section
-
-### A. Confidence breakdown (Vấn đề 2)
-Block mới ngay dưới Summary, dùng tone amber khi <80, emerald khi ≥80:
-- Header: `Tin cậy {n}% — cần anh xác nhận` (hoặc "rất đáng tin" khi ≥80)
-- List dòng = `item.reasoning.signals` (đã có sẵn từ server) — render với icon ✓/⚠/❓ và label. Nếu signal có field `weight` thì append `(±xx%)`; nếu không thì chỉ hiện label. Không tạo signal mới ở client.
-- Phải khớp số tổng với `confidence` trong header → không sửa source data, chỉ render lại.
-
-### B. Bút toán đề xuất (Vấn đề 1)
-Di chuyển block hiện có (lines 396–437) lên ngay dưới breakdown. Giữ nguyên markup grid.
-- Thêm dòng note ngay dưới khi VAT = 0 (Vấn đề 4):
-  - Điều kiện: `meta.vat_amount == 0 && meta.subtotal > 0` → hiện banner info nhỏ: "ⓘ Nông sản chưa chế biến — không chịu VAT (Điều 5 Luật thuế GTGT)".
-  - Text fallback chung: "ⓘ Hoá đơn không có VAT đầu vào để khấu trừ" khi không detect được nông sản.
-  - Detect nông sản dựa trên item name keyword (hoa, rau, củ, quả, …) — chỉ là gợi ý tone, không đổi logic kế toán.
-
-### C. Mục đích mua hàng (Vấn đề 3)
-Block mới, **chỉ render khi**:
-- Voucher kind = purchase_voucher
-- Có line debit thuộc {156, 152, 153, 642, 211, 213, 242}
-- Có ≥2 lựa chọn hợp lý → frontend heuristic đơn giản: nếu tài khoản đoán ∈ {156, 152, 642} thì show 3 option đó.
-
-UI: radio group, option Fin đoán = checked + chip "(Fin đoán)". Khi user đổi → gọi `onEdit(item)` mở voucher editor (KHÔNG tự sửa bút toán trong panel — giữ scope UI-only).
-Out-of-scope: persist lựa chọn này thành rule; chỉ điều hướng sang flow chỉnh sửa hiện có.
-
-### D. "Khi duyệt, Fin sẽ tự tạo" (Vấn đề 5)
-Refactor `MissingMasterDataPanel`:
-- Đổi tiêu đề từ "CẦN TẠO MỚI VÀO HỆ THỐNG" → "Khi duyệt, Fin sẽ tự tạo"
-- Bỏ 3 nút "Tạo mới" rời rạc; mỗi dòng còn nút phụ "Sửa" / "Xem" (link sang sheet chi tiết NCC/mặt hàng — đã có). Việc tạo thực tế dồn về CTA chính.
-- CTA chính ở footer đổi label động: `Duyệt & ghi sổ — tự tạo NCC + N mặt hàng` (khi có missing) hoặc giữ "Duyệt & ghi sổ" như cũ.
-
-### E. Đối chiếu hoá đơn gốc (Vấn đề 6)
-- Gói `VoucherMetaGrid` + `ProposalItemsList` + `ReconciliationPanel` (hoặc chỉ 2 cái đầu) vào 1 `<details>` collapsible, mặc định đóng.
-- Tiêu đề: `▸ Đối chiếu hoá đơn gốc (N dòng · {tổng tiền})`.
-- `ItemResolutionPanelWrapper` giữ nguyên vị trí ngoài (vì nó hành động được, không phải repeat data).
-
-### F. Trust strip (Vấn đề 7)
-Bỏ block lines 370–387. Gom các check thành 1 dòng compact đặt ngay TRÊN nút "Duyệt & ghi sổ" trong footer:
-`✓ OCR đầy đủ · ✓ Phân loại 2 dòng · ⚠ NCC mới` — chip nhỏ nhưng cạnh CTA để KTV scan trước khi bấm.
-
-## Phạm vi
-- 1 file: `src/components/inbox/inbox-item-sheet.tsx`
-- Có thể tách 2–3 sub-component nội bộ cùng file: `ConfidenceBreakdown`, `PurposePicker`, `VatExplain`.
-- Không đổi props của `InboxItemSheetDetail`, không đổi `InboxItem` type, không đổi server function.
-
-## Out of scope
-- ProposalCard ở `/categorize` (giữ nguyên)
-- Persist lựa chọn "mục đích mua" thành rule/memory
-- Thay đổi cách tính confidence ở server
-- Tự động post bút toán khi đổi mục đích
+## Kiểm tra sau triển khai
+- Mở lại case Thanh Vân Farm: đổi radio 156/152/642 và xác nhận bút toán + danh sách “Cần tạo mới” đổi cùng nhau.
+- Kiểm tra payload approve có `purchase_purpose`.
+- Kiểm tra không còn chip checklist trùng ở footer.
+- Kiểm tra TypeScript/build tự động của hệ thống không báo lỗi.
