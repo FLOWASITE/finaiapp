@@ -302,7 +302,7 @@ export async function resolveVendorLine(
   if (fuzzyBest && fuzzyBest.score >= 0.7) {
     const status: ResolveResult["status"] = fuzzyBest.score >= 0.9 ? "auto" : "review";
     await logResolution(supabase, input, fuzzyBest.product_id, "fuzzy", fuzzyBest.score, fuzzyBest.signals);
-    return { method: "fuzzy", status, best: fuzzyBest, candidates: top };
+    return { method: "fuzzy", status, best: fuzzyBest, candidates: top, supplierDefaults };
   }
 
   // ---- Layer 2.5: fallback to global library (tenant_product_catalog) ----
@@ -315,17 +315,18 @@ export async function resolveVendorLine(
       status: "library_suggestion",
       best,
       candidates: libraryCandidates,
+      supplierDefaults,
     };
   }
 
   // If fuzzy gave something weak (score < 0.7) and library was empty, still surface those.
   if (top.length > 0) {
     await logResolution(supabase, input, null, "fuzzy", fuzzyBest!.score, fuzzyBest!.signals);
-    return { method: "fuzzy", status: "new", candidates: top };
+    return { method: "fuzzy", status: "new", candidates: top, supplierDefaults };
   }
 
   await logResolution(supabase, input, null, "none", 0, {});
-  return { method: "none", status: "new", candidates: [] };
+  return { method: "none", status: "new", candidates: [], supplierDefaults };
 }
 
 async function searchLibrary(
