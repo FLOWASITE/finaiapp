@@ -432,30 +432,46 @@ export async function buildDocumentItem(
     signals.push({ kind: "match", label: "OCR đã đọc đầy đủ", ok: true });
   }
   if (supplier && supplier !== "—") {
-    // partner đã có trong sổ?
-    const { data: known } = await supabase
-      .from("invoices")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .ilike("supplier_name", `%${supplier.slice(0, 24)}%`)
-      .limit(1);
-    if (known && known.length > 0) {
-      confidence += 25;
-      signals.push({ kind: "partner", label: "Đối tác đã có trong sổ", ok: true });
+    const key = supplier.slice(0, 24).toLowerCase();
+    if (prebatch) {
+      // In-memory lookup — no DB round-trip
+      let cnt = 0;
+      for (const [k, v] of prebatch.supplierCount) {
+        if (k.includes(key) || key.includes(k)) cnt += v;
+      }
+      if (cnt > 0) {
+        confidence += 25;
+        signals.push({ kind: "partner", label: "Đối tác đã có trong sổ", ok: true });
+      } else {
+        signals.push({ kind: "partner", label: "Đối tác MỚI — cần tạo", ok: false });
+      }
+      if (cnt >= 5) {
+        confidence += 15;
+        signals.push({ kind: "pattern", label: `Pattern tương tự ×${cnt}`, ok: true });
+      }
     } else {
-      signals.push({ kind: "partner", label: "Đối tác MỚI — cần tạo", ok: false });
-    }
-  }
-  // Pattern: cùng supplier + account ≥ 5 lần
-  if (supplier && supplier !== "—") {
-    const { count } = await supabase
-      .from("invoices")
-      .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .ilike("supplier_name", `%${supplier.slice(0, 24)}%`);
-    if ((count ?? 0) >= 5) {
-      confidence += 15;
-      signals.push({ kind: "pattern", label: `Pattern tương tự ×${count}`, ok: true });
+      // Fallback: legacy 2-query path (kept for callers that don't pass prebatch)
+      const { data: known } = await supabase
+        .from("invoices")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .ilike("supplier_name", `%${supplier.slice(0, 24)}%`)
+        .limit(1);
+      if (known && known.length > 0) {
+        confidence += 25;
+        signals.push({ kind: "partner", label: "Đối tác đã có trong sổ", ok: true });
+      } else {
+        signals.push({ kind: "partner", label: "Đối tác MỚI — cần tạo", ok: false });
+      }
+      const { count } = await supabase
+        .from("invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .ilike("supplier_name", `%${supplier.slice(0, 24)}%`);
+      if ((count ?? 0) >= 5) {
+        confidence += 15;
+        signals.push({ kind: "pattern", label: `Pattern tương tự ×${count}`, ok: true });
+      }
     }
   }
   if (rule) {
