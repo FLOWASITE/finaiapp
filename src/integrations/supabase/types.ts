@@ -1900,27 +1900,39 @@ export type Database = {
       chart_of_accounts: {
         Row: {
           code: string
+          deprecated_in_version: number | null
+          effective_from: string
           is_active: boolean
           level: number | null
           name: string
           parent_code: string | null
+          status: string
           type: string
+          version: number
         }
         Insert: {
           code: string
+          deprecated_in_version?: number | null
+          effective_from?: string
           is_active?: boolean
           level?: number | null
           name: string
           parent_code?: string | null
+          status?: string
           type: string
+          version?: number
         }
         Update: {
           code?: string
+          deprecated_in_version?: number | null
+          effective_from?: string
           is_active?: boolean
           level?: number | null
           name?: string
           parent_code?: string | null
+          status?: string
           type?: string
+          version?: number
         }
         Relationships: []
       }
@@ -4906,6 +4918,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      master_catalogs: {
+        Row: {
+          current_version: number
+          description: string | null
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          current_version?: number
+          description?: string | null
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          current_version?: number
+          description?: string | null
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       monthly_summary: {
         Row: {
@@ -8709,6 +8745,95 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_catalog_pins: {
+        Row: {
+          catalog_name: string
+          last_ack_at: string
+          last_ack_by: string | null
+          pinned_version: number
+          tenant_id: string
+        }
+        Insert: {
+          catalog_name: string
+          last_ack_at?: string
+          last_ack_by?: string | null
+          pinned_version?: number
+          tenant_id: string
+        }
+        Update: {
+          catalog_name?: string
+          last_ack_at?: string
+          last_ack_by?: string | null
+          pinned_version?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_catalog_pins_catalog_name_fkey"
+            columns: ["catalog_name"]
+            isOneToOne: false
+            referencedRelation: "master_catalogs"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "tenant_catalog_pins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_coa_overrides: {
+        Row: {
+          account_code: string
+          action: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string | null
+          notes: string | null
+          parent_code: string | null
+          tenant_id: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          action: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          parent_code?: string | null
+          tenant_id: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          parent_code?: string | null
+          tenant_id?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_coa_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_members: {
         Row: {
           created_at: string
@@ -8801,6 +8926,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           default_account: string | null
+          deprecated_in_version: number | null
+          effective_from: string
           id: string
           is_global: boolean
           item_type: string | null
@@ -8808,10 +8935,12 @@ export type Database = {
           name_norm: string
           note: string | null
           sku: string | null
+          status: string
           subcategory: string | null
           tenant_id: string | null
           updated_at: string
           vat_rate: number | null
+          version: number
         }
         Insert: {
           aliases?: string[]
@@ -8819,6 +8948,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           default_account?: string | null
+          deprecated_in_version?: number | null
+          effective_from?: string
           id?: string
           is_global?: boolean
           item_type?: string | null
@@ -8826,10 +8957,12 @@ export type Database = {
           name_norm: string
           note?: string | null
           sku?: string | null
+          status?: string
           subcategory?: string | null
           tenant_id?: string | null
           updated_at?: string
           vat_rate?: number | null
+          version?: number
         }
         Update: {
           aliases?: string[]
@@ -8837,6 +8970,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           default_account?: string | null
+          deprecated_in_version?: number | null
+          effective_from?: string
           id?: string
           is_global?: boolean
           item_type?: string | null
@@ -8844,10 +8979,12 @@ export type Database = {
           name_norm?: string
           note?: string | null
           sku?: string | null
+          status?: string
           subcategory?: string | null
           tenant_id?: string | null
           updated_at?: string
           vat_rate?: number | null
+          version?: number
         }
         Relationships: [
           {
@@ -9404,6 +9541,10 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_catalog_version: {
+        Args: { p_catalog: string }
+        Returns: number
+      }
       apply_balance_delta: {
         Args: {
           p_account: string
@@ -9426,6 +9567,18 @@ export type Database = {
           p_tenant: string
         }
         Returns: undefined
+      }
+      current_tenant_catalog_diff: {
+        Args: { p_catalog: string }
+        Returns: {
+          code: string
+          current_version: number
+          kind: string
+          name: string
+          pinned_version: number
+          status: string
+          version: number
+        }[]
       }
       current_tenant_id: { Args: never; Returns: string }
       fn_auto_match_bank_txn: { Args: { p_txn_id: string }; Returns: undefined }
