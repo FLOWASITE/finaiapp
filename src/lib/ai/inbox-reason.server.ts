@@ -542,12 +542,20 @@ export async function buildDocumentItem(
 // ============================================================
 // BANK TRANSACTION items — with two-way matching
 // ============================================================
+export type BankPrebatch = {
+  /** All open sales_invoices for AR matching */
+  salesInvoices: Array<{ id: string; invoice_no: string | null; customer_name: string | null; total: number }>;
+  /** All open purchase invoices for AP matching */
+  purchaseInvoices: Array<{ id: string; invoice_no: string | null; supplier_name: string | null; total: number }>;
+};
+
 export async function buildBankItem(
   supabase: SupabaseClient,
   tenantId: string,
   txn: any,
   bankLabel: string,
   rules: Awaited<ReturnType<typeof loadActiveRules>>,
+  prebatch?: BankPrebatch,
 ): Promise<InboxItem | null> {
   const amount = Number(txn.amount);
   const isIncoming = amount >= 0;
@@ -563,18 +571,26 @@ export async function buildBankItem(
   const signals: ReasoningSignal[] = [];
   let confidence = 30;
 
+  const lo = Math.abs(amount) * 0.999;
+  const hi = Math.abs(amount) * 1.001;
+
   if (isIncoming) {
-    // AR: find sales_invoice with matching amount (+/- partner / invoice no)
-    const { data: candidates } = await supabase
-      .from("sales_invoices")
-      .select("id, invoice_no, customer_name, total, issue_date")
-      .eq("tenant_id", tenantId)
-      .gte("total", Math.abs(amount) * 0.999)
-      .lte("total", Math.abs(amount) * 1.001)
-      .neq("status", "void")
-      .limit(20);
+    let candidates: any[];
+    if (prebatch) {
+      candidates = prebatch.salesInvoices.filter((c) => c.total >= lo && c.total <= hi).slice(0, 20);
+    } else {
+      const r = await supabase
+        .from("sales_invoices")
+        .select("id, invoice_no, customer_name, total, issue_date")
+        .eq("tenant_id", tenantId)
+        .gte("total", lo)
+        .lte("total", hi)
+        .neq("status", "void")
+        .limit(20);
+      candidates = (r.data ?? []) as any[];
+    }
     let best: any = null;
-    for (const c of candidates ?? []) {
+    for (const c of candidates) {
       let score = 0;
       if (invoiceNoFromMemo && (c.invoice_no ?? "").includes(invoiceNoFromMemo)) score += 50;
       if (normPartner(c.customer_name).includes(normPartner(partner)) && partner.length > 3)
@@ -593,17 +609,22 @@ export async function buildBankItem(
       signals.push({ kind: "match", label: "Không tìm thấy HĐ bán khớp", ok: false });
     }
   } else {
-    // AP: find purchase invoice
-    const { data: candidates } = await supabase
-      .from("invoices")
-      .select("id, invoice_no, supplier_name, total, issue_date")
-      .eq("tenant_id", tenantId)
-      .gte("total", Math.abs(amount) * 0.999)
-      .lte("total", Math.abs(amount) * 1.001)
-      .neq("status", "void")
-      .limit(20);
+    let candidates: any[];
+    if (prebatch) {
+      candidates = prebatch.purchaseInvoices.filter((c) => c.total >= lo && c.total <= hi).slice(0, 20);
+    } else {
+      const r = await supabase
+        .from("invoices")
+        .select("id, invoice_no, supplier_name, total, issue_date")
+        .eq("tenant_id", tenantId)
+        .gte("total", lo)
+        .lte("total", hi)
+        .neq("status", "void")
+        .limit(20);
+      candidates = (r.data ?? []) as any[];
+    }
     let best: any = null;
-    for (const c of candidates ?? []) {
+    for (const c of candidates) {
       let score = 0;
       if (invoiceNoFromMemo && (c.invoice_no ?? "").includes(invoiceNoFromMemo)) score += 50;
       if (normPartner(c.supplier_name).includes(normPartner(partner)) && partner.length > 3)
