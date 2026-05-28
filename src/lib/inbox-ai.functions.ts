@@ -857,10 +857,10 @@ async function inferDocDirection(
  */
 async function autoResolveMissingMaster(
   supabase: any,
-  opts: { tenantId: string; userId: string; documentId: string; purchasePurpose?: "resale" | "material" | "expense" },
+  opts: { tenantId: string; userId: string; documentId: string; purchasePurpose?: PurchasePurposeIn },
 ): Promise<void> {
   const { tenantId, userId, documentId, purchasePurpose } = opts;
-  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
+  const purposeOverride = buildPurposeOverride(purchasePurpose);
   const { data: doc } = await supabase
     .from("documents")
     .select("doc_kind, ai_upload_id, ocr_extracted")
