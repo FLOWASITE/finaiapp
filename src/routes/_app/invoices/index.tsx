@@ -428,12 +428,13 @@ function InvoicesList() {
                   >
                     <SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="goods">Hàng hoá</SelectItem>
-                      <SelectItem value="service">Dịch vụ</SelectItem>
-                      <SelectItem value="asset">Tài sản</SelectItem>
+                      <SelectItem value="goods">Hàng hoá (152/156)</SelectItem>
+                      <SelectItem value="ccdc">CCDC (153)</SelectItem>
+                      <SelectItem value="asset">TSCĐ (211)</SelectItem>
+                      <SelectItem value="service">Dịch vụ (6xx)</SelectItem>
                     </SelectContent>
                   </Select>
-                  {l.line_type === "goods" ? (
+                  {(l.line_type === "goods" || l.line_type === "ccdc") ? (
                     <Select
                       value={l.product_id ?? ""}
                       onValueChange={(v) => {
