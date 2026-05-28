@@ -1034,6 +1034,34 @@ function InboxHeader({
       <div className="ml-auto flex items-center gap-2">
         <InboxDockToggle />
 
+        <button
+          type="button"
+          onClick={onOpenAutoPostSheet}
+          title={
+            autoPostEnabled
+              ? `Auto-duyệt BẬT · ≥${Math.round(autoPostMinConfidence * 100)}% · ≤${new Intl.NumberFormat("vi-VN").format(autoPostMaxAmount)} đ`
+              : "Auto-duyệt đang tắt"
+          }
+          className={cn(
+            "hidden md:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+            autoPostEnabled
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
+              : "border-border/40 text-muted-foreground hover:bg-muted/40",
+          )}
+        >
+          <Zap className={cn("h-3 w-3", autoPostEnabled && "fill-current")} />
+          {autoPostEnabled ? (
+            <span className="hidden lg:inline">
+              Auto-duyệt · ≥{Math.round(autoPostMinConfidence * 100)}%
+            </span>
+          ) : (
+            <span className="hidden lg:inline">Auto-duyệt: tắt</span>
+          )}
+          <span className="lg:hidden">Auto</span>
+        </button>
+
+
+
         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 text-xs text-foreground/70 md:flex">
           <Calendar className="h-3.5 w-3.5" />
           {periodLabel}
