@@ -55,7 +55,7 @@ function CarryForwardPage() {
             onChange={(e) => setFromYear(Number(e.target.value))}
             list="cf-from"
           />
-          <datalist id="cf-from">{years.map((y) => <option key={y} value={y} />)}</datalist>
+          <datalist id="cf-from">{years.map((y: number) => <option key={y} value={y} />)}</datalist>
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Năm đích</label>
@@ -65,7 +65,7 @@ function CarryForwardPage() {
             onChange={(e) => setToYear(Number(e.target.value))}
             list="cf-to"
           />
-          <datalist id="cf-to">{years.map((y) => <option key={y} value={y} />)}</datalist>
+          <datalist id="cf-to">{years.map((y: number) => <option key={y} value={y} />)}</datalist>
         </div>
         <div className="md:col-span-2 flex gap-2">
           <Button variant="outline" onClick={() => previewMut.mutate()} disabled={previewMut.isPending}>
