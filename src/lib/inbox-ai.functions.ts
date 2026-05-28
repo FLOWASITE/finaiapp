@@ -1013,10 +1013,13 @@ async function autoResolveMissingMaster(
     seen.add(nm.toLowerCase());
     if (existSet.has(nm.toLowerCase())) continue;
 
-    let item_type: "goods" | "service" = "goods";
+    let item_type: "goods" | "service" | "material" = "goods";
     let stock_account = "156";
     let unit = li.unit?.toString().trim() || "cái";
-    if (ctxV2) {
+    if (purposeOverride) {
+      item_type = purposeOverride.item_type;
+      stock_account = purposeOverride.account;
+    } else if (ctxV2) {
       try {
         const r = classifyLineV2(li, ctxV2);
         const acct = accountForItemType(kindV2ToItemType(r.kind));
