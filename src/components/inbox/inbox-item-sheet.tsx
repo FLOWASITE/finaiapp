@@ -519,8 +519,8 @@ export function InboxItemDetail({
             <>
               <button
                 type="button"
-                onClick={() => onApprove(item)}
-                disabled={approving || !!item.blocker}
+                onClick={() => onApprove(workingItem)}
+                disabled={approving || !!workingItem.blocker}
                 className="flex flex-[3] flex-col items-center justify-center gap-0.5 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
               >
                 <span className="flex items-center gap-2 text-sm font-bold">
@@ -532,7 +532,7 @@ export function InboxItemDetail({
                   {approving ? "Đang ghi sổ…" : "Duyệt & ghi sổ"}
                 </span>
                 {!approving && (() => {
-                  const sideEffect = describeMissingSideEffect(item.missing);
+                  const sideEffect = describeMissingSideEffect(workingItem.missing);
                   return sideEffect ? (
                     <span className="text-[10px] font-medium leading-none opacity-90">
                       {sideEffect}
