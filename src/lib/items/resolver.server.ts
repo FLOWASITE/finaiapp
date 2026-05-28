@@ -99,21 +99,35 @@ export async function resolveVendorLine(
   const rawNorm = normalizeName(input.rawName);
   if (!rawNorm) return { method: "none", status: "new", candidates: [] };
 
-  // ---- Layer 1: cached mapping ----
+  // Load negative memory (rejections) up-front — applies to both Layer 1 and Layer 2.
+  const { data: rejRows } = await supabase
+    .from("supplier_item_rejections")
+    .select("rejected_product_id, count")
+    .eq("tenant_id", input.tenantId)
+    .eq("supplier_id", input.supplierId)
+    .eq("raw_name_norm", rawNorm);
+  const rejectedProductIds = new Set<string>(
+    (rejRows ?? [])
+      .filter((r: any) => Number(r.count ?? 0) >= 2 && r.rejected_product_id)
+      .map((r: any) => r.rejected_product_id as string),
+  );
+
+  // ---- Layer 1: cached mapping (skip archived & rejected) ----
   const { data: cached } = await supabase
     .from("supplier_item_mappings")
     .select("*, products!inner(id, code, name, unit, item_type, stock_account, expense_account, unit_cost, aliases)")
     .eq("tenant_id", input.tenantId)
     .eq("supplier_id", input.supplierId)
     .eq("raw_name_norm", rawNorm)
+    .is("archived_at", null)
     .maybeSingle();
 
-  // Auto if either:
-  //   - confidence ≥ 0.95 và đã có ít nhất 1 lần khớp (user đã confirm hoặc accept-as-is); hoặc
-  //   - confidence ≥ 0.9  và đã khớp ≥ 3 lần (tin theo lịch sử).
   const cConf = Number(cached?.confidence ?? 0);
   const cCount = Number(cached?.match_count ?? 0);
-  const cacheAutoOk = cached?.products && ((cConf >= 0.95 && cCount >= 1) || (cConf >= 0.9 && cCount >= 3));
+  const cacheAutoOk =
+    cached?.products &&
+    !rejectedProductIds.has(cached.products.id) &&
+    ((cConf >= 0.95 && cCount >= 1) || (cConf >= 0.9 && cCount >= 3));
   if (cacheAutoOk) {
     const p = cached.products;
     const cand: Candidate = {
