@@ -170,7 +170,7 @@ const ManualLineSchema = z.object({
   amount: z.number().min(0),
   vat_rate: z.number().min(0).max(100).default(0),
   product_id: z.string().uuid().optional().nullable(),
-  line_type: z.enum(["goods", "service", "asset"]).default("goods"),
+  line_type: z.enum(["goods", "service", "asset", "ccdc"]).default("goods"),
 });
 
 const ManualInvoiceSchema = z.object({
@@ -248,7 +248,10 @@ export const createManualInvoice = createServerFn({ method: "POST" })
         amount: l.amount,
         vat_rate: l.vat_rate,
         product_id: l.product_id ?? null,
-        line_type: l.line_type,
+        // line_type: giữ tương thích ngược (ccdc map về goods cho legacy reader)
+        line_type: l.line_type === "ccdc" ? "goods" : l.line_type,
+        // KTV chọn explicit ở form → ghi vào L0 override để resolver tôn trọng
+        user_override_kind: l.line_type,
       })),
     );
     if (lErr) throw new Error(lErr.message);
