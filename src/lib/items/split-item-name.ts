@@ -191,7 +191,7 @@ const RULES: RuleFn[] = [
 ];
 
 // Từ nối thừa cần dọn ở 2 đầu canonical.
-const TRAILING_FILLER = /^(ngày|ngay|số|so|xe|tuyến|tuyen|từ|tu|đến|den|tới|toi|kỳ|ky|tháng|thang|quý|quy|cho|của|cua|trạm|tram|trụ|tru|ghế|ghe|toa|tầng|tang|phòng|phong|gói|goi|chu|kỳ)$/iu;
+const TRAILING_FILLER = /^(ngày|ngay|số|so|tuyến|tuyen|từ|tu|đến|den|tới|toi|kỳ|ky|tháng|thang|quý|quy|cho|của|cua|chu)$/iu;
 
 export function splitItemName(raw: string | null | undefined): SplitItemNameResult {
   const original = (raw ?? "").toString();
