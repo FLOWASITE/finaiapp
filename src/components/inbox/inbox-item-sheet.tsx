@@ -726,10 +726,12 @@ function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
   const get = (k: string) => all.find(([key]) => key === k)?.[1] ?? null;
   const invoiceNo = get("invoice_no");
   const invoiceDate = get("invoice_date");
+  const subtotal = get("subtotal");
+  const vatAmount = get("vat_amount");
   const total = get("total");
 
   // Fields rendered in dedicated zones — exclude from the generic grid
-  const handled = new Set(["invoice_no", "invoice_date", "total"]);
+  const handled = new Set(["invoice_no", "invoice_date", "subtotal", "vat_amount", "total"]);
   const FULL_WIDTH = new Set(["supplier_name", "customer_name", "memo", "reason"]);
   const rest = all.filter(([k]) => !handled.has(k));
 
@@ -748,7 +750,37 @@ function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
         )}
       </div>
 
-      <dl className="grid grid-cols-12 gap-x-3 gap-y-1.5">
+      {/* Tiền hàng · Thuế · Thành tiền */}
+      {(subtotal || vatAmount || total) && (
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/40 py-2">
+          <div className="flex flex-col items-center justify-center px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Tiền hàng
+            </span>
+            <span className="text-xs font-semibold tabular-nums text-foreground">
+              {subtotal ?? "—"}
+            </span>
+          </div>
+          <div className="flex flex-col items-center justify-center border-x border-border/40 px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Thuế GTGT
+            </span>
+            <span className="text-xs font-semibold tabular-nums text-foreground">
+              {vatAmount ?? "—"}
+            </span>
+          </div>
+          <div className="flex flex-col items-center justify-center px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Thành tiền
+            </span>
+            <span className="text-sm font-bold tabular-nums text-foreground">
+              {total ?? "—"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <dl className="mt-2 grid grid-cols-12 gap-x-3 gap-y-1.5">
         {rest.map(([k, v]) => {
           const span = FULL_WIDTH.has(k) ? "col-span-12" : "col-span-12 sm:col-span-6";
           const isNum = MONEY_FIELDS.has(k) || k === "vat_rate";
@@ -770,20 +802,6 @@ function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
           );
         })}
       </dl>
-
-      {total && (
-        <>
-          <div className="mt-2 border-t border-border/60" />
-          <div className="mt-2 flex items-baseline justify-end gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Tổng cộng
-            </span>
-            <span className="text-base font-semibold tabular-nums text-foreground">
-              {total}
-            </span>
-          </div>
-        </>
-      )}
     </div>
   );
 }
