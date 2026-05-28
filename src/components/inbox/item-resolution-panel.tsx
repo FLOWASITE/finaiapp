@@ -78,7 +78,7 @@ function suggestCode(rawName: string): string {
   return norm || "SP-" + Math.random().toString(36).slice(2, 6).toUpperCase();
 }
 
-export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
+export function ItemResolutionPanel({ items, meta, tenantId, onLineAccountResolved }: Props) {
   const qc = useQueryClient();
   const resolveFn = useServerFn(resolveInvoiceLines);
   const confirmFn = useServerFn(confirmItemMapping);
