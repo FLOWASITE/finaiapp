@@ -46,8 +46,60 @@ const KIND_V2_LABEL: Record<LineKindV2, string> = {
 
 
 import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
+import { normalizeName } from "@/lib/items/normalize";
 const activeTenant = (supabase: any, userId: string) =>
   resolveActiveTenantId(supabase, userId);
+
+/**
+ * Learning flywheel: ghi purpose_code KTV chọn vào supplier_item_mappings
+ * để lần sau Resolver auto-suggest đúng mục đích cho cùng (NCC + mặt hàng).
+ */
+async function learnPurposeForLines(
+  supabase: any,
+  opts: {
+    tenantId: string;
+    userId: string;
+    supplierId: string | null;
+    rawLines: any[];
+    purposeCode: string;
+  },
+): Promise<void> {
+  const { tenantId, userId, supplierId, rawLines, purposeCode } = opts;
+  if (!supplierId || !purposeCode || rawLines.length === 0) return;
+  for (const l of rawLines) {
+    const rawName: string = (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim();
+    if (!rawName) continue;
+    const rawNorm = normalizeName(rawName);
+    const rawUnit = l.unit ?? null;
+    const { data: existing } = await supabase
+      .from("supplier_item_mappings")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("supplier_id", supplierId)
+      .eq("raw_name_norm", rawNorm)
+      .maybeSingle();
+    if (existing?.id) {
+      await supabase
+        .from("supplier_item_mappings")
+        .update({ purpose_code: purposeCode, last_seen: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("supplier_item_mappings").insert({
+        tenant_id: tenantId,
+        supplier_id: supplierId,
+        raw_name: rawName,
+        raw_name_norm: rawNorm,
+        raw_unit: rawUnit,
+        product_id: null,
+        purpose_code: purposeCode,
+        confidence: 0.85,
+        match_count: 1,
+        source: "user_confirm",
+        created_by: userId,
+      });
+    }
+  }
+}
 
 /**
  * Materialize a row in `sales_invoices` (+ lines) from a parsed XML e-invoice
