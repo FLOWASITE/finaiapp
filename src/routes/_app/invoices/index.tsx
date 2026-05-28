@@ -38,7 +38,7 @@ type ManualLine = {
   unit_price: number;
   amount: number;
   vat_rate: number;
-  line_type: "goods" | "service" | "asset";
+  line_type: "goods" | "service" | "asset" | "ccdc";
   product_id?: string | null;
 };
 
