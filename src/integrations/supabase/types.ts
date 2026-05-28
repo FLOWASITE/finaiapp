@@ -8390,7 +8390,7 @@ export type Database = {
           id: string
           last_seen: string
           match_count: number
-          product_id: string
+          product_id: string | null
           purpose_code: string | null
           raw_name: string
           raw_name_norm: string
@@ -8409,7 +8409,7 @@ export type Database = {
           id?: string
           last_seen?: string
           match_count?: number
-          product_id: string
+          product_id?: string | null
           purpose_code?: string | null
           raw_name: string
           raw_name_norm: string
@@ -8428,7 +8428,7 @@ export type Database = {
           id?: string
           last_seen?: string
           match_count?: number
-          product_id?: string
+          product_id?: string | null
           purpose_code?: string | null
           raw_name?: string
           raw_name_norm?: string

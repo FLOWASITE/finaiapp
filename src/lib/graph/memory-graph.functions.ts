@@ -146,16 +146,29 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
     const supplierIds = suppliers.map((s) => s.id);
     const supplierHistory: Record<string, SupplierHistoryDist> = {};
     if (supplierIds.length > 0) {
-      const { data: hist } = await supabase
-        .from("invoices")
-        .select("supplier_id, expense_account, total")
-        .eq("tenant_id", tenantId)
-        .in("supplier_id", supplierIds)
-        .gte("issue_date", sinceDate)
-        .neq("status", "void")
-        .not("expense_account", "is", null)
-        .limit(2000);
-      for (const r of (hist ?? []) as Array<{
+      const [invRes, pvRes] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("supplier_id, expense_account, total")
+          .eq("tenant_id", tenantId)
+          .in("supplier_id", supplierIds)
+          .gte("issue_date", sinceDate)
+          .neq("status", "void")
+          .not("expense_account", "is", null)
+          .limit(2000),
+        supabase
+          .from("purchase_voucher_lines")
+          .select(
+            "amount, debit_account, purchase_vouchers!inner(supplier_id, tenant_id, voucher_date, status)",
+          )
+          .eq("purchase_vouchers.tenant_id", tenantId)
+          .in("purchase_vouchers.supplier_id", supplierIds)
+          .eq("purchase_vouchers.status", "posted")
+          .gte("purchase_vouchers.voucher_date", sinceDate)
+          .not("debit_account", "is", null)
+          .limit(5000),
+      ]);
+      for (const r of (invRes.data ?? []) as Array<{
         supplier_id: string | null;
         expense_account: string | null;
         total: number | null;
@@ -167,6 +180,20 @@ export const getMemoryGraphData = createServerFn({ method: "GET" })
         const dist = supplierHistory[r.supplier_id] ?? {};
         dist[kind] = (dist[kind] ?? 0) + w;
         supplierHistory[r.supplier_id] = dist;
+      }
+      for (const r of (pvRes.data ?? []) as Array<{
+        amount: number | null;
+        debit_account: string | null;
+        purchase_vouchers: { supplier_id: string | null } | null;
+      }>) {
+        const sid = r.purchase_vouchers?.supplier_id;
+        if (!sid) continue;
+        const kind = accountToKind(r.debit_account);
+        if (!kind) continue;
+        const w = Math.max(1, Math.round(Number(r.amount) || 0));
+        const dist = supplierHistory[sid] ?? {};
+        dist[kind] = (dist[kind] ?? 0) + w;
+        supplierHistory[sid] = dist;
       }
     }
 

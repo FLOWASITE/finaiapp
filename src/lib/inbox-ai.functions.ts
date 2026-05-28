@@ -66,7 +66,7 @@ async function learnPurposeForLines(
   },
 ): Promise<void> {
   const { tenantId, userId, supplierId, rawLines, purposeCode } = opts;
-  if (!supplierId || !purposeCode || rawLines.length === 0) return;
+  if (!supplierId || rawLines.length === 0) return;
   for (const l of rawLines) {
     const rawName: string = (l.item_name ?? l.name ?? l.product_name ?? l.description ?? "").toString().trim();
     if (!rawName) continue;
@@ -74,15 +74,18 @@ async function learnPurposeForLines(
     const rawUnit = l.unit ?? null;
     const { data: existing } = await supabase
       .from("supplier_item_mappings")
-      .select("id")
+      .select("id, purpose_code")
       .eq("tenant_id", tenantId)
       .eq("supplier_id", supplierId)
       .eq("raw_name_norm", rawNorm)
       .maybeSingle();
     if (existing?.id) {
+      // Chỉ ghi đè purpose_code khi lần này thực sự có; ngược lại chỉ refresh last_seen.
+      const patch: Record<string, unknown> = { last_seen: new Date().toISOString() };
+      if (purposeCode) patch.purpose_code = purposeCode;
       await supabase
         .from("supplier_item_mappings")
-        .update({ purpose_code: purposeCode, last_seen: new Date().toISOString() })
+        .update(patch)
         .eq("id", existing.id);
     } else {
       await supabase.from("supplier_item_mappings").insert({
@@ -92,10 +95,10 @@ async function learnPurposeForLines(
         raw_name_norm: rawNorm,
         raw_unit: rawUnit,
         product_id: null,
-        purpose_code: purposeCode,
-        confidence: 0.85,
+        purpose_code: purposeCode || null,
+        confidence: purposeCode ? 0.85 : 0.5,
         match_count: 1,
-        source: "user_confirm",
+        source: purposeCode ? "user_confirm" : "auto",
         created_by: userId,
       });
     }
@@ -752,19 +755,33 @@ async function materializePurchaseVoucherFromDocument(
     if (lErr) console.error("[materializePurchaseVoucher] lines insert failed", lErr);
   }
 
-  // Learning flywheel: ghi nhận purpose KTV chọn cho lần sau auto-match
-  if (purchasePurpose?.code) {
-    try {
-      await learnPurposeForLines(supabase, {
-        tenantId,
-        userId,
-        supplierId,
-        rawLines,
-        purposeCode: purchasePurpose.code,
-      });
-    } catch (e) {
-      console.error("[materializePurchaseVoucher] learnPurpose failed", e);
-    }
+  // Learning flywheel: ghi nhận purpose KTV chọn cho lần sau auto-match.
+  // Luôn gọi (ngay cả khi không có purposeCode) để upsert supplier_item_mappings.
+  try {
+    await learnPurposeForLines(supabase, {
+      tenantId,
+      userId,
+      supplierId,
+      rawLines,
+      purposeCode: purchasePurpose?.code ?? "",
+    });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnPurpose failed", e);
+  }
+
+  // Learning flywheel #2: nuôi ai_line_classifications từ phiếu vừa ghi sổ
+  // để Trí nhớ AI có dữ liệu phân loại (goods/service/asset…) cho lần sau.
+  try {
+    const { learnFromPurchaseVoucher } = await import(
+      "./categorize/learn-line-classifications.server"
+    );
+    await learnFromPurchaseVoucher(supabase, {
+      tenantId,
+      userId,
+      voucherId: voucher.id as string,
+    });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnFromPurchaseVoucher failed", e);
   }
 
   return voucher.id as string;
