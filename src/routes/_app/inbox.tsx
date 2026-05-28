@@ -588,6 +588,10 @@ function InboxAiPage() {
       <InboxHeader
         onOpenCmd={() => setCmdOpen(true)}
         periodLabel={periodLabel()}
+        autoPostEnabled={!!autoPostSettings?.enabled}
+        autoPostMinConfidence={autoPostSettings?.min_confidence ?? 0.95}
+        autoPostMaxAmount={autoPostSettings?.max_amount ?? 5_000_000}
+        onOpenAutoPostSheet={() => setAutoPostSheetOpen(true)}
       />
 
 
@@ -606,6 +610,28 @@ function InboxAiPage() {
         />
         <Divider />
         <Stat label="Độ chính xác" value={stats?.accuracy != null ? `${stats.accuracy}%` : "98.4%"} />
+        {autoPostSettings?.enabled && (
+          <>
+            <Divider />
+            <button
+              type="button"
+              onClick={() => setAutoPostSheetOpen(true)}
+              className="text-left rounded-md -mx-1 px-1 transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              title="Xem chi tiết bút toán Fin tự duyệt 7 ngày qua"
+            >
+              <Stat
+                label="Fin tự duyệt 7 ngày"
+                value="Xem"
+                extra={
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                    <Zap className="h-2.5 w-2.5" /> audit
+                  </span>
+                }
+              />
+            </button>
+          </>
+        )}
+
 
         <div className="ml-auto">
           <Button
