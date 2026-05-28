@@ -49,11 +49,21 @@ export type Candidate = {
   };
 };
 
+export type SupplierDefaultHint = {
+  line_kind: string;
+  purpose_code: string | null;
+  debit_account: string | null;
+  confidence: number;
+  sample_count: number;
+};
+
 export type ResolveResult = {
   method: "cache" | "fuzzy" | "library" | "none";
   status: "auto" | "review" | "new" | "library_suggestion";
   best?: Candidate;
   candidates: Candidate[];
+  /** Layer 1.5: supplier-level defaults learned from history (Phase 2). */
+  supplierDefaults?: SupplierDefaultHint[];
 };
 
 const W = { text: 0.55, unit: 0.2, price: 0.1, history: 0.1, sku: 0.05 };
