@@ -25,10 +25,21 @@ import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
 import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
 import { splitItemName } from "@/lib/items/split-item-name";
 
+export type ResolvedLineInfo = {
+  raw_name: string;
+  product_code: string;
+  product_name: string;
+  stock_account: string;
+  item_type?: string | null;
+};
+
 type Props = {
   items?: ProposalItem[];
   meta?: VoucherMeta;
   tenantId?: string | null;
+  /** FE hook: khi 1 dòng được resolve sang SP cụ thể, FE có thể đồng bộ
+   *  TK Nợ trong Bút toán đề xuất ngay (không cần đợi refetch). */
+  onLineAccountResolved?: (info: ResolvedLineInfo) => void;
 };
 
 const ITEM_TYPES: Array<{ v: "goods" | "service"; label: string; acct: string }> = [
