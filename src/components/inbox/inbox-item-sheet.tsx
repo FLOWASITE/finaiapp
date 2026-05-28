@@ -66,12 +66,29 @@ import { splitItemName } from "@/lib/items/split-item-name";
 import { listMyTenants } from "@/lib/tenants.functions";
 import type { VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
 
-function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: VoucherMetaType }) {
+function ItemResolutionPanelWrapper(props: {
+  items?: ProposalItem[];
+  meta?: VoucherMetaType;
+  onLineAccountResolved?: (info: {
+    raw_name: string;
+    product_code: string;
+    product_name: string;
+    stock_account: string;
+    item_type?: string | null;
+  }) => void;
+}) {
   const tenantsFn = useServerFn(listMyTenants);
   const tenantsQ = useQuery({ queryKey: ["my-tenants"], queryFn: () => tenantsFn() });
   const activeTenantId =
     (tenantsQ.data?.tenants as any[] | undefined)?.find((t) => t.is_active)?.id ?? null;
-  return <ItemResolutionPanel items={props.items} meta={props.meta} tenantId={activeTenantId} />;
+  return (
+    <ItemResolutionPanel
+      items={props.items}
+      meta={props.meta}
+      tenantId={activeTenantId}
+      onLineAccountResolved={props.onLineAccountResolved}
+    />
+  );
 }
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
