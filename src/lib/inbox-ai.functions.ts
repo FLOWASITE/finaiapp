@@ -47,6 +47,7 @@ const KIND_V2_LABEL: Record<LineKindV2, string> = {
 
 import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 import { normalizeName } from "@/lib/items/normalize";
+import { classifyRoute, containsPhrase } from "@/lib/items/route-line";
 const activeTenant = (supabase: any, userId: string) =>
   resolveActiveTenantId(supabase, userId);
 
@@ -2386,7 +2387,22 @@ export const suggestPurchasePurpose = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as any;
     const tenantId = await activeTenant(supabase, userId);
-    if (!tenantId) return { candidates: [] as PurposeOption[] };
+    if (!tenantId) return { candidates: [] as PurposeOption[], route: "unknown" as const };
+
+    // GATE: nếu mô tả/line là dịch vụ rõ bản chất (vận chuyển, điện, nước,
+    // internet, thuê, bảo hiểm…) → KHÔNG đẩy vào Loại B, không hỏi mục đích.
+    const routed = classifyRoute({
+      description: data.description,
+      itemNames: data.item_names,
+    });
+    if (routed.route === "typeA") {
+      return {
+        candidates: [] as PurposeOption[],
+        route: "typeA" as const,
+        reason: routed.reason,
+        matched: routed.matched,
+      };
+    }
 
     const standard = await getTenantAccountingStandard(supabase, tenantId);
     const { data: rows, error } = await supabase
@@ -2396,21 +2412,20 @@ export const suggestPurchasePurpose = createServerFn({ method: "POST" })
       .order("sort_order", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const haystackParts = [data.description, ...(data.item_names ?? [])]
-      .filter(Boolean)
-      .map(norm);
-    const hay = haystackParts.join(" | ");
+    const hay = normalizeName(
+      [data.description, ...(data.item_names ?? [])].filter(Boolean).join(" | "),
+    );
 
     type Scored = { row: TypeBRow; score: number };
     const scored: Scored[] = [];
     for (const row of rows as TypeBRow[]) {
       let score = 0;
-      for (const a of row.aliases ?? []) if (hay.includes(norm(a))) score += 3;
-      for (const f of row.floating_goods ?? []) if (hay.includes(norm(f))) score += 5;
-      if (hay.includes(norm(row.name))) score += 4;
+      for (const a of row.aliases ?? []) if (containsPhrase(hay, a)) score += 3;
+      for (const f of row.floating_goods ?? []) if (containsPhrase(hay, f)) score += 5;
+      if (containsPhrase(hay, row.name)) score += 4;
       if (score > 0) scored.push({ row, score });
     }
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, 5).map((s) => rowToOption(s.row, standard));
-    return { candidates: top };
+    return { candidates: top, route: "unknown" as const };
   });

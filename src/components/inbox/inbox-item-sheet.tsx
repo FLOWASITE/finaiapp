@@ -694,6 +694,35 @@ function VatExplain({ meta, items }: { meta?: VoucherMeta; items?: ProposalItem[
 }
 
 
+/** Tên ngắn TK kế toán để hiển thị bên cạnh mã (vd "TK 6422 · CP QLDN"). */
+const ACCOUNT_SHORT_NAME: Record<string, string> = {
+  "6422": "CP QLDN",
+  "6421": "CP NV QLDN",
+  "6427": "CP DV mua ngoài",
+  "6428": "CP bằng tiền khác",
+  "642": "CP QLDN",
+  "641": "CP bán hàng",
+  "6411": "CP NV bán hàng",
+  "811": "CP khác",
+  "153": "CCDC",
+  "152": "NVL",
+  "156": "Hàng hoá",
+  "242": "CP trả trước",
+  "211": "TSCĐ HH",
+  "213": "TSCĐ VH",
+  "627": "CP SXC",
+  "635": "CP tài chính",
+};
+
+function accountShortName(code: string): string | undefined {
+  if (ACCOUNT_SHORT_NAME[code]) return ACCOUNT_SHORT_NAME[code];
+  for (let len = code.length - 1; len >= 3; len--) {
+    const head = code.slice(0, len);
+    if (ACCOUNT_SHORT_NAME[head]) return ACCOUNT_SHORT_NAME[head];
+  }
+  return undefined;
+}
+
 function PurposePicker({
   voucherKind,
   item,
@@ -706,6 +735,7 @@ function PurposePicker({
   onChange: (p: PurchasePurposeSelection | undefined) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [forceShow, setForceShow] = useState(false);
   const fetchCatalog = useServerFn(listPurposeCatalog);
   const fetchSuggest = useServerFn(suggestPurchasePurpose);
 
@@ -737,6 +767,24 @@ function PurposePicker({
   const all = catalog?.items ?? [];
   const top = suggest?.candidates ?? [];
   const selected = value;
+  const routedTypeA = suggest?.route === "typeA";
+
+  // Hoá đơn rõ là dịch vụ (vận chuyển, điện, nước…) và KTV chưa chọn mục đích
+  // → ẩn block, chỉ hiện link nhỏ để bật lại nếu cần.
+  if (routedTypeA && !selected && !forceShow) {
+    return (
+      <div className="rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span>Fin nhận diện đây là dịch vụ rõ bản chất, không cần chọn mục đích chi. </span>
+        <button
+          type="button"
+          onClick={() => setForceShow(true)}
+          className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Vẫn muốn gắn mục đích chi →
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2 rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3">
@@ -766,8 +814,9 @@ function PurposePicker({
             <ChevronRight className="h-3.5 w-3.5 rotate-90 text-muted-foreground" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[420px] p-0" align="start">
-          <Command>
+        <PopoverContent className="w-[440px] p-0" align="start">
+          {/* value="__noop__" + onValueChange noop → tắt auto-highlight option đầu */}
+          <Command value="__noop__" onValueChange={() => {}} shouldFilter>
             <CommandInput placeholder="Tìm mục đích chi (vd: tiếp khách, quà KH, đào tạo)…" />
             <CommandList>
               <CommandEmpty>Không có mục đích phù hợp.</CommandEmpty>
@@ -800,6 +849,20 @@ function PurposePicker({
                 ))}
               </CommandGroup>
             </CommandList>
+            <div className="border-t border-border/60 p-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(undefined);
+                  setOpen(false);
+                  setForceShow(false);
+                }}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-muted/50"
+              >
+                <span className="text-red-500">✕</span>
+                <span>Không phải chi phí mục đích — đây là dịch vụ/hàng hoá thông thường</span>
+              </button>
+            </div>
           </Command>
         </PopoverContent>
       </Popover>
@@ -835,6 +898,7 @@ function PurposeRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const short = accountShortName(opt.account);
   return (
     <CommandItem
       value={`${opt.code} ${opt.name} ${opt.account}`}
@@ -864,6 +928,7 @@ function PurposeRow({
       </div>
       <span className="ml-2 shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-foreground">
         TK {opt.account}
+        {short && <span className="ml-1 font-sans font-normal text-muted-foreground">· {short}</span>}
       </span>
     </CommandItem>
   );
