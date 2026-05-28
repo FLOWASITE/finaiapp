@@ -35,7 +35,7 @@ export const setLineOverrideKind = createServerFn({ method: "POST" })
 export type ResolvedLine = {
   id: string;
   description: string | null;
-  quantity: number | null;
+  qty: number | null;
   unit_price: number | null;
   amount: number | null;
   product_id: string | null;
