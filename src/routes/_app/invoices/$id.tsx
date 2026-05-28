@@ -90,6 +90,7 @@ function InvoiceDetail() {
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [chosenIdx, setChosenIdx] = useState<number | null>(null);
   const [editLines, setEditLines] = useState<Array<{ account_code: string; debit: number; credit: number }>>([]);
+  const [pendingOverrides, setPendingOverrides] = useState<Record<string, ResolvedLine["resolved_kind"] | null>>({});
 
   const suggestMut = useMutation({
     mutationFn: async () => suggest({ data: { invoiceId: id } }),
