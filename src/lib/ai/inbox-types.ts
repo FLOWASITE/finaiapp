@@ -128,6 +128,26 @@ export type MissingMasterData = {
   products?: MissingProductSuggestion[];
 };
 
+/**
+ * Mục đích mua hàng do KTV chọn — nguồn sự thật duy nhất điều khiển cả
+ * bút toán, mặt hàng sẽ tạo, và header phiếu mua hàng.
+ */
+export type PurchasePurpose = "resale" | "material" | "expense";
+
+export const PURCHASE_PURPOSE_MAP: Record<
+  PurchasePurpose,
+  { account: string; item_type: MissingItemTypeGuess; is_inventory: boolean; label: string; short: string }
+> = {
+  resale:   { account: "156", item_type: "goods",    is_inventory: true,  label: "Hàng hoá bán lại",            short: "Hàng hoá" },
+  material: { account: "152", item_type: "material", is_inventory: true,  label: "Nguyên liệu sản xuất",        short: "NVL" },
+  expense:  { account: "642", item_type: "service",  is_inventory: false, label: "Chi phí sự kiện / trang trí", short: "Chi phí" },
+};
+
+/** Tập tài khoản debit mà mục đích mua hàng được phép thay thế. */
+export const PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS = new Set([
+  "156", "152", "153", "642", "211", "213", "242",
+]);
+
 export type InboxItem = {
   id: string;
   external_id: string;
@@ -150,4 +170,6 @@ export type InboxItem = {
   href?: string;
   posted_voucher?: PostedVoucherRef;
   missing?: MissingMasterData;
+  /** Mục đích mua hàng KTV đã chọn — gửi kèm khi duyệt. */
+  purchase_purpose?: PurchasePurpose;
 };
