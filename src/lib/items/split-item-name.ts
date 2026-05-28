@@ -70,10 +70,10 @@ const RULES: RuleFn[] = [
   (s, push) =>
     s.replace(/\b(?:ghế|toa|khoang)\s*\d+\b/giu, (m) => { push(m.trim()); return " "; }),
 
-  // A8) Tầng / phòng / căn / lô / block (kèm mã ngắn)
+  // A8) Tầng / phòng / căn / lô / block (kèm mã — bắt buộc CÓ ký số để không nuốt "phòng tháng")
   (s, push) =>
     s.replace(
-      /\b(?:tầng|phòng|căn|lô|block)\s*[A-Z0-9][A-Z0-9-]{0,5}\b/giu,
+      /\b(?:tầng|phòng|căn|lô|block)\s*[A-Z]?\d[A-Z0-9-]{0,5}\b/giu,
       (m) => { push(m.trim()); return " "; },
     ),
 
