@@ -274,9 +274,26 @@ export function InboxItemDetail({
   approving,
 }: InboxItemDetailProps) {
   const navigate = useNavigate();
-  const partnerName = item.partner?.trim();
+
+  // Mục đích mua hàng — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
+  const initialPurpose = useMemo<PurchasePurpose | undefined>(
+    () => deriveInitialPurpose(item),
+    [item.id],
+  );
+  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurpose | undefined>(initialPurpose);
+  useEffect(() => {
+    setPurchasePurpose(deriveInitialPurpose(item));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  const workingItem = useMemo<InboxItem>(
+    () => applyPurchasePurpose(item, purchasePurpose),
+    [item, purchasePurpose],
+  );
+
+  const partnerName = workingItem.partner?.trim();
   const hasPartner = !!partnerName && partnerName !== "—";
-  const confidence = item.confidence ?? 0;
+  const confidence = workingItem.confidence ?? 0;
   const confTone =
     confidence >= 80 ? "emerald" : confidence >= 50 ? "amber" : "rose";
   const confClasses = {
