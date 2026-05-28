@@ -247,13 +247,11 @@ function InvoiceDetail() {
                     <div className="shrink-0">
                       <div className="flex items-center gap-2">
                         <Select
-                          value={
-                            pendingOverrides[l.id] !== undefined
-                              ? pendingOverrides[l.id] === null
-                                ? `auto:${l.resolved_kind}`
-                                : pendingOverrides[l.id]
-                              : (l.user_override_kind ?? `auto:${l.resolved_kind}`)
-                          }
+                          value={(() => {
+                            const p = pendingOverrides[l.id];
+                            if (p !== undefined) return p === null ? `auto:${l.resolved_kind}` : p;
+                            return l.user_override_kind ?? `auto:${l.resolved_kind}`;
+                          })()}
                           onValueChange={(v) => {
                             const kind = v.startsWith("auto:") ? null : (v as ResolvedLine["resolved_kind"]);
                             setPendingOverrides((prev) => ({ ...prev, [l.id]: kind }));
