@@ -13,6 +13,10 @@ import {
   Check,
   FileText,
   Archive,
+  Info,
+  Package,
+  Store,
+  HelpCircle,
 } from "lucide-react";
 import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData } from "@/lib/ai/inbox-types";
 import {
