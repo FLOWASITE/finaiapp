@@ -170,7 +170,7 @@ const ManualLineSchema = z.object({
   amount: z.number().min(0),
   vat_rate: z.number().min(0).max(100).default(0),
   product_id: z.string().uuid().optional().nullable(),
-  line_type: z.enum(["goods", "service", "asset"]).default("goods"),
+  line_type: z.enum(["goods", "service", "asset", "ccdc"]).default("goods"),
 });
 
 const ManualInvoiceSchema = z.object({
