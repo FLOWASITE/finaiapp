@@ -921,10 +921,19 @@ function InboxAiPage() {
 function InboxHeader({
   onOpenCmd,
   periodLabel,
+  autoPostEnabled,
+  autoPostMinConfidence,
+  autoPostMaxAmount,
+  onOpenAutoPostSheet,
 }: {
   onOpenCmd: () => void;
   periodLabel: string;
+  autoPostEnabled: boolean;
+  autoPostMinConfidence: number;
+  autoPostMaxAmount: number;
+  onOpenAutoPostSheet: () => void;
 }) {
+
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: me } = useCurrentUser();
