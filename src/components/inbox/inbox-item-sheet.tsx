@@ -718,30 +718,72 @@ function InboxChatHistory({ item }: { item: InboxItem }) {
 
 function VoucherMetaGrid({ meta }: { meta?: VoucherMeta }) {
   if (!meta) return null;
-  const entries = Object.entries(meta)
+  const all = Object.entries(meta)
     .map(([k, v]) => [k, formatMetaValue(k, v)] as const)
     .filter(([, v]) => v !== null && v !== "");
-  if (entries.length === 0) return null;
+  if (all.length === 0) return null;
+
+  const get = (k: string) => all.find(([key]) => key === k)?.[1] ?? null;
+  const invoiceNo = get("invoice_no");
+  const invoiceDate = get("invoice_date");
+  const total = get("total");
+
+  // Fields rendered in dedicated zones — exclude from the generic grid
+  const handled = new Set(["invoice_no", "invoice_date", "total"]);
+  const FULL_WIDTH = new Set(["supplier_name", "customer_name", "memo", "reason"]);
+  const rest = all.filter(([k]) => !handled.has(k));
+
+  const summary = [invoiceNo && `HĐ ${invoiceNo}`, invoiceDate].filter(Boolean).join(" · ");
+
   return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4">
-      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-        Thông tin phiếu
-      </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-        {entries.map(([k, v]) => (
-          <div key={k} className="min-w-0 space-y-0.5">
-            <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {META_FIELD_LABELS[k] ?? k}
-            </dt>
-            <dd className={cn(
-              "truncate text-xs font-medium text-foreground",
-              (MONEY_FIELDS.has(k) || k === "vat_rate") && "tabular-nums",
-            )}>
-              {v}
-            </dd>
+    <div className="rounded-xl border border-border/60 bg-background p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          Thông tin phiếu
+        </div>
+        {summary && (
+          <div className="truncate text-[11px] font-medium text-foreground tabular-nums">
+            {summary}
           </div>
-        ))}
+        )}
+      </div>
+
+      <dl className="grid grid-cols-12 gap-x-3 gap-y-1.5">
+        {rest.map(([k, v]) => {
+          const span = FULL_WIDTH.has(k) ? "col-span-12" : "col-span-12 sm:col-span-6";
+          const isNum = MONEY_FIELDS.has(k) || k === "vat_rate";
+          return (
+            <div key={k} className={cn("flex min-w-0 items-baseline gap-2", span)}>
+              <dt className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {META_FIELD_LABELS[k] ?? k}
+              </dt>
+              <dd
+                className={cn(
+                  "min-w-0 flex-1 truncate text-xs font-medium text-foreground",
+                  isNum && "tabular-nums",
+                )}
+                title={String(v)}
+              >
+                {v}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
+
+      {total && (
+        <>
+          <div className="mt-2 border-t border-border/60" />
+          <div className="mt-2 flex items-baseline justify-end gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Tổng cộng
+            </span>
+            <span className="text-base font-semibold tabular-nums text-foreground">
+              {total}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
