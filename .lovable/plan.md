@@ -1,61 +1,129 @@
-## Mục tiêu
-Sửa bug nghiệp vụ P0: không còn trạng thái bút toán tổng Nợ 156 nhưng mặt hàng lại được tạo/resolve theo TK 153. “Mục đích mua hàng” sẽ trở thành nguồn sự thật duy nhất cho cả bút toán, danh sách mặt hàng sẽ tạo, và dữ liệu gửi khi duyệt.
+# Thư viện 2 trục — fix gốc rễ "1 mặt hàng, nhiều TK theo mục đích"
 
-## Phạm vi sửa
+Dùng nguyên spec `TYPEB_ITEMS` + `routeLineItem` anh vừa cấp (21 items, có căn cứ pháp lý 2026). Không tự bịa item, không hard-code lại.
 
-### 1. P0 — Đồng bộ mục đích → bút toán → mặt hàng
-- Thêm state `purchasePurpose` ở màn Inbox, lưu theo từng `InboxItem` đang mở.
-- Suy ra mặc định từ bút toán hiện tại nếu có: `156 = resale`, `152 = material`, `642 = expense`; nếu không thì fallback theo đề xuất hiện tại.
-- Khi KTV chọn mục đích mới trong `PurposePicker`, không chỉ mở màn sửa nữa mà gọi `onPurposeChange` để tạo một bản `InboxItem` đã được propagate:
-  - Bút toán debit chính đổi sang đúng TK mục đích.
-  - Các dòng hàng/mặt hàng mới trong `missing.products` đổi cùng loại:
-    - `resale` → `item_type: goods`, `account: 156`
-    - `material` → `item_type: material`, `account: 152`
-    - `expense` → `item_type: service`, `account: 642`
-  - UI “Cần tạo mới” hiển thị ngay TK mới, không còn 153 khi đang chọn 156.
-- Khi bấm “Duyệt & ghi sổ”, client gửi thêm `purchase_purpose` vào `approveInboxItem` để server không phải đoán lại.
+## Tóm tắt thay đổi
 
-### 2. P0 — Server dùng cùng một nguồn sự thật khi duyệt
-- Mở rộng input `approveInboxItem` nhận `purchase_purpose` cho chứng từ mua.
-- Truyền mục đích này vào `autoResolveMissingMaster` để tự tạo products theo đúng TK KTV đã duyệt, thay vì chạy lại classifier và tự rơi về 153.
-- Truyền mục đích này vào `materializePurchaseVoucherFromDocument` để:
-  - `purchase_vouchers.debit_account` khớp với bút toán đã ghi.
-  - `purchase_voucher_lines.debit_account` khớp từng dòng.
-  - Nếu mục đích là chi phí `642`, dòng sẽ là service/expense-style, không tạo tồn kho theo 156/153.
-- Thêm guard trước khi insert journal: nếu là purchase invoice và `purchase_purpose` có account mục tiêu, các dòng debit nghiệp vụ phải khớp account này; nếu lệch thì normalize hoặc báo lỗi rõ, tránh ghi sổ sai âm thầm.
+| Lớp | Hiện tại | Sau khi fix |
+|---|---|---|
+| Thư viện | Chỉ Loại A (mặt hàng) | + 21 items Loại B (mục đích) — seed từ spec |
+| Resolver | Chỉ match Loại A | `routeLineItem` phân luồng A / B / unknown theo `FLOATING_KEYWORDS` |
+| UI sheet | 3 radio hard-code (Hàng bán lại / NVL / Chi phí) | Combobox tra Loại B, mỗi item kèm TK + `citWarning` + `vatOutputRequired` badge |
+| Approve | `PURCHASE_PURPOSE_OVERRIDE` map cứng 3 phần tử | Override TK + line_type theo `typeB_item.accountTT99/TT133` |
+| Cache | Không | `supplier_item_mappings.purpose_code` → lần 2 cùng NCC + cùng line auto gán |
 
-### 3. P1 — Bỏ default 153 nguy hiểm cho cây cảnh/new product trong flow này
-- Với missing products trong panel duyệt, nếu KTV đã chọn mục đích, nhãn phân loại lấy từ mục đích, không lấy lại confidence 99% từ classifier.
-- Không hiển thị “99%” như một khẳng định chắc chắn cho item mới khi thực chất chưa có mã trong hệ thống.
-- Đổi nhãn sang rõ nghĩa hơn, ví dụ “sẽ tạo TK 156” / “sẽ hạch toán 642”, hoặc chỉ hiển thị TK + loại.
+## 1. Source of truth — spec Loại B (anh đã viết)
 
-### 4. P2 — Dọn UI trùng lặp sau khi sync
-- Bỏ `ApprovalChecklist` chips ở footer vì đã trùng với block “Tin cậy 60% — cần anh xác nhận”.
-- Đưa thông tin “7 mặt hàng sẽ tạo với TK …” sát block “Mục đích mua hàng” hoặc làm subtitle trong block “Cần tạo mới”, để KTV thấy chọn radio sẽ ảnh hưởng trực tiếp tới mặt hàng.
+Tạo file mới `src/lib/items/typeb-catalog.ts` chứa **đúng nguyên văn** spec anh paste:
+- type `TypeBGroup`, `TypeBItem`, `ResolverRoute`
+- const `TYPEB_ITEMS` (21 items, 9 nhóm)
+- const `FLOATING_KEYWORDS`
+- hàm `routeLineItem`, `suggestByGroup`, `getTypeBItem`, `searchTypeB`
 
-## File dự kiến sửa
-- `src/components/inbox/inbox-item-sheet.tsx`: biến `PurposePicker` thành control thật, propagate UI cho missing products, bỏ footer checklist.
-- `src/routes/_app/inbox.tsx`: giữ state mục đích theo item, truyền item đã sync vào duyệt, gửi `purchase_purpose` lên server.
-- `src/lib/ai/inbox-types.ts`: thêm type mục đích mua hàng dùng chung.
-- `src/lib/inbox-ai.functions.ts`: nhận `purchase_purpose`, auto-create product và materialize purchase voucher theo mục đích đã duyệt.
+Không sửa nội dung. Đây là "luật" — code phải đọc từ đây.
 
-## Kết quả sau fix
-```text
-KTV chọn Hàng hoá bán lại (156)
-  → Bút toán: Nợ 156
-  → 7 mặt hàng: sẽ tạo Hàng hoá / TK 156
-  → Products tạo ra: stock_account 156
-  → Purchase voucher lines: debit_account 156
+## 2. Migration — bridge spec vào DB
 
-KTV chọn Chi phí sự kiện (642)
-  → Bút toán: Nợ 642
-  → 7 dòng: chi phí/dịch vụ, không nhập tồn kho
-  → Products/service nếu tạo: service / expense 642
-  → Purchase voucher lines: debit_account 642
+Cần persist để query/cache, không lưu cả object JSON dày trong từng bút toán.
+
+```sql
+-- Seed table: 21 items Loại B (global, dùng cho mọi tenant)
+CREATE TABLE public.typeb_purpose_catalog (
+  code text PRIMARY KEY,                  -- 'CP-PL-LIENHOAN'
+  name text NOT NULL,
+  group_code text NOT NULL,               -- TypeBGroup
+  account_tt99 text NOT NULL,
+  account_tt133 text NOT NULL,
+  alt_accounts text[] NOT NULL DEFAULT '{}',
+  vat_rate numeric NOT NULL,
+  vat_deductible boolean NOT NULL,
+  cit_deductible boolean NOT NULL,
+  cit_cap text,
+  cit_warning text,
+  vat_output_required boolean NOT NULL DEFAULT false,
+  required_docs text[] NOT NULL DEFAULT '{}',
+  aliases text[] NOT NULL DEFAULT '{}',
+  floating_goods text[] NOT NULL DEFAULT '{}',
+  legal_ref text,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+-- GRANT + RLS: ai cũng đọc được (global reference data)
+GRANT SELECT ON public.typeb_purpose_catalog TO authenticated, anon;
+GRANT ALL ON public.typeb_purpose_catalog TO service_role;
+ALTER TABLE public.typeb_purpose_catalog ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anyone reads typeb catalog" ON public.typeb_purpose_catalog
+  FOR SELECT USING (true);
+
+-- Cache học: gắn mục đích cho cặp (NCC, raw_name)
+ALTER TABLE public.supplier_item_mappings
+  ADD COLUMN IF NOT EXISTS purpose_code text REFERENCES public.typeb_purpose_catalog(code);
+CREATE INDEX IF NOT EXISTS idx_sim_purpose ON public.supplier_item_mappings(purpose_code);
 ```
 
-## Kiểm tra sau triển khai
-- Mở lại case Thanh Vân Farm: đổi radio 156/152/642 và xác nhận bút toán + danh sách “Cần tạo mới” đổi cùng nhau.
-- Kiểm tra payload approve có `purchase_purpose`.
-- Kiểm tra không còn chip checklist trùng ở footer.
-- Kiểm tra TypeScript/build tự động của hệ thống không báo lỗi.
+Seed 21 rows từ `TYPEB_ITEMS` bằng `supabase--insert` (chạy sau khi migration approve).
+
+## 3. Resolver — cắm `routeLineItem` vào pipeline thật
+
+File `src/lib/items/resolver.server.ts`:
+- Sau Layer 1 (cache) và Layer 2 (fuzzy), thêm bước gọi `routeLineItem(rawName, hasTypeAExactMatch, hasCacheHit)`.
+- Nếu kết quả là `route: 'typeB'` → trả về `ResolveResult` mới có `status: "needs_purpose"` + `typebCandidates: TypeBItem[]` (top 3–5 từ `candidates`).
+- Nếu cache hit có `purpose_code` → load từ `typeb_purpose_catalog`, override `stock_account`/`expense_account` = `account_tt99` (hoặc TT133 tuỳ `tenants.accounting_standard`), bỏ qua bước hỏi.
+
+File `src/lib/items/resolve-line-kind.server.ts`:
+- Thêm priority L0.5 (trên L1 product): nếu line có `purpose_code` đã chốt → kind + account lấy từ Loại B (TK 6428 → `service`, 811 → `service`, 153 → `ccdc`, v.v. — map sẵn 1 bảng nhỏ trong file).
+
+## 4. Schema KTV xác nhận
+
+`src/lib/ai/inbox-types.ts`:
+- **Xoá** `PURCHASE_PURPOSE_MAP` 3 phần tử cứng + `PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS`.
+- Đổi `PurchasePurpose` từ enum 3 giá trị → `{ purpose_code: string; account: string; line_type: string; vat_output_required: boolean; cit_warning?: string }`.
+- Thêm field cho line: `needs_purpose?: boolean; typeb_candidates?: Array<{ code, name, account, cit_warning, vat_output_required }>`.
+
+## 5. UI — thay block 3 radio bằng PurposePicker
+
+File mới `src/components/inbox/purpose-picker.tsx` (combobox shadcn):
+- Query server fn `listTypeBCatalog({ floatingHint: line.name })` → trả về candidates (top từ resolver) + full list.
+- Render:
+  - Top section "Fin gợi ý cho line này": 2–3 item từ `routeLineItem.candidates`, mỗi item hiện `name · TK xxx · badge cảnh báo`.
+  - Search box → `searchTypeB(query)`.
+  - Khi chọn 1 item → callback `onSelect({ purpose_code, account, line_type, vat_output_required, cit_warning })`.
+  - Hiển thị inline `cit_warning` ngay dưới item đã chọn (vd. "Cộng dồn với phúc lợi khác, vượt 1 tháng lương BQ → không trừ").
+  - Nếu `vat_output_required` → banner cam **"⚠ Quà tặng KH — phải xuất HĐ VAT đầu ra"**.
+
+File `src/components/inbox/inbox-item-sheet.tsx`:
+- Xoá block 3 radio hiện tại.
+- Với mỗi line có `needs_purpose: true` → render `<PurposePicker>` ngay dưới line trong "KHỚP MẶT HÀNG".
+- Khi user chọn → cập nhật `workingItem` (line_type + debit_account), trigger lại tính bút toán đề xuất.
+- Nếu cả invoice có ≥ 1 line `needs_purpose` chưa chọn → disable nút "Duyệt" + label "Chọn mục đích cho N dòng".
+
+## 6. Approve handler — đọc Loại B thay vì map cứng
+
+File `src/lib/inbox-ai.functions.ts`:
+- `ApproveInput` đổi `purchase_purpose` thành mảng: `z.array(z.object({ line_id, purpose_code, account, line_type })).optional()`.
+- Bỏ const `PURCHASE_PURPOSE_OVERRIDE`. Thay bằng: với mỗi line có `purpose_code` → fetch row từ `typeb_purpose_catalog` 1 lần (cache trong handler), override `debit_account = account_tt99` (hoặc TT133), `line_type` map từ account.
+- Sau khi tạo voucher xong → upsert `supplier_item_mappings(supplier_id, raw_name, product_id, purpose_code)` để lần sau auto.
+- Nếu `vat_output_required` → ghi 1 followup task "Tạo HĐ VAT đầu ra biếu tặng cho ..." vào `inbox_followups`.
+
+## 7. Không đụng
+
+- OCR / extract, KHỚP MẶT HÀNG, đối soát hoá đơn, layout sheet hiện tại.
+- Schema `tenant_product_catalog` (Loại A) — giữ nguyên.
+- Auth / RLS pattern hiện có.
+
+## 8. Thứ tự thực hiện
+
+1. Tạo `typeb-catalog.ts` (paste nguyên spec anh cấp).
+2. Migration: `typeb_purpose_catalog` + cột `purpose_code` trên `supplier_item_mappings` → user approve.
+3. `supabase--insert`: seed 21 rows từ `TYPEB_ITEMS`.
+4. Server fn `listTypeBCatalog`, cập nhật resolver trả `needs_purpose`.
+5. Refactor `inbox-types.ts` + viết `PurposePicker`.
+6. Cắm picker vào `inbox-item-sheet.tsx`, xoá block 3 radio.
+7. Cập nhật `approveInboxItem`: đọc Loại B, ghi cache, sinh followup VAT đầu ra.
+8. QA E2E: Tấm Bakery (bánh kem) lần 1 chọn "Liên hoan NV (6428)" → lần 2 cùng NCC auto gán 6428, không hỏi lại.
+
+## Câu hỏi xác nhận trước khi build
+
+1. **Tiêu chuẩn kế toán**: lấy `account_tt99` hay `account_tt133` dựa trên `tenants.accounting_standard` đúng không? (hiện DB đã có cột này — em sẽ đọc).
+2. **Quyền** sửa/tạo item Loại B mới: em đề xuất Loại B là **global, read-only** (vì có căn cứ pháp lý). Tenant muốn override → dùng cơ chế Mục của tôi (Loại A) như cũ. Anh OK chứ?
+3. **Followup VAT đầu ra**: tự tạo task ở `inbox_followups` (anh approve voucher xong sẽ thấy 1 mục cần làm), hay chỉ hiện cảnh báo trong sheet rồi để KTV tự nhớ?
