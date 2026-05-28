@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChipLabel } from "./ChipLabel";
+import { DEBIT_ACCOUNT_PRESETS, CREDIT_ACCOUNT_PRESETS } from "@/lib/rules/account-presets";
 import type { RuleAction, RuleActionType } from "@/types/rule";
 
 const ACTION_META: Record<RuleActionType, { label: string; Icon: typeof BookOpen }> = {
