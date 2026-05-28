@@ -69,7 +69,7 @@ export const getResolvedInvoiceLines = createServerFn({ method: "POST" })
       const res = await resolveLineKind(supabase as any, {
         description: r.description ?? "",
         unit_price: r.unit_price ?? null,
-        quantity: r.quantity ?? null,
+        qty: r.qty ?? null,
         amount: r.amount ?? null,
         product_id: r.product_id,
         user_override_kind: (r.user_override_kind ?? null) as LineKind | null,
