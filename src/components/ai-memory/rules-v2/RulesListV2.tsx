@@ -211,6 +211,7 @@ export function RulesListV2() {
         </div>
         {draft && (
           <RuleEditor
+            key={draft.id}
             rule={draft}
             open={!!draft}
             onOpenChange={(o) => !o && setDraft(null)}
@@ -296,6 +297,7 @@ export function RulesListV2() {
 
       {draft && (
         <RuleEditor
+          key={draft.id}
           rule={draft}
           open={!!draft}
           onOpenChange={(o) => !o && setDraft(null)}
@@ -304,6 +306,7 @@ export function RulesListV2() {
       )}
       {approving && (
         <RuleEditor
+          key={approving.id}
           rule={approving}
           open={!!approving}
           onOpenChange={(o) => !o && setApproving(null)}

@@ -1,47 +1,43 @@
-## Vấn đề
+# Sửa crash React #185 khi click card Quy tắc
 
-Trong sheet "Đề xuất của Fin", phần **Khớp mặt hàng với mã hệ thống** hiển thị gợi ý kiểu `LOG-VAN-CHUY-NOI · 85%`. Khi bấm chọn, hệ thống lưu mapping `NCC → mã SP` (qua `confirmItemMapping`) và invalidate `inbox-ai`, nhưng **khối "BÚT TOÁN ĐỀ XUẤT" không đổi** vì:
+## Nguyên nhân
 
-1. `confirmItemMapping` chỉ ghi rule, không trả về `default_account` để FE đổi line ngay.
-2. `workingItem` ở `inbox-item-sheet.tsx` là local state — sau khi refetch `inbox-ai`, lines mới không được đồng bộ trở lại.
-3. Server-side `materializePurchaseVoucherFromDocument` đọc account từ rule mapping của SP, nhưng phải đợi refetch + reset state mới phản ánh.
+Trong `RuleEditor.tsx` có pattern setState trong render (anti-pattern dễ gây "Maximum update depth exceeded" = React #185):
 
-Hệ quả: KTV thấy "bấm chẳng có gì xảy ra".
+```tsx
+// Reset draft khi rule prop đổi
+if (draft.id !== rule.id) {
+  setDraft(rule);        // ← setState trong render
+  setHasTested(false);
+}
+```
 
-## Giải pháp
+Kết hợp với việc `RuleCard.tsx` luôn mount `RuleEditor` (và `RuleApplicationsSheet`) ngay cả khi `editOpen=false`, mỗi lần một card render lại (do react-query invalidate `["ai-memory"]` sau mọi mutation, do tooltip/hover, do parent state đổi…) thì editor cũng render. Khi `rule` prop là object mới nhưng cùng id, branch trên không cháy — nhưng pattern này vẫn fragile và còn gây **bug pre-fill**: bấm "Chuyển sang dạng cấu trúc" trên banner legacy không nạp được `conditions/actions` đã parse vì `draft.id === rule.id` nên `setDraft` bị bỏ qua.
 
-### 1. `confirmItemMapping` trả về account mặc định của SP đã chọn
-File: `src/lib/inbox-resolution.functions.ts`
-- Sau khi insert `supplier_product_rules`, `SELECT stock_account, item_type` từ `products` của `product_id` và include vào payload trả về (`{ ok: true, product: { id, code, name, stock_account, item_type } }`).
+Cách sửa đúng kiểu React: **dùng `key` để remount editor theo id** thay vì derived-state-trong-render, và **chỉ mount khi mở** để tránh hàng chục editor sống song song trên list.
 
-### 2. Optimistic swap trong `ItemResolutionPanel`
-File: `src/components/inbox/item-resolution-panel.tsx`
-- Thêm prop callback `onLineAccountResolved?(args: { itemIndex: number; rawName: string; account: string; productCode: string; productName: string })`.
-- Trong `onSuccess` của `confirmMut` và `promoteMut`, nếu kết quả có `stock_account`, gọi callback với `account` mới + chỉ số dòng tương ứng (map qua `splits[idx]` / `it.name`).
+## Thay đổi
 
-### 3. Áp account mới vào `workingItem.proposal.lines` ngay
-File: `src/components/inbox/inbox-item-sheet.tsx`
-- `ItemResolutionPanelWrapper` nhận thêm prop `onLineAccountResolved`, forward xuống panel.
-- Khi callback fire, update `workingItem`:
-  - Tìm line "Nợ" có amount ≈ tổng amount của dòng SP (hoặc dòng đầu tiên có TK thuộc `PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS`).
-  - Đổi `line.account` sang account mới.
-  - Cập nhật `workingItem.missing.products[i]` (gỡ khỏi danh sách "cần tạo" → đánh dấu đã match).
-- Toast: `Đã gắn mã LOG-VAN-CHUY-NOI · TK Nợ chuyển sang {account}`.
+### 1. `src/components/ai-memory/rules-v2/RuleEditor.tsx`
+- Xoá khối `if (draft.id !== rule.id) { setDraft(rule); setHasTested(false); }`.
+- `useState(rule)` chỉ chạy khi mount → kết hợp với `key` ở parent là đủ.
 
-### 4. Đồng bộ lại workingItem khi `item` từ query đổi (an toàn cho lần refetch sau)
-- Thêm `useEffect` so sánh `item.id` + `item.proposal.lines` hash — nếu khác `workingItem` và user chưa edit thủ công (track `dirty` flag), reset `workingItem` từ `item`.
+### 2. `src/components/ai-memory/rules-v2/RuleCard.tsx`
+- Chỉ render `<RuleEditor>` khi `editOpen` (mount-on-open) và truyền `key={(prefilled ?? rule).id + (prefilled ? ":pf" : "")}` để mỗi lần mở/đổi prefilled thì state draft khởi tạo lại đúng.
+- Tương tự với `<RuleApplicationsSheet>`: chỉ render khi `historyOpen`.
+- Giữ nguyên logic `openEditorWithPrefill` (parse legacy → set prefilled → open). Nhờ remount, draft sẽ nhận đúng object đã pre-fill.
 
-### 5. Visual confirmation
-- Khi line vừa bị đổi account, highlight ngắn (1.5s) bằng class `bg-emerald-500/10` để KTV thấy ngay thay đổi.
+### 3. `src/components/ai-memory/rules-v2/RulesListV2.tsx`
+- Thêm `key={r.id}` cho cả 2 `<RuleEditor>` ở cuối (draft / approving) để cùng pattern.
 
-## File thay đổi
+## Phạm vi không động tới
 
-- `src/lib/inbox-resolution.functions.ts` — mở rộng payload `confirmItemMapping` (+ `promoteCatalogItem` nếu cần).
-- `src/components/inbox/item-resolution-panel.tsx` — thêm callback, gọi sau khi confirm/promote.
-- `src/components/inbox/inbox-item-sheet.tsx` — wire callback, swap account trong `workingItem`, thêm highlight + useEffect sync.
+- Không đổi server functions, schema, hay logic save/promote/disable.
+- Không đổi `ConditionsBlock`, `ActionsBlock`, `RuleSettings`, `RuleTestPanel`.
 
-## Ngoài phạm vi
+## Cách kiểm chứng
 
-- Không đổi chip "Dịch vụ · 99%" thành interactive (theo lựa chọn của bạn — chỉ làm cho mã hệ thống).
-- Không động vào server materialization logic — refetch sau đó sẽ hợp nhất tự nhiên.
-- Không đổi schema database.
+1. Click vào tiêu đề một card quy tắc bất kỳ (kể cả card "Quy tắc hạch toán" trong danh sách) → editor mở, không còn lỗi #185.
+2. Click "Chuyển sang dạng cấu trúc" trên banner legacy → editor mở với conditions/actions đã được parse sẵn (verify thêm bug pre-fill đã sửa).
+3. Đóng/mở lại editor → state reset sạch sẽ.
+4. Trên danh sách dài (nhiều rule), mở 1 editor không khiến các card khác re-render lặp.

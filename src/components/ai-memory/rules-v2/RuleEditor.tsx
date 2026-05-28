@@ -57,12 +57,8 @@ export function RuleEditor({
   const [hasTested, setHasTested] = useState(false);
   const [confirmHeavyOpen, setConfirmHeavyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  // Reset draft khi rule prop đổi
-  if (draft.id !== rule.id) {
-    setDraft(rule);
-    setHasTested(false);
-  }
+  // Lưu ý: parent phải truyền `key={rule.id}` để remount khi đổi rule —
+  // tránh setState trong render (gây React #185).
 
   const patch = (p: Partial<Rule>) => {
     setDraft((d) => ({ ...d, ...p }));

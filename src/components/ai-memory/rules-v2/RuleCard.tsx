@@ -327,22 +327,27 @@ export function RuleCard({
         </div>
       </div>
 
-      <RuleEditor
-        rule={prefilled ?? rule}
-        open={editOpen}
-        onOpenChange={(o) => {
-          setEditOpen(o);
-          if (!o) setPrefilled(null);
-        }}
-        onSave={onSave}
-      />
+      {editOpen && (
+        <RuleEditor
+          key={(prefilled ?? rule).id + (prefilled ? ":pf" : "")}
+          rule={prefilled ?? rule}
+          open={editOpen}
+          onOpenChange={(o) => {
+            setEditOpen(o);
+            if (!o) setPrefilled(null);
+          }}
+          onSave={onSave}
+        />
+      )}
 
-      <RuleApplicationsSheet
-        ruleId={rule.id}
-        ruleName={rule.name}
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-      />
+      {historyOpen && (
+        <RuleApplicationsSheet
+          ruleId={rule.id}
+          ruleName={rule.name}
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+        />
+      )}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
