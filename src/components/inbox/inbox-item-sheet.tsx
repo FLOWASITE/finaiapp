@@ -477,13 +477,7 @@ export function InboxItemDetail({
 
       {/* Footer */}
       <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-background/80 px-5 py-3 backdrop-blur-sm">
-        {item.processing_status !== "posted" && (
-          <ApprovalChecklist
-            signals={item.reasoning.signals}
-            followups={item.followups}
-            missing={item.missing}
-          />
-        )}
+
         <div className="flex gap-2">
           {item.processing_status === "posted" ? (
             <>
