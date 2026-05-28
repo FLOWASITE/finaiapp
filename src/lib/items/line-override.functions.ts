@@ -77,7 +77,7 @@ export const getResolvedInvoiceLines = createServerFn({ method: "POST" })
       out.push({
         id: r.id,
         description: r.description,
-        quantity: r.quantity,
+        qty: r.qty,
         unit_price: r.unit_price,
         amount: r.amount,
         product_id: r.product_id,
