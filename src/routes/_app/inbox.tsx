@@ -258,6 +258,9 @@ function InboxAiPage() {
     queryFn: () =>
       listFn({ data: { tab: tab === "reports" ? "inbox" : (tab as any), search: "" } }),
     refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    placeholderData: (prev) => prev,
   });
 
   const serverItems = data?.items ?? [];
