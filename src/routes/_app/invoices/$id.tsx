@@ -344,6 +344,15 @@ function InvoiceDetail() {
   );
 }
 
+function kindLabel(k: ResolvedLine["resolved_kind"]): string {
+  switch (k) {
+    case "goods": return "Hàng hoá";
+    case "ccdc": return "CCDC";
+    case "asset": return "TSCĐ";
+    case "service": return "Dịch vụ";
+  }
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
