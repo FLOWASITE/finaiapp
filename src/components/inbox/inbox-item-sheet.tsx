@@ -18,8 +18,22 @@ import {
   Store,
   HelpCircle,
 } from "lucide-react";
-import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurpose } from "@/lib/ai/inbox-types";
-import { PURCHASE_PURPOSE_MAP, PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurposeSelection } from "@/lib/ai/inbox-types";
+import { PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
+import { listPurposeCatalog, suggestPurchasePurpose } from "@/lib/inbox-ai.functions";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Sheet,
   SheetContent,
@@ -275,14 +289,12 @@ export function InboxItemDetail({
 }: InboxItemDetailProps) {
   const navigate = useNavigate();
 
-  // Mục đích mua hàng — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
-  const initialPurpose = useMemo<PurchasePurpose | undefined>(
-    () => deriveInitialPurpose(item),
-    [item.id],
+  // Mục đích chi (Loại B) — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
+  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurposeSelection | undefined>(
+    () => item.purchase_purpose,
   );
-  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurpose | undefined>(initialPurpose);
   useEffect(() => {
-    setPurchasePurpose(deriveInitialPurpose(item));
+    setPurchasePurpose(item.purchase_purpose);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
@@ -420,9 +432,10 @@ export function InboxItemDetail({
           <VatExplain meta={workingItem.proposal.meta} items={workingItem.proposal.items} />
         </div>
 
-        {/* ③ Mục đích mua hàng (Vấn đề 3) */}
+        {/* ③ Mục đích chi (Loại B) */}
         <PurposePicker
           voucherKind={workingItem.proposal.voucher_kind}
+          item={item}
           value={purchasePurpose}
           onChange={setPurchasePurpose}
         />
@@ -683,84 +696,186 @@ function VatExplain({ meta, items }: { meta?: VoucherMeta; items?: ProposalItem[
 
 function PurposePicker({
   voucherKind,
+  item,
   value,
   onChange,
 }: {
   voucherKind?: VoucherKind;
-  value?: PurchasePurpose;
-  onChange: (p: PurchasePurpose) => void;
+  item: InboxItem;
+  value?: PurchasePurposeSelection;
+  onChange: (p: PurchasePurposeSelection | undefined) => void;
 }) {
-  if (voucherKind !== "purchase_invoice") return null;
-  if (!value) return null;
+  const [open, setOpen] = useState(false);
+  const fetchCatalog = useServerFn(listPurposeCatalog);
+  const fetchSuggest = useServerFn(suggestPurchasePurpose);
 
-  const options: { id: PurchasePurpose; label: string; hint: string }[] = [
-    { id: "resale",   label: PURCHASE_PURPOSE_MAP.resale.label,   hint: `→ TK ${PURCHASE_PURPOSE_MAP.resale.account}` },
-    { id: "material", label: PURCHASE_PURPOSE_MAP.material.label, hint: `→ TK ${PURCHASE_PURPOSE_MAP.material.account}` },
-    { id: "expense",  label: PURCHASE_PURPOSE_MAP.expense.label,  hint: `→ TK ${PURCHASE_PURPOSE_MAP.expense.account}` },
-  ];
+  const enabled = voucherKind === "purchase_invoice";
+
+  const { data: catalog } = useQuery({
+    queryKey: ["purpose-catalog"],
+    queryFn: () => fetchCatalog(),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+
+  const itemNames = useMemo(
+    () => (item.proposal.items ?? []).map((it) => it.name).filter(Boolean) as string[],
+    [item.proposal.items],
+  );
+  const { data: suggest } = useQuery({
+    queryKey: ["purpose-suggest", item.id],
+    queryFn: () =>
+      fetchSuggest({
+        data: { description: item.proposal.description || item.title, item_names: itemNames },
+      }),
+    enabled: enabled && !value,
+    staleTime: 5 * 60_000,
+  });
+
+  if (!enabled) return null;
+
+  const all = catalog?.items ?? [];
+  const top = suggest?.candidates ?? [];
+  const selected = value;
 
   return (
     <div className="space-y-2 rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3">
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-foreground/90">
         <HelpCircle className="h-3.5 w-3.5 text-blue-500" />
-        Mục đích mua hàng này?
+        Mục đích chi của hoá đơn này?
       </div>
-      <ul className="space-y-1.5">
-        {options.map((o) => {
-          const selected = o.id === value;
-          return (
-            <li key={o.id}>
-              <button
-                type="button"
-                onClick={() => onChange(o.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors",
-                  selected
-                    ? "border-blue-500/40 bg-background/80 font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border hover:bg-background/60",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border",
-                    selected ? "border-blue-500 bg-blue-500" : "border-muted-foreground/40",
-                  )}
-                >
-                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-background" />}
-                </span>
-                <span className="flex-1 truncate">
-                  {o.label}{" "}
-                  <span className="font-mono text-[11px] text-muted-foreground">{o.hint}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-sm hover:bg-muted/40"
+          >
+            <span className="min-w-0 flex-1 truncate">
+              {selected ? (
+                <span className="font-medium text-foreground">{selected.name}</span>
+              ) : (
+                <span className="text-muted-foreground">Chọn mục đích chi…</span>
+              )}
+            </span>
+            {selected && (
+              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                TK {selected.account}
+              </span>
+            )}
+            <ChevronRight className="h-3.5 w-3.5 rotate-90 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[420px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Tìm mục đích chi (vd: tiếp khách, quà KH, đào tạo)…" />
+            <CommandList>
+              <CommandEmpty>Không có mục đích phù hợp.</CommandEmpty>
+              {top.length > 0 && (
+                <CommandGroup heading="Fin gợi ý cho hoá đơn này">
+                  {top.map((opt) => (
+                    <PurposeRow
+                      key={`s-${opt.code}`}
+                      opt={opt}
+                      isSelected={selected?.code === opt.code}
+                      onSelect={() => {
+                        onChange(opt);
+                        setOpen(false);
+                      }}
+                    />
+                  ))}
+                </CommandGroup>
+              )}
+              <CommandGroup heading="Tất cả mục đích">
+                {all.map((opt) => (
+                  <PurposeRow
+                    key={opt.code}
+                    opt={opt}
+                    isSelected={selected?.code === opt.code}
+                    onSelect={() => {
+                      onChange(opt);
+                      setOpen(false);
+                    }}
+                  />
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {selected?.needs_vat_output && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            <b>Cần xuất HĐ VAT đầu ra.</b> Khi duyệt, Fin sẽ tự tạo nhắc việc kê khai
+            VAT đầu ra cho mục đích này.
+          </span>
+        </div>
+      )}
+      {selected?.tax_warning && (
+        <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+          <span>{selected.tax_warning}</span>
+        </div>
+      )}
       <p className="text-[10px] text-muted-foreground">
-        Chọn lại để Fin đổi cả bút toán và mặt hàng sẽ tạo theo đúng mục đích.
+        Đổi mục đích sẽ đổi cả bút toán + mặt hàng sẽ tạo. Fin học lựa chọn này cho NCC.
       </p>
     </div>
   );
 }
 
-// ───── Helpers: PurchasePurpose ↔ InboxItem ─────
-
-function deriveInitialPurpose(item: InboxItem): PurchasePurpose | undefined {
-  if (item.proposal.voucher_kind !== "purchase_invoice") return undefined;
-  if (item.purchase_purpose) return item.purchase_purpose;
-  const debitAccts = item.proposal.lines.filter((l) => (l.debit ?? 0) > 0).map((l) => l.account);
-  for (const acct of debitAccts) {
-    if (acct === "156" || acct === "153") return "resale";
-    if (acct === "152") return "material";
-    if (acct === "642" || acct === "211" || acct === "213" || acct === "242") return "expense";
-  }
-  return undefined;
+function PurposeRow({
+  opt,
+  isSelected,
+  onSelect,
+}: {
+  opt: PurchasePurposeSelection;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <CommandItem
+      value={`${opt.code} ${opt.name} ${opt.account}`}
+      onSelect={onSelect}
+      className="flex items-start gap-2"
+    >
+      <Check
+        className={cn(
+          "mt-0.5 h-3.5 w-3.5 shrink-0",
+          isSelected ? "text-blue-500" : "text-transparent",
+        )}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{opt.name}</span>
+          {opt.needs_vat_output && (
+            <span className="rounded bg-amber-500/15 px-1 py-0 text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              VAT đầu ra
+            </span>
+          )}
+        </div>
+        {opt.tax_warning && (
+          <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+            {opt.tax_warning}
+          </p>
+        )}
+      </div>
+      <span className="ml-2 shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-foreground">
+        TK {opt.account}
+      </span>
+    </CommandItem>
+  );
 }
 
-function applyPurchasePurpose(item: InboxItem, purpose: PurchasePurpose | undefined): InboxItem {
+// ───── Helpers: PurchasePurposeSelection ↔ InboxItem ─────
+
+function applyPurchasePurpose(
+  item: InboxItem,
+  purpose: PurchasePurposeSelection | undefined,
+): InboxItem {
   if (!purpose) return item;
-  const target = PURCHASE_PURPOSE_MAP[purpose];
 
   // Đổi tài khoản Nợ đầu tiên thuộc nhóm swappable → tài khoản theo mục đích
   let swapped = false;
@@ -768,15 +883,22 @@ function applyPurchasePurpose(item: InboxItem, purpose: PurchasePurpose | undefi
     if (swapped) return l;
     if ((l.debit ?? 0) <= 0) return l;
     if (!PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS.has(l.account)) return l;
-    if (l.account === target.account) { swapped = true; return l; }
+    if (l.account === purpose.account) { swapped = true; return l; }
     swapped = true;
-    return { ...l, account: target.account };
+    return { ...l, account: purpose.account };
   });
+
+  const itemType =
+    purpose.line_kind === "goods" ? "goods"
+    : purpose.line_kind === "material" ? "material"
+    : purpose.line_kind === "ccdc" ? "tool"
+    : purpose.line_kind === "asset" ? "asset_tangible"
+    : "service";
 
   const newProducts = item.missing?.products?.map((p) => ({
     ...p,
-    item_type: target.item_type,
-    account: target.account,
+    item_type: itemType as typeof p.item_type,
+    account: purpose.account,
   }));
 
   return {

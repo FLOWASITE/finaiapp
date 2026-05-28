@@ -472,11 +472,11 @@ async function materializePurchaseVoucherFromDocument(
     userId: string;
     entryDate: string;
     journalEntryId: string;
-    purchasePurpose?: "resale" | "material" | "expense";
+    purchasePurpose?: PurchasePurposeIn;
   },
 ): Promise<string | null> {
   const { documentId, tenantId, userId, entryDate, journalEntryId, purchasePurpose } = opts;
-  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
+  const purposeOverride = buildPurposeOverride(purchasePurpose);
 
   let { data: doc } = await supabase
     .from("documents")
@@ -857,10 +857,10 @@ async function inferDocDirection(
  */
 async function autoResolveMissingMaster(
   supabase: any,
-  opts: { tenantId: string; userId: string; documentId: string; purchasePurpose?: "resale" | "material" | "expense" },
+  opts: { tenantId: string; userId: string; documentId: string; purchasePurpose?: PurchasePurposeIn },
 ): Promise<void> {
   const { tenantId, userId, documentId, purchasePurpose } = opts;
-  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
+  const purposeOverride = buildPurposeOverride(purchasePurpose);
   const { data: doc } = await supabase
     .from("documents")
     .select("doc_kind, ai_upload_id, ocr_extracted")
@@ -1013,7 +1013,7 @@ async function autoResolveMissingMaster(
     seen.add(nm.toLowerCase());
     if (existSet.has(nm.toLowerCase())) continue;
 
-    let item_type: "goods" | "service" | "material" = "goods";
+    let item_type: MissingItemTypeGuess = "goods";
     let stock_account = "156";
     let unit = li.unit?.toString().trim() || "cái";
     if (purposeOverride) {
@@ -1388,6 +1388,16 @@ export const listInboxAi = createServerFn({ method: "POST" })
     };
   });
 
+const PurchasePurposeSchema = z.object({
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(200),
+  group_code: z.string().min(1).max(64).optional(),
+  account: z.string().min(2).max(16),
+  line_kind: z.enum(["goods", "material", "ccdc", "asset", "service"]),
+  needs_vat_output: z.boolean().optional(),
+  tax_warning: z.string().max(500).optional(),
+});
+
 const ApproveInput = z.object({
   source: z.enum(["document", "bank_statement", "ai_insight"]),
   external_id: z.string().min(1),
@@ -1405,17 +1415,22 @@ const ApproveInput = z.object({
     .min(1),
   confidence_at_decision: z.number().int().min(0).max(100).optional(),
   match_ref_invoice_id: z.string().uuid().optional(),
-  purchase_purpose: z.enum(["resale", "material", "expense"]).optional(),
+  purchase_purpose: PurchasePurposeSchema.optional(),
 });
 
-const PURCHASE_PURPOSE_OVERRIDE: Record<
-  "resale" | "material" | "expense",
-  { account: string; item_type: "goods" | "service" | "material"; line_type: string }
-> = {
-  resale:   { account: "156", item_type: "goods",    line_type: "goods" },
-  material: { account: "152", item_type: "material", line_type: "material" },
-  expense:  { account: "642", item_type: "service",  line_type: "service" },
-};
+type PurchasePurposeIn = z.infer<typeof PurchasePurposeSchema>;
+type PurposeOverride = { account: string; item_type: MissingItemTypeGuess; line_type: string };
+
+function buildPurposeOverride(p: PurchasePurposeIn | undefined): PurposeOverride | null {
+  if (!p) return null;
+  const item_type: MissingItemTypeGuess =
+    p.line_kind === "goods" ? "goods"
+    : p.line_kind === "material" ? "material"
+    : p.line_kind === "ccdc" ? "tool"
+    : p.line_kind === "asset" ? "asset_tangible"
+    : "service";
+  return { account: p.account, item_type, line_type: p.line_kind };
+}
 
 export const approveInboxItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -2199,4 +2214,136 @@ export const reconcileInboxItem = createServerFn({ method: "POST" })
       entry_id: entry.id,
       generated_at: new Date().toISOString(),
     };
+  });
+
+// ============================================================
+// THƯ VIỆN MỤC ĐÍCH CHI (Loại B) — listing + suggestion
+// ============================================================
+
+type TypeBRow = {
+  code: string;
+  name: string;
+  group_code: string;
+  account_tt99: string;
+  account_tt133: string;
+  line_kind: "goods" | "material" | "ccdc" | "asset" | "service";
+  needs_vat_output: boolean;
+  cit_warning: string | null;
+  cit_cap: string | null;
+  aliases: string[];
+  floating_goods: string[];
+  legal_basis: string | null;
+  sort_order: number;
+};
+
+type PurposeOption = {
+  code: string;
+  name: string;
+  group_code: string;
+  account: string;
+  line_kind: "goods" | "material" | "ccdc" | "asset" | "service";
+  needs_vat_output: boolean;
+  tax_warning?: string;
+  cit_cap?: string;
+  legal_basis?: string;
+  aliases: string[];
+};
+
+function pickAccount(row: TypeBRow, standard: string): string {
+  return standard === "tt133" ? row.account_tt133 : row.account_tt99;
+}
+
+function rowToOption(row: TypeBRow, standard: string): PurposeOption {
+  return {
+    code: row.code,
+    name: row.name,
+    group_code: row.group_code,
+    account: pickAccount(row, standard),
+    line_kind: row.line_kind,
+    needs_vat_output: row.needs_vat_output,
+    tax_warning: row.cit_warning ?? undefined,
+    cit_cap: row.cit_cap ?? undefined,
+    legal_basis: row.legal_basis ?? undefined,
+    aliases: row.aliases ?? [],
+  };
+}
+
+function norm(s: string): string {
+  return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+async function getTenantAccountingStandard(supabase: any, tenantId: string): Promise<string> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("accounting_standard")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const s = (data?.accounting_standard as string | null)?.toLowerCase() ?? "tt99";
+  return s === "tt133" ? "tt133" : "tt99";
+}
+
+/**
+ * Liệt kê toàn bộ Loại B đang active — đã chọn TK theo chuẩn KT của tenant.
+ * Trả kèm aliases + cảnh báo để UI hiển thị + search local.
+ */
+export const listPurposeCatalog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return { items: [] as PurposeOption[], standard: "tt99" as "tt99" | "tt133" };
+
+    const standard = await getTenantAccountingStandard(supabase, tenantId);
+    const { data, error } = await supabase
+      .from("typeb_purpose_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    const items = (data as TypeBRow[]).map((r) => rowToOption(r, standard));
+    return { items, standard: standard as "tt99" | "tt133" };
+  });
+
+const SuggestInput = z.object({
+  description: z.string().min(1).max(2000),
+  item_names: z.array(z.string().min(1).max(300)).max(50).optional(),
+});
+
+/**
+ * Gợi ý top mục đích Loại B cho một invoice / line dựa trên mô tả + tên mặt hàng.
+ * Logic match: aliases / floating_goods / name — score theo số lần khớp.
+ */
+export const suggestPurchasePurpose = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SuggestInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId) return { candidates: [] as PurposeOption[] };
+
+    const standard = await getTenantAccountingStandard(supabase, tenantId);
+    const { data: rows, error } = await supabase
+      .from("typeb_purpose_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const haystackParts = [data.description, ...(data.item_names ?? [])]
+      .filter(Boolean)
+      .map(norm);
+    const hay = haystackParts.join(" | ");
+
+    type Scored = { row: TypeBRow; score: number };
+    const scored: Scored[] = [];
+    for (const row of rows as TypeBRow[]) {
+      let score = 0;
+      for (const a of row.aliases ?? []) if (hay.includes(norm(a))) score += 3;
+      for (const f of row.floating_goods ?? []) if (hay.includes(norm(f))) score += 5;
+      if (hay.includes(norm(row.name))) score += 4;
+      if (score > 0) scored.push({ row, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 5).map((s) => rowToOption(s.row, standard));
+    return { candidates: top };
   });
