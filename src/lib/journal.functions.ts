@@ -247,3 +247,72 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
 
     return { ok: true, entryId: entry.id };
   });
+
+export const createManualJournalEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    description: string;
+    entry_date: string;
+    lines: Array<{ account_code: string; debit: number; credit: number }>;
+  }) => input)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const totalDebit = data.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
+    const totalCredit = data.lines.reduce((s, l) => s + Number(l.credit || 0), 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      throw new Error(`Bút toán không cân: Nợ ${totalDebit} ≠ Có ${totalCredit}`);
+    }
+
+    // Check kỳ kế toán đã khoá
+    const { data: locked } = await supabase.rpc("is_period_locked", {
+      _user_id: userId,
+      _date: data.entry_date,
+    });
+    if (locked === true) {
+      throw new Error("Kỳ kế toán đã khoá, không thể ghi sổ vào ngày này");
+    }
+
+    // Get active tenant for this user
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", userId)
+      .single();
+    const tenantId = profile?.active_tenant_id;
+    if (!tenantId) {
+      throw new Error("Chưa chọn doanh nghiệp hoạt động");
+    }
+
+    // Insert into journal_entries
+    const { data: entry, error } = await supabase
+      .from("journal_entries")
+      .insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        entry_date: data.entry_date,
+        description: data.description,
+      })
+      .select("id")
+      .single();
+    if (error || !entry) throw new Error(error?.message || "Không tạo được bút toán");
+
+    // Insert lines
+    const { error: linesErr } = await supabase.from("journal_lines").insert(
+      data.lines.map((l, i) => ({
+        entry_id: entry.id,
+        account_code: l.account_code,
+        debit: l.debit,
+        credit: l.credit,
+        line_order: i,
+      })),
+    );
+    if (linesErr) {
+      // Clean up the entry if lines insert failed
+      await supabase.from("journal_entries").delete().eq("id", entry.id);
+      throw new Error(linesErr.message || "Không lưu được chi tiết bút toán");
+    }
+
+    return { ok: true, entryId: entry.id };
+  });
+
