@@ -1398,7 +1398,17 @@ const ApproveInput = z.object({
     .min(1),
   confidence_at_decision: z.number().int().min(0).max(100).optional(),
   match_ref_invoice_id: z.string().uuid().optional(),
+  purchase_purpose: z.enum(["resale", "material", "expense"]).optional(),
 });
+
+const PURCHASE_PURPOSE_OVERRIDE: Record<
+  "resale" | "material" | "expense",
+  { account: string; item_type: "goods" | "service" | "material"; line_type: string }
+> = {
+  resale:   { account: "156", item_type: "goods",    line_type: "goods" },
+  material: { account: "152", item_type: "material", line_type: "material" },
+  expense:  { account: "642", item_type: "service",  line_type: "service" },
+};
 
 export const approveInboxItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

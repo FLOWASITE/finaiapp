@@ -380,6 +380,7 @@ function InboxAiPage() {
           })),
           confidence_at_decision: it.confidence,
           match_ref_invoice_id: it.match_ref?.kind === "invoice" ? it.match_ref.id : undefined,
+          purchase_purpose: it.purchase_purpose,
         },
       }),
     onSuccess: (resp: any, it) => {

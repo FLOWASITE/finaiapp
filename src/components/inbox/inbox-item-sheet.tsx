@@ -477,13 +477,7 @@ export function InboxItemDetail({
 
       {/* Footer */}
       <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-background/80 px-5 py-3 backdrop-blur-sm">
-        {item.processing_status !== "posted" && (
-          <ApprovalChecklist
-            signals={item.reasoning.signals}
-            followups={item.followups}
-            missing={item.missing}
-          />
-        )}
+
         <div className="flex gap-2">
           {item.processing_status === "posted" ? (
             <>
@@ -525,8 +519,8 @@ export function InboxItemDetail({
             <>
               <button
                 type="button"
-                onClick={() => onApprove(item)}
-                disabled={approving || !!item.blocker}
+                onClick={() => onApprove(workingItem)}
+                disabled={approving || !!workingItem.blocker}
                 className="flex flex-[3] flex-col items-center justify-center gap-0.5 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
               >
                 <span className="flex items-center gap-2 text-sm font-bold">
@@ -538,7 +532,7 @@ export function InboxItemDetail({
                   {approving ? "Đang ghi sổ…" : "Duyệt & ghi sổ"}
                 </span>
                 {!approving && (() => {
-                  const sideEffect = describeMissingSideEffect(item.missing);
+                  const sideEffect = describeMissingSideEffect(workingItem.missing);
                   return sideEffect ? (
                     <span className="text-[10px] font-medium leading-none opacity-90">
                       {sideEffect}
@@ -686,12 +680,6 @@ function VatExplain({ meta, items }: { meta?: VoucherMeta; items?: ProposalItem[
   );
 }
 
-const PURPOSE_GUESS_ACCOUNTS = new Set(["156", "152", "153", "642", "211", "213", "242"]);
-const PURPOSE_OPTIONS: { account: string; label: string; hint: string }[] = [
-  { account: "156", label: "Hàng hoá bán lại", hint: "→ TK 156" },
-  { account: "152", label: "Nguyên liệu sản xuất", hint: "→ TK 152" },
-  { account: "642", label: "Chi phí sự kiện / trang trí", hint: "→ TK 642" },
-];
 
 function PurposePicker({
   voucherKind,
