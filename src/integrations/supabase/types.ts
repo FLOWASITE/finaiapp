@@ -8391,6 +8391,7 @@ export type Database = {
           last_seen: string
           match_count: number
           product_id: string
+          purpose_code: string | null
           raw_name: string
           raw_name_norm: string
           raw_unit: string | null
@@ -8409,6 +8410,7 @@ export type Database = {
           last_seen?: string
           match_count?: number
           product_id: string
+          purpose_code?: string | null
           raw_name: string
           raw_name_norm: string
           raw_unit?: string | null
@@ -8427,6 +8429,7 @@ export type Database = {
           last_seen?: string
           match_count?: number
           product_id?: string
+          purpose_code?: string | null
           raw_name?: string
           raw_name_norm?: string
           raw_unit?: string | null
@@ -9324,6 +9327,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      typeb_purpose_catalog: {
+        Row: {
+          account_tt133: string
+          account_tt99: string
+          aliases: string[]
+          cit_cap: string | null
+          cit_warning: string | null
+          code: string
+          created_at: string
+          floating_goods: string[]
+          group_code: string
+          id: string
+          is_active: boolean
+          legal_basis: string | null
+          line_kind: string
+          name: string
+          name_en: string | null
+          needs_vat_output: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          account_tt133: string
+          account_tt99: string
+          aliases?: string[]
+          cit_cap?: string | null
+          cit_warning?: string | null
+          code: string
+          created_at?: string
+          floating_goods?: string[]
+          group_code: string
+          id?: string
+          is_active?: boolean
+          legal_basis?: string | null
+          line_kind?: string
+          name: string
+          name_en?: string | null
+          needs_vat_output?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          account_tt133?: string
+          account_tt99?: string
+          aliases?: string[]
+          cit_cap?: string | null
+          cit_warning?: string | null
+          code?: string
+          created_at?: string
+          floating_goods?: string[]
+          group_code?: string
+          id?: string
+          is_active?: boolean
+          legal_basis?: string | null
+          line_kind?: string
+          name?: string
+          name_en?: string | null
+          needs_vat_output?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_digest_prefs: {
         Row: {
