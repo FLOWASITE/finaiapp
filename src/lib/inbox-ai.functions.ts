@@ -755,19 +755,33 @@ async function materializePurchaseVoucherFromDocument(
     if (lErr) console.error("[materializePurchaseVoucher] lines insert failed", lErr);
   }
 
-  // Learning flywheel: ghi nhận purpose KTV chọn cho lần sau auto-match
-  if (purchasePurpose?.code) {
-    try {
-      await learnPurposeForLines(supabase, {
-        tenantId,
-        userId,
-        supplierId,
-        rawLines,
-        purposeCode: purchasePurpose.code,
-      });
-    } catch (e) {
-      console.error("[materializePurchaseVoucher] learnPurpose failed", e);
-    }
+  // Learning flywheel: ghi nhận purpose KTV chọn cho lần sau auto-match.
+  // Luôn gọi (ngay cả khi không có purposeCode) để upsert supplier_item_mappings.
+  try {
+    await learnPurposeForLines(supabase, {
+      tenantId,
+      userId,
+      supplierId,
+      rawLines,
+      purposeCode: purchasePurpose?.code ?? "",
+    });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnPurpose failed", e);
+  }
+
+  // Learning flywheel #2: nuôi ai_line_classifications từ phiếu vừa ghi sổ
+  // để Trí nhớ AI có dữ liệu phân loại (goods/service/asset…) cho lần sau.
+  try {
+    const { learnFromPurchaseVoucher } = await import(
+      "./categorize/learn-line-classifications.server"
+    );
+    await learnFromPurchaseVoucher(supabase, {
+      tenantId,
+      userId,
+      voucherId: voucher.id as string,
+    });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnFromPurchaseVoucher failed", e);
   }
 
   return voucher.id as string;
