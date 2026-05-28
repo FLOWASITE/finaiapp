@@ -449,6 +449,30 @@ function kindChipClass(k: ResolvedLine["resolved_kind"]): string {
 }
 
 
+function sourceLabel(src: string): string {
+  switch (src) {
+    case "heuristic": return "Heuristic";
+    case "product_map": return "Sản phẩm";
+    case "ai": return "AI";
+    case "manual": return "Thủ công";
+    default: return src;
+  }
+}
+
+function confidenceColor(c: number): string {
+  if (c >= 90) return "text-emerald-600 dark:text-emerald-400";
+  if (c >= 70) return "text-blue-600 dark:text-blue-400";
+  if (c >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-destructive";
+}
+
+function confidenceBarColor(c: number): string {
+  if (c >= 90) return "bg-emerald-500";
+  if (c >= 70) return "bg-blue-500";
+  if (c >= 50) return "bg-amber-500";
+  return "bg-red-500";
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
