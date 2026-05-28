@@ -99,7 +99,7 @@ export function RulesListV2() {
     onError: (e: Error) => toast.error(e.message),
   });
   const learnM = useMutation({
-    mutationFn: learnFn,
+    mutationFn: () => learnFn(),
     onSuccess: (r) => {
       invalidate();
       if (r?.created) toast.success(`Đã học ${r.created} quy tắc mới từ phiếu đã ghi sổ`);
