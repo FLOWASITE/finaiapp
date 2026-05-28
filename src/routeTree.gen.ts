@@ -177,6 +177,7 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAdminDataImportRouteImport } from './routes/_app/admin/data/import'
 import { Route as AppAdminDataExportRouteImport } from './routes/_app/admin/data/export'
 import { Route as AppSalesOrdersIdPrintRouteImport } from './routes/_app/sales/orders.$id.print'
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
@@ -1042,6 +1043,11 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminDataImportRoute = AppAdminDataImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
 const AppAdminDataExportRoute = AppAdminDataExportRouteImport.update({
   id: '/export',
   path: '/export',
@@ -1196,6 +1202,7 @@ export interface FileRoutesByFullPath {
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
   '/admin/data/export': typeof AppAdminDataExportRoute
+  '/admin/data/import': typeof AppAdminDataImportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1362,6 +1369,7 @@ export interface FileRoutesByTo {
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
   '/admin/data/export': typeof AppAdminDataExportRoute
+  '/admin/data/import': typeof AppAdminDataImportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1537,6 +1545,7 @@ export interface FileRoutesById {
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
   '/_app/admin/data/export': typeof AppAdminDataExportRoute
+  '/_app/admin/data/import': typeof AppAdminDataImportRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1712,6 +1721,7 @@ export interface FileRouteTypes {
     | '/suppliers/'
     | '/tax/'
     | '/admin/data/export'
+    | '/admin/data/import'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1878,6 +1888,7 @@ export interface FileRouteTypes {
     | '/suppliers'
     | '/tax'
     | '/admin/data/export'
+    | '/admin/data/import'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -2052,6 +2063,7 @@ export interface FileRouteTypes {
     | '/_app/suppliers/'
     | '/_app/tax/'
     | '/_app/admin/data/export'
+    | '/_app/admin/data/import'
     | '/_app/assets/$id/card'
     | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
@@ -3290,6 +3302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/data/import': {
+      id: '/_app/admin/data/import'
+      path: '/import'
+      fullPath: '/admin/data/import'
+      preLoaderRoute: typeof AppAdminDataImportRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
     '/_app/admin/data/export': {
       id: '/_app/admin/data/export'
       path: '/export'
@@ -3355,10 +3374,12 @@ const AppOfficeRouteRouteWithChildren = AppOfficeRouteRoute._addFileChildren(
 
 interface AppAdminDataRouteChildren {
   AppAdminDataExportRoute: typeof AppAdminDataExportRoute
+  AppAdminDataImportRoute: typeof AppAdminDataImportRoute
 }
 
 const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
   AppAdminDataExportRoute: AppAdminDataExportRoute,
+  AppAdminDataImportRoute: AppAdminDataImportRoute,
 }
 
 const AppAdminDataRouteWithChildren = AppAdminDataRoute._addFileChildren(
