@@ -1,68 +1,47 @@
-# Hoàn thiện Quy tắc hạch toán trong Trí nhớ AI
+## Vấn đề
 
-Hiện trạng (đã có): bảng `ai_memory_rules` (conditions/actions JSON, mode, threshold), `ai_rule_applications`, UI tab "Quy tắc hạch toán" với RuleCard / RuleEditor / Approve / Toggle / xem lịch sử. **Thiếu**: AI chưa tự sinh suggestion từ pattern thật, rule engine chưa được gọi khi Inbox AI đề xuất hạch toán, và UI editor chưa thuận tiện chọn TK 152/153/156/211/213/242.
+Trong sheet "Đề xuất của Fin", phần **Khớp mặt hàng với mã hệ thống** hiển thị gợi ý kiểu `LOG-VAN-CHUY-NOI · 85%`. Khi bấm chọn, hệ thống lưu mapping `NCC → mã SP` (qua `confirmItemMapping`) và invalidate `inbox-ai`, nhưng **khối "BÚT TOÁN ĐỀ XUẤT" không đổi** vì:
 
-## Phạm vi
+1. `confirmItemMapping` chỉ ghi rule, không trả về `default_account` để FE đổi line ngay.
+2. `workingItem` ở `inbox-item-sheet.tsx` là local state — sau khi refetch `inbox-ai`, lines mới không được đồng bộ trở lại.
+3. Server-side `materializePurchaseVoucherFromDocument` đọc account từ rule mapping của SP, nhưng phải đợi refetch + reset state mới phản ánh.
 
-### 1. Engine: áp dụng rule khi Inbox AI đề xuất hạch toán
-Thêm `src/lib/rules/apply-rules.server.ts`:
-- `loadActiveRules(supabase, tenantId)` — đọc rules `type='active' AND enabled AND mode IN ('auto','suggest')`.
-- `evaluateConditions(rule, ctx)` — match `vendor.tax_id / vendor.name / amount / description / doc_type / category.predicted / line.account_predicted` với operator hiện có (`equals/contains/in/between/...`).
-- `applyRules(ctx)` → trả về `{ matched: Rule[], autoActions: RuleAction[], suggestActions: RuleAction[] }`.
+Hệ quả: KTV thấy "bấm chẳng có gì xảy ra".
 
-Tích hợp tại `materializePurchaseVoucherFromDocument` (sau khi đã có vendor + lines, trước khi insert):
-- Với rule `mode='auto'` + match đủ confidence ⇒ override `debit_account` / `purpose_code` / tag và **insert một dòng vào `ai_rule_applications`** (status=`applied`, `document_table='purchase_vouchers'`, `then_snapshot`).
-- Với rule `mode='suggest'` ⇒ ghi `ai_log.suggested_rules[]` (không override).
+## Giải pháp
 
-Cập nhật `applied_count`, `last_used_at`, `accuracy_total` (+1) qua RPC nhỏ `bump_rule_metrics(rule_id)`.
+### 1. `confirmItemMapping` trả về account mặc định của SP đã chọn
+File: `src/lib/inbox-resolution.functions.ts`
+- Sau khi insert `supplier_product_rules`, `SELECT stock_account, item_type` từ `products` của `product_id` và include vào payload trả về (`{ ok: true, product: { id, code, name, stock_account, item_type } }`).
 
-### 2. Tự động học & sinh đề xuất quy tắc
-Thêm `src/lib/rules/learn-rules.server.ts` chạy cuối `materializePurchaseVoucher` (best-effort):
-- Tổng hợp 90 ngày gần nhất theo nhóm `(vendor.tax_id, line.debit_account)` từ `purchase_vouchers` + `purchase_voucher_lines` đã `posted`.
-- Khi một nhóm xuất hiện ≥ 3 lần và **chưa có rule active tương ứng** ⇒ insert suggestion:
-  - `type='suggestion'`, `source='ai-learned'`, `mode='suggest'`
-  - `conditions = [{ field:'vendor.tax_id', operator:'equals', value: mst }]`
-  - `actions = [{ type:'book', params:{ account_debit: '156', note: 'Học từ N phiếu' } }]`
-  - `title` & `when_text/then_text` sinh tiếng Việt rõ ràng để hiển thị ngay khi chưa promote.
-- Dedupe bằng hash `(tenant, vendor_tax_id, debit_account)`.
+### 2. Optimistic swap trong `ItemResolutionPanel`
+File: `src/components/inbox/item-resolution-panel.tsx`
+- Thêm prop callback `onLineAccountResolved?(args: { itemIndex: number; rawName: string; account: string; productCode: string; productName: string })`.
+- Trong `onSuccess` của `confirmMut` và `promoteMut`, nếu kết quả có `stock_account`, gọi callback với `account` mới + chỉ số dòng tương ứng (map qua `splits[idx]` / `it.name`).
 
-### 3. UI/UX RuleEditor & RuleCard
-- **RuleEditor**: cho action type `book`, thay input text `account_debit` bằng `<Select>` các nhóm tài khoản chuẩn theo project-knowledge:
-  - 152 — Nguyên vật liệu
-  - 153 — Công cụ dụng cụ
-  - 156 — Hàng hóa
-  - 211 — TSCĐ hữu hình
-  - 213 — TSCĐ vô hình
-  - 242 — Chi phí trả trước (phân bổ)
-  - 627/641/642 — Chi phí dịch vụ (mặc định)
-  - Tự do nhập số TK khác.
-- Thêm gợi ý field thông dụng cho condition: `vendor.tax_id`, `vendor.name`, `description contains`, `amount between`.
-- **RuleCard**: hiển thị accuracy dạng badge "X/Y · Z%" (đã có ở bản v1, port sang v2), nút "Xem N lần áp dụng" mở `RuleApplicationsSheet` (đã có).
-- Empty state hiện 2 nút: "Tạo quy tắc thủ công" + "Học từ phiếu đã ghi sổ" (gọi 1 lần `learnRulesNow()`).
+### 3. Áp account mới vào `workingItem.proposal.lines` ngay
+File: `src/components/inbox/inbox-item-sheet.tsx`
+- `ItemResolutionPanelWrapper` nhận thêm prop `onLineAccountResolved`, forward xuống panel.
+- Khi callback fire, update `workingItem`:
+  - Tìm line "Nợ" có amount ≈ tổng amount của dòng SP (hoặc dòng đầu tiên có TK thuộc `PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS`).
+  - Đổi `line.account` sang account mới.
+  - Cập nhật `workingItem.missing.products[i]` (gỡ khỏi danh sách "cần tạo" → đánh dấu đã match).
+- Toast: `Đã gắn mã LOG-VAN-CHUY-NOI · TK Nợ chuyển sang {account}`.
 
-### 4. Đo lường & vòng lặp feedback
-- Khi user **sửa** một field đã được rule auto-fill (chỗ phê duyệt trong Inbox AI), gọi `markRuleApplicationIncorrect(application_id)` ⇒ `accuracy_total +1` nhưng không tăng `accuracy_correct`. Khi user **giữ nguyên & duyệt**, `accuracy_correct +1`.
-- Nếu accuracy < 60% sau ≥ 10 lần ⇒ tự động chuyển rule sang `mode='suggest'` và gắn `paused_reason`.
+### 4. Đồng bộ lại workingItem khi `item` từ query đổi (an toàn cho lần refetch sau)
+- Thêm `useEffect` so sánh `item.id` + `item.proposal.lines` hash — nếu khác `workingItem` và user chưa edit thủ công (track `dirty` flag), reset `workingItem` từ `item`.
 
-## Files (sửa/tạo)
+### 5. Visual confirmation
+- Khi line vừa bị đổi account, highlight ngắn (1.5s) bằng class `bg-emerald-500/10` để KTV thấy ngay thay đổi.
 
-Tạo mới:
-- `src/lib/rules/apply-rules.server.ts`
-- `src/lib/rules/learn-rules.server.ts`
-- `src/lib/rules/account-presets.ts` (constants 152/153/156/211/213/242…)
+## File thay đổi
 
-Sửa:
-- `src/lib/inbox-ai.functions.ts` — gọi `applyRules` trước insert, `learnRules` sau insert, mark accuracy khi approve có sửa field.
-- `src/components/ai-memory/rules-v2/ActionsBlock.tsx` — Select tài khoản.
-- `src/components/ai-memory/rules-v2/RuleCard.tsx` — badge accuracy + nút lịch sử.
-- `src/components/ai-memory/rules-v2/RulesListV2.tsx` — nút "Học từ phiếu đã ghi sổ" ở empty state.
-- `src/lib/ai-memory.functions.ts` — thêm `learnRulesNow`, `markApplicationOutcome`.
-
-Migration:
-- RPC `bump_rule_metrics(rule_id uuid, correct boolean)` — atomic update applied_count/accuracy.
-- (Không thay schema bảng — đã đủ cột.)
+- `src/lib/inbox-resolution.functions.ts` — mở rộng payload `confirmItemMapping` (+ `promoteCatalogItem` nếu cần).
+- `src/components/inbox/item-resolution-panel.tsx` — thêm callback, gọi sau khi confirm/promote.
+- `src/components/inbox/inbox-item-sheet.tsx` — wire callback, swap account trong `workingItem`, thêm highlight + useEffect sync.
 
 ## Ngoài phạm vi
-- Không động đến tab khác (Đối tác, Bối cảnh, Hạn mức, Agent của Fin).
-- Không sửa flow hóa đơn bán ra (sales) trong vòng này.
-- Không đổi schema bảng `ai_memory_rules` / `ai_rule_applications`.
+
+- Không đổi chip "Dịch vụ · 99%" thành interactive (theo lựa chọn của bạn — chỉ làm cho mã hệ thống).
+- Không động vào server materialization logic — refetch sau đó sẽ hợp nhất tự nhiên.
+- Không đổi schema database.
