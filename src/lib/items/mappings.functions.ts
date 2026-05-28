@@ -192,7 +192,6 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
 
         // Negative memory: product cũ bị "soft-reject"
         if (existing.product_id && existing.product_id !== data.product_id) {
-          await supabase.rpc("noop_dummy_for_types_only", {}).then(() => undefined).catch(() => undefined);
           await supabase.from("supplier_item_rejections").upsert(
             {
               tenant_id: tenantId,
