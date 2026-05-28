@@ -40,6 +40,24 @@ function InvoiceDetail() {
   const suggest = useServerFn(suggestJournalEntry);
   const approve = useServerFn(approveJournalEntry);
   const linkedFn = useServerFn(getLinkedEInvoice);
+  const resolvedLinesFn = useServerFn(getResolvedInvoiceLines);
+  const overrideKindFn = useServerFn(setLineOverrideKind);
+
+  const resolvedLinesQuery = useQuery({
+    queryKey: ["invoice-resolved-lines", id],
+    queryFn: () => resolvedLinesFn({ data: { invoice_id: id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const overrideMut = useMutation({
+    mutationFn: (vars: { line_id: string; kind: ResolvedLine["resolved_kind"] | null }) =>
+      overrideKindFn({ data: vars }),
+    onSuccess: () => {
+      resolvedLinesQuery.refetch();
+      toast.success("Đã cập nhật loại hàng hoá");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi cập nhật"),
+  });
 
   const { data: linked } = useQuery({
     queryKey: ["invoice-einvoice", id],
