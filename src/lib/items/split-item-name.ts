@@ -25,29 +25,42 @@ function stripDiacritics(s: string): string {
 type RuleFn = (s: string, push: (note: string) => void) => string;
 
 const RULES: RuleFn[] = [
-  // 1) Biển số xe VN (đặt trước ngày để 50H-897.69 không bị bắt nhầm)
-  // Format: 2 số + 1-2 chữ + (-) + 3-5 số(.số)?
+  // 1) "biển số xe <PLATE>" — bắt cả cụm filler + plate (đặt TRƯỚC rule plate trần)
+  (s, push) =>
+    s.replace(
+      /\b(?:biển\s*số\s*xe?|biển\s*số|bks?|biển\s*kiểm\s*soát)\s*[:#-]?\s*([0-9]{2}\s*[A-Za-zĐ]{1,2}\s*[-–]?\s*\d{3,5}(?:[.,]\d{1,3})?)\b/giu,
+      (_m, plate: string) => { push(plate.trim()); return " "; },
+    ),
+
+  // 2) Biển số xe trần (không có "biển số xe" đứng trước)
   (s, push) =>
     s.replace(/\b(\d{2}\s*[A-Za-zĐ]{1,2}\s*[-–]?\s*\d{3,5}(?:[.,]\d{1,3})?)\b/g, (m) => {
-      push(m.trim());
-      return " ";
+      push(m.trim()); return " ";
     }),
 
-  // 2) Khoảng ngày: "từ X đến Y" / "từ X - Y"
+  // 3) Khoảng NGÀY: "từ 01/01 đến 31/01"
   (s, push) =>
     s.replace(
       /\btừ\s+\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\s*(?:đến|tới|-|–)\s*\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?/giu,
       (m) => { push(m.trim()); return " "; },
     ),
 
-  // 3) Ngày đơn lẻ (có/không "ngày" đứng trước)
+  // 4) Tuyến mô tả dài: "từ <địa danh> đến <địa danh>" — bắt tới dấu phẩy / hết chuỗi.
+  //    Đặt SAU rule "từ ngày đến ngày" để không nuốt khoảng ngày.
+  (s, push) =>
+    s.replace(
+      /\btừ\s+([^,.;]{2,80}?)\s+(?:đến|tới)\s+([^,.;]{2,80}?)(?=[,.;]|$)/giu,
+      (m) => { push(m.replace(/\s+/g, " ").trim()); return " "; },
+    ),
+
+  // 5) Ngày đơn lẻ
   (s, push) =>
     s.replace(
       /\b(?:ngày\s*)?(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/giu,
       (m) => { push(m.trim()); return " "; },
     ),
 
-  // 4) Kỳ tháng: "tháng 01/2026", "kỳ tháng 3", "kỳ 1/2026"
+  // 6) Kỳ tháng
   (s, push) =>
     s.replace(
       /\b(?:kỳ\s*)?tháng\s*\d{1,2}(?:[/-]\d{2,4})?\b/giu,
@@ -56,16 +69,20 @@ const RULES: RuleFn[] = [
   (s, push) =>
     s.replace(/\bkỳ\s*\d{1,2}(?:[/-]\d{2,4})?\b/giu, (m) => { push(m.trim()); return " "; }),
 
-  // 5) Tuyến (cụm 2 mã địa danh viết hoa 2-4 ký tự nối bằng -, –, → hoặc "đến/tới")
+  // 7) Tuyến mã địa danh viết hoa: "HCM-HN", "HN → ĐN"
   (s, push) =>
     s.replace(
       /\b([A-ZĐ]{2,4})\s*(?:-|–|→|đến|tới)\s*([A-ZĐ]{2,4})\b/gu,
       (m) => { push(m.trim()); return " "; },
     ),
 
-  // 6) Số HĐ/lệnh điều xe/booking: "Số: 123", "LĐX 45", "BL ABC"
+  // 8) Số HĐ/lệnh: bắt buộc CÓ ký số phía sau để không nuốt "số xe ABC"
   (s, push) =>
-    s.replace(/\b(?:số|so|sn|s\/n|imei)\s*[:#]?\s*[A-Za-z0-9-]{2,}\b/giu, (m) => {
+    s.replace(/\b(?:số|so)\s*[:#]?\s*[A-Za-z]*\d[A-Za-z0-9-]*\b/giu, (m) => {
+      push(m.trim()); return " ";
+    }),
+  (s, push) =>
+    s.replace(/\b(?:s\/?n|sn|imei)\s*[:#]?\s*[A-Za-z0-9-]{2,}\b/giu, (m) => {
       push(m.trim()); return " ";
     }),
   (s, push) =>
@@ -73,10 +90,10 @@ const RULES: RuleFn[] = [
       push(m.trim()); return " ";
     }),
 
-  // 7) Cụm trong ngoặc cuối — chỉ tách nếu KHÔNG phải quy cách SP
+  // 9) Cụm trong ngoặc (loại trừ quy cách SP)
   (s, push) =>
     s.replace(/[(\[]\s*([^)\]]{2,})\s*[)\]]/gu, (m, inner: string) => {
-      if (SPEC_IN_PAREN.test(stripDiacritics(inner))) return m; // giữ nguyên trong canonical
+      if (SPEC_IN_PAREN.test(stripDiacritics(inner))) return m;
       push(`(${inner.trim()})`);
       return " ";
     }),

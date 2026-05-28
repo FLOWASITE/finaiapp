@@ -62,6 +62,7 @@ import { getDocument } from "@/lib/documents.functions";
 import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { ItemResolutionPanel } from "@/components/inbox/item-resolution-panel";
+import { splitItemName } from "@/lib/items/split-item-name";
 import { listMyTenants } from "@/lib/tenants.functions";
 import type { VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
 
@@ -1493,7 +1494,8 @@ function MissingMasterDataPanel({
   type Row = {
     key: string;
     label: string;
-    value: string;
+    value: string;          // tên ngắn để hiển thị + tạo SP
+    note?: string;          // metadata tách ra (ngày, biển số, tuyến...) — hiển thị nhỏ
     entity: MissingRowEntity;
     tax_id?: string;
     suggestion?: {
@@ -1522,10 +1524,12 @@ function MissingMasterDataPanel({
     });
   for (const p of missing.products ?? []) {
     const it = (p.item_type ?? "goods") as MissingItemType;
+    const split = splitItemName(p.name);
     rows.push({
       key: `product:${p.name}`,
       label: it === "service" ? "Dịch vụ" : "Hàng hoá",
-      value: p.name,
+      value: split.canonical_name,
+      note: split.line_note || undefined,
       entity: it === "service" ? "service" : "product",
       suggestion: {
         item_type: it,
@@ -1655,6 +1659,13 @@ function MissingMasterDataPanel({
                           </span>
                         ) : null}
                       </span>
+                    ) : null}
+                    {r.note ? (
+                      <div className="mt-0.5 text-[10px] text-amber-700/70 dark:text-amber-300/70">
+                        <span className="mr-1 opacity-60">›</span>
+                        {r.note}
+                        <span className="ml-1 italic opacity-60">— ghi chú dòng, không vào tên SP</span>
+                      </div>
                     ) : null}
                   </span>
 
