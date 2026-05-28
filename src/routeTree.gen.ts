@@ -137,6 +137,7 @@ import { Route as AppAssetsAllocationsRouteImport } from './routes/_app/assets/a
 import { Route as AppAiMemoryRouteImport } from './routes/_app/ai.memory'
 import { Route as AppAdminPeriodsRouteImport } from './routes/_app/admin/periods'
 import { Route as AppAdminMembersRouteImport } from './routes/_app/admin/members'
+import { Route as AppAdminDataRouteImport } from './routes/_app/admin/data'
 import { Route as AppAdminBackupRouteImport } from './routes/_app/admin/backup'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppOfficeTemplatesIndexRouteImport } from './routes/_app/office/templates/index'
@@ -176,6 +177,7 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAdminDataExportRouteImport } from './routes/_app/admin/data/export'
 import { Route as AppSalesOrdersIdPrintRouteImport } from './routes/_app/sales/orders.$id.print'
 import { Route as AppAssetsInventoryIdPrintRouteImport } from './routes/_app/assets/inventory.$id.print'
 import { Route as AppAssetsEventIdPrintRouteImport } from './routes/_app/assets/event.$id.print'
@@ -823,6 +825,11 @@ const AppAdminMembersRoute = AppAdminMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminDataRoute = AppAdminDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminBackupRoute = AppAdminBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
@@ -1035,6 +1042,11 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminDataExportRoute = AppAdminDataExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
 const AppSalesOrdersIdPrintRoute = AppSalesOrdersIdPrintRouteImport.update({
   id: '/print',
   path: '/print',
@@ -1073,6 +1085,7 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/backup': typeof AppAdminBackupRoute
+  '/admin/data': typeof AppAdminDataRouteWithChildren
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/ai/memory': typeof AppAiMemoryRoute
@@ -1182,6 +1195,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/': typeof AppSuperadminIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
   '/tax/': typeof AppTaxIndexRoute
+  '/admin/data/export': typeof AppAdminDataExportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1237,6 +1251,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof InviteTokenRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/backup': typeof AppAdminBackupRoute
+  '/admin/data': typeof AppAdminDataRouteWithChildren
   '/admin/members': typeof AppAdminMembersRoute
   '/admin/periods': typeof AppAdminPeriodsRoute
   '/ai/memory': typeof AppAiMemoryRoute
@@ -1346,6 +1361,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof AppSuperadminIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
   '/tax': typeof AppTaxIndexRoute
+  '/admin/data/export': typeof AppAdminDataExportRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1410,6 +1426,7 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/backup': typeof AppAdminBackupRoute
+  '/_app/admin/data': typeof AppAdminDataRouteWithChildren
   '/_app/admin/members': typeof AppAdminMembersRoute
   '/_app/admin/periods': typeof AppAdminPeriodsRoute
   '/_app/ai/memory': typeof AppAiMemoryRoute
@@ -1519,6 +1536,7 @@ export interface FileRoutesById {
   '/_app/superadmin/': typeof AppSuperadminIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
   '/_app/tax/': typeof AppTaxIndexRoute
+  '/_app/admin/data/export': typeof AppAdminDataExportRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1583,6 +1601,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/admin/audit'
     | '/admin/backup'
+    | '/admin/data'
     | '/admin/members'
     | '/admin/periods'
     | '/ai/memory'
@@ -1692,6 +1711,7 @@ export interface FileRouteTypes {
     | '/superadmin/'
     | '/suppliers/'
     | '/tax/'
+    | '/admin/data/export'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1747,6 +1767,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/admin/audit'
     | '/admin/backup'
+    | '/admin/data'
     | '/admin/members'
     | '/admin/periods'
     | '/ai/memory'
@@ -1856,6 +1877,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/suppliers'
     | '/tax'
+    | '/admin/data/export'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1919,6 +1941,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/_app/admin/audit'
     | '/_app/admin/backup'
+    | '/_app/admin/data'
     | '/_app/admin/members'
     | '/_app/admin/periods'
     | '/_app/ai/memory'
@@ -2028,6 +2051,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/'
     | '/_app/suppliers/'
     | '/_app/tax/'
+    | '/_app/admin/data/export'
     | '/_app/assets/$id/card'
     | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
@@ -2986,6 +3010,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminMembersRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/data': {
+      id: '/_app/admin/data'
+      path: '/data'
+      fullPath: '/admin/data'
+      preLoaderRoute: typeof AppAdminDataRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/backup': {
       id: '/_app/admin/backup'
       path: '/backup'
@@ -3259,6 +3290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/data/export': {
+      id: '/_app/admin/data/export'
+      path: '/export'
+      fullPath: '/admin/data/export'
+      preLoaderRoute: typeof AppAdminDataExportRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
     '/_app/sales/orders/$id/print': {
       id: '/_app/sales/orders/$id/print'
       path: '/print'
@@ -3315,9 +3353,22 @@ const AppOfficeRouteRouteWithChildren = AppOfficeRouteRoute._addFileChildren(
   AppOfficeRouteRouteChildren,
 )
 
+interface AppAdminDataRouteChildren {
+  AppAdminDataExportRoute: typeof AppAdminDataExportRoute
+}
+
+const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
+  AppAdminDataExportRoute: AppAdminDataExportRoute,
+}
+
+const AppAdminDataRouteWithChildren = AppAdminDataRoute._addFileChildren(
+  AppAdminDataRouteChildren,
+)
+
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminBackupRoute: typeof AppAdminBackupRoute
+  AppAdminDataRoute: typeof AppAdminDataRouteWithChildren
   AppAdminMembersRoute: typeof AppAdminMembersRoute
   AppAdminPeriodsRoute: typeof AppAdminPeriodsRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
@@ -3326,6 +3377,7 @@ interface AppAdminRouteChildren {
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminBackupRoute: AppAdminBackupRoute,
+  AppAdminDataRoute: AppAdminDataRouteWithChildren,
   AppAdminMembersRoute: AppAdminMembersRoute,
   AppAdminPeriodsRoute: AppAdminPeriodsRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,

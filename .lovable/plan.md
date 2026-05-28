@@ -1,57 +1,93 @@
-## Mục tiêu
+# Phân hệ Quản lý dữ liệu kế toán theo năm tài chính
 
-Cho KTT thấy ngay trong Inbox: (1) trạng thái "Auto-duyệt đang BẬT" + ngưỡng, (2) danh sách bút toán Fin đã tự duyệt 7 ngày qua để audit nhanh và rút phép nếu nghi ngờ.
+Tất cả thao tác **gắn với 1 năm tài chính** (chọn năm ở đầu trang). Dữ liệu xuất ra theo **định dạng Fin** (JSON có schema/phiên bản riêng) và có thể import ngược lại.
 
-## Phạm vi
+Đặt tại `/admin/data`, quyền **owner + accountant**.
 
-Chỉ frontend + 1 server function read-only mới. Không sửa engine auto-post, không đổi schema.
+## Tab 1 — Xuất dữ liệu (Fin Export)
 
-## Thay đổi
+- **Chọn năm tài chính** + tuỳ chọn nội dung (mặc định bật hết):
+  - Bút toán & sổ cái (`journal_entries`, `journal_lines`)
+  - Hóa đơn mua/bán + dòng (`invoices`, `invoice_lines`, `sales_invoices`, `sales_invoice_lines`)
+  - Thu/chi (`cash_vouchers`, `customer_receipts`, `supplier_payments`)
+  - Ngân hàng (`bank_transactions`)
+  - Lương (`payroll_runs`, `payroll_lines`)
+  - TSCĐ + khấu hao (`fixed_assets`, `depreciation_entries`)
+  - Số dư tài khoản (`account_period_balances` của năm đó)
+  - **Danh mục đi kèm** (không scope theo năm): khách, NCC, hàng hoá, COA, đơn vị, kho, 4 chiều phân tích → tuỳ chọn "Kèm danh mục"
+- **Định dạng Fin** (`.fin.json`, có thể nén `.fin.json.gz`):
+  ```json
+  {
+    "format": "fin-export",
+    "version": 1,
+    "tenant": { "id", "company_name", "tax_id" },
+    "fiscal_year": 2025,
+    "exported_at": "...",
+    "exported_by": "...",
+    "tables": { "journal_entries": [...], "journal_lines": [...], ... },
+    "row_counts": { ... }
+  }
+  ```
+- Lưu vào Storage bucket `tenant-exports` (private, RLS theo tenant) + ghi `system_backups` (mở rộng cột `fiscal_year`).
+- Lịch sử export: năm, người, dung lượng, nút Tải / Xoá.
 
-### 1. Server function mới `getAutoPostedRecent` — `src/lib/categorize.functions.ts`
+## Tab 2 — Nhập dữ liệu (Fin Import)
 
-- Input: `{ days?: number = 7, limit?: number = 50 }`
-- Query `ai_journal_proposals` của tenant hiện tại:
-  - `status = 'auto_posted'`
-  - `resolved_at >= now() - days`
-  - join nhẹ sang `invoices`/`sales_invoices` qua `invoice_id` để lấy `supplier_name`/`customer_name`, `invoice_no`, `total`, `issue_date`
-- Trả về: `{ items: [{ id, kind, party_name, invoice_no, issue_date, total, confidence, journal_entry_id, resolved_at }], count_7d, sum_amount_7d }`
-- Dùng `withTenant` middleware như các fn khác trong file.
+- Upload file `.fin.json(.gz)` → đọc header, hiển thị **preview**: năm tài chính trong file, tenant gốc, số dòng từng bảng.
+- **Chế độ nhập**:
+  - `merge` (mặc định): upsert theo natural key (entry no, invoice no…) — bỏ qua trùng.
+  - `replace_year`: xoá sạch dữ liệu năm đích trước khi nhập (yêu cầu owner xác nhận + năm chưa khoá cứng).
+- Validate trước khi commit:
+  - Schema version khớp.
+  - Năm tài chính = năm đang chọn (cảnh báo nếu lệch, cho phép override).
+  - Tài khoản, KH/NCC trong dữ liệu phải tồn tại; nếu không → liệt kê thiếu, đề xuất "Tạo mới tự động".
+  - Chặn nếu bất kỳ tháng nào trong năm đang `closed` (khoá cứng) và chế độ là `replace_year`.
+- Ghi `import_batches` (kind=`fin_import`), lưu `decisions.created_ids` để có thể rollback toàn bộ batch.
+- Sau import: gọi `rebuild_account_period_balances(tenant)` để đồng bộ số dư.
 
-### 2. Badge "Auto-duyệt: BẬT/TẮT" trong header Inbox — `src/routes/_app/inbox.tsx`
+## Tab 3 — Kết chuyển số dư sang năm sau
 
-- Đọc `getAutoPostSettings` (đã có) bằng `useQuery`.
-- Thêm `<AutoPostBadge />` vào `InboxHeader` (dòng ~908), bên cạnh `TenantSwitcher`.
-- BẬT: badge emerald, icon `Zap`, text `Auto-duyệt · ≥{conf}% · ≤{amount đ}`.
-- TẮT: badge muted, text `Auto-duyệt: Tắt`.
-- Click badge → mở `AutoPostAuditSheet` (mục 3).
-- Link nhỏ "Cài đặt" → `/ai/memory` (đã có AutoPostCard).
+- Chọn năm nguồn → năm đích.
+- Server fn `carryForwardBalances`:
+  - Lấy luỹ kế cuối năm nguồn từ `account_period_balances` (sum period 1–12) cho tài khoản lớp **1–4**.
+  - Upsert vào năm đích `period_no=0` (số dư đầu kỳ). Idempotent.
+  - Tài khoản lớp 5–9 không kết chuyển (đã về 0 sau bút toán 911).
+- Preview bảng dư trước khi commit. Log `audit_logs`.
+- Cảnh báo nếu năm nguồn chưa khoá đủ 12 kỳ (cho override).
 
-### 3. Sheet "Đã tự duyệt 7 ngày qua" — `src/components/inbox/auto-post-audit-sheet.tsx` (mới)
+## Tab 4 — Lịch sử
 
-- `Sheet` (shadcn) mở từ phải, width ~520px.
-- Header: tiêu đề + 2 stat card: "Đã tự duyệt 7 ngày" (count) và "Tổng giá trị" (sum_amount_7d).
-- Cảnh báo plain text (theo quy tắc lõi): _"Fin chỉ tự duyệt khi độ tin cậy cao + giá trị nhỏ + NCC đã định danh. Bạn có thể rút phép bất cứ lúc nào."_
-- Danh sách item (`getAutoPostedRecent`):
-  - Dòng: ngày, NCC/KH, số HĐ, số tiền (VND), badge confidence
-  - Nút "Xem chứng từ" → link sang `/journal?entry={journal_entry_id}` hoặc `/invoices/$id`
-  - Nút "Báo sai" (chỉ wire click + toast "Đã ghi nhận, Fin sẽ học lại" — KHÔNG đảo bút toán; rollback nằm ngoài phạm vi).
-- Empty state: "Chưa có bút toán nào được Fin tự duyệt trong 7 ngày."
-- Footer: link "Tắt auto-duyệt" → `/ai/memory` (không tự toggle để tránh thao tác nhầm).
+Gộp lịch sử Export + Import + Carry-forward (đọc từ `system_backups`, `import_batches`, `audit_logs` filter action `carry_forward_balances`). Lọc theo năm.
 
-### 4. Stats strip Inbox — thêm 1 ô
+## Cấu trúc file
 
-Trong `Stats` (dòng ~582), thêm `<Stat label="Fin tự duyệt 7 ngày" value={count_7d}>` (chỉ hiển thị khi enabled). Click → mở sheet.
+```
+src/lib/data-management.functions.ts    # exportFin, importFinPreview, importFinCommit,
+                                        # carryForwardBalances, listDataHistory
+src/lib/fin-format.ts                   # types FinExport v1, parse/validate helpers
+src/routes/_app/admin/data.tsx          # layout 4 tab + selector năm
+src/routes/_app/admin/data/export.tsx
+src/routes/_app/admin/data/import.tsx
+src/routes/_app/admin/data/carry-forward.tsx
+src/routes/_app/admin/data/history.tsx
+supabase/migrations/<ts>_data_mgmt.sql
+```
 
-## Không làm trong phạm vi này
+## Migration
 
-- Không sửa engine.server.ts (logic auto-post đã có).
-- Không thêm rollback / đảo bút toán.
-- Không gửi notification Zalo / digest hằng ngày (có thể thêm sau).
-- Không đổi schema DB.
+- Bucket `tenant-exports` private + RLS theo tenant prefix (`{tenant_id}/...`).
+- Thêm cột `fiscal_year int` và `kind` mở rộng (`fin_export`, `fin_import_snapshot`) vào `system_backups`.
+- RLS `system_backups`: thêm policy cho thành viên tenant (owner/accountant) thấy backup của tenant mình.
+- Hàm `carry_forward_balances(p_tenant uuid, p_from int, p_to int)` plpgsql security definer, dùng lại logic `apply_balance_delta`.
+- Hàm `delete_year_data(p_tenant, p_year)` security definer (chỉ owner) — phục vụ `replace_year`.
 
-## Kiểm thử
+## Sidebar
 
-- Bật auto-post + tạo proposal có total nhỏ → confirm xuất hiện trong sheet.
-- Tắt auto-post → badge chuyển TẮT, ô stat ẩn.
-- Tenant chưa có proposal nào → empty state đúng.
+Thêm **"Quản lý dữ liệu"** (icon Database) trong nhóm Quản trị. Trang `/admin/backup` cũ → redirect sang `/admin/data/export`.
+
+## Loại trừ (làm sau)
+
+- Restore toàn tenant (drop & rebuild) — chưa làm.
+- Khôi phục từ snapshot `/superadmin/backups`.
+- Import từ định dạng MISA/Fast/Bravo.
+- Xuất Excel (chỉ Fin JSON ở loop này).

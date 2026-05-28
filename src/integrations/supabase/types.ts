@@ -8899,9 +8899,12 @@ export type Database = {
           created_by: string | null
           error: string | null
           file_path: string | null
+          file_size_bytes: number | null
           finished_at: string | null
+          fiscal_year: number | null
           id: string
           kind: string
+          options: Json | null
           row_counts: Json | null
           status: string
           tenant_id: string | null
@@ -8911,9 +8914,12 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           file_path?: string | null
+          file_size_bytes?: number | null
           finished_at?: string | null
+          fiscal_year?: number | null
           id?: string
           kind?: string
+          options?: Json | null
           row_counts?: Json | null
           status?: string
           tenant_id?: string | null
@@ -8923,9 +8929,12 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           file_path?: string | null
+          file_size_bytes?: number | null
           finished_at?: string | null
+          fiscal_year?: number | null
           id?: string
           kind?: string
+          options?: Json | null
           row_counts?: Json | null
           status?: string
           tenant_id?: string | null
@@ -9899,6 +9908,14 @@ export type Database = {
         Args: { _correct?: boolean; _rule_id: string }
         Returns: undefined
       }
+      carry_forward_balances: {
+        Args: { p_from: number; p_tenant: string; p_to: number }
+        Returns: {
+          account_code: string
+          credit: number
+          debit: number
+        }[]
+      }
       current_tenant_catalog_diff: {
         Args: { p_catalog: string }
         Returns: {
@@ -9912,6 +9929,10 @@ export type Database = {
         }[]
       }
       current_tenant_id: { Args: never; Returns: string }
+      delete_year_data: {
+        Args: { p_tenant: string; p_year: number }
+        Returns: Json
+      }
       fn_aggregate_global_registry: { Args: never; Returns: number }
       fn_aggregate_supplier_defaults: {
         Args: { p_tenant_id: string }
