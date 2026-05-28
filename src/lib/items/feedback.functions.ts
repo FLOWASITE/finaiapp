@@ -196,6 +196,7 @@ export const getLineFeedbackStats = createServerFn({ method: "POST" })
     // Lấy log mới nhất / line
     const latest = new Map<string, any>();
     for (const r of logs ?? []) {
+      if (!r.invoice_line_id) continue;
       if (!latest.has(r.invoice_line_id)) latest.set(r.invoice_line_id, r);
     }
 
