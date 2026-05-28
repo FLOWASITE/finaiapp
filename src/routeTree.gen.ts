@@ -148,6 +148,7 @@ import { Route as ApiPublicMbbankSyncLogStartRouteImport } from './routes/api/pu
 import { Route as ApiPublicMbbankSyncErrorRouteImport } from './routes/api/public/mbbank/sync-error'
 import { Route as ApiPublicMbbankIngestRouteImport } from './routes/api/public/mbbank/ingest'
 import { Route as ApiPublicMbbankAccountsRouteImport } from './routes/api/public/mbbank/accounts'
+import { Route as ApiPublicHooksRunMonthlyAllocationRouteImport } from './routes/api/public/hooks/run-monthly-allocation'
 import { Route as ApiPublicHooksPromoteRulesRouteImport } from './routes/api/public/hooks/promote-rules'
 import { Route as ApiPublicHooksFeedbackDecayRouteImport } from './routes/api/public/hooks/feedback-decay'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
@@ -879,6 +880,12 @@ const ApiPublicMbbankAccountsRoute = ApiPublicMbbankAccountsRouteImport.update({
   path: '/api/public/mbbank/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRunMonthlyAllocationRoute =
+  ApiPublicHooksRunMonthlyAllocationRouteImport.update({
+    id: '/api/public/hooks/run-monthly-allocation',
+    path: '/api/public/hooks/run-monthly-allocation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksPromoteRulesRoute =
   ApiPublicHooksPromoteRulesRouteImport.update({
     id: '/api/public/hooks/promote-rules',
@@ -1202,6 +1209,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
+  '/api/public/hooks/run-monthly-allocation': typeof ApiPublicHooksRunMonthlyAllocationRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1365,6 +1373,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
+  '/api/public/hooks/run-monthly-allocation': typeof ApiPublicHooksRunMonthlyAllocationRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1537,6 +1546,7 @@ export interface FileRoutesById {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/feedback-decay': typeof ApiPublicHooksFeedbackDecayRoute
   '/api/public/hooks/promote-rules': typeof ApiPublicHooksPromoteRulesRoute
+  '/api/public/hooks/run-monthly-allocation': typeof ApiPublicHooksRunMonthlyAllocationRoute
   '/api/public/mbbank/accounts': typeof ApiPublicMbbankAccountsRoute
   '/api/public/mbbank/ingest': typeof ApiPublicMbbankIngestRoute
   '/api/public/mbbank/sync-error': typeof ApiPublicMbbankSyncErrorRoute
@@ -1709,6 +1719,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
+    | '/api/public/hooks/run-monthly-allocation'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -1872,6 +1883,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
+    | '/api/public/hooks/run-monthly-allocation'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -2043,6 +2055,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/feedback-decay'
     | '/api/public/hooks/promote-rules'
+    | '/api/public/hooks/run-monthly-allocation'
     | '/api/public/mbbank/accounts'
     | '/api/public/mbbank/ingest'
     | '/api/public/mbbank/sync-error'
@@ -2068,6 +2081,7 @@ export interface RootRouteChildren {
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
   ApiPublicHooksFeedbackDecayRoute: typeof ApiPublicHooksFeedbackDecayRoute
   ApiPublicHooksPromoteRulesRoute: typeof ApiPublicHooksPromoteRulesRoute
+  ApiPublicHooksRunMonthlyAllocationRoute: typeof ApiPublicHooksRunMonthlyAllocationRoute
   ApiPublicMbbankAccountsRoute: typeof ApiPublicMbbankAccountsRoute
   ApiPublicMbbankIngestRoute: typeof ApiPublicMbbankIngestRoute
   ApiPublicMbbankSyncErrorRoute: typeof ApiPublicMbbankSyncErrorRoute
@@ -3049,6 +3063,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMbbankAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/run-monthly-allocation': {
+      id: '/api/public/hooks/run-monthly-allocation'
+      path: '/api/public/hooks/run-monthly-allocation'
+      fullPath: '/api/public/hooks/run-monthly-allocation'
+      preLoaderRoute: typeof ApiPublicHooksRunMonthlyAllocationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/promote-rules': {
       id: '/api/public/hooks/promote-rules'
       path: '/api/public/hooks/promote-rules'
@@ -3721,6 +3742,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
   ApiPublicHooksFeedbackDecayRoute: ApiPublicHooksFeedbackDecayRoute,
   ApiPublicHooksPromoteRulesRoute: ApiPublicHooksPromoteRulesRoute,
+  ApiPublicHooksRunMonthlyAllocationRoute:
+    ApiPublicHooksRunMonthlyAllocationRoute,
   ApiPublicMbbankAccountsRoute: ApiPublicMbbankAccountsRoute,
   ApiPublicMbbankIngestRoute: ApiPublicMbbankIngestRoute,
   ApiPublicMbbankSyncErrorRoute: ApiPublicMbbankSyncErrorRoute,
