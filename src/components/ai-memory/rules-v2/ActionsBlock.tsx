@@ -262,3 +262,48 @@ function ActionParamsEditor({
       );
   }
 }
+
+function AccountSelect({
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  value: string | undefined;
+  onChange: (v: string) => void;
+  placeholder: string;
+  options: { code: string; label: string }[];
+}) {
+  const isPreset = !!value && options.some((o) => o.code === value);
+  const isCustom = !!value && !isPreset;
+  return (
+    <div className="space-y-1">
+      <Select
+        value={isCustom ? "__custom__" : (value ?? "")}
+        onValueChange={(v) => onChange(v === "__custom__" ? value ?? "" : v)}
+      >
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.code} value={o.code} className="text-xs">
+              {o.label}
+            </SelectItem>
+          ))}
+          <SelectItem value="__custom__" className="text-xs">
+            Tài khoản khác…
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      {isCustom && (
+        <Input
+          placeholder="Nhập số tài khoản"
+          className="h-7 text-xs"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
