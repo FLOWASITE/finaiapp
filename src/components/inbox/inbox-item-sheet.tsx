@@ -527,6 +527,7 @@ export function InboxItemDetail({
         <ItemResolutionPanelWrapper
           items={item.proposal.items}
           meta={item.proposal.meta}
+          onLineAccountResolved={handleLineAccountResolved}
         />
 
         {/* ⑤ Đối chiếu hóa đơn gốc — collapsed (Vấn đề 6) */}
