@@ -25,10 +25,21 @@ import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
 import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
 import { splitItemName } from "@/lib/items/split-item-name";
 
+export type ResolvedLineInfo = {
+  raw_name: string;
+  product_code: string;
+  product_name: string;
+  stock_account: string;
+  item_type?: string | null;
+};
+
 type Props = {
   items?: ProposalItem[];
   meta?: VoucherMeta;
   tenantId?: string | null;
+  /** FE hook: khi 1 dòng được resolve sang SP cụ thể, FE có thể đồng bộ
+   *  TK Nợ trong Bút toán đề xuất ngay (không cần đợi refetch). */
+  onLineAccountResolved?: (info: ResolvedLineInfo) => void;
 };
 
 const ITEM_TYPES: Array<{ v: "goods" | "service"; label: string; acct: string }> = [
@@ -67,7 +78,7 @@ function suggestCode(rawName: string): string {
   return norm || "SP-" + Math.random().toString(36).slice(2, 6).toUpperCase();
 }
 
-export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
+export function ItemResolutionPanel({ items, meta, tenantId, onLineAccountResolved }: Props) {
   const qc = useQueryClient();
   const resolveFn = useServerFn(resolveInvoiceLines);
   const confirmFn = useServerFn(confirmItemMapping);
@@ -135,8 +146,18 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res: any, vars) => {
       toast.success("Đã lưu rule mặt hàng cho lần sau");
+      const p = res?.product;
+      if (p?.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: p.code,
+          product_name: p.name,
+          stock_account: p.stock_account,
+          item_type: p.item_type ?? null,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không lưu được"),
@@ -168,9 +189,18 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (_res: any, vars) => {
       toast.success("Đã tạo mã mới & lưu rule");
       setCreatingIdx(null);
+      if (vars.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: vars.code,
+          product_name: vars.name,
+          stock_account: vars.stock_account,
+          item_type: vars.item_type,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
@@ -192,8 +222,18 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           unit_price: vars.unit_price ?? null,
         },
       }),
-    onSuccess: (res: any) => {
+    onSuccess: (res: any, vars) => {
       toast.success(`Đã thêm "${res?.product?.name ?? ""}" vào Mục của tôi`);
+      const p = res?.product;
+      if (p?.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: p.code,
+          product_name: p.name,
+          stock_account: p.stock_account,
+          item_type: p.item_type ?? null,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không thêm được"),

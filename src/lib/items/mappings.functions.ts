@@ -131,7 +131,16 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
       });
       if (error) throw new Error(error.message);
     }
-    return { ok: true };
+
+    // Trả về thông tin SP để FE có thể đồng bộ Bút toán đề xuất ngay
+    // (đổi TK Nợ theo stock_account của SP đã chọn).
+    const { data: prod } = await supabase
+      .from("products")
+      .select("id, code, name, unit, item_type, stock_account, expense_account")
+      .eq("id", data.product_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    return { ok: true, product: prod ?? null };
   });
 
 export const listSupplierItemMappings = createServerFn({ method: "POST" })

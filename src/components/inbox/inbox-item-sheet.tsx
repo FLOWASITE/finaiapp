@@ -66,12 +66,29 @@ import { splitItemName } from "@/lib/items/split-item-name";
 import { listMyTenants } from "@/lib/tenants.functions";
 import type { VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
 
-function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: VoucherMetaType }) {
+function ItemResolutionPanelWrapper(props: {
+  items?: ProposalItem[];
+  meta?: VoucherMetaType;
+  onLineAccountResolved?: (info: {
+    raw_name: string;
+    product_code: string;
+    product_name: string;
+    stock_account: string;
+    item_type?: string | null;
+  }) => void;
+}) {
   const tenantsFn = useServerFn(listMyTenants);
   const tenantsQ = useQuery({ queryKey: ["my-tenants"], queryFn: () => tenantsFn() });
   const activeTenantId =
     (tenantsQ.data?.tenants as any[] | undefined)?.find((t) => t.is_active)?.id ?? null;
-  return <ItemResolutionPanel items={props.items} meta={props.meta} tenantId={activeTenantId} />;
+  return (
+    <ItemResolutionPanel
+      items={props.items}
+      meta={props.meta}
+      tenantId={activeTenantId}
+      onLineAccountResolved={props.onLineAccountResolved}
+    />
+  );
 }
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -294,15 +311,65 @@ export function InboxItemDetail({
   const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurposeSelection | undefined>(
     () => item.purchase_purpose,
   );
+  // Overrides TK Nợ khi KTV chọn mã hệ thống do Fin gợi ý (bấm vào "LOG-VAN-CHUY-NOI 85%").
+  // Map theo chỉ số dòng trong proposal.lines.
+  const [accountOverrides, setAccountOverrides] = useState<Record<number, string>>({});
+  const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set());
   useEffect(() => {
     setPurchasePurpose(item.purchase_purpose);
+    setAccountOverrides({});
+    setHighlightedLines(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
-  const workingItem = useMemo<InboxItem>(
-    () => applyPurchasePurpose(item, purchasePurpose),
-    [item, purchasePurpose],
-  );
+  const workingItem = useMemo<InboxItem>(() => {
+    const base = applyPurchasePurpose(item, purchasePurpose);
+    if (Object.keys(accountOverrides).length === 0) return base;
+    return {
+      ...base,
+      proposal: {
+        ...base.proposal,
+        lines: base.proposal.lines.map((l, i) =>
+          accountOverrides[i] ? { ...l, account: accountOverrides[i] } : l,
+        ),
+      },
+    };
+  }, [item, purchasePurpose, accountOverrides]);
+
+  const handleLineAccountResolved = (info: {
+    raw_name: string;
+    product_code: string;
+    product_name: string;
+    stock_account: string;
+  }) => {
+    const lines = workingItem.proposal.lines;
+    // Tìm dòng Nợ đầu tiên có TK thuộc nhóm có thể swap (chi phí/hàng/TSCĐ...)
+    const idx = lines.findIndex(
+      (l) => (l.debit ?? 0) > 0 && PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS.has(l.account),
+    );
+    if (idx < 0) return;
+    if (lines[idx].account === info.stock_account) {
+      toast.info(`Đã gắn "${info.product_code}" — TK Nợ giữ nguyên ${info.stock_account}`);
+      return;
+    }
+    setAccountOverrides((prev) => ({ ...prev, [idx]: info.stock_account }));
+    setHighlightedLines((prev) => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+    toast.success(
+      `Đã gắn "${info.product_code}" — TK Nợ chuyển ${lines[idx].account} → ${info.stock_account}`,
+    );
+    // Bỏ highlight sau 1.6s
+    window.setTimeout(() => {
+      setHighlightedLines((prev) => {
+        const next = new Set(prev);
+        next.delete(idx);
+        return next;
+      });
+    }, 1600);
+  };
 
   const partnerName = workingItem.partner?.trim();
   const hasPartner = !!partnerName && partnerName !== "—";
@@ -401,9 +468,15 @@ export function InboxItemDetail({
               const sideLabel = isDebit ? "Nợ" : "Có";
               const next = arr[i + 1];
               const isLastDebit = isDebit && next && !((next.debit ?? 0) > 0);
+              const highlight = highlightedLines.has(i);
               return (
                 <div key={i}>
-                  <div className="grid grid-cols-[28px_44px_1fr_auto] items-center gap-3">
+                  <div
+                    className={cn(
+                      "grid grid-cols-[28px_44px_1fr_auto] items-center gap-3 rounded-md transition-colors duration-700",
+                      highlight && "bg-emerald-500/15 ring-1 ring-emerald-500/40 px-1.5 py-0.5",
+                    )}
+                  >
                     <span className={cn(
                       "text-xs font-bold",
                       isDebit ? "text-blue-600 dark:text-blue-400" : "text-rose-600 dark:text-rose-400",
@@ -454,6 +527,7 @@ export function InboxItemDetail({
         <ItemResolutionPanelWrapper
           items={item.proposal.items}
           meta={item.proposal.meta}
+          onLineAccountResolved={handleLineAccountResolved}
         />
 
         {/* ⑤ Đối chiếu hóa đơn gốc — collapsed (Vấn đề 6) */}
