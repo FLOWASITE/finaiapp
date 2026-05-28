@@ -1660,6 +1660,13 @@ function MissingMasterDataPanel({
                         ) : null}
                       </span>
                     ) : null}
+                    {r.note ? (
+                      <div className="mt-0.5 text-[10px] text-amber-700/70 dark:text-amber-300/70">
+                        <span className="mr-1 opacity-60">›</span>
+                        {r.note}
+                        <span className="ml-1 italic opacity-60">— ghi chú dòng, không vào tên SP</span>
+                      </div>
+                    ) : null}
                   </span>
 
                 </div>
