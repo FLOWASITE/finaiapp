@@ -1540,7 +1540,20 @@ export const approveInboxItem = createServerFn({ method: "POST" })
     // Chặn ghi sổ hóa đơn không liên quan + trùng số
     if (data.source === "document") {
       await assertInvoiceBelongsToTenant(supabase, tenantId, data.external_id);
-      await assertNoDuplicateEInvoice(supabase, tenantId, data.external_id);
+      const dup = await findDuplicateEInvoice(supabase, tenantId, data.external_id);
+      if (dup) {
+        // Đánh dấu document đã review để không hiện lại trong Inbox AI
+        await supabase
+          .from("documents")
+          .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
+          .eq("id", data.external_id);
+        return {
+          ok: true as const,
+          already_posted: true as const,
+          message: `Hóa đơn ${dup.label} đã được ghi sổ trước đó (phiếu ${dup.voucher_no}).`,
+          posted_voucher: { kind: dup.kind, id: dup.id, voucher_no: dup.voucher_no },
+        };
+      }
       // Auto-tạo KH/NCC/hàng hóa còn thiếu theo gợi ý AI (idempotent)
       try {
         await autoResolveMissingMaster(supabase, {
