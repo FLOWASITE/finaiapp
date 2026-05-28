@@ -205,6 +205,38 @@ function InvoiceDetail() {
                         {Number(l.unit_price ?? 0).toLocaleString("vi-VN")} · Thành tiền{" "}
                         <strong>{Number(l.amount ?? 0).toLocaleString("vi-VN")}</strong>
                       </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${kindChipClass(
+                            (l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"],
+                          )}`}
+                        >
+                          {kindLabel((l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"])}
+                          <span className="opacity-70">· TK {l.resolved_account}</span>
+                        </span>
+                        {l.user_override_kind ? (
+                          <span className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                            ✎ KTV ghi đè
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground">
+                            Fin tự · {l.resolution_confidence}%
+                          </span>
+                        )}
+                        {l.user_override_kind && (
+                          <button
+                            type="button"
+                            className="text-[11px] text-primary underline-offset-2 hover:underline disabled:opacity-50"
+                            disabled={overrideMut.isPending}
+                            onClick={() => overrideMut.mutate({ line_id: l.id, kind: null })}
+                          >
+                            Quay về Fin tự đoán
+                          </button>
+                        )}
+                      </div>
+                      {!l.user_override_kind && l.resolution_reason && (
+                        <div className="mt-1 text-[11px] text-muted-foreground">{l.resolution_reason}</div>
+                      )}
                     </div>
                     <div className="shrink-0">
                       <Select
@@ -216,13 +248,12 @@ function InvoiceDetail() {
                           overrideMut.mutate({ line_id: l.id, kind });
                         }}
                       >
-                        <SelectTrigger className="h-8 w-[200px] text-xs">
-                          <SelectValue />
+                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectValue placeholder="Chọn loại..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={`auto:${l.resolved_kind}`}>
-                            Fin tự: {kindLabel(l.resolved_kind)} ({l.resolved_account}) ·{" "}
-                            {l.resolution_confidence}%
+                            ⚡ Fin tự: {kindLabel(l.resolved_kind)}
                           </SelectItem>
                           <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
                           <SelectItem value="ccdc">CCDC (153)</SelectItem>
@@ -232,15 +263,7 @@ function InvoiceDetail() {
                       </Select>
                     </div>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {l.user_override_kind ? (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        ✎ KTV ghi đè → TK {l.resolved_account}
-                      </span>
-                    ) : (
-                      <span>{l.resolution_reason}</span>
-                    )}
-                  </div>
+
                 </div>
               ))}
             </div>
