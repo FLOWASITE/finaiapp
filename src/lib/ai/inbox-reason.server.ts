@@ -1,5 +1,5 @@
 /**
- * Sổ AI — heuristic builder for proposals + confidence scoring.
+ * Inbox AI — heuristic builder for proposals + confidence scoring.
  *
  * This file is server-only (`.server.ts` is import-protected). It MUST
  * never be imported from client code; call it from `createServerFn`

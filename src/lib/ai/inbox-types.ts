@@ -1,4 +1,4 @@
-/** Shared (client + server) types for Sổ AI. No runtime code. */
+/** Shared (client + server) types for Inbox AI. No runtime code. */
 export type ProposalLine = {
   account: string;
   debit?: number;
