@@ -1,148 +1,72 @@
-# Trả lời 5 câu hỏi trước khi vào plan
+## Vấn đề thực tế
 
-Em đã đọc schema thực tế của `products`, `invoice_lines`, `supplier_item_mappings`. Trả lời thẳng:
+1. Bạn approve document `8f085f9d` (HĐ 00002847, TUYỀN HƯNG PHÚ) lúc 01:51:25.
+   - Hệ thống **đã tạo** `journal_entries.0c1303ce` (toast "Đã ghi sổ" là thật).
+   - **Không tạo** `purchase_vouchers` → bạn không thấy Phiếu mua hàng (PV gần nhất tenant KOJAVM dừng ở `PM2026-00007` ngày 27/5).
+2. Sau đó bạn bấm Bỏ qua 3 lần (đó là các toast "Đã bỏ qua" trong session replay).
 
-1. **TK 242 prepaid allocation** — chưa có cron. Hiện chỉ ghi `Nợ 242 / Có 331` lúc nhập, không phân bổ định kỳ. → Backlog P2.
-2. **Manual override** — `invoice_lines` KHÔNG có cột `manual_account` / `user_override_kind`. KTV chỉ sửa được ở bước `approveJournalEntry` (lines của journal), không tag được vào invoice_line. → Cần thêm ở P0.
-3. **Confidence per line** — KHÔNG lưu. Chỉ có ở `supplier_item_mappings.confidence` (mapping-level), không có ở `invoice_lines`. Resolver trả `confidence` nhưng đang bị throw away. → P1.
-4. **L2 fuzzy** — text-only (textSim trong `resolver.server.ts`, có embeddings rerank). Chưa multi-signal (supplier_history, amount_range, frequency). → P1.
-5. **Master ↔ tenant versioning** — không. `promoteCatalogToProduct` copy 1 chiều, không lưu `source_catalog_id` để diff sau này. → P2.
+## Nguyên nhân
 
-Thêm 1 phát hiện CRITICAL anh chưa biết:
-
-> **`products.item_type` CHECK constraint chỉ cho phép `('goods','service','combo')`** — không có `material`, `ccdc`, `fixed_asset`, `prepaid`. Nghĩa là dù em viết `mapItemTypeToLineKind('ccdc')` thì DB cũng không lưu được. Trước khi fix Vấn đề 1, phải mở rộng enum này.
-
----
-
-# Plan P0 — Sprint hiện tại
-
-Scope: fix Vấn đề 1 (line_type sync) + Vấn đề 4 (L0 manual override). Đây là 2 thứ em đề xuất P0, low effort, high impact.
-
-## 1. Migration — mở rộng item_type + thêm cột
-
-```sql
--- 1a. Drop CHECK cũ, thêm các loại VAS
-ALTER TABLE public.products DROP CONSTRAINT products_item_type_check;
-ALTER TABLE public.products ADD CONSTRAINT products_item_type_check
-  CHECK (item_type IN ('goods','service','combo','material','ccdc','fixed_asset','prepaid'));
-
--- 1b. Cột override + confidence ở invoice_lines (cho P0 + chuẩn bị P1)
-ALTER TABLE public.invoice_lines
-  ADD COLUMN user_override_kind text
-    CHECK (user_override_kind IN ('goods','ccdc','asset','service')),
-  ADD COLUMN resolved_kind text
-    CHECK (resolved_kind IN ('goods','ccdc','asset','service')),
-  ADD COLUMN resolved_account text,
-  ADD COLUMN resolution_source text
-    CHECK (resolution_source IN ('manual','product','classify','none')),
-  ADD COLUMN resolution_confidence numeric(5,2);
-```
-
-Lưu ý: tạm thời giữ `line_type` cho backward compat (journal.functions.ts đang đọc). Resolved_kind sẽ là source of truth mới; line_type sẽ deprecate sau.
-
-## 2. Helper mới — `src/lib/items/resolve-line-kind.server.ts`
+Trong `src/lib/inbox-ai.functions.ts` (`approveInboxItem`, dòng ~1439):
 
 ```ts
-export type LineKind = "goods" | "ccdc" | "asset" | "service";
-
-export function mapItemTypeToLineKind(itemType: string | null): LineKind {
-  switch (itemType) {
-    case "material":    return "goods";   // 152
-    case "ccdc":        return "ccdc";    // 153 — tách khỏi goods để journal biết
-    case "goods":       return "goods";   // 156
-    case "fixed_asset": return "asset";   // 211/213
-    case "prepaid":     return "service"; // 242 — chưa có lifecycle, tạm gom service
-    case "service":     return "service";
-    case "combo":       return "goods";
-    default:            return "goods";
-  }
-}
-
-export async function resolveLineKind(
-  supabase, line: { id; product_id; user_override_kind?; description; unit_price; amount; qty; unit }
-): Promise<{ kind: LineKind; source: "manual"|"product"|"classify"; confidence: number; account: string }> {
-  // P0 — manual override
-  if (line.user_override_kind) {
-    return { kind: line.user_override_kind, source: "manual", confidence: 100,
-             account: defaultAccountForKind(line.user_override_kind) };
-  }
-  // P1 — product knowledge
-  if (line.product_id) {
-    const { data: p } = await supabase.from("products")
-      .select("item_type, stock_account, expense_account").eq("id", line.product_id).single();
-    if (p) {
-      const kind = mapItemTypeToLineKind(p.item_type);
-      const account = p.stock_account ?? p.expense_account ?? defaultAccountForKind(kind);
-      return { kind, source: "product", confidence: 95, account };
-    }
-  }
-  // P2 — classify-line fallback
-  const c = classifyLine(line);
-  return { kind: mapClassifyToKind(c.kind), source: "classify", confidence: c.confidence,
-           account: c.account };
-}
+} else if (docMeta?.doc_kind === "purchase_invoice") {
+  const pvId = await materializePurchaseVoucherFromDocument(...)
 ```
 
-## 3. Patch `journal.functions.ts` — `approveJournalEntry`
+Nhánh tạo PV chỉ chạy khi `documents.doc_kind === "purchase_invoice"`. Document `8f085f9d` lại có `doc_kind = "other"` mặc dù `ocr_extracted.direction = "purchase_invoice"` và `_einvoice.seller = TUYỀN HƯNG PHÚ` rất rõ ràng.
 
-Trong vòng `for (const line of invLines ?? [])`:
+Nguyên nhân gốc: **mỗi XML hoá đơn đang được lưu 2 row `documents`** cùng `original_filename`, cách nhau 2 giây. Row sau được pipeline einvoice parse → `doc_kind=purchase_invoice`. Row trước (`other`) là phần upload thô chưa qua bước classify. Inbox lại hiển thị cả hai → bạn bấm nhầm row "other".
 
-- Trước khi check `line.line_type === "asset"` / `=== "goods"`, gọi `resolveLineKind()` lấy `kind` mới.
-- Dùng `kind` thay cho `line.line_type`.
-- Write back vào invoice_lines: `resolved_kind`, `resolved_account`, `resolution_source`, `resolution_confidence` (để audit).
+Bằng chứng (cùng tenant KOJAVM, gần nhất):
 
-Hệ quả ngay:
-- PC gaming 35tr với product.item_type='ccdc' → kind='ccdc' → KHÔNG vào fixed_assets, KHÔNG khấu hao.
-- Lot NVL 80tr với product.item_type='material' → kind='goods' → vào stock_movements TK 152.
-- KTV chọn override='service' trên UI → bỏ qua product, đi thẳng 642x.
+| filename | `8f085f9d` (other) | `cd95008b` (purchase_invoice) |
+|---|---|---|
+| `1C26TYY_00002847.xml` | doc_kind=other ❌ | doc_kind=purchase_invoice ✅ |
+| `1C26TSG_0000384...xml` (HASFARM) | other ❌ | purchase_invoice ✅ |
+| `1C26TTB_00000094.xml` (TẤM BAKERY) | other ❌ | purchase_invoice ✅ |
 
-## 4. UI — thêm dropdown override ở `item-resolution-panel.tsx`
+## Thay đổi
 
-Sau khi resolver đề xuất, hiển thị badge nhỏ "Đổi loại" với 4 lựa chọn (Hàng/CCDC/TSCĐ/Dịch vụ). Click → PATCH `invoice_lines.user_override_kind`. Re-run resolveLineKind → update preview bút toán.
+### 1. Nới điều kiện tạo Phiếu mua hàng — `src/lib/inbox-ai.functions.ts`
 
-## 5. Không động vào (giữ cho sprint sau)
+Trong `approveInboxItem`:
+- Lấy thêm `ocr_extracted` cùng `doc_kind` từ `documents`.
+- Coi là HĐ mua khi **bất kỳ** điều kiện sau đúng:
+  - `doc_kind === "purchase_invoice"`, **hoặc**
+  - `ocr_extracted.direction === "purchase_invoice"`, **hoặc**
+  - tồn tại `ocr_extracted._einvoice.seller.tax_id` và `buyer.tax_id` trùng MST tenant.
+- Nếu rơi vào nhánh này mà `doc_kind !== "purchase_invoice"` → `UPDATE documents SET doc_kind='purchase_invoice'` rồi mới `materializePurchaseVoucherFromDocument(...)`.
 
-- Refactor split stock_account/asset_account/prepaid_account (Vấn đề 2) — schema change lớn, đụng nhiều report. P1.
-- TK 242 cron amortization (Vấn đề 3) — feature mới. P2.
-- Multi-signal fuzzy (Vấn đề 6) — cần data lịch sử đủ lớn. P1.
-- Mapping decay (Vấn đề 7) — không gấp khi user base còn nhỏ. P2.
+Cùng logic đối ứng cho `sales_invoice` (`direction === "sales_invoice"` hoặc `_einvoice.seller.tax_id === tenantTaxId`) để chống tái phát phía bán.
 
----
+### 2. Vá dữ liệu cho document đang lỗi
 
-# Diagram resolveLineKind
+Server function nhỏ `backfillMissingPurchaseVoucher({ journal_entry_id })` (kèm middleware auth, kiểm tra tenant):
+- Tìm document gốc của entry qua `inbox_decisions.item_external_id`.
+- Nếu chưa có `purchase_vouchers` nào tham chiếu `journal_entry_id` này → chạy `materializePurchaseVoucherFromDocument(...)` với cùng `entry_date` & `journalEntryId`.
 
-```text
-invoice_line
-   │
-   ├─ user_override_kind set? ──► [MANUAL]   conf=100
-   │
-   ├─ product_id set?
-   │     │
-   │     └─► products.item_type ──► mapItemTypeToLineKind
-   │                                 ├─ material    → goods   (152)
-   │                                 ├─ ccdc        → ccdc    (153)
-   │                                 ├─ goods       → goods   (156)
-   │                                 ├─ fixed_asset → asset   (211/213)
-   │                                 ├─ prepaid     → service (242)
-   │                                 └─ service     → service (6xx)
-   │                                              conf=95 [PRODUCT]
-   │
-   └─ classifyLine(text+amount+unit) ──► fallback   conf≈30-70 [CLASSIFY]
-                                              ↓
-                              persist resolved_kind, resolved_account,
-                              resolution_source, resolution_confidence
-                                              ↓
-                                  journal.functions.ts đọc → bút toán
-```
+Chạy 1 lần cho entry `0c1303ce-e17b-4017-b98b-8aae83eccefd` để tạo phiếu PM2026-00008 cho TUYỀN HƯNG PHÚ (không tạo bút toán mới, chỉ link phiếu vào entry sẵn có).
 
-# Effort
+### 3. Chống tạo trùng document khi upload XML
 
-- Migration: 15 phút
-- resolve-line-kind.server.ts: 30 phút
-- Patch journal.functions.ts: 20 phút
-- UI override dropdown: 30 phút
-- Test EVN + PC 35tr + NVL 80tr: 30 phút
+Vấn đề phụ nhưng là gốc rễ tái phát. Trong nhánh upload XML einvoice (file `src/lib/einvoices*.ts` / pipeline upload):
+- Trước khi `insert documents`, kiểm tra `(tenant_id, storage_path)` hoặc `(tenant_id, original_filename, checksum_sha256)` đã tồn tại chưa → nếu có thì `UPDATE` row hiện hữu thay vì insert mới.
+- Thêm unique index DB: `CREATE UNIQUE INDEX documents_xml_dedup_idx ON documents(tenant_id, storage_path) WHERE storage_path IS NOT NULL` để chặn ở tầng DB.
 
-**Tổng ~2 tiếng**. Eliminate 80% rủi ro hạch toán sai như anh nói.
+### 4. UI Inbox: ẩn document "other" khi đã có bản purchase_invoice cùng filename
 
-Anh approve plan này thì em vào build mode triển khai.
+Trong `src/routes/_app/inbox.tsx` / loader inbox items: dedup theo `(tenant_id, original_filename)` — ưu tiên row có `doc_kind ∈ {purchase_invoice, sales_invoice}` và bỏ qua row `other` cùng tên. Để bạn không bao giờ thấy 2 dòng giống nhau nữa.
+
+## Kiểm chứng sau khi sửa
+
+1. `select count(*) from purchase_vouchers where journal_entry_id='0c1303ce-...'` → 1.
+2. Mở `/purchases/vouchers` thấy `PM2026-00008 — TUYỀN HƯNG PHÚ — 5,222,880₫`.
+3. Upload lại XML test → chỉ có 1 row `documents`.
+4. Approve một HĐ XML mới → toast "Đã ghi sổ" + có phiếu mới trong cùng giây.
+
+## Không đụng tới
+
+- Logic resolve loại hàng / kind chip / suggest accounts (giữ nguyên).
+- Không thay đổi cấu trúc bảng `purchase_vouchers` hay `journal_entries`.
+- Không thay đổi auth/RLS.
