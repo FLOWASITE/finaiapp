@@ -432,9 +432,10 @@ export function InboxItemDetail({
           <VatExplain meta={workingItem.proposal.meta} items={workingItem.proposal.items} />
         </div>
 
-        {/* ③ Mục đích mua hàng (Vấn đề 3) */}
+        {/* ③ Mục đích chi (Loại B) */}
         <PurposePicker
           voucherKind={workingItem.proposal.voucher_kind}
+          item={item}
           value={purchasePurpose}
           onChange={setPurchasePurpose}
         />
