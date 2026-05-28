@@ -18,8 +18,22 @@ import {
   Store,
   HelpCircle,
 } from "lucide-react";
-import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurpose } from "@/lib/ai/inbox-types";
-import { PURCHASE_PURPOSE_MAP, PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurposeSelection } from "@/lib/ai/inbox-types";
+import { PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
+import { listPurposeCatalog, suggestPurchasePurpose } from "@/lib/inbox-ai.functions";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Sheet,
   SheetContent,
