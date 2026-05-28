@@ -787,19 +787,19 @@ async function materializePurchaseVoucherFromDocument(
   return voucher.id as string;
 }
 
-/** Throw nếu hóa đơn điện tử (series + no) đã được ghi sổ (phiếu chưa void). */
-async function assertNoDuplicateEInvoice(
+/** Trả về phiếu đã ghi sổ trùng (nếu có) cho hóa đơn điện tử này. */
+async function findDuplicateEInvoice(
   supabase: any,
   tenantId: string,
   documentId: string,
-): Promise<void> {
+): Promise<{ kind: "sales_voucher" | "purchase_voucher"; id: string; voucher_no: string; label: string } | null> {
   const { data: doc } = await supabase
     .from("documents")
     .select("doc_kind, ai_upload_id, ocr_extracted")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc) return;
-  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return;
+  if (!doc) return null;
+  if (doc.doc_kind !== "sales_invoice" && doc.doc_kind !== "purchase_invoice") return null;
   let ein: any = null;
   if (doc.ai_upload_id) {
     const { data: up } = await supabase
@@ -812,7 +812,7 @@ async function assertNoDuplicateEInvoice(
   const ext = (doc.ocr_extracted ?? {}) as any;
   const series: string | null = ein?.series ?? ext?.invoice_series ?? null;
   const invoiceNo: string | null = ein?.invoice_no ?? ext?.invoice_no ?? ext?.invoice_number ?? null;
-  if (!invoiceNo) return;
+  if (!invoiceNo) return null;
 
   if (doc.doc_kind === "sales_invoice") {
     let q = supabase
@@ -825,7 +825,7 @@ async function assertNoDuplicateEInvoice(
     const { data: dups } = await q;
     if (dups && dups.length > 0) {
       const label = `${series ? series + "-" : ""}${invoiceNo}`;
-      throw new Error(`Hóa đơn ${label} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+      return { kind: "sales_voucher", id: dups[0].id, voucher_no: dups[0].voucher_no, label };
     }
   } else {
     const { data: dups } = await supabase
@@ -835,9 +835,10 @@ async function assertNoDuplicateEInvoice(
       .eq("invoice_no", invoiceNo)
       .neq("status", "void");
     if (dups && dups.length > 0) {
-      throw new Error(`Hóa đơn ${invoiceNo} đã được ghi sổ (phiếu ${dups[0].voucher_no}) — không ghi sổ trùng.`);
+      return { kind: "purchase_voucher", id: dups[0].id, voucher_no: dups[0].voucher_no, label: invoiceNo };
     }
   }
+  return null;
 }
 
 /** Chặn ghi sổ hóa đơn không liên quan: MST DN phải khớp seller hoặc buyer. */
