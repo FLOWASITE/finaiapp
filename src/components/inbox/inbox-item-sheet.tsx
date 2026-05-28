@@ -79,7 +79,7 @@ const META_FIELD_LABELS: Record<string, string> = {
   subtotal: "Tiền hàng",
   vat_rate: "Thuế suất",
   vat_amount: "Thuế GTGT",
-  total: "Tổng cộng",
+  total: "Thành tiền",
   payment_method: "Hình thức TT",
   due_date: "Hạn TT",
   bank_label: "Ngân hàng",
