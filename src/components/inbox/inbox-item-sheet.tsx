@@ -317,7 +317,7 @@ export function InboxItemDetail({
       </div>
 
       {/* Body */}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
         {/* Summary */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -349,56 +349,17 @@ export function InboxItemDetail({
         {/* Invoice viewer / Open match */}
         <InvoiceActionRow item={item} />
 
-        {/* Cảnh báo cần tạo mới đối tác / hàng hóa */}
-        <MissingMasterDataPanel
+        {/* ① Tin cậy — vì sao */}
+        <ConfidenceBreakdown
+          confidence={confidence}
+          tone={confTone}
+          classes={confClasses}
+          signals={item.reasoning.signals}
           missing={item.missing}
-          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
         />
 
-        {/* Đối soát hóa đơn ↔ bút toán */}
-        <ReconciliationPanel item={item} />
-
-        {/* Voucher meta grid */}
-        <VoucherMetaGrid meta={item.proposal.meta} />
-
-        {/* Items (goods / services) */}
-        <ProposalItemsList items={item.proposal.items} />
-
-        {/* Khớp mặt hàng với mã hệ thống */}
-        <ItemResolutionPanelWrapper
-          items={item.proposal.items}
-          meta={item.proposal.meta}
-        />
-
-        {/* Trust strip */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/60 p-1">
-          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 shadow-sm">
-            <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />
-            <span className="text-xs font-medium text-foreground/80">OCR đã đọc đầy đủ</span>
-          </div>
-          {item.followups[0] && (
-            <button
-              type="button"
-              className="group flex flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-300"
-            >
-              <span className="flex items-center gap-1.5 truncate">
-                <Lightbulb className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{item.followups[0]}</span>
-              </span>
-              <ChevronRight className="h-3 w-3 shrink-0 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Reasoning */}
-        {item.reasoning.summary && (
-          <p className="text-sm leading-relaxed text-foreground/85">
-            {item.reasoning.summary}
-          </p>
-        )}
-
-        {/* Accounting entries */}
-        <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+        {/* ② Bút toán đề xuất — câu trả lời chính (Vấn đề 1) */}
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/30 p-4">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Bút toán đề xuất
           </span>
@@ -438,25 +399,42 @@ export function InboxItemDetail({
               );
             })}
           </div>
+          <VatExplain meta={item.proposal.meta} items={item.proposal.items} />
         </div>
 
-        {/* Signals */}
-        {item.reasoning.signals.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {item.reasoning.signals.map((s, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
-                  s.ok
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                    : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-                )}
-              >
-                {s.ok ? "✓" : "⚠"} {s.label}
-              </span>
-            ))}
-          </div>
+        {/* ③ Mục đích mua hàng (Vấn đề 3) */}
+        <PurposePicker
+          voucherKind={item.proposal.voucher_kind}
+          lines={item.proposal.lines}
+          onEdit={() => onEdit(item)}
+        />
+
+        {/* ④ Khi duyệt, Fin sẽ tự tạo (Vấn đề 5) */}
+        <MissingMasterDataPanel
+          missing={item.missing}
+          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
+        />
+
+        {/* Đối soát hóa đơn ↔ bút toán */}
+        <ReconciliationPanel item={item} />
+
+        {/* Khớp mặt hàng với mã hệ thống */}
+        <ItemResolutionPanelWrapper
+          items={item.proposal.items}
+          meta={item.proposal.meta}
+        />
+
+        {/* ⑤ Đối chiếu hóa đơn gốc — collapsed (Vấn đề 6) */}
+        <OriginalInvoiceCollapsible
+          meta={item.proposal.meta}
+          items={item.proposal.items}
+        />
+
+        {/* Reasoning */}
+        {item.reasoning.summary && (
+          <p className="text-sm leading-relaxed text-foreground/85">
+            {item.reasoning.summary}
+          </p>
         )}
 
         {/* Blocker */}
@@ -477,6 +455,7 @@ export function InboxItemDetail({
         {/* Chat history */}
         <InboxChatHistory item={item} />
       </div>
+
 
       {/* Footer */}
       <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-background/80 px-5 py-4 backdrop-blur-sm">
