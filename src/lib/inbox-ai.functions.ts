@@ -98,7 +98,7 @@ async function learnPurposeForLines(
         purpose_code: purposeCode || null,
         confidence: purposeCode ? 0.85 : 0.5,
         match_count: 1,
-        source: purposeCode ? "user_confirm" : "auto_seen",
+        source: purposeCode ? "user_confirm" : "auto",
         created_by: userId,
       });
     }
