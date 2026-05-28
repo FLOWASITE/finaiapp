@@ -202,7 +202,7 @@ export function RulesListV2() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => learnM.mutate({ data: undefined as never })}
+            onClick={() => learnM.mutate()}
             disabled={learnM.isPending}
           >
             <Brain className="mr-1 h-3.5 w-3.5" />
@@ -232,7 +232,7 @@ export function RulesListV2() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => learnM.mutate({ data: undefined as never })}
+            onClick={() => learnM.mutate()}
             disabled={learnM.isPending}
             className="text-xs"
           >
