@@ -100,13 +100,22 @@ export async function resolveLineKind(
   if (line.product_id) {
     const { data: p } = await supabase
       .from("products")
-      .select("item_type, stock_account, expense_account")
+      .select(
+        "item_type, inventory_account, asset_account, prepaid_account, expense_account, stock_account",
+      )
       .eq("id", line.product_id)
       .maybeSingle();
     if (p) {
       const kind = mapItemTypeToLineKind(p.item_type);
+      // Pick semantic account per kind, fall back to legacy stock_account, then default.
+      const pickByKind: Record<LineKind, string | null | undefined> = {
+        goods: p.inventory_account,
+        ccdc: p.inventory_account,
+        asset: p.asset_account,
+        service: p.item_type === "prepaid" ? p.prepaid_account : p.expense_account,
+      };
       const account =
-        (kind === "service" ? p.expense_account : p.stock_account) ??
+        pickByKind[kind] ??
         p.stock_account ??
         p.expense_account ??
         DEFAULT_ACCOUNT[kind];

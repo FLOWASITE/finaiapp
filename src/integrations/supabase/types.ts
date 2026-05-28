@@ -6150,6 +6150,7 @@ export type Database = {
       products: {
         Row: {
           aliases: string[]
+          asset_account: string | null
           barcode: string | null
           can_be_purchased: boolean
           can_be_sold: boolean
@@ -6159,6 +6160,7 @@ export type Database = {
           created_at: string
           expense_account: string | null
           id: string
+          inventory_account: string | null
           is_active: boolean
           item_type: string
           max_stock: number
@@ -6166,6 +6168,7 @@ export type Database = {
           name: string
           notes: string | null
           on_hand: number
+          prepaid_account: string | null
           revenue_account: string
           stock_account: string
           tenant_id: string | null
@@ -6177,6 +6180,7 @@ export type Database = {
         }
         Insert: {
           aliases?: string[]
+          asset_account?: string | null
           barcode?: string | null
           can_be_purchased?: boolean
           can_be_sold?: boolean
@@ -6186,6 +6190,7 @@ export type Database = {
           created_at?: string
           expense_account?: string | null
           id?: string
+          inventory_account?: string | null
           is_active?: boolean
           item_type?: string
           max_stock?: number
@@ -6193,6 +6198,7 @@ export type Database = {
           name: string
           notes?: string | null
           on_hand?: number
+          prepaid_account?: string | null
           revenue_account?: string
           stock_account?: string
           tenant_id?: string | null
@@ -6204,6 +6210,7 @@ export type Database = {
         }
         Update: {
           aliases?: string[]
+          asset_account?: string | null
           barcode?: string | null
           can_be_purchased?: boolean
           can_be_sold?: boolean
@@ -6213,6 +6220,7 @@ export type Database = {
           created_at?: string
           expense_account?: string | null
           id?: string
+          inventory_account?: string | null
           is_active?: boolean
           item_type?: string
           max_stock?: number
@@ -6220,6 +6228,7 @@ export type Database = {
           name?: string
           notes?: string | null
           on_hand?: number
+          prepaid_account?: string | null
           revenue_account?: string
           stock_account?: string
           tenant_id?: string | null
