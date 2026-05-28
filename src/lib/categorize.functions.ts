@@ -560,3 +560,73 @@ export const autoPostIfEligible = createServerFn({ method: "POST" })
     return { auto_posted: true, journal_entry_id: je.id, confidence: dto.confidence };
   });
 
+/** Danh sách bút toán Fin đã tự duyệt N ngày qua (mặc định 7) — cho KTT audit nhanh. */
+export const getAutoPostedRecent = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        days: z.number().int().min(1).max(90).default(7),
+        limit: z.number().int().min(1).max(200).default(50),
+      })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const tenantId = await activeTenant(supabase, userId);
+    if (!tenantId)
+      return { items: [], count_7d: 0, sum_amount_7d: 0, days: data.days };
+
+    const since = new Date(Date.now() - data.days * 86400000).toISOString();
+    const { data: rows, error } = await supabase
+      .from("ai_journal_proposals")
+      .select("id, invoice_id, invoice_kind, confidence, journal_entry_id, resolved_at, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("status", "auto_posted")
+      .gte("resolved_at", since)
+      .order("resolved_at", { ascending: false })
+      .limit(data.limit);
+    if (error) throw new Error(error.message);
+
+    const list = (rows ?? []) as any[];
+    const purchaseIds = list.filter((r) => (r.invoice_kind ?? "purchase") === "purchase").map((r) => r.invoice_id);
+    const salesIds = list.filter((r) => r.invoice_kind === "sales").map((r) => r.invoice_id);
+    const invMap = new Map<string, any>();
+    if (purchaseIds.length > 0) {
+      const { data: invs } = await supabase
+        .from("invoices")
+        .select("id, supplier_name, total, invoice_no, issue_date")
+        .in("id", purchaseIds);
+      for (const i of (invs ?? []) as any[])
+        invMap.set(i.id, { party_name: i.supplier_name, total: i.total, invoice_no: i.invoice_no, issue_date: i.issue_date });
+    }
+    if (salesIds.length > 0) {
+      const { data: sinvs } = await supabase
+        .from("sales_invoices")
+        .select("id, customer_name, total, invoice_no, issue_date")
+        .in("id", salesIds);
+      for (const i of (sinvs ?? []) as any[])
+        invMap.set(i.id, { party_name: i.customer_name, total: i.total, invoice_no: i.invoice_no, issue_date: i.issue_date });
+    }
+
+    const items = list.map((r) => {
+      const inv = invMap.get(r.invoice_id) ?? {};
+      return {
+        id: r.id,
+        invoice_id: r.invoice_id,
+        invoice_kind: (r.invoice_kind ?? "purchase") as "purchase" | "sales",
+        party_name: (inv.party_name ?? null) as string | null,
+        invoice_no: (inv.invoice_no ?? null) as string | null,
+        issue_date: (inv.issue_date ?? null) as string | null,
+        total: Number(inv.total ?? 0),
+        confidence: Number(r.confidence ?? 0),
+        journal_entry_id: (r.journal_entry_id ?? null) as string | null,
+        resolved_at: (r.resolved_at ?? r.created_at) as string,
+      };
+    });
+
+    const sum_amount_7d = items.reduce((s, x) => s + (x.total || 0), 0);
+    return { items, count_7d: items.length, sum_amount_7d, days: data.days };
+  });
+
+

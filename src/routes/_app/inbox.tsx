@@ -32,7 +32,9 @@ import {
   MinusCircle,
   PanelRightClose,
   PanelRightOpen,
+  Zap,
 } from "lucide-react";
+
 import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 import { useWorkspace } from "@/hooks/use-workspace";
 import mascotSrc from "@/assets/fin-mascot.png";
@@ -43,7 +45,10 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
+import { getAutoPostSettings } from "@/lib/auto-post-settings.functions";
+import { AutoPostAuditSheet } from "@/components/inbox/auto-post-audit-sheet";
 import { getDocument } from "@/lib/documents.functions";
+
 import type { InboxItem, ConfidenceBand, VoucherKind } from "@/lib/ai/inbox-types";
 import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
@@ -240,6 +245,15 @@ function InboxAiPage() {
   );
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [autoPostSheetOpen, setAutoPostSheetOpen] = useState(false);
+
+  const autoPostFn = useServerFn(getAutoPostSettings);
+  const { data: autoPostSettings } = useQuery({
+    queryKey: ["auto-post-settings"],
+    queryFn: () => autoPostFn(),
+    staleTime: 60_000,
+  });
+
   
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
@@ -574,6 +588,10 @@ function InboxAiPage() {
       <InboxHeader
         onOpenCmd={() => setCmdOpen(true)}
         periodLabel={periodLabel()}
+        autoPostEnabled={!!autoPostSettings?.enabled}
+        autoPostMinConfidence={autoPostSettings?.min_confidence ?? 0.95}
+        autoPostMaxAmount={autoPostSettings?.max_amount ?? 5_000_000}
+        onOpenAutoPostSheet={() => setAutoPostSheetOpen(true)}
       />
 
 
@@ -592,6 +610,28 @@ function InboxAiPage() {
         />
         <Divider />
         <Stat label="Độ chính xác" value={stats?.accuracy != null ? `${stats.accuracy}%` : "98.4%"} />
+        {autoPostSettings?.enabled && (
+          <>
+            <Divider />
+            <button
+              type="button"
+              onClick={() => setAutoPostSheetOpen(true)}
+              className="text-left rounded-md -mx-1 px-1 transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              title="Xem chi tiết bút toán Fin tự duyệt 7 ngày qua"
+            >
+              <Stat
+                label="Fin tự duyệt 7 ngày"
+                value="Xem"
+                extra={
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                    <Zap className="h-2.5 w-2.5" /> audit
+                  </span>
+                }
+              />
+            </button>
+          </>
+        )}
+
 
         <div className="ml-auto">
           <Button
@@ -872,7 +912,14 @@ function InboxAiPage() {
       </AlertDialog>
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
+
+      <AutoPostAuditSheet
+        open={autoPostSheetOpen}
+        onOpenChange={setAutoPostSheetOpen}
+        settings={autoPostSettings}
+      />
     </div>
+
   );
 }
 
@@ -881,10 +928,19 @@ function InboxAiPage() {
 function InboxHeader({
   onOpenCmd,
   periodLabel,
+  autoPostEnabled,
+  autoPostMinConfidence,
+  autoPostMaxAmount,
+  onOpenAutoPostSheet,
 }: {
   onOpenCmd: () => void;
   periodLabel: string;
+  autoPostEnabled: boolean;
+  autoPostMinConfidence: number;
+  autoPostMaxAmount: number;
+  onOpenAutoPostSheet: () => void;
 }) {
+
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: me } = useCurrentUser();
@@ -984,6 +1040,34 @@ function InboxHeader({
 
       <div className="ml-auto flex items-center gap-2">
         <InboxDockToggle />
+
+        <button
+          type="button"
+          onClick={onOpenAutoPostSheet}
+          title={
+            autoPostEnabled
+              ? `Auto-duyệt BẬT · ≥${Math.round(autoPostMinConfidence * 100)}% · ≤${new Intl.NumberFormat("vi-VN").format(autoPostMaxAmount)} đ`
+              : "Auto-duyệt đang tắt"
+          }
+          className={cn(
+            "hidden md:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+            autoPostEnabled
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
+              : "border-border/40 text-muted-foreground hover:bg-muted/40",
+          )}
+        >
+          <Zap className={cn("h-3 w-3", autoPostEnabled && "fill-current")} />
+          {autoPostEnabled ? (
+            <span className="hidden lg:inline">
+              Auto-duyệt · ≥{Math.round(autoPostMinConfidence * 100)}%
+            </span>
+          ) : (
+            <span className="hidden lg:inline">Auto-duyệt: tắt</span>
+          )}
+          <span className="lg:hidden">Auto</span>
+        </button>
+
+
 
         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 px-2.5 py-1.5 text-xs text-foreground/70 md:flex">
           <Calendar className="h-3.5 w-3.5" />
