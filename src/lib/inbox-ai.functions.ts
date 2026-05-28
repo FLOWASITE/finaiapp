@@ -1407,12 +1407,8 @@ export const approveInboxItem = createServerFn({ method: "POST" })
         .from("documents")
         .update({ ocr_status: "done", reviewed_at: new Date().toISOString(), reviewed_by: userId })
         .eq("id", data.external_id);
-      const { data: docMeta } = await supabase
-        .from("documents")
-        .select("doc_kind")
-        .eq("id", data.external_id)
-        .maybeSingle();
-      if (docMeta?.doc_kind === "sales_invoice") {
+      const direction = await inferDocDirection(supabase, tenantId, data.external_id);
+      if (direction === "sales") {
         const salesInvoiceId = await materializeSalesInvoiceFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
@@ -1436,7 +1432,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
             .maybeSingle();
           if (svRow) postedVoucher = { kind: "sales_voucher", id: svRow.id, voucher_no: svRow.voucher_no };
         }
-      } else if (docMeta?.doc_kind === "purchase_invoice") {
+      } else if (direction === "purchase") {
         const pvId = await materializePurchaseVoucherFromDocument(supabase, {
           documentId: data.external_id,
           tenantId,
