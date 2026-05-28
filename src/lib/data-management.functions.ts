@@ -542,3 +542,175 @@ export const listFiscalYearsForTenant = createServerFn({ method: "GET" })
       .order("year", { ascending: false });
     return { years: data ?? [] };
   });
+
+// ============================================================
+// RESET DATA (xoá vĩnh viễn)
+// ============================================================
+const TX_TABLES_DELETE_ORDER = [
+  "journal_lines",
+  "journal_entries",
+  "invoice_lines",
+  "invoices",
+  "sales_invoice_lines",
+  "sales_invoices",
+  "cash_vouchers",
+  "customer_receipts",
+  "supplier_payments",
+  "bank_transactions",
+  "payroll_lines",
+  "payroll_runs",
+  "depreciation_entries",
+  "fixed_assets",
+  "account_period_balances",
+] as const;
+
+const CATALOG_TABLES_DELETE_ORDER = [
+  "products",
+  "customers",
+  "suppliers",
+  "units",
+  "warehouses",
+  "branches",
+  "departments",
+  "projects",
+  "cost_centers",
+] as const;
+
+const COUNT_TABLES_TX = [...TX_TABLES_DELETE_ORDER, "journal_entries"] as string[];
+
+export const previewReset = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        scope: z.enum(["year", "transactions", "all"]),
+        fiscal_year: z.number().int().min(1900).max(2200).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    await assertRole(supabase, userId, tenantId, ["owner"]);
+
+    const counts: Record<string, number> = {};
+    const tables =
+      data.scope === "all"
+        ? [...TX_TABLES_DELETE_ORDER, ...CATALOG_TABLES_DELETE_ORDER]
+        : TX_TABLES_DELETE_ORDER;
+
+    if (data.scope === "year") {
+      if (!data.fiscal_year) throw new Error("Thiếu năm tài chính");
+      const yStart = `${data.fiscal_year}-01-01`;
+      const yEnd = `${data.fiscal_year}-12-31`;
+      const yearCols: Record<string, string> = {
+        journal_entries: "entry_date",
+        invoices: "issue_date",
+        sales_invoices: "issue_date",
+        cash_vouchers: "voucher_date",
+        customer_receipts: "pay_date",
+        supplier_payments: "pay_date",
+        bank_transactions: "txn_date",
+        payroll_runs: "period_start",
+        depreciation_entries: "period_start",
+      };
+      for (const t of Object.keys(yearCols)) {
+        const { count } = await (supabase as any)
+          .from(t)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte(yearCols[t], yStart)
+          .lte(yearCols[t], yEnd);
+        counts[t] = count ?? 0;
+      }
+      const { count: balCount } = await (supabase as any)
+        .from("account_period_balances")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("year", data.fiscal_year);
+      counts.account_period_balances = balCount ?? 0;
+    } else {
+      for (const t of tables) {
+        const { count } = await (supabase as any)
+          .from(t)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId);
+        counts[t] = count ?? 0;
+      }
+    }
+
+    const { data: tenant } = await (supabase as any)
+      .from("tenants")
+      .select("company_name, tax_id")
+      .eq("id", tenantId)
+      .maybeSingle();
+
+    return {
+      counts,
+      total: Object.values(counts).reduce((s, n) => s + n, 0),
+      tenant: tenant ?? null,
+    };
+  });
+
+export const runReset = createServerFn({ method: "POST" })
+  .middleware([withTenant])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        scope: z.enum(["year", "transactions", "all"]),
+        fiscal_year: z.number().int().min(1900).max(2200).optional(),
+        confirm_text: z.string().min(1).max(200),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, tenantId } = context;
+    await assertRole(supabase, userId, tenantId, ["owner"]);
+
+    const { data: tenant } = await (supabase as any)
+      .from("tenants")
+      .select("company_name, tax_id")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const expected = (tenant?.tax_id || tenant?.company_name || "XOA-DU-LIEU").toString().trim();
+    if (data.confirm_text.trim() !== expected && data.confirm_text.trim() !== "XOA-DU-LIEU") {
+      throw new Error(`Nhập sai chuỗi xác nhận. Cần gõ chính xác: "${expected}" hoặc "XOA-DU-LIEU"`);
+    }
+
+    const deleted: Record<string, number> = {};
+    const errors: { table: string; error: string }[] = [];
+
+    if (data.scope === "year") {
+      if (!data.fiscal_year) throw new Error("Thiếu năm tài chính");
+      const { error } = await supabase.rpc("delete_year_data", {
+        p_tenant: tenantId,
+        p_year: data.fiscal_year,
+      });
+      if (error) throw new Error(error.message);
+      deleted._rpc = 1;
+    } else {
+      const tables =
+        data.scope === "all"
+          ? [...TX_TABLES_DELETE_ORDER, ...CATALOG_TABLES_DELETE_ORDER]
+          : [...TX_TABLES_DELETE_ORDER];
+
+      for (const t of tables) {
+        const { error, count } = await (supabaseAdmin as any)
+          .from(t)
+          .delete({ count: "exact" })
+          .eq("tenant_id", tenantId);
+        if (error) errors.push({ table: t, error: error.message });
+        else deleted[t] = count ?? 0;
+      }
+    }
+
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: userId,
+      action: "reset_tenant_data",
+      table_name: "tenant",
+      record_id: tenantId,
+      after: { scope: data.scope, fiscal_year: data.fiscal_year, deleted, errors } as any,
+    } as any);
+
+    return { deleted, errors };
+  });
+
