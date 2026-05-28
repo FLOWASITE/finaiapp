@@ -1254,7 +1254,7 @@ export const listInboxAi = createServerFn({ method: "POST" })
     const [docsRes, txnsRes, insightsRes, banksRes, postedRes, salesRes] = await Promise.all([
       supabase
         .from("documents")
-        .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id")
+        .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id, ai_upload_id")
         .eq("tenant_id", tenantId)
         .in("ocr_status", ["done", "processing"])
         .order("created_at", { ascending: false })
@@ -1298,10 +1298,26 @@ export const listInboxAi = createServerFn({ method: "POST" })
       ]),
     );
 
+    // Dedup: nếu cùng ai_upload_id có nhiều row, ưu tiên row đã được phân loại
+    // (purchase_invoice / sales_invoice) và ẩn các row "other" để KTV không bấm nhầm.
+    const classifiedKinds = new Set(["purchase_invoice", "sales_invoice"]);
+    const groups = new Map<string, any[]>();
+    for (const d of (docsRes.data ?? []) as any[]) {
+      const key = d.ai_upload_id ?? `__solo_${d.id}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(d);
+      else groups.set(key, [d]);
+    }
+    const filteredDocs: any[] = [];
+    for (const [, arr] of groups) {
+      const classified = arr.filter((d) => classifiedKinds.has(d.doc_kind));
+      filteredDocs.push(...(classified.length > 0 ? classified : arr));
+    }
+
     // BATCH: prefetch proposals cho mọi document có invoice_id
     const invoiceIds = Array.from(
       new Set(
-        ((docsRes.data ?? []) as any[])
+        filteredDocs
           .map((d) => d.invoice_id)
           .filter((x): x is string => !!x),
       ),
@@ -1317,7 +1333,7 @@ export const listInboxAi = createServerFn({ method: "POST" })
     ]);
 
     const items: InboxItem[] = [];
-    for (const d of (docsRes.data ?? []) as any[]) {
+    for (const d of filteredDocs) {
       const prebuilt = d.invoice_id ? proposalMap.get(d.invoice_id) : undefined;
       const it = await buildDocumentItem(supabase, tenantId, d, rules, prebuilt);
       if (it) items.push(it);

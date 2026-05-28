@@ -1,67 +1,89 @@
-## Mục tiêu
+## 1. Backfill PM2026-00008 cho HĐ TUYỀN HƯNG PHÚ
 
-Cho phép KTV bấm **Đồng ý / Từ chối** trên từng dòng hoá đơn (kèm lý do ngắn) ngay tại màn hình review. Phản hồi này:
-1. Đóng vòng lặp học của `item_resolution_log` (đánh dấu `reviewed_by/reviewed_at`, lưu verdict + reason vào `signals`).
-2. Cập nhật `supplier_item_mappings.confidence` / `match_count` khi approve gợi ý fuzzy → lần sau resolver tin tưởng hơn (cache hit).
-3. Tự calibrate trọng số `W = { text, unit, price, history, sku }` của resolver fuzzy và ngưỡng `confidence` của classify-line heuristic dựa trên thống kê approve/reject gần đây của từng tenant.
+JE đã có: `0c1303ce-e17b-4017-b98b-8aae83eccefd`, tenant `8681d76b…`, ngày `2026-01-26`, 3 dòng (Nợ 156=4.836.000, Nợ 133=386.880, Có 331=5.222.880). Document gốc: `cd95008b…` (`doc_kind=purchase_invoice`), seller MST `0302886602`, HĐ `00002847`. Bảng `suppliers` chưa có nhà cung cấp này.
 
-Chỉ động vào lớp resolver và UI review. Không thay đổi journal, RLS, hay luồng duyệt bút toán.
+Thực hiện qua **2 lệnh insert tuần tự** (dùng `supabase--insert`, không cần migration):
 
-## Phạm vi thay đổi
+### 1.1 Tạo supplier (idempotent)
 
-### 1. DB migration (nhẹ)
+```sql
+INSERT INTO public.suppliers (tenant_id, name, tax_id, email, phone, address, created_by)
+SELECT '8681d76b-855b-4142-a699-5eb299070157', 'CÔNG TY TNHH SẢN XUẤT VÀ THƯƠNG MẠI TUYỀN HƯNG PHÚ', '0302886602',
+       '', '(028) 6292 3206', '21 Bàu Cát 4, Phường Tân Bình, TP. Hồ Chí Minh',
+       (SELECT user_id FROM tenant_members WHERE tenant_id='8681d76b-855b-4142-a699-5eb299070157' LIMIT 1)
+WHERE NOT EXISTS (SELECT 1 FROM public.suppliers WHERE tenant_id='8681d76b…' AND tax_id='0302886602');
+```
 
-- Thêm cột vào `item_resolution_log`:
-  - `verdict text` CHECK in (`approved`,`rejected`,`corrected`), nullable.
-  - `feedback_reason text`, nullable.
-  - `corrected_product_id uuid` FK products(id) ON DELETE SET NULL — khi KTV chọn sản phẩm khác.
-  - `corrected_kind text` — khi KTV đổi LineKind (goods/ccdc/asset/service).
-- Bảng mới `public.resolver_weight_profile`:
-  - `tenant_id uuid PK FK tenants`, `w_text/w_unit/w_price/w_history/w_sku numeric`, `heuristic_min_conf numeric`, `sample_size int`, `updated_at timestamptz`.
-  - RLS: select cho member, update/insert cho service_role (chỉ cron job calibrate ghi).
-  - GRANT đầy đủ cho `authenticated` (select) và `service_role` (all).
+(Nếu schema `suppliers` có cột khác/required khác sẽ kiểm tra bằng `\d suppliers` trước khi chạy, điều chỉnh insert cho khớp.)
 
-### 2. Server functions mới (`src/lib/items/feedback.functions.ts`)
+### 1.2 Insert purchase_voucher PM2026-00008
 
-- `submitLineFeedback({ line_id, verdict, reason?, corrected_product_id?, corrected_kind? })`:
-  - Tìm log gần nhất theo `invoice_line_id`, UPDATE `verdict`, `feedback_reason`, `corrected_*`, `reviewed_by=auth.uid()`, `reviewed_at=now()`.
-  - Nếu `verdict='approved'` và log có `resolved_product_id`: upsert `supplier_item_mappings` (tăng `match_count`, set `confidence = min(0.99, confidence + 0.02)`, `source='user_confirm'`).
-  - Nếu `verdict='rejected'`: giảm confidence mapping tương ứng (`max(0.3, confidence - 0.1)`); nếu `corrected_product_id` có → upsert mapping mới với `confidence=0.9`.
-  - Nếu `corrected_kind` có → gọi `setLineOverrideKind`.
-- `getLineFeedbackStats({ invoice_id })`: trả số dòng đã approve/reject/pending để UI hiển thị progress.
+```sql
+INSERT INTO public.purchase_vouchers (
+  user_id, tenant_id, voucher_no, voucher_date,
+  supplier_id, supplier_name, supplier_tax_id,
+  invoice_no, invoice_date,
+  subtotal, vat_rate, vat_amount, total,
+  debit_account, credit_account, vat_account,
+  payment_method, journal_entry_id, status, posted_at
+)
+SELECT
+  (SELECT created_by FROM journal_entries WHERE id='0c1303ce…'),
+  '8681d76b…',
+  'PM2026-00008',
+  '2026-01-26',
+  s.id, s.name, s.tax_id,
+  '00002847', '2026-01-26',
+  4836000, 8.00, 386880, 5222880,
+  '156', '331', '1331',
+  'credit', '0c1303ce…', 'posted', now()
+FROM public.suppliers s
+WHERE s.tenant_id='8681d76b…' AND s.tax_id='0302886602';
+```
 
-### 3. Calibration (`src/lib/items/calibrate-weights.server.ts` + server route cron)
+Cuối cùng UPDATE `documents.purchase_voucher_id` (nếu cột tồn tại) hoặc bỏ qua nếu không có cột liên kết — chỉ cần PM2026-00008 hiện trong danh sách phiếu mua và trỏ về JE đúng.
 
-- Hàm `calibrateForTenant(tenant_id)`:
-  - Lấy log 30 ngày gần nhất có `verdict in (approved,rejected,corrected)`.
-  - Với mỗi log, đọc `signals` đã lưu. Tính correlation đơn giản giữa từng signal và verdict (approved=+1, rejected=-1) → softmax-normalize thành trọng số mới, blend 70% baseline + 30% học.
-  - Tính `heuristic_min_conf` = percentile 25 của `confidence` các log `approved` xuất phát từ `method='fuzzy'` score thấp; clamp [50, 85].
-  - Upsert vào `resolver_weight_profile`. Cần `sample_size >= 20`, không thì giữ default.
-- Server route `src/routes/api/public/cron/calibrate-resolver.ts` (POST, verify `X-CRON-SECRET`): chạy cho mọi tenant có ≥20 log mới trong 24h.
-- `resolver.server.ts` đọc `resolver_weight_profile` của tenant ở đầu hàm `resolve`, fallback về hằng số `W` cũ. Ngưỡng `0.7/0.9` giữ nguyên; chỉ trọng số thay đổi.
-- `resolve-line-kind.server.ts` đọc `heuristic_min_conf` để quyết định khi nào fallback classify được coi là đủ tin để auto vs review (ảnh hưởng UI badge, không ảnh hưởng account).
+QA: `SELECT voucher_no, invoice_no, supplier_name, journal_entry_id FROM purchase_vouchers WHERE voucher_no='PM2026-00008'`.
 
-### 4. UI (`src/routes/_app/invoices/$id.tsx`)
+## 2. Dedup inbox: ẩn `doc_kind=other` khi đã có sibling
 
-- Mỗi dòng trong bảng resolved-lines thêm cụm 3 nút nhỏ:
-  - ✓ **Đồng ý** → gọi `submitLineFeedback({verdict:'approved'})`.
-  - ✗ **Từ chối** → mở popover textarea (lý do, optional select kind mới) → submit `rejected`/`corrected`.
-  - Trạng thái hiện tại (badge): "Chờ duyệt" / "Đã đồng ý" / "Đã từ chối — <reason>".
-- Sau mỗi submit, invalidate query `getResolvedInvoiceLines`.
-- Thanh tổng ở header: `X/Y dòng đã review` (từ `getLineFeedbackStats`).
-- Nút **Duyệt & ghi sổ** disable cho tới khi tất cả dòng có verdict (hoặc KTT bypass bằng nút "Bỏ qua review").
+Bug đã xác nhận: 2 row cùng `ai_upload_id='eb49ec1b…'`, một row `purchase_invoice` (cd95008b…), một row `other` (8f085f9d…). Hôm qua KTV bấm vào row `other` rồi nhỡ tay → Skip.
+
+### Sửa server side (1 chỗ duy nhất)
+
+`src/lib/inbox-ai.functions.ts` — trong `listInboxAi` (~ dòng 1255):
+
+1. Thêm `ai_upload_id` vào select của `docsRes`:
+   ```ts
+   .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id, ai_upload_id")
+   ```
+2. Sau khi `docsRes` resolve, lọc trước khi đưa vào vòng `for (const d of docsRes.data)`:
+   ```ts
+   const classifiedKinds = new Set(["purchase_invoice", "sales_invoice"]);
+   const groups = new Map<string, any[]>();
+   for (const d of (docsRes.data ?? []) as any[]) {
+     const key = d.ai_upload_id ?? `__solo_${d.id}`;
+     (groups.get(key) ?? groups.set(key, []).get(key)!).push(d);
+   }
+   const filteredDocs: any[] = [];
+   for (const [, arr] of groups) {
+     const classified = arr.filter((d) => classifiedKinds.has(d.doc_kind));
+     filteredDocs.push(...(classified.length > 0 ? classified : arr));
+   }
+   ```
+3. Dùng `filteredDocs` thay cho `docsRes.data` ở các bước tiếp theo (build `invoiceIds`, vòng `for (const d of …)` tạo `items`).
+
+Tác động: khi 1 ai_upload_id đã có row được phân loại đúng (`purchase_invoice`/`sales_invoice`), row `other` cùng nhóm bị ẩn khỏi Inbox — KTV không còn chỗ bấm nhầm. Tất cả luồng khác (Documents page, AI parse, Skip cũ) giữ nguyên.
 
 ## Ngoài phạm vi
 
-- Không đổi cấu trúc bảng `journal_lines`, `purchase_vouchers`.
-- Không động vào tab "Agent của Fin" / Inbox AI.
-- Không train model LLM; chỉ tinh chỉnh trọng số số học.
-- Không backfill log cũ — calibrate chỉ dùng log mới có `verdict`.
+- Không sửa pipeline upload XML để chống tạo 2 row (đã đề cập trong plan trước — chưa làm vì cần điều tra thêm).
+- Không phục hồi item đã Skip cho các doc khác — chỉ backfill PM2026-00008.
+- Không đổi luồng approve / posting / RLS / weight calibration.
 
 ## Thứ tự thực hiện
 
-1. Migration (cột mới + bảng `resolver_weight_profile` + GRANT/RLS).
-2. `feedback.functions.ts` + cập nhật `resolver.server.ts` đọc weight profile.
-3. UI nút Đồng ý/Từ chối + popover lý do trên `invoices/$id.tsx`.
-4. `calibrate-weights.server.ts` + cron route + secret `CRON_SECRET`.
-5. QA: tạo 1 hoá đơn test, approve/reject vài dòng, gọi cron tay, kiểm tra `resolver_weight_profile` cập nhật và resolver dùng trọng số mới.
+1. `supabase--insert`: tạo supplier (nếu chưa có) + voucher PM2026-00008.
+2. Đọc lại DB xác nhận voucher xuất hiện.
+3. Sửa `listInboxAi` (dedup theo `ai_upload_id`).
+4. Mở Inbox, xác nhận chỉ còn 1 row cho mỗi XML.
