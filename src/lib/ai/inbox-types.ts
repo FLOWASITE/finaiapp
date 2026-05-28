@@ -129,24 +129,49 @@ export type MissingMasterData = {
 };
 
 /**
- * Mục đích mua hàng do KTV chọn — nguồn sự thật duy nhất điều khiển cả
- * bút toán, mặt hàng sẽ tạo, và header phiếu mua hàng.
+ * Một lựa chọn "mục đích chi" do KTV chọn từ Thư viện mục đích (Loại B).
+ * Là nguồn sự thật điều khiển tài khoản Nợ + loại line khi tạo phiếu mua hàng.
  */
-export type PurchasePurpose = "resale" | "material" | "expense";
+export type PurposeLineKind = "goods" | "material" | "ccdc" | "asset" | "service";
 
-export const PURCHASE_PURPOSE_MAP: Record<
-  PurchasePurpose,
-  { account: string; item_type: MissingItemTypeGuess; is_inventory: boolean; label: string; short: string }
-> = {
-  resale:   { account: "156", item_type: "goods",    is_inventory: true,  label: "Hàng hoá bán lại",            short: "Hàng hoá" },
-  material: { account: "152", item_type: "material", is_inventory: true,  label: "Nguyên liệu sản xuất",        short: "NVL" },
-  expense:  { account: "642", item_type: "service",  is_inventory: false, label: "Chi phí sự kiện / trang trí", short: "Chi phí" },
+export type PurchasePurposeSelection = {
+  /** Mã catalog Loại B: ví dụ "CP-TK-QUAKHACH". */
+  code: string;
+  /** Tên hiển thị (ngắn). */
+  name: string;
+  /** Nhóm: "PHUC_LOI_NV" | "TIEP_KHACH" | ... — cho group label. */
+  group_code?: string;
+  /** Tài khoản Nợ áp dụng (đã chọn TT99/TT133 cho tenant). */
+  account: string;
+  /** Loại line khi materialize phiếu mua hàng. */
+  line_kind: PurposeLineKind;
+  /** Cần xuất HĐ VAT đầu ra (quà tặng KH…). */
+  needs_vat_output?: boolean;
+  /** Cảnh báo TNDN ngắn để hiển thị banner. */
+  tax_warning?: string;
 };
 
-/** Tập tài khoản debit mà mục đích mua hàng được phép thay thế. */
+/** Tập tài khoản debit mà mục đích mua hàng được phép thay thế khi swap. */
 export const PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS = new Set([
-  "156", "152", "153", "642", "211", "213", "242",
+  "156", "152", "153",
+  "642", "6418", "6421", "6422", "6423", "6427", "6428",
+  "627", "6271", "6273", "6278",
+  "211", "213", "242", "811",
 ]);
+
+/** Map line_kind → item_type khi tạo mặt hàng mới. */
+export function lineKindToItemType(
+  k: PurposeLineKind,
+): MissingItemTypeGuess {
+  switch (k) {
+    case "goods": return "goods";
+    case "material": return "material";
+    case "ccdc": return "tool";
+    case "asset": return "asset_tangible";
+    case "service":
+    default: return "service";
+  }
+}
 
 export type InboxItem = {
   id: string;
@@ -170,6 +195,6 @@ export type InboxItem = {
   href?: string;
   posted_voucher?: PostedVoucherRef;
   missing?: MissingMasterData;
-  /** Mục đích mua hàng KTV đã chọn — gửi kèm khi duyệt. */
-  purchase_purpose?: PurchasePurpose;
+  /** Mục đích chi (Loại B) KTV đã chọn — gửi kèm khi duyệt. */
+  purchase_purpose?: PurchasePurposeSelection;
 };
