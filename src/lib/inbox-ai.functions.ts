@@ -472,11 +472,11 @@ async function materializePurchaseVoucherFromDocument(
     userId: string;
     entryDate: string;
     journalEntryId: string;
-    purchasePurpose?: "resale" | "material" | "expense";
+    purchasePurpose?: PurchasePurposeIn;
   },
 ): Promise<string | null> {
   const { documentId, tenantId, userId, entryDate, journalEntryId, purchasePurpose } = opts;
-  const purposeOverride = purchasePurpose ? PURCHASE_PURPOSE_OVERRIDE[purchasePurpose] : null;
+  const purposeOverride = buildPurposeOverride(purchasePurpose);
 
   let { data: doc } = await supabase
     .from("documents")
