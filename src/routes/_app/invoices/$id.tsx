@@ -52,7 +52,12 @@ function InvoiceDetail() {
   const overrideMut = useMutation({
     mutationFn: (vars: { line_id: string; kind: ResolvedLine["resolved_kind"] | null }) =>
       overrideKindFn({ data: vars }),
-    onSuccess: async () => {
+    onSuccess: async (_data, vars) => {
+      setPendingOverrides((prev) => {
+        const next = { ...prev };
+        delete next[vars.line_id];
+        return next;
+      });
       await resolvedLinesQuery.refetch();
       toast.success("Đã cập nhật loại hàng hoá");
       if (suggestions) {
