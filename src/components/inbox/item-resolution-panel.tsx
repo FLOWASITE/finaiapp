@@ -222,8 +222,18 @@ export function ItemResolutionPanel({ items, meta, tenantId, onLineAccountResolv
           unit_price: vars.unit_price ?? null,
         },
       }),
-    onSuccess: (res: any) => {
+    onSuccess: (res: any, vars) => {
       toast.success(`Đã thêm "${res?.product?.name ?? ""}" vào Mục của tôi`);
+      const p = res?.product;
+      if (p?.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: p.code,
+          product_name: p.name,
+          stock_account: p.stock_account,
+          item_type: p.item_type ?? null,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không thêm được"),
