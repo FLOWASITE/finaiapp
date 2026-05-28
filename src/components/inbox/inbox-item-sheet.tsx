@@ -18,7 +18,8 @@ import {
   Store,
   HelpCircle,
 } from "lucide-react";
-import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurpose } from "@/lib/ai/inbox-types";
+import { PURCHASE_PURPOSE_MAP, PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
