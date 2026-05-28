@@ -18,6 +18,7 @@ import {
   enableRule,
   deleteRule,
   promoteSuggestion,
+  learnRulesNow,
 } from "@/lib/ai-memory.functions";
 import type { Rule } from "@/types/rule";
 
