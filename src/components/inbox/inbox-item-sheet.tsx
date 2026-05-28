@@ -18,7 +18,8 @@ import {
   Store,
   HelpCircle,
 } from "lucide-react";
-import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData } from "@/lib/ai/inbox-types";
+import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData, PurchasePurpose } from "@/lib/ai/inbox-types";
+import { PURCHASE_PURPOSE_MAP, PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS } from "@/lib/ai/inbox-types";
 import {
   Sheet,
   SheetContent,
@@ -57,7 +58,7 @@ function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: Vouc
     (tenantsQ.data?.tenants as any[] | undefined)?.find((t) => t.is_active)?.id ?? null;
   return <ItemResolutionPanel items={props.items} meta={props.meta} tenantId={activeTenantId} />;
 }
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
@@ -273,9 +274,26 @@ export function InboxItemDetail({
   approving,
 }: InboxItemDetailProps) {
   const navigate = useNavigate();
-  const partnerName = item.partner?.trim();
+
+  // Mục đích mua hàng — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
+  const initialPurpose = useMemo<PurchasePurpose | undefined>(
+    () => deriveInitialPurpose(item),
+    [item.id],
+  );
+  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurpose | undefined>(initialPurpose);
+  useEffect(() => {
+    setPurchasePurpose(deriveInitialPurpose(item));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  const workingItem = useMemo<InboxItem>(
+    () => applyPurchasePurpose(item, purchasePurpose),
+    [item, purchasePurpose],
+  );
+
+  const partnerName = workingItem.partner?.trim();
   const hasPartner = !!partnerName && partnerName !== "—";
-  const confidence = item.confidence ?? 0;
+  const confidence = workingItem.confidence ?? 0;
   const confTone =
     confidence >= 80 ? "emerald" : confidence >= 50 ? "amber" : "rose";
   const confClasses = {
@@ -364,7 +382,7 @@ export function InboxItemDetail({
             Bút toán đề xuất
           </span>
           <div className="space-y-2.5">
-            {item.proposal.lines.map((l, i, arr) => {
+            {workingItem.proposal.lines.map((l, i, arr) => {
               const isDebit = (l.debit ?? 0) > 0;
               const amount = isDebit ? l.debit! : l.credit ?? 0;
               const sideLabel = isDebit ? "Nợ" : "Có";
@@ -399,20 +417,20 @@ export function InboxItemDetail({
               );
             })}
           </div>
-          <VatExplain meta={item.proposal.meta} items={item.proposal.items} />
+          <VatExplain meta={workingItem.proposal.meta} items={workingItem.proposal.items} />
         </div>
 
         {/* ③ Mục đích mua hàng (Vấn đề 3) */}
         <PurposePicker
-          voucherKind={item.proposal.voucher_kind}
-          lines={item.proposal.lines}
-          onEdit={() => onEdit(item)}
+          voucherKind={workingItem.proposal.voucher_kind}
+          value={purchasePurpose}
+          onChange={setPurchasePurpose}
         />
 
         {/* ④ Khi duyệt, Fin sẽ tự tạo (Vấn đề 5) */}
         <MissingMasterDataPanel
-          missing={item.missing}
-          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
+          missing={workingItem.missing}
+          sourceDocumentId={workingItem.source === "document" ? workingItem.external_id : undefined}
         />
 
         {/* Đối soát hóa đơn ↔ bút toán */}
@@ -677,18 +695,21 @@ const PURPOSE_OPTIONS: { account: string; label: string; hint: string }[] = [
 
 function PurposePicker({
   voucherKind,
-  lines,
-  onEdit,
+  value,
+  onChange,
 }: {
   voucherKind?: VoucherKind;
-  lines: { account: string; debit?: number; credit?: number }[];
-  onEdit: () => void;
+  value?: PurchasePurpose;
+  onChange: (p: PurchasePurpose) => void;
 }) {
   if (voucherKind !== "purchase_invoice") return null;
-  const debitAccts = lines.filter((l) => (l.debit ?? 0) > 0).map((l) => l.account);
-  const guessed = debitAccts.find((a) => PURPOSE_GUESS_ACCOUNTS.has(a));
-  if (!guessed) return null;
-  if (!["156", "152", "642"].includes(guessed)) return null;
+  if (!value) return null;
+
+  const options: { id: PurchasePurpose; label: string; hint: string }[] = [
+    { id: "resale",   label: PURCHASE_PURPOSE_MAP.resale.label,   hint: `→ TK ${PURCHASE_PURPOSE_MAP.resale.account}` },
+    { id: "material", label: PURCHASE_PURPOSE_MAP.material.label, hint: `→ TK ${PURCHASE_PURPOSE_MAP.material.account}` },
+    { id: "expense",  label: PURCHASE_PURPOSE_MAP.expense.label,  hint: `→ TK ${PURCHASE_PURPOSE_MAP.expense.account}` },
+  ];
 
   return (
     <div className="space-y-2 rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3">
@@ -697,16 +718,16 @@ function PurposePicker({
         Mục đích mua hàng này?
       </div>
       <ul className="space-y-1.5">
-        {PURPOSE_OPTIONS.map((o) => {
-          const isGuess = o.account === guessed;
+        {options.map((o) => {
+          const selected = o.id === value;
           return (
-            <li key={o.account}>
+            <li key={o.id}>
               <button
                 type="button"
-                onClick={isGuess ? undefined : onEdit}
+                onClick={() => onChange(o.id)}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors",
-                  isGuess
+                  selected
                     ? "border-blue-500/40 bg-background/80 font-medium text-foreground"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-background/60",
                 )}
@@ -714,30 +735,68 @@ function PurposePicker({
                 <span
                   className={cn(
                     "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border",
-                    isGuess ? "border-blue-500 bg-blue-500" : "border-muted-foreground/40",
+                    selected ? "border-blue-500 bg-blue-500" : "border-muted-foreground/40",
                   )}
                 >
-                  {isGuess && <span className="h-1.5 w-1.5 rounded-full bg-background" />}
+                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-background" />}
                 </span>
                 <span className="flex-1 truncate">
                   {o.label}{" "}
                   <span className="font-mono text-[11px] text-muted-foreground">{o.hint}</span>
                 </span>
-                {isGuess && (
-                  <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                    Fin đoán
-                  </span>
-                )}
               </button>
             </li>
           );
         })}
       </ul>
       <p className="text-[10px] text-muted-foreground">
-        Bấm phương án khác để mở trình sửa bút toán.
+        Chọn lại để Fin đổi cả bút toán và mặt hàng sẽ tạo theo đúng mục đích.
       </p>
     </div>
   );
+}
+
+// ───── Helpers: PurchasePurpose ↔ InboxItem ─────
+
+function deriveInitialPurpose(item: InboxItem): PurchasePurpose | undefined {
+  if (item.proposal.voucher_kind !== "purchase_invoice") return undefined;
+  if (item.purchase_purpose) return item.purchase_purpose;
+  const debitAccts = item.proposal.lines.filter((l) => (l.debit ?? 0) > 0).map((l) => l.account);
+  for (const acct of debitAccts) {
+    if (acct === "156" || acct === "153") return "resale";
+    if (acct === "152") return "material";
+    if (acct === "642" || acct === "211" || acct === "213" || acct === "242") return "expense";
+  }
+  return undefined;
+}
+
+function applyPurchasePurpose(item: InboxItem, purpose: PurchasePurpose | undefined): InboxItem {
+  if (!purpose) return item;
+  const target = PURCHASE_PURPOSE_MAP[purpose];
+
+  // Đổi tài khoản Nợ đầu tiên thuộc nhóm swappable → tài khoản theo mục đích
+  let swapped = false;
+  const newLines = item.proposal.lines.map((l) => {
+    if (swapped) return l;
+    if ((l.debit ?? 0) <= 0) return l;
+    if (!PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS.has(l.account)) return l;
+    if (l.account === target.account) { swapped = true; return l; }
+    swapped = true;
+    return { ...l, account: target.account };
+  });
+
+  const newProducts = item.missing?.products?.map((p) => ({
+    ...p,
+    item_type: target.item_type,
+    account: target.account,
+  }));
+
+  return {
+    ...item,
+    purchase_purpose: purpose,
+    proposal: { ...item.proposal, lines: newLines },
+    missing: item.missing ? { ...item.missing, products: newProducts } : item.missing,
+  };
 }
 
 function OriginalInvoiceCollapsible({
