@@ -730,7 +730,7 @@ async function materializePurchaseVoucherFromDocument(
       vat_amount: vat,
       total,
       paid_amount: 0,
-      debit_account: purposeOverride?.account ?? "156",
+      debit_account: effectiveAccount,
       credit_account: "331",
       vat_account: vat > 0 ? "1331" : null,
       payment_method: "credit",
