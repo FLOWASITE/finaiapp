@@ -245,6 +245,15 @@ function InboxAiPage() {
   );
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [autoPostSheetOpen, setAutoPostSheetOpen] = useState(false);
+
+  const autoPostFn = useServerFn(getAutoPostSettings);
+  const { data: autoPostSettings } = useQuery({
+    queryKey: ["auto-post-settings"],
+    queryFn: () => autoPostFn(),
+    staleTime: 60_000,
+  });
+
   
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLLIElement>>(new Map());
