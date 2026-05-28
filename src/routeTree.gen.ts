@@ -177,6 +177,7 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAdminDataResetRouteImport } from './routes/_app/admin/data/reset'
 import { Route as AppAdminDataImportRouteImport } from './routes/_app/admin/data/import'
 import { Route as AppAdminDataHistoryRouteImport } from './routes/_app/admin/data/history'
 import { Route as AppAdminDataExportRouteImport } from './routes/_app/admin/data/export'
@@ -1045,6 +1046,11 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminDataResetRoute = AppAdminDataResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
 const AppAdminDataImportRoute = AppAdminDataImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -1218,6 +1224,7 @@ export interface FileRoutesByFullPath {
   '/admin/data/export': typeof AppAdminDataExportRoute
   '/admin/data/history': typeof AppAdminDataHistoryRoute
   '/admin/data/import': typeof AppAdminDataImportRoute
+  '/admin/data/reset': typeof AppAdminDataResetRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1387,6 +1394,7 @@ export interface FileRoutesByTo {
   '/admin/data/export': typeof AppAdminDataExportRoute
   '/admin/data/history': typeof AppAdminDataHistoryRoute
   '/admin/data/import': typeof AppAdminDataImportRoute
+  '/admin/data/reset': typeof AppAdminDataResetRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1565,6 +1573,7 @@ export interface FileRoutesById {
   '/_app/admin/data/export': typeof AppAdminDataExportRoute
   '/_app/admin/data/history': typeof AppAdminDataHistoryRoute
   '/_app/admin/data/import': typeof AppAdminDataImportRoute
+  '/_app/admin/data/reset': typeof AppAdminDataResetRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1743,6 +1752,7 @@ export interface FileRouteTypes {
     | '/admin/data/export'
     | '/admin/data/history'
     | '/admin/data/import'
+    | '/admin/data/reset'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1912,6 +1922,7 @@ export interface FileRouteTypes {
     | '/admin/data/export'
     | '/admin/data/history'
     | '/admin/data/import'
+    | '/admin/data/reset'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -2089,6 +2100,7 @@ export interface FileRouteTypes {
     | '/_app/admin/data/export'
     | '/_app/admin/data/history'
     | '/_app/admin/data/import'
+    | '/_app/admin/data/reset'
     | '/_app/assets/$id/card'
     | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
@@ -3327,6 +3339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/data/reset': {
+      id: '/_app/admin/data/reset'
+      path: '/reset'
+      fullPath: '/admin/data/reset'
+      preLoaderRoute: typeof AppAdminDataResetRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
     '/_app/admin/data/import': {
       id: '/_app/admin/data/import'
       path: '/import'
@@ -3416,6 +3435,7 @@ interface AppAdminDataRouteChildren {
   AppAdminDataExportRoute: typeof AppAdminDataExportRoute
   AppAdminDataHistoryRoute: typeof AppAdminDataHistoryRoute
   AppAdminDataImportRoute: typeof AppAdminDataImportRoute
+  AppAdminDataResetRoute: typeof AppAdminDataResetRoute
 }
 
 const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
@@ -3423,6 +3443,7 @@ const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
   AppAdminDataExportRoute: AppAdminDataExportRoute,
   AppAdminDataHistoryRoute: AppAdminDataHistoryRoute,
   AppAdminDataImportRoute: AppAdminDataImportRoute,
+  AppAdminDataResetRoute: AppAdminDataResetRoute,
 }
 
 const AppAdminDataRouteWithChildren = AppAdminDataRoute._addFileChildren(

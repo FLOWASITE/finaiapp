@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState, redirect } from "@tanstack/react-router";
-import { Database, Download, Upload, ArrowRightLeft, History } from "lucide-react";
+import { Database, Download, Upload, ArrowRightLeft, History, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/data")({
   beforeLoad: ({ location }) => {
@@ -12,8 +12,10 @@ const SUBTABS = [
   { to: "/admin/data/export", label: "Xuất dữ liệu (Fin)", icon: Download },
   { to: "/admin/data/import", label: "Nhập dữ liệu (Fin)", icon: Upload },
   { to: "/admin/data/carry-forward", label: "Kết chuyển số dư", icon: ArrowRightLeft },
+  { to: "/admin/data/reset", label: "Reset dữ liệu", icon: Trash2 },
   { to: "/admin/data/history", label: "Lịch sử", icon: History },
 ];
+
 
 function DataLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
