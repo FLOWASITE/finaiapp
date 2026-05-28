@@ -1,110 +1,114 @@
-# Fix routing Loại B — chặn dịch vụ rõ bản chất + siết floating
 
-## Mục tiêu
+# Xử lý tên mặt hàng dài trên hóa đơn
 
-Hoá đơn vận chuyển/điện/nước/internet/thuê/bảo hiểm KHÔNG bị đẩy vào luồng "chọn mục đích chi" (Loại B). Floating keyword "nước" không còn match bừa.
+## Vấn đề
 
-## 1. `src/lib/items/route-line.ts` (mới)
+Hóa đơn ghi: `Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69`
 
-Module shared client+server:
+Phần thực sự là **mặt hàng/dịch vụ** chỉ là `Cước vận chuyển`. Phần còn lại là **metadata chuyến** (ngày, tuyến, biển số) — không nên đi vào tên SP, nhưng PHẢI giữ lại để:
+- Đối soát chuyến/lệnh điều xe
+- Giải trình thuế khi cần
+- Tìm kiếm lại sau này
 
-- `CLEAR_SERVICE_PATTERNS: string[]` — các phrase đã normalize (NFD→strip→đ→d→lower):
-  - vận chuyển, vận tải, cước vận chuyển, cước, logistics, giao hàng, ship
-  - tiền điện, hoá đơn điện, điện năng
-  - tiền nước sạch, nước sạch, hoá đơn nước
-  - internet, cáp quang, viễn thông, đường truyền
-  - thuê mặt bằng, thuê nhà, thuê văn phòng, thuê kho, thuê xe
-  - phí ngân hàng, lãi vay
-  - grab, taxi, be, gojek
-  - bảo hiểm
-  - lệ phí, phí nhà nước
-- `containsPhrase(haystackNorm, phraseNorm): boolean` — dùng RegExp `\b...\b` trên chuỗi đã `normalizeName`. Phrase cũng `normalizeName` để đồng bộ. Escape regex.
-- `classifyRoute({ description, itemNames }): { route: "typeA" | "unknown"; reason?: string; matched?: string }`:
-  - Concat `description + " " + itemNames.join(" ")` → `normalizeName`.
-  - Loop `CLEAR_SERVICE_PATTERNS`: hit đầu tiên → `{ route: "typeA", matched, reason: "Dịch vụ rõ bản chất: ${matched}" }`.
-  - Không match → `{ route: "unknown" }`.
+Nếu để nguyên cả chuỗi làm `raw_name`:
+- Fuzzy match với product catalog hỏng (mỗi hóa đơn 1 tên khác → không bao giờ cache rule được)
+- `classifyRoute` vẫn chạy được (đã có "vận chuyển" trong CLEAR_SERVICE_PATTERNS) nhưng resolve mặt hàng thì không tái sử dụng
+- UI hiển thị dài, rối
 
-## 2. `src/lib/inbox-ai.functions.ts` — sửa `suggestPurchasePurpose`
+## Hướng giải quyết
 
-Tại đầu hàm (sau khi gom description + itemNames):
+Tách **canonical_name** (tên ngắn, ổn định) ra khỏi **line_note** (metadata chuyến/lô/serial), giữ `raw_name` gốc để audit.
 
+```text
+raw_name        : "Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69"
+canonical_name  : "Cước vận chuyển"                    ← dùng để match catalog + cache rule
+line_note       : "28/01/2026 · HCM-HN · Xe 50H-897.69" ← lưu kèm dòng phiếu, không match
+```
+
+### 1. Trích xuất tự động (server-side, ở `resolveInvoiceLines` / extract)
+
+Thêm `splitItemName(rawName)` chạy trước fuzzy match. Quy tắc tách theo thứ tự ưu tiên (regex trên `rawName`, không phá NFD):
+
+| Pattern | Ví dụ tách ra note |
+|---|---|
+| Ngày: `\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?` | `28/01/2026` |
+| Khoảng ngày: `... đến ...`, `từ ... đến ...` | `từ 01/01 đến 31/01` |
+| Biển số xe VN: `\d{2}[A-Z]{1,2}-?\d{3}\.?\d{2}` | `50H-897.69`, `72B-001.79` |
+| Số HĐ/lệnh: `số\s*[:#]?\s*\w+`, `LĐX\w+`, `BL\w+` | `Số 123` |
+| Tuyến: cụm 2 địa danh nối bằng `-`, `→`, `đến` (HCM, HN, ĐN…) | `HCM-HN` |
+| Tháng/kỳ: `tháng\s*\d+(/\d{2,4})?`, `kỳ \d+` | `tháng 01/2026` |
+| Serial/IMEI/SN: `S/?N[:\s]\w+`, `IMEI[:\s]\d+` | `SN ABC123` |
+| Cụm trong ngoặc `(...)`, `[...]` cuối chuỗi | nội dung trong ngoặc |
+
+Output:
 ```ts
-const routed = classifyRoute({ description, itemNames });
-if (routed.route === "typeA") {
-  return { candidates: [], route: "typeA", reason: routed.reason };
-}
+{ canonical_name: string, note_parts: string[], raw_name: string }
 ```
 
-Trong vòng match floating (đang dùng `FLOATING_KEYWORDS` / `floating_goods` từ catalog):
-- Thay substring `.includes()` bằng `containsPhrase(hayNorm, kwNorm)`.
-- Trước khi accept một floating match, gọi lại `classifyRoute` (đã làm trên đầu — chỉ check biến `routed`).
-- Whitelist riêng `bia`, `ruou`: vẫn cho match dù ≤3 ký tự.
-- Bỏ keyword nào sau normalize có length < 2.
+`canonical_name` = `rawName` sau khi xoá các match, normalize whitespace, trim các từ nối thừa (`ngày`, `số`, `xe`, `tuyến`, `từ`, `đến`). Nếu kết quả ngắn < 3 ký tự hoặc rỗng → fallback giữ nguyên `rawName` (an toàn).
 
-Trả về thêm field `route` để client biết.
+`line_note` = `note_parts.join(' · ')`.
 
-## 3. Migration — làm sạch `typeb_purpose_catalog.floating_goods`
+### 2. Schema
 
-Một migration idempotent:
+Không thêm bảng. Thêm cột nullable trên dòng phiếu (`purchase_voucher_lines`):
+- `raw_name text` (đã có / giữ)
+- `line_note text null` — note tách tự động hoặc user gõ thêm
 
-```sql
-UPDATE public.typeb_purpose_catalog
-SET floating_goods = sub.cleaned
-FROM (
-  SELECT code,
-    (SELECT array_agg(DISTINCT x) FROM unnest(
-      array_remove(floating_goods, 'nước')
-      || ARRAY['nước suối','nước uống','nước đóng chai','nước khoáng']
-    ) AS x WHERE length(x) >= 2) AS cleaned
-  FROM public.typeb_purpose_catalog
-  WHERE 'nước' = ANY(floating_goods)
-) sub
-WHERE typeb_purpose_catalog.code = sub.code;
+Không lưu `canonical_name` riêng — nó chỉ là input cho matcher. Sau khi match xong, dòng phiếu trỏ về `product_id` (nguồn chân lý cho tên ngắn).
+
+Trường hợp **tạo SP mới** (Loại "new" trong `ItemResolutionPanel`): prefill `name` = `canonical_name` thay vì `raw_name`. Hiện `NewProductForm` đang prefill `props.rawName` → đổi thành `canonical_name`.
+
+### 3. UI (`item-resolution-panel.tsx`)
+
+Trong mỗi row, hiển thị 2 dòng:
+```text
+Cước vận chuyển                          ← font-medium (canonical_name)
+28/01/2026 · HCM-HN · Xe 50H-897.69      ← text-[10px] text-muted (line_note, có thể edit)
 ```
 
-(Cùng pattern có thể áp cho các token ≤2 ký tự nếu phát hiện — kiểm tra trước bằng `read_query`, không xoá mù.)
+- Nếu chuỗi không tách được gì → chỉ hiện 1 dòng như cũ.
+- Cho phép user click vào line_note để chỉnh tay (inline edit), lưu vào `purchase_voucher_lines.line_note`.
+- Trong popover "khớp mã": **chỉ** truyền `canonical_name` vào `resolveInvoiceLines` và `confirmItemMapping` (cache rule), để lần sau cùng NCC + cùng "Cước vận chuyển" tự khớp bất kể chuyến nào.
 
-## 4. UI `src/components/inbox/inbox-item-sheet.tsx` — PurposePicker
+### 4. Tác động lên các hệ thống đang có
 
-- Nhận thêm `route` từ resolver output.
-- Khi `route === "typeA"` và user chưa chọn `purchase_purpose`:
-  - Ẩn block "Mục đích chi".
-  - Hiển thị link nhỏ: "Đây là chi phí có mục đích cụ thể? Chọn mục đích →" → click mở picker (state `forceShow`).
-- Bỏ auto-highlight option đầu tiên: dùng `<Command value="" onValueChange={() => {}}>` hoặc set `defaultValue` sang sentinel không tồn tại.
-- Trong `PurposeRow`: thêm tên ngắn TK qua `ACCOUNT_SHORT_NAME` map cục bộ:
-  ```ts
-  const ACCOUNT_SHORT_NAME: Record<string,string> = {
-    "6422": "CP QLDN", "6421": "CP NV QLDN", "6428": "CP bằng tiền khác",
-    "642": "CP QLDN", "641": "CP bán hàng", "811": "CP khác",
-    "153": "CCDC", "152": "NVL", "156": "Hàng hoá", "242": "CP trả trước",
-    "211": "TSCĐ HH", "213": "TSCĐ VH", "627": "CP SXC",
-  };
-  ```
-  Render: `TK 6422 · CP QLDN`.
-- Footer popover: nút text "❌ Không phải chi phí mục đích — đây là dịch vụ/hàng hoá" → `onChange(undefined)`, đóng popover, `setForceShow(false)`.
+- **`classifyRoute` (route-line.ts):** đã `normalizeName` toàn chuỗi, vẫn match "vận chuyển" bình thường. **Không cần đổi.**
+- **`suggestPurchasePurpose`:** không đổi — vẫn nhận `description + itemNames` đầy đủ, vì purpose-picker cần ngữ cảnh rộng.
+- **Cache rule `supplier_item_mappings`:** key là `(supplier_id, raw_name)`. Đổi thành lưu theo `canonical_name` để rule tái sử dụng được. **Đây là thay đổi hành vi** — rule cũ vẫn match được nhờ `raw_name` còn nguyên trong DB; rule mới ghi `canonical_name` (cùng cột `raw_name` của bảng mappings nhưng giá trị đã tách).
+- **`ItemResolutionPanel.payloadLines`:** thêm bước `splitItemName` trước khi build payload; truyền cả `canonical_name` + `line_note` xuống server.
 
-## 5. Test fixtures — `src/lib/items/__tests__/route-line.test.ts`
+### 5. Test fixtures cần thêm (`__tests__/split-item-name.test.ts`)
 
-Regression guard với vitest:
+```text
+"Cước vận chuyển ngày 28/01/2026 HCM-HN Xe 50H-897.69"
+  → canonical: "Cước vận chuyển", note: "28/01/2026 · HCM-HN · Xe 50H-897.69"
 
-- `normalizeName('Tiền Nước Sạch')` → `'tien nuoc sach'`
-- `containsPhrase('tien nuoc sach thang 5','nuoc sach')` → true
-- `containsPhrase('mua nuoc ngot','nuoc sach')` → false
-- `classifyRoute({ description: 'Vận chuyển hàng từ VP đến Bình Giã', itemNames: ['Thực phẩm rau củ'] })` → `typeA`
-- Cases → `typeA`: tiền điện T5, nước sạch sinh hoạt, internet VNPT, cước Grab, thuê văn phòng, bảo hiểm xe, lãi vay, phí chuyển khoản, logistics đầu vào.
-- Cases → `unknown`: bánh kem sinh nhật, quà tặng khách hàng, máy in HP, bia Heineken (để Loại B xử lý ở bước sau).
+"Tiền điện kỳ tháng 01/2026"
+  → canonical: "Tiền điện", note: "kỳ tháng 01/2026"
 
-## Out of scope
+"Bia Tiger lon 330ml (thùng 24)"          ← KHÔNG tách "(thùng 24)" vì là quy cách SP
+  → canonical: "Bia Tiger lon 330ml (thùng 24)", note: ""
 
-- Không refactor scoring Loại B.
-- Không thêm "Cước vận chuyển/Logistics" vào Loại A catalog.
-- Không sửa logic kế toán của Fin (Image 1 đang đúng).
-- Không đụng `MissingMasterDataPanel`, schema DB ngoài cột `floating_goods`.
+"Dịch vụ tư vấn"                           ← ngắn, không có metadata
+  → canonical: "Dịch vụ tư vấn", note: ""
 
-## Thứ tự thực hiện
+"Vận chuyển HN-HCM xe 29C-12345 ngày 15/3"
+  → canonical: "Vận chuyển", note: "HN-HCM · 29C-12345 · 15/3"
+```
 
-1. Tạo `route-line.ts` + test fixtures, chạy vitest đỏ trước.
-2. Cắm `classifyRoute` vào `suggestPurchasePurpose`, đổi floating match sang `containsPhrase`. Test xanh.
-3. Migration làm sạch `floating_goods` (kèm `read_query` xác nhận trước).
-4. UI: hide block khi `typeA`, bỏ auto-highlight, thêm TK short name, thêm escape hatch.
-5. QA hoá đơn vận chuyển trong Image 1 → không còn hỏi mục đích chi.
+Edge case: cụm `(thùng 24)`, `(hộp 12)`, `(set 5)` là **quy cách**, KHÔNG phải metadata chuyến → whitelist không tách ngoặc khi nội dung match `(thùng|hộp|set|combo|pack|gói|chai|lon)\s*\d+`.
+
+## Phạm vi triển khai
+
+**Trong scope:**
+1. `src/lib/items/split-item-name.ts` (mới) — `splitItemName(raw)` + test fixtures
+2. `src/lib/items/mappings.functions.ts` — `resolveInvoiceLines` chạy `splitItemName` trên từng line, dùng `canonical_name` để fuzzy match, trả thêm `canonical_name` + `line_note` về client
+3. `src/components/inbox/item-resolution-panel.tsx` — hiển thị 2 dòng, prefill `NewProductForm.name` bằng `canonical_name`
+4. Migration: thêm cột `line_note text null` vào `purchase_voucher_lines` (+ GRANT)
+5. Khi tạo voucher từ inbox → lưu `line_note` vào DB
+
+**Ngoài scope (đề xuất sau):**
+- Cho user kéo-thả token giữa canonical và note
+- Học từ chỉnh tay của user → cải thiện regex
+- Áp dụng tương tự cho hóa đơn bán ra

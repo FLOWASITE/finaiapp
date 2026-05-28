@@ -23,6 +23,7 @@ import {
 } from "@/lib/items/mappings.functions";
 import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
 import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
+import { splitItemName } from "@/lib/items/split-item-name";
 
 type Props = {
   items?: ProposalItem[];
@@ -80,15 +81,21 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const [llmPrefill, setLlmPrefill] = useState<Record<number, NewProductPrefill>>({});
   const [llmLoadingIdx, setLlmLoadingIdx] = useState<number | null>(null);
 
+  // Tách tên dài: dùng canonical_name để fuzzy match + cache rule; line_note hiển thị riêng.
+  const splits = useMemo(
+    () => (items ?? []).map((it) => splitItemName(it.name)),
+    [items],
+  );
+
   const payloadLines = useMemo(
     () =>
-      (items ?? []).map((it) => ({
-        raw_name: it.name,
+      (items ?? []).map((it, idx) => ({
+        raw_name: splits[idx]?.canonical_name || it.name,
         raw_unit: it.unit ?? null,
         qty: it.qty ?? null,
         price: it.unit_price ?? null,
       })),
-    [items],
+    [items, splits],
   );
 
   const queryKey = [
@@ -194,11 +201,12 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
 
   const askFin = async (idx: number, it: ProposalItem) => {
     if (llmLoadingIdx != null) return;
+    const canonical = splits[idx]?.canonical_name || it.name;
     setLlmLoadingIdx(idx);
     try {
       const out = await suggestFn({
         data: {
-          raw_name: it.name,
+          raw_name: canonical,
           raw_unit: it.unit ?? null,
           unit_price: it.unit_price ?? null,
           supplier_name: supplierName ?? null,
@@ -207,7 +215,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
       if (out.kind === "match" && q.data?.supplier_id) {
         toast.success(`Fin gợi ý: ${out.product?.code} — ${out.product?.name}`);
         confirmMut.mutate({
-          raw_name: it.name,
+          raw_name: canonical,
           raw_unit: it.unit ?? null,
           product_id: out.product_id,
           unit_conversion_factor: 1,
@@ -262,6 +270,9 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
           const best = res?.best;
           const status = res?.status ?? (q.isLoading ? "loading" : "new");
           const isCreating = creatingIdx === idx;
+          const split = splits[idx];
+          const canonical = split?.canonical_name || it.name;
+          const lineNote = split?.line_note || "";
 
           return (
             <div
@@ -272,7 +283,16 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                 {idx + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-foreground">{it.name}</div>
+                <div className="truncate font-medium text-foreground">{canonical}</div>
+                {lineNote && (
+                  <div
+                    className="truncate text-[10px] text-muted-foreground"
+                    title={`Ghi chú dòng (lưu kèm phiếu): ${lineNote}`}
+                  >
+                    <span className="mr-1 opacity-60">›</span>
+                    {lineNote}
+                  </div>
+                )}
 
                 {status === "auto" && best && (
                   <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
@@ -315,7 +335,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                           onClick={() =>
                             promoteMut.mutate({
                               catalog_id: c.fromLibrary!.catalog_id,
-                              raw_name: it.name,
+                              raw_name: canonical,
                               raw_unit: it.unit ?? null,
                               unit_price: it.unit_price ?? null,
                             })
@@ -338,13 +358,13 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
 
                 {status === "review" && res && (
                   <ReviewCandidates
-                    rawName={it.name}
+                    rawName={canonical}
                     rawUnit={it.unit ?? null}
                     candidates={res.candidates}
                     isPending={confirmMut.isPending}
                     onConfirm={(c, factor) =>
                       confirmMut.mutate({
-                        raw_name: it.name,
+                        raw_name: canonical,
                         raw_unit: it.unit ?? null,
                         product_id: c.product_id,
                         unit_conversion_factor: factor,
@@ -387,7 +407,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                 {isCreating && (
                   <NewProductForm
                     key={`new-${idx}-${llmPrefill[idx]?.code ?? "blank"}`}
-                    rawName={it.name}
+                    rawName={canonical}
                     rawUnit={it.unit ?? null}
                     unitPrice={it.unit_price ?? 0}
                     prefill={llmPrefill[idx]}
@@ -401,7 +421,7 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
                     }}
                     onSubmit={(v) =>
                       createMut.mutate({
-                        raw_name: it.name,
+                        raw_name: canonical,
                         raw_unit: it.unit ?? null,
                         ...v,
                       })
