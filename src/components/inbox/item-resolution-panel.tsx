@@ -189,9 +189,18 @@ export function ItemResolutionPanel({ items, meta, tenantId, onLineAccountResolv
           unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (_res: any, vars) => {
       toast.success("Đã tạo mã mới & lưu rule");
       setCreatingIdx(null);
+      if (vars.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: vars.code,
+          product_name: vars.name,
+          stock_account: vars.stock_account,
+          item_type: vars.item_type,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không tạo được"),
