@@ -9697,6 +9697,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      bump_rule_metrics: {
+        Args: { _correct?: boolean; _rule_id: string }
+        Returns: undefined
+      }
       current_tenant_catalog_diff: {
         Args: { p_catalog: string }
         Returns: {
@@ -9881,6 +9885,10 @@ export type Database = {
       }
       rebuild_monthly_summary: {
         Args: { p_tenant?: string }
+        Returns: undefined
+      }
+      record_rule_outcome: {
+        Args: { _application_id: string; _correct: boolean }
         Returns: undefined
       }
       refresh_report_mvs: { Args: { p_tenant?: string }; Returns: undefined }
