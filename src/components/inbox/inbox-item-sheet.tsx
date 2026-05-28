@@ -13,6 +13,10 @@ import {
   Check,
   FileText,
   Archive,
+  Info,
+  Package,
+  Store,
+  HelpCircle,
 } from "lucide-react";
 import type { InboxItem, ProposalItem, VoucherKind, VoucherMeta, PostedVoucherRef, MissingMasterData } from "@/lib/ai/inbox-types";
 import {
@@ -313,7 +317,7 @@ export function InboxItemDetail({
       </div>
 
       {/* Body */}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
         {/* Summary */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -345,56 +349,17 @@ export function InboxItemDetail({
         {/* Invoice viewer / Open match */}
         <InvoiceActionRow item={item} />
 
-        {/* Cảnh báo cần tạo mới đối tác / hàng hóa */}
-        <MissingMasterDataPanel
+        {/* ① Tin cậy — vì sao */}
+        <ConfidenceBreakdown
+          confidence={confidence}
+          tone={confTone}
+          classes={confClasses}
+          signals={item.reasoning.signals}
           missing={item.missing}
-          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
         />
 
-        {/* Đối soát hóa đơn ↔ bút toán */}
-        <ReconciliationPanel item={item} />
-
-        {/* Voucher meta grid */}
-        <VoucherMetaGrid meta={item.proposal.meta} />
-
-        {/* Items (goods / services) */}
-        <ProposalItemsList items={item.proposal.items} />
-
-        {/* Khớp mặt hàng với mã hệ thống */}
-        <ItemResolutionPanelWrapper
-          items={item.proposal.items}
-          meta={item.proposal.meta}
-        />
-
-        {/* Trust strip */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-muted/60 p-1">
-          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 shadow-sm">
-            <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />
-            <span className="text-xs font-medium text-foreground/80">OCR đã đọc đầy đủ</span>
-          </div>
-          {item.followups[0] && (
-            <button
-              type="button"
-              className="group flex flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-300"
-            >
-              <span className="flex items-center gap-1.5 truncate">
-                <Lightbulb className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{item.followups[0]}</span>
-              </span>
-              <ChevronRight className="h-3 w-3 shrink-0 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Reasoning */}
-        {item.reasoning.summary && (
-          <p className="text-sm leading-relaxed text-foreground/85">
-            {item.reasoning.summary}
-          </p>
-        )}
-
-        {/* Accounting entries */}
-        <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+        {/* ② Bút toán đề xuất — câu trả lời chính (Vấn đề 1) */}
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/30 p-4">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Bút toán đề xuất
           </span>
@@ -434,25 +399,42 @@ export function InboxItemDetail({
               );
             })}
           </div>
+          <VatExplain meta={item.proposal.meta} items={item.proposal.items} />
         </div>
 
-        {/* Signals */}
-        {item.reasoning.signals.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {item.reasoning.signals.map((s, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
-                  s.ok
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                    : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-                )}
-              >
-                {s.ok ? "✓" : "⚠"} {s.label}
-              </span>
-            ))}
-          </div>
+        {/* ③ Mục đích mua hàng (Vấn đề 3) */}
+        <PurposePicker
+          voucherKind={item.proposal.voucher_kind}
+          lines={item.proposal.lines}
+          onEdit={() => onEdit(item)}
+        />
+
+        {/* ④ Khi duyệt, Fin sẽ tự tạo (Vấn đề 5) */}
+        <MissingMasterDataPanel
+          missing={item.missing}
+          sourceDocumentId={item.source === "document" ? item.external_id : undefined}
+        />
+
+        {/* Đối soát hóa đơn ↔ bút toán */}
+        <ReconciliationPanel item={item} />
+
+        {/* Khớp mặt hàng với mã hệ thống */}
+        <ItemResolutionPanelWrapper
+          items={item.proposal.items}
+          meta={item.proposal.meta}
+        />
+
+        {/* ⑤ Đối chiếu hóa đơn gốc — collapsed (Vấn đề 6) */}
+        <OriginalInvoiceCollapsible
+          meta={item.proposal.meta}
+          items={item.proposal.items}
+        />
+
+        {/* Reasoning */}
+        {item.reasoning.summary && (
+          <p className="text-sm leading-relaxed text-foreground/85">
+            {item.reasoning.summary}
+          </p>
         )}
 
         {/* Blocker */}
@@ -474,8 +456,16 @@ export function InboxItemDetail({
         <InboxChatHistory item={item} />
       </div>
 
+
       {/* Footer */}
-      <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-background/80 px-5 py-4 backdrop-blur-sm">
+      <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-background/80 px-5 py-3 backdrop-blur-sm">
+        {item.processing_status !== "posted" && (
+          <ApprovalChecklist
+            signals={item.reasoning.signals}
+            followups={item.followups}
+            missing={item.missing}
+          />
+        )}
         <div className="flex gap-2">
           {item.processing_status === "posted" ? (
             <>
@@ -519,14 +509,24 @@ export function InboxItemDetail({
                 type="button"
                 onClick={() => onApprove(item)}
                 disabled={approving || !!item.blocker}
-                className="flex flex-[3] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
+                className="flex flex-[3] flex-col items-center justify-center gap-0.5 rounded-2xl bg-gradient-to-r from-primary to-primary/85 px-4 py-3 text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
               >
-                {approving ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-5 w-5 opacity-90" />
-                )}
-                {approving ? "Đang ghi sổ…" : "Duyệt & ghi sổ"}
+                <span className="flex items-center gap-2 text-sm font-bold">
+                  {approving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 opacity-90" />
+                  )}
+                  {approving ? "Đang ghi sổ…" : "Duyệt & ghi sổ"}
+                </span>
+                {!approving && (() => {
+                  const sideEffect = describeMissingSideEffect(item.missing);
+                  return sideEffect ? (
+                    <span className="text-[10px] font-medium leading-none opacity-90">
+                      {sideEffect}
+                    </span>
+                  ) : null;
+                })()}
               </button>
               <button
                 type="button"
@@ -561,6 +561,257 @@ export function InboxItemDetail({
     </>
   );
 }
+
+// ============= Helpers cho redesign panel "Đề xuất của Fin" =============
+
+function describeMissingSideEffect(missing?: MissingMasterData): string | null {
+  if (!missing) return null;
+  const parts: string[] = [];
+  if (missing.supplier) parts.push("NCC");
+  if (missing.customer) parts.push("KH");
+  const n = missing.products?.length ?? 0;
+  if (n > 0) parts.push(`${n} mặt hàng`);
+  if (parts.length === 0) return null;
+  return `tự tạo ${parts.join(" + ")}`;
+}
+
+type ConfTone = "emerald" | "amber" | "rose";
+type ConfClasses = { text: string; bar: string; chip: string };
+
+function ConfidenceBreakdown({
+  confidence,
+  tone,
+  classes,
+  signals,
+  missing,
+}: {
+  confidence: number;
+  tone: ConfTone;
+  classes: ConfClasses;
+  signals: { kind: string; label: string; ok: boolean }[];
+  missing?: MissingMasterData;
+}) {
+  const headline =
+    tone === "emerald" ? "rất đáng tin" : tone === "amber" ? "cần anh xác nhận" : "cần kiểm tra kỹ";
+
+  const synth: { kind: "warn"; label: string; ok: boolean }[] = [];
+  const lower = signals.map((s) => s.label.toLowerCase());
+  if (missing?.supplier && !lower.some((l) => l.includes("ncc") || l.includes("nhà cung cấp"))) {
+    synth.push({ kind: "warn", label: "NCC mới — chưa có trong hệ thống", ok: false });
+  }
+  if ((missing?.products?.length ?? 0) > 0 && !lower.some((l) => l.includes("mặt hàng mới"))) {
+    synth.push({
+      kind: "warn",
+      label: `${missing!.products!.length} mặt hàng mới — Fin sẽ tạo`,
+      ok: false,
+    });
+  }
+  const all = [...signals, ...synth];
+  if (all.length === 0) return null;
+
+  const containerTone = {
+    emerald: "border-emerald-500/30 bg-emerald-500/5",
+    amber: "border-amber-500/30 bg-amber-500/5",
+    rose: "border-rose-500/30 bg-rose-500/5",
+  }[tone];
+  const warnCount = all.filter((s) => !s.ok).length;
+
+  return (
+    <div className={cn("space-y-2 rounded-2xl border p-3", containerTone)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn("text-sm font-semibold", classes.text)}>
+          Tin cậy {confidence}% — {headline}
+        </span>
+        {warnCount > 0 && (
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {warnCount} điểm cần xem
+          </span>
+        )}
+      </div>
+      <ul className="space-y-1">
+        {all.map((s, i) => (
+          <li key={`${s.kind}-${i}`} className="flex items-start gap-1.5 text-[12px] leading-snug text-foreground/85">
+            <span className="mt-0.5 shrink-0">
+              {s.ok ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+              )}
+            </span>
+            <span className="min-w-0">{s.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function VatExplain({ meta, items }: { meta?: VoucherMeta; items?: ProposalItem[] }) {
+  if (!meta) return null;
+  const subtotal = Number(meta.subtotal ?? 0);
+  const vat = Number(meta.vat_amount ?? 0);
+  if (!(subtotal > 0 && vat === 0)) return null;
+
+  const names = (items ?? []).map((i) => (i.name ?? "").toLowerCase()).join(" ");
+  const isFarm = /(hoa|rau|củ|cu |quả|qua |trái|trai |nông sản|nong san|gạo|gao |thịt|thit |cá |ca |gà |ga |heo|tôm|tom )/.test(
+    " " + names + " ",
+  );
+  const text = isFarm
+    ? "Nông sản chưa chế biến — không chịu VAT (Điều 5 Luật thuế GTGT)"
+    : "Hoá đơn không có VAT đầu vào để khấu trừ";
+
+  return (
+    <div className="mt-1 flex items-start gap-1.5 rounded-md bg-background/60 px-2 py-1.5 text-[11px] text-muted-foreground">
+      <Info className="mt-0.5 h-3 w-3 shrink-0 text-blue-500" />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+const PURPOSE_GUESS_ACCOUNTS = new Set(["156", "152", "153", "642", "211", "213", "242"]);
+const PURPOSE_OPTIONS: { account: string; label: string; hint: string }[] = [
+  { account: "156", label: "Hàng hoá bán lại", hint: "→ TK 156" },
+  { account: "152", label: "Nguyên liệu sản xuất", hint: "→ TK 152" },
+  { account: "642", label: "Chi phí sự kiện / trang trí", hint: "→ TK 642" },
+];
+
+function PurposePicker({
+  voucherKind,
+  lines,
+  onEdit,
+}: {
+  voucherKind?: VoucherKind;
+  lines: { account: string; debit?: number; credit?: number }[];
+  onEdit: () => void;
+}) {
+  if (voucherKind !== "purchase_invoice") return null;
+  const debitAccts = lines.filter((l) => (l.debit ?? 0) > 0).map((l) => l.account);
+  const guessed = debitAccts.find((a) => PURPOSE_GUESS_ACCOUNTS.has(a));
+  if (!guessed) return null;
+  if (!["156", "152", "642"].includes(guessed)) return null;
+
+  return (
+    <div className="space-y-2 rounded-2xl border border-blue-500/30 bg-blue-500/5 p-3">
+      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-foreground/90">
+        <HelpCircle className="h-3.5 w-3.5 text-blue-500" />
+        Mục đích mua hàng này?
+      </div>
+      <ul className="space-y-1.5">
+        {PURPOSE_OPTIONS.map((o) => {
+          const isGuess = o.account === guessed;
+          return (
+            <li key={o.account}>
+              <button
+                type="button"
+                onClick={isGuess ? undefined : onEdit}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors",
+                  isGuess
+                    ? "border-blue-500/40 bg-background/80 font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-background/60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border",
+                    isGuess ? "border-blue-500 bg-blue-500" : "border-muted-foreground/40",
+                  )}
+                >
+                  {isGuess && <span className="h-1.5 w-1.5 rounded-full bg-background" />}
+                </span>
+                <span className="flex-1 truncate">
+                  {o.label}{" "}
+                  <span className="font-mono text-[11px] text-muted-foreground">{o.hint}</span>
+                </span>
+                {isGuess && (
+                  <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                    Fin đoán
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[10px] text-muted-foreground">
+        Bấm phương án khác để mở trình sửa bút toán.
+      </p>
+    </div>
+  );
+}
+
+function OriginalInvoiceCollapsible({
+  meta,
+  items,
+}: {
+  meta?: VoucherMeta;
+  items?: ProposalItem[];
+}) {
+  const itemCount = items?.length ?? 0;
+  const totalRaw = meta ? Number(meta.total ?? 0) : 0;
+  if (!meta && itemCount === 0) return null;
+  const totalLabel = totalRaw > 0 ? ` · ${VND(totalRaw)} đ` : "";
+
+  return (
+    <details className="group rounded-xl border border-border/60 bg-background">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
+        <span className="flex items-center gap-1.5">
+          <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+          Đối chiếu hoá đơn gốc
+          {itemCount > 0 && (
+            <span className="font-medium normal-case tracking-normal text-muted-foreground/80">
+              ({itemCount} dòng{totalLabel})
+            </span>
+          )}
+        </span>
+      </summary>
+      <div className="space-y-3 border-t border-border/60 p-3">
+        <VoucherMetaGrid meta={meta} />
+        <ProposalItemsList items={items} />
+      </div>
+    </details>
+  );
+}
+
+function ApprovalChecklist({
+  signals,
+  followups,
+  missing,
+}: {
+  signals: { kind: string; label: string; ok: boolean }[];
+  followups: string[];
+  missing?: MissingMasterData;
+}) {
+  const chips: { ok: boolean; text: string }[] = [];
+  chips.push({ ok: true, text: "OCR đầy đủ" });
+  const warns = signals.filter((s) => !s.ok).slice(0, 2);
+  const goods = signals.filter((s) => s.ok).slice(0, 1);
+  for (const s of goods) chips.push({ ok: true, text: s.label });
+  for (const s of warns) chips.push({ ok: false, text: s.label });
+  if (missing?.supplier) chips.push({ ok: false, text: "NCC mới" });
+  if ((missing?.products?.length ?? 0) > 0)
+    chips.push({ ok: false, text: `${missing!.products!.length} mặt hàng mới` });
+  if (followups[0]) chips.push({ ok: false, text: followups[0] });
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {chips.map((c, i) => (
+        <span
+          key={i}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium",
+            c.ok
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+          )}
+        >
+          {c.ok ? "✓" : "⚠"} {c.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 
 function InboxChatHistory({ item }: { item: InboxItem }) {
   const navigate = useNavigate();
