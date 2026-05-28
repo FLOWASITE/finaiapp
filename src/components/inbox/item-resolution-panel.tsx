@@ -146,8 +146,18 @@ export function ItemResolutionPanel({ items, meta, tenantId, onLineAccountResolv
           unit_conversion_factor: vars.unit_conversion_factor,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res: any, vars) => {
       toast.success("Đã lưu rule mặt hàng cho lần sau");
+      const p = res?.product;
+      if (p?.stock_account && onLineAccountResolved) {
+        onLineAccountResolved({
+          raw_name: vars.raw_name,
+          product_code: p.code,
+          product_name: p.name,
+          stock_account: p.stock_account,
+          item_type: p.item_type ?? null,
+        });
+      }
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Không lưu được"),
