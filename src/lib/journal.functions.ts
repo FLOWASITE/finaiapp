@@ -156,7 +156,7 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
     const { data: invLines } = await supabase
       .from("invoice_lines")
       .select(
-        "id, description, qty, unit, unit_price, amount, product_id, line_type, user_override_kind",
+        "id, description, qty, unit_price, amount, product_id, line_type, user_override_kind",
       )
       .eq("invoice_id", data.invoiceId);
 
