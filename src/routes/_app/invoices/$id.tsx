@@ -211,38 +211,74 @@ function InvoiceDetail() {
                         {Number(l.unit_price ?? 0).toLocaleString("vi-VN")} · Thành tiền{" "}
                         <strong>{Number(l.amount ?? 0).toLocaleString("vi-VN")}</strong>
                       </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${kindChipClass(
-                            (l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"],
-                          )}`}
-                        >
-                          {kindLabel((l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"])}
-                          <span className="opacity-70">· TK {l.resolved_account}</span>
-                        </span>
-                        {l.user_override_kind ? (
-                          <span className="inline-flex items-center rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
-                            ✎ KTV ghi đè
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-md border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground">
-                            Fin tự · {l.resolution_confidence}%
-                          </span>
-                        )}
-                        {l.user_override_kind && (
-                          <button
-                            type="button"
-                            className="text-[11px] text-primary underline-offset-2 hover:underline disabled:opacity-50"
-                            disabled={overrideMut.isPending}
-                            onClick={() => overrideMut.mutate({ line_id: l.id, kind: null })}
+                      {/* AI resolve info */}
+                      <div className="mt-2 rounded-md border border-border/60 bg-secondary/30 p-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Kind chip */}
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${kindChipClass(
+                              (l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"],
+                            )}`}
                           >
-                            Quay về Fin tự đoán
-                          </button>
+                            <Tag className="h-3 w-3" />
+                            {kindLabel((l.user_override_kind ?? l.resolved_kind) as ResolvedLine["resolved_kind"])}
+                          </span>
+
+                          {/* Account chip */}
+                          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-[11px] font-mono font-medium">
+                            TK {l.resolved_account}
+                          </span>
+
+                          {/* Source & confidence */}
+                          {l.user_override_kind ? (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                              <ShieldCheck className="h-3 w-3" />
+                              KTV ghi đè
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground">
+                              <BrainCircuit className="h-3 w-3" />
+                              {sourceLabel(l.resolution_source)} · {l.resolution_confidence}%
+                            </span>
+                          )}
+
+                          {/* Revert button */}
+                          {l.user_override_kind && (
+                            <button
+                              type="button"
+                              className="text-[11px] text-primary underline-offset-2 hover:underline disabled:opacity-50"
+                              disabled={overrideMut.isPending}
+                              onClick={() => overrideMut.mutate({ line_id: l.id, kind: null })}
+                            >
+                              Quay về Fin tự đoán
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Reason */}
+                        {!l.user_override_kind && l.resolution_reason && (
+                          <div className="mt-1.5 flex items-start gap-1 text-[11px] text-muted-foreground">
+                            <MessageSquareText className="mt-0.5 h-3 w-3 shrink-0 opacity-70" />
+                            <span>{l.resolution_reason}</span>
+                          </div>
+                        )}
+
+                        {/* Confidence bar */}
+                        {!l.user_override_kind && (
+                          <div className="mt-2">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span>Độ tin cậy AI</span>
+                              <span className={confidenceColor(l.resolution_confidence)}>{l.resolution_confidence}%</span>
+                            </div>
+                            <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                              <div
+                                className={`h-full rounded-full ${confidenceBarColor(l.resolution_confidence)}`}
+                                style={{ width: `${l.resolution_confidence}%` }}
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
-                      {!l.user_override_kind && l.resolution_reason && (
-                        <div className="mt-1 text-[11px] text-muted-foreground">{l.resolution_reason}</div>
-                      )}
                     </div>
                     <div className="shrink-0">
                       <div className="flex items-center gap-2">
