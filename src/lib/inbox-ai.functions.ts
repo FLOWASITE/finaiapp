@@ -2086,13 +2086,13 @@ export const reconcileInboxItem = createServerFn({ method: "POST" })
         .order("line_order", { ascending: true }),
       supabase
         .from("sales_vouchers")
-        .select("id, voucher_no, status, total_amount, vat_amount")
+        .select("id, voucher_no, status, total, vat_amount")
         .eq("tenant_id", tenantId)
         .eq("journal_entry_id", entryId)
         .maybeSingle(),
       supabase
         .from("purchase_vouchers")
-        .select("id, voucher_no, status, total_amount, vat_amount")
+        .select("id, voucher_no, status, total, vat_amount")
         .eq("tenant_id", tenantId)
         .eq("journal_entry_id", entryId)
         .maybeSingle(),
