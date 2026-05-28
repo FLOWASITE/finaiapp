@@ -289,14 +289,12 @@ export function InboxItemDetail({
 }: InboxItemDetailProps) {
   const navigate = useNavigate();
 
-  // Mục đích mua hàng — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
-  const initialPurpose = useMemo<PurchasePurpose | undefined>(
-    () => deriveInitialPurpose(item),
-    [item.id],
+  // Mục đích chi (Loại B) — 1 nguồn sự thật cho cả bút toán + mặt hàng sẽ tạo
+  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurposeSelection | undefined>(
+    () => item.purchase_purpose,
   );
-  const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurpose | undefined>(initialPurpose);
   useEffect(() => {
-    setPurchasePurpose(deriveInitialPurpose(item));
+    setPurchasePurpose(item.purchase_purpose);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
