@@ -58,7 +58,7 @@ function ItemResolutionPanelWrapper(props: { items?: ProposalItem[]; meta?: Vouc
     (tenantsQ.data?.tenants as any[] | undefined)?.find((t) => t.is_active)?.id ?? null;
   return <ItemResolutionPanel items={props.items} meta={props.meta} tenantId={activeTenantId} />;
 }
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const VND = (n: number) => (Math.round(n) || 0).toLocaleString("vi-VN");
