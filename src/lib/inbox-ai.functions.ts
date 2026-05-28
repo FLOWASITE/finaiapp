@@ -1013,7 +1013,7 @@ async function autoResolveMissingMaster(
     seen.add(nm.toLowerCase());
     if (existSet.has(nm.toLowerCase())) continue;
 
-    let item_type: "goods" | "service" | "material" = "goods";
+    let item_type: MissingItemTypeGuess = "goods";
     let stock_account = "156";
     let unit = li.unit?.toString().trim() || "cái";
     if (purposeOverride) {
