@@ -55,6 +55,49 @@ export const resolveInvoiceLines = createServerFn({ method: "POST" })
     return { supplier_id: supplierId, items: out };
   });
 
+type VoteEntry = {
+  product_id: string | null;
+  purpose_code: string | null;
+  at: string;
+  by: string | null;
+};
+
+const VOTE_LOG_MAX = 10;
+const CONFLICT_RECENT_DAYS = 30;
+
+/**
+ * Append vote, keep last VOTE_LOG_MAX, then compute recency-weighted winner.
+ * Trọng số: exp(-Δdays/30) — vote mới ảnh hưởng cao hơn vote cũ.
+ */
+function rollVoteLog(
+  prev: VoteEntry[] | null | undefined,
+  entry: VoteEntry,
+): { log: VoteEntry[]; winner: { product_id: string | null; purpose_code: string | null } | null } {
+  const arr = Array.isArray(prev) ? [...prev] : [];
+  arr.push(entry);
+  const log = arr.slice(-VOTE_LOG_MAX);
+  const now = Date.now();
+  const tally = new Map<string, { weight: number; product_id: string | null; purpose_code: string | null }>();
+  for (const v of log) {
+    const t = new Date(v.at).getTime();
+    const days = Math.max(0, (now - t) / 86400000);
+    const w = Math.exp(-days / 30);
+    const key = `${v.product_id ?? ""}|${v.purpose_code ?? ""}`;
+    const cur = tally.get(key);
+    if (cur) cur.weight += w;
+    else tally.set(key, { weight: w, product_id: v.product_id, purpose_code: v.purpose_code });
+  }
+  let winner: { product_id: string | null; purpose_code: string | null } | null = null;
+  let max = -1;
+  for (const v of tally.values()) {
+    if (v.weight > max) {
+      max = v.weight;
+      winner = { product_id: v.product_id, purpose_code: v.purpose_code };
+    }
+  }
+  return { log, winner };
+}
+
 export const confirmItemMapping = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i: unknown) =>
@@ -69,23 +112,48 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, tenantId, userId } = context;
     const raw_name_norm = normalizeName(data.raw_name);
+    const nowIso = new Date().toISOString();
 
-    // Try update first; if no row, insert.
     const { data: existing } = await supabase
       .from("supplier_item_mappings")
-      .select("id, match_count, confidence, product_id")
+      .select("id, match_count, confidence, product_id, vote_log, correction_count")
       .eq("tenant_id", tenantId)
       .eq("supplier_id", data.supplier_id)
       .eq("raw_name_norm", raw_name_norm)
       .maybeSingle();
 
     if (existing) {
-      const acceptAsIs = existing.product_id === data.product_id;
       const prevConf = Number(existing.confidence ?? 0.9);
-      const nextConfidence = acceptAsIs
-        ? Math.min(1, prevConf + 0.05) // củng cố niềm tin khi user đồng ý lựa chọn hiện tại
-        : 0.98;                         // user đổi sang product khác → reset niềm tin về mặc định cao
+      const acceptAsIs = existing.product_id === data.product_id;
+      const { log, winner } = rollVoteLog(
+        existing.vote_log as VoteEntry[] | null,
+        { product_id: data.product_id, purpose_code: null, at: nowIso, by: userId ?? null },
+      );
+
+      // Phát hiện mâu thuẫn trong cửa sổ gần đây
+      const recentCutoff = Date.now() - CONFLICT_RECENT_DAYS * 86400000;
+      const recentProducts = new Set(
+        log
+          .filter((v) => new Date(v.at).getTime() >= recentCutoff && v.product_id)
+          .map((v) => v.product_id as string),
+      );
+      const hasConflict = recentProducts.size >= 2;
+
+      // Confidence policy:
+      //  - mâu thuẫn gần đây → 0.7 (dưới ngưỡng auto, đẩy review)
+      //  - giữ nguyên → củng cố (+0.05, cap 0.99)
+      //  - đổi product (không mâu thuẫn) → reset 0.85
+      let nextConfidence: number;
+      if (hasConflict) nextConfidence = 0.7;
+      else if (acceptAsIs) nextConfidence = Math.min(0.99, prevConf + 0.05);
+      else nextConfidence = 0.85;
+
       const nextCount = acceptAsIs ? (existing.match_count ?? 0) + 1 : 1;
+      const nextCorrection = acceptAsIs
+        ? Number(existing.correction_count ?? 0)
+        : Number(existing.correction_count ?? 0) + 1;
+      const winnerMismatch = winner && winner.product_id !== data.product_id;
+
       const { error } = await supabase
         .from("supplier_item_mappings")
         .update({
@@ -94,14 +162,16 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
           unit_conversion_factor: data.unit_conversion_factor,
           confidence: nextConfidence,
           match_count: nextCount,
-          last_seen: new Date().toISOString(),
+          correction_count: nextCorrection,
+          last_correction_at: acceptAsIs ? null : nowIso,
+          last_seen: nowIso,
           source: "user_confirm",
+          vote_log: log,
         })
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
 
       if (!acceptAsIs) {
-        // Audit khi user đổi sang product khác — phục vụ calibrate trọng số sau này.
         await supabase.from("item_resolution_log").insert({
           tenant_id: tenantId,
           supplier_id: data.supplier_id,
@@ -110,10 +180,34 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
           resolved_product_id: data.product_id,
           method: "user_override",
           score: 1,
-          signals: { prev_product_id: existing.product_id, prev_confidence: prevConf },
+          signals: {
+            prev_product_id: existing.product_id,
+            prev_confidence: prevConf,
+            has_conflict: hasConflict,
+            winner_mismatch: !!winnerMismatch,
+          },
         }).then(({ error: e }: any) => {
           if (e) console.warn("[confirmItemMapping] override log failed", e.message);
         });
+
+        // Negative memory: product cũ bị "soft-reject"
+        if (existing.product_id && existing.product_id !== data.product_id) {
+          await supabase.rpc("noop_dummy_for_types_only", {}).then(() => undefined).catch(() => undefined);
+          await supabase.from("supplier_item_rejections").upsert(
+            {
+              tenant_id: tenantId,
+              supplier_id: data.supplier_id,
+              raw_name_norm,
+              rejected_product_id: existing.product_id,
+              rejected_purpose_code: null,
+              count: 1,
+              last_at: nowIso,
+            },
+            { onConflict: "tenant_id,supplier_id,raw_name_norm,rejected_product_id,rejected_purpose_code" },
+          ).then(({ error: e }: any) => {
+            if (e) console.warn("[confirmItemMapping] rejection log failed", e.message);
+          });
+        }
       }
     } else {
       const { error } = await supabase.from("supplier_item_mappings").insert({
@@ -124,16 +218,17 @@ export const confirmItemMapping = createServerFn({ method: "POST" })
         raw_name_norm,
         raw_unit: data.raw_unit ?? null,
         unit_conversion_factor: data.unit_conversion_factor,
-        confidence: 0.98,
+        confidence: 0.9, // sửa tay lần đầu — chưa đủ để auto, cần ≥ 1 lần củng cố
         match_count: 1,
         source: "user_confirm",
         created_by: userId,
+        vote_log: [
+          { product_id: data.product_id, purpose_code: null, at: nowIso, by: userId ?? null },
+        ],
       });
       if (error) throw new Error(error.message);
     }
 
-    // Trả về thông tin SP để FE có thể đồng bộ Bút toán đề xuất ngay
-    // (đổi TK Nợ theo stock_account của SP đã chọn).
     const { data: prod } = await supabase
       .from("products")
       .select("id, code, name, unit, item_type, stock_account, expense_account")
