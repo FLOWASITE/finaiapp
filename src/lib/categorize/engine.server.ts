@@ -101,6 +101,28 @@ async function getCategorizeAgent(
   };
 }
 
+type AutoPostSettings = {
+  enabled: boolean;
+  min_confidence: number; // 0..1
+  max_amount: number; // VND
+};
+
+async function getTenantAutoPostSettings(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<AutoPostSettings> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("auto_post_enabled, auto_post_min_confidence, auto_post_max_amount")
+    .eq("id", tenantId)
+    .maybeSingle();
+  return {
+    enabled: Boolean(data?.auto_post_enabled ?? false),
+    min_confidence: Number(data?.auto_post_min_confidence ?? 0.95),
+    max_amount: Number(data?.auto_post_max_amount ?? 5_000_000),
+  };
+}
+
 type LoadedInvoice = {
   id: string;
   tenant_id: string;
