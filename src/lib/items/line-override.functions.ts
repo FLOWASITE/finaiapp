@@ -58,7 +58,7 @@ export const getResolvedInvoiceLines = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabase
       .from("invoice_lines")
       .select(
-        "id, description, quantity, unit_price, amount, product_id, line_type, user_override_kind",
+        "id, description, qty, unit_price, amount, product_id, line_type, user_override_kind",
       )
       .eq("invoice_id", data.invoice_id)
       .order("id", { ascending: true });
