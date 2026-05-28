@@ -4,7 +4,7 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useState } from "react";
 import { toast } from "sonner";
 import { finToast } from "@/lib/fin-toast";
-import { Sparkles, Save, FileText } from "lucide-react";
+import { Sparkles, Save, FileText, BrainCircuit, Tag, ShieldCheck, MessageSquareText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
