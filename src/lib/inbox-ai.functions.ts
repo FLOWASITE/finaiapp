@@ -670,7 +670,8 @@ async function materializePurchaseVoucherFromDocument(
       const amount = Number(l.amount ?? l.total_amount ?? qty * unitPrice);
       const lineVatRate = Number(l.vat_rate ?? vatRateHeader);
       const lineVat = Number(l.vat_amount ?? (amount * lineVatRate) / 100);
-      const stockAcc = l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const stockAcc = purposeOverride?.account ?? l.stock_account ?? l.account ?? l.debit_account ?? "156";
+      const lineType = purposeOverride?.line_type ?? "goods";
       return {
         voucher_id: voucher.id,
         line_order: i,
@@ -689,7 +690,7 @@ async function materializePurchaseVoucherFromDocument(
         total: amount + lineVat,
         debit_account: String(stockAcc),
         vat_account: lineVat > 0 ? "1331" : null,
-        line_type: "goods",
+        line_type: lineType,
       };
     });
     const { error: lErr } = await supabase
