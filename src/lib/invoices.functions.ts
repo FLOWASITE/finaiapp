@@ -3,6 +3,10 @@ import { z } from "zod";
 import { generateText, Output } from "ai";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
+import {
+  lookupGlobalSupplier,
+  contributeGlobalSupplier,
+} from "@/lib/ai/global-supplier.server";
 
 const InvoiceLineSchema = z.object({
   description: z.string(),
