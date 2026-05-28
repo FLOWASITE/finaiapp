@@ -62,6 +62,7 @@ import { getDocument } from "@/lib/documents.functions";
 import { createMissingMaster, reconcileInboxItem, updateMissingMasterAndLearn } from "@/lib/inbox-ai.functions";
 import { InvoiceFileViewer } from "@/components/invoice-viewer/invoice-file-viewer";
 import { ItemResolutionPanel } from "@/components/inbox/item-resolution-panel";
+import { splitItemName } from "@/lib/items/split-item-name";
 import { listMyTenants } from "@/lib/tenants.functions";
 import type { VoucherMeta as VoucherMetaType } from "@/lib/ai/inbox-types";
 
