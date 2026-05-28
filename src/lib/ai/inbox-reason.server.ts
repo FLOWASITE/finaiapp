@@ -136,12 +136,18 @@ function applyRule(
 // ============================================================
 // DOCUMENT-based proposals (purchase invoices uploaded / OCR'd)
 // ============================================================
+export type DocumentPrebatch = {
+  /** Normalized supplier substrings (lowercased, slice(0,24)) → count of invoices */
+  supplierCount: Map<string, number>;
+};
+
 export async function buildDocumentItem(
   supabase: SupabaseClient,
   tenantId: string,
   doc: any,
   rules: Awaited<ReturnType<typeof loadActiveRules>>,
   prebuiltProposal?: import("@/lib/categorize/types").JournalProposalDTO,
+  prebatch?: DocumentPrebatch,
 ): Promise<InboxItem | null> {
   const ext = (doc.ocr_extracted ?? {}) as any;
   const amount = Number(ext.total_amount ?? ext.total ?? ext.amount ?? 0);
