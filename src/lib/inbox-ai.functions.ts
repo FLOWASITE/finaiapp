@@ -1254,7 +1254,7 @@ export const listInboxAi = createServerFn({ method: "POST" })
     const [docsRes, txnsRes, insightsRes, banksRes, postedRes, salesRes] = await Promise.all([
       supabase
         .from("documents")
-        .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id")
+        .select("id, original_filename, doc_kind, ocr_status, ocr_extracted, source, created_at, invoice_id, ai_upload_id")
         .eq("tenant_id", tenantId)
         .in("ocr_status", ["done", "processing"])
         .order("created_at", { ascending: false })
