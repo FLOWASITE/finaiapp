@@ -4695,7 +4695,10 @@ export type Database = {
       }
       item_resolution_log: {
         Row: {
+          corrected_kind: string | null
+          corrected_product_id: string | null
           created_at: string
+          feedback_reason: string | null
           id: string
           invoice_line_id: string | null
           method: string
@@ -4710,9 +4713,13 @@ export type Database = {
           signals: Json
           supplier_id: string | null
           tenant_id: string
+          verdict: string | null
         }
         Insert: {
+          corrected_kind?: string | null
+          corrected_product_id?: string | null
           created_at?: string
+          feedback_reason?: string | null
           id?: string
           invoice_line_id?: string | null
           method: string
@@ -4727,9 +4734,13 @@ export type Database = {
           signals?: Json
           supplier_id?: string | null
           tenant_id: string
+          verdict?: string | null
         }
         Update: {
+          corrected_kind?: string | null
+          corrected_product_id?: string | null
           created_at?: string
+          feedback_reason?: string | null
           id?: string
           invoice_line_id?: string | null
           method?: string
@@ -4744,8 +4755,16 @@ export type Database = {
           signals?: Json
           supplier_id?: string | null
           tenant_id?: string
+          verdict?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "item_resolution_log_corrected_product_id_fkey"
+            columns: ["corrected_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "item_resolution_log_resolved_product_id_fkey"
             columns: ["resolved_product_id"]
@@ -6879,6 +6898,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      resolver_weight_profile: {
+        Row: {
+          heuristic_min_conf: number
+          sample_size: number
+          tenant_id: string
+          updated_at: string
+          w_history: number
+          w_price: number
+          w_sku: number
+          w_text: number
+          w_unit: number
+        }
+        Insert: {
+          heuristic_min_conf?: number
+          sample_size?: number
+          tenant_id: string
+          updated_at?: string
+          w_history?: number
+          w_price?: number
+          w_sku?: number
+          w_text?: number
+          w_unit?: number
+        }
+        Update: {
+          heuristic_min_conf?: number
+          sample_size?: number
+          tenant_id?: string
+          updated_at?: string
+          w_history?: number
+          w_price?: number
+          w_sku?: number
+          w_text?: number
+          w_unit?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resolver_weight_profile_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salary_components: {
         Row: {

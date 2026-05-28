@@ -1,72 +1,67 @@
-## Vấn đề thực tế
+## Mục tiêu
 
-1. Bạn approve document `8f085f9d` (HĐ 00002847, TUYỀN HƯNG PHÚ) lúc 01:51:25.
-   - Hệ thống **đã tạo** `journal_entries.0c1303ce` (toast "Đã ghi sổ" là thật).
-   - **Không tạo** `purchase_vouchers` → bạn không thấy Phiếu mua hàng (PV gần nhất tenant KOJAVM dừng ở `PM2026-00007` ngày 27/5).
-2. Sau đó bạn bấm Bỏ qua 3 lần (đó là các toast "Đã bỏ qua" trong session replay).
+Cho phép KTV bấm **Đồng ý / Từ chối** trên từng dòng hoá đơn (kèm lý do ngắn) ngay tại màn hình review. Phản hồi này:
+1. Đóng vòng lặp học của `item_resolution_log` (đánh dấu `reviewed_by/reviewed_at`, lưu verdict + reason vào `signals`).
+2. Cập nhật `supplier_item_mappings.confidence` / `match_count` khi approve gợi ý fuzzy → lần sau resolver tin tưởng hơn (cache hit).
+3. Tự calibrate trọng số `W = { text, unit, price, history, sku }` của resolver fuzzy và ngưỡng `confidence` của classify-line heuristic dựa trên thống kê approve/reject gần đây của từng tenant.
 
-## Nguyên nhân
+Chỉ động vào lớp resolver và UI review. Không thay đổi journal, RLS, hay luồng duyệt bút toán.
 
-Trong `src/lib/inbox-ai.functions.ts` (`approveInboxItem`, dòng ~1439):
+## Phạm vi thay đổi
 
-```ts
-} else if (docMeta?.doc_kind === "purchase_invoice") {
-  const pvId = await materializePurchaseVoucherFromDocument(...)
-```
+### 1. DB migration (nhẹ)
 
-Nhánh tạo PV chỉ chạy khi `documents.doc_kind === "purchase_invoice"`. Document `8f085f9d` lại có `doc_kind = "other"` mặc dù `ocr_extracted.direction = "purchase_invoice"` và `_einvoice.seller = TUYỀN HƯNG PHÚ` rất rõ ràng.
+- Thêm cột vào `item_resolution_log`:
+  - `verdict text` CHECK in (`approved`,`rejected`,`corrected`), nullable.
+  - `feedback_reason text`, nullable.
+  - `corrected_product_id uuid` FK products(id) ON DELETE SET NULL — khi KTV chọn sản phẩm khác.
+  - `corrected_kind text` — khi KTV đổi LineKind (goods/ccdc/asset/service).
+- Bảng mới `public.resolver_weight_profile`:
+  - `tenant_id uuid PK FK tenants`, `w_text/w_unit/w_price/w_history/w_sku numeric`, `heuristic_min_conf numeric`, `sample_size int`, `updated_at timestamptz`.
+  - RLS: select cho member, update/insert cho service_role (chỉ cron job calibrate ghi).
+  - GRANT đầy đủ cho `authenticated` (select) và `service_role` (all).
 
-Nguyên nhân gốc: **mỗi XML hoá đơn đang được lưu 2 row `documents`** cùng `original_filename`, cách nhau 2 giây. Row sau được pipeline einvoice parse → `doc_kind=purchase_invoice`. Row trước (`other`) là phần upload thô chưa qua bước classify. Inbox lại hiển thị cả hai → bạn bấm nhầm row "other".
+### 2. Server functions mới (`src/lib/items/feedback.functions.ts`)
 
-Bằng chứng (cùng tenant KOJAVM, gần nhất):
+- `submitLineFeedback({ line_id, verdict, reason?, corrected_product_id?, corrected_kind? })`:
+  - Tìm log gần nhất theo `invoice_line_id`, UPDATE `verdict`, `feedback_reason`, `corrected_*`, `reviewed_by=auth.uid()`, `reviewed_at=now()`.
+  - Nếu `verdict='approved'` và log có `resolved_product_id`: upsert `supplier_item_mappings` (tăng `match_count`, set `confidence = min(0.99, confidence + 0.02)`, `source='user_confirm'`).
+  - Nếu `verdict='rejected'`: giảm confidence mapping tương ứng (`max(0.3, confidence - 0.1)`); nếu `corrected_product_id` có → upsert mapping mới với `confidence=0.9`.
+  - Nếu `corrected_kind` có → gọi `setLineOverrideKind`.
+- `getLineFeedbackStats({ invoice_id })`: trả số dòng đã approve/reject/pending để UI hiển thị progress.
 
-| filename | `8f085f9d` (other) | `cd95008b` (purchase_invoice) |
-|---|---|---|
-| `1C26TYY_00002847.xml` | doc_kind=other ❌ | doc_kind=purchase_invoice ✅ |
-| `1C26TSG_0000384...xml` (HASFARM) | other ❌ | purchase_invoice ✅ |
-| `1C26TTB_00000094.xml` (TẤM BAKERY) | other ❌ | purchase_invoice ✅ |
+### 3. Calibration (`src/lib/items/calibrate-weights.server.ts` + server route cron)
 
-## Thay đổi
+- Hàm `calibrateForTenant(tenant_id)`:
+  - Lấy log 30 ngày gần nhất có `verdict in (approved,rejected,corrected)`.
+  - Với mỗi log, đọc `signals` đã lưu. Tính correlation đơn giản giữa từng signal và verdict (approved=+1, rejected=-1) → softmax-normalize thành trọng số mới, blend 70% baseline + 30% học.
+  - Tính `heuristic_min_conf` = percentile 25 của `confidence` các log `approved` xuất phát từ `method='fuzzy'` score thấp; clamp [50, 85].
+  - Upsert vào `resolver_weight_profile`. Cần `sample_size >= 20`, không thì giữ default.
+- Server route `src/routes/api/public/cron/calibrate-resolver.ts` (POST, verify `X-CRON-SECRET`): chạy cho mọi tenant có ≥20 log mới trong 24h.
+- `resolver.server.ts` đọc `resolver_weight_profile` của tenant ở đầu hàm `resolve`, fallback về hằng số `W` cũ. Ngưỡng `0.7/0.9` giữ nguyên; chỉ trọng số thay đổi.
+- `resolve-line-kind.server.ts` đọc `heuristic_min_conf` để quyết định khi nào fallback classify được coi là đủ tin để auto vs review (ảnh hưởng UI badge, không ảnh hưởng account).
 
-### 1. Nới điều kiện tạo Phiếu mua hàng — `src/lib/inbox-ai.functions.ts`
+### 4. UI (`src/routes/_app/invoices/$id.tsx`)
 
-Trong `approveInboxItem`:
-- Lấy thêm `ocr_extracted` cùng `doc_kind` từ `documents`.
-- Coi là HĐ mua khi **bất kỳ** điều kiện sau đúng:
-  - `doc_kind === "purchase_invoice"`, **hoặc**
-  - `ocr_extracted.direction === "purchase_invoice"`, **hoặc**
-  - tồn tại `ocr_extracted._einvoice.seller.tax_id` và `buyer.tax_id` trùng MST tenant.
-- Nếu rơi vào nhánh này mà `doc_kind !== "purchase_invoice"` → `UPDATE documents SET doc_kind='purchase_invoice'` rồi mới `materializePurchaseVoucherFromDocument(...)`.
+- Mỗi dòng trong bảng resolved-lines thêm cụm 3 nút nhỏ:
+  - ✓ **Đồng ý** → gọi `submitLineFeedback({verdict:'approved'})`.
+  - ✗ **Từ chối** → mở popover textarea (lý do, optional select kind mới) → submit `rejected`/`corrected`.
+  - Trạng thái hiện tại (badge): "Chờ duyệt" / "Đã đồng ý" / "Đã từ chối — <reason>".
+- Sau mỗi submit, invalidate query `getResolvedInvoiceLines`.
+- Thanh tổng ở header: `X/Y dòng đã review` (từ `getLineFeedbackStats`).
+- Nút **Duyệt & ghi sổ** disable cho tới khi tất cả dòng có verdict (hoặc KTT bypass bằng nút "Bỏ qua review").
 
-Cùng logic đối ứng cho `sales_invoice` (`direction === "sales_invoice"` hoặc `_einvoice.seller.tax_id === tenantTaxId`) để chống tái phát phía bán.
+## Ngoài phạm vi
 
-### 2. Vá dữ liệu cho document đang lỗi
+- Không đổi cấu trúc bảng `journal_lines`, `purchase_vouchers`.
+- Không động vào tab "Agent của Fin" / Inbox AI.
+- Không train model LLM; chỉ tinh chỉnh trọng số số học.
+- Không backfill log cũ — calibrate chỉ dùng log mới có `verdict`.
 
-Server function nhỏ `backfillMissingPurchaseVoucher({ journal_entry_id })` (kèm middleware auth, kiểm tra tenant):
-- Tìm document gốc của entry qua `inbox_decisions.item_external_id`.
-- Nếu chưa có `purchase_vouchers` nào tham chiếu `journal_entry_id` này → chạy `materializePurchaseVoucherFromDocument(...)` với cùng `entry_date` & `journalEntryId`.
+## Thứ tự thực hiện
 
-Chạy 1 lần cho entry `0c1303ce-e17b-4017-b98b-8aae83eccefd` để tạo phiếu PM2026-00008 cho TUYỀN HƯNG PHÚ (không tạo bút toán mới, chỉ link phiếu vào entry sẵn có).
-
-### 3. Chống tạo trùng document khi upload XML
-
-Vấn đề phụ nhưng là gốc rễ tái phát. Trong nhánh upload XML einvoice (file `src/lib/einvoices*.ts` / pipeline upload):
-- Trước khi `insert documents`, kiểm tra `(tenant_id, storage_path)` hoặc `(tenant_id, original_filename, checksum_sha256)` đã tồn tại chưa → nếu có thì `UPDATE` row hiện hữu thay vì insert mới.
-- Thêm unique index DB: `CREATE UNIQUE INDEX documents_xml_dedup_idx ON documents(tenant_id, storage_path) WHERE storage_path IS NOT NULL` để chặn ở tầng DB.
-
-### 4. UI Inbox: ẩn document "other" khi đã có bản purchase_invoice cùng filename
-
-Trong `src/routes/_app/inbox.tsx` / loader inbox items: dedup theo `(tenant_id, original_filename)` — ưu tiên row có `doc_kind ∈ {purchase_invoice, sales_invoice}` và bỏ qua row `other` cùng tên. Để bạn không bao giờ thấy 2 dòng giống nhau nữa.
-
-## Kiểm chứng sau khi sửa
-
-1. `select count(*) from purchase_vouchers where journal_entry_id='0c1303ce-...'` → 1.
-2. Mở `/purchases/vouchers` thấy `PM2026-00008 — TUYỀN HƯNG PHÚ — 5,222,880₫`.
-3. Upload lại XML test → chỉ có 1 row `documents`.
-4. Approve một HĐ XML mới → toast "Đã ghi sổ" + có phiếu mới trong cùng giây.
-
-## Không đụng tới
-
-- Logic resolve loại hàng / kind chip / suggest accounts (giữ nguyên).
-- Không thay đổi cấu trúc bảng `purchase_vouchers` hay `journal_entries`.
-- Không thay đổi auth/RLS.
+1. Migration (cột mới + bảng `resolver_weight_profile` + GRANT/RLS).
+2. `feedback.functions.ts` + cập nhật `resolver.server.ts` đọc weight profile.
+3. UI nút Đồng ý/Từ chối + popover lý do trên `invoices/$id.tsx`.
+4. `calibrate-weights.server.ts` + cron route + secret `CRON_SECRET`.
+5. QA: tạo 1 hoá đơn test, approve/reject vài dòng, gọi cron tay, kiểm tra `resolver_weight_profile` cập nhật và resolver dùng trọng số mới.
