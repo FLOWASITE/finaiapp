@@ -81,15 +81,21 @@ export function ItemResolutionPanel({ items, meta, tenantId }: Props) {
   const [llmPrefill, setLlmPrefill] = useState<Record<number, NewProductPrefill>>({});
   const [llmLoadingIdx, setLlmLoadingIdx] = useState<number | null>(null);
 
+  // Tách tên dài: dùng canonical_name để fuzzy match + cache rule; line_note hiển thị riêng.
+  const splits = useMemo(
+    () => (items ?? []).map((it) => splitItemName(it.name)),
+    [items],
+  );
+
   const payloadLines = useMemo(
     () =>
-      (items ?? []).map((it) => ({
-        raw_name: it.name,
+      (items ?? []).map((it, idx) => ({
+        raw_name: splits[idx]?.canonical_name || it.name,
         raw_unit: it.unit ?? null,
         qty: it.qty ?? null,
         price: it.unit_price ?? null,
       })),
-    [items],
+    [items, splits],
   );
 
   const queryKey = [
