@@ -686,12 +686,6 @@ function VatExplain({ meta, items }: { meta?: VoucherMeta; items?: ProposalItem[
   );
 }
 
-const PURPOSE_GUESS_ACCOUNTS = new Set(["156", "152", "153", "642", "211", "213", "242"]);
-const PURPOSE_OPTIONS: { account: string; label: string; hint: string }[] = [
-  { account: "156", label: "Hàng hoá bán lại", hint: "→ TK 156" },
-  { account: "152", label: "Nguyên liệu sản xuất", hint: "→ TK 152" },
-  { account: "642", label: "Chi phí sự kiện / trang trí", hint: "→ TK 642" },
-];
 
 function PurposePicker({
   voucherKind,
