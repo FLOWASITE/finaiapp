@@ -813,6 +813,33 @@ async function materializePurchaseVoucherFromDocument(
     console.error("[materializePurchaseVoucher] learnFromPurchaseVoucher failed", e);
   }
 
+  // Ghi nhận lịch sử áp dụng rule (mode auto + suggest) vào ai_rule_applications
+  if (ruleMatchesForRecord.length > 0) {
+    try {
+      const { recordRuleApplications } = await import("./rules/apply-rules.server");
+      await recordRuleApplications(supabase, {
+        tenantId,
+        userId,
+        matches: ruleMatchesForRecord,
+        documentTable: "purchase_vouchers",
+        documentId: voucher.id as string,
+        documentLabel: voucherNo,
+        journalEntryId,
+        journalCode: voucherNo,
+      });
+    } catch (e) {
+      console.error("[materializePurchaseVoucher] recordRuleApplications failed", e);
+    }
+  }
+
+  // Học quy tắc từ tất cả phiếu đã ghi sổ (best-effort, dedupe trong learner)
+  try {
+    const { learnRulesFromPurchaseVouchers } = await import("./rules/learn-rules.server");
+    await learnRulesFromPurchaseVouchers(supabase, { tenantId, userId });
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] learnRules failed", e);
+  }
+
   return voucher.id as string;
 }
 
