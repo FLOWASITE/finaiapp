@@ -155,12 +155,48 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
     // Tự sinh phiếu nhập kho / tài sản từ dòng hoá đơn
     const { data: invLines } = await supabase
       .from("invoice_lines")
-      .select("description, qty, unit_price, amount, product_id, line_type")
+      .select(
+        "id, description, qty, unit, unit_price, amount, product_id, line_type, user_override_kind",
+      )
       .eq("invoice_id", data.invoiceId);
 
     for (const line of invLines ?? []) {
-      // Hàng hoá có gắn product → nhập kho + bình quân gia quyền
-      if (line.line_type === "goods" && line.product_id) {
+      // Cascade: manual override → product.item_type → classify-line
+      const r = await resolveLineKind(supabase, {
+        description: line.description,
+        qty: line.qty,
+        unit: line.unit,
+        unit_price: line.unit_price,
+        amount: line.amount,
+        product_id: line.product_id,
+        user_override_kind: line.user_override_kind as
+          | "goods"
+          | "ccdc"
+          | "asset"
+          | "service"
+          | null,
+      });
+
+      // Audit trail vào invoice_lines
+      await supabase
+        .from("invoice_lines")
+        .update({
+          resolved_kind: r.kind,
+          resolved_account: r.account,
+          resolution_source: r.source,
+          resolution_confidence: r.confidence,
+          // Đồng bộ line_type cho code legacy đọc — map ccdc → goods cho khoản kho 153
+          line_type:
+            r.kind === "asset"
+              ? "asset"
+              : r.kind === "service"
+                ? "service"
+                : "goods",
+        })
+        .eq("id", line.id);
+
+      // Hàng hoá / NVL / CCDC có gắn product → nhập kho + bình quân gia quyền
+      if ((r.kind === "goods" || r.kind === "ccdc") && line.product_id) {
         const qty = Number(line.qty || 0);
         const unitCost = qty > 0 ? Number(line.amount || 0) / qty : Number(line.unit_price || 0);
         const { data: prod } = await supabase
@@ -191,8 +227,8 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
         }
       }
 
-      // Tài sản → tự tạo TSCĐ (chờ kế toán bổ sung thời gian khấu hao)
-      if (line.line_type === "asset") {
+      // TSCĐ → tự tạo fixed_assets (chờ KTV bổ sung thời gian khấu hao)
+      if (r.kind === "asset") {
         await supabase.from("fixed_assets").insert({
           user_id: userId,
           code: `TS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -203,6 +239,7 @@ export const approveJournalEntry = createServerFn({ method: "POST" })
         });
       }
     }
+
 
     await supabase
       .from("invoices")
