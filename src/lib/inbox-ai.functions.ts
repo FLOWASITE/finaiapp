@@ -1476,25 +1476,103 @@ export const listInboxAi = createServerFn({ method: "POST" })
       import("@/lib/categorize/engine.server"),
       import("@/lib/categorize/sales-engine.server"),
     ]);
-    const [proposalMap, salesProposalMap] = await Promise.all([
-      proposeJournalBatch(supabase, invoiceIds),
-      proposeSalesJournalBatch(supabase, salesIds),
+
+    // ====== PRE-BATCH: avoid N×2 round-trips inside per-item builders ======
+    const needSupplierStats = filteredDocs.some(
+      (d) => !d.invoice_id && d.doc_kind !== "sales_invoice",
+    );
+    const txnsArr = (txnsRes.data ?? []) as any[];
+    const hasIncoming = txnsArr.some((t) => Number(t.amount) >= 0);
+    const hasOutgoing = txnsArr.some((t) => Number(t.amount) < 0);
+
+    const [proposalMap, salesProposalMap, supplierStatsRes, openSalesInvRes, openPurchInvRes] =
+      await Promise.all([
+        proposeJournalBatch(supabase, invoiceIds),
+        proposeSalesJournalBatch(supabase, salesIds),
+        needSupplierStats
+          ? supabase
+              .from("invoices")
+              .select("supplier_name")
+              .eq("tenant_id", tenantId)
+              .limit(5000)
+          : Promise.resolve({ data: [] as any[] }),
+        hasIncoming
+          ? supabase
+              .from("sales_invoices")
+              .select("id, invoice_no, customer_name, total")
+              .eq("tenant_id", tenantId)
+              .neq("status", "void")
+              .limit(2000)
+          : Promise.resolve({ data: [] as any[] }),
+        hasOutgoing
+          ? supabase
+              .from("invoices")
+              .select("id, invoice_no, supplier_name, total")
+              .eq("tenant_id", tenantId)
+              .neq("status", "void")
+              .limit(2000)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+    const supplierCount = new Map<string, number>();
+    for (const r of (supplierStatsRes.data ?? []) as any[]) {
+      const k = String(r.supplier_name ?? "").slice(0, 24).toLowerCase();
+      if (!k) continue;
+      supplierCount.set(k, (supplierCount.get(k) ?? 0) + 1);
+    }
+    const docPrebatch = { supplierCount };
+    const bankPrebatch = {
+      salesInvoices: ((openSalesInvRes.data ?? []) as any[]).map((r) => ({
+        id: r.id,
+        invoice_no: r.invoice_no,
+        customer_name: r.customer_name,
+        total: Number(r.total),
+      })),
+      purchaseInvoices: ((openPurchInvRes.data ?? []) as any[]).map((r) => ({
+        id: r.id,
+        invoice_no: r.invoice_no,
+        supplier_name: r.supplier_name,
+        total: Number(r.total),
+      })),
+    };
+
+    // Parallelize all per-item builders (was sequential await in 3 for-loops)
+    const [docItems, salesItems, bankItems] = await Promise.all([
+      Promise.all(
+        filteredDocs.map((d) =>
+          buildDocumentItem(
+            supabase,
+            tenantId,
+            d,
+            rules,
+            d.invoice_id ? proposalMap.get(d.invoice_id) : undefined,
+            docPrebatch,
+          ),
+        ),
+      ),
+      Promise.all(
+        ((salesRes.data ?? []) as any[]).map((s) =>
+          buildSalesInvoiceItem(supabase, tenantId, s, salesProposalMap.get(s.id)),
+        ),
+      ),
+      Promise.all(
+        txnsArr.map((t) =>
+          buildBankItem(
+            supabase,
+            tenantId,
+            t,
+            bankMap.get(t.bank_account_id) ?? "Ngân hàng",
+            rules,
+            bankPrebatch,
+          ),
+        ),
+      ),
     ]);
 
     const items: InboxItem[] = [];
-    for (const d of filteredDocs) {
-      const prebuilt = d.invoice_id ? proposalMap.get(d.invoice_id) : undefined;
-      const it = await buildDocumentItem(supabase, tenantId, d, rules, prebuilt);
-      if (it) items.push(it);
-    }
-    for (const s of (salesRes.data ?? []) as any[]) {
-      const it = await buildSalesInvoiceItem(supabase, tenantId, s, salesProposalMap.get(s.id));
-      if (it) items.push(it);
-    }
-    for (const t of (txnsRes.data ?? []) as any[]) {
-      const it = await buildBankItem(supabase, tenantId, t, bankMap.get(t.bank_account_id) ?? "Ngân hàng", rules);
-      if (it) items.push(it);
-    }
+    for (const it of docItems) if (it) items.push(it);
+    for (const it of salesItems) if (it) items.push(it);
+    for (const it of bankItems) if (it) items.push(it);
     for (const i of (insightsRes.data ?? []) as any[]) items.push(buildInsightItem(i));
 
     // ============ Enrich document items: posted_voucher + missing master data ============
