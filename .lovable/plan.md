@@ -1,5 +1,7 @@
 # Plan: Trí nhớ AI 4 tầng — vòng đời, conflict, global, auto-post
 
+**Tiến độ:** Phase 1 ✅ · Phase 3 ✅ · Phase 4 ✅ (backend) · Phase 5 ✅ (backend) · Phase 2 ⏳ · UI Phase 5 ⏳
+
 ## Hiện trạng (đã có trong code)
 - **T1 (NCC + mặt hàng → product/TK)**: `supplier_item_mappings` + `resolver.server.ts` Layer 1 (cache auto khi conf ≥ 0.95 & count ≥ 1, hoặc ≥ 0.9 & ≥ 3).
 - **T3 (mục đích chi Loại B)**: `typeb_purpose_catalog` + cột `purpose_code` trên `supplier_item_mappings`.

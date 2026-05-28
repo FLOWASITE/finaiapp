@@ -101,6 +101,28 @@ async function getCategorizeAgent(
   };
 }
 
+type AutoPostSettings = {
+  enabled: boolean;
+  min_confidence: number; // 0..1
+  max_amount: number; // VND
+};
+
+async function getTenantAutoPostSettings(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<AutoPostSettings> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("auto_post_enabled, auto_post_min_confidence, auto_post_max_amount")
+    .eq("id", tenantId)
+    .maybeSingle();
+  return {
+    enabled: Boolean(data?.auto_post_enabled ?? false),
+    min_confidence: Number(data?.auto_post_min_confidence ?? 0.95),
+    max_amount: Number(data?.auto_post_max_amount ?? 5_000_000),
+  };
+}
+
 type LoadedInvoice = {
   id: string;
   tenant_id: string;
@@ -506,6 +528,7 @@ export async function proposeJournalForInvoice(
 
   const agent = await getCategorizeAgent(supabase, inv.tenant_id);
   const cal = await getCalibration(supabase, inv.tenant_id);
+  const autoPost = await getTenantAutoPostSettings(supabase, inv.tenant_id);
   const paymentAccount = pickPaymentAccount(inv);
   const signals: ProposalSignal[] = [];
   const warnings: ProposalWarning[] = [];
@@ -525,7 +548,20 @@ export async function proposeJournalForInvoice(
     if (!inv.supplier_tax_id) features.missing_partner = 1;
     const confidence = applyCalibratedConfidence(base, features, cal.signal_weights);
     const band = decideBand(confidence, cal);
-    const threshold = effectiveAutoThreshold(agent.confidence_threshold, cal.auto_threshold);
+    const agentThreshold = effectiveAutoThreshold(agent.confidence_threshold, cal.auto_threshold);
+
+    // Per-tenant auto-post threshold + hard guards.
+    // When the user explicitly enables per-tenant auto-post, use their
+    // confidence floor & amount cap; otherwise fall back to the agent default.
+    const effectiveThreshold = autoPost.enabled
+      ? Math.max(autoPost.min_confidence, agentThreshold)
+      : agentThreshold;
+    const hardGuard =
+      hasError ||
+      features.has_warning === 1 ||
+      features.missing_partner === 1 || // proxy for "new supplier / FCT-prone"
+      (autoPost.enabled && inv.total > autoPost.max_amount);
+
     return {
       invoice_id: invoiceId,
       source,
@@ -539,7 +575,10 @@ export async function proposeJournalForInvoice(
       alternatives,
       applied_rules: appliedRules,
       recommend_auto_post:
-        agent.enabled && agent.mode === "auto" && confidence >= threshold && !hasError,
+        agent.enabled &&
+        agent.mode === "auto" &&
+        confidence >= effectiveThreshold &&
+        !hardGuard,
       generated_at: new Date().toISOString(),
     };
   };

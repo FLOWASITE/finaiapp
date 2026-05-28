@@ -3,6 +3,10 @@ import { z } from "zod";
 import { generateText, Output } from "ai";
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import { resolveActiveModel, resolveAgentModel } from "@/lib/ai-gateway.server";
+import {
+  lookupGlobalSupplier,
+  contributeGlobalSupplier,
+} from "@/lib/ai/global-supplier.server";
 
 const InvoiceLineSchema = z.object({
   description: z.string(),
@@ -75,7 +79,7 @@ export const extractInvoice = createServerFn({ method: "POST" })
 
       const result = experimental_output;
 
-      // 4. Tìm/tạo supplier
+      // 4. Tìm/tạo supplier (kèm autofill + đóng góp registry liên-tenant)
       let supplierId: string | null = null;
       if (result.supplier_tax_id) {
         const { data: existing } = await supabase
@@ -86,17 +90,32 @@ export const extractInvoice = createServerFn({ method: "POST" })
           .maybeSingle();
         if (existing) supplierId = existing.id;
         else {
+          // Autofill từ registry liên-tenant nếu OCR thiếu tên hoặc ngành
+          const reg = await lookupGlobalSupplier(supabase, result.supplier_tax_id);
+          const supplierName =
+            (result.supplier_name && result.supplier_name.trim()) ||
+            reg?.display_name ||
+            "Chưa rõ";
           const { data: created } = await supabase
             .from("suppliers")
             .insert({
               user_id: userId,
               tenant_id: tenantId,
               tax_id: result.supplier_tax_id,
-              name: result.supplier_name || "Chưa rõ",
+              name: supplierName,
+              industry_code: reg?.industry_code ?? null,
             })
             .select("id")
             .single();
           supplierId = created?.id ?? null;
+
+          // Ghi đóng góp registry (chỉ tax_id → tên + ngành; không hạch toán)
+          await contributeGlobalSupplier(supabase, {
+            tenantId,
+            taxId: result.supplier_tax_id,
+            displayName: supplierName,
+            industryCode: reg?.industry_code ?? null,
+          });
         }
       }
 
