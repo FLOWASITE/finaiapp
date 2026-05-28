@@ -52,9 +52,14 @@ function InvoiceDetail() {
   const overrideMut = useMutation({
     mutationFn: (vars: { line_id: string; kind: ResolvedLine["resolved_kind"] | null }) =>
       overrideKindFn({ data: vars }),
-    onSuccess: () => {
-      resolvedLinesQuery.refetch();
+    onSuccess: async () => {
+      await resolvedLinesQuery.refetch();
       toast.success("Đã cập nhật loại hàng hoá");
+      if (suggestions) {
+        suggestMut.mutate();
+        setChosenIdx(null);
+        setEditLines([]);
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi cập nhật"),
   });
