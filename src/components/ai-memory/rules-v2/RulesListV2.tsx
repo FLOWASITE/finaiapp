@@ -30,6 +30,7 @@ export function RulesListV2() {
   const enableFn = useServerFn(enableRule);
   const deleteFn = useServerFn(deleteRule);
   const promoteFn = useServerFn(promoteSuggestion);
+  const learnFn = useServerFn(learnRulesNow);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
