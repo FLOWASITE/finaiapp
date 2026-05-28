@@ -43,7 +43,10 @@ import {
   skipInboxItem,
   saveInboxRule,
 } from "@/lib/inbox-ai.functions";
+import { getAutoPostSettings } from "@/lib/auto-post-settings.functions";
+import { AutoPostAuditSheet } from "@/components/inbox/auto-post-audit-sheet";
 import { getDocument } from "@/lib/documents.functions";
+
 import type { InboxItem, ConfidenceBand, VoucherKind } from "@/lib/ai/inbox-types";
 import { mockInboxItems, mockInboxStats } from "@/data/mockInbox";
 import { Button } from "@/components/ui/button";
