@@ -680,6 +680,35 @@ async function materializePurchaseVoucherFromDocument(
 
   const vatRateHeader = subtotal > 0 ? Math.round((vat / subtotal) * 100) : 0;
 
+  // === Trí nhớ AI — Quy tắc hạch toán: match & áp dụng rule mode=auto ===
+  let ruleAutoAccount: string | undefined;
+  let ruleMatchesForRecord: any[] = [];
+  try {
+    const { loadActiveRules: loadRules, applyRules, pickAutoBookOverride } = await import(
+      "./rules/apply-rules.server"
+    );
+    const rules = await loadRules(supabase, tenantId);
+    if (rules.length > 0) {
+      const matches = applyRules(rules, {
+        vendor: { name: sellerName, tax_id: sellerTaxId },
+        amount: total,
+        amount_before_tax: subtotal,
+        description: `Hóa đơn ${invoiceNo ?? ""} ${sellerName}`,
+        transaction_type: "purchase",
+        date: issueDate,
+        currency: ein?.currency ?? "VND",
+        doc_type: "purchase_invoice",
+        line_count: rawLines.length,
+      });
+      ruleMatchesForRecord = matches;
+      const auto = pickAutoBookOverride(matches);
+      if (auto?.account_debit) ruleAutoAccount = auto.account_debit;
+    }
+  } catch (e) {
+    console.error("[materializePurchaseVoucher] applyRules failed", e);
+  }
+  const effectiveAccount = purposeOverride?.account ?? ruleAutoAccount ?? "156";
+
   const { data: voucher, error: vErr } = await supabase
     .from("purchase_vouchers")
     .insert({
