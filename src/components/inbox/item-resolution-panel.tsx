@@ -23,6 +23,7 @@ import {
 } from "@/lib/items/mappings.functions";
 import { suggestItemMappingWithLLM } from "@/lib/items/llm-suggest.functions";
 import { promoteCatalogToProduct } from "@/lib/items/promote-from-library.functions";
+import { splitItemName } from "@/lib/items/split-item-name";
 
 type Props = {
   items?: ProposalItem[];
