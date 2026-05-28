@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, BookOpenCheck, Settings as SettingsIcon } from "lucide-react";
+import { CatalogVersionBanner } from "@/components/catalogs/catalog-version-banner";
 
 export const Route = createFileRoute("/_app/coa/")({ component: CoaPage });
 
@@ -121,6 +122,8 @@ function CoaPage() {
           </p>
         </div>
       </div>
+
+      <CatalogVersionBanner catalog="coa" label="Hệ thống tài khoản" />
 
       <Card>
         <CardHeader className="flex flex-row gap-2 items-end flex-wrap pb-3">
