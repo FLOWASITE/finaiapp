@@ -912,7 +912,14 @@ function InboxAiPage() {
       </AlertDialog>
 
       {cmdOpen && <CommandBar onClose={() => setCmdOpen(false)} />}
+
+      <AutoPostAuditSheet
+        open={autoPostSheetOpen}
+        onOpenChange={setAutoPostSheetOpen}
+        settings={autoPostSettings}
+      />
     </div>
+
   );
 }
 
