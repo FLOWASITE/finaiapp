@@ -52,7 +52,12 @@ function InvoiceDetail() {
   const overrideMut = useMutation({
     mutationFn: (vars: { line_id: string; kind: ResolvedLine["resolved_kind"] | null }) =>
       overrideKindFn({ data: vars }),
-    onSuccess: async () => {
+    onSuccess: async (_data, vars) => {
+      setPendingOverrides((prev) => {
+        const next = { ...prev };
+        delete next[vars.line_id];
+        return next;
+      });
       await resolvedLinesQuery.refetch();
       toast.success("Đã cập nhật loại hàng hoá");
       if (suggestions) {
@@ -90,6 +95,7 @@ function InvoiceDetail() {
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [chosenIdx, setChosenIdx] = useState<number | null>(null);
   const [editLines, setEditLines] = useState<Array<{ account_code: string; debit: number; credit: number }>>([]);
+  const [pendingOverrides, setPendingOverrides] = useState<Record<string, ResolvedLine["resolved_kind"] | null>>({});
 
   const suggestMut = useMutation({
     mutationFn: async () => suggest({ data: { invoiceId: id } }),
@@ -239,28 +245,44 @@ function InvoiceDetail() {
                       )}
                     </div>
                     <div className="shrink-0">
-                      <Select
-                        value={l.user_override_kind ?? `auto:${l.resolved_kind}`}
-                        onValueChange={(v) => {
-                          const kind = v.startsWith("auto:")
-                            ? null
-                            : (v as ResolvedLine["resolved_kind"]);
-                          overrideMut.mutate({ line_id: l.id, kind });
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-[180px] text-xs">
-                          <SelectValue placeholder="Chọn loại..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={`auto:${l.resolved_kind}`}>
-                            ⚡ Fin tự: {kindLabel(l.resolved_kind)}
-                          </SelectItem>
-                          <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
-                          <SelectItem value="ccdc">CCDC (153)</SelectItem>
-                          <SelectItem value="asset">TSCĐ (211/213)</SelectItem>
-                          <SelectItem value="service">Dịch vụ / phân bổ (6xx/242)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={(() => {
+                            const p = pendingOverrides[l.id];
+                            if (p !== undefined) return p === null ? `auto:${l.resolved_kind}` : p;
+                            return l.user_override_kind ?? `auto:${l.resolved_kind}`;
+                          })()}
+                          onValueChange={(v) => {
+                            const kind = v.startsWith("auto:") ? null : (v as ResolvedLine["resolved_kind"]);
+                            setPendingOverrides((prev) => ({ ...prev, [l.id]: kind }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[180px] text-xs">
+                            <SelectValue placeholder="Chọn loại..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={`auto:${l.resolved_kind}`}>
+                              ⚡ Fin tự: {kindLabel(l.resolved_kind)}
+                            </SelectItem>
+                            <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
+                            <SelectItem value="ccdc">CCDC (153)</SelectItem>
+                            <SelectItem value="asset">TSCĐ (211/213)</SelectItem>
+                            <SelectItem value="service">Dịch vụ / phân bổ (6xx/242)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {pendingOverrides[l.id] !== undefined && (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            disabled={overrideMut.isPending}
+                            onClick={() =>
+                              overrideMut.mutate({ line_id: l.id, kind: pendingOverrides[l.id] })
+                            }
+                          >
+                            {overrideMut.isPending ? "Đang lưu..." : "Lưu"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
