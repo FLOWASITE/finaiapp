@@ -461,17 +461,19 @@ function InboxAiPage() {
 
   const handleApproveItem = useCallback(
     (it: InboxItem) => {
-      const finish = () => {
-        toast.success(`Đã ghi sổ: ${it.title}`);
-        // Giữ sheet mở để hiển thị nút "Xem phiếu" và trạng thái mới
-      };
       if (isMock(it)) {
         dismissMock(it.id);
-        finish();
+        toast.success(`Đã ghi sổ: ${it.title}`);
         return;
       }
       approveM.mutate(it, {
-        onSuccess: finish,
+        onSuccess: (resp: any) => {
+          if (resp?.already_posted) {
+            toast.info(resp.message || `Hóa đơn đã được ghi sổ trước đó.`);
+          } else {
+            toast.success(`Đã ghi sổ: ${it.title}`);
+          }
+        },
         onError: (e: any) => toast.error(e?.message || "Không ghi sổ được"),
       });
     },
