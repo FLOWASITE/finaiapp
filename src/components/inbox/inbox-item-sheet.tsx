@@ -468,9 +468,15 @@ export function InboxItemDetail({
               const sideLabel = isDebit ? "Nợ" : "Có";
               const next = arr[i + 1];
               const isLastDebit = isDebit && next && !((next.debit ?? 0) > 0);
+              const highlight = highlightedLines.has(i);
               return (
                 <div key={i}>
-                  <div className="grid grid-cols-[28px_44px_1fr_auto] items-center gap-3">
+                  <div
+                    className={cn(
+                      "grid grid-cols-[28px_44px_1fr_auto] items-center gap-3 rounded-md transition-colors duration-700",
+                      highlight && "bg-emerald-500/15 ring-1 ring-emerald-500/40 px-1.5 py-0.5",
+                    )}
+                  >
                     <span className={cn(
                       "text-xs font-bold",
                       isDebit ? "text-blue-600 dark:text-blue-400" : "text-rose-600 dark:text-rose-400",
