@@ -381,6 +381,16 @@ function kindLabel(k: ResolvedLine["resolved_kind"]): string {
   }
 }
 
+function kindChipClass(k: ResolvedLine["resolved_kind"]): string {
+  switch (k) {
+    case "goods": return "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300";
+    case "ccdc": return "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300";
+    case "asset": return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "service": return "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300";
+  }
+}
+
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
