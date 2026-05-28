@@ -311,15 +311,65 @@ export function InboxItemDetail({
   const [purchasePurpose, setPurchasePurpose] = useState<PurchasePurposeSelection | undefined>(
     () => item.purchase_purpose,
   );
+  // Overrides TK Nợ khi KTV chọn mã hệ thống do Fin gợi ý (bấm vào "LOG-VAN-CHUY-NOI 85%").
+  // Map theo chỉ số dòng trong proposal.lines.
+  const [accountOverrides, setAccountOverrides] = useState<Record<number, string>>({});
+  const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set());
   useEffect(() => {
     setPurchasePurpose(item.purchase_purpose);
+    setAccountOverrides({});
+    setHighlightedLines(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
-  const workingItem = useMemo<InboxItem>(
-    () => applyPurchasePurpose(item, purchasePurpose),
-    [item, purchasePurpose],
-  );
+  const workingItem = useMemo<InboxItem>(() => {
+    const base = applyPurchasePurpose(item, purchasePurpose);
+    if (Object.keys(accountOverrides).length === 0) return base;
+    return {
+      ...base,
+      proposal: {
+        ...base.proposal,
+        lines: base.proposal.lines.map((l, i) =>
+          accountOverrides[i] ? { ...l, account: accountOverrides[i] } : l,
+        ),
+      },
+    };
+  }, [item, purchasePurpose, accountOverrides]);
+
+  const handleLineAccountResolved = (info: {
+    raw_name: string;
+    product_code: string;
+    product_name: string;
+    stock_account: string;
+  }) => {
+    const lines = workingItem.proposal.lines;
+    // Tìm dòng Nợ đầu tiên có TK thuộc nhóm có thể swap (chi phí/hàng/TSCĐ...)
+    const idx = lines.findIndex(
+      (l) => (l.debit ?? 0) > 0 && PURCHASE_PURPOSE_SWAPPABLE_ACCOUNTS.has(l.account),
+    );
+    if (idx < 0) return;
+    if (lines[idx].account === info.stock_account) {
+      toast.info(`Đã gắn "${info.product_code}" — TK Nợ giữ nguyên ${info.stock_account}`);
+      return;
+    }
+    setAccountOverrides((prev) => ({ ...prev, [idx]: info.stock_account }));
+    setHighlightedLines((prev) => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+    toast.success(
+      `Đã gắn "${info.product_code}" — TK Nợ chuyển ${lines[idx].account} → ${info.stock_account}`,
+    );
+    // Bỏ highlight sau 1.6s
+    window.setTimeout(() => {
+      setHighlightedLines((prev) => {
+        const next = new Set(prev);
+        next.delete(idx);
+        return next;
+      });
+    }, 1600);
+  };
 
   const partnerName = workingItem.partner?.trim();
   const hasPartner = !!partnerName && partnerName !== "—";
