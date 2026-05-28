@@ -1446,6 +1446,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           tenantId,
           userId,
           documentId: data.external_id,
+          purchasePurpose: data.purchase_purpose,
         });
       } catch (e) {
         console.error("[approveInboxItem] auto-resolve missing master failed", e);
@@ -1519,6 +1520,7 @@ export const approveInboxItem = createServerFn({ method: "POST" })
           userId,
           entryDate: data.entry_date,
           journalEntryId: entry.id,
+          purchasePurpose: data.purchase_purpose,
         });
         if (pvId) {
           const { data: pvRow } = await supabase
