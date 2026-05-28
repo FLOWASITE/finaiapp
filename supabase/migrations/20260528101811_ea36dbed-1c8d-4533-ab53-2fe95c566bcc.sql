@@ -1,0 +1,1 @@
+ALTER TABLE public.supplier_item_mappings ALTER COLUMN product_id DROP NOT NULL;
