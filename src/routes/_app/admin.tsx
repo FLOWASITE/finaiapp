@@ -22,7 +22,7 @@ const TABS = [
   { to: "/admin/members", label: "Thành viên", icon: Users },
   { to: "/admin/audit", label: "Nhật ký", icon: FileSearch },
   { to: "/admin/periods", label: "Khóa kỳ", icon: Lock },
-  { to: "/admin/backup", label: "Sao lưu", icon: Download },
+    { to: "/admin/data", label: "Quản lý dữ liệu", icon: Database },
 ];
 
 function AdminLayout() {
