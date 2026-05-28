@@ -245,28 +245,46 @@ function InvoiceDetail() {
                       )}
                     </div>
                     <div className="shrink-0">
-                      <Select
-                        value={l.user_override_kind ?? `auto:${l.resolved_kind}`}
-                        onValueChange={(v) => {
-                          const kind = v.startsWith("auto:")
-                            ? null
-                            : (v as ResolvedLine["resolved_kind"]);
-                          overrideMut.mutate({ line_id: l.id, kind });
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-[180px] text-xs">
-                          <SelectValue placeholder="Chọn loại..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={`auto:${l.resolved_kind}`}>
-                            ⚡ Fin tự: {kindLabel(l.resolved_kind)}
-                          </SelectItem>
-                          <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
-                          <SelectItem value="ccdc">CCDC (153)</SelectItem>
-                          <SelectItem value="asset">TSCĐ (211/213)</SelectItem>
-                          <SelectItem value="service">Dịch vụ / phân bổ (6xx/242)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={
+                            pendingOverrides[l.id] !== undefined
+                              ? pendingOverrides[l.id] === null
+                                ? `auto:${l.resolved_kind}`
+                                : pendingOverrides[l.id]
+                              : (l.user_override_kind ?? `auto:${l.resolved_kind}`)
+                          }
+                          onValueChange={(v) => {
+                            const kind = v.startsWith("auto:") ? null : (v as ResolvedLine["resolved_kind"]);
+                            setPendingOverrides((prev) => ({ ...prev, [l.id]: kind }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[180px] text-xs">
+                            <SelectValue placeholder="Chọn loại..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={`auto:${l.resolved_kind}`}>
+                              ⚡ Fin tự: {kindLabel(l.resolved_kind)}
+                            </SelectItem>
+                            <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
+                            <SelectItem value="ccdc">CCDC (153)</SelectItem>
+                            <SelectItem value="asset">TSCĐ (211/213)</SelectItem>
+                            <SelectItem value="service">Dịch vụ / phân bổ (6xx/242)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {pendingOverrides[l.id] !== undefined && (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            disabled={overrideMut.isPending}
+                            onClick={() =>
+                              overrideMut.mutate({ line_id: l.id, kind: pendingOverrides[l.id] })
+                            }
+                          >
+                            {overrideMut.isPending ? "Đang lưu..." : "Lưu"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
