@@ -40,6 +40,24 @@ function InvoiceDetail() {
   const suggest = useServerFn(suggestJournalEntry);
   const approve = useServerFn(approveJournalEntry);
   const linkedFn = useServerFn(getLinkedEInvoice);
+  const resolvedLinesFn = useServerFn(getResolvedInvoiceLines);
+  const overrideKindFn = useServerFn(setLineOverrideKind);
+
+  const resolvedLinesQuery = useQuery({
+    queryKey: ["invoice-resolved-lines", id],
+    queryFn: () => resolvedLinesFn({ data: { invoice_id: id } }),
+    ...QUERY_PRESETS.TRANSACTIONAL,
+  });
+
+  const overrideMut = useMutation({
+    mutationFn: (vars: { line_id: string; kind: ResolvedLine["resolved_kind"] | null }) =>
+      overrideKindFn({ data: vars }),
+    onSuccess: () => {
+      resolvedLinesQuery.refetch();
+      toast.success("Đã cập nhật loại hàng hoá");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lỗi cập nhật"),
+  });
 
   const { data: linked } = useQuery({
     queryKey: ["invoice-einvoice", id],
@@ -162,6 +180,68 @@ function InvoiceDetail() {
           <Field label="Tổng" value={Number(invoice.total).toLocaleString("vi-VN")} />
         </div>
 
+        {resolvedLinesQuery.data && resolvedLinesQuery.data.length > 0 && (
+          <div className="mt-8">
+            <h2 className="font-semibold">Mặt hàng & định khoản</h2>
+            <p className="text-xs text-muted-foreground">
+              Fin tự phân loại theo sản phẩm/heuristic. KTV có thể đổi loại nếu cần — sẽ ghi đè cho lần ghi sổ này.
+            </p>
+            <div className="mt-3 space-y-2">
+              {resolvedLinesQuery.data.map((l) => (
+                <div
+                  key={l.id}
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{l.description ?? "—"}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        SL {l.qty ?? "—"} · Đơn giá{" "}
+                        {Number(l.unit_price ?? 0).toLocaleString("vi-VN")} · Thành tiền{" "}
+                        <strong>{Number(l.amount ?? 0).toLocaleString("vi-VN")}</strong>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <Select
+                        value={l.user_override_kind ?? `auto:${l.resolved_kind}`}
+                        onValueChange={(v) => {
+                          const kind = v.startsWith("auto:")
+                            ? null
+                            : (v as ResolvedLine["resolved_kind"]);
+                          overrideMut.mutate({ line_id: l.id, kind });
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[200px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={`auto:${l.resolved_kind}`}>
+                            Fin tự: {kindLabel(l.resolved_kind)} ({l.resolved_account}) ·{" "}
+                            {l.resolution_confidence}%
+                          </SelectItem>
+                          <SelectItem value="goods">Hàng hoá / NVL (152/156)</SelectItem>
+                          <SelectItem value="ccdc">CCDC (153)</SelectItem>
+                          <SelectItem value="asset">TSCĐ (211/213)</SelectItem>
+                          <SelectItem value="service">Dịch vụ / phân bổ (6xx/242)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {l.user_override_kind ? (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        ✎ KTV ghi đè → TK {l.resolved_account}
+                      </span>
+                    ) : (
+                      <span>{l.resolution_reason}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Gợi ý định khoản AI</h2>
@@ -262,6 +342,15 @@ function InvoiceDetail() {
       </div>
     </div>
   );
+}
+
+function kindLabel(k: ResolvedLine["resolved_kind"]): string {
+  switch (k) {
+    case "goods": return "Hàng hoá";
+    case "ccdc": return "CCDC";
+    case "asset": return "TSCĐ";
+    case "service": return "Dịch vụ";
+  }
 }
 
 function Field({ label, value }: { label: string; value: string }) {
