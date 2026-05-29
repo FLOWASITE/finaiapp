@@ -8,18 +8,17 @@ export const Route = createFileRoute("/_app/admin/data")({
   component: DataLayout,
 });
 
-const SUBTABS = [
-  { to: "/admin/data/export", label: "Xuất dữ liệu (Fin)", icon: Download },
-  { to: "/admin/data/import", label: "Nhập dữ liệu (Fin)", icon: Upload },
-  { to: "/admin/data/carry-forward", label: "Kết chuyển số dư", icon: ArrowRightLeft },
-  { to: "/admin/data/seal", label: "Khóa sổ kỳ", icon: Lock },
-  { to: "/admin/data/reset", label: "Reset dữ liệu", icon: Trash2 },
-  { to: "/admin/data/history", label: "Lịch sử", icon: History },
-];
-
-
 function DataLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const SUBTABS = [
+    { to: "/admin/data/export", label: "Xuất dữ liệu (Fin)", icon: Download },
+    { to: "/admin/data/import", label: "Nhập dữ liệu (Fin)", icon: Upload },
+    { to: "/admin/data/carry-forward", label: "Kết chuyển số dư", icon: ArrowRightLeft },
+    { to: "/admin/data/seal", label: "Khóa sổ kỳ", icon: Lock },
+    { to: "/admin/data/reset", label: "Reset dữ liệu", icon: Trash2 },
+    { to: "/admin/data/history", label: "Lịch sử", icon: History },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
