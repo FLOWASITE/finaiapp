@@ -2587,12 +2587,15 @@ export type Database = {
       documents: {
         Row: {
           ai_upload_id: string | null
+          archived_at: string | null
           checksum_sha256: string | null
+          compressed: boolean
           created_at: string
           doc_kind: string
           einvoice_id: string | null
           id: string
           invoice_id: string | null
+          last_accessed_at: string | null
           mime_type: string | null
           notes: string | null
           ocr_error: string | null
@@ -2607,18 +2610,22 @@ export type Database = {
           source: string
           storage_bucket: string
           storage_path: string
+          storage_tier: string
           tenant_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
           ai_upload_id?: string | null
+          archived_at?: string | null
           checksum_sha256?: string | null
+          compressed?: boolean
           created_at?: string
           doc_kind: string
           einvoice_id?: string | null
           id?: string
           invoice_id?: string | null
+          last_accessed_at?: string | null
           mime_type?: string | null
           notes?: string | null
           ocr_error?: string | null
@@ -2633,18 +2640,22 @@ export type Database = {
           source?: string
           storage_bucket: string
           storage_path: string
+          storage_tier?: string
           tenant_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
           ai_upload_id?: string | null
+          archived_at?: string | null
           checksum_sha256?: string | null
+          compressed?: boolean
           created_at?: string
           doc_kind?: string
           einvoice_id?: string | null
           id?: string
           invoice_id?: string | null
+          last_accessed_at?: string | null
           mime_type?: string | null
           notes?: string | null
           ocr_error?: string | null
@@ -2659,6 +2670,7 @@ export type Database = {
           source?: string
           storage_bucket?: string
           storage_path?: string
+          storage_tier?: string
           tenant_id?: string
           updated_at?: string
           user_id?: string
@@ -10196,6 +10208,10 @@ export type Database = {
         Returns: boolean
       }
       is_tenant_suspended: { Args: { _tenant: string }; Returns: boolean }
+      mark_document_accessed: {
+        Args: { p_document_id: string }
+        Returns: undefined
+      }
       match_products_for_vendor: {
         Args: {
           p_limit?: number
@@ -10248,6 +10264,19 @@ export type Database = {
         Args: { p_period_id: string; p_reason: string }
         Returns: undefined
       }
+      search_global: {
+        Args: { p_limit?: number; p_query: string; p_tenant_id: string }
+        Returns: {
+          id: string
+          kind: string
+          meta: Json
+          score: number
+          subtitle: string
+          title: string
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       sync_tenant_to_context: { Args: { p_tenant: string }; Returns: undefined }
       transition_document_status: {
         Args: {
@@ -10258,6 +10287,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      unaccent: { Args: { "": string }; Returns: string }
+      unaccent_immutable: { Args: { "": string }; Returns: string }
       void_depreciation_entry: {
         Args: { _entry_id: string; _reason?: string }
         Returns: string
