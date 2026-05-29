@@ -650,10 +650,23 @@ export const getDocument = createServerFn({ method: "GET" })
       .eq("document_id", data.id);
     let signedUrl: string | null = null;
     if (doc.storage_bucket && doc.storage_path) {
-      const { data: signed } = await context.supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 60 * 30);
-      signedUrl = signed?.signedUrl ?? null;
+      if (!doc.compressed && doc.storage_tier !== "archived") {
+        const { data: signed } = await context.supabase.storage
+          .from(doc.storage_bucket)
+          .createSignedUrl(doc.storage_path, 60 * 30);
+        signedUrl = signed?.signedUrl ?? null;
+      } else {
+        // Compressed hoặc archived → dùng helper getDocumentUrl để auto-decompress
+        try {
+          const { getDocumentUrl } = await import("./document-url.functions");
+          const res = await (getDocumentUrl as any)({
+            data: { docId: doc.id, expiresIn: 1800 },
+          });
+          signedUrl = res?.url ?? null;
+        } catch {
+          signedUrl = null;
+        }
+      }
     }
     let aiUpload: any = null;
     if (doc.ai_upload_id) {
