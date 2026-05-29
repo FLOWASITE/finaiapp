@@ -16,13 +16,6 @@ const SUBTABS = [
   { to: "/admin/data/reset", label: "Reset dữ liệu", icon: Trash2 },
   { to: "/admin/data/history", label: "Lịch sử", icon: History },
 ];
-const SUBTABS = [
-  { to: "/admin/data/export", label: "Xuất dữ liệu (Fin)", icon: Download },
-  { to: "/admin/data/import", label: "Nhập dữ liệu (Fin)", icon: Upload },
-  { to: "/admin/data/carry-forward", label: "Kết chuyển số dư", icon: ArrowRightLeft },
-  { to: "/admin/data/reset", label: "Reset dữ liệu", icon: Trash2 },
-  { to: "/admin/data/history", label: "Lịch sử", icon: History },
-];
 
 
 function DataLayout() {
