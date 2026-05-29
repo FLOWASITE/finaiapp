@@ -68,9 +68,11 @@ export const rejectUnseal = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("reject_unseal_period", {
       p_request_id: data.request_id,
-      p_reason: data.reason ?? null,
+      p_reason: data.reason ?? "",
     });
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
     return { ok: true };
   });
 
