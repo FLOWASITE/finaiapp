@@ -2588,6 +2588,7 @@ export type Database = {
         Row: {
           ai_upload_id: string | null
           archived_at: string | null
+          canonical_path: string | null
           checksum_sha256: string | null
           compressed: boolean
           created_at: string
@@ -2618,6 +2619,7 @@ export type Database = {
         Insert: {
           ai_upload_id?: string | null
           archived_at?: string | null
+          canonical_path?: string | null
           checksum_sha256?: string | null
           compressed?: boolean
           created_at?: string
@@ -2648,6 +2650,7 @@ export type Database = {
         Update: {
           ai_upload_id?: string | null
           archived_at?: string | null
+          canonical_path?: string | null
           checksum_sha256?: string | null
           compressed?: boolean
           created_at?: string

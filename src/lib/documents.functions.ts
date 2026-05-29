@@ -650,10 +650,18 @@ export const getDocument = createServerFn({ method: "GET" })
       .eq("document_id", data.id);
     let signedUrl: string | null = null;
     if (doc.storage_bucket && doc.storage_path) {
-      const { data: signed } = await context.supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 60 * 30);
-      signedUrl = signed?.signedUrl ?? null;
+      try {
+        const { resolveDocumentUrl } = await import("./document-url.server");
+        const res = await resolveDocumentUrl(
+          context.supabase as any,
+          (context as any).userId,
+          doc.id,
+          60 * 30,
+        );
+        signedUrl = res.url;
+      } catch {
+        signedUrl = null;
+      }
     }
     let aiUpload: any = null;
     if (doc.ai_upload_id) {

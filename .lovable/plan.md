@@ -1,159 +1,100 @@
-# Kiến trúc hiệu năng cho FinAI — Bản chốt
 
-Dựa trên 3 quyết định của bạn:
-- Quy mô < 200K dòng/tenant → **bỏ qua Giai đoạn 3 (Partitioning)**, làm 1 + 2 + 4
-- **Giữ 100% Supabase Storage** cho XML/PDF, không thêm AWS S3
-- Seal kỳ **có thể unseal** với cơ chế 2-người-ký (owner + KTT)
+# Stage 2 — Lifecycle XML/PDF (phần còn lại)
+
+Làm gộp 3 hạng mục: chuẩn hoá `storage_path` → cron nén/archive → helper signed URL có auto-decompress.
 
 ---
 
-## Giai đoạn 1 — Index + Period Seal + Balance Yearly (1 sprint, ưu tiên cao)
+## 1. Chuẩn hoá `storage_path` (2.1)
 
-### 1.1 Composite indexes (migration, dùng `CONCURRENTLY`)
-- `journal_entries (tenant_id, entry_date DESC)`
-- `journal_entries (tenant_id, entry_date DESC, id)` — keyset pagination
-- `journal_lines (account_code)` + giữ `(entry_id)` đã có
-- `invoices (tenant_id, issue_date DESC, status)`
-- `sales_invoices (tenant_id, issue_date DESC, status)`
-- `customer_receipts (tenant_id, pay_date DESC)`
-- `supplier_payments (tenant_id, pay_date DESC)`
-- `documents (tenant_id, sha256)` — chống trùng XML
+**Layout mới**: `{tenant_id}/{year}/{month}/{invoice_id}/{kind}.{ext}`
+- `kind` ∈ `xml | pdf | signed_xml`
+- `ext` giữ nguyên gốc; nếu đã nén thêm `.gz`
 
-### 1.2 Period Seal với cơ chế 2-người-ký
+**Cách triển khai (không re-upload file cũ)**:
+- Thêm cột `documents.canonical_path text` — path chuẩn dùng cho file mới upload từ giờ.
+- File cũ giữ `storage_path` hiện tại (`{user_id}/xml/timestamp-name.xml`); helper đọc bucket + path từ `storage_path` như cũ.
+- Cập nhật `einvoice-xml.functions.ts` (và các nơi upload XML/PDF khác) để dùng layout mới khi `tenant_id` + `invoice_id` đã có.
+- Khi cron archive đụng vào file cũ, nó sẽ ghi `canonical_path` mới + di chuyển sang bucket archive theo layout chuẩn (lazy migration).
 
-**Schema thay đổi:**
-```sql
-ALTER TABLE fiscal_periods
-  ADD COLUMN is_sealed boolean NOT NULL DEFAULT false,
-  ADD COLUMN sealed_at timestamptz,
-  ADD COLUMN sealed_by uuid REFERENCES auth.users(id),
-  ADD COLUMN seal_reason text;
+Lý do: tránh down-time + tránh 1 migration nặng đụng vài chục nghìn object.
 
--- Bảng yêu cầu unseal (2-người-ký)
-CREATE TABLE fiscal_period_unseal_requests (
-  id uuid PK,
-  tenant_id uuid,
-  period_id uuid REFERENCES fiscal_periods(id),
-  requested_by uuid,           -- owner HOẶC KTT khởi tạo
-  requested_role text,         -- 'owner' | 'accountant_chief'
-  reason text NOT NULL,
-  approved_by uuid,            -- người ký thứ 2
-  approved_role text,
-  status text DEFAULT 'pending', -- pending | approved | rejected | expired
-  created_at, approved_at, expires_at  -- TTL 48h
-);
+---
+
+## 2. Cron nén & archive (2.3)
+
+**Server route**: `src/routes/api/public/hooks/archive-documents.ts` (POST, không cần auth vì `/api/public/*`; verify bằng `apikey` header = anon key).
+
+Xử lý theo batch (mặc định 50 doc/lần để tránh time-out Worker):
+
+1. **Warm tier** (12–60 tháng tuổi, `storage_tier='hot'`, `compressed=false`, XML):
+   - Download từ `invoices` bucket
+   - gzip (Node `zlib`)
+   - Upload `.gz` cùng path mới (layout chuẩn), set `storage_tier='warm'`, `compressed=true`, cập nhật `storage_path` + `canonical_path`
+   - Xoá object gốc
+2. **Archive tier** (> 60 tháng, `storage_tier in ('hot','warm')`):
+   - Copy sang bucket `einvoices-archive` theo layout chuẩn (giữ `.gz` nếu đã có; nén nếu chưa)
+   - Set `storage_tier='archived'`, `archived_at=now()`, cập nhật `storage_path`
+   - Xoá object ở bucket nguồn
+
+PDF chỉ archive (không nén — đã nén sẵn).
+
+**Schedule** (qua `supabase--insert`, không phải migration):
+- Weekly Chủ nhật 02:00 ICT (`0 19 * * 6` UTC)
+- Body `{}`; route tự lấy batch 50.
+
+**Idempotent**: query lọc theo `storage_tier` + `archived_at IS NULL` để chạy lại không hỏng dữ liệu.
+
+---
+
+## 3. Helper `get_document_url(doc_id)` (2.4)
+
+**File**: `src/lib/documents.functions.ts`
+
+```ts
+export const getDocumentUrl = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ docId: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    // 1. Load document (RLS scoped to user)
+    // 2. Cập nhật last_accessed_at qua RPC mark_document_accessed
+    // 3. Nếu compressed=false → trả signed URL 5 phút từ bucket gốc
+    // 4. Nếu compressed=true:
+    //    - Download .gz → gunzip → upload bản tạm vào bucket `invoices`
+    //      path: `_tmp/{userId}/{docId}-{nonce}.xml` (TTL ngắn)
+    //    - Trả signed URL 5 phút của bản tạm
+    //    - File tạm sẽ bị job đêm dọn (xem dưới)
+    // 5. Nếu storage_tier='archived' → cùng flow như (4) nhưng đọc từ bucket
+    //    `einvoices-archive` (dùng supabaseAdmin vì bucket private RLS phức tạp,
+    //    đã verify ownership ở bước 1).
+  });
 ```
 
-**Triggers chặn ghi:**
-- `BEFORE INSERT OR UPDATE OR DELETE` trên: `journal_entries`, `journal_lines`, `invoices`, `sales_invoices`, `customer_receipts`, `supplier_payments` → raise exception nếu kỳ chứa ngày đó có `is_sealed = true`.
+**Dọn temp file**: thêm vào cùng cron archive một bước xoá object `_tmp/*` cũ > 1h.
 
-**RPC:**
-- `seal_fiscal_period(period_id, reason)` — chỉ owner; ghi `audit_logs`
-- `request_unseal_period(period_id, reason)` — owner hoặc KTT khởi tạo
-- `approve_unseal_period(request_id)` — phải khác `requested_by` VÀ phải là role còn lại (owner ↔ KTT). Khi approved → set `is_sealed=false`, ghi audit, đóng request.
-- Job dọn request `expires_at < now()` mỗi đêm.
-
-**UI mới** (`/admin/data/seal`):
-- Danh sách kỳ + trạng thái (open / soft_closed / closed / sealed)
-- Nút "Niêm phong kỳ" (owner)
-- Nút "Yêu cầu mở niêm phong" + form lý do
-- Inbox "Yêu cầu chờ duyệt" cho người ký còn lại
-- Banner cảnh báo "Cần chữ ký của KTT để hoàn tất mở niêm phong"
-
-### 1.3 Aggregate yearly (`account_balance_yearly`)
-```sql
-CREATE TABLE account_balance_yearly (
-  tenant_id uuid, account_code text, year int,
-  opening_debit numeric, opening_credit numeric,
-  period_debit numeric, period_credit numeric,
-  closing_debit numeric, closing_credit numeric,
-  updated_at timestamptz,
-  PRIMARY KEY (tenant_id, account_code, year)
-);
-```
-- Function `rebuild_account_balance_yearly(p_tenant, p_year)` — chạy sau mỗi đợt kết chuyển hoặc nightly cron.
-- Báo cáo Sổ cái / BCTC năm đọc từ bảng này → < 200ms kể cả dữ liệu 10 năm.
+UI hiện tại (invoice viewer, link XML) đổi từ `createSignedUrl` trực tiếp sang gọi `getDocumentUrl` — chỉ 1–2 chỗ.
 
 ---
 
-## Giai đoạn 2 — Lifecycle XML/PDF trên Supabase Storage (1 sprint)
+## Files
 
-Vì giữ 100% Supabase Storage (không có lifecycle native như S3), giải pháp:
+**Tạo mới**
+- `src/routes/api/public/hooks/archive-documents.ts`
+- `src/lib/documents.functions.ts`
+- 1 migration: thêm cột `documents.canonical_path`, index `(storage_tier, issue_date)` cho cron
 
-### 2.1 Chuẩn hoá path
-- Layout mới: `einvoices/{tenant_id}/{year}/{month}/{invoice_id}/{kind}.{ext}`
-- Migration đổi `documents.storage_path` (không re-upload file).
+**Sửa**
+- `src/lib/einvoice-xml.functions.ts` — dùng layout path mới khi upload
+- 1–2 chỗ đang gọi `supabase.storage.from('invoices').createSignedUrl(...)` cho documents → đổi sang `getDocumentUrl`
 
-### 2.2 Tier hoá ở metadata layer
-Thêm cột vào `documents`:
-```sql
-ALTER TABLE documents
-  ADD COLUMN storage_tier text DEFAULT 'hot',  -- hot | warm | archived
-  ADD COLUMN last_accessed_at timestamptz DEFAULT now(),
-  ADD COLUMN compressed boolean DEFAULT false;
-```
-
-### 2.3 Cron job nén & archive
-- **> 12 tháng**: server function `archive_old_documents` chạy weekly:
-  - Tải XML/PDF từ Storage, gzip, upload lại với suffix `.gz`, xoá bản gốc, set `compressed=true`, `storage_tier='warm'`. Giảm ~70% dung lượng cho XML.
-- **> 5 năm**: chuyển sang bucket `einvoices-archive` (cùng project, nhưng tách bucket giúp policy lifecycle dễ áp khi Supabase bổ sung sau).
-
-### 2.4 Signed URL helper
-- Function `get_document_url(doc_id)` server-side: tự decompress nếu cần, trả signed URL 5 phút. Update `last_accessed_at`.
+**SQL (qua insert tool, không phải migration)**
+- `cron.schedule('archive-documents-weekly', ...)` gọi `/api/public/hooks/archive-documents`
 
 ---
 
-## Giai đoạn 3 (CŨ — Partitioning): **BỎ QUA**
+## Bỏ qua / để sau
+- Re-upload toàn bộ file cũ về layout mới (lazy migration đủ).
+- Re-encrypt / KMS cho bucket archive.
+- UI hiển thị tier badge trong list invoice (mục riêng trong roadmap).
 
-Lý do: < 200K dòng/tenant, composite index + aggregate yearly đã đủ. Theo dõi sau 6 tháng, nếu tenant nào vượt 500K thì kích hoạt lại.
-
----
-
-## Giai đoạn 4 — Tìm kiếm nhanh (1 sprint)
-
-Vì giữ stack đơn giản, **chưa cần Meilisearch ngoài**. Tận dụng PostgreSQL:
-
-### 4.1 PG Trigram + Unaccent (built-in, không tốn extra service)
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
--- Index trigram cho tìm kiếm fuzzy + diacritic-insensitive
-CREATE INDEX idx_suppliers_name_trgm
-  ON suppliers USING gin (unaccent(lower(name)) gin_trgm_ops);
-CREATE INDEX idx_invoices_search
-  ON invoices USING gin (unaccent(lower(supplier_name || ' ' || coalesce(invoice_no,''))) gin_trgm_ops);
-CREATE INDEX idx_products_name_trgm
-  ON products USING gin (unaccent(lower(name)) gin_trgm_ops);
-```
-
-### 4.2 Search RPC
-- `search_global(query, limit)` trả 3 nhóm: suppliers, invoices, products — < 100ms với 100K records.
-
-### 4.3 UI
-- CMD+K palette gọi `search_global` thay vì `ILIKE` rải rác.
-
-**Khi nào nâng cấp lên Meilisearch?** Chỉ khi > 1M invoices toàn hệ thống hoặc PG search > 500ms.
-
----
-
-## Tóm tắt thứ tự thực thi
-
-| Sprint | Hạng mục | Migration count | Risk |
-|--------|----------|-----------------|------|
-| 1 | GĐ1: indexes + seal + balance_yearly | 3 migrations | Low |
-| 2 | GĐ2: lifecycle XML | 1 migration + 1 cron + 1 server fn | Low |
-| 3 | GĐ4: PG trigram search + CMD+K | 1 migration + 1 RPC + UI | Low |
-
-Tổng: **3 sprint** để đạt hiệu năng mục tiêu (sổ cái < 200ms, search < 100ms, dung lượng XML giảm 70%, không kỳ đã ghi sổ nào có thể bị sửa lén).
-
----
-
-## Đề xuất bắt đầu
-
-Bạn duyệt plan này, em sẽ vào build mode và làm theo thứ tự:
-1. Migration 1.1 (composite indexes) — an toàn nhất, có thể rollout ngay
-2. Migration 1.2 (period seal + 2-người-ký) + UI `/admin/data/seal`
-3. Migration 1.3 (account_balance_yearly) + job rebuild
-
-Sau khi GĐ1 ổn định (1 tuần production), tiếp tục GĐ2 rồi GĐ4.
+OK chốt thì em vào build mode triển khai.
