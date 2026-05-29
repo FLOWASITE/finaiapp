@@ -1,78 +1,101 @@
 ## Mục tiêu
 
-Nâng cấp `/superadmin/accounts` (hiện chỉ có list + role toggle + ban + reset + delete) thành phân hệ quản lý tài khoản đầy đủ cho quy mô 500–5,000 user.
+Đưa toàn bộ quản trị tenant của Super Admin về đúng schema `tenants` + `tenant_members` (bỏ phụ thuộc `profiles`-as-tenant), migrate dữ liệu cũ, và bổ sung năng lực còn thiếu: members, transfer ownership, edit metadata tenant, cascade delete data nghiệp vụ theo `tenant_id`.
 
-## Phạm vi 4 nhóm tính năng
+Hiện trạng: 5 tenants / 5 members / 2 profiles → dữ liệu nhỏ, migrate an toàn.
 
-### 1. Trang chi tiết tài khoản — `/superadmin/accounts/$id`
-Drawer mở từ bảng list (hoặc trang riêng) gồm 4 tab:
-- **Hồ sơ**: email, display_name, company_name, phone, job_title, tax_id, created_at, last_sign_in_at, email_confirmed_at, MFA status, banned_until.
-- **Tenants & vai trò**: bảng liệt kê tất cả tenant user thuộc về (qua `tenant_members` / `user_roles` + `profiles.active_tenant_id`), role tại mỗi tenant, quick action "Đổi role tại tenant này", "Gỡ khỏi tenant".
-- **Phiên & bảo mật**: danh sách session active (auth.sessions qua admin API), IP + User-Agent + thời điểm, nút **Force logout all sessions**, nút **Reset MFA factors**, lịch sử đăng nhập 30 ngày gần nhất.
-- **Nhật ký**: 50 dòng `audit_logs` gần nhất do user này thực hiện (filter `actor_id`).
+---
 
-### 2. Tạo & mời user mới — Dialog "Mời tài khoản"
-Form gồm: email, display_name (tùy chọn), tenant (combobox tenant đã có hoặc bỏ trống = chưa gắn), role mặc định, checkbox "Cấp superadmin" (cảnh báo).
-- Submit → `supabaseAdmin.auth.admin.inviteUserByEmail(email)` → tạo bản ghi `profiles` + `user_roles` (nếu chọn) → log audit.
-- Hiển thị toast với link invite (fallback nếu email chưa cấu hình).
-- Validate: email hợp lệ, không trùng user đã tồn tại (tra trước qua list).
+## 1. Migration dữ liệu legacy (chạy 1 lần)
 
-### 3. Filter nâng cao + bulk + export — Bảng chính
-- **Filter bar**: search (đã có), role multi-select, trạng thái (Hoạt động / Chưa xác thực / Đã khóa / Có MFA), khoảng ngày tạo, last login (chưa từng / 7 ngày / 30 ngày / 90+ ngày).
-- **Sort cột**: email, company, created_at, last_sign_in_at.
-- **Pagination server-side** (50/trang) — đổi `listAllAccounts` thành nhận `{ page, pageSize, q, roles, status, createdRange, lastLoginBucket }`, vẫn dùng `auth.admin.listUsers` rồi lọc/sort trong server fn (≤5k user nên acceptable; thêm cache 30s).
-- **Bulk select**: checkbox đầu mỗi dòng + checkbox "Chọn tất cả trang". Action bar nổi khi có chọn: Khóa, Mở khóa, Gỡ role, Cấp role, Gửi reset password, Xóa (kèm dialog xác nhận nhập "DELETE N accounts").
-- **Export CSV**: server fn `exportAccountsCsv` trả CSV theo filter hiện tại (không bulk-select riêng).
+`supabase/migrations/<ts>_backfill_tenants_from_profiles.sql`:
 
-### 4. Bảo mật & multi-tenant roles
-- **Force logout**: `supabaseAdmin.auth.admin.signOut(user_id, 'global')` — thao tác đơn lẻ trên chi tiết.
-- **Reset MFA**: liệt kê factors qua `auth.admin.mfa.listFactors`, nút xóa từng factor; cảnh báo user sẽ mất 2FA.
-- **Matrix tenant × role**: tại tab "Tenants & vai trò" hiển thị mỗi tenant một dòng với select role (owner/admin/accountant/viewer). Lưu qua `setUserRoleInTenant({ user_id, tenant_id, role })` — server fn mới, ghi `user_roles` scoped (hiện schema `user_roles` không có `tenant_id`; xem mục Schema bên dưới).
+1. Với mỗi `profiles` chưa có `tenants` tương ứng (heuristic: không phải `owner_user_id` của tenant nào):
+   - `INSERT INTO tenants` (id mới, copy `company_name`, `tax_id`, `address`, `phone`, `accounting_standard`, `base_currency`, `fiscal_year_start`, `logo_url`, `legal_rep_name`, `chief_accountant_name`, …, `owner_user_id = profiles.id`, `status='active'`, `name = COALESCE(company_name, email)`).
+   - `INSERT INTO tenant_members (tenant_id, user_id, role='owner', status='active')`.
+   - `UPDATE profiles SET active_tenant_id = <new tenant_id>` nếu đang NULL.
+2. Tạo `tenant_plans` mặc định (`plan='free'`) cho mọi tenant chưa có row.
+3. Kiểm tra: tất cả `tenants` đều có ≥1 `tenant_members` role `owner`; mọi `profiles` đều có `active_tenant_id`.
 
-## Schema thay đổi (1 migration nhỏ)
+## 2. DB function cascade delete
 
-`user_roles` hiện không có `tenant_id`. Để hỗ trợ role per-tenant cần:
-```
-ALTER TABLE public.user_roles
-  ADD COLUMN tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE;
-ALTER TABLE public.user_roles
-  DROP CONSTRAINT user_roles_user_id_role_key,
-  ADD CONSTRAINT user_roles_user_role_tenant_key UNIQUE (user_id, role, tenant_id);
-CREATE INDEX idx_user_roles_tenant ON public.user_roles(tenant_id);
-```
-- `superadmin` giữ `tenant_id = NULL` (global).
-- Cập nhật `has_role()` để vẫn hoạt động (role match bất kể tenant) + thêm `has_role_in_tenant(user_id, role, tenant_id)`.
-- Backfill: gán `tenant_id = profiles.active_tenant_id` cho các role hiện có (trừ superadmin).
+`public.fn_superadmin_delete_tenant_cascade(_tenant_id uuid)` — `SECURITY DEFINER`, `search_path=public`:
 
-> Nếu thay đổi schema này quá lớn, có thể **defer** sang giai đoạn 2 và phase 1 chỉ làm role global như hiện tại — đợi xác nhận.
+- Kiểm tra caller là `superadmin` (`has_role(auth.uid(),'superadmin')`).
+- `DELETE FROM <table> WHERE tenant_id = _tenant_id` cho ~110 bảng nghiệp vụ (sinh sẵn từ `information_schema`, không dùng FK CASCADE vì hiện không có).
+- Cuối cùng: `DELETE FROM tenant_members`, `tenant_plans`, `tenant_usage`, `tenant_catalog_pins`, `tenant_coa_overrides`, `tenant_product_catalog`, `tenants WHERE id = _tenant_id`.
+- KHÔNG xóa `auth.users` (owner có thể còn tenant khác).
+- Ghi `audit_logs(action='superadmin.tenant.delete', tenant_id, payload)`.
 
-## Server functions mới (trong `src/lib/superadmin.functions.ts`)
-- `getAccountDetail({ user_id })` — trả profile, tenants[], roles[], sessions[], mfa_factors[], recent_audits[].
-- `listAccountsPaged({ page, pageSize, filters })` — thay/phụ trợ `listAllAccounts`.
-- `inviteAccount({ email, display_name?, tenant_id?, role? })`.
-- `bulkAccountAction({ user_ids, action })` — action ∈ ban/unban/delete/reset_password/set_role.
-- `exportAccountsCsv(filters)` — trả `{ csv: string }`.
-- `forceLogoutAccount({ user_id })`.
-- `listMfaFactors({ user_id })` / `resetMfaFactor({ user_id, factor_id })`.
-- `setUserRoleInTenant({ user_id, tenant_id, role, enable })` (nếu làm phase 1 multi-tenant).
-- Tất cả qua `assertSuperadmin` + ghi `logSuperadminAction`.
+Thứ tự delete: bảng con (lines, items, history…) → bảng cha (vouchers, invoices…) → ledger (`journal_entries`, `account_period_balances`) → master data (products, customers, suppliers, employees, branches…) → AI/inbox → tenant_* → `tenants`. Sinh script bằng query `information_schema.columns` để không sót bảng mới.
 
-## Files thay đổi
-- **Edit**: `src/lib/superadmin.functions.ts` (thêm 8 server fn).
-- **Edit**: `src/routes/_app/superadmin/accounts.tsx` (filter bar + bulk + pagination + export + nút "Mời").
-- **Create**: `src/routes/_app/superadmin/accounts.$id.tsx` (trang chi tiết, 4 tab).
-- **Create**: `src/components/superadmin/invite-account-dialog.tsx`.
-- **Create**: `src/components/superadmin/bulk-action-bar.tsx`.
-- **Create**: `src/components/superadmin/account-filters.tsx`.
-- **Migration**: `user_roles.tenant_id` + cập nhật `has_role` (nếu chọn làm).
+## 3. Server functions mới
 
-## Bảo mật
-- Toàn bộ server fn check `assertSuperadmin`.
-- Mọi mutation ghi `audit_logs` qua `logSuperadminAction`.
-- Bulk delete yêu cầu nhập chính xác chuỗi xác nhận.
-- Không cho phép tự khóa/xóa/gỡ superadmin của chính mình (đã có guard, mở rộng cho bulk).
-- Export CSV chỉ chứa metadata (không hash password, không token).
+File mới `src/lib/superadmin-tenants.functions.ts` (tách khỏi `superadmin.functions.ts`):
 
-## Câu hỏi cần xác nhận trước khi build
-1. Có làm **schema multi-tenant `user_roles.tenant_id`** ngay phase 1, hay tạm dùng role global (matrix tenant chỉ hiển thị tenants thuộc về, không đổi role per-tenant)?
-2. Tạo trang chi tiết dạng **route riêng `/accounts/$id`** hay **drawer/sheet** mở trên cùng trang list?
+| Fn | Mô tả |
+|---|---|
+| `listTenantsAdmin(filters)` | Query `tenants` + LEFT JOIN owner email (qua `auth.admin.getUserById` batch hoặc `profiles`), members count, `tenant_plans.plan`, last activity từ `audit_logs.created_at` max. Hỗ trợ filter status/plan/accounting_standard/idle/q, paginate. |
+| `getTenantAdmin(tenantId)` | Tenant full row + members (join email/display_name) + plan + usage period hiện tại + 50 audit gần nhất + fiscal_periods closed. |
+| `updateTenantAdmin(tenantId, patch)` | Update whitelisted fields (name, company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start, legal_rep_name, chief_accountant_name, logo_url, industry_*, tax_method, vat_period, …). |
+| `addTenantMember({tenantId,email,role})` | Tìm user theo email qua admin API; nếu chưa có → invite; insert `tenant_members`. |
+| `removeTenantMember(memberId)` | Chặn xóa owner cuối cùng. |
+| `updateMemberRole(memberId, role)` | Chặn hạ cấp owner nếu là owner duy nhất. |
+| `transferTenantOwnership(tenantId, newOwnerUserId)` | Transaction: update `tenants.owner_user_id`, set role mới = `owner`, role cũ = `admin`. |
+| `deleteTenantAdmin(tenantId, confirmName)` | So khớp `confirmName` với `tenants.name`; gọi `fn_superadmin_delete_tenant_cascade`. |
+
+Mọi fn: `assertSuperadmin`, ghi `audit_logs` với `action='superadmin.tenant.*'`.
+
+## 4. UI refactor
+
+### `/superadmin/organizations` (viết lại)
+
+- Bỏ `listOrganizationsWithStats / updateOrganization / deleteOrganization` (profiles-based) → dùng `listTenantsAdmin`.
+- Cột: name, company_name, MST, owner email, accounting_standard, status badge (active/suspended), plan, members count, last activity, created_at.
+- Filter: status, plan, accounting_standard, idle >90d, free-text.
+- Row actions: View detail, Suspend/Restore (dùng `setTenantSuspended` đã có), Change plan nhanh.
+- Bulk: suspend nhiều, export CSV.
+- 4 stats card: total / active / suspended / idle.
+
+### `/superadmin/tenant/$id` (viết lại — `id` = tenant_id thật)
+
+6 tabs:
+
+1. **Tổng quan** — form edit metadata (`updateTenantAdmin`), owner card, status badge + suspend reason.
+2. **Thành viên** — bảng `tenant_members` + add/remove/change role/transfer ownership.
+3. **Plan & Usage** — plan hiện tại + quota + `tenant_usage` period hiện tại + edit plan (`updateTenantPlan`).
+4. **Khóa kỳ kế toán** — `fiscal_periods` closed, link đến `fiscal_period_unseal_requests`.
+5. **Audit log** — paginate `audit_logs WHERE tenant_id`.
+6. **Vùng nguy hiểm** — Suspend/Restore (kèm reason), Delete vĩnh viễn (yêu cầu gõ đúng `tenants.name` + checkbox xác nhận).
+
+### `/superadmin` (index)
+
+Sửa `listAllTenants` → dùng `listTenantsAdmin` để đồng bộ. Giữ chức năng cấp/thu hồi superadmin.
+
+### Cleanup
+
+- Xóa/đánh dấu deprecated: `listOrganizationsWithStats`, `updateOrganization`, `deleteOrganization`, `getTenantDetail` (phiên bản dựa profile) trong `superadmin.functions.ts`.
+- Trang `/superadmin/billing` giữ nguyên (đã đúng schema).
+
+## 5. Bảo mật
+
+- Tất cả fn mới gate bằng `assertSuperadmin`.
+- `fn_superadmin_delete_tenant_cascade` là `SECURITY DEFINER` + re-check `has_role`.
+- Delete cần xác nhận tên tenant ở cả client (disable nút) và server (so khớp lại).
+- Không expose email user ngoài bảng list (chỉ owner email + members khi mở chi tiết).
+- Audit log mọi mutation.
+
+## 6. Thứ tự thực thi
+
+1. Tạo migration backfill + `fn_superadmin_delete_tenant_cascade` → user duyệt.
+2. Viết `src/lib/superadmin-tenants.functions.ts`.
+3. Viết lại `/superadmin/organizations` + `/superadmin/tenant/$id` (+ components: `members-tab.tsx`, `plan-usage-tab.tsx`, `danger-zone-card.tsx`, `transfer-owner-dialog.tsx`).
+4. Sửa `/superadmin/index.tsx` dùng API mới.
+5. Deprecate fn cũ trong `superadmin.functions.ts`.
+6. Smoke test: list, suspend, edit metadata, add/remove member, transfer ownership, delete trên 1 tenant test.
+
+## 7. Out of scope
+
+- Không tạo bảng mới ngoài backfill.
+- Không đụng `auth.users` (xóa user là việc của trang Accounts).
+- Không thay đổi RLS của các bảng nghiệp vụ.
