@@ -63,6 +63,7 @@ import { Route as AppSuperadminSettingsRouteImport } from './routes/_app/superad
 import { Route as AppSuperadminSecurityRouteImport } from './routes/_app/superadmin/security'
 import { Route as AppSuperadminOrganizationsRouteImport } from './routes/_app/superadmin/organizations'
 import { Route as AppSuperadminJobsRouteImport } from './routes/_app/superadmin/jobs'
+import { Route as AppSuperadminImpersonationsRouteImport } from './routes/_app/superadmin/impersonations'
 import { Route as AppSuperadminBillingRouteImport } from './routes/_app/superadmin/billing'
 import { Route as AppSuperadminBackupsRouteImport } from './routes/_app/superadmin/backups'
 import { Route as AppSuperadminAuditRouteImport } from './routes/_app/superadmin/audit'
@@ -459,6 +460,12 @@ const AppSuperadminJobsRoute = AppSuperadminJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppSuperadminImpersonationsRoute =
+  AppSuperadminImpersonationsRouteImport.update({
+    id: '/impersonations',
+    path: '/impersonations',
+    getParentRoute: () => AppSuperadminRoute,
+  } as any)
 const AppSuperadminBillingRoute = AppSuperadminBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
@@ -1204,6 +1211,7 @@ export interface FileRoutesByFullPath {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/backups': typeof AppSuperadminBackupsRoute
   '/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/superadmin/impersonations': typeof AppSuperadminImpersonationsRoute
   '/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/superadmin/security': typeof AppSuperadminSecurityRoute
@@ -1377,6 +1385,7 @@ export interface FileRoutesByTo {
   '/superadmin/audit': typeof AppSuperadminAuditRoute
   '/superadmin/backups': typeof AppSuperadminBackupsRoute
   '/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/superadmin/impersonations': typeof AppSuperadminImpersonationsRoute
   '/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/superadmin/security': typeof AppSuperadminSecurityRoute
@@ -1559,6 +1568,7 @@ export interface FileRoutesById {
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
   '/_app/superadmin/backups': typeof AppSuperadminBackupsRoute
   '/_app/superadmin/billing': typeof AppSuperadminBillingRoute
+  '/_app/superadmin/impersonations': typeof AppSuperadminImpersonationsRoute
   '/_app/superadmin/jobs': typeof AppSuperadminJobsRoute
   '/_app/superadmin/organizations': typeof AppSuperadminOrganizationsRoute
   '/_app/superadmin/security': typeof AppSuperadminSecurityRoute
@@ -1741,6 +1751,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/backups'
     | '/superadmin/billing'
+    | '/superadmin/impersonations'
     | '/superadmin/jobs'
     | '/superadmin/organizations'
     | '/superadmin/security'
@@ -1914,6 +1925,7 @@ export interface FileRouteTypes {
     | '/superadmin/audit'
     | '/superadmin/backups'
     | '/superadmin/billing'
+    | '/superadmin/impersonations'
     | '/superadmin/jobs'
     | '/superadmin/organizations'
     | '/superadmin/security'
@@ -2095,6 +2107,7 @@ export interface FileRouteTypes {
     | '/_app/superadmin/audit'
     | '/_app/superadmin/backups'
     | '/_app/superadmin/billing'
+    | '/_app/superadmin/impersonations'
     | '/_app/superadmin/jobs'
     | '/_app/superadmin/organizations'
     | '/_app/superadmin/security'
@@ -2577,6 +2590,13 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/superadmin/jobs'
       preLoaderRoute: typeof AppSuperadminJobsRouteImport
+      parentRoute: typeof AppSuperadminRoute
+    }
+    '/_app/superadmin/impersonations': {
+      id: '/_app/superadmin/impersonations'
+      path: '/impersonations'
+      fullPath: '/superadmin/impersonations'
+      preLoaderRoute: typeof AppSuperadminImpersonationsRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
     '/_app/superadmin/billing': {
@@ -3631,6 +3651,7 @@ interface AppSuperadminRouteChildren {
   AppSuperadminAuditRoute: typeof AppSuperadminAuditRoute
   AppSuperadminBackupsRoute: typeof AppSuperadminBackupsRoute
   AppSuperadminBillingRoute: typeof AppSuperadminBillingRoute
+  AppSuperadminImpersonationsRoute: typeof AppSuperadminImpersonationsRoute
   AppSuperadminJobsRoute: typeof AppSuperadminJobsRoute
   AppSuperadminOrganizationsRoute: typeof AppSuperadminOrganizationsRoute
   AppSuperadminSecurityRoute: typeof AppSuperadminSecurityRoute
@@ -3646,6 +3667,7 @@ const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
   AppSuperadminAuditRoute: AppSuperadminAuditRoute,
   AppSuperadminBackupsRoute: AppSuperadminBackupsRoute,
   AppSuperadminBillingRoute: AppSuperadminBillingRoute,
+  AppSuperadminImpersonationsRoute: AppSuperadminImpersonationsRoute,
   AppSuperadminJobsRoute: AppSuperadminJobsRoute,
   AppSuperadminOrganizationsRoute: AppSuperadminOrganizationsRoute,
   AppSuperadminSecurityRoute: AppSuperadminSecurityRoute,
@@ -3964,3 +3986,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

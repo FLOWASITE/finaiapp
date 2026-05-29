@@ -11,6 +11,7 @@ import {
   setAccountBanned,
   listOrganizations,
 } from "@/lib/superadmin.functions";
+import { impersonateUser, transferTenantOwnership } from "@/lib/superadmin-tenants.functions";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,11 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ShieldCheck, ShieldOff, LogOut, KeyRound, Lock, Unlock, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ShieldCheck, ShieldOff, LogOut, KeyRound, Lock, Unlock, Plus, Trash2, UserCog, ExternalLink, Crown } from "lucide-react";
 import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_app/superadmin/accounts/$id")({
   beforeLoad: requireSuperadminGuard,
@@ -43,6 +47,8 @@ function AccountDetailPage() {
   const setMembershipFn = useServerFn(setTenantMembership);
   const resetPwdFn = useServerFn(resetUserPassword);
   const banFn = useServerFn(setAccountBanned);
+  const impersonateFn = useServerFn(impersonateUser);
+  const transferOwnerFn = useServerFn(transferTenantOwnership);
   const orgsFn = useServerFn(listOrganizations);
 
   const { data, isLoading } = useQuery({
@@ -57,6 +63,27 @@ function AccountDetailPage() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["superadmin-account-detail", id] });
+
+  const [impOpen, setImpOpen] = useState(false);
+  const [impReason, setImpReason] = useState("");
+  const [impLink, setImpLink] = useState<string | null>(null);
+  const [impLoading, setImpLoading] = useState(false);
+  const doImpersonate = async () => {
+    if (impReason.trim().length < 3) {
+      toast.error("Vui lòng nhập lý do (tối thiểu 3 ký tự).");
+      return;
+    }
+    setImpLoading(true);
+    try {
+      const res = await impersonateFn({ data: { user_id: id, reason: impReason } });
+      setImpLink((res as any).action_link);
+      toast.success("Đã tạo magic link — mở ở tab ẩn danh.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImpLoading(false);
+    }
+  };
 
   const action = <T,>(p: Promise<T>, ok: string) =>
     p.then(() => { toast.success(ok); invalidate(); })
@@ -87,7 +114,10 @@ function AccountDetailPage() {
           <Button variant="outline" size="sm" onClick={() => action(banFn({ data: { user_id: u.id, banned: !banned } }), banned ? "Đã mở khóa" : "Đã khóa")}>
             {banned ? <><Unlock className="mr-1.5 h-3.5 w-3.5" />Mở khóa</> : <><Lock className="mr-1.5 h-3.5 w-3.5" />Khóa tài khoản</>}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => action(logoutFn({ data: { user_id: u.id } }), "Đã đăng xuất mọi phiên")}>
+          <Button variant="outline" size="sm" onClick={() => setImpOpen(true)}>
+            <UserCog className="mr-1.5 h-3.5 w-3.5" /> Đăng nhập as
+          </Button>
+                    <Button variant="outline" size="sm" onClick={() => action(logoutFn({ data: { user_id: u.id } }), "Đã đăng xuất mọi phiên")}>
             <LogOut className="mr-1.5 h-3.5 w-3.5" /> Force logout
           </Button>
         </div>
@@ -176,7 +206,23 @@ function AccountDetailPage() {
                         </Select>
                       </TableCell>
                       <TableCell><Badge variant="outline">{m.status}</Badge></TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
+                        {m.role !== "owner" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Chuyển quyền sở hữu cho user này"
+                            onClick={() => {
+                              if (!confirm(`Chuyển quyền sở hữu của tổ chức cho ${u.email}? Chủ cũ sẽ bị hạ xuống admin.`)) return;
+                              action(
+                                transferOwnerFn({ data: { tenant_id: m.tenant_id, new_owner_user_id: u.id } }),
+                                "Đã chuyển quyền sở hữu",
+                              );
+                            }}
+                          >
+                            <Crown className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" className="text-destructive"
                           onClick={() => action(setMembershipFn({ data: { user_id: u.id, tenant_id: m.tenant_id, remove: true } }), "Đã gỡ khỏi tổ chức")}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -267,6 +313,42 @@ function AccountDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={impOpen} onOpenChange={(o) => { if (!o) { setImpOpen(false); setImpLink(null); setImpReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đăng nhập với tư cách {u.email}</DialogTitle>
+            <DialogDescription>
+              Sinh magic link 1 lần. Mọi hành động sẽ được log dưới tên Super-admin với cờ <code>impersonate</code>. Mở ở tab ẩn danh để giữ phiên hiện tại.
+            </DialogDescription>
+          </DialogHeader>
+          {!impLink ? (
+            <div className="grid gap-2">
+              <Label className="text-xs">Lý do (bắt buộc)</Label>
+              <Input value={impReason} onChange={(e) => setImpReason(e.target.value)} placeholder="VD: support ticket #1234" />
+            </div>
+          ) : (
+            <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 space-y-2 text-xs">
+              <div className="font-medium">Magic link sẵn sàng:</div>
+              <div className="font-mono break-all">{impLink}</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setImpOpen(false); setImpLink(null); setImpReason(""); }}>Đóng</Button>
+            {!impLink ? (
+              <Button onClick={doImpersonate} disabled={impLoading}>
+                <UserCog className="mr-1.5 h-4 w-4" />{impLoading ? "Đang tạo…" : "Tạo magic link"}
+              </Button>
+            ) : (
+              <Button asChild>
+                <a href={impLink} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-1.5 h-4 w-4" />Mở
+                </a>
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
