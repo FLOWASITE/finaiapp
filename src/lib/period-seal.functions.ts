@@ -73,8 +73,6 @@ export const rejectUnseal = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-    return { ok: true };
-  });
 
 export const rebuildYearlyBalances = createServerFn({ method: "POST" })
   .middleware([withTenant])
@@ -84,7 +82,7 @@ export const rebuildYearlyBalances = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("rebuild_account_balance_yearly", {
       p_tenant: context.tenantId,
-      p_year: data.year ?? null,
+      p_year: data.year ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
