@@ -12,7 +12,7 @@ export type SearchHit = {
   kind: "supplier" | "invoice";
   id: string;
   title: string;
-  subtitle: string;
+  meta: Record<string, string | number | null>;
   meta: Record<string, unknown>;
   score: number;
 };
