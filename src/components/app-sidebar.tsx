@@ -337,6 +337,7 @@ const SUPERADMIN_SECTIONS: NavSection[] = [
     label: "Nhật ký & sao lưu",
     entries: [
       { to: "/superadmin/audit", label: "Nhật ký", icon: ScrollText },
+      { to: "/superadmin/impersonations", label: "Impersonation", icon: UserCog },
       { to: "/superadmin/backups", label: "Sao lưu", icon: DatabaseBackup },
       { to: "/superadmin/jobs", label: "Tác vụ", icon: ListChecks },
     ],

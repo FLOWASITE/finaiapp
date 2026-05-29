@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listTenantsAdmin } from "@/lib/superadmin-tenants.functions";
+import { listTenantsAdmin, bulkSetTenantsSuspended, bulkChangePlan } from "@/lib/superadmin-tenants.functions";
 import { setTenantSuspended, updateTenantPlan } from "@/lib/superadmin-extra.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { downloadCsv } from "@/lib/csv-export";
+import { TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/superadmin/organizations")({
   beforeLoad: requireSuperadminGuard,
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/_app/superadmin/organizations")({
 });
 
 type StatusFilter = "all" | "active" | "suspended" | "archived";
-type StdFilter = "all" | "TT133" | "TT200";
+type StdFilter = "all" | "TT133" | "TT99";
 type SortKey = "name" | "members_count" | "last_activity_at" | "created_at";
 const PLANS = ["free", "pro", "business", "enterprise"];
 
@@ -47,6 +48,8 @@ function OrgsPage() {
   const listFn = useServerFn(listTenantsAdmin);
   const susFn = useServerFn(setTenantSuspended);
   const planFn = useServerFn(updateTenantPlan);
+  const bulkSusFn = useServerFn(bulkSetTenantsSuspended);
+  const bulkPlanFn = useServerFn(bulkChangePlan);
   const qc = useQueryClient();
 
   const [q, setQ] = useState("");
@@ -55,15 +58,19 @@ function OrgsPage() {
   const [plan, setPlan] = useState<string>("all");
   const [idle, setIdle] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [suspendDialog, setSuspendDialog] = useState<any | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [planDialog, setPlanDialog] = useState<any | null>(null);
   const [planValue, setPlanValue] = useState("free");
+  const [bulkPlanOpen, setBulkPlanOpen] = useState(false);
+  const [bulkPlanValue, setBulkPlanValue] = useState("free");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["superadmin-tenants-admin", q, status, std, plan, idle],
+    queryKey: ["superadmin-tenants-admin", q, status, std, plan, idle, sort, page, pageSize],
     queryFn: () =>
       listFn({
         data: {
@@ -72,28 +79,24 @@ function OrgsPage() {
           accounting_standard: std,
           plan: plan === "all" ? undefined : plan,
           idle_only: idle,
+          page,
+          page_size: pageSize,
+          sort_by: sort.key,
+          sort_dir: sort.dir,
         },
       }),
+    placeholderData: (prev) => prev,
   });
 
-  const tenants = useMemo(() => {
-    const rows = (data?.tenants ?? []) as any[];
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...rows].sort((a, b) => {
-      const av = a[sort.key];
-      const bv = b[sort.key];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-  }, [data, sort]);
+  const tenants = (data?.tenants ?? []) as any[];
+  const totalFiltered: number = (data as any)?.total ?? 0;
+  const totalAll: number = (data as any)?.total_unfiltered ?? totalFiltered;
+  const pageCount = Math.max(1, Math.ceil(totalFiltered / pageSize));
 
   const summary = useMemo(() => {
     const all = (data?.tenants ?? []) as any[];
     return {
-      total: data?.total ?? all.length,
+      total: totalAll,
       active: all.filter((t) => t.status === "active").length,
       suspended: all.filter((t) => t.status === "suspended").length,
       idle: all.filter((t) => {
@@ -105,6 +108,31 @@ function OrgsPage() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["superadmin-tenants-admin"] });
 
+  const handleBulkPlan = async () => {
+    if (!selected.size) return;
+    try {
+      await bulkPlanFn({
+        data: {
+          tenant_ids: Array.from(selected),
+          plan: bulkPlanValue,
+        },
+      });
+      toast.success(`Đã đổi gói cho ${selected.size} tenant`);
+      setBulkPlanOpen(false);
+      setSelected(new Set());
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  // Filter changes reset page to 1
+  const onQ = (v: string) => { setQ(v); setPage(1); };
+  const onStatus = (v: StatusFilter) => { setStatus(v); setPage(1); };
+  const onStd = (v: StdFilter) => { setStd(v); setPage(1); };
+  const onPlan = (v: string) => { setPlan(v); setPage(1); };
+  const onIdle = (v: boolean) => { setIdle(v); setPage(1); };
+
   const toggleSelect = (id: string) => {
     setSelected((s) => {
       const next = new Set(s);
@@ -114,8 +142,14 @@ function OrgsPage() {
     });
   };
   const toggleSelectAll = () => {
-    if (selected.size === tenants.length) setSelected(new Set());
-    else setSelected(new Set(tenants.map((t) => t.id)));
+    const ids = tenants.map((t) => t.id);
+    const allOnPageSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   const handleSuspend = async () => {
@@ -142,9 +176,13 @@ function OrgsPage() {
     if (!selected.size) return;
     if (!confirm(`Tạm khóa ${selected.size} tenant?`)) return;
     try {
-      for (const id of selected) {
-        await susFn({ data: { tenant_id: id, suspended: true, reason: "Bulk suspend" } });
-      }
+      await bulkSusFn({
+        data: {
+          tenant_ids: Array.from(selected),
+          suspended: true,
+          reason: "Bulk suspend từ Super Admin",
+        },
+      });
       toast.success(`Đã tạm khóa ${selected.size} tenant`);
       setSelected(new Set());
       refresh();
@@ -227,10 +265,10 @@ function OrgsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Tìm theo tên / công ty / MST / email chủ…"
-            value={q} onChange={(e) => setQ(e.target.value)}
+            value={q} onChange={(e) => onQ(e.target.value)}
             className="w-72"
           />
-          <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+          <Select value={status} onValueChange={(v) => onStatus(v as StatusFilter)}>
             <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Mọi trạng thái</SelectItem>
@@ -239,23 +277,23 @@ function OrgsPage() {
               <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={plan} onValueChange={setPlan}>
+          <Select value={plan} onValueChange={onPlan}>
             <SelectTrigger className="w-[130px]"><SelectValue placeholder="Plan" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Mọi gói</SelectItem>
               {PLANS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={std} onValueChange={(v) => setStd(v as StdFilter)}>
+          <Select value={std} onValueChange={(v) => onStd(v as StdFilter)}>
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Mọi chuẩn</SelectItem>
               <SelectItem value="TT133">TT133</SelectItem>
-              <SelectItem value="TT200">TT200</SelectItem>
+              <SelectItem value="TT99">TT99</SelectItem>
             </SelectContent>
           </Select>
           <label className="flex items-center gap-1.5 text-sm">
-            <Checkbox checked={idle} onCheckedChange={(v) => setIdle(!!v)} />
+            <Checkbox checked={idle} onCheckedChange={(v) => onIdle(!!v)} />
             Idle &gt;90d
           </label>
         </div>
@@ -264,11 +302,16 @@ function OrgsPage() {
             <Download className="mr-1.5 h-4 w-4" />CSV
           </Button>
           {selected.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleBulkSuspend}>
-              <ShieldOff className="mr-1.5 h-4 w-4" />Khóa {selected.size}
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => { setBulkPlanValue("free"); setBulkPlanOpen(true); }}>
+                <BadgeCheck className="mr-1.5 h-4 w-4" />Đổi gói {selected.size}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleBulkSuspend}>
+                <ShieldOff className="mr-1.5 h-4 w-4" />Khóa {selected.size}
+              </Button>
+            </>
           )}
-          <p className="text-xs text-muted-foreground">{tenants.length} / {summary.total}</p>
+          <p className="text-xs text-muted-foreground">{tenants.length} hiển thị · {totalFiltered} kết quả</p>
         </div>
       </div>
 
@@ -278,7 +321,7 @@ function OrgsPage() {
             <tr>
               <th className="px-3 py-2 w-8">
                 <Checkbox
-                  checked={tenants.length > 0 && selected.size === tenants.length}
+                  checked={tenants.length > 0 && tenants.every((t) => selected.has(t.id))}
                   onCheckedChange={toggleSelectAll}
                 />
               </th>
@@ -364,6 +407,15 @@ function OrgsPage() {
         </table>
       </Card>
 
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        total={totalFiltered}
+        setPage={setPage}
+        setPageSize={(n) => { setPageSize(n); setPage(1); }}
+      />
+
       <Dialog open={!!suspendDialog} onOpenChange={(o) => !o && setSuspendDialog(null)}>
         <DialogContent>
           <DialogHeader>
@@ -407,6 +459,27 @@ function OrgsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPlanDialog(null)}>Hủy</Button>
             <Button onClick={handleChangePlan}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkPlanOpen} onOpenChange={setBulkPlanOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đổi gói hàng loạt ({selected.size} tenant)</DialogTitle>
+            <DialogDescription>
+              Áp gói mới cho tất cả tenant đang chọn. Tham số chi tiết (seats / quota) giữ nguyên hoặc reset về null.
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={bulkPlanValue} onValueChange={setBulkPlanValue}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PLANS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPlanOpen(false)}>Hủy</Button>
+            <Button onClick={handleBulkPlan}>Áp dụng</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

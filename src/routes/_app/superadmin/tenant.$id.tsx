@@ -11,6 +11,13 @@ import {
   updateMemberRole,
   transferTenantOwnership,
   deleteTenantAdmin,
+  getTenantAuditLogs,
+  impersonateTenantOwner,
+  resendTenantInvite,
+  cancelTenantInvite,
+  listTenantPlanHistory,
+  reopenFiscalPeriod,
+  archiveTenant,
 } from "@/lib/superadmin-tenants.functions";
 import { setTenantSuspended, updateTenantPlan } from "@/lib/superadmin-extra.functions";
 import { Card } from "@/components/ui/card";
@@ -25,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft, Building2, Save, ShieldOff, ShieldCheck, UserPlus, Trash2,
-  Crown, AlertTriangle, Lock,
+  Crown, AlertTriangle, Lock, Unlock, UserCog, ExternalLink, Mail, X as XIcon, Clock, Archive, History,
 } from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
@@ -100,8 +107,8 @@ function TenantDetailPage() {
           <MembersTab tenantId={id} members={data.members} ownerId={t.owner_user_id} onChanged={refresh} />
         </TabsContent>
         <TabsContent value="plan"><PlanTab tenantId={id} plan={data.plan} usage={data.usage} onSaved={refresh} /></TabsContent>
-        <TabsContent value="locks"><LocksTab locks={data.locks} /></TabsContent>
-        <TabsContent value="audit"><AuditTab audit={data.recent_audit} /></TabsContent>
+        <TabsContent value="locks"><LocksTab locks={data.locks} onChanged={refresh} /></TabsContent>
+        <TabsContent value="audit"><AuditTab tenantId={id} fallback={data.recent_audit} /></TabsContent>
         <TabsContent value="danger">
           <DangerTab tenant={t} />
         </TabsContent>
@@ -182,7 +189,7 @@ function OverviewTab({ tenant, onSaved }: { tenant: any; onSaved: () => void }) 
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TT133">TT133</SelectItem>
-              <SelectItem value="TT200">TT200</SelectItem>
+              <SelectItem value="TT99">TT99</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -219,6 +226,8 @@ function MembersTab({
   const removeFn = useServerFn(removeTenantMember);
   const roleFn = useServerFn(updateMemberRole);
   const transferFn = useServerFn(transferTenantOwnership);
+  const resendFn = useServerFn(resendTenantInvite);
+  const cancelFn = useServerFn(cancelTenantInvite);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -248,6 +257,21 @@ function MembersTab({
       onChanged();
     } catch (e: any) { toast.error(e.message); }
   };
+  const resendInvite = async (m: any) => {
+    try {
+      await resendFn({ data: { member_id: m.id } });
+      toast.success("Đã gửi lại lời mời");
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const cancelInvite = async (m: any) => {
+    if (!confirm(`Hủy lời mời ${m.email ?? m.user_id}?`)) return;
+    try {
+      await cancelFn({ data: { member_id: m.id } });
+      toast.success("Đã hủy lời mời");
+      onChanged();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   const transfer = async () => {
     if (!transferTo) return;
     if (!confirm(`Chuyển quyền sở hữu cho ${transferTo.email}? Chủ cũ sẽ chuyển vai trò thành admin.`)) return;
@@ -296,12 +320,24 @@ function MembersTab({
                     </SelectContent>
                   </Select>
                 </td>
-                <td><Badge variant="outline" className="text-xs">{m.status}</Badge></td>
+                <td>{m.status === "invited"
+                    ? <Badge variant="outline" className="text-xs gap-1"><Clock className="h-3 w-3" />Mời chờ</Badge>
+                    : <Badge variant="outline" className="text-xs">{m.status}</Badge>}</td>
                 <td className="text-xs text-muted-foreground">
                   {m.created_at ? new Date(m.created_at).toLocaleDateString("vi-VN") : "—"}
                 </td>
                 <td className="text-right pr-3 space-x-1">
-                  {m.user_id !== ownerId && (
+                  {m.status === "invited" && (
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => resendInvite(m)} title="Gửi lại lời mời">
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => cancelInvite(m)} title="Hủy lời mời" className="text-destructive hover:text-destructive">
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {m.status !== "invited" && m.user_id !== ownerId && (
                     <Button size="sm" variant="ghost" onClick={() => setTransferTo(m)} title="Chuyển quyền sở hữu">
                       <Crown className="h-4 w-4" />
                     </Button>
@@ -401,7 +437,15 @@ function PlanTab({
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const historyFn = useServerFn(listTenantPlanHistory);
+  const { data: hist } = useQuery({
+    queryKey: ["superadmin-tenant-plan-history", tenantId],
+    queryFn: () => historyFn({ data: { tenant_id: tenantId, limit: 30 } }),
+    staleTime: 60_000,
+  });
+
   return (
+    <div className="space-y-4">
     <div className="grid gap-4 md:grid-cols-2">
       <Card className="p-4 space-y-3">
         <h3 className="text-sm font-semibold">Gói dịch vụ</h3>
@@ -452,6 +496,34 @@ function PlanTab({
         )}
       </Card>
     </div>
+
+    <Card className="p-4">
+      <h3 className="mb-3 text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" />Lịch sử thay đổi gói</h3>
+      {(!hist || (hist as any).items.length === 0) ? (
+        <p className="text-sm text-muted-foreground">Chưa có thay đổi nào.</p>
+      ) : (
+        <ul className="space-y-1 text-xs max-h-72 overflow-auto">
+          {((hist as any).items as any[]).map((h) => (
+            <li key={h.id} className="flex items-center justify-between border-b border-border/40 py-1.5">
+              <div>
+                <Badge variant="secondary" className="mr-2">{h.plan}</Badge>
+                <span className="text-muted-foreground">
+                  {h.seats_limit ? `${h.seats_limit} seats` : "—"}
+                  {h.ai_tokens_quota ? ` · ${Number(h.ai_tokens_quota).toLocaleString("vi-VN")} tokens` : ""}
+                  {h.storage_quota_mb ? ` · ${h.storage_quota_mb}MB` : ""}
+                </span>
+                {h.notes && <div className="text-muted-foreground italic">"{h.notes}"</div>}
+              </div>
+              <div className="text-right text-muted-foreground">
+                <div>{new Date(h.changed_at).toLocaleString("vi-VN")}</div>
+                {h.changed_by_email && <div className="text-[10px]">{h.changed_by_email}</div>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+    </div>
   );
 }
 
@@ -459,7 +531,21 @@ function PlanTab({
 // Locks
 // =========================================================================
 
-function LocksTab({ locks }: { locks: any[] }) {
+function LocksTab({ locks, onChanged }: { locks: any[]; onChanged: () => void }) {
+  const reopenFn = useServerFn(reopenFiscalPeriod);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const reopen = async (period: any) => {
+    const reason = prompt(`Nhập lý do mở lại kỳ ${period.period_no}/${period.year} (sẽ ghi audit):`);
+    if (!reason || reason.trim().length < 3) return;
+    setBusyId(period.id);
+    try {
+      await reopenFn({ data: { period_id: period.id, reason } });
+      toast.success("Đã mở lại kỳ");
+      onChanged();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusyId(null); }
+  };
+
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-sm font-semibold flex items-center gap-2">
@@ -468,11 +554,16 @@ function LocksTab({ locks }: { locks: any[] }) {
       {!locks.length && <p className="text-sm text-muted-foreground">Chưa khóa kỳ nào.</p>}
       <ul className="space-y-1 text-sm">
         {locks.map((l: any) => (
-          <li key={l.id} className="flex justify-between border-b border-border/40 py-1.5">
+          <li key={l.id} className="flex items-center justify-between border-b border-border/40 py-1.5 gap-2">
             <span>Kỳ {l.period_no}/{l.year} <Badge variant="outline" className="ml-2 text-xs">{l.status}</Badge></span>
-            <span className="text-xs text-muted-foreground">
-              {l.closed_at ? new Date(l.closed_at).toLocaleDateString("vi-VN") : "—"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                {l.closed_at ? new Date(l.closed_at).toLocaleDateString("vi-VN") : "—"}
+              </span>
+              <Button size="sm" variant="outline" onClick={() => reopen(l)} disabled={busyId === l.id}>
+                <Unlock className="mr-1.5 h-3.5 w-3.5" />{busyId === l.id ? "Đang mở…" : "Mở lại (khẩn cấp)"}
+              </Button>
+            </div>
           </li>
         ))}
       </ul>
@@ -484,13 +575,24 @@ function LocksTab({ locks }: { locks: any[] }) {
 // Audit
 // =========================================================================
 
-function AuditTab({ audit }: { audit: any[] }) {
+function AuditTab({ tenantId, fallback }: { tenantId: string; fallback: any[] }) {
+  const fetchFn = useServerFn(getTenantAuditLogs);
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["superadmin-tenant-audit", tenantId],
+    queryFn: () => fetchFn({ data: { tenant_id: tenantId, limit: 200 } }),
+    placeholderData: { items: fallback, next_before: null } as any,
+    staleTime: 30_000,
+  });
+  const items = (data as any)?.items ?? fallback ?? [];
   return (
     <Card className="p-4">
-      <h3 className="mb-3 text-sm font-semibold">50 nhật ký gần nhất</h3>
-      {!audit.length && <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>}
-      <ul className="space-y-1 text-xs max-h-[600px] overflow-auto">
-        {audit.map((a: any) => (
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Nhật ký hoạt động ({items.length})</h3>
+        {(isLoading || isFetching) && <span className="text-xs text-muted-foreground">Đang tải…</span>}
+      </div>
+      {!items.length && <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>}
+      <ul className="space-y-1 text-xs max-h-[640px] overflow-auto">
+        {items.map((a: any) => (
           <li key={a.id} className="border-b border-border/40 py-1.5">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -516,6 +618,8 @@ function AuditTab({ audit }: { audit: any[] }) {
 function DangerTab({ tenant }: { tenant: any }) {
   const susFn = useServerFn(setTenantSuspended);
   const delFn = useServerFn(deleteTenantAdmin);
+  const archiveFn = useServerFn(archiveTenant);
+  const [archReason, setArchReason] = useState("");
   const qc = useQueryClient();
 
   const [reason, setReason] = useState(tenant.suspended_reason ?? "");
@@ -537,6 +641,21 @@ function DangerTab({ tenant }: { tenant: any }) {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const doArchive = async () => {
+    const willArchive = tenant.status !== "archived";
+    try {
+      await archiveFn({
+        data: {
+          tenant_id: tenant.id,
+          archived: willArchive,
+          reason: willArchive ? archReason : undefined,
+        },
+      });
+      toast.success(willArchive ? "Đã lưu trữ tenant" : "Đã khôi phục tenant");
+      qc.invalidateQueries({ queryKey: ["superadmin-tenant-admin", tenant.id] });
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   const doDelete = async () => {
     if (confirmName.trim() !== tenant.name?.trim()) {
       toast.error("Tên xác nhận không khớp.");
@@ -549,8 +668,70 @@ function DangerTab({ tenant }: { tenant: any }) {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  // Impersonate hook: state + server fn binding kept inside tab to keep code colocated.
+  const impersonateFn = useServerFn(impersonateTenantOwner);
+  const [impReason, setImpReason] = useState("");
+  const [impLink, setImpLink] = useState<string | null>(null);
+  const [impLoading, setImpLoading] = useState(false);
+  const doImpersonate = async () => {
+    if (impReason.trim().length < 3) {
+      toast.error("Vui lòng nhập lý do (tối thiểu 3 ký tự).");
+      return;
+    }
+    setImpLoading(true);
+    try {
+      const res = await impersonateFn({ data: { tenant_id: tenant.id, reason: impReason } });
+      setImpLink((res as any).action_link);
+      toast.success("Đã tạo liên kết đăng nhập tạm — mở ở tab ẩn danh để giữ phiên Super-admin.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImpLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <Card className="p-4 space-y-3 border-blue-500/30">
+        <div className="flex items-start gap-3">
+          <UserCog className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">Đăng nhập với tư cách chủ sở hữu</h3>
+            <p className="text-xs text-muted-foreground">
+              Sinh magic link 1 lần để debug như chủ tenant. Mọi hành động được log với cờ <code>impersonate</code>. Hết hạn sau 60 phút.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Lý do (bắt buộc, ghi vào audit)</Label>
+          <Input
+            placeholder="VD: support ticket #1234 — kế toán báo lỗi đối soát"
+            value={impReason}
+            onChange={(e) => setImpReason(e.target.value)}
+          />
+        </div>
+        {impLink ? (
+          <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 space-y-2 text-xs">
+            <div className="font-medium">Magic link sẵn sàng (mở ở tab ẩn danh):</div>
+            <div className="font-mono break-all">{impLink}</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <a href={impLink} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-1.5 h-3.5 w-3.5" />Mở liên kết
+                </a>
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(impLink).then(() => toast.success("Đã copy"))}>Copy</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setImpLink(null); setImpReason(""); }}>Đóng</Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <Button size="sm" variant="default" onClick={doImpersonate} disabled={impLoading}>
+              <UserCog className="mr-1.5 h-4 w-4" />{impLoading ? "Đang tạo…" : "Tạo magic link"}
+            </Button>
+          </div>
+        )}
+      </Card>
       <Card className="p-4 space-y-3 border-orange-500/30">
         <div className="flex items-start gap-3">
           {tenant.status === "suspended"
@@ -579,6 +760,32 @@ function DangerTab({ tenant }: { tenant: any }) {
         >
           {tenant.status === "suspended" ? "Khôi phục" : "Tạm khóa"}
         </Button>
+      </Card>
+
+      <Card className="p-4 space-y-3 border-amber-500/30">
+        <div className="flex items-start gap-3">
+          <Archive className="h-5 w-5 text-amber-600 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">
+              {tenant.status === "archived" ? "Khôi phục từ lưu trữ" : "Lưu trữ tenant"}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Soft-delete: ẩn khỏi danh sách hoạt động nhưng giữ nguyên dữ liệu. Có thể khôi phục bất cứ lúc nào.
+            </p>
+          </div>
+        </div>
+        {tenant.status !== "archived" && (
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Lý do (tùy chọn)</Label>
+            <Input value={archReason} onChange={(e) => setArchReason(e.target.value)} />
+          </div>
+        )}
+        <div>
+          <Button size="sm" variant="outline" onClick={doArchive}>
+            <Archive className="mr-1.5 h-4 w-4" />
+            {tenant.status === "archived" ? "Khôi phục" : "Lưu trữ"}
+          </Button>
+        </div>
       </Card>
 
       <Card className="p-4 space-y-3 border-destructive/40">
