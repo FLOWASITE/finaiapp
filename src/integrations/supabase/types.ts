@@ -10084,6 +10084,10 @@ export type Database = {
         Args: { p_line_id: string }
         Returns: undefined
       }
+      fn_superadmin_delete_tenant_cascade: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
       generate_fiscal_year: { Args: { p_year: number }; Returns: string }
       get_account_period_summary: {
         Args: { p_year?: number }

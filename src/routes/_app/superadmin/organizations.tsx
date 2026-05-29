@@ -1,39 +1,42 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  listOrganizationsWithStats,
-  updateOrganization,
-  deleteOrganization,
-} from "@/lib/superadmin.functions";
+import { listTenantsAdmin } from "@/lib/superadmin-tenants.functions";
+import { setTenantSuspended, updateTenantPlan } from "@/lib/superadmin-extra.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Building2, ArrowUpDown, Users, FileText, TrendingUp, Activity } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Building2, ArrowUpDown, Users, FileText, Activity, ShieldCheck, ShieldOff,
+  MoreHorizontal, Download, ChevronRight, BadgeCheck,
+} from "lucide-react";
 import { requireSuperadminGuard } from "@/lib/superadmin-guard";
+import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/_app/superadmin/organizations")({
   beforeLoad: requireSuperadminGuard,
   component: OrgsPage,
 });
 
-type HealthFilter = "all" | "active" | "idle" | "new";
-type SortKey = "company_name" | "invoice_count" | "sales_total_12m" | "last_activity_at" | "created_at";
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(Math.round(n));
-}
+type StatusFilter = "all" | "active" | "suspended" | "archived";
+type StdFilter = "all" | "TT133" | "TT200";
+type SortKey = "name" | "members_count" | "last_activity_at" | "created_at";
+const PLANS = ["free", "pro", "business", "enterprise"];
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null;
@@ -41,46 +44,42 @@ function daysSince(iso: string | null): number | null {
 }
 
 function OrgsPage() {
-  const list = useServerFn(listOrganizationsWithStats);
-  const upd = useServerFn(updateOrganization);
-  const del = useServerFn(deleteOrganization);
+  const listFn = useServerFn(listTenantsAdmin);
+  const susFn = useServerFn(setTenantSuspended);
+  const planFn = useServerFn(updateTenantPlan);
   const qc = useQueryClient();
 
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [std, setStd] = useState<StdFilter>("all");
+  const [plan, setPlan] = useState<string>("all");
+  const [idle, setIdle] = useState(false);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const [suspendDialog, setSuspendDialog] = useState<any | null>(null);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [planDialog, setPlanDialog] = useState<any | null>(null);
+  const [planValue, setPlanValue] = useState("free");
+
   const { data, isLoading } = useQuery({
-    queryKey: ["superadmin-orgs-stats"],
-    queryFn: () => list(),
-    ...QUERY_PRESETS.TENANT_STATIC,
+    queryKey: ["superadmin-tenants-admin", q, status, std, plan, idle],
+    queryFn: () =>
+      listFn({
+        data: {
+          q: q || undefined,
+          status: status,
+          accounting_standard: std,
+          plan: plan === "all" ? undefined : plan,
+          idle_only: idle,
+        },
+      }),
   });
 
-  const [q, setQ] = useState("");
-  const [health, setHealth] = useState<HealthFilter>("all");
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
-  const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState<any>({});
-  const [confirmDelete, setConfirmDelete] = useState<any>(null);
-  const [confirmEmail, setConfirmEmail] = useState("");
-
-  const orgs = useMemo(() => {
-    const all = (data?.organizations ?? []) as any[];
-    const s = q.trim().toLowerCase();
-    let filtered = !s ? all : all.filter(
-      (o) =>
-        (o.email ?? "").toLowerCase().includes(s) ||
-        (o.company_name ?? "").toLowerCase().includes(s) ||
-        (o.tax_id ?? "").toLowerCase().includes(s),
-    );
-
-    filtered = filtered.filter((o) => {
-      const days = daysSince(o.last_activity_at);
-      const createdDays = daysSince(o.created_at) ?? 999;
-      if (health === "active") return days !== null && days <= 90;
-      if (health === "idle") return days === null || days > 90;
-      if (health === "new") return createdDays <= 7;
-      return true;
-    });
-
+  const tenants = useMemo(() => {
+    const rows = (data?.tenants ?? []) as any[];
     const dir = sort.dir === "asc" ? 1 : -1;
-    filtered = [...filtered].sort((a, b) => {
+    return [...rows].sort((a, b) => {
       const av = a[sort.key];
       const bv = b[sort.key];
       if (av == null && bv == null) return 0;
@@ -89,108 +88,137 @@ function OrgsPage() {
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-
-    return filtered;
-  }, [data, q, health, sort]);
+  }, [data, sort]);
 
   const summary = useMemo(() => {
-    const all = (data?.organizations ?? []) as any[];
-    const total = all.length;
-    const totalInvoices = all.reduce((s, o) => s + (o.invoice_count ?? 0), 0);
-    const totalSales = all.reduce((s, o) => s + (o.sales_total_12m ?? 0), 0);
-    const idle = all.filter((o) => {
-      const d = daysSince(o.last_activity_at);
-      return d === null || d > 90;
-    }).length;
-    return { total, totalInvoices, totalSales, idle };
+    const all = (data?.tenants ?? []) as any[];
+    return {
+      total: data?.total ?? all.length,
+      active: all.filter((t) => t.status === "active").length,
+      suspended: all.filter((t) => t.status === "suspended").length,
+      idle: all.filter((t) => {
+        const d = daysSince(t.last_activity_at);
+        return d === null || d > 90;
+      }).length,
+    };
   }, [data]);
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["superadmin-orgs-stats"] });
-    qc.invalidateQueries({ queryKey: ["superadmin-tenants"] });
-  };
+  const refresh = () => qc.invalidateQueries({ queryKey: ["superadmin-tenants-admin"] });
 
-  const openEdit = (o: any) => {
-    setEditing(o);
-    setForm({
-      company_name: o.company_name ?? "",
-      tax_id: o.tax_id ?? "",
-      address: o.address ?? "",
-      phone: o.phone ?? "",
-      accounting_standard: o.accounting_standard ?? "TT133",
-      base_currency: o.base_currency ?? "VND",
-      fiscal_year_start: o.fiscal_year_start ?? 1,
+  const toggleSelect = (id: string) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   };
+  const toggleSelectAll = () => {
+    if (selected.size === tenants.length) setSelected(new Set());
+    else setSelected(new Set(tenants.map((t) => t.id)));
+  };
 
-  const save = async () => {
-    if (!editing) return;
+  const handleSuspend = async () => {
+    if (!suspendDialog) return;
     try {
-      await upd({
+      const willSuspend = suspendDialog.status !== "suspended";
+      await susFn({
         data: {
-          tenant_id: editing.id,
-          company_name: form.company_name || null,
-          tax_id: form.tax_id || null,
-          address: form.address || null,
-          phone: form.phone || null,
-          accounting_standard: form.accounting_standard,
-          base_currency: form.base_currency,
-          fiscal_year_start: Number(form.fiscal_year_start),
+          tenant_id: suspendDialog.id,
+          suspended: willSuspend,
+          reason: willSuspend ? suspendReason : undefined,
         },
       });
-      toast.success("Đã cập nhật tổ chức");
-      setEditing(null);
+      toast.success(willSuspend ? "Đã tạm khóa tenant" : "Đã khôi phục tenant");
+      setSuspendDialog(null);
+      setSuspendReason("");
       refresh();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
+  const handleBulkSuspend = async () => {
+    if (!selected.size) return;
+    if (!confirm(`Tạm khóa ${selected.size} tenant?`)) return;
     try {
-      await del({ data: { tenant_id: confirmDelete.id, confirm_email: confirmEmail } });
-      toast.success("Đã xóa tổ chức và toàn bộ dữ liệu");
-      setConfirmDelete(null);
-      setConfirmEmail("");
+      for (const id of selected) {
+        await susFn({ data: { tenant_id: id, suspended: true, reason: "Bulk suspend" } });
+      }
+      toast.success(`Đã tạm khóa ${selected.size} tenant`);
+      setSelected(new Set());
       refresh();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
-  const toggleSort = (key: SortKey) => {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
+  const handleExportCsv = () => {
+    downloadCsv(`tenants-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { key: "id", header: "Tenant ID" },
+        { key: "name", header: "Tên" },
+        { key: "company_name", header: "Công ty" },
+        { key: "tax_id", header: "MST" },
+        { key: "owner_email", header: "Chủ sở hữu" },
+        { key: "accounting_standard", header: "Chuẩn KT" },
+        { key: "status", header: "Trạng thái" },
+        { key: "plan", header: "Plan" },
+        { key: "members_count", header: "Thành viên", numeric: true },
+        { key: "last_activity_at", header: "Hoạt động cuối" },
+        { key: "created_at", header: "Tạo lúc" },
+      ],
+      tenants,
+    );
   };
 
-  const statusBadge = (o: any) => {
-    const createdDays = daysSince(o.created_at) ?? 999;
-    if (createdDays <= 7) return <Badge variant="secondary">Mới</Badge>;
-    const d = daysSince(o.last_activity_at);
-    if (d === null || d > 90) return <Badge variant="outline" className="text-muted-foreground">Không hoạt động</Badge>;
-    return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Đang hoạt động</Badge>;
+  const handleChangePlan = async () => {
+    if (!planDialog) return;
+    try {
+      await planFn({ data: { tenant_id: planDialog.id, plan: planValue } });
+      toast.success("Đã cập nhật gói");
+      setPlanDialog(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const SortBtn = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
-    <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground">
+    <button
+      onClick={() => setSort((s) => (s.key === k ? { key: k, dir: s.dir === "asc" ? "desc" : "asc" } : { key: k, dir: "desc" }))}
+      className="inline-flex items-center gap-1 hover:text-foreground"
+    >
       {children}
       <ArrowUpDown className="h-3 w-3 opacity-50" />
     </button>
   );
 
+  const statusBadge = (t: any) => {
+    if (t.status === "suspended") return <Badge variant="destructive">Tạm khóa</Badge>;
+    if (t.status === "archived") return <Badge variant="outline">Lưu trữ</Badge>;
+    const d = daysSince(t.last_activity_at);
+    if (d === null || d > 90) return <Badge variant="outline" className="text-muted-foreground">Không hoạt động</Badge>;
+    return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Hoạt động</Badge>;
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Building2 className="h-4 w-4" />Tổ chức</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Building2 className="h-4 w-4" />Tổng tenants</div>
           <div className="text-2xl font-semibold mt-1">{summary.total}</div>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><FileText className="h-4 w-4" />Tổng hóa đơn</div>
-          <div className="text-2xl font-semibold mt-1">{formatVND(summary.totalInvoices)}</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><BadgeCheck className="h-4 w-4" />Đang hoạt động</div>
+          <div className="text-2xl font-semibold mt-1 text-emerald-600">{summary.active}</div>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><TrendingUp className="h-4 w-4" />Doanh thu 12T</div>
-          <div className="text-2xl font-semibold mt-1">{formatVND(summary.totalSales)}</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldOff className="h-4 w-4" />Tạm khóa</div>
+          <div className="text-2xl font-semibold mt-1 text-destructive">{summary.suspended}</div>
         </Card>
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-4 w-4" />Không hoạt động</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-4 w-4" />Không hoạt động (&gt;90d)</div>
           <div className="text-2xl font-semibold mt-1">{summary.idle}</div>
         </Card>
       </div>
@@ -198,79 +226,136 @@ function OrgsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            placeholder="Tìm theo email / công ty / MST…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="max-w-sm"
+            placeholder="Tìm theo tên / công ty / MST / email chủ…"
+            value={q} onChange={(e) => setQ(e.target.value)}
+            className="w-72"
           />
-          <Select value={health} onValueChange={(v) => setHealth(v as HealthFilter)}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="active">Đang hoạt động (≤90 ngày)</SelectItem>
-              <SelectItem value="idle">Không hoạt động (&gt;90 ngày)</SelectItem>
-              <SelectItem value="new">Mới tạo (≤7 ngày)</SelectItem>
+              <SelectItem value="all">Mọi trạng thái</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="suspended">Suspended</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={plan} onValueChange={setPlan}>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Plan" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Mọi gói</SelectItem>
+              {PLANS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={std} onValueChange={(v) => setStd(v as StdFilter)}>
+            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Mọi chuẩn</SelectItem>
+              <SelectItem value="TT133">TT133</SelectItem>
+              <SelectItem value="TT200">TT200</SelectItem>
+            </SelectContent>
+          </Select>
+          <label className="flex items-center gap-1.5 text-sm">
+            <Checkbox checked={idle} onCheckedChange={(v) => setIdle(!!v)} />
+            Idle &gt;90d
+          </label>
         </div>
-        <p className="text-xs text-muted-foreground">{orgs.length} / {summary.total} tổ chức</p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+            <Download className="mr-1.5 h-4 w-4" />CSV
+          </Button>
+          {selected.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleBulkSuspend}>
+              <ShieldOff className="mr-1.5 h-4 w-4" />Khóa {selected.size}
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">{tenants.length} / {summary.total}</p>
+        </div>
       </div>
 
       <Card className="p-0 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 text-left"><SortBtn k="company_name">Công ty</SortBtn></th>
-              <th className="text-left">Email chủ TK</th>
+              <th className="px-3 py-2 w-8">
+                <Checkbox
+                  checked={tenants.length > 0 && selected.size === tenants.length}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </th>
+              <th className="px-3 py-2 text-left"><SortBtn k="name">Tên / Công ty</SortBtn></th>
               <th className="text-left">MST</th>
-              <th className="text-right"><SortBtn k="invoice_count">Hóa đơn</SortBtn></th>
-              <th className="text-right"><SortBtn k="sales_total_12m">Doanh thu 12T</SortBtn></th>
-              <th className="text-center"><Users className="inline h-3 w-3" /></th>
-              <th className="text-left"><SortBtn k="last_activity_at">Hoạt động gần nhất</SortBtn></th>
+              <th className="text-left">Chủ sở hữu</th>
+              <th className="text-left">Chuẩn KT</th>
               <th className="text-left">Trạng thái</th>
-              <th className="text-right pr-3">Thao tác</th>
+              <th className="text-left">Plan</th>
+              <th className="text-right"><SortBtn k="members_count"><Users className="inline h-3 w-3" /></SortBtn></th>
+              <th className="text-left"><SortBtn k="last_activity_at">Hoạt động cuối</SortBtn></th>
+              <th className="text-right pr-3"></th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={9} className="px-3 py-4 text-muted-foreground">Đang tải…</td></tr>
+              <tr><td colSpan={10} className="px-3 py-4 text-muted-foreground">Đang tải…</td></tr>
             )}
-            {!isLoading && !orgs.length && (
-              <tr><td colSpan={9} className="px-3 py-4 text-muted-foreground">Không có tổ chức phù hợp.</td></tr>
+            {!isLoading && !tenants.length && (
+              <tr><td colSpan={10} className="px-3 py-4 text-muted-foreground">Không có tenant phù hợp.</td></tr>
             )}
-            {orgs.map((o: any) => {
-              const d = daysSince(o.last_activity_at);
+            {tenants.map((t: any) => {
+              const d = daysSince(t.last_activity_at);
               return (
-                <tr key={o.id} className="border-t border-border/50 hover:bg-muted/20">
+                <tr key={t.id} className="border-t border-border/50 hover:bg-muted/20">
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{o.company_name ?? "(chưa đặt tên)"}</span>
-                    </div>
+                    <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
                   </td>
-                  <td className="text-muted-foreground">{o.email ?? "—"}</td>
-                  <td className="text-xs">{o.tax_id ?? "—"}</td>
-                  <td className="text-right tabular-nums">{o.invoice_count}</td>
-                  <td className="text-right tabular-nums">{formatVND(o.sales_total_12m)}</td>
-                  <td className="text-center text-xs">{o.members_count}</td>
+                  <td className="px-3 py-2">
+                    <Link
+                      to="/superadmin/tenant/$id"
+                      params={{ id: t.id }}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{t.name ?? "(không tên)"}</span>
+                      {t.company_name && t.company_name !== t.name && (
+                        <span className="text-xs text-muted-foreground">· {t.company_name}</span>
+                      )}
+                    </Link>
+                  </td>
+                  <td className="text-xs">{t.tax_id ?? "—"}</td>
+                  <td className="text-muted-foreground text-xs">{t.owner_email ?? "—"}</td>
+                  <td className="text-xs">{t.accounting_standard ?? "—"}</td>
+                  <td>{statusBadge(t)}</td>
+                  <td><Badge variant="secondary">{t.plan}</Badge></td>
+                  <td className="text-right tabular-nums">{t.members_count}</td>
                   <td className="text-xs text-muted-foreground">
-                    {o.last_activity_at
-                      ? `${new Date(o.last_activity_at).toLocaleDateString("vi-VN")} (${d}d)`
+                    {t.last_activity_at
+                      ? `${new Date(t.last_activity_at).toLocaleDateString("vi-VN")} (${d}d)`
                       : "—"}
                   </td>
-                  <td>{statusBadge(o)}</td>
-                  <td className="text-right pr-3 space-x-1">
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => { setConfirmDelete(o); setConfirmEmail(""); }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <td className="text-right pr-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to="/superadmin/tenant/$id" params={{ id: t.id }}>
+                            <ChevronRight className="mr-2 h-4 w-4" />Xem chi tiết
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setPlanDialog(t); setPlanValue(t.plan ?? "free"); }}>
+                          <BadgeCheck className="mr-2 h-4 w-4" />Đổi gói
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => { setSuspendDialog(t); setSuspendReason(t.suspended_reason ?? ""); }}
+                          className={t.status === "suspended" ? "" : "text-destructive"}
+                        >
+                          {t.status === "suspended"
+                            ? <><ShieldCheck className="mr-2 h-4 w-4" />Khôi phục</>
+                            : <><ShieldOff className="mr-2 h-4 w-4" />Tạm khóa</>}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               );
@@ -279,84 +364,49 @@ function OrgsPage() {
         </table>
       </Card>
 
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={!!suspendDialog} onOpenChange={(o) => !o && setSuspendDialog(null)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Sửa tổ chức</DialogTitle>
-            <DialogDescription>{editing?.email}</DialogDescription>
+            <DialogTitle>
+              {suspendDialog?.status === "suspended" ? "Khôi phục tenant" : "Tạm khóa tenant"}
+            </DialogTitle>
+            <DialogDescription>
+              <b>{suspendDialog?.name}</b>
+              {suspendDialog?.status !== "suspended" && " — người dùng sẽ mất quyền truy cập cho tới khi được khôi phục."}
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
+          {suspendDialog?.status !== "suspended" && (
             <div className="grid gap-1.5">
-              <Label>Tên công ty</Label>
-              <Input value={form.company_name ?? ""} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+              <Label>Lý do (tùy chọn)</Label>
+              <Input value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label>Mã số thuế</Label>
-                <Input value={form.tax_id ?? ""} onChange={(e) => setForm({ ...form, tax_id: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Điện thoại</Label>
-                <Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Địa chỉ</Label>
-              <Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="grid gap-1.5">
-                <Label>Chuẩn KT</Label>
-                <Select value={form.accounting_standard} onValueChange={(v) => setForm({ ...form, accounting_standard: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TT99">TT99</SelectItem>
-                    <SelectItem value="TT133">TT133</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Tiền tệ</Label>
-                <Input value={form.base_currency ?? ""} onChange={(e) => setForm({ ...form, base_currency: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Tháng bắt đầu NĐ</Label>
-                <Input type="number" min={1} max={12} value={form.fiscal_year_start ?? 1} onChange={(e) => setForm({ ...form, fiscal_year_start: e.target.value })} />
-              </div>
-            </div>
-          </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>Hủy</Button>
-            <Button onClick={save}>Lưu</Button>
+            <Button variant="outline" onClick={() => setSuspendDialog(null)}>Hủy</Button>
+            <Button
+              variant={suspendDialog?.status === "suspended" ? "default" : "destructive"}
+              onClick={handleSuspend}
+            >
+              {suspendDialog?.status === "suspended" ? "Khôi phục" : "Tạm khóa"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+      <Dialog open={!!planDialog} onOpenChange={(o) => !o && setPlanDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xóa tổ chức vĩnh viễn</DialogTitle>
-            <DialogDescription>
-              Thao tác này sẽ xóa <b>toàn bộ dữ liệu</b> của tổ chức{" "}
-              <b>{confirmDelete?.company_name ?? confirmDelete?.email}</b>{" "}
-              (hóa đơn, bút toán, kho, lương, v.v.) VÀ tài khoản chủ.
-              Hành động không thể hoàn tác. Nhập email chủ TK để xác nhận:
-            </DialogDescription>
+            <DialogTitle>Đổi gói cho {planDialog?.name}</DialogTitle>
           </DialogHeader>
-          <Input
-            placeholder={confirmDelete?.email ?? ""}
-            value={confirmEmail}
-            onChange={(e) => setConfirmEmail(e.target.value)}
-          />
+          <Select value={planValue} onValueChange={setPlanValue}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PLANS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Hủy</Button>
-            <Button
-              variant="destructive"
-              disabled={confirmEmail.toLowerCase() !== (confirmDelete?.email ?? "").toLowerCase()}
-              onClick={handleDelete}
-            >
-              Xóa vĩnh viễn
-            </Button>
+            <Button variant="outline" onClick={() => setPlanDialog(null)}>Hủy</Button>
+            <Button onClick={handleChangePlan}>Lưu</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
