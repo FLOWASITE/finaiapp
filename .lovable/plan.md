@@ -1,100 +1,78 @@
+## Mục tiêu
 
-# Stage 2 — Lifecycle XML/PDF (phần còn lại)
+Nâng cấp `/superadmin/accounts` (hiện chỉ có list + role toggle + ban + reset + delete) thành phân hệ quản lý tài khoản đầy đủ cho quy mô 500–5,000 user.
 
-Làm gộp 3 hạng mục: chuẩn hoá `storage_path` → cron nén/archive → helper signed URL có auto-decompress.
+## Phạm vi 4 nhóm tính năng
 
----
+### 1. Trang chi tiết tài khoản — `/superadmin/accounts/$id`
+Drawer mở từ bảng list (hoặc trang riêng) gồm 4 tab:
+- **Hồ sơ**: email, display_name, company_name, phone, job_title, tax_id, created_at, last_sign_in_at, email_confirmed_at, MFA status, banned_until.
+- **Tenants & vai trò**: bảng liệt kê tất cả tenant user thuộc về (qua `tenant_members` / `user_roles` + `profiles.active_tenant_id`), role tại mỗi tenant, quick action "Đổi role tại tenant này", "Gỡ khỏi tenant".
+- **Phiên & bảo mật**: danh sách session active (auth.sessions qua admin API), IP + User-Agent + thời điểm, nút **Force logout all sessions**, nút **Reset MFA factors**, lịch sử đăng nhập 30 ngày gần nhất.
+- **Nhật ký**: 50 dòng `audit_logs` gần nhất do user này thực hiện (filter `actor_id`).
 
-## 1. Chuẩn hoá `storage_path` (2.1)
+### 2. Tạo & mời user mới — Dialog "Mời tài khoản"
+Form gồm: email, display_name (tùy chọn), tenant (combobox tenant đã có hoặc bỏ trống = chưa gắn), role mặc định, checkbox "Cấp superadmin" (cảnh báo).
+- Submit → `supabaseAdmin.auth.admin.inviteUserByEmail(email)` → tạo bản ghi `profiles` + `user_roles` (nếu chọn) → log audit.
+- Hiển thị toast với link invite (fallback nếu email chưa cấu hình).
+- Validate: email hợp lệ, không trùng user đã tồn tại (tra trước qua list).
 
-**Layout mới**: `{tenant_id}/{year}/{month}/{invoice_id}/{kind}.{ext}`
-- `kind` ∈ `xml | pdf | signed_xml`
-- `ext` giữ nguyên gốc; nếu đã nén thêm `.gz`
+### 3. Filter nâng cao + bulk + export — Bảng chính
+- **Filter bar**: search (đã có), role multi-select, trạng thái (Hoạt động / Chưa xác thực / Đã khóa / Có MFA), khoảng ngày tạo, last login (chưa từng / 7 ngày / 30 ngày / 90+ ngày).
+- **Sort cột**: email, company, created_at, last_sign_in_at.
+- **Pagination server-side** (50/trang) — đổi `listAllAccounts` thành nhận `{ page, pageSize, q, roles, status, createdRange, lastLoginBucket }`, vẫn dùng `auth.admin.listUsers` rồi lọc/sort trong server fn (≤5k user nên acceptable; thêm cache 30s).
+- **Bulk select**: checkbox đầu mỗi dòng + checkbox "Chọn tất cả trang". Action bar nổi khi có chọn: Khóa, Mở khóa, Gỡ role, Cấp role, Gửi reset password, Xóa (kèm dialog xác nhận nhập "DELETE N accounts").
+- **Export CSV**: server fn `exportAccountsCsv` trả CSV theo filter hiện tại (không bulk-select riêng).
 
-**Cách triển khai (không re-upload file cũ)**:
-- Thêm cột `documents.canonical_path text` — path chuẩn dùng cho file mới upload từ giờ.
-- File cũ giữ `storage_path` hiện tại (`{user_id}/xml/timestamp-name.xml`); helper đọc bucket + path từ `storage_path` như cũ.
-- Cập nhật `einvoice-xml.functions.ts` (và các nơi upload XML/PDF khác) để dùng layout mới khi `tenant_id` + `invoice_id` đã có.
-- Khi cron archive đụng vào file cũ, nó sẽ ghi `canonical_path` mới + di chuyển sang bucket archive theo layout chuẩn (lazy migration).
+### 4. Bảo mật & multi-tenant roles
+- **Force logout**: `supabaseAdmin.auth.admin.signOut(user_id, 'global')` — thao tác đơn lẻ trên chi tiết.
+- **Reset MFA**: liệt kê factors qua `auth.admin.mfa.listFactors`, nút xóa từng factor; cảnh báo user sẽ mất 2FA.
+- **Matrix tenant × role**: tại tab "Tenants & vai trò" hiển thị mỗi tenant một dòng với select role (owner/admin/accountant/viewer). Lưu qua `setUserRoleInTenant({ user_id, tenant_id, role })` — server fn mới, ghi `user_roles` scoped (hiện schema `user_roles` không có `tenant_id`; xem mục Schema bên dưới).
 
-Lý do: tránh down-time + tránh 1 migration nặng đụng vài chục nghìn object.
+## Schema thay đổi (1 migration nhỏ)
 
----
-
-## 2. Cron nén & archive (2.3)
-
-**Server route**: `src/routes/api/public/hooks/archive-documents.ts` (POST, không cần auth vì `/api/public/*`; verify bằng `apikey` header = anon key).
-
-Xử lý theo batch (mặc định 50 doc/lần để tránh time-out Worker):
-
-1. **Warm tier** (12–60 tháng tuổi, `storage_tier='hot'`, `compressed=false`, XML):
-   - Download từ `invoices` bucket
-   - gzip (Node `zlib`)
-   - Upload `.gz` cùng path mới (layout chuẩn), set `storage_tier='warm'`, `compressed=true`, cập nhật `storage_path` + `canonical_path`
-   - Xoá object gốc
-2. **Archive tier** (> 60 tháng, `storage_tier in ('hot','warm')`):
-   - Copy sang bucket `einvoices-archive` theo layout chuẩn (giữ `.gz` nếu đã có; nén nếu chưa)
-   - Set `storage_tier='archived'`, `archived_at=now()`, cập nhật `storage_path`
-   - Xoá object ở bucket nguồn
-
-PDF chỉ archive (không nén — đã nén sẵn).
-
-**Schedule** (qua `supabase--insert`, không phải migration):
-- Weekly Chủ nhật 02:00 ICT (`0 19 * * 6` UTC)
-- Body `{}`; route tự lấy batch 50.
-
-**Idempotent**: query lọc theo `storage_tier` + `archived_at IS NULL` để chạy lại không hỏng dữ liệu.
-
----
-
-## 3. Helper `get_document_url(doc_id)` (2.4)
-
-**File**: `src/lib/documents.functions.ts`
-
-```ts
-export const getDocumentUrl = createServerFn({ method: 'POST' })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ docId: z.string().uuid() }).parse)
-  .handler(async ({ data, context }) => {
-    // 1. Load document (RLS scoped to user)
-    // 2. Cập nhật last_accessed_at qua RPC mark_document_accessed
-    // 3. Nếu compressed=false → trả signed URL 5 phút từ bucket gốc
-    // 4. Nếu compressed=true:
-    //    - Download .gz → gunzip → upload bản tạm vào bucket `invoices`
-    //      path: `_tmp/{userId}/{docId}-{nonce}.xml` (TTL ngắn)
-    //    - Trả signed URL 5 phút của bản tạm
-    //    - File tạm sẽ bị job đêm dọn (xem dưới)
-    // 5. Nếu storage_tier='archived' → cùng flow như (4) nhưng đọc từ bucket
-    //    `einvoices-archive` (dùng supabaseAdmin vì bucket private RLS phức tạp,
-    //    đã verify ownership ở bước 1).
-  });
+`user_roles` hiện không có `tenant_id`. Để hỗ trợ role per-tenant cần:
 ```
+ALTER TABLE public.user_roles
+  ADD COLUMN tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE;
+ALTER TABLE public.user_roles
+  DROP CONSTRAINT user_roles_user_id_role_key,
+  ADD CONSTRAINT user_roles_user_role_tenant_key UNIQUE (user_id, role, tenant_id);
+CREATE INDEX idx_user_roles_tenant ON public.user_roles(tenant_id);
+```
+- `superadmin` giữ `tenant_id = NULL` (global).
+- Cập nhật `has_role()` để vẫn hoạt động (role match bất kể tenant) + thêm `has_role_in_tenant(user_id, role, tenant_id)`.
+- Backfill: gán `tenant_id = profiles.active_tenant_id` cho các role hiện có (trừ superadmin).
 
-**Dọn temp file**: thêm vào cùng cron archive một bước xoá object `_tmp/*` cũ > 1h.
+> Nếu thay đổi schema này quá lớn, có thể **defer** sang giai đoạn 2 và phase 1 chỉ làm role global như hiện tại — đợi xác nhận.
 
-UI hiện tại (invoice viewer, link XML) đổi từ `createSignedUrl` trực tiếp sang gọi `getDocumentUrl` — chỉ 1–2 chỗ.
+## Server functions mới (trong `src/lib/superadmin.functions.ts`)
+- `getAccountDetail({ user_id })` — trả profile, tenants[], roles[], sessions[], mfa_factors[], recent_audits[].
+- `listAccountsPaged({ page, pageSize, filters })` — thay/phụ trợ `listAllAccounts`.
+- `inviteAccount({ email, display_name?, tenant_id?, role? })`.
+- `bulkAccountAction({ user_ids, action })` — action ∈ ban/unban/delete/reset_password/set_role.
+- `exportAccountsCsv(filters)` — trả `{ csv: string }`.
+- `forceLogoutAccount({ user_id })`.
+- `listMfaFactors({ user_id })` / `resetMfaFactor({ user_id, factor_id })`.
+- `setUserRoleInTenant({ user_id, tenant_id, role, enable })` (nếu làm phase 1 multi-tenant).
+- Tất cả qua `assertSuperadmin` + ghi `logSuperadminAction`.
 
----
+## Files thay đổi
+- **Edit**: `src/lib/superadmin.functions.ts` (thêm 8 server fn).
+- **Edit**: `src/routes/_app/superadmin/accounts.tsx` (filter bar + bulk + pagination + export + nút "Mời").
+- **Create**: `src/routes/_app/superadmin/accounts.$id.tsx` (trang chi tiết, 4 tab).
+- **Create**: `src/components/superadmin/invite-account-dialog.tsx`.
+- **Create**: `src/components/superadmin/bulk-action-bar.tsx`.
+- **Create**: `src/components/superadmin/account-filters.tsx`.
+- **Migration**: `user_roles.tenant_id` + cập nhật `has_role` (nếu chọn làm).
 
-## Files
+## Bảo mật
+- Toàn bộ server fn check `assertSuperadmin`.
+- Mọi mutation ghi `audit_logs` qua `logSuperadminAction`.
+- Bulk delete yêu cầu nhập chính xác chuỗi xác nhận.
+- Không cho phép tự khóa/xóa/gỡ superadmin của chính mình (đã có guard, mở rộng cho bulk).
+- Export CSV chỉ chứa metadata (không hash password, không token).
 
-**Tạo mới**
-- `src/routes/api/public/hooks/archive-documents.ts`
-- `src/lib/documents.functions.ts`
-- 1 migration: thêm cột `documents.canonical_path`, index `(storage_tier, issue_date)` cho cron
-
-**Sửa**
-- `src/lib/einvoice-xml.functions.ts` — dùng layout path mới khi upload
-- 1–2 chỗ đang gọi `supabase.storage.from('invoices').createSignedUrl(...)` cho documents → đổi sang `getDocumentUrl`
-
-**SQL (qua insert tool, không phải migration)**
-- `cron.schedule('archive-documents-weekly', ...)` gọi `/api/public/hooks/archive-documents`
-
----
-
-## Bỏ qua / để sau
-- Re-upload toàn bộ file cũ về layout mới (lazy migration đủ).
-- Re-encrypt / KMS cho bucket archive.
-- UI hiển thị tier badge trong list invoice (mục riêng trong roadmap).
-
-OK chốt thì em vào build mode triển khai.
+## Câu hỏi cần xác nhận trước khi build
+1. Có làm **schema multi-tenant `user_roles.tenant_id`** ngay phase 1, hay tạm dùng role global (matrix tenant chỉ hiển thị tenants thuộc về, không đổi role per-tenant)?
+2. Tạo trang chi tiết dạng **route riêng `/accounts/$id`** hay **drawer/sheet** mở trên cùng trang list?
