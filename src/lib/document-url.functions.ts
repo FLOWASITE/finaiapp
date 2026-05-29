@@ -40,7 +40,7 @@ export const getDocumentUrl = createServerFn({ method: "POST" })
       throw new Error("Tài liệu không có file gốc");
 
     // 2. Mark accessed (best-effort)
-    await supabase.rpc("mark_document_accessed", { p_doc_id: data.docId }).then(
+    await supabase.rpc("mark_document_accessed", { p_document_id: data.docId }).then(
       () => undefined,
       () => undefined,
     );
