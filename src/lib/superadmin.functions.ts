@@ -100,37 +100,9 @@ export const listAllTenants = createServerFn({ method: "GET" })
     };
   });
 
-export const getTenantDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ tenant_id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await assertSuperadmin(supabase, userId);
+// Deprecated: getTenantDetail (profile-based) removed.
+// Use getTenantAdmin from src/lib/superadmin-tenants.functions.ts.
 
-    const [profile, roles, recentAudit, locks] = await Promise.all([
-      supabaseAdmin.from("profiles").select("*").eq("id", data.tenant_id).maybeSingle(),
-      supabaseAdmin.from("user_roles").select("*").eq("user_id", data.tenant_id),
-      supabaseAdmin
-        .from("audit_logs")
-        .select("*")
-        .eq("user_id", data.tenant_id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabaseAdmin
-        .from("fiscal_periods")
-        .select("id,year,period_no,status,closed_at,note,user_id")
-        .eq("user_id", data.tenant_id)
-        .in("status", ["soft_closed", "closed"])
-        .order("year", { ascending: false }),
-    ]);
-
-    return {
-      profile: profile.data,
-      roles: roles.data ?? [],
-      recent_audit: recentAudit.data ?? [],
-      locks: locks.data ?? [],
-    };
-  });
 
 export const setSuperadminRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -342,145 +314,10 @@ export const listOrganizations = createServerFn({ method: "GET" })
     return { organizations: profiles ?? [] };
   });
 
-export const listOrganizationsWithStats = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    await assertSuperadmin(supabase, userId);
+// Deprecated: listOrganizationsWithStats / updateOrganization / deleteOrganization
+// removed. Use src/lib/superadmin-tenants.functions.ts (listTenantsAdmin,
+// updateTenantAdmin, deleteTenantAdmin) which operates on the real tenants table.
 
-    const { data: profiles } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start, created_at")
-      .order("created_at", { ascending: false });
-
-    const orgs = profiles ?? [];
-    const ids = orgs.map((o) => o.id);
-    if (ids.length === 0) return { organizations: [] };
-
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-    const twelveIso = twelveMonthsAgo.toISOString().slice(0, 10);
-
-    const [invRes, salesRes, rolesRes, salesActRes, invActRes, jeActRes] = await Promise.all([
-      supabaseAdmin.from("invoices").select("user_id").in("user_id", ids),
-      supabaseAdmin.from("sales_invoices").select("user_id, total, issue_date").in("user_id", ids).gte("issue_date", twelveIso),
-      supabaseAdmin.from("user_roles").select("user_id").in("user_id", ids),
-      supabaseAdmin.from("sales_invoices").select("user_id, updated_at").in("user_id", ids),
-      supabaseAdmin.from("invoices").select("user_id, updated_at").in("user_id", ids),
-      supabaseAdmin.from("journal_entries").select("user_id, created_at").in("user_id", ids),
-    ]);
-
-    const invCount = new Map<string, number>();
-    (invRes.data ?? []).forEach((r: any) => invCount.set(r.user_id, (invCount.get(r.user_id) ?? 0) + 1));
-
-    const salesTotal = new Map<string, number>();
-    (salesRes.data ?? []).forEach((r: any) =>
-      salesTotal.set(r.user_id, (salesTotal.get(r.user_id) ?? 0) + Number(r.total ?? 0)),
-    );
-
-    const members = new Map<string, number>();
-    (rolesRes.data ?? []).forEach((r: any) => members.set(r.user_id, (members.get(r.user_id) ?? 0) + 1));
-
-    const lastActivity = new Map<string, string>();
-    const bump = (uid: string, ts: string | null | undefined) => {
-      if (!ts) return;
-      const prev = lastActivity.get(uid);
-      if (!prev || ts > prev) lastActivity.set(uid, ts);
-    };
-    (salesActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.updated_at));
-    (invActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.updated_at));
-    (jeActRes.data ?? []).forEach((r: any) => bump(r.user_id, r.created_at));
-
-    const organizations = orgs.map((o) => ({
-      ...o,
-      invoice_count: invCount.get(o.id) ?? 0,
-      sales_total_12m: salesTotal.get(o.id) ?? 0,
-      members_count: Math.max(1, members.get(o.id) ?? 1),
-      last_activity_at: lastActivity.get(o.id) ?? null,
-    }));
-
-    return { organizations };
-  });
-
-export const updateOrganization = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({
-      tenant_id: z.string().uuid(),
-      company_name: z.string().max(255).nullable().optional(),
-      tax_id: z.string().max(50).nullable().optional(),
-      address: z.string().max(500).nullable().optional(),
-      phone: z.string().max(50).nullable().optional(),
-      accounting_standard: z.enum(["TT133", "TT200"]).optional(),
-      base_currency: z.string().min(3).max(10).optional(),
-      fiscal_year_start: z.number().int().min(1).max(12).optional(),
-    }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await assertSuperadmin(supabase, userId);
-    const { tenant_id, ...patch } = data;
-    const { data: before } = await supabaseAdmin
-      .from("profiles")
-      .select("company_name, tax_id, address, phone, accounting_standard, base_currency, fiscal_year_start")
-      .eq("id", tenant_id)
-      .maybeSingle();
-    const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", tenant_id);
-    if (error) throw new Error(error.message);
-    await logSuperadminAction({
-      actorId: userId,
-      action: "superadmin.org.update",
-      targetTable: "profiles",
-      targetId: tenant_id,
-      before,
-      after: patch,
-    });
-    return { ok: true };
-  });
-
-export const deleteOrganization = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ tenant_id: z.string().uuid(), confirm_email: z.string().email() }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await assertSuperadmin(supabase, userId);
-    if (data.tenant_id === userId) throw new Error("Không thể tự xóa tổ chức của mình.");
-
-    const { data: prof } = await supabaseAdmin
-      .from("profiles")
-      .select("email, company_name, tax_id")
-      .eq("id", data.tenant_id)
-      .maybeSingle();
-    if (!prof) throw new Error("Không tìm thấy tổ chức.");
-    if ((prof.email ?? "").toLowerCase() !== data.confirm_email.toLowerCase()) {
-      throw new Error("Email xác nhận không khớp.");
-    }
-
-    // Delete user-scoped data (best-effort across known tables)
-    const tables = [
-      "ai_suggestions", "bank_transactions", "bank_accounts", "cash_vouchers",
-      "customers", "exchange_rates", "fixed_assets", "invoices",
-      "journal_entries", "payroll_runs", "fiscal_periods", "fiscal_years", "products",
-      "report_notes", "report_snapshots", "sales_invoices", "stock_movements",
-      "supplier_payments", "suppliers", "employees", "user_roles",
-    ];
-    for (const t of tables) {
-      await (supabaseAdmin.from(t as any) as any).delete().eq("user_id", data.tenant_id);
-    }
-    await supabaseAdmin.from("profiles").delete().eq("id", data.tenant_id);
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.tenant_id);
-    if (error) throw new Error(error.message);
-    await logSuperadminAction({
-      actorId: userId,
-      action: "superadmin.org.delete",
-      targetTable: "profiles",
-      targetId: data.tenant_id,
-      before: prof,
-    });
-    return { ok: true };
-  });
 
 // ============================================================
 // AUDIT LOG VIEWER (Super-admin actions)
