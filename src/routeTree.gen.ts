@@ -156,6 +156,7 @@ import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/publ
 import { Route as ApiPublicHooksCalibrateConfidenceRouteImport } from './routes/api/public/hooks/calibrate-confidence'
 import { Route as ApiPublicHooksArchiveDocumentsRouteImport } from './routes/api/public/hooks/archive-documents'
 import { Route as AppSuperadminTenantIdRouteImport } from './routes/_app/superadmin/tenant.$id'
+import { Route as AppSuperadminAccountsIdRouteImport } from './routes/_app/superadmin/accounts.$id'
 import { Route as AppSalesOrdersIdRouteImport } from './routes/_app/sales/orders.$id'
 import { Route as AppSalesDashboardReportsQtyByItemRouteImport } from './routes/_app/sales-dashboard/reports.qty-by-item'
 import { Route as AppSalesDashboardReportsProfitByItemRouteImport } from './routes/_app/sales-dashboard/reports.profit-by-item'
@@ -934,6 +935,11 @@ const AppSuperadminTenantIdRoute = AppSuperadminTenantIdRouteImport.update({
   path: '/tenant/$id',
   getParentRoute: () => AppSuperadminRoute,
 } as any)
+const AppSuperadminAccountsIdRoute = AppSuperadminAccountsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppSuperadminAccountsRoute,
+} as any)
 const AppSalesOrdersIdRoute = AppSalesOrdersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -1192,7 +1198,7 @@ export interface FileRoutesByFullPath {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
-  '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/accounts': typeof AppSuperadminAccountsRouteWithChildren
   '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
@@ -1261,6 +1267,7 @@ export interface FileRoutesByFullPath {
   '/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
+  '/superadmin/accounts/$id': typeof AppSuperadminAccountsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/archive-documents': typeof ApiPublicHooksArchiveDocumentsRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
@@ -1364,7 +1371,7 @@ export interface FileRoutesByTo {
   '/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/settings/projects': typeof AppSettingsProjectsRoute
-  '/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/superadmin/accounts': typeof AppSuperadminAccountsRouteWithChildren
   '/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/superadmin/audit': typeof AppSuperadminAuditRoute
@@ -1433,6 +1440,7 @@ export interface FileRoutesByTo {
   '/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
   '/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
+  '/superadmin/accounts/$id': typeof AppSuperadminAccountsIdRoute
   '/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/archive-documents': typeof ApiPublicHooksArchiveDocumentsRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
@@ -1545,7 +1553,7 @@ export interface FileRoutesById {
   '/_app/settings/fiscal-periods': typeof AppSettingsFiscalPeriodsRoute
   '/_app/settings/item-mappings': typeof AppSettingsItemMappingsRoute
   '/_app/settings/projects': typeof AppSettingsProjectsRoute
-  '/_app/superadmin/accounts': typeof AppSuperadminAccountsRoute
+  '/_app/superadmin/accounts': typeof AppSuperadminAccountsRouteWithChildren
   '/_app/superadmin/ai-agents': typeof AppSuperadminAiAgentsRoute
   '/_app/superadmin/ai-model': typeof AppSuperadminAiModelRoute
   '/_app/superadmin/audit': typeof AppSuperadminAuditRoute
@@ -1614,6 +1622,7 @@ export interface FileRoutesById {
   '/_app/sales-dashboard/reports/profit-by-item': typeof AppSalesDashboardReportsProfitByItemRoute
   '/_app/sales-dashboard/reports/qty-by-item': typeof AppSalesDashboardReportsQtyByItemRoute
   '/_app/sales/orders/$id': typeof AppSalesOrdersIdRouteWithChildren
+  '/_app/superadmin/accounts/$id': typeof AppSuperadminAccountsIdRoute
   '/_app/superadmin/tenant/$id': typeof AppSuperadminTenantIdRoute
   '/api/public/hooks/archive-documents': typeof ApiPublicHooksArchiveDocumentsRoute
   '/api/public/hooks/calibrate-confidence': typeof ApiPublicHooksCalibrateConfidenceRoute
@@ -1795,6 +1804,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/profit-by-item'
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
+    | '/superadmin/accounts/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/archive-documents'
     | '/api/public/hooks/calibrate-confidence'
@@ -1967,6 +1977,7 @@ export interface FileRouteTypes {
     | '/sales-dashboard/reports/profit-by-item'
     | '/sales-dashboard/reports/qty-by-item'
     | '/sales/orders/$id'
+    | '/superadmin/accounts/$id'
     | '/superadmin/tenant/$id'
     | '/api/public/hooks/archive-documents'
     | '/api/public/hooks/calibrate-confidence'
@@ -2147,6 +2158,7 @@ export interface FileRouteTypes {
     | '/_app/sales-dashboard/reports/profit-by-item'
     | '/_app/sales-dashboard/reports/qty-by-item'
     | '/_app/sales/orders/$id'
+    | '/_app/superadmin/accounts/$id'
     | '/_app/superadmin/tenant/$id'
     | '/api/public/hooks/archive-documents'
     | '/api/public/hooks/calibrate-confidence'
@@ -3218,6 +3230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuperadminTenantIdRouteImport
       parentRoute: typeof AppSuperadminRoute
     }
+    '/_app/superadmin/accounts/$id': {
+      id: '/_app/superadmin/accounts/$id'
+      path: '/$id'
+      fullPath: '/superadmin/accounts/$id'
+      preLoaderRoute: typeof AppSuperadminAccountsIdRouteImport
+      parentRoute: typeof AppSuperadminAccountsRoute
+    }
     '/_app/sales/orders/$id': {
       id: '/_app/sales/orders/$id'
       path: '/$id'
@@ -3592,8 +3611,21 @@ const AppItemsRouteWithChildren = AppItemsRoute._addFileChildren(
   AppItemsRouteChildren,
 )
 
+interface AppSuperadminAccountsRouteChildren {
+  AppSuperadminAccountsIdRoute: typeof AppSuperadminAccountsIdRoute
+}
+
+const AppSuperadminAccountsRouteChildren: AppSuperadminAccountsRouteChildren = {
+  AppSuperadminAccountsIdRoute: AppSuperadminAccountsIdRoute,
+}
+
+const AppSuperadminAccountsRouteWithChildren =
+  AppSuperadminAccountsRoute._addFileChildren(
+    AppSuperadminAccountsRouteChildren,
+  )
+
 interface AppSuperadminRouteChildren {
-  AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRoute
+  AppSuperadminAccountsRoute: typeof AppSuperadminAccountsRouteWithChildren
   AppSuperadminAiAgentsRoute: typeof AppSuperadminAiAgentsRoute
   AppSuperadminAiModelRoute: typeof AppSuperadminAiModelRoute
   AppSuperadminAuditRoute: typeof AppSuperadminAuditRoute
@@ -3608,7 +3640,7 @@ interface AppSuperadminRouteChildren {
 }
 
 const AppSuperadminRouteChildren: AppSuperadminRouteChildren = {
-  AppSuperadminAccountsRoute: AppSuperadminAccountsRoute,
+  AppSuperadminAccountsRoute: AppSuperadminAccountsRouteWithChildren,
   AppSuperadminAiAgentsRoute: AppSuperadminAiAgentsRoute,
   AppSuperadminAiModelRoute: AppSuperadminAiModelRoute,
   AppSuperadminAuditRoute: AppSuperadminAuditRoute,
