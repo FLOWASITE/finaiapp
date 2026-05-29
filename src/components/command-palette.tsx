@@ -281,6 +281,10 @@ export function CommandPalette() {
     openAskAi(prefill);
   };
 
+  const trimmed = query.trim();
+  const showSmartAction = trimmed.length > 0 && looksLikeAction(trimmed);
+  const showSmartQuestion = trimmed.length > 0 && looksLikeQuestion(trimmed);
+
   const runSearch = useServerFn(searchGlobal);
   const { data: searchData, isFetching: searchLoading } = useQuery({
     queryKey: ["cmdk-search", trimmed],
@@ -291,10 +295,6 @@ export function CommandPalette() {
   const hits = (searchData?.hits ?? []) as SearchHit[];
   const suppliers = hits.filter((h) => h.kind === "supplier");
   const invoices = hits.filter((h) => h.kind === "invoice");
-
-  return (
-    <CommandDialog open={open} onOpenChange={(v) => (v ? setOpen(true) : close())}>
-      <CommandInput
 
   return (
     <CommandDialog open={open} onOpenChange={(v) => (v ? setOpen(true) : close())}>
