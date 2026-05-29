@@ -1,9 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 
 const SearchInput = z.object({
-  tenantId: z.string().uuid(),
   query: z.string().min(2).max(100),
   limit: z.number().int().min(1).max(50).optional(),
 });
@@ -18,12 +17,12 @@ export type SearchHit = {
 };
 
 export const searchGlobal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((input: unknown) => SearchInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: rows, error } = await supabase.rpc("search_global", {
-      p_tenant_id: data.tenantId,
+      p_tenant_id: tenantId,
       p_query: data.query,
       p_limit: data.limit ?? 20,
     });
