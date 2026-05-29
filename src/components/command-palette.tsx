@@ -306,6 +306,48 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>Không có gợi ý. Nhấn Enter để hỏi AI.</CommandEmpty>
 
+        {suppliers.length > 0 && (
+          <CommandGroup heading={`🔎 Nhà cung cấp${searchLoading ? " (đang tìm…)" : ""}`}>
+            {suppliers.map((h) => (
+              <CommandItem
+                key={`sup-${h.id}`}
+                value={`sup ${h.title} ${h.subtitle}`}
+                onSelect={() => go(`/suppliers/${h.id}`)}
+              >
+                <Building2 className="mr-2 h-4 w-4 text-sky-500" />
+                <span className="flex-1">{h.title}</span>
+                {h.subtitle && (
+                  <span className="text-xs text-muted-foreground">MST {h.subtitle}</span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {invoices.length > 0 && (
+          <CommandGroup heading="🔎 Hóa đơn">
+            {invoices.map((h) => (
+              <CommandItem
+                key={`inv-${h.id}`}
+                value={`inv ${h.title} ${h.subtitle}`}
+                onSelect={() => go(`/invoices/${h.id}`)}
+              >
+                <Receipt className="mr-2 h-4 w-4 text-amber-500" />
+                <span className="flex-1">
+                  {h.title} <span className="text-muted-foreground">— {h.subtitle}</span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {typeof h.meta.amount === "number"
+                    ? h.meta.amount.toLocaleString("vi-VN") + " ₫"
+                    : ""}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {(suppliers.length > 0 || invoices.length > 0) && <CommandSeparator />}
+
         {showSmartAction && (
           <CommandGroup heading="✨ Hành động thông minh">
             <CommandItem value={`smart-action ${trimmed}`} onSelect={() => ask(trimmed)}>
