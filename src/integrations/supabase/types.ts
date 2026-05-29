@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_balance_yearly: {
+        Row: {
+          account_code: string
+          closing_credit: number
+          closing_debit: number
+          opening_credit: number
+          opening_debit: number
+          period_credit: number
+          period_debit: number
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          account_code: string
+          closing_credit?: number
+          closing_debit?: number
+          opening_credit?: number
+          opening_debit?: number
+          period_credit?: number
+          period_debit?: number
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          account_code?: string
+          closing_credit?: number
+          closing_debit?: number
+          opening_credit?: number
+          opening_debit?: number
+          period_credit?: number
+          period_debit?: number
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       account_period_balances: {
         Row: {
           account_code: string
@@ -4030,6 +4069,62 @@ export type Database = {
           },
         ]
       }
+      fiscal_period_unseal_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_role: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          period_id: string
+          reason: string
+          rejection_reason: string | null
+          requested_by: string
+          requested_role: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_role?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          period_id: string
+          reason: string
+          rejection_reason?: string | null
+          requested_by: string
+          requested_role: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_role?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          period_id?: string
+          reason?: string
+          rejection_reason?: string | null
+          requested_by?: string
+          requested_role?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_period_unseal_requests_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_periods: {
         Row: {
           closed_at: string | null
@@ -4038,8 +4133,12 @@ export type Database = {
           end_date: string
           fiscal_year_id: string
           id: string
+          is_sealed: boolean
           note: string | null
           period_no: number
+          seal_reason: string | null
+          sealed_at: string | null
+          sealed_by: string | null
           start_date: string
           status: string
           tenant_id: string
@@ -4054,8 +4153,12 @@ export type Database = {
           end_date: string
           fiscal_year_id: string
           id?: string
+          is_sealed?: boolean
           note?: string | null
           period_no: number
+          seal_reason?: string | null
+          sealed_at?: string | null
+          sealed_by?: string | null
           start_date: string
           status?: string
           tenant_id: string
@@ -4070,8 +4173,12 @@ export type Database = {
           end_date?: string
           fiscal_year_id?: string
           id?: string
+          is_sealed?: boolean
           note?: string | null
           period_no?: number
+          seal_reason?: string | null
+          sealed_at?: string | null
+          sealed_by?: string | null
           start_date?: string
           status?: string
           tenant_id?: string
@@ -9904,6 +10011,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_unseal_period: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       bump_rule_metrics: {
         Args: { _correct?: boolean; _rule_id: string }
         Returns: undefined
@@ -10104,6 +10215,10 @@ export type Database = {
         Args: { p_agency?: string }
         Returns: number
       }
+      rebuild_account_balance_yearly: {
+        Args: { p_tenant?: string; p_year?: number }
+        Returns: undefined
+      }
       rebuild_account_period_balances: {
         Args: { p_tenant?: string }
         Returns: undefined
@@ -10119,6 +10234,18 @@ export type Database = {
       refresh_report_mvs: { Args: { p_tenant?: string }; Returns: undefined }
       refresh_sales_order_progress: {
         Args: { p_line_id: string }
+        Returns: undefined
+      }
+      reject_unseal_period: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: undefined
+      }
+      request_unseal_period: {
+        Args: { p_period_id: string; p_reason: string }
+        Returns: string
+      }
+      seal_fiscal_period: {
+        Args: { p_period_id: string; p_reason: string }
         Returns: undefined
       }
       sync_tenant_to_context: { Args: { p_tenant: string }; Returns: undefined }

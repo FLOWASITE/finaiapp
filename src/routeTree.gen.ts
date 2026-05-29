@@ -177,6 +177,7 @@ import { Route as AppAssetsDisposalIdRouteImport } from './routes/_app/assets/di
 import { Route as AppAssetsAllocationsIdRouteImport } from './routes/_app/assets/allocations.$id'
 import { Route as AppAssetsIdHandoverRouteImport } from './routes/_app/assets/$id.handover'
 import { Route as AppAssetsIdCardRouteImport } from './routes/_app/assets/$id.card'
+import { Route as AppAdminDataSealRouteImport } from './routes/_app/admin/data/seal'
 import { Route as AppAdminDataResetRouteImport } from './routes/_app/admin/data/reset'
 import { Route as AppAdminDataImportRouteImport } from './routes/_app/admin/data/import'
 import { Route as AppAdminDataHistoryRouteImport } from './routes/_app/admin/data/history'
@@ -1046,6 +1047,11 @@ const AppAssetsIdCardRoute = AppAssetsIdCardRouteImport.update({
   path: '/assets/$id/card',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminDataSealRoute = AppAdminDataSealRouteImport.update({
+  id: '/seal',
+  path: '/seal',
+  getParentRoute: () => AppAdminDataRoute,
+} as any)
 const AppAdminDataResetRoute = AppAdminDataResetRouteImport.update({
   id: '/reset',
   path: '/reset',
@@ -1225,6 +1231,7 @@ export interface FileRoutesByFullPath {
   '/admin/data/history': typeof AppAdminDataHistoryRoute
   '/admin/data/import': typeof AppAdminDataImportRoute
   '/admin/data/reset': typeof AppAdminDataResetRoute
+  '/admin/data/seal': typeof AppAdminDataSealRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1395,6 +1402,7 @@ export interface FileRoutesByTo {
   '/admin/data/history': typeof AppAdminDataHistoryRoute
   '/admin/data/import': typeof AppAdminDataImportRoute
   '/admin/data/reset': typeof AppAdminDataResetRoute
+  '/admin/data/seal': typeof AppAdminDataSealRoute
   '/assets/$id/card': typeof AppAssetsIdCardRoute
   '/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1574,6 +1582,7 @@ export interface FileRoutesById {
   '/_app/admin/data/history': typeof AppAdminDataHistoryRoute
   '/_app/admin/data/import': typeof AppAdminDataImportRoute
   '/_app/admin/data/reset': typeof AppAdminDataResetRoute
+  '/_app/admin/data/seal': typeof AppAdminDataSealRoute
   '/_app/assets/$id/card': typeof AppAssetsIdCardRoute
   '/_app/assets/$id/handover': typeof AppAssetsIdHandoverRoute
   '/_app/assets/allocations/$id': typeof AppAssetsAllocationsIdRoute
@@ -1753,6 +1762,7 @@ export interface FileRouteTypes {
     | '/admin/data/history'
     | '/admin/data/import'
     | '/admin/data/reset'
+    | '/admin/data/seal'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -1923,6 +1933,7 @@ export interface FileRouteTypes {
     | '/admin/data/history'
     | '/admin/data/import'
     | '/admin/data/reset'
+    | '/admin/data/seal'
     | '/assets/$id/card'
     | '/assets/$id/handover'
     | '/assets/allocations/$id'
@@ -2101,6 +2112,7 @@ export interface FileRouteTypes {
     | '/_app/admin/data/history'
     | '/_app/admin/data/import'
     | '/_app/admin/data/reset'
+    | '/_app/admin/data/seal'
     | '/_app/assets/$id/card'
     | '/_app/assets/$id/handover'
     | '/_app/assets/allocations/$id'
@@ -3339,6 +3351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssetsIdCardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/data/seal': {
+      id: '/_app/admin/data/seal'
+      path: '/seal'
+      fullPath: '/admin/data/seal'
+      preLoaderRoute: typeof AppAdminDataSealRouteImport
+      parentRoute: typeof AppAdminDataRoute
+    }
     '/_app/admin/data/reset': {
       id: '/_app/admin/data/reset'
       path: '/reset'
@@ -3436,6 +3455,7 @@ interface AppAdminDataRouteChildren {
   AppAdminDataHistoryRoute: typeof AppAdminDataHistoryRoute
   AppAdminDataImportRoute: typeof AppAdminDataImportRoute
   AppAdminDataResetRoute: typeof AppAdminDataResetRoute
+  AppAdminDataSealRoute: typeof AppAdminDataSealRoute
 }
 
 const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
@@ -3444,6 +3464,7 @@ const AppAdminDataRouteChildren: AppAdminDataRouteChildren = {
   AppAdminDataHistoryRoute: AppAdminDataHistoryRoute,
   AppAdminDataImportRoute: AppAdminDataImportRoute,
   AppAdminDataResetRoute: AppAdminDataResetRoute,
+  AppAdminDataSealRoute: AppAdminDataSealRoute,
 }
 
 const AppAdminDataRouteWithChildren = AppAdminDataRoute._addFileChildren(
@@ -3889,13 +3910,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
