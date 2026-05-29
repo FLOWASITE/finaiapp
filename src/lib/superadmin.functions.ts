@@ -100,37 +100,9 @@ export const listAllTenants = createServerFn({ method: "GET" })
     };
   });
 
-export const getTenantDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ tenant_id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await assertSuperadmin(supabase, userId);
+// Deprecated: getTenantDetail (profile-based) removed.
+// Use getTenantAdmin from src/lib/superadmin-tenants.functions.ts.
 
-    const [profile, roles, recentAudit, locks] = await Promise.all([
-      supabaseAdmin.from("profiles").select("*").eq("id", data.tenant_id).maybeSingle(),
-      supabaseAdmin.from("user_roles").select("*").eq("user_id", data.tenant_id),
-      supabaseAdmin
-        .from("audit_logs")
-        .select("*")
-        .eq("user_id", data.tenant_id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabaseAdmin
-        .from("fiscal_periods")
-        .select("id,year,period_no,status,closed_at,note,user_id")
-        .eq("user_id", data.tenant_id)
-        .in("status", ["soft_closed", "closed"])
-        .order("year", { ascending: false }),
-    ]);
-
-    return {
-      profile: profile.data,
-      roles: roles.data ?? [],
-      recent_audit: recentAudit.data ?? [],
-      locks: locks.data ?? [],
-    };
-  });
 
 export const setSuperadminRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
