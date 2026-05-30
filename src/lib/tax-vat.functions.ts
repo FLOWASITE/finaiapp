@@ -219,7 +219,7 @@ async function loadVatPeriodData(supabase: SupabaseClient, userId: string, from:
     warnings.push({
       rule: "reconcile_133",
       severity: "warn",
-      message: `Chênh lệch VAT đầu vào: sổ cái 133 = ${inputVatLedger.toLocaleString("vi-VN")} đ, hoá đơn = ${inputVatLedger.toLocaleString("vi-VN")} đ`,
+      message: `Chênh lệch VAT đầu vào: sổ cái 133 = ${inputVatLedger.toLocaleString("vi-VN")} đ, hoá đơn = ${inputVat.toLocaleString("vi-VN")} đ`,
       delta: deltaIn,
     });
   }
