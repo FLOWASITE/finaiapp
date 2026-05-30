@@ -9473,6 +9473,8 @@ export type Database = {
           tax_method: string | null
           trade_name: string | null
           updated_at: string
+          vat_declaration_freq: string
+          vat_method: string
           vat_period: string | null
           website: string | null
         }
@@ -9528,6 +9530,8 @@ export type Database = {
           tax_method?: string | null
           trade_name?: string | null
           updated_at?: string
+          vat_declaration_freq?: string
+          vat_method?: string
           vat_period?: string | null
           website?: string | null
         }
@@ -9583,6 +9587,8 @@ export type Database = {
           tax_method?: string | null
           trade_name?: string | null
           updated_at?: string
+          vat_declaration_freq?: string
+          vat_method?: string
           vat_period?: string | null
           website?: string | null
         }
@@ -9823,6 +9829,124 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vat_filing_adjustments: {
+        Row: {
+          base_amount: number
+          created_at: string
+          direction: string
+          filing_period: string
+          id: string
+          kind: string
+          original_invoice_no: string | null
+          original_period: string
+          reason: string | null
+          tenant_id: string | null
+          user_id: string
+          vat_amount: number
+        }
+        Insert: {
+          base_amount?: number
+          created_at?: string
+          direction: string
+          filing_period: string
+          id?: string
+          kind?: string
+          original_invoice_no?: string | null
+          original_period: string
+          reason?: string | null
+          tenant_id?: string | null
+          user_id: string
+          vat_amount?: number
+        }
+        Update: {
+          base_amount?: number
+          created_at?: string
+          direction?: string
+          filing_period?: string
+          id?: string
+          kind?: string
+          original_invoice_no?: string | null
+          original_period?: string
+          reason?: string | null
+          tenant_id?: string | null
+          user_id?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vat_filing_adjustments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vat_filings: {
+        Row: {
+          ack_code: string | null
+          committed_at: string | null
+          committed_by: string | null
+          created_at: string
+          freq: string
+          id: string
+          method: string
+          notes: string | null
+          period: string
+          snapshot: Json
+          status: string
+          submitted_at: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+          xml: string | null
+        }
+        Insert: {
+          ack_code?: string | null
+          committed_at?: string | null
+          committed_by?: string | null
+          created_at?: string
+          freq: string
+          id?: string
+          method: string
+          notes?: string | null
+          period: string
+          snapshot: Json
+          status?: string
+          submitted_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+          xml?: string | null
+        }
+        Update: {
+          ack_code?: string | null
+          committed_at?: string | null
+          committed_by?: string | null
+          created_at?: string
+          freq?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          period?: string
+          snapshot?: Json
+          status?: string
+          submitted_at?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+          xml?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vat_filings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vendor_raw_embeddings: {
         Row: {
