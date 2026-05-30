@@ -9439,6 +9439,8 @@ export type Database = {
           company_name: string | null
           created_at: string
           default_cost_center: string
+          district_code: string | null
+          district_name: string | null
           email: string | null
           established_date: string | null
           fax: string | null
@@ -9460,6 +9462,8 @@ export type Database = {
           phone: string | null
           pit_period: string | null
           preparer_name: string | null
+          province_code: string | null
+          province_name: string | null
           setup_completed: boolean
           setup_completed_at: string | null
           shipping_address: string | null
@@ -9469,6 +9473,8 @@ export type Database = {
           suspended_at: string | null
           suspended_reason: string | null
           tax_authority: string | null
+          tax_authority_code: string | null
+          tax_authority_name: string | null
           tax_id: string | null
           tax_method: string | null
           trade_name: string | null
@@ -9476,6 +9482,7 @@ export type Database = {
           vat_declaration_freq: string
           vat_method: string
           vat_period: string | null
+          ward_name: string | null
           website: string | null
         }
         Insert: {
@@ -9496,6 +9503,8 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           default_cost_center?: string
+          district_code?: string | null
+          district_name?: string | null
           email?: string | null
           established_date?: string | null
           fax?: string | null
@@ -9517,6 +9526,8 @@ export type Database = {
           phone?: string | null
           pit_period?: string | null
           preparer_name?: string | null
+          province_code?: string | null
+          province_name?: string | null
           setup_completed?: boolean
           setup_completed_at?: string | null
           shipping_address?: string | null
@@ -9526,6 +9537,8 @@ export type Database = {
           suspended_at?: string | null
           suspended_reason?: string | null
           tax_authority?: string | null
+          tax_authority_code?: string | null
+          tax_authority_name?: string | null
           tax_id?: string | null
           tax_method?: string | null
           trade_name?: string | null
@@ -9533,6 +9546,7 @@ export type Database = {
           vat_declaration_freq?: string
           vat_method?: string
           vat_period?: string | null
+          ward_name?: string | null
           website?: string | null
         }
         Update: {
@@ -9553,6 +9567,8 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           default_cost_center?: string
+          district_code?: string | null
+          district_name?: string | null
           email?: string | null
           established_date?: string | null
           fax?: string | null
@@ -9574,6 +9590,8 @@ export type Database = {
           phone?: string | null
           pit_period?: string | null
           preparer_name?: string | null
+          province_code?: string | null
+          province_name?: string | null
           setup_completed?: boolean
           setup_completed_at?: string | null
           shipping_address?: string | null
@@ -9583,6 +9601,8 @@ export type Database = {
           suspended_at?: string | null
           suspended_reason?: string | null
           tax_authority?: string | null
+          tax_authority_code?: string | null
+          tax_authority_name?: string | null
           tax_id?: string | null
           tax_method?: string | null
           trade_name?: string | null
@@ -9590,6 +9610,7 @@ export type Database = {
           vat_declaration_freq?: string
           vat_method?: string
           vat_period?: string | null
+          ward_name?: string | null
           website?: string | null
         }
         Relationships: []

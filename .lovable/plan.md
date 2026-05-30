@@ -1,175 +1,153 @@
 
 ## Mục tiêu
 
-Trang `/tax/gtgt` hiện là placeholder. Trang `/tax/` (index) có 1 tab VAT đơn giản nhưng bị "kẹt" trong cùng route với TNDN/TNCN, không khớp menu sidebar (sidebar trỏ `/tax/gtgt`). Cần dựng `/tax/gtgt` thành workspace Thuế GTGT đầy đủ, theo đúng đặc tả trong `src/data/specs/tax.ts` và TT 219/2013 + TT 80/2021.
+XML hiện tại do `buildVatXmlString` (src/lib/tax-vat.functions.ts) sinh ra **không đúng schema HTKK** — thiếu namespace, sai cấu trúc `TTinChung`, dùng `maTKhai="01/GTGT"` thay vì mã số `842`, gom các chỉ tiêu sai nhóm, không có Phụ lục NQ giảm 8%, vẫn còn `BangKeBanRa/BangKeMuaVao` (TT80/2021 đã bỏ). Cần viết lại đúng theo file mẫu HTKK gửi kèm.
 
-## Phạm vi (scope)
+## Phạm vi
 
-**Trong scope** — chỉ phân hệ GTGT:
-- Trang `/tax/gtgt` đầy đủ.
-- Server functions mới trong `src/lib/tax-vat.functions.ts`.
-- 2 bảng mới: `vat_filings` (tờ khai đã chốt) + `vat_filing_adjustments` (phụ lục điều chỉnh 01-1/GTGT).
-- 1 trường mới ở `tenants`: `vat_method` (khấu trừ | trực tiếp_pp_kd | trực tiếp_dt) + `vat_declaration_freq` (monthly | quarterly).
+Chỉ sửa **backend XML builder** + thêm vài trường cấu hình tenant. Không động UI nghiệp vụ chính, không động dữ liệu hóa đơn. CIT (03/TNDN) và PIT (05/QTT-TNCN) trong `tax.functions.ts` không nằm trong scope lần này.
 
-**Ngoài scope** (giữ nguyên):
-- TNDN, TNCN (vẫn placeholder ở route riêng, dùng logic sẵn có trong `tax.functions.ts`).
-- Tích hợp eTax/TVAN (chỉ xuất XML HTKK để upload thủ công, như hiện tại).
-- Sửa engine hạch toán/đối soát.
+## Thiết kế XML đầu ra
 
-## Cấu trúc trang `/tax/gtgt`
+Cấu trúc bám sát file mẫu:
 
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│ Thuế GTGT                                  [Xuất XML HTKK ▼] │
-│ Kỳ: [Tháng ▼] [11/2026 ▼]   PP: Khấu trừ   ● Đã chốt: chưa  │
-├───────────────────────────────────────────────────────────────┤
-│ TỔNG QUAN  | BẢNG KÊ BÁN  | BẢNG KÊ MUA  | ĐIỀU CHỈNH | LỊCH SỬ│
-├───────────────────────────────────────────────────────────────┤
-│ Stat cards: DT chưa VAT • VAT đầu ra • Mua vào • VAT đầu vào │
-│             VAT phải nộp • Chuyển kỳ sau                      │
-│                                                               │
-│ Bảng phân bổ theo thuế suất (0/5/8/10/KCT/KKKNT) — mã CT HTKK│
-│                                                               │
-│ Cảnh báo (warnings):                                          │
-│   ⚠ 3 hóa đơn mua không có MST — bị loại VAT (tax-001)        │
-│   ⚠ 2 hóa đơn ≥20tr thanh toán tiền mặt — loại VAT (tax-002)  │
-│   ⚠ Chênh sổ cái: VAT 3331 = 12.4tr, tính từ sales = 12.1tr   │
-│                                                               │
-│ [Chốt tờ khai 01/GTGT kỳ này]   [Xem trước XML]               │
-└───────────────────────────────────────────────────────────────┘
+<?xml version="1.0" encoding="UTF-8"?>
+<HSoThueDTu xmlns:xsi="..." xmlns="http://kekhaithue.gdt.gov.vn/TKhaiThue">
+  <HSoKhaiThue id="ID-NODETOSIGN-XML">
+    <TTinChung>
+      <TTinDVu> maDVu=HTKK, tenDVu, pbanDVu=5.5.6, ttinNhaCCapDVu </TTinDVu>
+      <TTinTKhaiThue>
+        <TKhaiThue>
+          maTKhai=842, tenTKhai, moTaBMau, pbanTKhaiXML=2.8.3,
+          loaiTKhai (C=chính thức / B=bổ sung), soLan,
+          KyKKhaiThue { kieuKy Q|M, kyKKhai "n/yyyy" hoặc "mm/yyyy",
+                        kyKKhaiTuNgay, kyKKhaiDenNgay, kyKKhaiTuThang, kyKKhaiDenThang },
+          maCQTNoiNop, tenCQTNoiNop, ngayLapTKhai, GiaHan{},
+          nguoiKy, ngayKy, nganhNgheKD
+        </TKhaiThue>
+        <NNT>
+          mst, tenNNT, dchiNNT, phuongXa,
+          maHuyenNNT, tenHuyenNNT, maTinhNNT, tenTinhNNT,
+          dthoaiNNT, faxNNT, emailNNT
+        </NNT>
+      </TTinTKhaiThue>
+    </TTinChung>
+
+    <CTieuTKhaiChinh>
+      ma_NganhNghe=00, ten_NganhNghe, tieuMucHachToan=1701,
+      Header { ct09, ct10, DiaChiHDSXKDKhacTinhNDTSC{...} },
+      ct21, ct22,
+      GiaTriVaThueGTGTHHDVMuaVao { ct23, ct24 },
+      HangHoaDichVuNhapKhau     { ct23a, ct24a },
+      ct25, ct26,
+      HHDVBRaChiuThueGTGT       { ct27, ct28 },
+      ct29,
+      HHDVBRaChiuTSuat5         { ct30, ct31 },
+      HHDVBRaChiuTSuat10        { ct32, ct33 },
+      ct32a,
+      TongDThuVaThueGTGTHHDVBRa { ct34, ct35 },
+      ct36, ct37, ct38, ct39a, ct40a, ct40b, ct40, ct41, ct42, ct43
+    </CTieuTKhaiChinh>
+
+    <PLuc>                       <!-- chỉ render khi có HĐ giảm 8% -->
+      <PL_NQ142_GTGT>
+        <HH_DV_MuaVaoTrongKy>
+          BangKeTenHHDV ID="ID_n" { tenHHDVMuaVao, giaTriHHDVMuaVao, thueGTGTHHDV } x N
+          tongCongGiaTriHHDVMuaVao, tongCongThueGTGTHHDV
+        </HH_DV_MuaVaoTrongKy>
+        <HH_DV_BanRaTrongKy>
+          BangKeTenHHDV ID="ID_n" { tenHHDV, giaTriHHDV,
+                                    thueSuatTheoQuyDinh=10, thueSuatSauGiam=8,
+                                    thueGTGTDuocGiam } x N
+          tongCongGiaTriHHDV, tongCongThueGTGTDuocGiam
+        </HH_DV_BanRaTrongKy>
+        <ChenhLech><ct9>…</ct9></ChenhLech>
+      </PL_NQ142_GTGT>
+    </PLuc>
+  </HSoKhaiThue>
+  <!-- CKyDTu: bỏ qua, file sẽ được ký bằng HTKK/eTax desktop của user -->
+</HSoThueDTu>
 ```
 
-### Tab 1 — Tổng quan
-- Stat cards (đã có ở `tax/index.tsx`) + nâng cấp: thêm "VAT bị loại khấu trừ" do vi phạm điều kiện.
-- Bảng phân bổ theo thuế suất 0/5/8/10/KCT/KKKNT (mở rộng từ hiện tại + 2 nhóm KCT/KKKNT từ `src/lib/vat-codes.ts`).
-- Khu vực **Cảnh báo trước khi chốt**:
-  - `tax-001`: liệt kê HĐ mua thiếu MST nhà cung cấp.
-  - `tax-002`: HĐ mua ≥20tr có payment_method = "cash" / không có chứng từ NH.
-  - **Đối chiếu sổ cái**: so VAT đầu ra (sales_invoices) vs số dư phát sinh có TK 3331 trong kỳ; VAT đầu vào (invoices) vs phát sinh nợ TK 133. Highlight chênh lệch >1.000đ.
-- Hai nút action: "Chốt tờ khai" và "Xem trước XML".
+Bảng kê HĐ bán/mua chi tiết cũ (`<BangKeBanRa>/<BangKeMuaVao>`) bị **bỏ hoàn toàn** — TT80/2021 không yêu cầu nữa.
 
-### Tab 2 — Bảng kê bán ra
-- Bảng đầy đủ: mã/số HĐ, ngày, người mua, MST, mặt hàng (rút gọn), DT chưa VAT, thuế suất, VAT, tổng, trạng thái (`issued|cancelled|adjusted|replaced`).
-- Filter: thuế suất, có/không MST, trạng thái.
-- Cột "Nguồn": einvoice / nhập tay.
-- Export CSV.
+## Quy tắc tính chỉ tiêu (deduction / 01/GTGT)
 
-### Tab 3 — Bảng kê mua vào
-- Tương tự bảng bán + cột "Đủ điều kiện khấu trừ" (Yes/No + lý do).
-- Filter: đủ/không đủ điều kiện, hình thức thanh toán.
+| ct | Ý nghĩa | Nguồn |
+|----|---------|-------|
+| ct21 | Giá trị HHDV mua vào không chịu thuế | invoices.vat_code='KCT/KKKNT' subtotal |
+| ct22 | Tổng giá trị HHDV mua vào | sum(invoices.subtotal) hoặc 0 |
+| ct23/ct24 | Giá trị + VAT mua vào (chịu thuế) | sum subtotal/vat_amount invoices có VAT |
+| ct23a/ct24a | Giá trị + VAT HHDV nhập khẩu | invoices.import_flag (nếu có) — mặc định 0 |
+| ct25 | VAT đầu vào được khấu trừ kỳ này | ct24 + ct24a − loại theo tax-001/tax-002 |
+| ct26 | Doanh thu bán không chịu thuế | sales_invoices.vat_code='KCT' |
+| ct27/ct28 | Tổng DT + VAT bán ra chịu thuế | sum 5%+8%+10% |
+| ct29 | DT bán 0% | sales 0% subtotal |
+| ct30/ct31 | DT + VAT 5% | sales 5% |
+| ct32/ct33 | DT + VAT 10% **gốc** (gồm cả phần được giảm còn 8%) | sales 10% + 8% (gộp về 10% gốc) |
+| ct32a | DT bán giảm trực tiếp theo NQ | 0 mặc định |
+| ct34/ct35 | Tổng DT + VAT đầu ra | ct26+ct27+ct29 / ct28 |
+| ct36 | VAT phát sinh phải nộp = ct35 − ct25 (nếu ≥0) | tính |
+| ct37 | Điều chỉnh tăng kỳ trước | từ `vat_filing_adjustments` direction='increase' |
+| ct38 | Điều chỉnh giảm kỳ trước | direction='decrease' |
+| ct39a | VAT đã nộp ở khâu nhập khẩu / nộp thay | 0 mặc định |
+| ct40a | VAT phải nộp kỳ này = max(0, ct36+ct37−ct38−ct39a) | tính |
+| ct40b | VAT nộp thay người nộp thuế khác | 0 |
+| ct40 | = ct40a + ct40b | tính |
+| ct41 | VAT chưa khấu trừ hết chuyển kỳ sau = max(0, ct25−ct35+…) | tính |
+| ct42 | Đề nghị hoàn | 0 |
+| ct43 | VAT còn được khấu trừ chuyển kỳ sau = ct41 − ct42 | tính |
 
-### Tab 4 — Điều chỉnh (phụ lục 01-1/GTGT)
-- List các hóa đơn điều chỉnh/thay thế đã được ghi nhận trong kỳ (sales_invoices.adjusts_invoice_id, invoices.adjusts_invoice_id — kiểm tra schema; nếu chưa có sẽ dùng `vat_filing_adjustments`).
-- Form thêm điều chỉnh thủ công: chọn kỳ gốc, số HĐ, lý do, số tiền điều chỉnh +/-, VAT điều chỉnh.
-- Hiển thị nét gạch đỏ/xanh: điều chỉnh tăng/giảm.
+Với **04/GTGT (trực tiếp)** vẫn dùng schema cũ đơn giản (đã có) — không phải scope chính lần này.
 
-### Tab 5 — Lịch sử & trạng thái
-- List `vat_filings` đã chốt theo kỳ: kỳ, ngày chốt, người chốt, VAT phải nộp, link tải XML.
-- Mỗi dòng có nút "Xem lại snapshot" (mở dialog hiển thị summary tại thời điểm chốt).
-- Nút "Mở khóa" (nếu chưa nộp eTax và user là kế toán trưởng).
+## Phụ lục PL_NQ142_GTGT
 
-## Logic nghiệp vụ (server)
+Render khi có ≥1 HĐ (mua hoặc bán) áp thuế suất 8% trong kỳ:
+- `HH_DV_MuaVaoTrongKy`: liệt kê từng dòng `invoices` có `vat_code='8'`. Mỗi dòng = 1 hóa đơn (gộp dòng chi tiết của hóa đơn lại). `tenHHDVMuaVao` lấy từ description chính của HĐ (nếu trống dùng `Phí dịch vụ - {invoice_no}`).
+- `HH_DV_BanRaTrongKy`: tương tự với `sales_invoices` vat_code='8'.
+- `tongCong*` tính lại từ danh sách.
+- `ChenhLech/ct9` = sum(`thueGTGTDuocGiam`) so với mức 10% gốc — theo file mẫu là số âm `-156810` (chênh lệch do làm tròn từng dòng) → ta tính: `sum(giaTri × 0.10) − sum(thueGTGTDuocGiam) − sum(giaTri × 0.10)`... thực tế file để **chênh lệch làm tròn** ⇒ ta tính: `tongCongThueGTGTDuocGiam_byline − round(tongCongGiaTri × 0.08)`.
 
-File mới: `src/lib/tax-vat.functions.ts`. Refactor `loadVatData` từ `tax.functions.ts` sang đây; `tax.functions.ts` re-export để không vỡ trang `/tax/`.
+## Cấu hình tenant cần thêm
 
-### `getVatPeriod({ year, period })`
-- `period` = `"YYYY-MM"` (tháng) hoặc `"YYYY-Qn"` (quý). Tự suy từ `tenants.vat_declaration_freq`.
-- Trả về:
-  - `summary` (như hiện tại + `disallowedInputVat`, `byRate` mở rộng 6 nhóm).
-  - `sales`, `purchases` đầy đủ trường.
-  - `warnings[]`: mảng `{ rule: "tax-001"|"tax-002"|"reconcile_3331"|"reconcile_133", severity, invoiceIds[], delta? }`.
-  - `reconcile`: `{ outputVatLedger, outputVatInvoices, inputVatLedger, inputVatInvoices }`.
-  - `filing`: bản ghi `vat_filings` của kỳ nếu đã chốt (null nếu chưa).
+Migration nhỏ thêm vào `tenants`:
+- `tax_authority_code text` (vd "70100")
+- `tax_authority_name text` (vd "Thuế Thành phố Hồ Chí Minh")
+- `province_code text` (vd "701"), `province_name text`
+- `district_code text`, `district_name text`, `ward_name text`
+- `legal_rep_name text` — mặc định nguoiKy
+- `phone text`, `fax text`, `email text` đã có thì dùng
 
-### `commitVatFiling({ period })`
-- Bắt buộc kỳ chưa bị chốt.
-- Snapshot toàn bộ summary + ids hóa đơn nguồn vào `vat_filings.snapshot` (jsonb).
-- Tạo bản ghi `vat_filings` (period, method, snapshot, xml, status='draft', committed_by, committed_at).
-- Ghi `audit_logs` action `tax.vat.commit`.
+Nếu thiếu, XML để rỗng `<…/>` đúng như mẫu.
 
-### `reopenVatFiling({ filingId })`
-- Chỉ user role `accountant`/`admin`/`owner` (kiểm qua `tenant_members`).
-- Set status='reopened', ghi audit_log.
+## Tham số khi commit/preview
 
-### `buildVatXml`
-- Refactor: dùng snapshot từ `vat_filings` nếu đã chốt; nếu chưa thì compute on-the-fly.
-- Support cả phương pháp **trực tiếp**: dùng template `04/GTGT-TT` thay vì `01/GTGT` (mapped theo `tenants.vat_method`).
-- Mã chỉ tiêu HTKK đầy đủ hơn (ct22, ct23-43 như hiện tại + ct40a/40b cho điều chỉnh).
+`buildVatXmlPreview` / `commitVatFiling` nhận thêm tùy chọn:
+- `loaiTKhai`: `"C"` (chính thức) | `"B"` (bổ sung). Mặc định C.
+- `soLan`: số nguyên ≥0. Mặc định 0 (C=0; B≥1).
+- `ngayLapTKhai`, `ngayKy`: mặc định = today (UTC+7).
+- `nguoiKy`: mặc định = `tenants.legal_rep_name`.
 
-### `listVatFilings({ year })`
-- Trả về tất cả filings trong năm + tổng VAT đã nộp/chuyển kỳ.
+UI ở tab "Lịch sử & trạng thái" (`/tax/gtgt`) đã có nút "Tải XML" — bổ sung dialog nhỏ trước khi tải để cho user xác nhận `loaiTKhai/soLan/nguoiKy`.
 
-## Thay đổi schema (1 migration)
+## Files thay đổi
 
-```sql
--- tenants: thêm cấu hình VAT
-ALTER TABLE public.tenants
-  ADD COLUMN IF NOT EXISTS vat_method text NOT NULL DEFAULT 'deduction'
-    CHECK (vat_method IN ('deduction','direct_revenue','direct_value')),
-  ADD COLUMN IF NOT EXISTS vat_declaration_freq text NOT NULL DEFAULT 'monthly'
-    CHECK (vat_declaration_freq IN ('monthly','quarterly'));
+1. **`src/lib/tax-vat.functions.ts`** — viết lại `buildVatXmlString` theo schema mới, thêm helper `buildPlNq142Block`, tách `roundInt`, `formatPeriodForXml`. Mở rộng `getTenantVatConfig` để select thêm cột mới. `buildVatXmlPreview` + `commitVatFiling` nhận thêm `loaiTKhai`, `soLan`, `nguoiKy`, `ngayLap`.
+2. **Migration** — thêm các cột `tax_authority_code/name`, `province_code/name`, `district_code/name`, `ward_name`, `legal_rep_name` vào `tenants` (nullable).
+3. **`src/routes/_app/tax/gtgt.tsx`** — thêm dialog xác nhận trước khi tải XML (3 input + nút Tải). Không đổi layout chính.
+4. **`src/integrations/supabase/types.ts`** — tự cập nhật sau migration.
 
--- Bảng tờ khai GTGT đã chốt
-CREATE TABLE public.vat_filings (
-  id uuid PK default gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,           -- giữ tương thích pattern cũ (user_id = tenant owner)
-  period text NOT NULL,            -- "2026-11" | "2026-Q4"
-  freq text NOT NULL,              -- monthly | quarterly
-  method text NOT NULL,            -- deduction | direct_*
-  snapshot jsonb NOT NULL,         -- summary + line ids
-  xml text,
-  status text NOT NULL DEFAULT 'draft',  -- draft | committed | submitted | reopened
-  committed_by uuid,
-  committed_at timestamptz,
-  submitted_at timestamptz,
-  ack_code text,                   -- mã giao dịch eTax (nhập tay)
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  UNIQUE (tenant_id, period, status) DEFERRABLE INITIALLY DEFERRED
-);
+## Việc KHÔNG làm
 
--- Bảng phụ lục điều chỉnh
-CREATE TABLE public.vat_filing_adjustments (
-  id uuid PK,
-  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,
-  filing_period text NOT NULL,        -- kỳ đang khai
-  original_period text NOT NULL,      -- kỳ gốc bị điều chỉnh
-  original_invoice_no text,
-  direction text NOT NULL CHECK (direction IN ('increase','decrease')),
-  base_amount numeric NOT NULL DEFAULT 0,
-  vat_amount numeric NOT NULL DEFAULT 0,
-  reason text,
-  created_at timestamptz default now()
-);
+- Không ký số XML (CKyDTu) — file xuất ra dạng chưa ký, user mở HTKK/eTax client để ký bằng USB token.
+- Không sửa builder 03/TNDN, 05/QTT-TNCN.
+- Không đổi logic tính `summary.payable / carryForward` đã có — chỉ map vào đúng ct fields.
 
--- GRANT + RLS theo pattern tenant scope (auth.uid() = user_id hoặc has_tenant_role)
-```
+## Câu hỏi cần xác nhận trước khi build
 
-(Cả hai bảng đều: GRANT to authenticated/service_role, ENABLE RLS, policies scope theo `auth.uid() = user_id` để đồng nhất với pattern hiện có của project — các bảng `invoices`, `sales_invoices`, `report_notes` đều đang dùng `user_id`.)
+1. **Phụ lục NQ giảm 8%**: kỳ hiện tại (2026) hiệu lực nghị quyết nào — NQ 174/2024 hay NQ 198/2025? File mẫu dùng tag `PL_NQ142_GTGT` (HTKK 5.5.6 vẫn để key cũ này). Mình **giữ nguyên tag** `PL_NQ142_GTGT` để tương thích HTKK đang chạy, OK chứ?
+2. **Mã CQT/tỉnh/phường**: lưu cố định trên `tenants` hay cho user nhập mỗi lần xuất tờ khai? Mình đề xuất lưu trên tenants (1 lần).
+3. **Người ký + ngày ký**: lấy mặc định từ tenant + ngày hôm nay, có dialog xác nhận trước khi tải — đồng ý?
 
-## Tệp sẽ tạo/sửa
-
-**Tạo:**
-- `supabase/migrations/<ts>_vat_module.sql`
-- `src/lib/tax-vat.functions.ts` — `getVatPeriod`, `commitVatFiling`, `reopenVatFiling`, `listVatFilings`, `addVatAdjustment`, `removeVatAdjustment`, refactor `buildVatXml`.
-- `src/routes/_app/tax/gtgt.tsx` — workspace 5 tab.
-- `src/components/tax/vat-warnings.tsx` — UI cảnh báo điều kiện khấu trừ.
-- `src/components/tax/vat-period-picker.tsx` — chọn tháng/quý theo `vat_declaration_freq`.
-- `src/components/tax/vat-filings-history.tsx`.
-- `src/components/tax/vat-adjustment-dialog.tsx`.
-
-**Sửa:**
-- `src/lib/tax.functions.ts` — chuyển `loadVatData`/`getVatReturn`/`buildVatXml` thành re-export từ `tax-vat.functions.ts` để `/tax/` index không vỡ; deprecate dần.
-- `src/routes/_app/tax/index.tsx` — chuyển hướng tab VAT sang `/tax/gtgt` (vẫn giữ tab TNDN/TNCN tại đây, hoặc redirect sang `/tax/gtgt`).
-- `src/components/app-sidebar.tsx` — nếu cần đồng bộ badge `taxDaysLeft` cho `/tax/gtgt` (đã trỏ đúng).
-
-## Điểm cần xác nhận
-
-1. **Phương pháp khấu trừ vs trực tiếp**: dự định mặc định "deduction" cho tất cả tenant hiện tại. Có cần migration đọc từ field nào hiện có không? (Không thấy field tương đương trong schema.)
-2. **Cảnh báo `tax-002` (≥20tr không TM)**: phụ thuộc field `payment_method` trên `invoices`. Nếu schema chưa có sẽ chỉ cảnh báo dựa trên `total >= 20_000_000` + thiếu reference tới bank_transactions.
-3. **Đối chiếu sổ cái 3331/133**: dùng `journal_entries` + `journal_lines` (đã có trong CIT logic).
-4. **Phụ lục điều chỉnh**: thiết kế bảng riêng `vat_filing_adjustments` (đơn giản, không phụ thuộc field `adjusts_invoice_id` trên invoices/sales_invoices).
-
-Sau khi user duyệt plan: chạy migration trước, chờ xác nhận, rồi mới code phần TS/TSX.
+Trả lời 3 câu hỏi rồi mình triển khai.
