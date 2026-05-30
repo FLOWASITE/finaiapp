@@ -75,7 +75,9 @@ export function periodRange(period: string): { from: string; to: string; freq: V
 async function getTenantVatConfig(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
     .from("tenants")
-    .select("id, vat_method, vat_declaration_freq, name, tax_id, address")
+    .select(
+      "id, vat_method, vat_declaration_freq, name, tax_id, address, phone, fax, email, legal_rep_name, tax_authority_code, tax_authority_name, province_code, province_name, district_code, district_name, ward_name",
+    )
     .eq("owner_user_id", userId)
     .maybeSingle();
   if (data) {
@@ -86,6 +88,17 @@ async function getTenantVatConfig(supabase: SupabaseClient, userId: string) {
       name: data.name as string | null,
       taxId: data.tax_id as string | null,
       address: data.address as string | null,
+      phone: (data as any).phone as string | null,
+      fax: (data as any).fax as string | null,
+      email: (data as any).email as string | null,
+      legalRepName: (data as any).legal_rep_name as string | null,
+      taxAuthorityCode: (data as any).tax_authority_code as string | null,
+      taxAuthorityName: (data as any).tax_authority_name as string | null,
+      provinceCode: (data as any).province_code as string | null,
+      provinceName: (data as any).province_name as string | null,
+      districtCode: (data as any).district_code as string | null,
+      districtName: (data as any).district_name as string | null,
+      wardName: (data as any).ward_name as string | null,
     };
   }
   // Fallback từ profiles
@@ -101,7 +114,69 @@ async function getTenantVatConfig(supabase: SupabaseClient, userId: string) {
     name: p?.company_name ?? null,
     taxId: p?.tax_id ?? null,
     address: p?.address ?? null,
+    phone: null, fax: null, email: null, legalRepName: null,
+    taxAuthorityCode: null, taxAuthorityName: null,
+    provinceCode: null, provinceName: null,
+    districtCode: null, districtName: null, wardName: null,
   };
+}
+
+type TenantVatConfig = Awaited<ReturnType<typeof getTenantVatConfig>>;
+
+/** Gom các dòng có thuế suất 8% theo từng hóa đơn — phục vụ Phụ lục NQ giảm thuế. */
+async function load8PctBreakdown(
+  supabase: SupabaseClient,
+  purchaseIds: string[],
+  salesIds: string[],
+) {
+  const purchases8: Array<{ name: string; base: number; tax: number }> = [];
+  const sales8: Array<{ name: string; base: number; tax: number }> = [];
+
+  if (purchaseIds.length) {
+    const { data: pLines } = await supabase
+      .from("invoice_lines")
+      .select("invoice_id, description, amount, vat_rate, invoices!inner(invoice_no, supplier_name)")
+      .in("invoice_id", purchaseIds)
+      .eq("vat_rate", 8);
+    const byInv = new Map<string, { name: string; base: number; tax: number }>();
+    for (const l of (pLines as any[]) ?? []) {
+      const id = l.invoice_id as string;
+      const base = Number(l.amount) || 0;
+      const tax = Math.round(base * 0.08);
+      const prev = byInv.get(id);
+      if (prev) { prev.base += base; prev.tax += tax; }
+      else {
+        const inv = l.invoices ?? {};
+        const desc = (l.description || "").toString().trim();
+        const name = desc || `${inv.supplier_name ?? "HHDV mua vào"} - HD${inv.invoice_no ?? ""}`;
+        byInv.set(id, { name, base, tax });
+      }
+    }
+    for (const v of byInv.values()) purchases8.push({ ...v, tax: Math.round(v.tax) });
+  }
+
+  if (salesIds.length) {
+    const { data: sLines } = await supabase
+      .from("sales_invoice_lines")
+      .select("invoice_id, description, pre_vat_amount, line_vat_amount, vat_code")
+      .in("invoice_id", salesIds)
+      .eq("vat_code", "8");
+    const byInv = new Map<string, { name: string; base: number; tax: number }>();
+    for (const l of (sLines as any[]) ?? []) {
+      const id = l.invoice_id as string;
+      const base = Number(l.pre_vat_amount) || 0;
+      const tax = Number(l.line_vat_amount) || Math.round(base * 0.08);
+      const prev = byInv.get(id);
+      if (prev) { prev.base += base; prev.tax += tax; }
+      else {
+        const desc = (l.description || "").toString().trim();
+        byInv.set(id, { name: desc || "Dịch vụ bán ra", base, tax });
+      }
+    }
+    for (const v of byInv.values()) sales8.push({ ...v, tax: Math.round(v.tax) });
+  }
+
+  return { purchases8, sales8 };
 }
 
 async function loadVatPeriodData(supabase: SupabaseClient, userId: string, from: string, to: string) {
