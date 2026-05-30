@@ -523,96 +523,324 @@ export const removeVatAdjustment = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ============== XML builder ==============
+// ============== XML builder (HTKK 5.5.6 — TT80/2021, mẫu 01/GTGT mã 842) ==============
 function esc(s: unknown): string {
   return String(s ?? "").replace(/[<>&'"]/g, (c) =>
     ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]!),
   );
 }
 
-function buildVatXmlString(opts: {
-  cfg: { name: string | null; taxId: string | null; address: string | null; method: VatMethod };
+const round0 = (n: number) => Math.round(Number(n) || 0);
+const intStr = (n: number) => String(round0(n));
+
+function tag(name: string, value: string | number | null | undefined, indent = ""): string {
+  const v = value === null || value === undefined || value === "" ? "" : esc(value);
+  return v === "" ? `${indent}<${name} />` : `${indent}<${name}>${v}</${name}>`;
+}
+
+function formatKyKKhai(period: string, freq: VatFreq): { kieuKy: "Q" | "M"; kyKKhai: string; tuNgay: string; denNgay: string } {
+  const fmt = (d: Date) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+  if (freq === "quarterly") {
+    const [y, q] = period.split("-Q");
+    const year = Number(y); const qn = Number(q);
+    const startMonth = (qn - 1) * 3;
+    const from = new Date(Date.UTC(year, startMonth, 1));
+    const to = new Date(Date.UTC(year, startMonth + 3, 0));
+    return { kieuKy: "Q", kyKKhai: `${qn}/${year}`, tuNgay: fmt(from), denNgay: fmt(to) };
+  }
+  const [y, m] = period.split("-");
+  const year = Number(y); const mn = Number(m);
+  const from = new Date(Date.UTC(year, mn - 1, 1));
+  const to = new Date(Date.UTC(year, mn, 0));
+  return { kieuKy: "M", kyKKhai: `${String(mn).padStart(2, "0")}/${year}`, tuNgay: fmt(from), denNgay: fmt(to) };
+}
+
+type XmlBuilderOptions = {
+  cfg: TenantVatConfig;
   period: string;
   freq: VatFreq;
   summary: VatSummary;
-  sales: any[];
-  purchases: any[];
-}): string {
-  const { cfg, period, freq, summary, sales, purchases } = opts;
-  const isQuarter = freq === "quarterly";
-  const kyKKhai = isQuarter ? period.replace("-Q", "/") : period;
-  const maTKhai = cfg.method === "deduction" ? "01/GTGT" : "04/GTGT";
+  adjustments?: Array<{ direction: "increase" | "decrease"; vat_amount: number }>;
+  purchases8: Array<{ name: string; base: number; tax: number }>;
+  sales8: Array<{ name: string; base: number; tax: number }>;
+  meta: {
+    loaiTKhai: "C" | "B";
+    soLan: number;
+    ngayLap: string;
+    ngayKy: string;
+    nguoiKy: string;
+  };
+};
+
+function buildPlNq142(opts: { purchases8: XmlBuilderOptions["purchases8"]; sales8: XmlBuilderOptions["sales8"] }): string {
+  const { purchases8, sales8 } = opts;
+  if (purchases8.length === 0 && sales8.length === 0) return "";
+
   const lines: string[] = [];
-  lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
-  lines.push(`<HSoThueDTu>`);
-  lines.push(`  <HSoKhaiThue>`);
-  lines.push(`    <TTinChung><TTinTKhaiThue>`);
-  lines.push(`      <maTKhai>${maTKhai}</maTKhai>`);
-  lines.push(`      <kyKKhaiThue><kieuKy>${isQuarter ? "Q" : "M"}</kieuKy><kyKKhai>${kyKKhai}</kyKKhai></kyKKhaiThue>`);
-  lines.push(`      <mst>${esc(cfg.taxId)}</mst>`);
-  lines.push(`      <tenNNT>${esc(cfg.name)}</tenNNT>`);
-  lines.push(`      <dchiNNT>${esc(cfg.address)}</dchiNNT>`);
-  lines.push(`    </TTinTKhaiThue></TTinChung>`);
-  lines.push(`    <CTieuTKhaiChinh>`);
-  if (cfg.method === "deduction") {
-    lines.push(`      <ct23>${summary.outputBase.toFixed(0)}</ct23>`);
-    lines.push(`      <ct24>${summary.outputVat.toFixed(0)}</ct24>`);
-    lines.push(`      <ct25>${summary.inputBase.toFixed(0)}</ct25>`);
-    lines.push(`      <ct26>${summary.inputVat.toFixed(0)}</ct26>`);
-    lines.push(`      <ct27>${summary.byRate["0"].base.toFixed(0)}</ct27>`);
-    lines.push(`      <ct29>${summary.byRate["5"].base.toFixed(0)}</ct29>`);
-    lines.push(`      <ct30>${summary.byRate["5"].vat.toFixed(0)}</ct30>`);
-    lines.push(`      <ct31>${summary.byRate["8"].base.toFixed(0)}</ct31>`);
-    lines.push(`      <ct32>${summary.byRate["8"].vat.toFixed(0)}</ct32>`);
-    lines.push(`      <ct33>${summary.byRate["10"].base.toFixed(0)}</ct33>`);
-    lines.push(`      <ct34>${summary.byRate["10"].vat.toFixed(0)}</ct34>`);
-    lines.push(`      <ct40>${summary.payable.toFixed(0)}</ct40>`);
-    lines.push(`      <ct43>${summary.carryForward.toFixed(0)}</ct43>`);
-  } else {
-    // 04/GTGT: trực tiếp trên doanh thu
-    lines.push(`      <ct21>${summary.outputBase.toFixed(0)}</ct21>`);
-    lines.push(`      <ct22>${summary.outputVat.toFixed(0)}</ct22>`);
-    lines.push(`      <ct40>${summary.outputVat.toFixed(0)}</ct40>`);
-  }
-  lines.push(`    </CTieuTKhaiChinh>`);
-  lines.push(`  </HSoKhaiThue>`);
-  lines.push(`  <BangKeBanRa>`);
-  for (const s of sales) {
-    lines.push(`    <CTietHDon><shdon>${esc(s.einvoice_code || s.invoice_no)}</shdon><nlhdon>${s.issue_date}</nlhdon><tenNMua>${esc(s.customer_name)}</tenNMua><mstNMua>${esc(s.customer_tax_id)}</mstNMua><dtcthue>${Number(s.subtotal).toFixed(0)}</dtcthue><thueGTGT>${Number(s.vat_amount).toFixed(0)}</thueGTGT></CTietHDon>`);
-  }
-  lines.push(`  </BangKeBanRa>`);
-  lines.push(`  <BangKeMuaVao>`);
-  for (const p of purchases) {
-    lines.push(`    <CTietHDon><shdon>${esc(p.invoice_no)}</shdon><nlhdon>${p.issue_date}</nlhdon><tenNBan>${esc(p.supplier_name)}</tenNBan><mstNBan>${esc(p.supplier_tax_id)}</mstNBan><dtcthue>${Number(p.subtotal).toFixed(0)}</dtcthue><thueGTGT>${Number(p.vat_amount).toFixed(0)}</thueGTGT></CTietHDon>`);
-  }
-  lines.push(`  </BangKeMuaVao>`);
-  lines.push(`</HSoThueDTu>`);
+  lines.push(`    <PLuc>`);
+  lines.push(`      <PL_NQ142_GTGT>`);
+  lines.push(`        <HH_DV_MuaVaoTrongKy>`);
+  let muaBase = 0, muaTax = 0;
+  purchases8.forEach((it, idx) => {
+    muaBase += it.base; muaTax += it.tax;
+    lines.push(`          <BangKeTenHHDV ID="ID_${idx + 1}">`);
+    lines.push(`            <tenHHDVMuaVao>${esc(it.name)}</tenHHDVMuaVao>`);
+    lines.push(`            <giaTriHHDVMuaVao>${intStr(it.base)}</giaTriHHDVMuaVao>`);
+    lines.push(`            <thueGTGTHHDV>${intStr(it.tax)}</thueGTGTHHDV>`);
+    lines.push(`          </BangKeTenHHDV>`);
+  });
+  lines.push(`          <tongCongGiaTriHHDVMuaVao>${intStr(muaBase)}</tongCongGiaTriHHDVMuaVao>`);
+  lines.push(`          <tongCongThueGTGTHHDV>${intStr(muaTax)}</tongCongThueGTGTHHDV>`);
+  lines.push(`        </HH_DV_MuaVaoTrongKy>`);
+
+  lines.push(`        <HH_DV_BanRaTrongKy>`);
+  let banBase = 0, banTax = 0;
+  sales8.forEach((it, idx) => {
+    banBase += it.base; banTax += it.tax;
+    lines.push(`          <BangKeTenHHDV ID="ID_${idx + 1}">`);
+    lines.push(`            <tenHHDV>${esc(it.name)}</tenHHDV>`);
+    lines.push(`            <giaTriHHDV>${intStr(it.base)}</giaTriHHDV>`);
+    lines.push(`            <thueSuatTheoQuyDinh>10</thueSuatTheoQuyDinh>`);
+    lines.push(`            <thueSuatSauGiam>8</thueSuatSauGiam>`);
+    lines.push(`            <thueGTGTDuocGiam>${intStr(it.tax)}</thueGTGTDuocGiam>`);
+    lines.push(`          </BangKeTenHHDV>`);
+  });
+  lines.push(`          <tongCongGiaTriHHDV>${intStr(banBase)}</tongCongGiaTriHHDV>`);
+  lines.push(`          <tongCongThueGTGTDuocGiam>${intStr(banTax)}</tongCongThueGTGTDuocGiam>`);
+  lines.push(`        </HH_DV_BanRaTrongKy>`);
+
+  const ct9 = round0(banTax) - round0(banBase * 0.08);
+  lines.push(`        <ChenhLech>`);
+  lines.push(`          <ct9>${intStr(ct9)}</ct9>`);
+  lines.push(`        </ChenhLech>`);
+  lines.push(`      </PL_NQ142_GTGT>`);
+  lines.push(`    </PLuc>`);
   return lines.join("\n");
+}
+
+function buildVatXmlString(opts: XmlBuilderOptions): string {
+  const { cfg, period, freq, summary, adjustments = [], purchases8, sales8, meta } = opts;
+
+  if (cfg.method !== "deduction") {
+    return [
+      `<?xml version="1.0" encoding="UTF-8"?>`,
+      `<HSoThueDTu xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://kekhaithue.gdt.gov.vn/TKhaiThue">`,
+      `  <HSoKhaiThue id="ID-NODETOSIGN-XML">`,
+      `    <TTinChung><TTinTKhaiThue>`,
+      `      <TKhaiThue><maTKhai>04/GTGT</maTKhai></TKhaiThue>`,
+      `      <NNT>${tag("mst", cfg.taxId).trim()}${tag("tenNNT", cfg.name).trim()}${tag("dchiNNT", cfg.address).trim()}</NNT>`,
+      `    </TTinTKhaiThue></TTinChung>`,
+      `    <CTieuTKhaiChinh>`,
+      `      <ct21>${intStr(summary.outputBase)}</ct21>`,
+      `      <ct22>${intStr(summary.outputVat)}</ct22>`,
+      `      <ct40>${intStr(summary.outputVat)}</ct40>`,
+      `    </CTieuTKhaiChinh>`,
+      `  </HSoKhaiThue>`,
+      `</HSoThueDTu>`,
+    ].join("\n");
+  }
+
+  const ky = formatKyKKhai(period, freq);
+  const ct22 = round0(summary.inputBase);
+  const ct23 = round0(summary.inputBase);
+  const ct24 = round0(summary.inputVat);
+  const ct23a = 0, ct24a = 0;
+  const ct25 = Math.max(0, round0(summary.inputVat - summary.disallowedInputVat));
+  const ct26 = round0(summary.byRate["exempt"].base + summary.byRate["no_declare"].base);
+  const ct29 = round0(summary.byRate["0"].base);
+  const ct30 = round0(summary.byRate["5"].base);
+  const ct31 = round0(summary.byRate["5"].vat);
+  const ct32 = round0(summary.byRate["10"].base + summary.byRate["8"].base);
+  const ct33 = round0(summary.byRate["10"].vat + summary.byRate["8"].base * 0.10);
+  const ct32a = 0;
+  const ct27 = ct30 + ct32;
+  const ct28 = ct31 + ct33;
+  const ct34 = ct26 + ct27 + ct29;
+  const ct35 = ct28;
+  const ct36 = Math.max(0, ct35 - ct25);
+  let ct37 = 0, ct38 = 0;
+  for (const a of adjustments) {
+    if (a.direction === "increase") ct37 += round0(a.vat_amount);
+    else ct38 += round0(a.vat_amount);
+  }
+  const ct39a = 0;
+  const ct40a = Math.max(0, ct36 + ct37 - ct38 - ct39a);
+  const ct40b = 0;
+  const ct40 = ct40a + ct40b;
+  const ct41 = ct35 - ct25 < 0 ? Math.abs(ct35 - ct25) + ct38 - ct37 : 0;
+  const ct42 = 0;
+  const ct43 = Math.max(0, ct41 - ct42);
+
+  const out: string[] = [];
+  out.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+  out.push(`<HSoThueDTu xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://kekhaithue.gdt.gov.vn/TKhaiThue">`);
+  out.push(`  <HSoKhaiThue id="ID-NODETOSIGN-XML">`);
+  out.push(`    <TTinChung>`);
+  out.push(`      <TTinDVu>`);
+  out.push(`        <maDVu>HTKK</maDVu>`);
+  out.push(`        <tenDVu>HỖ TRỢ KÊ KHAI THUẾ</tenDVu>`);
+  out.push(`        <pbanDVu>5.5.6</pbanDVu>`);
+  out.push(`        <ttinNhaCCapDVu>FINAI</ttinNhaCCapDVu>`);
+  out.push(`      </TTinDVu>`);
+  out.push(`      <TTinTKhaiThue>`);
+  out.push(`        <TKhaiThue>`);
+  out.push(`          <maTKhai>842</maTKhai>`);
+  out.push(`          <tenTKhai>TỜ KHAI THUẾ GIÁ TRỊ GIA TĂNG (Mẫu số 01/GTGT)</tenTKhai>`);
+  out.push(`          <moTaBMau>(Ban hành kèm theo Thông tư số 80/2021/TT-BTC ngày 29 tháng 9 năm 2021 của Bộ trưởng Bộ Tài chính)</moTaBMau>`);
+  out.push(`          <pbanTKhaiXML>2.8.3</pbanTKhaiXML>`);
+  out.push(`          <loaiTKhai>${meta.loaiTKhai}</loaiTKhai>`);
+  out.push(`          <soLan>${meta.soLan}</soLan>`);
+  out.push(`          <KyKKhaiThue>`);
+  out.push(`            <kieuKy>${ky.kieuKy}</kieuKy>`);
+  out.push(`            <kyKKhai>${ky.kyKKhai}</kyKKhai>`);
+  out.push(`            <kyKKhaiTuNgay>${ky.tuNgay}</kyKKhaiTuNgay>`);
+  out.push(`            <kyKKhaiDenNgay>${ky.denNgay}</kyKKhaiDenNgay>`);
+  out.push(`            <kyKKhaiTuThang />`);
+  out.push(`            <kyKKhaiDenThang />`);
+  out.push(`          </KyKKhaiThue>`);
+  out.push(tag("maCQTNoiNop", cfg.taxAuthorityCode, "          "));
+  out.push(tag("tenCQTNoiNop", cfg.taxAuthorityName, "          "));
+  out.push(`          <ngayLapTKhai>${meta.ngayLap}</ngayLapTKhai>`);
+  out.push(`          <GiaHan>`);
+  out.push(`            <maLyDoGiaHan />`);
+  out.push(`            <lyDoGiaHan />`);
+  out.push(`          </GiaHan>`);
+  out.push(tag("nguoiKy", meta.nguoiKy, "          "));
+  out.push(`          <ngayKy>${meta.ngayKy}</ngayKy>`);
+  out.push(`          <nganhNgheKD />`);
+  out.push(`        </TKhaiThue>`);
+  out.push(`        <NNT>`);
+  out.push(tag("mst", cfg.taxId, "          "));
+  out.push(tag("tenNNT", cfg.name, "          "));
+  out.push(tag("dchiNNT", cfg.address, "          "));
+  out.push(tag("phuongXa", cfg.wardName, "          "));
+  out.push(tag("maHuyenNNT", cfg.districtCode, "          "));
+  out.push(tag("tenHuyenNNT", cfg.districtName, "          "));
+  out.push(tag("maTinhNNT", cfg.provinceCode, "          "));
+  out.push(tag("tenTinhNNT", cfg.provinceName, "          "));
+  out.push(tag("dthoaiNNT", cfg.phone, "          "));
+  out.push(tag("faxNNT", cfg.fax, "          "));
+  out.push(tag("emailNNT", cfg.email, "          "));
+  out.push(`        </NNT>`);
+  out.push(`      </TTinTKhaiThue>`);
+  out.push(`    </TTinChung>`);
+  out.push(`    <CTieuTKhaiChinh>`);
+  out.push(`      <ma_NganhNghe>00</ma_NganhNghe>`);
+  out.push(`      <ten_NganhNghe>Hoạt động sản xuất kinh doanh thông thường</ten_NganhNghe>`);
+  out.push(`      <tieuMucHachToan>1701</tieuMucHachToan>`);
+  out.push(`      <Header>`);
+  out.push(`        <ct09 />`);
+  out.push(`        <ct10 />`);
+  out.push(`        <DiaChiHDSXKDKhacTinhNDTSC>`);
+  out.push(`          <ct11a_phuongXa_ma />`);
+  out.push(`          <ct11a_phuongXa_ten />`);
+  out.push(`          <ct11b_quanHuyen_ma />`);
+  out.push(`          <ct11b_quanHuyen_ten />`);
+  out.push(`          <ct11c_tinhTP_ma />`);
+  out.push(`          <ct11c_tinhTP_ten />`);
+  out.push(`        </DiaChiHDSXKDKhacTinhNDTSC>`);
+  out.push(`      </Header>`);
+  out.push(`      <ct21>0</ct21>`);
+  out.push(`      <ct22>${intStr(ct22)}</ct22>`);
+  out.push(`      <GiaTriVaThueGTGTHHDVMuaVao><ct23>${intStr(ct23)}</ct23><ct24>${intStr(ct24)}</ct24></GiaTriVaThueGTGTHHDVMuaVao>`);
+  out.push(`      <HangHoaDichVuNhapKhau><ct23a>${intStr(ct23a)}</ct23a><ct24a>${intStr(ct24a)}</ct24a></HangHoaDichVuNhapKhau>`);
+  out.push(`      <ct25>${intStr(ct25)}</ct25>`);
+  out.push(`      <ct26>${intStr(ct26)}</ct26>`);
+  out.push(`      <HHDVBRaChiuThueGTGT><ct27>${intStr(ct27)}</ct27><ct28>${intStr(ct28)}</ct28></HHDVBRaChiuThueGTGT>`);
+  out.push(`      <ct29>${intStr(ct29)}</ct29>`);
+  out.push(`      <HHDVBRaChiuTSuat5><ct30>${intStr(ct30)}</ct30><ct31>${intStr(ct31)}</ct31></HHDVBRaChiuTSuat5>`);
+  out.push(`      <HHDVBRaChiuTSuat10><ct32>${intStr(ct32)}</ct32><ct33>${intStr(ct33)}</ct33></HHDVBRaChiuTSuat10>`);
+  out.push(`      <ct32a>${intStr(ct32a)}</ct32a>`);
+  out.push(`      <TongDThuVaThueGTGTHHDVBRa><ct34>${intStr(ct34)}</ct34><ct35>${intStr(ct35)}</ct35></TongDThuVaThueGTGTHHDVBRa>`);
+  out.push(`      <ct36>${intStr(ct36)}</ct36>`);
+  out.push(`      <ct37>${intStr(ct37)}</ct37>`);
+  out.push(`      <ct38>${intStr(ct38)}</ct38>`);
+  out.push(`      <ct39a>${intStr(ct39a)}</ct39a>`);
+  out.push(`      <ct40a>${intStr(ct40a)}</ct40a>`);
+  out.push(`      <ct40b>${intStr(ct40b)}</ct40b>`);
+  out.push(`      <ct40>${intStr(ct40)}</ct40>`);
+  out.push(`      <ct41>${intStr(ct41)}</ct41>`);
+  out.push(`      <ct42>${intStr(ct42)}</ct42>`);
+  out.push(`      <ct43>${intStr(ct43)}</ct43>`);
+  out.push(`    </CTieuTKhaiChinh>`);
+
+  const pluc = buildPlNq142({ purchases8, sales8 });
+  if (pluc) out.push(pluc);
+
+  out.push(`  </HSoKhaiThue>`);
+  out.push(`</HSoThueDTu>`);
+  return out.join("\n");
+}
+
+function todayUtcPlus7(): string {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+const xmlMetaSchema = z.object({
+  loaiTKhai: z.enum(["C", "B"]).default("C"),
+  soLan: z.number().int().min(0).max(99).default(0),
+  ngayLap: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  ngayKy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  nguoiKy: z.string().max(200).optional(),
+});
+
+async function loadAdjustmentsForPeriod(supabase: SupabaseClient, userId: string, period: string) {
+  const { data } = await supabase
+    .from("vat_filing_adjustments")
+    .select("direction, vat_amount")
+    .eq("user_id", userId)
+    .eq("filing_period", period);
+  return (data ?? []) as Array<{ direction: "increase" | "decrease"; vat_amount: number }>;
+}
+
+function resolveMeta(input: z.input<typeof xmlMetaSchema> | undefined, cfg: TenantVatConfig) {
+  const m = (input ?? {}) as any;
+  const today = todayUtcPlus7();
+  return {
+    loaiTKhai: (m.loaiTKhai ?? "C") as "C" | "B",
+    soLan: Number(m.soLan ?? 0),
+    ngayLap: m.ngayLap ?? today,
+    ngayKy: m.ngayKy ?? today,
+    nguoiKy: (m.nguoiKy ?? cfg.legalRepName ?? "").toString(),
+  };
 }
 
 export const buildVatXmlPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { period: string }) => z.object({ period: z.string() }).parse(i))
+  .inputValidator((i: { period: string; meta?: z.input<typeof xmlMetaSchema> }) =>
+    z.object({ period: z.string(), meta: xmlMetaSchema.optional() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const cfg = await getTenantVatConfig(supabase, userId);
     const { from, to, freq } = periodRange(data.period);
 
-    // Nếu đã chốt → trả XML đã lưu
     const { data: filing } = await supabase
       .from("vat_filings")
-      .select("xml, period")
+      .select("xml")
       .eq("user_id", userId)
       .eq("period", data.period)
       .in("status", ["committed", "submitted"])
       .maybeSingle();
     if (filing?.xml) {
-      const filename = `${cfg.method === "deduction" ? "01-GTGT" : "04-GTGT"}-${data.period}.xml`;
-      return { xml: filing.xml, filename };
+      return { xml: filing.xml, filename: `01-GTGT-${data.period}.xml` };
     }
 
     const result = await loadVatPeriodData(supabase, userId, from, to);
-    const xml = buildVatXmlString({ cfg, period: data.period, freq, summary: result.summary, sales: result.sales, purchases: result.purchases });
+    const breakdown = await load8PctBreakdown(
+      supabase,
+      result.purchases.map((p: any) => p.id),
+      result.sales.map((s: any) => s.id),
+    );
+    const adjustments = await loadAdjustmentsForPeriod(supabase, userId, data.period);
+    const meta = resolveMeta(data.meta, cfg);
+
+    const xml = buildVatXmlString({
+      cfg, period: data.period, freq,
+      summary: result.summary, adjustments,
+      purchases8: breakdown.purchases8, sales8: breakdown.sales8,
+      meta,
+    });
     const filename = `${cfg.method === "deduction" ? "01-GTGT" : "04-GTGT"}-${data.period}.xml`;
     return { xml, filename };
   });
