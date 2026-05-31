@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/rea
 import { useCallback, useEffect, useState } from "react";
 import { ThreadList } from "@/components/chat/thread-list";
 import { emitChatSidebarToggle } from "@/hooks/use-chat-sidebar-collapsed";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ChatLayoutContext } from "@/components/chat/chat-layout-context";
 
 export const Route = createFileRoute("/_app/chat")({
@@ -89,22 +88,26 @@ function ChatLayout() {
           />
         </div>
 
-        {/* Mobile Sheet: panel chỉ rộng bằng ThreadList để không lộ thêm lớp nền xanh bên phải. */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent
-            side="left"
-            className="w-64 max-w-[85vw] border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          >
-            <ThreadList
-              onNew={() => {
-                setMobileOpen(false);
-                newChat();
-              }}
-              collapsed={false}
-              onItemClick={() => setMobileOpen(false)}
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <button
+              type="button"
+              aria-label="Đóng danh sách hội thoại"
+              className="absolute inset-0 bg-background/85"
+              onClick={() => setMobileOpen(false)}
             />
-          </SheetContent>
-        </Sheet>
+            <div className="absolute inset-y-0 left-0 w-64 max-w-[85vw] overflow-hidden border-r border-sidebar-border bg-sidebar shadow-2xl shadow-background/60">
+              <ThreadList
+                onNew={() => {
+                  setMobileOpen(false);
+                  newChat();
+                }}
+                collapsed={false}
+                onItemClick={() => setMobileOpen(false)}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Outlet />
