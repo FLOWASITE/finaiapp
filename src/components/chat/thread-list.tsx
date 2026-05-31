@@ -1,14 +1,34 @@
 import { useState } from "react";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star, Search, X } from "lucide-react";
+import {
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
+  PinOff,
+  Star,
+  Search,
+  X,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+  LogOut,
+  ArrowLeft,
+} from "lucide-react";
 import { FinMascot } from "@/components/fin-mascot";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -30,6 +50,9 @@ import {
 } from "@/lib/chat-threads.functions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTheme } from "@/hooks/use-theme";
+import { supabase } from "@/integrations/supabase/client";
 
 type Bucket = { label: string; items: ChatThread[] };
 
