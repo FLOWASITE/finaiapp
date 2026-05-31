@@ -1,15 +1,16 @@
 ## Mục tiêu
-Làm header chat (thanh trên cùng chứa nút ☰, tiêu đề, toggle Kế toán/AI, ⋯) bán trong suốt + frosted-blur giống vùng composer ở đáy, để thấy thấp thoáng nội dung tin nhắn phía sau khi cuộn.
+Header chat hiện đang `bg-background/45` — trên nền sáng (bảng hóa đơn trắng) chữ tiêu đề + icon bị chìm, khó đọc. Cần tăng độ đặc + blur mạnh hơn để chữ luôn rõ trên mọi nền (sáng/tối/ảnh).
 
 ## Thay đổi
 `src/components/chat/chat-header.tsx` — dòng 32:
-- Đổi `bg-background/80` → `bg-background/45`
-- Giữ `backdrop-blur-xl` (đã có) để chữ vẫn đọc được.
-- Đổi `border-border/60` → `border-border/40` cho viền dưới mờ hơn, hài hoà với nền trong suốt.
+
+- `bg-background/45` → `bg-background/75` (đặc hơn nhưng vẫn thấy thấp thoáng nội dung phía sau).
+- `backdrop-blur-xl` → `backdrop-blur-2xl` + thêm `backdrop-saturate-150` để frosted-glass rõ và tách khỏi nền.
+- Giữ `border-border/40`.
 
 ```tsx
-<header className="sticky top-0 z-20 border-b border-border/40 bg-background/45 backdrop-blur-xl">
+<header className="sticky top-0 z-20 border-b border-border/40 bg-background/75 backdrop-blur-2xl backdrop-saturate-150">
 ```
 
 ## Kết quả
-Header chat trong suốt ~55%, nội dung tin nhắn lướt qua phía sau header sẽ hiện mờ nhẹ — đồng bộ với phần composer ở đáy đã làm.
+Chữ "Fin"/tiêu đề + nút Kế toán/AI luôn dễ đọc trên cả nền sáng lẫn tối, vẫn giữ cảm giác trong suốt nhẹ.
