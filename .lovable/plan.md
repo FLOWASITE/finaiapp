@@ -1,28 +1,41 @@
 ## Mục tiêu
-Ẩn hoàn toàn lớp sidebar/slide nền còn lộ phía sau SlideChat, đặc biệt trên mobile/tablet khi mở lịch sử chat.
+Vùng khoanh đỏ ở đáy (ô "Nhắn cho trợ lý AI…" + dòng disclaimer) hiện đang là một dải đặc che mất nội dung chat phía sau. Cần làm vùng này bán trong suốt + làm mờ nền (frosted glass) để thấy được message phía dưới khi cuộn.
 
-## Kế hoạch sửa
-1. **Sửa điều kiện nhận diện route chat trong `src/routes/_app.tsx`**
-   - Đổi `onChatRoute = location.pathname.startsWith("/chat")` thành điều kiện chặt hơn: `pathname === "/chat" || pathname.startsWith("/chat/")`.
-   - Đảm bảo mọi route `/chat` và `/chat/:threadId` đều dùng layout tối giản, không render `AppSidebar`, không render header app, không render `ChatDock`.
+## Nguyên nhân
+Hai lớp tạo dải đặc:
+1. `.chat-footer-fade` trong `src/styles.css` — gradient phủ 55% chiều cao bằng `var(--background)` đặc → che hết phần dưới.
+2. Bản thân `<Composer>` dùng `bg-card/70 backdrop-blur-xl` — vẫn còn 70% mờ.
+3. Wrapper `div.relative px-4 pb-5 pt-4` trong `chat.$threadId.tsx` và `chat.index.tsx` không có nền nhưng kết hợp với fade ở trên gây cảm giác đặc.
 
-2. **Sửa layout SlideChat trong `src/routes/_app/chat.tsx`**
-   - Với mobile: khi Sheet lịch sử chat mở, đảm bảo chỉ có **Sheet** hiển thị, không còn “desktop ThreadList”/nền sidebar nào chen phía sau.
-   - Tăng tính cô lập lớp Sheet bằng width và z-index đúng, giữ nội dung chat không tạo thêm cột sidebar ẩn.
+## Thay đổi
 
-3. **Sửa `ThreadList` nếu cần**
-   - Đảm bảo footer cố định nằm trong đúng sidebar chat.
-   - Không để phần collapsed/sidebar mini vẫn chiếm/hiện khi đang dùng Sheet mobile.
+### 1. `src/styles.css` — `.chat-footer-fade`
+Đổi gradient: bỏ phần đặc 55%, thay bằng gradient nhẹ + thêm `backdrop-filter: blur` để vùng dưới mờ ảnh nhưng vẫn nhìn xuyên thấy.
 
-4. **Kiểm tra lại bằng preview**
-   - Kiểm tra `/chat` ở viewport hiện tại khoảng `707x662`.
-   - Kiểm tra desktop rộng hơn để chắc chắn vẫn chỉ có một sidebar Fin Chat.
+```css
+.chat-footer-fade {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--background) 55%, transparent) 0%,
+    color-mix(in oklab, var(--background) 20%, transparent) 60%,
+    transparent 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+```
+
+### 2. `src/components/chat/composer.tsx`
+Dòng 543: đổi `bg-card/70` → `bg-card/45` để khung composer trong hơn (vẫn giữ `backdrop-blur-xl` để chữ đọc được).
+
+### 3. `src/routes/_app/chat.$threadId.tsx` và `src/routes/_app/chat.index.tsx`
+- Mở rộng dải fade: đổi `-top-8 h-8` → `-top-16 h-16` để chuyển tiếp mượt hơn.
+- Đảm bảo wrapper `px-4 pb-5 pt-4` không có background đặc (đã ok).
 
 ## Kết quả mong đợi
-```text
-Mobile / tablet khi mở lịch sử:
-[ Sheet SlideChat ] phủ lên nội dung chat, không lộ sidebar thứ 2 phía sau
-
-Desktop:
-[ ThreadList Fin Chat | Khung chat ] không có AppSidebar
 ```
+[ Tin nhắn cũ hiện mờ nhẹ phía sau ]
+[ ô "Nhắn cho trợ lý AI…" (bán trong suốt + blur) ]
+[ disclaimer ]
+```
+Người dùng có thể thấy thấp thoáng nội dung chat phía sau ô nhập thay vì một dải đặc.
