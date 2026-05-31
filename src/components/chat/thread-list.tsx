@@ -1,14 +1,34 @@
 import { useState } from "react";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MoreHorizontal, Pencil, Plus, Trash2, MessageSquare, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star, Search, X } from "lucide-react";
+import {
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
+  PinOff,
+  Star,
+  Search,
+  X,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+  LogOut,
+  ArrowLeft,
+} from "lucide-react";
 import { FinMascot } from "@/components/fin-mascot";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -30,6 +50,9 @@ import {
 } from "@/lib/chat-threads.functions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTheme } from "@/hooks/use-theme";
+import { supabase } from "@/integrations/supabase/client";
 
 type Bucket = { label: string; items: ChatThread[] };
 
@@ -224,7 +247,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
         )}
       </div>
       {!collapsed && (
-      <div className="chat-scroll flex-1 overflow-auto px-2 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-sidebar-border/50 px-2 pt-1 pb-2">
         <div className="mb-2 px-2 pt-1">
           <div className="group relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/55 transition-colors group-focus-within:text-primary" />
@@ -263,6 +287,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
             {showStarredOnly ? "Đang lọc sao" : "Chỉ hiện sao"}
           </button>
         </div>
+        </div>
+        <div className="chat-scroll flex-1 min-h-0 overflow-auto px-2 py-3">
         {query.isLoading && (
           <div className="px-3 py-4 text-xs text-sidebar-foreground/55">Đang tải…</div>
         )}
@@ -382,8 +408,11 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
             </div>
           ))}
         </div>
+        </div>
       </div>
       )}
+
+      <SidebarFooterUser collapsed={collapsed} onNavigate={onItemClick} />
 
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-md">
@@ -417,5 +446,141 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
         </DialogContent>
       </Dialog>
     </aside>
+  );
+}
+
+function SidebarFooterUser({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const { data: cu } = useCurrentUser();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const email = cu?.email ?? "";
+  const displayName = cu?.profile?.display_name?.trim() || email || "Tài khoản";
+  const avatarUrl = cu?.profile?.avatar_url ?? null;
+  const initial = (displayName || "?").trim().charAt(0).toUpperCase();
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
+
+  const goHome = () => {
+    onNavigate?.();
+    navigate({ to: "/" });
+  };
+
+  const Avatar = (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sidebar-primary/15 text-xs font-semibold text-sidebar-primary ring-1 ring-sidebar-border">
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        initial
+      )}
+    </span>
+  );
+
+  const menu = (
+    <DropdownMenuContent
+      side="top"
+      align={collapsed ? "center" : "end"}
+      className="w-56"
+    >
+      <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+        {email || "Chưa đăng nhập"}
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={goHome}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Thoát Fin Chat
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => { onNavigate?.(); navigate({ to: "/" }); }}>
+        <UserIcon className="mr-2 h-4 w-4" />
+        Hồ sơ
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => { onNavigate?.(); navigate({ to: "/settings" as any }); }}>
+        <SettingsIcon className="mr-2 h-4 w-4" />
+        Cài đặt
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={(e) => {
+          e.preventDefault();
+          toggleTheme();
+        }}
+      >
+        {theme === "dark" ? (
+          <>
+            <Sun className="mr-2 h-4 w-4" />
+            Chế độ sáng
+          </>
+        ) : (
+          <>
+            <Moon className="mr-2 h-4 w-4" />
+            Chế độ tối
+          </>
+        )}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onClick={signOut}
+        className="text-destructive focus:text-destructive"
+      >
+        <LogOut className="mr-2 h-4 w-4" />
+        Đăng xuất
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+
+  if (collapsed) {
+    return (
+      <div className="shrink-0 border-t border-sidebar-border bg-sidebar p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Tài khoản"
+              className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg hover:bg-sidebar-accent"
+            >
+              {Avatar}
+            </button>
+          </DropdownMenuTrigger>
+          {menu}
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  return (
+    <div className="shrink-0 border-t border-sidebar-border bg-sidebar px-2 py-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent"
+            aria-label="Mở menu tài khoản"
+          >
+            {Avatar}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-medium text-sidebar-foreground">
+                {displayName}
+              </span>
+              {email && email !== displayName && (
+                <span className="block truncate text-[10px] text-sidebar-foreground/55">
+                  {email}
+                </span>
+              )}
+            </span>
+            <MoreHorizontal className="h-4 w-4 shrink-0 text-sidebar-foreground/55" />
+          </button>
+        </DropdownMenuTrigger>
+        {menu}
+      </DropdownMenu>
+    </div>
   );
 }
