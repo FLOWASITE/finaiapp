@@ -394,7 +394,19 @@ export const commitVatFiling = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) throw new Error(`Kỳ ${data.period} đã được chốt trước đó.`);
 
-    const xml = buildVatXmlString({ cfg, period: data.period, freq, summary: result.summary, sales: result.sales, purchases: result.purchases });
+    const breakdown = await load8PctBreakdown(
+      supabase,
+      result.purchases.map((p: any) => p.id),
+      result.sales.map((s: any) => s.id),
+    );
+    const adjustments = await loadAdjustmentsForPeriod(supabase, userId, data.period);
+    const meta = resolveMeta(undefined, cfg);
+    const xml = buildVatXmlString({
+      cfg, period: data.period, freq,
+      summary: result.summary, adjustments,
+      purchases8: breakdown.purchases8, sales8: breakdown.sales8,
+      meta,
+    });
 
     const { data: row, error } = await supabase
       .from("vat_filings")
