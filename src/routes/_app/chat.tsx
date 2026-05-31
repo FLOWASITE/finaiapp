@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/chat")({
 });
 
 const KEY = "chat:sidebar-collapsed";
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = 1024;
 
 function ChatLayout() {
   const navigate = useNavigate();
@@ -79,8 +79,8 @@ function ChatLayout() {
   return (
     <ChatLayoutContext.Provider value={{ onMenu }}>
       <div className="chat-surface flex h-full overflow-hidden">
-        {/* Desktop sidebar: ẩn dưới md, render CSS-based → không lệch hydration */}
-        <div className="hidden md:flex">
+        {/* Desktop sidebar: chỉ hiện trên màn hình rộng; tablet/mobile dùng overlay để không chồng lớp. */}
+        <div className="hidden lg:flex">
           <ThreadList
             onNew={newChat}
             collapsed={collapsed}
@@ -89,7 +89,7 @@ function ChatLayout() {
         </div>
 
         {mobileOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
               aria-label="Đóng danh sách hội thoại"
@@ -104,6 +104,7 @@ function ChatLayout() {
                 }}
                 collapsed={false}
                 onItemClick={() => setMobileOpen(false)}
+                className="w-full max-w-none"
               />
             </div>
           </div>
