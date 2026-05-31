@@ -1,16 +1,22 @@
-## Mục tiêu
-Header chat hiện đang `bg-background/45` — trên nền sáng (bảng hóa đơn trắng) chữ tiêu đề + icon bị chìm, khó đọc. Cần tăng độ đặc + blur mạnh hơn để chữ luôn rõ trên mọi nền (sáng/tối/ảnh).
+## Vấn đề
+Vừa rồi tôi tăng nền header lên `bg-background/75` để chữ dễ đọc — nhưng giờ header trông gần như đặc, mất cảm giác trong suốt mà bạn muốn.
+
+## Hướng xử lý
+Giảm độ đặc xuống mức trong suốt rõ rệt, bù lại bằng blur + saturate mạnh và một lớp gradient mờ dần ở mép dưới để chữ vẫn nổi.
 
 ## Thay đổi
 `src/components/chat/chat-header.tsx` — dòng 32:
 
-- `bg-background/45` → `bg-background/75` (đặc hơn nhưng vẫn thấy thấp thoáng nội dung phía sau).
-- `backdrop-blur-xl` → `backdrop-blur-2xl` + thêm `backdrop-saturate-150` để frosted-glass rõ và tách khỏi nền.
-- Giữ `border-border/40`.
+- `bg-background/75` → `bg-background/35` (trong suốt rõ, thấy nội dung chat phía sau).
+- Giữ `backdrop-blur-2xl backdrop-saturate-150` (frosted-glass mạnh để chữ không bị lẫn nền).
+- Bỏ `border-b border-border/40`, thay bằng gradient fade dưới đáy header để chuyển mượt sang nội dung chat (giống cách composer fade ở đáy):
 
 ```tsx
-<header className="sticky top-0 z-20 border-b border-border/40 bg-background/75 backdrop-blur-2xl backdrop-saturate-150">
+<header className="sticky top-0 z-20 bg-background/35 backdrop-blur-2xl backdrop-saturate-150">
+  {/* nội dung header giữ nguyên */}
+  <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/35 to-transparent" />
+</header>
 ```
 
 ## Kết quả
-Chữ "Fin"/tiêu đề + nút Kế toán/AI luôn dễ đọc trên cả nền sáng lẫn tối, vẫn giữ cảm giác trong suốt nhẹ.
+Header trong suốt rõ (thấy chat lướt qua bên dưới), nhưng nhờ blur mạnh + saturate + fade gradient, chữ "Fin"/tiêu đề + icon vẫn đọc tốt trên mọi nền sáng/tối.
