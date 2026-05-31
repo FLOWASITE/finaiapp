@@ -93,7 +93,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("vi-VN");
 }
 
-export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () => void; collapsed?: boolean; onToggle?: () => void }) {
+export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: { onNew: () => void; collapsed?: boolean; onToggle?: () => void; onItemClick?: () => void }) {
   const list = useServerFn(listThreads);
   const rename = useServerFn(renameThread);
   const del = useServerFn(deleteThread);
@@ -298,6 +298,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle }: { onNew: () =
                       <Link
                         to="/chat/$threadId"
                         params={{ threadId: t.id }}
+                        onClick={onItemClick}
                         className={cn(
                           "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
                           isActive
