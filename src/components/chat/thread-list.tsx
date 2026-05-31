@@ -298,6 +298,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
                       <Link
                         to="/chat/$threadId"
                         params={{ threadId: t.id }}
+                        onClick={onItemClick}
                         className={cn(
                           "relative flex flex-col gap-0.5 rounded-xl px-3 py-2.5 pr-9 transition-all",
                           isActive
