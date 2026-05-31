@@ -116,7 +116,19 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("vi-VN");
 }
 
-export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: { onNew: () => void; collapsed?: boolean; onToggle?: () => void; onItemClick?: () => void }) {
+export function ThreadList({
+  onNew,
+  collapsed = false,
+  onToggle,
+  onItemClick,
+  className,
+}: {
+  onNew: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
+  onItemClick?: () => void;
+  className?: string;
+}) {
   const list = useServerFn(listThreads);
   const rename = useServerFn(renameThread);
   const del = useServerFn(deleteThread);
@@ -190,6 +202,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
       className={cn(
         "flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200",
         collapsed ? "w-14" : "w-64 xl:w-72",
+        className,
       )}
     >
       <div className="px-3 py-4">
