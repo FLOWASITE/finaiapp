@@ -29,7 +29,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
   };
 
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-background/20 backdrop-blur-md backdrop-saturate-150">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-background/12 backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-3 md:px-4">
         <button
           type="button"
@@ -40,9 +40,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground [text-shadow:0_1px_2px_oklch(1_0_0/0.55)]">
-          {title || "Fin"}
-        </div>
+        <div className="flex-1" />
 
         <ModeToggle mode={mode} onChange={setMode} />
 
@@ -79,7 +77,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/12 to-transparent" />
     </header>
   );
 }
