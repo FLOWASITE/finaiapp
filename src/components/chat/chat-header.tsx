@@ -77,7 +77,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/12 to-transparent" />
     </header>
   );
 }
