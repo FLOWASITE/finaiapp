@@ -89,14 +89,8 @@ function ChatLayout() {
         </div>
 
         {mobileOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <button
-              type="button"
-              aria-label="Đóng danh sách hội thoại"
-              className="absolute inset-0 bg-background/85"
-              onClick={() => setMobileOpen(false)}
-            />
-            <div className="absolute inset-y-0 left-0 w-64 max-w-[85vw] overflow-hidden border-r border-sidebar-border bg-sidebar shadow-2xl shadow-background/60">
+          <div className="fixed inset-0 z-50 bg-sidebar lg:hidden">
+            <div className="h-full w-full overflow-hidden bg-sidebar">
               <ThreadList
                 onNew={() => {
                   setMobileOpen(false);
