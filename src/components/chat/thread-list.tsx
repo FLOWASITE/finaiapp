@@ -411,6 +411,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
       </div>
       )}
 
+      <SidebarFooterUser collapsed={collapsed} onNavigate={onItemClick} />
+
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
