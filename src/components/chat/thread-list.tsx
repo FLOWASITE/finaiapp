@@ -287,6 +287,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
             {showStarredOnly ? "Đang lọc sao" : "Chỉ hiện sao"}
           </button>
         </div>
+        </div>
+        <div className="chat-scroll flex-1 min-h-0 overflow-auto px-2 py-3">
         {query.isLoading && (
           <div className="px-3 py-4 text-xs text-sidebar-foreground/55">Đang tải…</div>
         )}
