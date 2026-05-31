@@ -57,6 +57,18 @@ function AppLayout() {
     );
   }
 
+  if (onChatRoute) {
+    return (
+      <UploadQueueProvider>
+        <div className="h-screen w-full overflow-hidden bg-background">
+          <Outlet />
+          <UploadDock />
+          <CommandPalette />
+        </div>
+      </UploadQueueProvider>
+    );
+  }
+
   return (
     <UploadQueueProvider>
       <SidebarProvider>
