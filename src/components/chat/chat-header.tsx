@@ -29,7 +29,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-background/35 backdrop-blur-2xl backdrop-saturate-150">
+    <header className="sticky top-0 z-20 bg-background/50 backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-3 md:px-4">
         <button
           type="button"
