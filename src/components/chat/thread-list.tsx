@@ -408,6 +408,7 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
             </div>
           ))}
         </div>
+        </div>
       </div>
       )}
 
