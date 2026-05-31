@@ -670,7 +670,7 @@ function ThreadPage() {
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
       <ChatHeader title={query.data?.thread?.title ?? "Cuộc trò chuyện"} />
 
-      <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto pt-12 -mt-12">
         {query.isLoading && messages.length === 0 ? (
           <ChatSkeleton />
         ) : (
