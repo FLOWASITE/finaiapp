@@ -540,7 +540,7 @@ export function Composer({
       )}
       <div
         className={cn(
-          "group relative flex w-full items-end gap-2 rounded-3xl border bg-card/70 px-4 py-2.5 backdrop-blur-xl transition-all duration-200",
+          "group relative flex w-full items-end gap-2 rounded-3xl border bg-card/45 px-4 py-2.5 backdrop-blur-xl transition-all duration-200",
           "border-border/60 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)]",
           "focus-within:border-primary/50 focus-within:shadow-[0_8px_30px_-8px_color-mix(in_oklab,var(--primary)_25%,transparent)] focus-within:ring-1 focus-within:ring-primary/20",
           compact ? "min-h-[48px]" : "min-h-[60px]",
