@@ -1,6 +1,5 @@
-import { PanelLeft, MoreHorizontal, Calculator, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
+import { Menu, MoreHorizontal, Calculator, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useChatMode, type ChatMode } from "@/hooks/use-chat-mode";
+import { useChatLayout } from "@/components/chat/chat-layout-context";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -21,12 +21,11 @@ type Props = {
 export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props) {
   const navigate = useNavigate();
   const [mode, setMode] = useChatMode();
+  const { onMenu } = useChatLayout();
 
   const toggleSidebar = () => {
     if (onToggleSidebar) return onToggleSidebar();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("chat-sidebar-toggle"));
-    }
+    onMenu();
   };
 
   return (
@@ -38,7 +37,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
           aria-label="Mở danh sách hội thoại"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <PanelLeft className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </button>
 
         <div className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
