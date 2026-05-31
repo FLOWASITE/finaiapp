@@ -708,7 +708,7 @@ function ThreadPage() {
             </Button>
           </div>
         )}
-        <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 chat-footer-fade" />
+        <div className="pointer-events-none absolute inset-x-0 -top-16 h-16 chat-footer-fade" />
         <div className="mx-auto max-w-3xl">
           <div className="mb-3">
             <PendingActions />

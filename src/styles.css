@@ -234,11 +234,12 @@
 .chat-footer-fade {
   background: linear-gradient(
     to top,
-    var(--background) 0%,
-    var(--background) 55%,
-    color-mix(in oklab, var(--background) 70%, transparent) 85%,
+    color-mix(in oklab, var(--background) 55%, transparent) 0%,
+    color-mix(in oklab, var(--background) 20%, transparent) 60%,
     transparent 100%
   );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 @keyframes chat-shimmer {

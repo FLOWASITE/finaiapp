@@ -156,7 +156,7 @@ function ChatIndex() {
         </div>
       </div>
       <div className="relative px-4 pb-6 pt-4">
-        <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 chat-footer-fade" />
+        <div className="pointer-events-none absolute inset-x-0 -top-16 h-16 chat-footer-fade" />
         <div className="mx-auto max-w-2xl">
           <Composer
             value={input}
