@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowDown, PanelLeft } from "lucide-react";
+import { AlertTriangle, ArrowDown } from "lucide-react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Composer } from "@/components/chat/composer";
 import { MessageList, type ChatMsg } from "@/components/chat/message-list";
 import { ChatSkeleton } from "@/components/chat/chat-skeleton";
+import { ChatHeader } from "@/components/chat/chat-header";
 import { Button } from "@/components/ui/button";
 import { PendingActions } from "@/components/ai/PendingActions";
 import {
@@ -16,7 +17,9 @@ import {
   deleteLastAssistantMessage,
 } from "@/lib/chat-threads.functions";
 import { askAccountingStream } from "@/lib/chat.functions";
+import { getChatMode } from "@/hooks/use-chat-mode";
 import type { ToolEvent } from "@/components/chat/tool-calls";
+
 import { toast } from "sonner";
 import {
   takeAnyChatAttachmentHandoff,
@@ -308,7 +311,9 @@ function ThreadPage() {
           })),
           ...(attachments && attachments.length ? { attachments } : {}),
           ...(bulkRun ? { bulkRun } : {}),
+          mode: getChatMode(),
         },
+
         // TanStack serverFn không forward `signal` trực tiếp — phải override fetch
         // để gắn AbortSignal vào request, nhờ đó server `getRequest()?.signal`
         // và client fetch đều dừng khi user bấm Stop.
@@ -663,32 +668,8 @@ function ThreadPage() {
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
-      <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-4">
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new Event("chat-sidebar-toggle"))}
-            aria-label="Mở/đóng danh sách hội thoại"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-sm font-semibold text-slate-800">
-              {query.data?.thread?.title ?? "Cuộc trò chuyện"}
-            </h1>
-          </div>
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-foreground shadow-sm ring-1 ring-white/10"
-            style={{ background: "var(--gradient-ai)" }}
-            aria-hidden
-          >
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
-            </svg>
-          </span>
-        </div>
-      </div>
+      <ChatHeader title={query.data?.thread?.title ?? "Cuộc trò chuyện"} />
+
       <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
         {query.isLoading && messages.length === 0 ? (
           <ChatSkeleton />
