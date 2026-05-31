@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery";
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
+
 import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 import { UploadQueueProvider } from "@/lib/upload-queue";
 import { UploadDock } from "@/components/upload-dock";
@@ -36,11 +36,11 @@ function AppLayout() {
   const { workspace } = useWorkspace();
   const location = useLocation();
   const onChatRoute = location.pathname.startsWith("/chat");
-  const chatHistoryCollapsed = useChatSidebarCollapsed();
+  
   const onSuperAdminRoute = location.pathname.startsWith("/superadmin");
   const chromeless = location.pathname === "/inbox";
   const showDock = workspace === "front" && !onChatRoute && !onSuperAdminRoute && !chromeless;
-  const hideHeader = onChatRoute && chatHistoryCollapsed;
+  const hideHeader = onChatRoute;
 
   const { hidden: inboxDockHidden } = useInboxDockHidden();
 
