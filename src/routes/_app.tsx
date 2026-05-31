@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearSupabaseAuthStorage, withTimeoutReject } from "@/lib/auth-recovery";
 import { ChatDock } from "@/components/chat/chat-dock";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useChatSidebarCollapsed } from "@/hooks/use-chat-sidebar-collapsed";
+
 import { useInboxDockHidden } from "@/hooks/use-inbox-dock-hidden";
 import { UploadQueueProvider } from "@/lib/upload-queue";
 import { UploadDock } from "@/components/upload-dock";
