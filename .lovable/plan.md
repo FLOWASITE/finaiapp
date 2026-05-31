@@ -1,29 +1,35 @@
-# Fix nút ☰ Fin Chat trên mobile
+Mình sẽ refactor phần layout chat cũ thay vì vá tiếp từng chỗ.
 
-## Vấn đề
-- `ChatHeader` đã render nút ☰ (`PanelLeft`), nhưng trên mobile `ThreadList` luôn chiếm 256px bên trái → header bị đẩy khỏi vùng nhìn, người dùng tưởng "không có nút ☰".
-- Bấm ☰ hiện chỉ thu rail còn 56px (vẫn chiếm chỗ), không phải hành vi Gemini mobile.
+## Mục tiêu
+- Trên mobile: header đúng dạng `☰ + Fin + nút AI Mode`, nút ☰ luôn nhìn thấy.
+- Bấm ☰ mở Sheet trượt từ trái chứa danh sách hội thoại.
+- Tắt lỗi lệch render/hydration đang gây React error #418.
+- Desktop vẫn có danh sách hội thoại bên trái, có collapse/expand như hiện tại.
 
-## Hành vi mục tiêu
-- **Mobile (< 768px)**: `ThreadList` ẩn mặc định. Nút ☰ ở header mở `Sheet` trượt từ trái chứa `ThreadList` (full-height, w-80). Tap thread / tap ra ngoài → đóng Sheet.
-- **Desktop (≥ 768px)**: Giữ nguyên như hiện tại — `ThreadList` cố định bên trái, ☰ thu/mở rail (w-64 ↔ w-14), phím tắt `⌘\` vẫn chạy.
+## Kế hoạch triển khai
+1. **Tách điều khiển sidebar chat khỏi event mơ hồ**
+   - Thay cơ chế `chat-sidebar-toggle` dùng chung cho cả desktop collapse và mobile Sheet.
+   - Truyền callback trực tiếp từ layout xuống `ChatHeader` qua context/Outlet context để nút ☰ mở Sheet mobile hoặc toggle sidebar desktop đúng ngữ cảnh.
 
-## Thay đổi code
+2. **Sửa breakpoint và hydration**
+   - Không render khác nhau giữa server và client theo `useIsMobile()` ở lần render đầu.
+   - Dùng CSS responsive (`md:`) để desktop sidebar ẩn/hiện ổn định, còn Sheet mobile luôn được mount nhưng chỉ mở khi user bấm.
+   - Điều này nhắm trực tiếp lỗi React #418 do text/layout SSR-client không khớp.
 
-### 1. `src/routes/_app/chat.tsx`
-- Dùng `useIsMobile()` để rẽ nhánh.
-- **Desktop**: render `<ThreadList collapsed onToggle …/>` inline như hiện tại.
-- **Mobile**: 
-  - State riêng `mobileOpen` (không dùng `localStorage`).
-  - Lắng nghe event `chat-sidebar-toggle` (cùng event ☰ phát) → set `mobileOpen=true`.
-  - Render `<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>` với `SheetContent side="left" className="w-80 p-0"` chứa `<ThreadList collapsed={false} onNew={…}/>`.
-  - Khi điều hướng (route đổi) → tự đóng Sheet.
+3. **Refactor `ChatHeader` đúng layout mới**
+   - Mobile: nút icon menu ở trái, text `Fin` ở giữa/trái, AI Mode gọn bên phải.
+   - Dùng icon menu rõ ràng hơn thay vì `PanelLeft` nếu cần, giữ aria-label tiếng Việt.
+   - Không để header bị che bởi app header/sidebar cũ.
 
-### 2. `src/components/chat/chat-header.tsx`
-- Không cần đổi logic — nút ☰ đã phát event `chat-sidebar-toggle`. Trên mobile, event này sẽ mở Sheet; trên desktop, vẫn toggle rail như cũ.
+4. **Refactor `ThreadList` cho Sheet trái**
+   - Thêm variant/use-case cho mobile Sheet: full height, nền theo theme app, nút đóng mặc định ẩn/không chồng lên nội dung.
+   - Bấm hội thoại hoặc tạo mới sẽ tự đóng Sheet.
+   - Giữ tìm kiếm/lọc sao/danh sách theo ngày.
 
-### 3. `src/components/chat/thread-list.tsx`
-- Không sửa logic. Truyền prop để khi click 1 thread trong Sheet sẽ gọi callback đóng Sheet (thêm optional `onItemClick?: () => void` rồi gọi trong `<Link>` onClick).
+5. **Dọn style chat cũ không theo theme**
+   - Thay các class hard-code như `text-slate-*`, `bg-white`, `bg-blue-*`, `bg-teal-*` trong vùng chat chính bằng token theme (`background`, `foreground`, `muted`, `primary`, `accent`, `sidebar`).
+   - Đảm bảo auto theo light/dark theme.
 
-## Không đụng tới
-- `chat.$threadId.tsx`, `chat.index.tsx`, `composer.tsx`, `message-list.tsx`, mode toggle Kế toán/AI, business logic, thread storage.
+6. **Kiểm tra lại trên mobile và desktop**
+   - Mobile khoảng 390px và viewport hiện tại 707px: xác nhận nút ☰ hiển thị, Sheet trượt trái, chọn hội thoại đóng Sheet.
+   - Desktop: xác nhận sidebar trái vẫn hoạt động và không làm mất nội dung chat.

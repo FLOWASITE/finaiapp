@@ -1,23 +1,24 @@
 import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ThreadList } from "@/components/chat/thread-list";
 import { emitChatSidebarToggle } from "@/hooks/use-chat-sidebar-collapsed";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ChatLayoutContext } from "@/components/chat/chat-layout-context";
 
 export const Route = createFileRoute("/_app/chat")({
   component: ChatLayout,
 });
 
 const KEY = "chat:sidebar-collapsed";
+const MOBILE_BREAKPOINT = 768;
 
 function ChatLayout() {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Đọc trạng thái collapse từ localStorage sau khi mount để tránh hydration mismatch.
   useEffect(() => {
     const read = () => {
       try {
@@ -25,28 +26,20 @@ function ChatLayout() {
       } catch {}
     };
     read();
-    window.addEventListener("chat-sidebar-toggle", read);
     window.addEventListener("storage", read);
+    window.addEventListener("chat-sidebar-toggle", read);
     return () => {
-      window.removeEventListener("chat-sidebar-toggle", read);
       window.removeEventListener("storage", read);
+      window.removeEventListener("chat-sidebar-toggle", read);
     };
   }, []);
 
-  // Trên mobile: nút ☰ phát event "chat-sidebar-toggle" → mở Sheet.
-  useEffect(() => {
-    if (!isMobile) return;
-    const open = () => setMobileOpen((v) => !v);
-    window.addEventListener("chat-sidebar-toggle", open);
-    return () => window.removeEventListener("chat-sidebar-toggle", open);
-  }, [isMobile]);
-
-  // Đóng Sheet khi đổi route.
+  // Đóng Sheet mobile khi đổi route.
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  const toggleDesktop = () => {
+  const toggleDesktop = useCallback(() => {
     setCollapsed((v) => {
       const next = !v;
       try {
@@ -54,39 +47,54 @@ function ChatLayout() {
       } catch {}
       return next;
     });
-  };
+    emitChatSidebarToggle();
+  }, []);
 
+  // Click ☰ trong ChatHeader: dựa vào viewport tại thời điểm click → mở Sheet
+  // (mobile) hoặc toggle collapse (desktop). Quyết định tại click time tránh
+  // lệch render SSR/CSR.
+  const onMenu = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT) {
+      setMobileOpen((v) => !v);
+    } else {
+      toggleDesktop();
+    }
+  }, [toggleDesktop]);
+
+  // Shortcut Cmd/Ctrl+\ trên desktop.
   useEffect(() => {
-    if (isMobile) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
-        e.preventDefault();
-        toggleDesktop();
-        emitChatSidebarToggle();
+        if (typeof window !== "undefined" && window.innerWidth >= MOBILE_BREAKPOINT) {
+          e.preventDefault();
+          toggleDesktop();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isMobile]);
+  }, [toggleDesktop]);
 
   const newChat = () => navigate({ to: "/chat" });
 
   return (
-    <div className="chat-surface flex h-full overflow-hidden">
-      {!isMobile && (
-        <ThreadList
-          onNew={newChat}
-          collapsed={collapsed}
-          onToggle={() => {
-            toggleDesktop();
-            emitChatSidebarToggle();
-          }}
-        />
-      )}
+    <ChatLayoutContext.Provider value={{ onMenu }}>
+      <div className="chat-surface flex h-full overflow-hidden">
+        {/* Desktop sidebar: ẩn dưới md, render CSS-based → không lệch hydration */}
+        <div className="hidden md:flex">
+          <ThreadList
+            onNew={newChat}
+            collapsed={collapsed}
+            onToggle={toggleDesktop}
+          />
+        </div>
 
-      {isMobile && (
+        {/* Mobile Sheet: luôn mount, chỉ mở khi user bấm ☰ */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
+          <SheetContent
+            side="left"
+            className="w-[88vw] max-w-sm border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          >
             <ThreadList
               onNew={() => {
                 setMobileOpen(false);
@@ -97,11 +105,11 @@ function ChatLayout() {
             />
           </SheetContent>
         </Sheet>
-      )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Outlet />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </ChatLayoutContext.Provider>
   );
 }
