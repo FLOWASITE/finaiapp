@@ -27,7 +27,11 @@ function ChatLayout() {
     };
     read();
     window.addEventListener("storage", read);
-    return () => window.removeEventListener("storage", read);
+    window.addEventListener("chat-sidebar-toggle", read);
+    return () => {
+      window.removeEventListener("storage", read);
+      window.removeEventListener("chat-sidebar-toggle", read);
+    };
   }, []);
 
   // Đóng Sheet mobile khi đổi route.
