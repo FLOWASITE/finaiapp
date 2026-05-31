@@ -1,12 +1,5 @@
-import { Menu, MoreHorizontal, Calculator, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
+import { Menu, Calculator, Sparkles, SquarePen } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useChatMode, type ChatMode } from "@/hooks/use-chat-mode";
 import { useChatLayout } from "@/components/chat/chat-layout-context";
 import { cn } from "@/lib/utils";
