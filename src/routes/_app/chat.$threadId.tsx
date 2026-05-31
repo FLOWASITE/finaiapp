@@ -11,20 +11,13 @@ import { ChatSkeleton } from "@/components/chat/chat-skeleton";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { Button } from "@/components/ui/button";
 import { PendingActions } from "@/components/ai/PendingActions";
-import {
-  getThread,
-  appendMessage,
-  deleteLastAssistantMessage,
-} from "@/lib/chat-threads.functions";
+import { getThread, appendMessage, deleteLastAssistantMessage } from "@/lib/chat-threads.functions";
 import { askAccountingStream } from "@/lib/chat.functions";
 import { getChatMode } from "@/hooks/use-chat-mode";
 import type { ToolEvent } from "@/components/chat/tool-calls";
 
 import { toast } from "sonner";
-import {
-  takeAnyChatAttachmentHandoff,
-  takeChatAttachments,
-} from "@/lib/chat-attachment-handoff";
+import { takeAnyChatAttachmentHandoff, takeChatAttachments } from "@/lib/chat-attachment-handoff";
 import {
   awaitThreadCreation,
   getThreadCreationResult,
@@ -184,7 +177,6 @@ function ThreadPage() {
     await awaitThreadCreation(threadId);
     return threadId;
   };
-
 
   const messages: ChatMsg[] =
     localMsgs.length > 0
@@ -384,8 +376,7 @@ function ThreadPage() {
     if (!autostart) return;
     if (startedRef.current === threadId) return;
     // Đọc messages từ cache (đã prime) hoặc từ getThread.
-    const cached: any =
-      qc.getQueryData(["chat", "thread", threadId]) ?? query.data ?? null;
+    const cached: any = qc.getQueryData(["chat", "thread", threadId]) ?? query.data ?? null;
     const msgs = cached?.messages ?? [];
     if (msgs.length === 1 && msgs[0].role === "user") {
       startedRef.current = threadId;
@@ -397,17 +388,21 @@ function ThreadPage() {
         attachments: m.metadata?.attachments ?? undefined,
       }));
       const pendingAttachments =
-        takeChatAttachments(handoff, [`__attach:${threadId}`]) ??
-        takeAnyChatAttachmentHandoff();
+        takeChatAttachments(handoff, [`__attach:${threadId}`]) ?? takeAnyChatAttachmentHandoff();
       const declaredAttachments = (msgs[0] as any)?.metadata?.attachments as any[] | undefined;
-      const attachmentsForRun = pendingAttachments?.length ? pendingAttachments : declaredAttachments;
+      const attachmentsForRun = pendingAttachments?.length
+        ? pendingAttachments
+        : declaredAttachments;
       if (declaredAttachments?.length && !attachmentsForRun?.length) {
-        toast.error("Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.");
+        toast.error(
+          "Mất nội dung file đính kèm khi chuyển sang hội thoại. Vui lòng gửi lại file trong phòng chat này.",
+        );
         setLocalMsgs((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: "Tôi không nhận được nội dung file vì dữ liệu bị mất khi chuyển trang. Sếp đính kèm lại file ở đây giúp em nhé.",
+            content:
+              "Tôi không nhận được nội dung file vì dữ liệu bị mất khi chuyển trang. Sếp đính kèm lại file ở đây giúp em nhé.",
             created_at: new Date().toISOString(),
           },
         ]);
@@ -465,7 +460,10 @@ function ThreadPage() {
     const runnableAttachments = attachments?.filter(
       (a) => (typeof a.base64 === "string" && a.base64) || a.uploadId,
     );
-    runAssistant(next, runnableAttachments && runnableAttachments.length ? runnableAttachments : undefined);
+    runAssistant(
+      next,
+      runnableAttachments && runnableAttachments.length ? runnableAttachments : undefined,
+    );
   };
 
   const send = async () => {
@@ -480,21 +478,19 @@ function ThreadPage() {
     const summary = payloads.map((p) => `📎 ${p.name}`).join("\n");
     const fallback = `Xử lý ${payloads.length} chứng từ:\n${summary}`;
     // Truyền nguyên payloads (kèm base64) để runAssistant gửi file lên server parse.
-    void sendUserMessage(
-      note && note.trim() ? note.trim() : fallback,
-      payloads,
-    );
+    void sendUserMessage(note && note.trim() ? note.trim() : fallback, payloads);
   };
-
 
   useEffect(() => {
     const onDockSend = (e: Event) => {
-      const detail = (e as CustomEvent<{
-        threadId: string;
-        content: string;
-        attachments?: any[];
-        handoff?: string;
-      }>).detail;
+      const detail = (
+        e as CustomEvent<{
+          threadId: string;
+          content: string;
+          attachments?: any[];
+          handoff?: string;
+        }>
+      ).detail;
       if (!detail || detail.threadId !== threadId) return;
       const fullAttachments = takeChatAttachments(detail.handoff, [`__attach:${threadId}`]);
       void sendUserMessage(detail.content, fullAttachments ?? detail.attachments);
@@ -557,8 +553,7 @@ function ThreadPage() {
       runAssistant(next, undefined, { items: detail.items });
     };
     window.addEventListener("chat:run-bulk-plan", onRunBulk as EventListener);
-    return () =>
-      window.removeEventListener("chat:run-bulk-plan", onRunBulk as EventListener);
+    return () => window.removeEventListener("chat:run-bulk-plan", onRunBulk as EventListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, messages]);
 
@@ -568,7 +563,6 @@ function ThreadPage() {
       abortRef.current.abort();
     }
   };
-
 
   const regenerate = async () => {
     if (streaming) return;
@@ -657,7 +651,9 @@ function ThreadPage() {
       <div className="flex flex-1 items-center justify-center">
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
           <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" />
-          <p className="mb-3 text-sm">{(query.error as any)?.message || "Không tải được hội thoại"}</p>
+          <p className="mb-3 text-sm">
+            {(query.error as any)?.message || "Không tải được hội thoại"}
+          </p>
           <Button variant="outline" size="sm" onClick={() => query.refetch()}>
             Thử lại
           </Button>
@@ -670,7 +666,7 @@ function ThreadPage() {
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.96_0.03_220/0.6),transparent_70%)]">
       <ChatHeader title={query.data?.thread?.title ?? "Cuộc trò chuyện"} />
 
-      <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto">
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-auto pt-12 -mt-12">
         {query.isLoading && messages.length === 0 ? (
           <ChatSkeleton />
         ) : (
