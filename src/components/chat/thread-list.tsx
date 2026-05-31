@@ -247,7 +247,8 @@ export function ThreadList({ onNew, collapsed = false, onToggle, onItemClick }: 
         )}
       </div>
       {!collapsed && (
-      <div className="chat-scroll flex-1 overflow-auto px-2 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-sidebar-border/50 px-2 pt-1 pb-2">
         <div className="mb-2 px-2 pt-1">
           <div className="group relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sidebar-foreground/55 transition-colors group-focus-within:text-primary" />
