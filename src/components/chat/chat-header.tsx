@@ -29,7 +29,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border/40 bg-background/75 backdrop-blur-2xl backdrop-saturate-150">
+    <header className="sticky top-0 z-20 bg-background/35 backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-3 md:px-4">
         <button
           type="button"
@@ -76,6 +76,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/35 to-transparent" />
     </header>
   );
 }
