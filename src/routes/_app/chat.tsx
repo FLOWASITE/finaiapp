@@ -93,7 +93,7 @@ function ChatLayout() {
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent
             side="left"
-            className="w-[88vw] max-w-sm border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-screen max-w-none border-r-0 bg-sidebar p-0 text-sidebar-foreground sm:w-[88vw] sm:max-w-sm sm:border-r sm:border-sidebar-border [&>button]:hidden"
           >
             <ThreadList
               onNew={() => {

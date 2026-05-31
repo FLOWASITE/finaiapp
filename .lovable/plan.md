@@ -1,44 +1,28 @@
-## Vấn đề
+## Mục tiêu
+Ẩn hoàn toàn lớp sidebar/slide nền còn lộ phía sau SlideChat, đặc biệt trên mobile/tablet khi mở lịch sử chat.
 
-Khi vào `/chat`, UI đang render **2 sidebar song song**:
+## Kế hoạch sửa
+1. **Sửa điều kiện nhận diện route chat trong `src/routes/_app.tsx`**
+   - Đổi `onChatRoute = location.pathname.startsWith("/chat")` thành điều kiện chặt hơn: `pathname === "/chat" || pathname.startsWith("/chat/")`.
+   - Đảm bảo mọi route `/chat` và `/chat/:threadId` đều dùng layout tối giản, không render `AppSidebar`, không render header app, không render `ChatDock`.
 
+2. **Sửa layout SlideChat trong `src/routes/_app/chat.tsx`**
+   - Với mobile: khi Sheet lịch sử chat mở, đảm bảo chỉ có **Sheet** hiển thị, không còn “desktop ThreadList”/nền sidebar nào chen phía sau.
+   - Tăng tính cô lập lớp Sheet bằng width và z-index đúng, giữ nội dung chat không tạo thêm cột sidebar ẩn.
+
+3. **Sửa `ThreadList` nếu cần**
+   - Đảm bảo footer cố định nằm trong đúng sidebar chat.
+   - Không để phần collapsed/sidebar mini vẫn chiếm/hiện khi đang dùng Sheet mobile.
+
+4. **Kiểm tra lại bằng preview**
+   - Kiểm tra `/chat` ở viewport hiện tại khoảng `707x662`.
+   - Kiểm tra desktop rộng hơn để chắc chắn vẫn chỉ có một sidebar Fin Chat.
+
+## Kết quả mong đợi
 ```text
-┌──────────────┬──────────────┬────────────────────┐
-│ AppSidebar   │ ThreadList   │  Chat Outlet       │
-│ (Inbox, Mua, │ (Lịch sử     │                    │
-│  Bán, …)     │  Fin Chat)   │                    │
-└──────────────┴──────────────┴────────────────────┘
+Mobile / tablet khi mở lịch sử:
+[ Sheet SlideChat ] phủ lên nội dung chat, không lộ sidebar thứ 2 phía sau
+
+Desktop:
+[ ThreadList Fin Chat | Khung chat ] không có AppSidebar
 ```
-
-- `AppSidebar` đến từ `src/routes/_app.tsx` (layout chung của toàn app).
-- `ThreadList` đến từ `src/routes/_app/chat.tsx` (layout riêng của Fin Chat).
-
-Trên viewport hẹp (≤ ~900px) hai cột sidebar đè/chen nhau gây cảm giác "2 lớp chồng lên".
-
-## Giải pháp
-
-Khi đang ở bất kỳ route `/chat/*` nào → **không render `AppSidebar`** (và cụm header app cũng đã ẩn sẵn). Fin Chat tự quản sidebar riêng (ThreadList desktop + Sheet mobile) — đủ cho điều hướng trong phạm vi chat. Người dùng quay về app chính qua menu "Thoát Fin Chat" đã có trong footer ThreadList.
-
-### Thay đổi
-
-**`src/routes/_app.tsx`** — nhánh chính (không phải `chromeless`):
-
-- Khi `onChatRoute === true`: bỏ qua `SidebarProvider` + `AppSidebar` + `SidebarInset` wrapper, render thẳng `<Outlet />` trong một container full-screen flex (giống nhánh `chromeless` nhưng vẫn giữ `UploadQueueProvider`, `UploadDock`, `CommandPalette`, không render `ChatDock` — `showDock` vốn đã false trên chat route).
-- Khi không phải chat: giữ nguyên cấu trúc hiện tại (AppSidebar + header + Outlet).
-
-Sơ đồ sau khi sửa:
-
-```text
-/chat/*  →  [ ThreadList | Chat Outlet ]
-/khác    →  [ AppSidebar | Header + Outlet ]   (không đổi)
-```
-
-### Không đụng tới
-
-- `ThreadList`, `ChatLayout`, `ChatHeader`, `chat-layout-context` — giữ nguyên.
-- Logic auth `beforeLoad` — giữ nguyên.
-- Các route khác và `AppSidebar` — không đổi hành vi.
-
-### Kết quả mong đợi
-
-Vào `/chat` chỉ còn **đúng 1 sidebar** (ThreadList của Fin Chat) bên cạnh khung hội thoại. Không còn cảnh hai cột sidebar chồng nhau trên mobile/desktop hẹp.
