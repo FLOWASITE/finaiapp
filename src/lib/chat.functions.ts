@@ -41,7 +41,11 @@ const askInput = z.object({
   /** Bulk-run trigger: when present, server executes a previously-approved BulkPlan
    *  instead of going through the LLM. */
   bulkRun: z.object({ items: z.array(BulkRunItemSchema) }).optional(),
+  /** Conversation mode. "accounting" (default) enables tools + accounting context;
+   *  "ai" is a plain LLM chat without any internal tool registry. */
+  mode: z.enum(["accounting", "ai"]).optional(),
 });
+
 
 /** When ≥ this many files arrive in one message, switch to bulk intake mode. */
 const BULK_THRESHOLD = 3;
@@ -412,23 +416,31 @@ export const askAccountingStream = createServerFn({ method: "POST" })
     ].filter(Boolean);
 
 
+    const isAiMode = data.mode === "ai";
     const result = streamText({
       model,
       ...(temperature != null ? { temperature } : {}),
       ...(maxOutputTokens != null ? { maxOutputTokens } : {}),
-      tools: {
-        runQuery: makeRunQueryTool(supabase, userId),
-        proposeAction: makeProposeActionTool(supabase, userId),
-        renderChart: makeRenderChartTool(),
-      },
-      stopWhen: stepCountIs(50),
-      system: systemParts.join("\n\n"),
+      ...(isAiMode
+        ? {}
+        : {
+            tools: {
+              runQuery: makeRunQueryTool(supabase, userId),
+              proposeAction: makeProposeActionTool(supabase, userId),
+              renderChart: makeRenderChartTool(),
+            },
+            stopWhen: stepCountIs(50),
+          }),
+      system: isAiMode
+        ? "Bạn là Fin — trợ lý AI hội thoại đa năng. Trả lời tự nhiên, ngắn gọn, bằng tiếng Việt. Không truy vấn dữ liệu doanh nghiệp ở chế độ này."
+        : systemParts.join("\n\n"),
       messages: [
         ...((data.history ?? []).map((m) => ({ role: m.role, content: m.content }))),
         { role: "user" as const, content: data.question + attachmentBlock },
       ],
       abortSignal,
     });
+
 
     try {
       for await (const part of result.fullStream) {

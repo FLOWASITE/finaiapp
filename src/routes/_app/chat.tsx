@@ -57,9 +57,10 @@ function ChatLayout() {
         collapsed={collapsed}
         onToggle={toggle}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Outlet />
       </div>
     </div>
   );
 }
+
