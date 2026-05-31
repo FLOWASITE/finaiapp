@@ -89,11 +89,11 @@ function ChatLayout() {
           />
         </div>
 
-        {/* Mobile Sheet: luôn mount, chỉ mở khi user bấm ☰ */}
+        {/* Mobile Sheet: panel chỉ rộng bằng ThreadList để không lộ thêm lớp nền xanh bên phải. */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent
             side="left"
-            className="w-screen max-w-none border-r-0 bg-sidebar p-0 text-sidebar-foreground sm:w-[88vw] sm:max-w-sm sm:border-r sm:border-sidebar-border [&>button]:hidden"
+            className="w-64 max-w-[85vw] border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
           >
             <ThreadList
               onNew={() => {
