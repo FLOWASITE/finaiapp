@@ -22,7 +22,7 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
   };
 
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-background/12 backdrop-blur-md backdrop-saturate-150">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-background/5 backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex h-12 max-w-3xl items-center gap-2 px-3 md:px-4">
         <button
           type="button"
@@ -37,40 +37,18 @@ export function ChatHeader({ title, onToggleSidebar, onRename, onDelete }: Props
 
         <ModeToggle mode={mode} onChange={setMode} />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Tùy chọn"
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground shadow-[0_1px_2px_oklch(1_0_0/0.35)] hover:bg-background/35 hover:text-foreground"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => navigate({ to: "/chat" })}>
-              <Plus className="mr-2 h-4 w-4" /> Cuộc trò chuyện mới
-            </DropdownMenuItem>
-            {onRename && (
-              <DropdownMenuItem onClick={onRename}>
-                <Pencil className="mr-2 h-4 w-4" /> Đổi tên
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Xoá hội thoại
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/chat" })}
+          aria-label="Tạo đoạn chat mới"
+          title="Tạo đoạn chat mới"
+          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground shadow-[0_1px_2px_oklch(1_0_0/0.35)] hover:bg-background/35 hover:text-foreground"
+        >
+          <SquarePen className="h-4 w-4" />
+        </button>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/12 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-background/5 to-transparent" />
+
     </header>
   );
 }
