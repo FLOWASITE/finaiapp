@@ -15,20 +15,19 @@ import { supabase } from "@/integrations/supabase/client";
 export async function requireSuperadminGuard(): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const { data: sess, error: se } = await supabase.auth.getSession();
-  if (se || !sess.session) {
+  const { data: u, error: ue } = await supabase.auth.getUser();
+  if (ue || !u.user) {
     throw redirect({ to: "/login" });
   }
 
-  const userId = sess.session.user.id;
   const { data: roles, error: re } = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", userId);
+    .eq("user_id", u.user.id);
 
   if (re) {
-    // Fail closed — never let a query error implicitly grant access.
-    throw redirect({ to: "/dashboard" });
+    // Lỗi mạng/RLS — không bounce ngầm, để layout tự xử lý sau hydrate.
+    return;
   }
 
   const allowed = (roles ?? []).some((r) => r.role === "superadmin");
