@@ -11,22 +11,37 @@ export const Route = createFileRoute("/_app/superadmin")({
 
 function SuperadminLayout() {
   const navigate = useNavigate();
-  const [state, setState] = useState<"pending" | "allowed" | "denied">("pending");
+  const [state, setState] = useState<"pending" | "allowed" | "denied" | "error">("pending");
 
   useEffect(() => {
     let cancelled = false;
     const verify = async () => {
-      const ok = await checkSuperadminNow();
+      const result = await checkSuperadminNow();
       if (cancelled) return;
-      if (!ok) {
-        setState("denied");
-        navigate({ to: "/dashboard", replace: true });
-      } else {
+
+      if (result.status === "allowed") {
         setState("allowed");
+        return;
       }
+
+      if (result.status === "unauthenticated") {
+        setState("denied");
+        navigate({ to: "/login", replace: true });
+        return;
+      }
+
+      if (result.status === "error") {
+        setState("error");
+        return;
+      }
+
+      setState("denied");
+      navigate({ to: "/dashboard", replace: true });
     };
     verify();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => verify());
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => verify(), 0);
+    });
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
@@ -38,7 +53,11 @@ function SuperadminLayout() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        {state === "pending" ? "Đang xác thực quyền Super-admin…" : "Bạn không có quyền truy cập trang này."}
+        {state === "pending"
+          ? "Đang xác thực quyền Super-admin…"
+          : state === "error"
+            ? "Chưa đọc được quyền Super-admin. Vui lòng tải lại trang."
+            : "Bạn không có quyền truy cập trang này."}
       </div>
     );
   }
