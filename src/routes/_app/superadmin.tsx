@@ -32,7 +32,11 @@ function SuperadminLayout() {
         setAccess("allowed");
         return;
       }
-      setAccess(result.status === "error" ? "error" : "denied");
+      if (result.status === "error") {
+        setAccess("error");
+        return;
+      }
+      setAccess("denied");
       setRedirecting(true);
       navigate({ to: result.status === "unauthenticated" ? "/login" : "/dashboard", replace: true });
     });

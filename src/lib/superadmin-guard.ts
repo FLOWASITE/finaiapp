@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { withTimeoutReject } from "@/lib/auth-recovery";
 
 /**
  * Client-side route guard for /superadmin/*.
@@ -28,16 +29,25 @@ export async function checkSuperadminNow(): Promise<
   | { status: "forbidden" }
   | { status: "error"; message: string }
 > {
-  const { data: u, error: ue } = await supabase.auth.getUser();
-  if (ue || !u.user) return { status: "unauthenticated" };
+  try {
+    const { data: sessionData, error: sessionError } = await withTimeoutReject<
+      Awaited<ReturnType<typeof supabase.auth.getSession>>
+    >(supabase.auth.getSession(), 3_000);
+    const user = sessionData.session?.user;
+    if (sessionError || !sessionData.session?.access_token || !user) {
+      return { status: "unauthenticated" };
+    }
 
-  const { data: roles, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", u.user.id);
-  if (error) return { status: "error", message: error.message };
+    const { data: roles, error } = await withTimeoutReject<any>(
+      Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id)),
+      5_000,
+    );
+    if (error) return { status: "error", message: error.message };
 
-  return (roles ?? []).some((r) => r.role === "superadmin")
-    ? { status: "allowed" }
-    : { status: "forbidden" };
+    return (roles ?? []).some((r: any) => r.role === "superadmin")
+      ? { status: "allowed" }
+      : { status: "forbidden" };
+  } catch (error: any) {
+    return { status: "error", message: error?.message ?? "Không thể xác thực quyền Super Admin" };
+  }
 }
