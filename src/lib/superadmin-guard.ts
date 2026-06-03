@@ -29,22 +29,25 @@ export async function checkSuperadminNow(): Promise<
   | { status: "forbidden" }
   | { status: "error"; message: string }
 > {
-  const { data: sessionData, error: sessionError } = await withTimeoutReject(
-    supabase.auth.getSession(),
-    3_000,
-  );
-  const user = sessionData.session?.user;
-  if (sessionError || !sessionData.session?.access_token || !user) {
-    return { status: "unauthenticated" };
+  try {
+    const { data: sessionData, error: sessionError } = await withTimeoutReject<
+      Awaited<ReturnType<typeof supabase.auth.getSession>>
+    >(supabase.auth.getSession(), 3_000);
+    const user = sessionData.session?.user;
+    if (sessionError || !sessionData.session?.access_token || !user) {
+      return { status: "unauthenticated" };
+    }
+
+    const { data: roles, error } = await withTimeoutReject<any>(
+      Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id)),
+      5_000,
+    );
+    if (error) return { status: "error", message: error.message };
+
+    return (roles ?? []).some((r: any) => r.role === "superadmin")
+      ? { status: "allowed" }
+      : { status: "forbidden" };
+  } catch (error: any) {
+    return { status: "error", message: error?.message ?? "Không thể xác thực quyền Super Admin" };
   }
-
-  const { data: roles, error } = await withTimeoutReject(
-    supabase.from("user_roles").select("role").eq("user_id", user.id),
-    5_000,
-  );
-  if (error) return { status: "error", message: error.message };
-
-  return (roles ?? []).some((r) => r.role === "superadmin")
-    ? { status: "allowed" }
-    : { status: "forbidden" };
 }
