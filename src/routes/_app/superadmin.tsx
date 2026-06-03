@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldAlert, Loader2 } from "lucide-react";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
+import { checkSuperadminNow, requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const Route = createFileRoute("/_app/superadmin")({
@@ -11,31 +11,42 @@ export const Route = createFileRoute("/_app/superadmin")({
 
 function SuperadminLayout() {
   const navigate = useNavigate();
-  const { data: currentUser, isLoading, isFetching, isError } = useCurrentUser();
+  const { data: currentUser } = useCurrentUser();
+  const [access, setAccess] = useState<"checking" | "allowed" | "denied" | "error">("checking");
   const [redirecting, setRedirecting] = useState(false);
-  const hasSuperadminAccess = currentUser?.isSuperadmin === true;
-  const isCheckingAccess = !currentUser && (isLoading || isFetching);
 
   useEffect(() => {
-    if (hasSuperadminAccess || isCheckingAccess || redirecting || isError) return;
+    let active = true;
 
-    if (!currentUser?.userId) {
-      setRedirecting(true);
-      navigate({ to: "/login", replace: true });
-      return;
+    if (currentUser?.isSuperadmin) {
+      setAccess("allowed");
+      return () => {
+        active = false;
+      };
     }
 
-    if (!currentUser.isSuperadmin) {
+    setAccess("checking");
+    checkSuperadminNow().then((result) => {
+      if (!active) return;
+      if (result.status === "allowed") {
+        setAccess("allowed");
+        return;
+      }
+      setAccess(result.status === "error" ? "error" : "denied");
       setRedirecting(true);
-      navigate({ to: "/dashboard", replace: true });
-    }
-  }, [currentUser, hasSuperadminAccess, isCheckingAccess, isError, navigate, redirecting]);
+      navigate({ to: result.status === "unauthenticated" ? "/login" : "/dashboard", replace: true });
+    });
 
-  if (!hasSuperadminAccess) {
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.isSuperadmin, navigate]);
+
+  if (access !== "allowed") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        {isError
+        {access === "error"
           ? "Chưa đọc được quyền Super Admin. Vui lòng tải lại trang."
           : "Đang xác thực quyền Super Admin…"}
       </div>
