@@ -1,8 +1,8 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldAlert, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { requireSuperadminGuard, checkSuperadminNow } from "@/lib/superadmin-guard";
+import { requireSuperadminGuard } from "@/lib/superadmin-guard";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const Route = createFileRoute("/_app/superadmin")({
   beforeLoad: requireSuperadminGuard,
@@ -11,53 +11,31 @@ export const Route = createFileRoute("/_app/superadmin")({
 
 function SuperadminLayout() {
   const navigate = useNavigate();
-  const [state, setState] = useState<"pending" | "allowed" | "denied" | "error">("pending");
+  const { data: currentUser, isLoading, isFetching, isError } = useCurrentUser();
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    const verify = async () => {
-      const result = await checkSuperadminNow();
-      if (cancelled) return;
+    if (isLoading || isFetching || redirecting || isError) return;
 
-      if (result.status === "allowed") {
-        setState("allowed");
-        return;
-      }
+    if (!currentUser?.userId) {
+      setRedirecting(true);
+      navigate({ to: "/login", replace: true });
+      return;
+    }
 
-      if (result.status === "unauthenticated") {
-        setState("denied");
-        navigate({ to: "/login", replace: true });
-        return;
-      }
-
-      if (result.status === "error") {
-        setState("error");
-        return;
-      }
-
-      setState("denied");
+    if (!currentUser.isSuperadmin) {
+      setRedirecting(true);
       navigate({ to: "/dashboard", replace: true });
-    };
-    verify();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      window.setTimeout(() => verify(), 0);
-    });
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    }
+  }, [currentUser, isError, isFetching, isLoading, navigate, redirecting]);
 
-  if (state !== "allowed") {
+  if (isLoading || isFetching || isError || !currentUser?.isSuperadmin) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        {state === "pending"
-          ? "Đang xác thực quyền Super-admin…"
-          : state === "error"
-            ? "Chưa đọc được quyền Super-admin. Vui lòng tải lại trang."
-            : "Bạn không có quyền truy cập trang này."}
+        {isError
+          ? "Chưa đọc được quyền Super Admin. Vui lòng tải lại trang."
+          : "Đang xác thực quyền Super Admin…"}
       </div>
     );
   }
