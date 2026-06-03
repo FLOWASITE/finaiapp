@@ -13,9 +13,11 @@ function SuperadminLayout() {
   const navigate = useNavigate();
   const { data: currentUser, isLoading, isFetching, isError } = useCurrentUser();
   const [redirecting, setRedirecting] = useState(false);
+  const hasSuperadminAccess = currentUser?.isSuperadmin === true;
+  const isCheckingAccess = !currentUser && (isLoading || isFetching);
 
   useEffect(() => {
-    if (isLoading || isFetching || redirecting || isError) return;
+    if (hasSuperadminAccess || isCheckingAccess || redirecting || isError) return;
 
     if (!currentUser?.userId) {
       setRedirecting(true);
@@ -27,9 +29,9 @@ function SuperadminLayout() {
       setRedirecting(true);
       navigate({ to: "/dashboard", replace: true });
     }
-  }, [currentUser, isError, isFetching, isLoading, navigate, redirecting]);
+  }, [currentUser, hasSuperadminAccess, isCheckingAccess, isError, navigate, redirecting]);
 
-  if (isLoading || isFetching || isError || !currentUser?.isSuperadmin) {
+  if (!hasSuperadminAccess && (isCheckingAccess || isError || redirecting || !currentUser)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
