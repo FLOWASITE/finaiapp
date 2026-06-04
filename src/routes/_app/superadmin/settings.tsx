@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { getSystemSettings, updateSystemSettings } from "@/lib/superadmin-extra.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/_app/superadmin/settings")({
-  beforeLoad: requireSuperadminGuard,
   component: SettingsPage,
 });
 

@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { listAllTenants } from "@/lib/superadmin.functions";
 import {
   createTenantBackup, listBackups, signBackupUrl, deleteBackup,
@@ -15,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, Trash2, RefreshCw, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/superadmin/backups")({
-  beforeLoad: requireSuperadminGuard,
   component: BackupsPage,
 });
 

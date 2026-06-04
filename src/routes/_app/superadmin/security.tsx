@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import {
   getSecurityPolicies, updateSecurityPolicies,
   listIpAllowlist, upsertIpAllowlist, deleteIpAllowlist,
@@ -21,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Plus, Shield, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/superadmin/security")({
-  beforeLoad: requireSuperadminGuard,
   component: SecurityPage,
 });
 

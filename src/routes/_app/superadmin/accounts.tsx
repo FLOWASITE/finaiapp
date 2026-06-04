@@ -24,14 +24,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MoreHorizontal, KeyRound, Lock, Unlock, Trash2, ShieldPlus, ArrowUpDown, Download, ShieldCheck, ChevronRight } from "lucide-react";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { TablePagination } from "@/components/table-pagination";
 import { AccountFilters, EMPTY_FILTERS, type AccountFiltersValue } from "@/components/superadmin/account-filters";
 import { BulkActionBar } from "@/components/superadmin/bulk-action-bar";
 import { InviteAccountDialog } from "@/components/superadmin/invite-account-dialog";
 
 export const Route = createFileRoute("/_app/superadmin/accounts")({
-  beforeLoad: requireSuperadminGuard,
   component: AccountsPage,
 });
 

@@ -25,12 +25,10 @@ import {
   Building2, ArrowUpDown, Users, FileText, Activity, ShieldCheck, ShieldOff,
   MoreHorizontal, Download, ChevronRight, BadgeCheck,
 } from "lucide-react";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { downloadCsv } from "@/lib/csv-export";
 import { TablePagination } from "@/components/table-pagination";
 
 export const Route = createFileRoute("/_app/superadmin/organizations")({
-  beforeLoad: requireSuperadminGuard,
   component: OrgsPage,
 });
 
