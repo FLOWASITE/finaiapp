@@ -1,8 +1,29 @@
+import { redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { withTimeoutReject } from "@/lib/auth-recovery";
 
 export async function requireSuperadminGuard(): Promise<void> {
-  return;
+  if (typeof window === "undefined") return;
+
+  const result = await checkSuperadminNow();
+  if (result.status === "allowed") return;
+
+  if (result.status === "unauthenticated") {
+    throw redirect({
+      to: "/login",
+      search: { redirect: `${window.location.pathname}${window.location.search}` },
+    });
+  }
+
+  if (result.status === "forbidden") {
+    throw new Error(
+      `Tài khoản ${result.email ?? "này"} không có quyền Super Admin. Roles hiện có: ${
+        result.roles.length ? result.roles.join(", ") : "rỗng"
+      }. ${result.reason}`,
+    );
+  }
+
+  throw new Error(`Không xác thực được quyền Super Admin (${result.code}): ${result.message}`);
 }
 
 export type SuperadminCheckResult =
