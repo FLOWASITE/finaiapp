@@ -34,10 +34,8 @@ import {
   ArrowLeft, Building2, Save, ShieldOff, ShieldCheck, UserPlus, Trash2,
   Crown, AlertTriangle, Lock, Unlock, UserCog, ExternalLink, Mail, X as XIcon, Clock, Archive, History,
 } from "lucide-react";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/tenant/$id")({
-  beforeLoad: requireSuperadminGuard,
   component: TenantDetailPage,
 });
 

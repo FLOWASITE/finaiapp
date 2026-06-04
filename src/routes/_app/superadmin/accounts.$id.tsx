@@ -12,7 +12,6 @@ import {
   listOrganizations,
 } from "@/lib/superadmin.functions";
 import { impersonateUser, transferTenantOwnership } from "@/lib/superadmin-tenants.functions";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_app/superadmin/accounts/$id")({
-  beforeLoad: requireSuperadminGuard,
   component: AccountDetailPage,
 });
 

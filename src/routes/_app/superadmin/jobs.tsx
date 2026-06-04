@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { listJobRuns, runSystemJob } from "@/lib/superadmin-extra.functions";
 import { listAllTenants } from "@/lib/superadmin.functions";
 import { Card } from "@/components/ui/card";
@@ -13,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Play, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_app/superadmin/jobs")({
-  beforeLoad: requireSuperadminGuard,
   component: JobsPage,
 });
 

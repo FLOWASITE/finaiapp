@@ -3,10 +3,8 @@ import { Sparkles, Cpu } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AiAgentsPanel } from "@/components/ai-agents-panel";
 import { AiProvidersPanel } from "@/components/ai-providers-panel";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/ai-model")({
-  beforeLoad: requireSuperadminGuard,
   validateSearch: (s: Record<string, unknown>) => ({
     tab: (s.tab === "agents" ? "agents" : "providers") as "providers" | "agents",
   }),

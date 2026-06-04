@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { listImpersonationHistory } from "@/lib/superadmin-tenants.functions";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { UserCog, Building2, RefreshCw, ChevronLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_app/superadmin/impersonations")({
-  beforeLoad: requireSuperadminGuard,
   component: ImpersonationsPage,
 });
 

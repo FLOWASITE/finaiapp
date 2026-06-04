@@ -7,10 +7,8 @@ import { listAllTenants } from "@/lib/superadmin.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin/")({
-  beforeLoad: requireSuperadminGuard,
   component: TenantsPage,
 });
 

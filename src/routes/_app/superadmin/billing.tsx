@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 import {
   listTenantBilling, updateTenantPlan, setTenantSuspended,
 } from "@/lib/superadmin-extra.functions";
@@ -19,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pencil, Lock, Unlock } from "lucide-react";
 
 export const Route = createFileRoute("/_app/superadmin/billing")({
-  beforeLoad: requireSuperadminGuard,
   component: BillingPage,
 });
 

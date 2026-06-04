@@ -1,9 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
-import { requireSuperadminGuard } from "@/lib/superadmin-guard";
 
 export const Route = createFileRoute("/_app/superadmin")({
-  beforeLoad: requireSuperadminGuard,
   component: SuperadminLayout,
 });
 
