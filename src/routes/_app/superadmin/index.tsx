@@ -50,7 +50,7 @@ function TenantsPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={8} className="px-3 py-4 text-muted-foreground">Đang tải…</td></tr>
+              <tr><td colSpan={8} className="px-3 py-4 text-muted-foreground">Đang tải danh sách tenant…</td></tr>
             )}
             {!isLoading && !tenants.length && (
               <tr><td colSpan={8} className="px-3 py-4 text-muted-foreground">Không có tenant.</td></tr>

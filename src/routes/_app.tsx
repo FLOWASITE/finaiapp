@@ -80,8 +80,12 @@ function AppLayout() {
                 <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/5 bg-background/70 px-3 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
                   <SidebarTrigger className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" />
                   <Separator orientation="vertical" className="h-6 bg-white/10" />
-                  <TenantSwitcher />
-                  <Separator orientation="vertical" className="h-6 hidden md:block bg-white/10" />
+                  {!onSuperAdminRoute ? (
+                    <>
+                      <TenantSwitcher />
+                      <Separator orientation="vertical" className="h-6 hidden md:block bg-white/10" />
+                    </>
+                  ) : null}
                   <AppHeader />
                 </div>
               </header>
