@@ -81,7 +81,7 @@ function ImpersonationsPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={7} className="px-3 py-4 text-muted-foreground">Đang tải…</td></tr>
+              <tr><td colSpan={7} className="px-3 py-4 text-muted-foreground">Đang tải lịch sử impersonation…</td></tr>
             )}
             {!isLoading && !items.length && (
               <tr><td colSpan={7} className="px-3 py-4 text-muted-foreground">Chưa có lần impersonate nào.</td></tr>

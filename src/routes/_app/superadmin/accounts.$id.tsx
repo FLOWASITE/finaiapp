@@ -88,7 +88,7 @@ function AccountDetailPage() {
      .catch((e: any) => toast.error(e.message ?? "Thất bại"));
 
   if (isLoading || !data) {
-    return <p className="p-6 text-sm text-muted-foreground">Đang tải…</p>;
+    return <p className="p-6 text-sm text-muted-foreground">Đang tải hồ sơ tài khoản…</p>;
   }
 
   const d: any = data;

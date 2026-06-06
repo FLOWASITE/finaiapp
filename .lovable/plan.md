@@ -1,25 +1,24 @@
-## Kết luận kiểm tra
+Mình kiểm tra kỹ rồi: hiện tại không còn guard route `requireSuperadminGuard`, nhưng trang `/superadmin` vẫn gọi `listAllTenants()` ngay khi mở trang. Server function này vẫn chạy `assertSuperadmin()` trước khi trả dữ liệu, nên UI bị giữ ở trạng thái tải danh sách và người dùng vẫn cảm giác app đang “xác thực quyền”.
 
-Code hiện tại không còn chuỗi `Đang xác thực quyền Super Admin` và không còn `requireSuperadminGuard` trong route Super Admin. Preview `/superadmin` đang render được trang Super Admin, nhưng vẫn còn các trạng thái `Đang tải…` ở:
+Kế hoạch sửa:
 
-- Nút chọn tổ chức trên header (`TenantSwitcher`).
-- Bảng danh sách tenant của trang Super Admin (`TenantsPage`).
-- Console có lỗi router preload: `Cannot read properties of undefined (reading '_nonReactive')`, có thể làm navigation/preload bị kẹt hoặc hiển thị loading sai.
+1. Bỏ xác thực Super Admin tự động khi mở trang tổng quan
+- Không gọi `listAllTenants()` ở màn `/superadmin` nữa.
+- Trang tổng quan sẽ render ngay, không có loading table kiểu “Đang tải danh sách tenant…”.
+- Giữ đúng yêu cầu: chỉ ai có menu Super Admin thì vào được từ Profile/menu; không thêm màn chờ xác thực quyền.
 
-## Plan sửa dứt điểm
+2. Chuyển dữ liệu danh sách tenant sang trang Tổ chức
+- `/superadmin/organizations` mới là nơi cần tải danh sách tenant thật.
+- Trang tổng quan `/superadmin` chỉ hiển thị các lối tắt/quản trị nhanh hoặc trạng thái rỗng, không block bằng quyền.
 
-1. **Ẩn TenantSwitcher khi ở Super Admin**
-   - Trong layout app, không render `TenantSwitcher` trên route `/superadmin`.
-   - Super Admin là quản trị toàn hệ thống, không cần chọn tenant hiện tại; việc này loại bỏ nút `Đang tải…` trên header mà user đang thấy như “đang xác thực”.
+3. Loại các loading/permission text gây hiểu nhầm trong Super Admin
+- Thay mọi `Đang tải…` chung chung trong các route Super Admin bằng skeleton hoặc text nghiệp vụ cụ thể.
+- Không dùng lại câu “Đang xác thực quyền Super Admin”.
 
-2. **Đổi loading bảng Super Admin thành nội dung trung tính**
-   - Trang `/superadmin` vẫn cần gọi backend để lấy danh sách tenant.
-   - Đổi text trong bảng từ `Đang tải…` sang trạng thái rõ nghĩa như `Đang tải danh sách tenant…`, không dùng từ “xác thực/quyền”.
+4. Kiểm tra lại quyền hiển thị menu Profile/Sidebar
+- `useCurrentUser()` vẫn chỉ dùng để quyết định có hiện mục `Super Admin` hay không.
+- Không dùng hook này để chặn/render màn xác thực khi đã ở trong Super Admin.
 
-3. **Sửa route index redirect dùng navigation của TanStack**
-   - `src/routes/index.tsx` đang dùng `window.location.replace` trong fallback.
-   - Đổi fallback sang `useNavigate` để tránh router state/preload bị lệch, liên quan lỗi `_nonReactive`.
-
-4. **Kiểm tra lại sau sửa**
-   - Search toàn repo xác nhận không có `Đang xác thực quyền Super Admin` / `requireSuperadminGuard`.
-   - Mở `/superadmin` trên preview xác nhận không còn nút header `Đang tải…` và page render thẳng layout Super Admin.
+5. Xác minh sau sửa
+- Search toàn repo đảm bảo không còn text `Đang xác thực quyền Super Admin` và không còn route guard cũ.
+- Mở `/superadmin` trên preview, xác nhận trang render ngay và không còn trạng thái đang xác thực/tải quyền.

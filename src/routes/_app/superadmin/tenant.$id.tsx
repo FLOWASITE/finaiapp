@@ -54,7 +54,7 @@ function TenantDetailPage() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["superadmin-tenant-admin", id] });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Đang tải…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground">Đang tải hồ sơ tenant…</p>;
   if (!data?.tenant) return <p className="text-sm">Không tìm thấy tenant.</p>;
 
   const t = data.tenant as any;
@@ -586,7 +586,7 @@ function AuditTab({ tenantId, fallback }: { tenantId: string; fallback: any[] })
     <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Nhật ký hoạt động ({items.length})</h3>
-        {(isLoading || isFetching) && <span className="text-xs text-muted-foreground">Đang tải…</span>}
+        {(isLoading || isFetching) && <span className="text-xs text-muted-foreground">Đang cập nhật nhật ký…</span>}
       </div>
       {!items.length && <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>}
       <ul className="space-y-1 text-xs max-h-[640px] overflow-auto">
