@@ -373,7 +373,7 @@ function AuditPage() {
             {isLoading && (
               <tr>
                 <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                  Đang tải…
+                  Đang tải nhật ký hoạt động…
                 </td>
               </tr>
             )}
