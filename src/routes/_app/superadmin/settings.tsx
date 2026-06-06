@@ -24,7 +24,7 @@ function SettingsPage() {
 
   useEffect(() => { if (data) setValue(data.value ?? {}); }, [data]);
 
-  if (!value) return <div className="text-sm text-muted-foreground">Đang tải…</div>;
+  if (!value) return <div className="text-sm text-muted-foreground">Đang tải cài đặt hệ thống…</div>;
 
   const setPath = (path: string[], v: any) => {
     setValue((prev: any) => {
