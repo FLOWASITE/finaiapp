@@ -336,7 +336,7 @@ function OrgsPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={10} className="px-3 py-4 text-muted-foreground">Đang tải…</td></tr>
+              <tr><td colSpan={10} className="px-3 py-4 text-muted-foreground">Đang tải dữ liệu tổ chức…</td></tr>
             )}
             {!isLoading && !tenants.length && (
               <tr><td colSpan={10} className="px-3 py-4 text-muted-foreground">Không có tenant phù hợp.</td></tr>
