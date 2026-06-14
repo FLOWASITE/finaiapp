@@ -113,7 +113,7 @@ function ChatIndex() {
               : "Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động."}
           </p>
 
-          <div className="mb-4 grid w-full grid-cols-1 gap-2 md:mb-6 md:grid-cols-2 md:gap-2.5">
+          <div className="mb-3 grid w-full grid-cols-1 gap-1.5 md:mb-4 md:grid-cols-2 md:gap-2">
             {SUGGESTIONS.map((s) => {
               const Icon = s.icon;
               const tone = TONE_STYLES[s.tone];
