@@ -123,24 +123,24 @@ function ChatIndex() {
                   onClick={() => start(s.text)}
                   disabled={loading}
                   className={cn(
-                    "group flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white/60 p-2.5 text-left backdrop-blur-sm transition-colors duration-200 disabled:opacity-50 md:p-3",
+                    "group flex items-start gap-2 rounded-lg border border-slate-200 bg-white/60 p-2 text-left backdrop-blur-sm transition-colors duration-200 disabled:opacity-50 md:p-2.5",
                     tone.cardHover,
                   )}
                 >
                   <span
                     className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors md:h-9 md:w-9",
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors md:h-8 md:w-8",
                       tone.bucket,
                       tone.bucketHover,
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3.5 w-3.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-slate-900 md:text-sm">
+                    <span className="block text-xs font-semibold text-slate-900 md:text-[13px]">
                       {s.label}
                     </span>
-                    <span className="block text-xs leading-snug text-slate-500 break-words [overflow-wrap:anywhere] line-clamp-1">
+                    <span className="block text-[11px] leading-tight text-slate-500 break-words [overflow-wrap:anywhere] line-clamp-1">
                       {s.text}
                     </span>
                   </span>
