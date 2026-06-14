@@ -58,7 +58,7 @@ function ModeToggle({ mode, onChange }: { mode: ChatMode; onChange: (m: ChatMode
     <div
       role="tablist"
       aria-label="Chế độ trò chuyện"
-      className="flex h-8 items-center rounded-full border border-border/70 bg-muted/40 p-0.5 text-xs"
+      className="pointer-events-auto flex h-8 items-center rounded-full border border-border/70 bg-muted/40 p-0.5 text-xs"
     >
       <ModeBtn
         active={mode === "accounting"}
