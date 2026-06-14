@@ -7,10 +7,9 @@ import {
   Users,
   FileCheck,
   Receipt,
-  Sparkles,
   Mail,
-  Languages,
   BookOpen,
+  Calculator,
 } from "lucide-react";
 import { FinMascot } from "@/components/fin-mascot";
 
@@ -28,29 +27,29 @@ export const Route = createFileRoute("/_app/chat/")({
 type Tone = "teal" | "blue";
 
 const ACCOUNTING_SUGGESTIONS: Array<{ icon: any; label: string; text: string; tone: Tone }> = [
-  { icon: Database, label: "Tổng chi phí", text: "Tháng này tổng chi phí là bao nhiêu?", tone: "teal" },
-  { icon: Users, label: "Top nhà cung cấp", text: "Liệt kê 5 nhà cung cấp chi nhiều nhất năm nay", tone: "blue" },
-  { icon: FileCheck, label: "Hoá đơn chờ duyệt", text: "Còn bao nhiêu hóa đơn chưa duyệt?", tone: "blue" },
-  { icon: Receipt, label: "Công nợ phải trả", text: "Công nợ phải trả (TK 331) hiện tại?", tone: "teal" },
+  { icon: Database, label: "Chi phí tháng", text: "Tổng chi phí tháng này là bao nhiêu?", tone: "teal" },
+  { icon: Users, label: "Top NCC", text: "Top 5 nhà cung cấp chi nhiều nhất năm nay", tone: "blue" },
+  { icon: FileCheck, label: "Hoá đơn chờ duyệt", text: "Còn bao nhiêu hoá đơn đầu vào chưa duyệt?", tone: "blue" },
+  { icon: Receipt, label: "Công nợ phải trả", text: "Số dư TK 331 theo nhà cung cấp", tone: "teal" },
 ];
 
 const AI_SUGGESTIONS: Array<{ icon: any; label: string; text: string; tone: Tone }> = [
-  { icon: Sparkles, label: "Soạn nội dung", text: "Soạn giúp tôi một email báo giá lịch sự cho khách hàng mới", tone: "blue" },
-  { icon: BookOpen, label: "Giải thích", text: "Giải thích ngắn gọn Nghị định 123/2020 về hóa đơn điện tử", tone: "teal" },
-  { icon: Mail, label: "Tóm tắt văn bản", text: "Tóm tắt giúp tôi đoạn văn bản sau thành 3 ý chính: …", tone: "teal" },
-  { icon: Languages, label: "Dịch thuật", text: "Dịch sang tiếng Anh: 'Trân trọng cảm ơn quý đối tác đã hợp tác.'", tone: "blue" },
+  { icon: BookOpen, label: "Tra cứu chính sách", text: "Giải thích ngắn gọn Nghị định 123/2020 về hoá đơn điện tử", tone: "teal" },
+  { icon: Calculator, label: "Định khoản", text: "Mua văn phòng phẩm 2.000.000đ trả tiền mặt thì hạch toán thế nào?", tone: "blue" },
+  { icon: Mail, label: "Soạn công văn", text: "Soạn email nhắc công nợ quá hạn cho khách hàng, giọng lịch sự", tone: "blue" },
+  { icon: FileCheck, label: "Kiểm tra hoá đơn", text: "Checklist kiểm tra tính hợp lệ của hoá đơn GTGT đầu vào", tone: "teal" },
 ];
 
 const TONE_STYLES: Record<Tone, { bucket: string; bucketHover: string; cardHover: string }> = {
   teal: {
     bucket: "bg-teal-50 text-teal-600",
     bucketHover: "group-hover:bg-teal-500 group-hover:text-white",
-    cardHover: "hover:border-teal-400 hover:shadow-xl hover:shadow-teal-400/10",
+    cardHover: "hover:border-teal-400",
   },
   blue: {
     bucket: "bg-blue-50 text-blue-600",
     bucketHover: "group-hover:bg-blue-500 group-hover:text-white",
-    cardHover: "hover:border-blue-400 hover:shadow-xl hover:shadow-blue-400/10",
+    cardHover: "hover:border-blue-400",
   },
 };
 
@@ -89,14 +88,14 @@ function ChatIndex() {
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <ChatHeader title="Fin" />
 
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-4 md:px-6 md:py-10">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-4 md:px-6 md:py-8">
         <div className="mx-auto w-full max-w-3xl text-center">
-          <div className="mb-4 flex justify-center md:mb-6">
+          <div className="mb-3 flex justify-center md:mb-4">
             <span className="md:hidden">
               <FinMascot size="xl" mood="happy" />
             </span>
             <span className="hidden md:inline-flex">
-              <FinMascot size="2xl" mood="happy" />
+              <FinMascot size="xl" mood="happy" />
             </span>
           </div>
 
@@ -108,13 +107,13 @@ function ChatIndex() {
             )}
           </p>
 
-          <p className="mx-auto mb-6 hidden max-w-lg text-base leading-relaxed text-slate-500 md:mb-10 md:block">
+          <p className="mx-auto mb-4 hidden max-w-lg text-sm leading-relaxed text-slate-500 md:mb-6 md:block">
             {isAi
               ? "Chế độ AI — trò chuyện tự do với mô hình ngôn ngữ, không truy cập dữ liệu doanh nghiệp."
               : "Hỏi tự nhiên về dữ liệu kế toán của bạn — câu trả lời được stream theo thời gian thực, kèm biểu đồ và đề xuất hành động."}
           </p>
 
-          <div className="mb-6 grid w-full grid-cols-1 gap-2 md:mb-10 md:grid-cols-2 md:gap-4">
+          <div className="mb-4 grid w-full grid-cols-1 gap-2 md:mb-6 md:grid-cols-2 md:gap-2.5">
             {SUGGESTIONS.map((s) => {
               const Icon = s.icon;
               const tone = TONE_STYLES[s.tone];
@@ -124,24 +123,24 @@ function ChatIndex() {
                   onClick={() => start(s.text)}
                   disabled={loading}
                   className={cn(
-                    "group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/60 p-3 text-left backdrop-blur-sm transition-all duration-300 disabled:opacity-50 md:p-5",
+                    "group flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white/60 p-2.5 text-left backdrop-blur-sm transition-colors duration-200 disabled:opacity-50 md:p-3",
                     tone.cardHover,
                   )}
                 >
                   <span
                     className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors md:h-11 md:w-11",
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors md:h-9 md:w-9",
                       tone.bucket,
                       tone.bucketHover,
                     )}
                   >
-                    <Icon className="h-4 w-4 md:h-5 md:w-5" />
+                    <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="mb-0.5 block text-sm font-semibold text-slate-900 md:mb-1 md:text-base">
+                    <span className="block text-[13px] font-semibold text-slate-900 md:text-sm">
                       {s.label}
                     </span>
-                    <span className="block text-xs leading-snug text-slate-500 break-words [overflow-wrap:anywhere] line-clamp-1 md:line-clamp-none md:text-sm">
+                    <span className="block text-xs leading-snug text-slate-500 break-words [overflow-wrap:anywhere] line-clamp-1">
                       {s.text}
                     </span>
                   </span>
@@ -149,10 +148,6 @@ function ChatIndex() {
               );
             })}
           </div>
-
-          <p className="hidden text-xs font-medium uppercase tracking-widest text-slate-400 md:block">
-            Hoặc nhập câu hỏi bên dưới để bắt đầu
-          </p>
         </div>
       </div>
       <div className="relative px-4 pb-6 pt-4">
