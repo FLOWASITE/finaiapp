@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
 import { Search, X, PackagePlus, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { listProducts } from "@/lib/inventory.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { cn } from "@/lib/utils";
+import { CreateItemDialog } from "@/components/catalog/CreateItemDialog";
 
 type Mode = "purchase" | "sales";
 
