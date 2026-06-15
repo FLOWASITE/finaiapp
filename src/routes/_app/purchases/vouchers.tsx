@@ -47,6 +47,7 @@ import { DateRangeFilter } from "@/components/date-range-filter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PartyForm } from "@/components/party-form";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -928,6 +929,7 @@ function CreateVoucherDialog({
   });
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
+  const [openNewSupplier, setOpenNewSupplier] = useState(false);
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers-list"],
@@ -1359,27 +1361,39 @@ function CreateVoucherDialog({
                     Đang tải danh sách NCC…
                   </div>
                 ) : (
-                  <Select value={header.supplier_id || "none"}
-                    onValueChange={(v) => {
-                      const s = (suppliers ?? []).find((x: any) => x.id === v);
-                      const groupId = (s as any)?.group_id ?? null;
-                      const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
-                      setHeader({
-                        ...header,
-                        supplier_id: v === "none" ? "" : v,
-                        supplier_name: s?.name ?? "",
-                        supplier_address: s?.address ?? "",
-                        customer_group: groupName || header.customer_group,
-                      });
-                    }}>
-                    <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Không chọn —</SelectItem>
-                      {(suppliers ?? []).map((s: any) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-1.5">
+                    <Select value={header.supplier_id || "none"}
+                      onValueChange={(v) => {
+                        const s = (suppliers ?? []).find((x: any) => x.id === v);
+                        const groupId = (s as any)?.group_id ?? null;
+                        const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+                        setHeader({
+                          ...header,
+                          supplier_id: v === "none" ? "" : v,
+                          supplier_name: s?.name ?? "",
+                          supplier_address: s?.address ?? "",
+                          customer_group: groupName || header.customer_group,
+                        });
+                      }}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Không chọn —</SelectItem>
+                        {(suppliers ?? []).map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      title="Tạo nhà cung cấp mới"
+                      onClick={() => setOpenNewSupplier(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
               <div className="lg:col-span-2">
@@ -1877,6 +1891,39 @@ function CreateVoucherDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={openNewSupplier} onOpenChange={setOpenNewSupplier}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tạo nhà cung cấp mới</DialogTitle>
+          </DialogHeader>
+          <PartyForm
+            mode="supplier"
+            compact
+            onDone={async (id?: string) => {
+              setOpenNewSupplier(false);
+              await qc.invalidateQueries({ queryKey: ["suppliers-list"] });
+              const fresh = await qc.fetchQuery({
+                queryKey: ["suppliers-list"],
+                queryFn: () => suppliersFn(),
+              });
+              const s = (fresh as any[] | undefined)?.find((x) => x.id === id);
+              if (s) {
+                const groupId = (s as any).group_id ?? null;
+                const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+                setHeader((h) => ({
+                  ...h,
+                  supplier_id: s.id,
+                  supplier_name: s.name ?? "",
+                  supplier_address: s.address ?? "",
+                  customer_group: groupName || h.customer_group,
+                }));
+              }
+              toast.success("Đã tạo nhà cung cấp");
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
