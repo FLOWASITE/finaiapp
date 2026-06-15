@@ -349,7 +349,7 @@ export function ItemCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[880px] p-0 border border-border bg-card flex flex-col max-h-[90vh] overflow-hidden rounded-xl text-foreground">
+      <DialogContent className="max-w-[880px] w-[calc(100%-1rem)] p-0 border border-border bg-card flex flex-col max-h-[90dvh] overflow-hidden rounded-xl text-foreground">
         <DialogHeader className="px-8 py-5 border-b border-border">
           <DialogTitle className="text-xl font-semibold text-foreground">
             Tạo mặt hàng / dịch vụ mới
