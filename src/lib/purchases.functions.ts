@@ -104,16 +104,23 @@ export const upsertSupplier = createServerFn({ method: "POST" })
       }
       return { id };
     }
-    const { data: row, error } = await supabase
-      .from("suppliers")
-      .insert({ ...rest, user_id: userId, tenant_id })
-      .select("id")
-      .single();
-    if (error) {
-      if (error.code === "23505") throw new Error("Mã NCC đã tồn tại");
-      throw new Error(error.message);
+    // Insert with auto-retry on duplicate code (append -2, -3, ... up to 20)
+    let attempt = 0;
+    let codeToUse = rest.code;
+    while (true) {
+      const { data: row, error } = await supabase
+        .from("suppliers")
+        .insert({ ...rest, code: codeToUse, user_id: userId, tenant_id })
+        .select("id")
+        .single();
+      if (!error) return { id: row!.id };
+      if (error.code !== "23505" || attempt >= 20) {
+        throw new Error(error.code === "23505" ? "Mã NCC đã tồn tại, vui lòng đổi mã khác" : error.message);
+      }
+      attempt += 1;
+      const base = (rest.code ?? "NCC").replace(/-\d+$/, "");
+      codeToUse = `${base}-${attempt + 1}`;
     }
-    return { id: row!.id };
   });
 
 export const deleteSupplier = createServerFn({ method: "POST" })
