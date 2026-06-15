@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { listProducts } from "@/lib/inventory.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { cn } from "@/lib/utils";
-import { CreateItemDialog } from "@/components/catalog/CreateItemDialog";
+import { ItemCreateDialog } from "@/components/catalog/ItemCreateDialog";
 
 type Mode = "purchase" | "sales";
 
