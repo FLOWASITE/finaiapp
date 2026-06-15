@@ -226,7 +226,7 @@ async function loadDimNames(supabase: any) {
 }
 
 async function buildVoucherList(
-  supabase: any, userId: string,
+  supabase: any, userId: string, tenantId: string | null,
   data: {
     from: string; to: string;
     dims?: DimFilter;
@@ -246,6 +246,7 @@ async function buildVoucherList(
       .eq("journal_entries.user_id", userId)
       .gte("journal_entries.entry_date", data.from)
       .lte("journal_entries.entry_date", data.to);
+    if (tenantId) q = q.eq("journal_entries.tenant_id", tenantId);
     if (data.accountPrefix) q = q.like("account_code", `${data.accountPrefix}%`);
     if (hasDims(data.dims)) {
       const d = data.dims!;
