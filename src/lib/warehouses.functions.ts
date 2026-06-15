@@ -74,12 +74,22 @@ export const listWarehouses = createServerFn({ method: "GET" })
     // Make sure tenant has at least one warehouse — auto-seed "Kho Chính" if missing.
     await ensureDefaultWarehouseId(supabase, userId);
 
-    const [{ data: whs, error }, { data: movs }] = await Promise.all([
-      supabase.from("warehouses").select("*").order("code"),
-      supabase
-        .from("stock_movements")
-        .select("warehouse_id, product_id, movement_type, qty, unit_cost"),
-    ]);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("active_tenant_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const tenant_id = profile?.active_tenant_id ?? null;
+    if (tenant_id) await assertTenantMember(supabase, userId, tenant_id);
+
+    let whQ = supabase.from("warehouses").select("*").order("code");
+    whQ = tenant_id ? whQ.eq("tenant_id", tenant_id) : whQ.eq("user_id", userId);
+    let mvQ = supabase
+      .from("stock_movements")
+      .select("warehouse_id, product_id, movement_type, qty, unit_cost");
+    mvQ = tenant_id ? mvQ.eq("tenant_id", tenant_id) : mvQ.eq("user_id", userId);
+
+    const [{ data: whs, error }, { data: movs }] = await Promise.all([whQ, mvQ]);
     if (error) throw new Error(error.message);
 
     // Aggregate stock by warehouse
