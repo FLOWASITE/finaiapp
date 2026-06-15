@@ -366,14 +366,14 @@ export function ItemCreateDialog({
                   <Label className={labelCls}>
                     Đây là <span className="text-red-500">*</span>
                   </Label>
-                  <div className="grid grid-cols-2 p-1 bg-[#161B22] border border-white/10 rounded-lg">
+                  <div className="grid grid-cols-2 p-1 bg-muted border border-border rounded-lg">
                     <button
                       type="button"
                       onClick={() => applyItemType("service")}
                       className={`py-1.5 rounded-md text-sm font-medium transition-all ${
                         form.itemType === "service"
-                          ? "bg-[#0F6E56] text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       Dịch vụ
@@ -383,8 +383,8 @@ export function ItemCreateDialog({
                       onClick={() => applyItemType("goods")}
                       className={`py-1.5 rounded-md text-sm font-medium transition-all ${
                         form.itemType === "goods"
-                          ? "bg-[#0F6E56] text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       Hàng hóa
