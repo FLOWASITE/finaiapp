@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 import { withTenant } from "@/integrations/supabase/with-tenant";
 import type { DimFilter } from "@/lib/ledgers.functions";
 
