@@ -713,19 +713,18 @@ export function ItemCreateDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-8 py-5 border-t border-white/5 bg-[#0F1219] gap-3">
+        <DialogFooter className="px-8 py-5 border-t border-border bg-card gap-3">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
-            className="text-slate-400 hover:text-slate-200 hover:bg-white/5"
           >
             Huỷ
           </Button>
           <Button
             onClick={handleSave}
             disabled={submitting}
-            className="bg-[#0F6E56] hover:bg-[#128a6c] text-white shadow-lg shadow-[#0F6E56]/20 transition-all active:scale-[0.98]"
+            className="shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
           >
             {submitting ? "Đang lưu…" : "Tạo mặt hàng"}
           </Button>
