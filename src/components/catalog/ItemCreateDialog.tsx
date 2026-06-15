@@ -319,25 +319,25 @@ export function ItemCreateDialog({
   };
 
   const err = (k: string) =>
-    errors[k] ? <p className="text-xs text-red-400 mt-1">{errors[k]}</p> : null;
+    errors[k] ? <p className="text-xs text-destructive mt-1">{errors[k]}</p> : null;
 
   const accountLabel =
     regime === "TT133" ? "Tài khoản mặc định (TT 133)" : "Tài khoản mặc định (TT 99)";
 
   const inputCls =
-    "bg-[#161B22] border-white/10 text-white placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-[#0F6E56] focus-visible:ring-offset-0";
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0";
   const triggerCls =
-    "bg-[#161B22] border-white/10 text-white focus:ring-2 focus:ring-[#0F6E56] focus:ring-offset-0";
-  const labelCls = "text-sm font-medium text-slate-300 block mb-2";
+    "focus:ring-2 focus:ring-ring focus:ring-offset-0";
+  const labelCls = "text-sm font-medium text-foreground block mb-2";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[880px] p-0 border border-white/10 bg-[#0F1219] flex flex-col max-h-[90vh] overflow-hidden rounded-xl text-slate-200">
-        <DialogHeader className="px-8 py-5 border-b border-white/5">
-          <DialogTitle className="text-xl font-semibold text-white">
+      <DialogContent className="max-w-[880px] p-0 border border-border bg-card flex flex-col max-h-[90vh] overflow-hidden rounded-xl text-foreground">
+        <DialogHeader className="px-8 py-5 border-b border-border">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             Tạo mặt hàng / dịch vụ mới
           </DialogTitle>
-          <DialogDescription className="text-sm text-slate-400 mt-1">
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
             Khai báo nhanh — Fin sẽ tự gợi ý tài khoản hạch toán & VAT dựa trên loại mặt hàng.
           </DialogDescription>
         </DialogHeader>
