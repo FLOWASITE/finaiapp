@@ -595,7 +595,7 @@ export function ItemCreateDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     FCT VAT
                   </Label>
                   <Select
@@ -615,7 +615,7 @@ export function ItemCreateDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     FCT TNDN
                   </Label>
                   <Select
