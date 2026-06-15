@@ -1514,7 +1514,8 @@ export const getInventoryReport = createServerFn({ method: "POST" })
     }) => i,
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const tenantId = await resolveActiveTenantId(supabase, userId);
     const yearStart = `${data.to.slice(0, 4)}-01-01`;
 
     let q = supabase
@@ -1523,6 +1524,7 @@ export const getInventoryReport = createServerFn({ method: "POST" })
         "product_id, warehouse_id, movement_type, movement_date, qty, unit_cost, products(code, name, unit, item_type, product_categories(name)), warehouses(name)",
       )
       .lte("movement_date", data.to);
+    q = tenantId ? q.eq("tenant_id", tenantId) : q.eq("user_id", userId);
     if (data.warehouse_ids && data.warehouse_ids.length > 0) {
       q = q.in("warehouse_id", data.warehouse_ids);
     }
