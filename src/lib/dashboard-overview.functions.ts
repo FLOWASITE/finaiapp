@@ -75,53 +75,65 @@ export const dashboardOverview = createServerFn({ method: "POST" })
       supabase
         .from("sales_invoices")
         .select("id, issue_date, due_date, total, paid_amount, status, payment_status, customer_name")
+        .eq("tenant_id", tenantId)
         .gte("issue_date", prevFrom)
         .neq("status", "void"),
       supabase
         .from("invoices")
         .select("id, issue_date, total, supplier_name")
+        .eq("tenant_id", tenantId)
         .gte("issue_date", prevFrom),
       supabase
         .from("customer_receipts")
         .select("amount, pay_date, method")
+        .eq("tenant_id", tenantId)
         .gte("pay_date", monthFrom),
       supabase
         .from("supplier_payments")
         .select("amount, pay_date, method, invoice_id")
+        .eq("tenant_id", tenantId)
         .gte("pay_date", monthFrom),
       supabase
         .from("cash_vouchers")
         .select("amount, voucher_date, voucher_type")
+        .eq("tenant_id", tenantId)
         .gte("voucher_date", monthFrom),
       supabase
         .from("bank_accounts")
-        .select("id, name, bank_name, account_no, opening_balance, currency"),
+        .select("id, name, bank_name, account_no, opening_balance, currency")
+        .eq("tenant_id", tenantId),
       supabase
         .from("bank_transactions")
-        .select("bank_account_id, amount, status"),
+        .select("bank_account_id, amount, status")
+        .eq("tenant_id", tenantId),
       supabase
         .from("sales_invoices")
         .select("id, invoice_no, customer_name, issue_date, due_date, total, paid_amount, payment_status")
+        .eq("tenant_id", tenantId)
         .eq("status", "issued")
         .in("payment_status", ["unpaid", "partial", "overdue"]),
       supabase
         .from("invoices")
         .select("id, invoice_no, supplier_name, issue_date, total")
+        .eq("tenant_id", tenantId)
         .neq("status", "void"),
-      supabase.from("supplier_payments").select("invoice_id, amount"),
+      supabase.from("supplier_payments").select("invoice_id, amount").eq("tenant_id", tenantId),
       supabase
         .from("invoices")
         .select("id, invoice_no, supplier_name, total, status, created_at")
+        .eq("tenant_id", tenantId)
         .in("status", ["pending", "extracted", "reviewed"])
         .order("created_at", { ascending: false })
         .limit(10),
       supabase
         .from("journal_entries")
         .select("id, entry_date, description, journal_lines(debit, credit)")
+        .eq("tenant_id", tenantId)
         .order("entry_date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
+
 
     const salesInv = salesInvRes.data ?? [];
     const purchInv = purchInvRes.data ?? [];
