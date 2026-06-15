@@ -547,6 +547,171 @@ export function ItemCreateDialog({
               </div>
             </section>
 
+            {/* Thông tin kho & hạch toán hàng hóa */}
+            {form.itemType === "goods" && (
+              <section className="space-y-5">
+                <SectionTitle>Thông tin kho & hạch toán hàng hóa</SectionTitle>
+
+                <div>
+                  <Label className={labelCls}>Kho mặc định</Label>
+                  <Select value={warehouse} onValueChange={setWarehouse}>
+                    <SelectTrigger className={triggerCls}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MWH">Kho chính (MWH)</SelectItem>
+                      <SelectItem value="KHO_HCM">Kho HCM</SelectItem>
+                      <SelectItem value="KHO_HN">Kho HN</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-6 border-b border-border">
+                  {[
+                    { k: "detail", label: "Thông tin chi tiết" },
+                    { k: "opening", label: "Thông tin đầu kỳ" },
+                    { k: "xnk", label: "Thông tin XNK" },
+                  ].map((t) => (
+                    <button
+                      key={t.k}
+                      type="button"
+                      onClick={() => setGoodsTab(t.k as typeof goodsTab)}
+                      className={`pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                        goodsTab === t.k
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {goodsTab === "detail" && (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-3 gap-6">
+                      <div>
+                        <Label className={labelCls}>Giá nhập</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={priceIn}
+                          onChange={(e) => setPriceIn(Number(e.target.value) || 0)}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <Label className={labelCls}>Giá bán</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={priceOut}
+                          onChange={(e) => setPriceOut(Number(e.target.value) || 0)}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <Label className={labelCls}>Thuế GTGT</Label>
+                        <Select
+                          value={String(form.vatRateStandard)}
+                          onValueChange={(v) => set("vatRateStandard", Number(v))}
+                        >
+                          <SelectTrigger className={triggerCls}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0%</SelectItem>
+                            <SelectItem value="0.05">5%</SelectItem>
+                            <SelectItem value="0.08">8%</SelectItem>
+                            <SelectItem value="0.1">10%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <Label className={labelCls}>
+                          <span className="text-red-500">*</span> TK kho
+                        </Label>
+                        <Select
+                          value={accStock}
+                          onValueChange={(v) => {
+                            setAccStock(v);
+                            setDefaultAccount(v);
+                          }}
+                        >
+                          <SelectTrigger className={triggerCls}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1561">1561 - Giá mua hàng hóa</SelectItem>
+                            <SelectItem value="1562">1562 - Chi phí thu mua</SelectItem>
+                            <SelectItem value="152">152 - Nguyên vật liệu</SelectItem>
+                            <SelectItem value="153">153 - Công cụ dụng cụ</SelectItem>
+                            <SelectItem value="156">156 - Hàng hóa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className={labelCls}>TK giá vốn</Label>
+                        <Select value={accCogs} onValueChange={setAccCogs}>
+                          <SelectTrigger className={triggerCls}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="632">632 - Giá vốn hàng bán</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className={labelCls}>TK doanh thu</Label>
+                        <Select value={accRevenue} onValueChange={setAccRevenue}>
+                          <SelectTrigger className={triggerCls}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5111">5111 - Doanh thu bán hàng hóa</SelectItem>
+                            <SelectItem value="5112">5112 - Doanh thu bán thành phẩm</SelectItem>
+                            <SelectItem value="5113">5113 - Doanh thu cung cấp dịch vụ</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className={labelCls}>TK giảm trừ doanh thu</Label>
+                        <Select value={accDiscount} onValueChange={setAccDiscount}>
+                          <SelectTrigger className={triggerCls}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5211">5211 - Chiết khấu thương mại</SelectItem>
+                            <SelectItem value="5212">5212 - Hàng bán bị trả lại</SelectItem>
+                            <SelectItem value="5213">5213 - Giảm giá hàng bán</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className={labelCls}>Ghi chú</Label>
+                      <Textarea
+                        value={form.notes ?? ""}
+                        onChange={(e) => set("notes", e.target.value)}
+                        rows={3}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {goodsTab !== "detail" && (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-sm text-muted-foreground text-center">
+                    Sẽ bổ sung sau.
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* Thuế */}
             <section className="space-y-5">
               <SectionTitle>Thuế</SectionTitle>
