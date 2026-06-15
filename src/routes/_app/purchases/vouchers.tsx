@@ -47,7 +47,7 @@ import { DateRangeFilter } from "@/components/date-range-filter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
+import { PartyForm } from "@/components/party-form";
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { VoucherFormDialog } from "@/components/voucher-form";
