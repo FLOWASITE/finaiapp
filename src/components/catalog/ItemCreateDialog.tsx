@@ -131,11 +131,11 @@ function makeCode(name: string) {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="h-px flex-1 bg-white/5" />
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-[#10B981] shrink-0">
+      <span className="h-px flex-1 bg-border" />
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-primary shrink-0">
         {children}
       </h3>
-      <span className="h-px flex-1 bg-white/5" />
+      <span className="h-px flex-1 bg-border" />
     </div>
   );
 }
@@ -319,25 +319,25 @@ export function ItemCreateDialog({
   };
 
   const err = (k: string) =>
-    errors[k] ? <p className="text-xs text-red-400 mt-1">{errors[k]}</p> : null;
+    errors[k] ? <p className="text-xs text-destructive mt-1">{errors[k]}</p> : null;
 
   const accountLabel =
     regime === "TT133" ? "Tài khoản mặc định (TT 133)" : "Tài khoản mặc định (TT 99)";
 
   const inputCls =
-    "bg-[#161B22] border-white/10 text-white placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-[#0F6E56] focus-visible:ring-offset-0";
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0";
   const triggerCls =
-    "bg-[#161B22] border-white/10 text-white focus:ring-2 focus:ring-[#0F6E56] focus:ring-offset-0";
-  const labelCls = "text-sm font-medium text-slate-300 block mb-2";
+    "focus:ring-2 focus:ring-ring focus:ring-offset-0";
+  const labelCls = "text-sm font-medium text-foreground block mb-2";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[880px] p-0 border border-white/10 bg-[#0F1219] flex flex-col max-h-[90vh] overflow-hidden rounded-xl text-slate-200">
-        <DialogHeader className="px-8 py-5 border-b border-white/5">
-          <DialogTitle className="text-xl font-semibold text-white">
+      <DialogContent className="max-w-[880px] p-0 border border-border bg-card flex flex-col max-h-[90vh] overflow-hidden rounded-xl text-foreground">
+        <DialogHeader className="px-8 py-5 border-b border-border">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             Tạo mặt hàng / dịch vụ mới
           </DialogTitle>
-          <DialogDescription className="text-sm text-slate-400 mt-1">
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
             Khai báo nhanh — Fin sẽ tự gợi ý tài khoản hạch toán & VAT dựa trên loại mặt hàng.
           </DialogDescription>
         </DialogHeader>
@@ -366,14 +366,14 @@ export function ItemCreateDialog({
                   <Label className={labelCls}>
                     Đây là <span className="text-red-500">*</span>
                   </Label>
-                  <div className="grid grid-cols-2 p-1 bg-[#161B22] border border-white/10 rounded-lg">
+                  <div className="grid grid-cols-2 p-1 bg-muted border border-border rounded-lg">
                     <button
                       type="button"
                       onClick={() => applyItemType("service")}
                       className={`py-1.5 rounded-md text-sm font-medium transition-all ${
                         form.itemType === "service"
-                          ? "bg-[#0F6E56] text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       Dịch vụ
@@ -383,8 +383,8 @@ export function ItemCreateDialog({
                       onClick={() => applyItemType("goods")}
                       className={`py-1.5 rounded-md text-sm font-medium transition-all ${
                         form.itemType === "goods"
-                          ? "bg-[#0F6E56] text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       Hàng hóa
@@ -439,7 +439,7 @@ export function ItemCreateDialog({
               <SectionTitle>Hạch toán</SectionTitle>
 
               <div>
-                <Label className="text-sm font-medium text-slate-300 block mb-3">
+                <Label className="text-sm font-medium text-foreground block mb-3">
                   {form.itemType === "service"
                     ? "Tài khoản gợi ý cho Dịch vụ"
                     : "Loại hạch toán (gợi ý nhanh)"}
@@ -452,10 +452,10 @@ export function ItemCreateDialog({
                         key={p.value}
                         type="button"
                         onClick={() => applyAccountPreset(p.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                           isActive
-                            ? "bg-[#0F6E56]/20 border border-[#0F6E56]/30 text-[#10B981]"
-                            : "bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                            ? "bg-primary/10 border-primary/30 text-primary"
+                            : "bg-muted border-border text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                         }`}
                       >
                         {p.label}
@@ -478,7 +478,7 @@ export function ItemCreateDialog({
                 <div>
                   <Label className={labelCls}>
                     TK thay thế{" "}
-                    <span className="text-[10px] text-slate-500 font-normal ml-1">
+                    <span className="text-[10px] text-muted-foreground font-normal ml-1">
                       (Phân cách bằng dấu phẩy)
                     </span>
                   </Label>
@@ -557,9 +557,8 @@ export function ItemCreateDialog({
                     <Checkbox
                       checked={form.vatReductionEligible}
                       onCheckedChange={(v) => set("vatReductionEligible", !!v)}
-                      className="border-white/20 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                     />
-                    <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                       Được giảm VAT 2%
                     </span>
                   </label>
@@ -567,18 +566,17 @@ export function ItemCreateDialog({
                     <Checkbox
                       checked={form.deductible}
                       onCheckedChange={(v) => set("deductible", !!v)}
-                      className="border-white/20 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                     />
-                    <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                       Được trừ TNDN
                     </span>
                   </label>
                 </div>
               </div>
 
-              <div className="bg-white/[0.02] p-4 rounded-lg border border-white/5 grid grid-cols-3 gap-4">
+              <div className="bg-muted/40 p-4 rounded-lg border border-border grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     Thuế nhà thầu
                   </Label>
                   <Select
@@ -597,7 +595,7 @@ export function ItemCreateDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     FCT VAT
                   </Label>
                   <Select
@@ -617,7 +615,7 @@ export function ItemCreateDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     FCT TNDN
                   </Label>
                   <Select
@@ -715,19 +713,18 @@ export function ItemCreateDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-8 py-5 border-t border-white/5 bg-[#0F1219] gap-3">
+        <DialogFooter className="px-8 py-5 border-t border-border bg-card gap-3">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
-            className="text-slate-400 hover:text-slate-200 hover:bg-white/5"
           >
             Huỷ
           </Button>
           <Button
             onClick={handleSave}
             disabled={submitting}
-            className="bg-[#0F6E56] hover:bg-[#128a6c] text-white shadow-lg shadow-[#0F6E56]/20 transition-all active:scale-[0.98]"
+            className="shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
           >
             {submitting ? "Đang lưu…" : "Tạo mặt hàng"}
           </Button>
