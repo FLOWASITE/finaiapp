@@ -52,6 +52,9 @@ const CatalogItemInput = z
     notes: z.string().nullable().optional(),
     vatRateStandard: z.number().min(0).max(1).optional(),
     isActive: z.boolean().optional(),
+    unit: z.string().max(20).optional(),
+    can_be_sold: z.boolean().optional(),
+    can_be_purchased: z.boolean().optional(),
   })
   .passthrough();
 
@@ -69,15 +72,17 @@ function makeProductPayload(
     code: item.code,
     name: item.name,
     item_type: itemType,
-    unit: "cái",
-    stock_account: itemType === "goods" ? acct : "156",
-    expense_account: itemType === "service" ? acct : null,
+    unit: item.unit ?? "cái",
+    stock_account: itemType === "goods" ? acct : undefined,
+    expense_account: itemType === "service" ? acct : undefined,
     revenue_account: "511",
     cogs_account: "632",
     vat_rate: Math.round(((item.vatRateStandard ?? 0.1) as number) * 100),
     aliases: item.aliases ?? [],
-    notes: item.notes ?? null,
+    notes: item.notes ?? undefined,
     is_active: item.isActive !== false,
+    can_be_sold: item.can_be_sold ?? true,
+    can_be_purchased: item.can_be_purchased ?? true,
   };
 }
 
@@ -92,6 +97,7 @@ export const upsertCatalogItem = createServerFn({ method: "POST" })
     if (!tenantId) throw new Error("Chưa chọn doanh nghiệp hoạt động");
 
     const payload = makeProductPayload(data.item, userId, tenantId);
+    const selectCols = "id, code, name, unit, unit_cost, unit_price, stock_account, expense_account, revenue_account, vat_rate, on_hand, item_type, can_be_sold, can_be_purchased, barcode";
 
     // Nếu có id, kiểm tra xem có phải là bản ghi products (không phải TPC)
     let productId: string | null = null;
@@ -106,21 +112,23 @@ export const upsertCatalogItem = createServerFn({ method: "POST" })
     }
 
     if (productId) {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("products")
         .update(payload)
-        .eq("id", productId);
+        .eq("id", productId)
+        .select(selectCols)
+        .single();
       if (error) throw new Error(error.message);
-      return { id: productId };
+      return updated;
     }
 
     const { data: row, error } = await supabase
       .from("products")
       .insert(payload)
-      .select("id")
+      .select(selectCols)
       .single();
     if (error) throw new Error(error.message);
-    return { id: row!.id };
+    return row;
   });
 
 export const softDeleteCatalogItem = createServerFn({ method: "POST" })

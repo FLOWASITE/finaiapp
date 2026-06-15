@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
 import { Search, X, PackagePlus, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { listProducts } from "@/lib/inventory.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { cn } from "@/lib/utils";
+import { CreateItemDialog } from "@/components/catalog/CreateItemDialog";
 
 type Mode = "purchase" | "sales";
 
@@ -105,6 +105,7 @@ export function ProductPickerCell({
   disabled,
 }: ProductPickerCellProps) {
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
   const [highlight, setHighlight] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -412,16 +413,16 @@ export function ProductPickerCell({
             </span>
           </div>
           <Button
-            asChild
             size="sm"
             variant="ghost"
             className="h-7 gap-1.5 text-xs"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              setCreateOpen(true);
+            }}
           >
-            <Link to="/inventory">
-              <PackagePlus className="h-3.5 w-3.5" />
-              Tạo sản phẩm mới
-            </Link>
+            <PackagePlus className="h-3.5 w-3.5" />
+            Tạo sản phẩm mới
           </Button>
         </div>
 
@@ -431,6 +432,13 @@ export function ProductPickerCell({
             Chưa có sản phẩm trong kho. Hãy tạo sản phẩm trước khi lập phiếu.
           </div>
         ) : null}
+
+        <CreateItemDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={(p) => onPick(p as Product)}
+          mode={mode}
+        />
       </PopoverContent>
     </Popover>
   );
