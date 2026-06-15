@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import type { DimFilter } from "@/lib/ledgers.functions";
 
 export type VoucherListRow = {
@@ -225,7 +226,7 @@ async function loadDimNames(supabase: any) {
 }
 
 async function buildVoucherList(
-  supabase: any, userId: string,
+  supabase: any, userId: string, tenantId: string | null,
   data: {
     from: string; to: string;
     dims?: DimFilter;
@@ -245,6 +246,7 @@ async function buildVoucherList(
       .eq("journal_entries.user_id", userId)
       .gte("journal_entries.entry_date", data.from)
       .lte("journal_entries.entry_date", data.to);
+    if (tenantId) q = q.eq("journal_entries.tenant_id", tenantId);
     if (data.accountPrefix) q = q.like("account_code", `${data.accountPrefix}%`);
     if (hasDims(data.dims)) {
       const d = data.dims!;
@@ -354,7 +356,7 @@ async function buildVoucherList(
 }
 
 export const getVoucherList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: {
     from: string; to: string;
     dims?: DimFilter;
@@ -365,15 +367,15 @@ export const getVoucherList = createServerFn({ method: "POST" })
     pageSize?: number;
   }) => i)
   .handler(async ({ data, context }) => {
-    return buildVoucherList(context.supabase, context.userId, data);
+    return buildVoucherList(context.supabase, context.userId, context.tenantId, data);
   });
 
 export const exportVoucherListXlsx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; voucherTypes?: string[]; accountPrefix?: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const res = await buildVoucherList(supabase, userId, { ...data, page: 1, pageSize: 100000 });
+    const { supabase, userId, tenantId } = context;
+    const res = await buildVoucherList(supabase, userId, tenantId, { ...data, page: 1, pageSize: 100000 });
 
     const profile = (await supabase
       .from("profiles")
