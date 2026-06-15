@@ -478,7 +478,7 @@ export function ItemCreateDialog({
                 <div>
                   <Label className={labelCls}>
                     TK thay thế{" "}
-                    <span className="text-[10px] text-slate-500 font-normal ml-1">
+                    <span className="text-[10px] text-muted-foreground font-normal ml-1">
                       (Phân cách bằng dấu phẩy)
                     </span>
                   </Label>
