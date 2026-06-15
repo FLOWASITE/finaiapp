@@ -52,6 +52,9 @@ const CatalogItemInput = z
     notes: z.string().nullable().optional(),
     vatRateStandard: z.number().min(0).max(1).optional(),
     isActive: z.boolean().optional(),
+    unit: z.string().max(20).optional(),
+    can_be_sold: z.boolean().optional(),
+    can_be_purchased: z.boolean().optional(),
   })
   .passthrough();
 
@@ -69,8 +72,8 @@ function makeProductPayload(
     code: item.code,
     name: item.name,
     item_type: itemType,
-    unit: "cái",
-    stock_account: itemType === "goods" ? acct : "156",
+    unit: item.unit ?? "cái",
+    stock_account: itemType === "goods" ? acct : null,
     expense_account: itemType === "service" ? acct : null,
     revenue_account: "511",
     cogs_account: "632",
@@ -78,6 +81,8 @@ function makeProductPayload(
     aliases: item.aliases ?? [],
     notes: item.notes ?? null,
     is_active: item.isActive !== false,
+    can_be_sold: item.can_be_sold ?? true,
+    can_be_purchased: item.can_be_purchased ?? true,
   };
 }
 
