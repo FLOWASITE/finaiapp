@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useCatalogStore } from "@/stores/catalogStore";
 import { upsertCatalogItem } from "@/lib/catalog/catalog.functions";
+import { getActiveCoaCircular } from "@/lib/coa.functions";
 import {
   AllocationMethod,
   Amortization,
@@ -40,22 +41,37 @@ import { CATEGORIES } from "@/data/categories";
 
 const ACCOUNT_RE = /^[0-9]{3,4}$/;
 
-// Gợi ý nhóm hạch toán chính theo bài toán phân loại mặt hàng
-const ACCOUNT_PRESETS = [
-  { value: "642", label: "Dịch vụ mua/bán (chi phí 642/641/627)" },
+// Presets theo Loại × Chế độ kế toán
+const GOODS_PRESETS = [
+  { value: "156", label: "Hàng hóa (156)" },
   { value: "152", label: "Nguyên vật liệu (152)" },
   { value: "153", label: "Công cụ dụng cụ (153)" },
-  { value: "156", label: "Hàng hóa (156)" },
   { value: "242", label: "Chi phí trả trước – phân bổ (242)" },
   { value: "211", label: "TSCĐ hữu hình (211)" },
   { value: "213", label: "TSCĐ vô hình (213)" },
 ] as const;
 
+const SERVICE_PRESETS_TT99 = [
+  { value: "6417", label: "Chi phí DV mua ngoài – Bán hàng (6417)" },
+  { value: "6427", label: "Chi phí DV mua ngoài – QLDN (6427)" },
+  { value: "6277", label: "Chi phí DV mua ngoài – SXC (6277)" },
+  { value: "632",  label: "Giá vốn dịch vụ (632)" },
+] as const;
+
+const SERVICE_PRESETS_TT133 = [
+  { value: "6421", label: "Chi phí bán hàng (6421)" },
+  { value: "6422", label: "Chi phí quản lý doanh nghiệp (6422)" },
+  { value: "632",  label: "Giá vốn dịch vụ (632)" },
+] as const;
+
+const DEFAULT_SERVICE_TT99 = "6427";
+const DEFAULT_SERVICE_TT133 = "6422";
+const DEFAULT_GOODS = "156";
+
 const schema = z.object({
   name: z.string().trim().min(1, "Tên không được để trống").max(200),
-  nameEn: z.string().trim().max(200).optional(),
   category: z.string().min(1, "Chọn nhóm danh mục"),
-  itemType: z.enum(["service", "goods", "mixed"]),
+  itemType: z.enum(["service", "goods"]),
   defaultAccountTT99: z.string().trim().regex(ACCOUNT_RE, "TK 3-4 chữ số"),
   defaultAccountTT133: z.string().trim().regex(ACCOUNT_RE, "TK 3-4 chữ số"),
   altAccountsRaw: z.string().max(200),
@@ -78,11 +94,10 @@ type FormState = z.infer<typeof schema>;
 
 const DEFAULT: FormState = {
   name: "",
-  nameEn: "",
   category: "VAN_PHONG",
   itemType: "service",
-  defaultAccountTT99: "642",
-  defaultAccountTT133: "642",
+  defaultAccountTT99: DEFAULT_SERVICE_TT99,
+  defaultAccountTT133: DEFAULT_SERVICE_TT133,
   altAccountsRaw: "",
   vatRateStandard: 0.1,
   vatReductionEligible: false,
@@ -127,15 +142,32 @@ export function ItemCreateDialog({
   const createItem = useCatalogStore((s) => s.createItem);
   const company = useCatalogStore((s) => s.company);
   const upsertFn = useServerFn(upsertCatalogItem);
+  const coaFn = useServerFn(getActiveCoaCircular);
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(DEFAULT);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [categoryMode, setCategoryMode] = useState<"preset" | "other">("preset");
+  const [categoryOther, setCategoryOther] = useState("");
+
+  const { data: coa } = useQuery({
+    queryKey: ["coa-circular"],
+    queryFn: () => coaFn(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+  const regime: "TT99" | "TT133" = coa?.effective ?? "TT99";
 
   useEffect(() => {
     if (open) {
-      setForm(DEFAULT);
+      setForm({
+        ...DEFAULT,
+        defaultAccountTT99: DEFAULT_SERVICE_TT99,
+        defaultAccountTT133: DEFAULT_SERVICE_TT133,
+      });
       setErrors({});
+      setCategoryMode("preset");
+      setCategoryOther("");
     }
   }, [open]);
 
@@ -144,20 +176,65 @@ export function ItemCreateDialog({
 
   const categoryOptions = useMemo(() => CATEGORIES, []);
 
+  const servicePresets = regime === "TT133" ? SERVICE_PRESETS_TT133 : SERVICE_PRESETS_TT99;
+  const presetList = form.itemType === "service" ? servicePresets : GOODS_PRESETS;
+
+  const applyItemType = (next: "service" | "goods") => {
+    if (next === "service") {
+      const tt99 = DEFAULT_SERVICE_TT99;
+      const tt133 = DEFAULT_SERVICE_TT133;
+      setForm((f) => ({
+        ...f,
+        itemType: "service",
+        defaultAccountTT99: tt99,
+        defaultAccountTT133: tt133,
+        amortization: "expense_immediately",
+      }));
+    } else {
+      setForm((f) => ({
+        ...f,
+        itemType: "goods",
+        defaultAccountTT99: DEFAULT_GOODS,
+        defaultAccountTT133: DEFAULT_GOODS,
+        category: "GOODS",
+        amortization: "expense_immediately",
+      }));
+    }
+  };
+
   const applyAccountPreset = (acc: string) => {
+    // Đồng bộ cả 2 trường để payload đầy đủ; ô ẩn chỉ là mirror.
     set("defaultAccountTT99", acc);
     set("defaultAccountTT133", acc);
-    // Heuristic itemType + amortization theo nhóm hạch toán
-    if (acc === "156" || acc === "152" || acc === "153") set("itemType", "goods");
-    else if (acc === "211" || acc === "213") set("itemType", "goods");
-    else set("itemType", "service");
     if (acc === "242") set("amortization", "prepaid_short");
     else if (acc === "211" || acc === "213") set("amortization", "prepaid_long");
     else set("amortization", "expense_immediately");
   };
 
+  const setDefaultAccount = (val: string) => {
+    // Field hiển thị đổi → mirror sang field còn lại
+    if (regime === "TT133") {
+      set("defaultAccountTT133", val);
+      set("defaultAccountTT99", val);
+    } else {
+      set("defaultAccountTT99", val);
+      set("defaultAccountTT133", val);
+    }
+  };
+  const displayedAccount = regime === "TT133" ? form.defaultAccountTT133 : form.defaultAccountTT99;
+  const displayedAccountKey = regime === "TT133" ? "defaultAccountTT133" : "defaultAccountTT99";
+
   const handleSave = async () => {
-    const parsed = schema.safeParse(form);
+    // Resolve category from mode
+    const finalCategory =
+      form.itemType === "goods"
+        ? "GOODS"
+        : categoryMode === "other"
+          ? categoryOther.trim()
+          : form.category;
+
+    const toValidate: FormState = { ...form, category: finalCategory };
+    const parsed = schema.safeParse(toValidate);
     if (!parsed.success) {
       const next: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
@@ -172,7 +249,6 @@ export function ItemCreateDialog({
     const payload = {
       code,
       name: v.name,
-      nameEn: v.nameEn || undefined,
       category: v.category as CategoryCode,
       itemType: v.itemType as ItemType,
       defaultAccountTT99: v.defaultAccountTT99,
@@ -237,6 +313,9 @@ export function ItemCreateDialog({
   const err = (k: string) =>
     errors[k] ? <p className="text-xs text-red-600 mt-1">{errors[k]}</p> : null;
 
+  const accountLabel =
+    regime === "TT133" ? "Tài khoản mặc định (TT 133)" : "Tài khoản mặc định (TT 99)";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 flex flex-col max-h-[90vh]">
@@ -261,19 +340,52 @@ export function ItemCreateDialog({
                 />
                 {err("name")}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Tên tiếng Anh</Label>
-                  <Input
-                    value={form.nameEn ?? ""}
-                    onChange={(e) => set("nameEn", e.target.value)}
-                  />
+
+              {/* Toggle Dịch vụ / Hàng hóa */}
+              <div>
+                <Label>Đây là *</Label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={form.itemType === "service" ? "default" : "outline"}
+                    className={
+                      form.itemType === "service"
+                        ? "bg-[#0F6E56] hover:bg-[#085041] text-white"
+                        : ""
+                    }
+                    onClick={() => applyItemType("service")}
+                  >
+                    Dịch vụ
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={form.itemType === "goods" ? "default" : "outline"}
+                    className={
+                      form.itemType === "goods"
+                        ? "bg-[#0F6E56] hover:bg-[#085041] text-white"
+                        : ""
+                    }
+                    onClick={() => applyItemType("goods")}
+                  >
+                    Hàng hóa
+                  </Button>
                 </div>
+              </div>
+
+              {/* Nhóm danh mục — chỉ cho Dịch vụ */}
+              {form.itemType === "service" && (
                 <div>
                   <Label>Nhóm danh mục *</Label>
                   <Select
-                    value={form.category}
-                    onValueChange={(v) => set("category", v)}
+                    value={categoryMode === "other" ? "__OTHER__" : form.category}
+                    onValueChange={(v) => {
+                      if (v === "__OTHER__") {
+                        setCategoryMode("other");
+                      } else {
+                        setCategoryMode("preset");
+                        set("category", v);
+                      }
+                    }}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -282,11 +394,20 @@ export function ItemCreateDialog({
                           {c.nameVi}
                         </SelectItem>
                       ))}
+                      <SelectItem value="__OTHER__">Khác…</SelectItem>
                     </SelectContent>
                   </Select>
+                  {categoryMode === "other" && (
+                    <Input
+                      className="mt-2"
+                      placeholder="Nhập nhóm danh mục tự do"
+                      value={categoryOther}
+                      onChange={(e) => setCategoryOther(e.target.value)}
+                    />
+                  )}
                   {err("category")}
                 </div>
-              </div>
+              )}
             </section>
 
             <Separator />
@@ -295,13 +416,17 @@ export function ItemCreateDialog({
             <section className="space-y-3">
               <h4 className="font-semibold text-[#04342C]">Hạch toán</h4>
               <div>
-                <Label>Loại hạch toán (gợi ý nhanh)</Label>
-                <Select onValueChange={applyAccountPreset}>
+                <Label>
+                  {form.itemType === "service"
+                    ? "Tài khoản gợi ý cho Dịch vụ"
+                    : "Loại hạch toán (gợi ý nhanh)"}
+                </Label>
+                <Select value={displayedAccount} onValueChange={applyAccountPreset}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn nhóm để Fin tự điền TK & phân bổ..." />
+                    <SelectValue placeholder="Chọn tài khoản gợi ý..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {ACCOUNT_PRESETS.map((p) => (
+                    {presetList.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
                       </SelectItem>
@@ -309,24 +434,16 @@ export function ItemCreateDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>TK mặc định (TT 99)</Label>
-                  <Input
-                    value={form.defaultAccountTT99}
-                    onChange={(e) => set("defaultAccountTT99", e.target.value)}
-                  />
-                  {err("defaultAccountTT99")}
-                </div>
-                <div>
-                  <Label>TK mặc định (TT 133)</Label>
-                  <Input
-                    value={form.defaultAccountTT133}
-                    onChange={(e) => set("defaultAccountTT133", e.target.value)}
-                  />
-                  {err("defaultAccountTT133")}
-                </div>
+
+              <div>
+                <Label>{accountLabel}</Label>
+                <Input
+                  value={displayedAccount}
+                  onChange={(e) => setDefaultAccount(e.target.value)}
+                />
+                {err(displayedAccountKey)}
               </div>
+
               <div>
                 <Label>TK thay thế (ngăn cách bằng dấu phẩy)</Label>
                 <Input
@@ -335,21 +452,8 @@ export function ItemCreateDialog({
                   placeholder="VD: 6277, 6417"
                 />
               </div>
-              <div className="grid grid-cols-[1.5fr_1fr] gap-3">
-                <div>
-                  <Label>Phân loại</Label>
-                  <Select
-                    value={form.itemType}
-                    onValueChange={(v) => set("itemType", v as ItemType)}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="service">Dịch vụ</SelectItem>
-                      <SelectItem value="goods">Hàng hóa</SelectItem>
-                      <SelectItem value="mixed">Hỗn hợp</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+              {form.itemType === "goods" && (
                 <div>
                   <Label>Phân bổ chi phí</Label>
                   <Select
@@ -364,7 +468,8 @@ export function ItemCreateDialog({
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              )}
+
               <div>
                 <Label>Cách phân bổ bộ phận</Label>
                 <Select
