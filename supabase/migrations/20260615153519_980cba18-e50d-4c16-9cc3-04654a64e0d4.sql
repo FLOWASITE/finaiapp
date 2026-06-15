@@ -1,0 +1,1 @@
+ALTER TABLE public.report_notes ADD CONSTRAINT report_notes_tenant_section_key UNIQUE (tenant_id, section);
