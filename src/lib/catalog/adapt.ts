@@ -79,7 +79,8 @@ export function productToCatalogItem(p: DbProductRow): CatalogItem {
     (x): x is string => !!x && x !== account,
   );
   const altAccounts = Array.from(new Set(altRaw));
-  const vatRate = p.vat_rate == null ? 0.1 : Number(p.vat_rate);
+  const vatRateRaw = p.vat_rate == null ? 0.1 : Number(p.vat_rate);
+  const vatRate = Number.isFinite(vatRateRaw) ? (vatRateRaw > 1 ? vatRateRaw / 100 : vatRateRaw) : 0.1;
   const catName = p.product_categories?.name ?? null;
   return {
     id: p.id,
