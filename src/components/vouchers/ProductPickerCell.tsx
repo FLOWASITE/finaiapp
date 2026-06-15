@@ -188,6 +188,7 @@ export function ProductPickerCell({
   const showCode = !!code;
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div
@@ -432,13 +433,16 @@ export function ProductPickerCell({
             Chưa có sản phẩm trong kho. Hãy tạo sản phẩm trước khi lập phiếu.
           </div>
         ) : null}
-
-        <ItemCreateDialog
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          onCreated={(p: Product) => onPick(p)}
-        />
       </PopoverContent>
     </Popover>
+    <ItemCreateDialog
+      open={createOpen}
+      onOpenChange={setCreateOpen}
+      onCreated={(p: Product) => {
+        setCreateOpen(false);
+        onPick(p);
+      }}
+    />
+    </>
   );
 }
