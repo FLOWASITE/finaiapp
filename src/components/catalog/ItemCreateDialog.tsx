@@ -543,14 +543,15 @@ export function ItemCreateDialog({
         </ScrollArea>
 
         <DialogFooter className="px-5 py-3 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
           <Button
             className="bg-[#0F6E56] hover:bg-[#085041] text-white"
             onClick={handleSave}
+            disabled={submitting}
           >
-            Tạo mặt hàng
+            {submitting ? "Đang lưu…" : "Tạo mặt hàng"}
           </Button>
         </DialogFooter>
       </DialogContent>
