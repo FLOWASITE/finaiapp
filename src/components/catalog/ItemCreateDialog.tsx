@@ -883,15 +883,17 @@ export function ItemCreateDialog({
               </div>
             </section>
 
-            <section>
-              <Label className={labelCls}>Ghi chú</Label>
-              <Textarea
-                value={form.notes ?? ""}
-                onChange={(e) => set("notes", e.target.value)}
-                rows={3}
-                className={inputCls}
-              />
-            </section>
+            {form.itemType !== "goods" && (
+              <section>
+                <Label className={labelCls}>Ghi chú</Label>
+                <Textarea
+                  value={form.notes ?? ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  rows={3}
+                  className={inputCls}
+                />
+              </section>
+            )}
           </div>
         </ScrollArea>
 
