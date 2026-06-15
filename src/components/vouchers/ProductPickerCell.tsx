@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { listProducts } from "@/lib/inventory.functions";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { cn } from "@/lib/utils";
-import { CreateItemDialog } from "@/components/catalog/CreateItemDialog";
+import { ItemCreateDialog } from "@/components/catalog/ItemCreateDialog";
 
 type Mode = "purchase" | "sales";
 
@@ -433,11 +433,10 @@ export function ProductPickerCell({
           </div>
         ) : null}
 
-        <CreateItemDialog
+        <ItemCreateDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
-          onCreated={(p) => onPick(p as Product)}
-          mode={mode}
+          onCreated={(p: Product) => onPick(p)}
         />
       </PopoverContent>
     </Popover>

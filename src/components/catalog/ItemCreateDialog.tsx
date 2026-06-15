@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useCatalogStore } from "@/stores/catalogStore";
+import { upsertCatalogItem } from "@/lib/catalog/catalog.functions";
 import {
   AllocationMethod,
   Amortization,
@@ -115,14 +118,19 @@ function makeCode(name: string) {
 export function ItemCreateDialog({
   open,
   onOpenChange,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onCreated?: (product: any) => void;
 }) {
   const createItem = useCatalogStore((s) => s.createItem);
   const company = useCatalogStore((s) => s.company);
+  const upsertFn = useServerFn(upsertCatalogItem);
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(DEFAULT);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -148,7 +156,7 @@ export function ItemCreateDialog({
     else set("amortization", "expense_immediately");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
       const next: Record<string, string> = {};
@@ -161,7 +169,7 @@ export function ItemCreateDialog({
     }
     const v = parsed.data;
     const code = makeCode(v.name);
-    createItem({
+    const payload = {
       code,
       name: v.name,
       nameEn: v.nameEn || undefined,
@@ -185,9 +193,45 @@ export function ItemCreateDialog({
       fctCitRate: v.foreignSupplierTax === "fct_applicable" ? v.fctCitRate : 0,
       notes: v.notes || undefined,
       isActive: true,
-    });
-    toast.success(`Đã tạo "${v.name}"`);
-    onOpenChange(false);
+    };
+
+    if (onCreated) {
+      setSubmitting(true);
+      try {
+        const row = await upsertFn({ data: { item: payload as any } });
+        const created: any = {
+          id: (row as any).id,
+          code: (row as any).code ?? code,
+          name: (row as any).name ?? v.name,
+          unit: (row as any).unit ?? null,
+          item_type: (row as any).item_type ?? v.itemType,
+          vat_rate: (row as any).vat_rate ?? Math.round(v.vatRateStandard * 100),
+          can_be_sold: (row as any).can_be_sold ?? true,
+          can_be_purchased: (row as any).can_be_purchased ?? true,
+          stock_account: (row as any).stock_account ?? null,
+          expense_account: (row as any).expense_account ?? null,
+          revenue_account: (row as any).revenue_account ?? null,
+          unit_cost: (row as any).unit_cost ?? 0,
+          unit_price: (row as any).unit_price ?? 0,
+          on_hand: (row as any).on_hand ?? 0,
+          barcode: (row as any).barcode ?? null,
+        };
+        queryClient.invalidateQueries({ queryKey: ["products-picker"] });
+        queryClient.invalidateQueries({ queryKey: ["catalog"] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        toast.success(`Đã tạo "${v.name}"`);
+        onCreated(created);
+        onOpenChange(false);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Không tạo được mặt hàng");
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      createItem(payload as any);
+      toast.success(`Đã tạo "${v.name}"`);
+      onOpenChange(false);
+    }
   };
 
   const err = (k: string) =>
@@ -499,14 +543,15 @@ export function ItemCreateDialog({
         </ScrollArea>
 
         <DialogFooter className="px-5 py-3 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
           <Button
             className="bg-[#0F6E56] hover:bg-[#085041] text-white"
             onClick={handleSave}
+            disabled={submitting}
           >
-            Tạo mặt hàng
+            {submitting ? "Đang lưu…" : "Tạo mặt hàng"}
           </Button>
         </DialogFooter>
       </DialogContent>
