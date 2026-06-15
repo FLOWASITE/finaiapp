@@ -433,11 +433,10 @@ export function ProductPickerCell({
           </div>
         ) : null}
 
-        <CreateItemDialog
+        <ItemCreateDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
-          onCreated={(p) => onPick(p as Product)}
-          mode={mode}
+          onCreated={(p: Product) => onPick(p)}
         />
       </PopoverContent>
     </Popover>
