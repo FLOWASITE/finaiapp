@@ -1900,7 +1900,7 @@ function CreateVoucherDialog({
           <PartyForm
             mode="supplier"
             compact
-            onDone={async (id) => {
+            onDone={async (id?: string) => {
               setOpenNewSupplier(false);
               await qc.invalidateQueries({ queryKey: ["suppliers-list"] });
               const fresh = await qc.fetchQuery({
