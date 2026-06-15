@@ -1890,6 +1890,39 @@ function CreateVoucherDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={openNewSupplier} onOpenChange={setOpenNewSupplier}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tạo nhà cung cấp mới</DialogTitle>
+          </DialogHeader>
+          <PartyForm
+            mode="supplier"
+            compact
+            onDone={async (id) => {
+              setOpenNewSupplier(false);
+              await qc.invalidateQueries({ queryKey: ["suppliers-list"] });
+              const fresh = await qc.fetchQuery({
+                queryKey: ["suppliers-list"],
+                queryFn: () => suppliersFn(),
+              });
+              const s = (fresh as any[] | undefined)?.find((x) => x.id === id);
+              if (s) {
+                const groupId = (s as any).group_id ?? null;
+                const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+                setHeader((h) => ({
+                  ...h,
+                  supplier_id: s.id,
+                  supplier_name: s.name ?? "",
+                  supplier_address: s.address ?? "",
+                  customer_group: groupName || h.customer_group,
+                }));
+              }
+              toast.success("Đã tạo nhà cung cấp");
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
