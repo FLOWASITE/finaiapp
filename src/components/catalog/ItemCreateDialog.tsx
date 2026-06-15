@@ -187,6 +187,14 @@ export function ItemCreateDialog({
       setErrors({});
       setCategoryMode("preset");
       setCategoryOther("");
+      setWarehouse("MWH");
+      setGoodsTab("detail");
+      setPriceIn(0);
+      setPriceOut(0);
+      setAccStock("1561");
+      setAccCogs("632");
+      setAccRevenue("5111");
+      setAccDiscount("5211");
     }
   }, [open]);
 
