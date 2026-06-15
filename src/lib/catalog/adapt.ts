@@ -120,7 +120,8 @@ export function tpcToCatalogItem(t: DbTpcRow): CatalogItem {
   const itemType = normItemType(t.item_type);
   const account =
     t.default_account ?? (itemType === "service" ? "642" : "156");
-  const vatRate = t.vat_rate == null ? 0.1 : Number(t.vat_rate);
+  const vatRateRaw = t.vat_rate == null ? 0.1 : Number(t.vat_rate);
+  const vatRate = Number.isFinite(vatRateRaw) ? (vatRateRaw > 1 ? vatRateRaw / 100 : vatRateRaw) : 0.1;
   return {
     id: t.id,
     code: t.sku ?? `TPC-${t.id.slice(0, 8)}`,
