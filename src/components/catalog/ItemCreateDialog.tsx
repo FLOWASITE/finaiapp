@@ -159,6 +159,15 @@ export function ItemCreateDialog({
   const [submitting, setSubmitting] = useState(false);
   const [categoryMode, setCategoryMode] = useState<"preset" | "other">("preset");
   const [categoryOther, setCategoryOther] = useState("");
+  // Goods-only UI state (presentation defaults; not persisted yet)
+  const [warehouse, setWarehouse] = useState("MWH");
+  const [goodsTab, setGoodsTab] = useState<"detail" | "opening" | "xnk">("detail");
+  const [priceIn, setPriceIn] = useState<number>(0);
+  const [priceOut, setPriceOut] = useState<number>(0);
+  const [accStock, setAccStock] = useState("1561");
+  const [accCogs, setAccCogs] = useState("632");
+  const [accRevenue, setAccRevenue] = useState("5111");
+  const [accDiscount, setAccDiscount] = useState("5211");
 
   const { data: coa } = useQuery({
     queryKey: ["coa-circular"],
