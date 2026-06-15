@@ -49,10 +49,10 @@ function periodRange(period: "month" | "quarter" | "ytd") {
 }
 
 export const dashboardOverview = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => PeriodSchema.parse(i ?? {}))
   .handler(withLatency("dashboardOverview", async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const today = new Date();
     const todayStr = dayStr(today);
     const { from, to, prevFrom, prevTo } = periodRange(data.period);
