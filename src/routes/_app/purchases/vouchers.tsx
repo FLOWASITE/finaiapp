@@ -1359,27 +1359,39 @@ function CreateVoucherDialog({
                     Đang tải danh sách NCC…
                   </div>
                 ) : (
-                  <Select value={header.supplier_id || "none"}
-                    onValueChange={(v) => {
-                      const s = (suppliers ?? []).find((x: any) => x.id === v);
-                      const groupId = (s as any)?.group_id ?? null;
-                      const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
-                      setHeader({
-                        ...header,
-                        supplier_id: v === "none" ? "" : v,
-                        supplier_name: s?.name ?? "",
-                        supplier_address: s?.address ?? "",
-                        customer_group: groupName || header.customer_group,
-                      });
-                    }}>
-                    <SelectTrigger><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Không chọn —</SelectItem>
-                      {(suppliers ?? []).map((s: any) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-1.5">
+                    <Select value={header.supplier_id || "none"}
+                      onValueChange={(v) => {
+                        const s = (suppliers ?? []).find((x: any) => x.id === v);
+                        const groupId = (s as any)?.group_id ?? null;
+                        const groupName = groupId ? (supplierGroupNameById.get(groupId) ?? "") : "";
+                        setHeader({
+                          ...header,
+                          supplier_id: v === "none" ? "" : v,
+                          supplier_name: s?.name ?? "",
+                          supplier_address: s?.address ?? "",
+                          customer_group: groupName || header.customer_group,
+                        });
+                      }}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn NCC" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Không chọn —</SelectItem>
+                        {(suppliers ?? []).map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      title="Tạo nhà cung cấp mới"
+                      onClick={() => setOpenNewSupplier(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
               <div className="lg:col-span-2">
