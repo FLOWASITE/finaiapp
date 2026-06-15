@@ -118,14 +118,19 @@ function makeCode(name: string) {
 export function ItemCreateDialog({
   open,
   onOpenChange,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onCreated?: (product: any) => void;
 }) {
   const createItem = useCatalogStore((s) => s.createItem);
   const company = useCatalogStore((s) => s.company);
+  const upsertFn = useServerFn(upsertCatalogItem);
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(DEFAULT);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
