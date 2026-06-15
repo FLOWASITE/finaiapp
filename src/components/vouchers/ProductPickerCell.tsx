@@ -105,6 +105,7 @@ export function ProductPickerCell({
   disabled,
 }: ProductPickerCellProps) {
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
   const [highlight, setHighlight] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
