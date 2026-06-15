@@ -1,4 +1,4 @@
-﻿-- Migration: tenant_plan_history table for billing audit
+-- Migration: tenant_plan_history table for billing audit
 -- Tự lưu mỗi lần thay đổi gói qua trigger trên tenant_plans.
 CREATE TABLE IF NOT EXISTS public.tenant_plan_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

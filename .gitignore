@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local self-hosted Supabase (do NOT sync to cloud)
+supabase/migrations/*_local_seed_*.sql
+.env.cloud.bak
+supabase/.temp/
+supabase/.branches/
