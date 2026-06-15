@@ -439,7 +439,7 @@ export function ItemCreateDialog({
               <SectionTitle>Hạch toán</SectionTitle>
 
               <div>
-                <Label className="text-sm font-medium text-slate-300 block mb-3">
+                <Label className="text-sm font-medium text-foreground block mb-3">
                   {form.itemType === "service"
                     ? "Tài khoản gợi ý cho Dịch vụ"
                     : "Loại hạch toán (gợi ý nhanh)"}
@@ -452,10 +452,10 @@ export function ItemCreateDialog({
                         key={p.value}
                         type="button"
                         onClick={() => applyAccountPreset(p.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                           isActive
-                            ? "bg-[#0F6E56]/20 border border-[#0F6E56]/30 text-[#10B981]"
-                            : "bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                            ? "bg-primary/10 border-primary/30 text-primary"
+                            : "bg-muted border-border text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                         }`}
                       >
                         {p.label}
