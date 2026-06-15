@@ -928,6 +928,7 @@ function CreateVoucherDialog({
   });
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
+  const [openNewSupplier, setOpenNewSupplier] = useState(false);
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers-list"],
