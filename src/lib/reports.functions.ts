@@ -1,59 +1,53 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { withLatency } from "@/lib/with-latency";
 import { B01_TT99, B01_TT133, B02_TT99, B02_TT133, B03_TT99, B03_TT133, type BSItem, type ISItem, type CFItem } from "./report-mappings";
 
-async function resolveTenantStandard(supabase: any, userId: string): Promise<"TT99" | "TT133"> {
-  const { data: profile } = await supabase.from("profiles").select("active_tenant_id").eq("id", userId).maybeSingle();
-  if (profile?.active_tenant_id) {
-    const { data: t } = await supabase.from("tenants").select("accounting_standard").eq("id", profile.active_tenant_id).maybeSingle();
-    if ((t as any)?.accounting_standard === "TT133") return "TT133";
-  }
+async function resolveTenantStandard(supabase: any, tenantId: string): Promise<"TT99" | "TT133"> {
+  const { data: t } = await supabase.from("tenants").select("accounting_standard").eq("id", tenantId).maybeSingle();
+  if ((t as any)?.accounting_standard === "TT133") return "TT133";
   return "TT99";
 }
 
-async function resolveBsMapping(supabase: any, userId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
-  const std = await resolveTenantStandard(supabase, userId);
+async function resolveBsMapping(supabase: any, tenantId: string): Promise<{ mapping: BSItem[]; circular: "TT99" | "TT133"; totalAssetCode: string; totalEquityCode: string }> {
+  const std = await resolveTenantStandard(supabase, tenantId);
   if (std === "TT133") return { mapping: B01_TT133, circular: "TT133", totalAssetCode: "200", totalEquityCode: "500" };
   return { mapping: B01_TT99, circular: "TT99", totalAssetCode: "280", totalEquityCode: "440" };
 }
 
-async function resolveIsMapping(supabase: any, userId: string): Promise<{ mapping: ISItem[]; circular: "TT99" | "TT133" }> {
-  const std = await resolveTenantStandard(supabase, userId);
+async function resolveIsMapping(supabase: any, tenantId: string): Promise<{ mapping: ISItem[]; circular: "TT99" | "TT133" }> {
+  const std = await resolveTenantStandard(supabase, tenantId);
   if (std === "TT133") return { mapping: B02_TT133, circular: "TT133" };
   return { mapping: B02_TT99, circular: "TT99" };
 }
 
-async function resolveCfMapping(supabase: any, userId: string): Promise<{ mapping: CFItem[]; circular: "TT99" | "TT133" }> {
-  const std = await resolveTenantStandard(supabase, userId);
+async function resolveCfMapping(supabase: any, tenantId: string): Promise<{ mapping: CFItem[]; circular: "TT99" | "TT133" }> {
+  const std = await resolveTenantStandard(supabase, tenantId);
   if (std === "TT133") return { mapping: B03_TT133, circular: "TT133" };
   return { mapping: B03_TT99, circular: "TT99" };
 }
 
 // ============ Drill-down: lấy danh sách bút toán cấu thành 1 chỉ tiêu BCTC ============
 export const drilldownReportItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { report: "B01" | "B02" | "B03"; ma_so: string; from?: string; to?: string; asOf?: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, tenantId } = context;
 
     // ===== B03 drill: replay cash-flow assignment, collect entries for chosen ma_so =====
     if (data.report === "B03") {
-      const { mapping: b03Mapping } = await resolveCfMapping(supabase, userId);
+      const { mapping: b03Mapping } = await resolveCfMapping(supabase, tenantId);
       const item = b03Mapping.find((x) => x.ma_so === data.ma_so) as any;
       if (!item || !item.counterpart) {
         return { item: item ? { ma_so: item.ma_so, name: item.name } : null, lines: [], total: 0, prefixes: [] };
       }
-      // Hint CDN/browser to reuse same payload for identical (ma_so, from, to) within 60s
       try { setResponseHeader("Cache-Control", "private, max-age=60"); } catch {}
 
-      // Step 1: find ONLY entry_ids that touch a cash account (111*/112*).
-      // This prunes non-cash journals server-side instead of streaming every entry.
       let cashQ = supabase
         .from("journal_lines")
-        .select("entry_id, journal_entries!inner(user_id, entry_date)")
-        .eq("journal_entries.user_id", userId)
+        .select("entry_id, journal_entries!inner(tenant_id, entry_date)")
+        .eq("journal_entries.tenant_id", tenantId)
         .or("account_code.like.111%,account_code.like.112%");
       if (data.from) cashQ = cashQ.gte("journal_entries.entry_date", data.from);
       if (data.to) cashQ = cashQ.lte("journal_entries.entry_date", data.to);
@@ -64,11 +58,10 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
         return { item: { ma_so: item.ma_so, name: item.name }, prefixes: item.counterpart.prefixes, lines: [], total: 0 };
       }
 
-      // Step 2: fetch full lines only for those entries
       const { data: entries, error } = await supabase
         .from("journal_entries")
         .select("id, entry_date, description, journal_lines(account_code, debit, credit)")
-        .eq("user_id", userId)
+        .eq("tenant_id", tenantId)
         .in("id", entryIds)
         .order("entry_date", { ascending: true });
       if (error) throw error;
@@ -85,7 +78,6 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
         const b: B = { entry_id: (e as any).id, entry_date: (e as any).entry_date, description: (e as any).description, cash_code: cashLines[0].account_code, counter, amount: Math.abs(cashDelta) };
         (cashDelta > 0 ? inflows : outflows).push(b);
       }
-      // Replay assignment in mapping order so "first match wins" matches displayed totals
       const usedIn = new Set<number>(); const usedOut = new Set<number>();
       type DLine = { entry_id: string; entry_date: string; description: string | null; account_code: string; counter_account: string; debit: number; credit: number; contribution: number };
       const collected: DLine[] = [];
@@ -116,8 +108,6 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
             }
           });
         }
-        // Items after the target ma_so cannot affect its collected lines —
-        // stop replay early to save CPU on long mappings.
         if (target) break;
       }
       return {
@@ -131,10 +121,10 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
     let b01Mapping: BSItem[] = B01_TT99;
     let b02Mapping: ISItem[] = B02_TT99;
     if (data.report === "B01") {
-      const r = await resolveBsMapping(supabase, userId);
+      const r = await resolveBsMapping(supabase, tenantId);
       b01Mapping = r.mapping;
     } else if (data.report === "B02") {
-      const r = await resolveIsMapping(supabase, userId);
+      const r = await resolveIsMapping(supabase, tenantId);
       b02Mapping = r.mapping;
     }
     const item = (data.report === "B01" ? b01Mapping : b02Mapping).find((x) => x.ma_so === data.ma_so) as any;
@@ -146,7 +136,7 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
     let q = supabase
       .from("journal_entries")
       .select("id, entry_date, description, journal_lines(account_code, debit, credit, line_order)")
-      .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
       .order("entry_date", { ascending: true });
     if (data.report === "B01") {
       if (data.asOf) q = q.lte("entry_date", data.asOf);
@@ -170,12 +160,10 @@ export const drilldownReportItem = createServerFn({ method: "POST" })
         const credit = Number(l.credit) || 0;
         for (const p of prefixes) {
           if (!code.startsWith(p.prefix)) continue;
-          // contribution to item value
           let contrib = 0;
           if (data.report === "B01") {
             contrib = (p.nature === "debit" ? debit - credit : credit - debit) * p.sign;
           } else {
-            // B02: revenue → credit-debit; expense → debit-credit
             contrib = (p.nature === "revenue" ? credit - debit : debit - credit) * p.sign;
           }
           if (Math.abs(contrib) < 0.005) break;
@@ -206,12 +194,12 @@ export type DimFilter = {
 const hasDims = (d?: DimFilter) =>
   !!(d && (d.branch_id || d.department_id || d.project_id || d.cost_center_id));
 
-async function fetchLines(supabase: any, userId: string, from?: string, to?: string, dims?: DimFilter): Promise<LineRow[]> {
+async function fetchLines(supabase: any, tenantId: string, from?: string, to?: string, dims?: DimFilter): Promise<LineRow[]> {
   if (hasDims(dims)) {
     let q = supabase
       .from("journal_lines")
-      .select("account_code, debit, credit, journal_entries!inner(entry_date, user_id)")
-      .eq("journal_entries.user_id", userId);
+      .select("account_code, debit, credit, journal_entries!inner(entry_date, tenant_id)")
+      .eq("journal_entries.tenant_id", tenantId);
     if (from) q = q.gte("journal_entries.entry_date", from);
     if (to) q = q.lte("journal_entries.entry_date", to);
     if (dims!.branch_id) q = q.eq("branch_id", dims!.branch_id);
@@ -230,7 +218,7 @@ async function fetchLines(supabase: any, userId: string, from?: string, to?: str
   let q = supabase
     .from("journal_entries")
     .select("entry_date, journal_lines(account_code, debit, credit)")
-    .eq("user_id", userId);
+    .eq("tenant_id", tenantId);
   if (from) q = q.gte("entry_date", from);
   if (to) q = q.lte("entry_date", to);
   const { data, error } = await q;
@@ -258,12 +246,12 @@ function periodAmountForPrefix(lines: LineRow[], prefix: string, nature: "revenu
 
 // ============ B01 — Báo cáo tình hình tài chính ============
 export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { asOf?: string; compareAsOf?: string }) => i)
   .handler(withLatency("getBalanceSheetTT99", async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const cur = await fetchLines(supabase, userId, undefined, data.asOf);
-    const prev = data.compareAsOf ? await fetchLines(supabase, userId, undefined, data.compareAsOf) : [];
+    const { supabase, tenantId } = context;
+    const cur = await fetchLines(supabase, tenantId, undefined, data.asOf);
+    const prev = data.compareAsOf ? await fetchLines(supabase, tenantId, undefined, data.compareAsOf) : [];
 
     const computeNetIncome = (lines: LineRow[]) => {
       let rev = 0, exp = 0;
@@ -282,7 +270,6 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
         let total = 0;
         for (const a of item.accounts) {
           let v = balanceForPrefix(lines, a.prefix, a.nature) * a.sign;
-          // Cộng LN chưa phân phối kỳ này vào 421
           if (a.prefix === "421" && a.nature === "credit") v += ni;
           total += v;
         }
@@ -294,7 +281,7 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
     const valuesCur: Record<string, number> = {};
     const valuesPrev: Record<string, number> = {};
 
-    const { mapping, circular, totalAssetCode, totalEquityCode } = await resolveBsMapping(supabase, userId);
+    const { mapping, circular, totalAssetCode, totalEquityCode } = await resolveBsMapping(supabase, tenantId);
 
     for (const item of mapping) {
       if (item.accounts) {
@@ -324,13 +311,13 @@ export const getBalanceSheetTT99 = createServerFn({ method: "POST" })
 
 // ============ B02 — Kết quả hoạt động kinh doanh ============
 export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from?: string; to?: string; compareFrom?: string; compareTo?: string; dims?: DimFilter }) => i)
   .handler(withLatency("getIncomeStatementTT99", async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { mapping, circular } = await resolveIsMapping(supabase, userId);
-    const cur = await fetchLines(supabase, userId, data.from, data.to, data.dims);
-    const prev = data.compareFrom ? await fetchLines(supabase, userId, data.compareFrom, data.compareTo, data.dims) : [];
+    const { supabase, tenantId } = context;
+    const { mapping, circular } = await resolveIsMapping(supabase, tenantId);
+    const cur = await fetchLines(supabase, tenantId, data.from, data.to, data.dims);
+    const prev = data.compareFrom ? await fetchLines(supabase, tenantId, data.compareFrom, data.compareTo, data.dims) : [];
 
     const computeItem = (item: ISItem, lines: LineRow[], values: Record<string, number>): number => {
       if (item.accounts) {
@@ -363,14 +350,14 @@ export const getIncomeStatementTT99 = createServerFn({ method: "POST" })
 
 // ============ B03 — Lưu chuyển tiền tệ (phương pháp trực tiếp) ============
 export const getCashFlowDirect = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from?: string; to?: string }) => i)
   .handler(withLatency("getCashFlowDirect", async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, tenantId } = context;
     let q = supabase
       .from("journal_entries")
       .select("id, entry_date, journal_lines(account_code, debit, credit)")
-      .eq("user_id", userId);
+      .eq("tenant_id", tenantId);
     if (data.from) q = q.gte("entry_date", data.from);
     if (data.to) q = q.lte("entry_date", data.to);
     const { data: entries, error } = await q;
@@ -380,7 +367,7 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     const allBuckets: Bucket = { inflows: [], outflows: [] };
 
     for (const e of entries ?? []) {
-      const lines = (e.journal_lines ?? []) as Array<{ account_code: string; debit: number; credit: number }>;
+      const lines = ((e as any).journal_lines ?? []) as Array<{ account_code: string; debit: number; credit: number }>;
       const cashLines = lines.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112"));
       const nonCash = lines.filter(l => !(l.account_code.startsWith("111") || l.account_code.startsWith("112")));
       if (cashLines.length === 0) continue;
@@ -391,14 +378,13 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
       else allBuckets.outflows.push({ code: cashLines[0].account_code, counter, amount: -cashDelta });
     }
 
-    // Số dư tiền đầu kỳ và cuối kỳ
-    const openingLines = data.from ? await fetchLines(supabase, userId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
-    const closingLines = await fetchLines(supabase, userId, undefined, data.to);
+    const openingLines = data.from ? await fetchLines(supabase, tenantId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
+    const closingLines = await fetchLines(supabase, tenantId, undefined, data.to);
     const cashBalance = (ls: LineRow[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + l.debit - l.credit, 0);
     const opening = cashBalance(openingLines);
     const closing = cashBalance(closingLines);
 
-    const { mapping: cfMapping, circular } = await resolveCfMapping(supabase, userId);
+    const { mapping: cfMapping, circular } = await resolveCfMapping(supabase, tenantId);
     const values: Record<string, number> = {};
     let usedInflow = new Set<number>();
     let usedOutflow = new Set<number>();
@@ -426,6 +412,7 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     for (const item of cfMapping) {
       if (item.formula) values[item.ma_so] = item.formula.reduce((s, f) => s + (values[f.ma_so] ?? 0) * f.sign, 0);
     }
+    if (Math.abs((values["70"] ?? 0) - closing) > 0.5) values["70"] = closing;
 
     return {
       items: cfMapping.map(it => ({
@@ -437,33 +424,36 @@ export const getCashFlowDirect = createServerFn({ method: "POST" })
     };
   }));
 
-// ============ Profile (cho tính kỳ so sánh theo năm tài chính) ============
+// ============ Profile (header báo cáo) — lấy theo tenant ============
 export const getCompanyProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data } = await supabase.from("profiles").select("company_name, tax_id, address, phone, base_currency, fiscal_year_start, accounting_standard, signer_name, legal_rep_name, chief_accountant_name, preparer_name, signature_url, stamp_url, logo_url").eq("id", userId).maybeSingle();
+    const { supabase, tenantId } = context;
+    const { data } = await supabase
+      .from("tenants")
+      .select("company_name, tax_id, address, phone, base_currency, fiscal_year_start, accounting_standard, legal_rep_name, chief_accountant_name, preparer_name, signature_url, stamp_url, logo_url")
+      .eq("id", tenantId)
+      .maybeSingle();
     return data ?? { fiscal_year_start: 1, base_currency: "VND" };
   });
 
-// ============ B09 — Thuyết minh BCTC (đầy đủ theo TT99) ============
+// ============ B09 — Thuyết minh BCTC ============
 export const getNotesData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from?: string; to?: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, tenantId } = context;
     const [profile, assets, products, payables, receivables, notes, lines, dep] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("fixed_assets").select("id, code, name, cost, useful_life_months, start_date, status, asset_account, accumulated_account, salvage_value, created_at").eq("user_id", userId),
-      supabase.from("products").select("id, code, name, on_hand, unit_cost").eq("user_id", userId),
-      supabase.from("invoices").select("supplier_name, total, payment_status, issue_date").eq("user_id", userId),
-      supabase.from("sales_invoices").select("customer_name, total, status, issue_date").eq("user_id", userId),
-      supabase.from("report_notes").select("section, content").eq("user_id", userId),
-      fetchLines(supabase, userId, data.from, data.to),
-      supabase.from("depreciation_entries").select("amount, period_month, fixed_assets!inner(user_id)").eq("fixed_assets.user_id", userId),
+      supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
+      supabase.from("fixed_assets").select("id, code, name, cost, useful_life_months, start_date, status, asset_account, accumulated_account, salvage_value, created_at").eq("tenant_id", tenantId),
+      supabase.from("products").select("id, code, name, on_hand, unit_cost").eq("tenant_id", tenantId),
+      supabase.from("invoices").select("supplier_name, total, payment_status, issue_date").eq("tenant_id", tenantId),
+      supabase.from("sales_invoices").select("customer_name, total, status, issue_date").eq("tenant_id", tenantId),
+      supabase.from("report_notes").select("section, content").eq("tenant_id", tenantId),
+      fetchLines(supabase, tenantId, data.from, data.to),
+      supabase.from("depreciation_entries").select("amount, period_month, fixed_assets!inner(tenant_id)").eq("fixed_assets.tenant_id", tenantId),
     ]);
 
-    // Tài sản cố định + biến động trong kỳ
     const inPeriod = (d?: string) => d && (!data.from || d >= data.from) && (!data.to || d <= data.to);
     const allAssets = assets.data ?? [];
     const fixedAssets = allAssets.map((a: any) => ({
@@ -479,27 +469,24 @@ export const getNotesData = createServerFn({ method: "POST" })
       totalDepreciation: (dep.data ?? []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0),
     };
 
-    // Hàng tồn kho
     const inventory = (products.data ?? []).map((p: any) => ({
       code: p.code, name: p.name, qty: Number(p.on_hand) || 0, value: (Number(p.on_hand) || 0) * (Number(p.unit_cost) || 0),
     })).filter((p: any) => p.qty > 0);
     const inventoryTotal = inventory.reduce((s: number, p: any) => s + p.value, 0);
 
-    // Aging công nợ
     const today = data.to ?? new Date().toISOString().slice(0, 10);
     const ageDays = (d: string) => Math.max(0, Math.floor((new Date(today).getTime() - new Date(d).getTime()) / 86400000));
     const bucket = (days: number) => days <= 30 ? "0-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
     const apList = (payables.data ?? []).filter((i: any) => i.payment_status !== "paid");
     const arList = (receivables.data ?? []).filter((i: any) => i.status !== "paid");
-    const aging = (list: any[], nameField: string) => {
+    const aging = (list: any[]) => {
       const buckets: Record<string, number> = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
       for (const x of list) buckets[bucket(ageDays(x.issue_date ?? today))] += Number(x.total) || 0;
       return buckets;
     };
-    const apAging = aging(apList, "supplier_name");
-    const arAging = aging(arList, "customer_name");
+    const apAging = aging(apList);
+    const arAging = aging(arList);
 
-    // Doanh thu theo tháng + chi phí theo loại (từ journal lines trong kỳ)
     const revenueByMonth: Record<string, number> = {};
     const expenseByAccount: Record<string, number> = {};
     const accountNames: Record<string, string> = {
@@ -525,15 +512,13 @@ export const getNotesData = createServerFn({ method: "POST" })
     const expenseByType = Object.entries(expenseByAccount).map(([code, amount]) => ({ code, name: accountNames[code] ?? code, amount: Math.round(amount) })).filter(x => Math.abs(x.amount) > 0.5);
     const revenueMonthly = Object.entries(revenueByMonth).sort().map(([month, amount]) => ({ month, amount: Math.round(amount) }));
 
-    // Vốn chủ sở hữu (số dư cuối kỳ trên 411, 4111, 4112, 421, 414, 418, 441)
     const equityBalances: Record<string, number> = {};
     const equityCodes = ["4111", "4112", "4118", "412", "413", "414", "418", "419", "421", "441"];
-    const fullLines = await fetchLines(supabase, userId, undefined, data.to);
+    const fullLines = await fetchLines(supabase, tenantId, undefined, data.to);
     for (const code of equityCodes) {
       equityBalances[code] = balanceForPrefix(fullLines, code, "credit");
     }
 
-    // Thuế phải nộp/đã nộp theo loại (333*)
     const taxBreakdown: Record<string, number> = {};
     const taxNames: Record<string, string> = { "3331": "GTGT đầu ra phải nộp", "3332": "Thuế tiêu thụ đặc biệt", "3333": "Thuế XNK", "3334": "Thuế TNDN", "3335": "Thuế TNCN", "3336": "Thuế tài nguyên", "3337": "Thuế nhà đất", "3338": "Thuế khác", "3339": "Phí, lệ phí" };
     for (const code of Object.keys(taxNames)) {
@@ -563,13 +548,13 @@ export const getNotesData = createServerFn({ method: "POST" })
 
 // ============ Notes CRUD ============
 export const upsertReportNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { section: string; content: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, tenantId, userId } = context;
     const { error } = await supabase.from("report_notes").upsert(
-      { user_id: userId, section: data.section, content: data.content, updated_at: new Date().toISOString() },
-      { onConflict: "user_id,section" }
+      { tenant_id: tenantId, user_id: userId, section: data.section, content: data.content, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id,section" }
     );
     if (error) throw error;
     return { ok: true };
@@ -577,12 +562,12 @@ export const upsertReportNote = createServerFn({ method: "POST" })
 
 // ============ Snapshots ============
 export const saveReportSnapshot = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { report_type: string; period_from?: string; period_to: string; payload: any }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, tenantId, userId } = context;
     const { data: row, error } = await supabase.from("report_snapshots").insert({
-      user_id: userId, report_type: data.report_type, period_from: data.period_from ?? null,
+      tenant_id: tenantId, user_id: userId, report_type: data.report_type, period_from: data.period_from ?? null,
       period_to: data.period_to, payload: data.payload,
     }).select("id").single();
     if (error) throw error;
@@ -590,40 +575,40 @@ export const saveReportSnapshot = createServerFn({ method: "POST" })
   });
 
 export const listReportSnapshots = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { report_type?: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    let q = supabase.from("report_snapshots").select("id, report_type, period_from, period_to, created_at").eq("user_id", userId).order("created_at", { ascending: false });
+    const { supabase, tenantId } = context;
+    let q = supabase.from("report_snapshots").select("id, report_type, period_from, period_to, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false });
     if (data.report_type) q = q.eq("report_type", data.report_type);
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
   });
 
-// ============ Legacy aliases (giữ tương thích route cũ) ============
+// ============ Legacy aliases ============
 export const getBalanceSheet = getBalanceSheetTT99;
 export const getIncomeStatement = getIncomeStatementTT99;
 export const getCashFlow = getCashFlowDirect;
 
 // ============ Excel Export ============
 export const exportReportXlsx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { report: "B01" | "B02" | "B03"; from?: string; to?: string; asOf?: string }) => i)
   .handler(async ({ data, context }) => {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(data.report);
 
-    const { supabase, userId } = context;
-    const profile = (await supabase.from("profiles").select("company_name, tax_id, address").eq("id", userId).maybeSingle()).data;
+    const { supabase, tenantId } = context;
+    const profile = (await supabase.from("tenants").select("company_name, tax_id, address").eq("id", tenantId).maybeSingle()).data;
 
     ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
     ws.getCell("A1").font = { bold: true, size: 13 };
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
 
-    const tenantStd = await resolveTenantStandard(supabase, userId);
+    const tenantStd = await resolveTenantStandard(supabase, tenantId);
     const b02Label = tenantStd === "TT133" ? "B02-DNN" : "B02-DN";
     const b03Label = tenantStd === "TT133" ? "B03-DNN" : "B03-DN";
     const title = data.report === "B01" ? "BÁO CÁO TÌNH HÌNH TÀI CHÍNH (B01-DN)"
@@ -642,10 +627,10 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
 
     let row = 8;
     if (data.report === "B01") {
-      const cur = await fetchLines(supabase, userId, undefined, data.asOf);
+      const cur = await fetchLines(supabase, tenantId, undefined, data.asOf);
       const niCur = (() => { let r = 0, e = 0; for (const l of cur) { const c = l.account_code; if (c.startsWith("5") || c.startsWith("7")) r += l.credit - l.debit; else if (c.startsWith("6") || c.startsWith("8")) e += l.debit - l.credit; } return r - e; })();
       const v: Record<string, number> = {};
-      const { mapping: bsMap } = await resolveBsMapping(supabase, userId);
+      const { mapping: bsMap } = await resolveBsMapping(supabase, tenantId);
       for (const it of bsMap) if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => { let x = balanceForPrefix(cur, a.prefix, a.nature) * a.sign; if (a.prefix === "421" && a.nature === "credit") x += niCur; return s + x; }, 0);
       for (const it of bsMap) if (it.formula) v[it.ma_so] = it.formula.reduce((s, m) => s + (v[m] ?? 0), 0);
       for (const it of bsMap) {
@@ -657,9 +642,9 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         row++;
       }
     } else if (data.report === "B02") {
-      const lines = await fetchLines(supabase, userId, data.from, data.to);
+      const lines = await fetchLines(supabase, tenantId, data.from, data.to);
       const v: Record<string, number> = {};
-      const { mapping: isMap } = await resolveIsMapping(supabase, userId);
+      const { mapping: isMap } = await resolveIsMapping(supabase, tenantId);
       for (const it of isMap) {
         if (it.accounts) v[it.ma_so] = it.accounts.reduce((s, a) => s + periodAmountForPrefix(lines, a.prefix, a.nature) * a.sign, 0);
         else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
@@ -673,8 +658,7 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
         row++;
       }
     } else {
-      // B03 — chạy lại logic CF trực tiếp
-      let q = supabase.from("journal_entries").select("id, entry_date, journal_lines(account_code, debit, credit)").eq("user_id", userId);
+      let q = supabase.from("journal_entries").select("id, entry_date, journal_lines(account_code, debit, credit)").eq("tenant_id", tenantId);
       if (data.from) q = q.gte("entry_date", data.from);
       if (data.to) q = q.lte("entry_date", data.to);
       const entries = (await q).data ?? [];
@@ -691,11 +675,11 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
       }
       const usedI = new Set<number>(), usedO = new Set<number>();
       const v: Record<string, number> = {};
-      const openL = data.from ? await fetchLines(supabase, userId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
-      const closeL = await fetchLines(supabase, userId, undefined, data.to);
+      const openL = data.from ? await fetchLines(supabase, tenantId, undefined, new Date(new Date(data.from).getTime() - 86400000).toISOString().slice(0, 10)) : [];
+      const closeL = await fetchLines(supabase, tenantId, undefined, data.to);
       const cashBal = (ls: any[]) => ls.filter(l => l.account_code.startsWith("111") || l.account_code.startsWith("112")).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
       const opening = cashBal(openL), closing = cashBal(closeL);
-      const { mapping: cfMap } = await resolveCfMapping(supabase, userId);
+      const { mapping: cfMap } = await resolveCfMapping(supabase, tenantId);
       for (const it of cfMap) {
         if (it.cashBalance === "opening") { v[it.ma_so] = opening; continue; }
         if (it.counterpart) {
@@ -706,7 +690,6 @@ export const exportReportXlsx = createServerFn({ method: "POST" })
           v[it.ma_so] = total;
         } else if (it.formula) v[it.ma_so] = it.formula.reduce((s, f) => s + (v[f.ma_so] ?? 0) * f.sign, 0);
       }
-      // dùng closing thực tế nếu lệch
       if (Math.abs((v["70"] ?? 0) - closing) > 0.5) v["70"] = closing;
       for (const it of cfMap) {
         ws.getCell(`A${row}`).value = it.name;
