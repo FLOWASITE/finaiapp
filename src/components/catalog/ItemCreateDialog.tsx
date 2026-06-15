@@ -557,9 +557,8 @@ export function ItemCreateDialog({
                     <Checkbox
                       checked={form.vatReductionEligible}
                       onCheckedChange={(v) => set("vatReductionEligible", !!v)}
-                      className="border-white/20 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                     />
-                    <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                       Được giảm VAT 2%
                     </span>
                   </label>
@@ -567,18 +566,17 @@ export function ItemCreateDialog({
                     <Checkbox
                       checked={form.deductible}
                       onCheckedChange={(v) => set("deductible", !!v)}
-                      className="border-white/20 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                     />
-                    <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                       Được trừ TNDN
                     </span>
                   </label>
                 </div>
               </div>
 
-              <div className="bg-white/[0.02] p-4 rounded-lg border border-white/5 grid grid-cols-3 gap-4">
+              <div className="bg-muted/40 p-4 rounded-lg border border-border grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1.5">
                     Thuế nhà thầu
                   </Label>
                   <Select
