@@ -356,7 +356,7 @@ async function buildVoucherList(
 }
 
 export const getVoucherList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: {
     from: string; to: string;
     dims?: DimFilter;
@@ -367,15 +367,15 @@ export const getVoucherList = createServerFn({ method: "POST" })
     pageSize?: number;
   }) => i)
   .handler(async ({ data, context }) => {
-    return buildVoucherList(context.supabase, context.userId, data);
+    return buildVoucherList(context.supabase, context.userId, context.tenantId, data);
   });
 
 export const exportVoucherListXlsx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from: string; to: string; dims?: DimFilter; sourceTables?: string[]; voucherTypes?: string[]; accountPrefix?: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const res = await buildVoucherList(supabase, userId, { ...data, page: 1, pageSize: 100000 });
+    const { supabase, userId, tenantId } = context;
+    const res = await buildVoucherList(supabase, userId, tenantId, { ...data, page: 1, pageSize: 100000 });
 
     const profile = (await supabase
       .from("profiles")
