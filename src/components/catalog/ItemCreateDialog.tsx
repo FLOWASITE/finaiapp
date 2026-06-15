@@ -131,11 +131,11 @@ function makeCode(name: string) {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="h-px flex-1 bg-white/5" />
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-[#10B981] shrink-0">
+      <span className="h-px flex-1 bg-border" />
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-primary shrink-0">
         {children}
       </h3>
-      <span className="h-px flex-1 bg-white/5" />
+      <span className="h-px flex-1 bg-border" />
     </div>
   );
 }
