@@ -412,16 +412,16 @@ export function ProductPickerCell({
             </span>
           </div>
           <Button
-            asChild
             size="sm"
             variant="ghost"
             className="h-7 gap-1.5 text-xs"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              setCreateOpen(true);
+            }}
           >
-            <Link to="/inventory">
-              <PackagePlus className="h-3.5 w-3.5" />
-              Tạo sản phẩm mới
-            </Link>
+            <PackagePlus className="h-3.5 w-3.5" />
+            Tạo sản phẩm mới
           </Button>
         </div>
 
@@ -431,6 +431,13 @@ export function ProductPickerCell({
             Chưa có sản phẩm trong kho. Hãy tạo sản phẩm trước khi lập phiếu.
           </div>
         ) : null}
+
+        <CreateItemDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={(p) => onPick(p as Product)}
+          mode={mode}
+        />
       </PopoverContent>
     </Popover>
   );
