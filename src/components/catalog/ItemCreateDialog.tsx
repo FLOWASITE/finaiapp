@@ -339,7 +339,7 @@ export function ItemCreateDialog({
     errors[k] ? <p className="text-xs text-destructive mt-1">{errors[k]}</p> : null;
 
   const accountLabel =
-    regime === "TT133" ? "Tài khoản mặc định (TT 133)" : "Tài khoản mặc định (TT 99)";
+    "Tài khoản mặc định";
 
   const inputCls =
     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0";
