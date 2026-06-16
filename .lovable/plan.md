@@ -1,30 +1,34 @@
-# Sửa: Báo cáo tài chính lẫn dữ liệu giữa các tổ chức
+## Mục tiêu
+Seed thêm các dịch vụ phổ biến vào **thư viện toàn cục** (`tenant_product_catalog` với `is_global = true`), thuộc 4 nhóm: Chi phí văn phòng, Vận chuyển & giao nhận, Dịch vụ chuyên môn, Marketing & quảng cáo.
 
-## Nguyên nhân
+Sau khi seed, mọi tổ chức (kể cả tổ chức mới tạo như "Linh kiện Tân Phú") sẽ thấy ngay các mục này trong tab **Thư viện** của trang Hàng hóa & dịch vụ. Người dùng bấm **Thêm** để đưa vào tab **Của tôi** (cơ chế hiện có — không cần code mới).
 
-Toàn bộ server function trong `src/lib/reports.functions.ts` đang lọc bằng `user_id` (id của người dùng) thay vì `tenant_id` (id tổ chức). Khi một user sở hữu nhiều tổ chức (vd: bạn vừa tạo "Linh kiện Tân Phú"), mọi báo cáo vẫn gom dữ liệu của các tổ chức cũ cùng user → tổ chức mới chưa có bút toán vẫn hiện số liệu.
+Lưu ý về câu hỏi: bạn chọn "thêm vào Của tôi" + phạm vi "Mọi tổ chức". Cách an toàn nhất là seed vào **thư viện toàn cục** (1 lần, dùng cho mọi tenant) thay vì insert hàng loạt vào bảng `products` của từng tenant (sẽ tạo rác ở các tenant không cần và khó rollback). Nếu bạn thực sự muốn auto-promote vào "Của tôi" cho tenant đang active, nói thêm và tôi sẽ bổ sung bước đó.
 
-Đây cùng kiểu lỗi với "Bút toán gần đây" trên Dashboard đã sửa trước đó: RLS chỉ kiểm tra thành viên tenant (`is_tenant_member`), không khóa theo `active_tenant_id`, nên app phải tự thêm `.eq("tenant_id", tenantId)`.
+## Danh sách dịch vụ sẽ thêm (~28 mục)
 
-## Phạm vi sửa (chỉ 1 file)
+**Chi phí văn phòng** (`item_type=service`, `default_account=642`, VAT 8–10%)
+- Tiền điện, Tiền nước, Cước internet, Cước điện thoại cố định, Cước điện thoại di động, Thuê văn phòng, Phí quản lý tòa nhà, Văn phòng phẩm (dịch vụ), Dịch vụ vệ sinh văn phòng, Dịch vụ bảo vệ
 
-`src/lib/reports.functions.ts` — chuyển middleware và filter:
+**Vận chuyển & giao nhận** (`item_type=service`, `default_account=641` cho bán / `642` mặc định)
+- Cước vận chuyển nội địa, Phí giao hàng nhanh (ship), Phí bốc xếp, Phí lưu kho/kho bãi, Cước vận tải đường bộ, Phí hải quan & thông quan
 
-- Đổi `requireSupabaseAuth` → `withTenant` ở tất cả `createServerFn`:
-  drilldown B01/B02/B03, Bảng cân đối phát sinh, Sổ cái, Sổ chi tiết, BS/PL/CF, dashboard tài sản & tồn kho, ghi chú báo cáo, snapshot, danh sách chứng từ.
-- Thay mọi `.eq("user_id", userId)` / `.eq("journal_entries.user_id", userId)` thành `.eq("tenant_id", tenantId)` (hoặc `.eq("journal_entries.tenant_id", tenantId)` khi join qua `journal_lines`).
-- Với bảng không có `tenant_id` (`journal_lines`, `depreciation_entries`): vẫn join qua bảng cha (`journal_entries`, `fixed_assets`) — chỉ đổi điều kiện `user_id` → `tenant_id`.
-- `report_notes.upsert`: ghi `tenant_id` thay vì `user_id`; `onConflict` đổi sang `tenant_id,section` (cần kiểm tra/điều chỉnh unique constraint — nếu hiện tại là `user_id,section` sẽ tạo migration đổi unique).
-- `resolveTenantStandard`: nhận thẳng `tenantId` từ context, bỏ bước đọc `profiles.active_tenant_id`.
+**Dịch vụ chuyên môn** (`item_type=service`, `default_account=642`)
+- Dịch vụ kế toán thuê ngoài, Dịch vụ tư vấn thuế, Phí kiểm toán, Dịch vụ tư vấn pháp lý, Phí công chứng, Dịch vụ dịch thuật, Phí dịch vụ ngân hàng
 
-## Kiểm tra sau khi sửa
+**Marketing & quảng cáo** (`item_type=service`, `default_account=641`)
+- Quảng cáo Facebook Ads, Quảng cáo Google Ads, Quảng cáo TikTok Ads, Dịch vụ thiết kế đồ họa, Chi phí in ấn (catalog, brochure, name card), Tổ chức sự kiện, Quà tặng khách hàng
 
-1. Đăng nhập → chuyển sang tổ chức "Linh kiện Tân Phú" → mở Báo cáo tài chính (B01/B02/B03), Bảng cân đối phát sinh, Sổ cái: tất cả phải trống.
-2. Quay lại tổ chức cũ: số liệu cũ hiển thị đầy đủ như trước.
-3. Drill-down từ một chỉ tiêu trên B01/B02/B03 vẫn ra đúng bút toán của tổ chức hiện hành.
+## Triển khai kỹ thuật
+1. Một lệnh `INSERT ... ON CONFLICT (tenant_id, name_norm) DO NOTHING` vào `public.tenant_product_catalog` với:
+   - `tenant_id = NULL`, `is_global = true`
+   - `name_norm` chuẩn hoá đúng quy ước `normalizeLineName` (lowercase, bỏ dấu, trim) để index `tenant_product_catalog_unique` và mapper hiện tại nhận diện được.
+   - `category` map sang các code đang dùng trong `adapt.ts`: `VAN_PHONG`, `RETAIL`/`MANUFACTURING`-không phù hợp → dùng `VAN_PHONG` cho vận chuyển/marketing, `CHUYEN_MON` cho chuyên môn. (Adapter sẽ tự rơi về `VAN_PHONG` nếu không khớp — chấp nhận được.)
+   - `item_type = 'service'`, `default_account` & `vat_rate` như trên.
+2. Idempotent: chạy lại nhiều lần không tạo trùng nhờ unique `(tenant_id, name_norm)`.
+3. Không sửa schema, không đổi RLS, không sửa code frontend.
 
-## Không động đến
-
-- Schema DB (trừ khi unique của `report_notes` đang là `user_id,section` — khi đó tạo migration nhỏ đổi sang `tenant_id,section`).
-- RLS policies (giữ nguyên; chỉ sửa lớp app).
-- Các báo cáo nằm ở file khác (`purchase-reports`, `sales-reports`, `fa-reports`, `payroll-reports`) — sẽ rà thêm trong cùng turn nếu xác nhận chúng cũng lọc bằng `user_id`.
+## Kiểm thử sau seed
+- Vào trang `/items`, tab **Thư viện**: thấy 28 mục mới ở 4 nhóm.
+- Bấm **Thêm** trên một mục → xuất hiện trong tab **Của tôi** của tenant hiện tại.
+- Tạo tenant mới → tab **Thư viện** vẫn có đầy đủ 28 mục.
