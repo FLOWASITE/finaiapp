@@ -550,40 +550,130 @@ export function VoucherListPage({ type }: Props) {
                 description="Thử mở rộng kỳ hoặc bỏ bộ lọc."
               />
             )}
-            {!isLoading && pagination.pageRows.map((r: any) => (
-              <div
-                key={r.id}
-                className={`p-3 ${selected.has(r.id) ? "bg-primary/5" : ""}`}
-                onClick={() => setOpenId(r.id)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Checkbox
-                      checked={selected.has(r.id)}
-                      onCheckedChange={() => toggleOne(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <span className="font-mono text-xs font-medium text-primary truncate">{r.voucher_no}</span>
-                    {r.voucher_type === "in"
-                      ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-[10px]"><ArrowDownToLine className="h-2.5 w-2.5 mr-0.5" />Nhập</Badge>
-                      : <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-[10px]"><ArrowUpFromLine className="h-2.5 w-2.5 mr-0.5" />Xuất</Badge>}
+            {!isLoading && pagination.pageRows.map((r: any) => {
+              const isSel = selected.has(r.id);
+              const isExp = expanded.has(r.id);
+              const acc = derivedAccounts(r);
+              const movs = (r.stock_movements ?? []) as any[];
+              const postedDate = fmtDate(r.posting_date ?? r.posted_at);
+              const sameDates = postedDate === fmtDate(r.voucher_date) || postedDate === "—";
+              return (
+                <div key={r.id} className={`p-3 ${isSel ? "bg-primary/5" : ""}`}>
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Checkbox
+                        checked={isSel}
+                        onCheckedChange={() => toggleOne(r.id)}
+                      />
+                      <button
+                        className="font-mono text-xs font-semibold text-primary truncate hover:underline"
+                        onClick={() => setOpenId(r.id)}
+                      >
+                        {r.voucher_no}
+                      </button>
+                      {r.voucher_type === "in"
+                        ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-[10px] shrink-0"><ArrowDownToLine className="h-2.5 w-2.5 mr-0.5" />Nhập</Badge>
+                        : <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-[10px] shrink-0"><ArrowUpFromLine className="h-2.5 w-2.5 mr-0.5" />Xuất</Badge>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[11px] text-muted-foreground tabular-nums">CT: {fmtDate(r.voucher_date)}</div>
+                      {!sameDates && <div className="text-[10px] text-muted-foreground tabular-nums">GS: {postedDate}</div>}
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">{r.voucher_date}</span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground truncate">
-                  {r.warehouses?.name || "Chưa gán kho"} · TK {r.counter_account || "—"}
-                </div>
-                {r.reason && <div className="mt-0.5 text-xs truncate">{r.reason}</div>}
-                <div className="mt-1.5 flex items-center justify-between">
-                  <div>
-                    {r.journal_entry_id
-                      ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20 text-[10px]">Đã ghi sổ</Badge>
-                      : <Badge variant="outline" className="text-muted-foreground text-[10px]">Chưa ghi sổ</Badge>}
+
+                  {/* Detail grid */}
+                  <dl className="mt-2 grid grid-cols-[88px_minmax(0,1fr)] gap-x-2 gap-y-1 text-[12px]">
+                    <dt className="text-muted-foreground">Kho</dt>
+                    <dd className="truncate">
+                      {r.warehouses ? `${r.warehouses.code ?? ""} · ${r.warehouses.name}`.replace(/^· /, "") : <span className="text-muted-foreground">Chưa gán</span>}
+                    </dd>
+
+                    <dt className="text-muted-foreground">Đối tượng</dt>
+                    <dd className="truncate">{r.party_name || <span className="text-muted-foreground">—</span>}</dd>
+
+                    <dt className="text-muted-foreground">Định khoản</dt>
+                    <dd className="font-mono text-[11px]">
+                      <span className="text-emerald-700">Nợ {acc.debit}</span>
+                      <span className="text-muted-foreground"> / </span>
+                      <span className="text-orange-700">Có {acc.credit}</span>
+                    </dd>
+
+                    {r.source_doc_no && (<>
+                      <dt className="text-muted-foreground">CT gốc</dt>
+                      <dd className="truncate">{r.source_doc_no}</dd>
+                    </>)}
+
+                    {r.reason && (<>
+                      <dt className="text-muted-foreground">Diễn giải</dt>
+                      <dd className="line-clamp-2">{r.reason}</dd>
+                    </>)}
+                  </dl>
+
+                  {/* Summary row */}
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed pt-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {r.journal_entry_id
+                        ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20 text-[10px]">Đã ghi sổ</Badge>
+                        : <Badge variant="outline" className="text-muted-foreground text-[10px]">Chưa ghi sổ</Badge>}
+                      <span className="text-[11px] text-muted-foreground">
+                        {r.line_count} dòng · SL {fmt(Number(r.total_qty || 0))}
+                      </span>
+                      {Number(r.attachments_count) > 0 && (
+                        <span className="text-[11px] text-muted-foreground inline-flex items-center gap-0.5">
+                          <Paperclip className="h-3 w-3" /> {r.attachments_count}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums">{fmt(r.total_value)} ₫</div>
                   </div>
-                  <div className="text-sm font-semibold tabular-nums">{fmt(r.total_value)}</div>
+
+                  {/* Expand button + sub-table */}
+                  <button
+                    className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                    onClick={() => toggleExpand(r.id)}
+                  >
+                    {isExp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {isExp ? "Ẩn chi tiết mặt hàng" : `Xem ${movs.length} mặt hàng`}
+                  </button>
+                  {isExp && (
+                    <div className="mt-2 rounded-md border bg-muted/20 overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead className="bg-muted/50 text-[10px] uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left">Mã · Tên</th>
+                            <th className="px-2 py-1.5 text-right">SL</th>
+                            <th className="px-2 py-1.5 text-right">Đơn giá</th>
+                            <th className="px-2 py-1.5 text-right">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {movs.length === 0 && (
+                            <tr><td colSpan={4} className="px-2 py-2 text-center text-muted-foreground">Không có dòng.</td></tr>
+                          )}
+                          {movs.map((m, i) => {
+                            const amount = Number(m.qty || 0) * Number(m.unit_cost || 0);
+                            return (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1.5">
+                                  <div className="font-mono text-[10px] text-muted-foreground">{m.products?.code || "—"}</div>
+                                  <div className="truncate">{m.products?.name || "—"}</div>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">
+                                  {fmt(Number(m.qty || 0))} <span className="text-[10px] text-muted-foreground">{m.products?.unit || ""}</span>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.unit_cost || 0))}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-medium">{fmt(amount)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <TablePagination {...pagination} />
