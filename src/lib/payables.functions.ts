@@ -344,6 +344,7 @@ async function buildApSummary(
     const { data: sups } = await supabase
       .from("suppliers")
       .select("id, code, name")
+      .eq("tenant_id", tenantId)
       .in("id", supIds);
     for (const s of (sups ?? []) as any[]) {
       if (s.code) codeMap.set(s.id, s.code);
