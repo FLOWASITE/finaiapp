@@ -5,7 +5,7 @@ import { withLatency } from "@/lib/with-latency";
 
 // ============ AGING LIST (existing) ============
 export const listPayables = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data: invoices } = await supabase
@@ -50,7 +50,7 @@ const PaymentSchema = z.object({
 });
 
 export const recordPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => PaymentSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -105,7 +105,7 @@ export const recordPayment = createServerFn({ method: "POST" })
 
 // ============ DELETE PAYMENT (reverse journal) ============
 export const deleteSupplierPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) =>
     z.object({ id: z.string().uuid() }).parse(i),
   )
@@ -155,7 +155,7 @@ const ListPaymentsSchema = z.object({
 });
 
 export const listSupplierPayments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => ListPaymentsSchema.parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
@@ -175,7 +175,7 @@ export const listSupplierPayments = createServerFn({ method: "POST" })
   });
 
 export const payablesStats = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from?: string; to?: string }) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(i ?? {}),
   )
@@ -211,7 +211,7 @@ export const payablesStats = createServerFn({ method: "POST" })
 
 
 export const listOutstandingPurchaseInvoices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data: invs } = await supabase
@@ -411,7 +411,7 @@ async function buildApSummary(
 }
 
 export const getApSummary = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator(
     (i: { from: string; to: string; dims?: ApDimFilter; account?: string }) => i,
   )
@@ -423,7 +423,7 @@ export const getApSummary = createServerFn({ method: "POST" })
   );
 
 export const exportApSummaryXlsx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator(
     (i: { from: string; to: string; dims?: ApDimFilter; account?: string }) => i,
   )
