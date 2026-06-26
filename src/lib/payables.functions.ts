@@ -443,8 +443,8 @@ export const exportApSummaryXlsx = createServerFn({ method: "POST" })
     (i: { from: string; to: string; dims?: ApDimFilter; account?: string }) => i,
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const rows = await buildApSummary(supabase, userId, data);
+    const { supabase, tenantId } = context;
+    const rows = await buildApSummary(supabase, tenantId, data);
 
     const totals = rows.reduce(
       (s, r) => ({
@@ -467,11 +467,12 @@ export const exportApSummaryXlsx = createServerFn({ method: "POST" })
 
     const profile = (
       await supabase
-        .from("profiles")
-        .select("company_name, tax_id, address")
-        .eq("id", userId)
+        .from("tenants")
+        .select("name, tax_id, address")
+        .eq("id", tenantId)
         .maybeSingle()
-    ).data;
+    ).data as any;
+    const companyName = profile?.name ?? "DOANH NGHIỆP";
 
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
