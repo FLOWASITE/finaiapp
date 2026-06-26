@@ -30,6 +30,23 @@ const monthStart = () => {
   return new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10);
 };
 
+/** Suy ra cặp TK Nợ / TK Có cho phiếu nhập/xuất. */
+function derivedAccounts(r: any): { debit: string; credit: string } {
+  const stockAcc =
+    r?.stock_movements?.[0]?.products?.stock_account ||
+    r?.stock_account ||
+    "152";
+  const counter = r?.counter_account || "—";
+  if (r?.voucher_type === "in") return { debit: stockAcc, credit: counter };
+  if (r?.voucher_type === "out") return { debit: counter, credit: stockAcc };
+  return { debit: stockAcc, credit: stockAcc };
+}
+
+const fmtDate = (s?: string | null) => {
+  if (!s) return "—";
+  return String(s).slice(0, 10);
+};
+
 interface Props {
   type: "in" | "out" | "all";
 }
