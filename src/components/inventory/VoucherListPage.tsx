@@ -1116,10 +1116,36 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Lý do / diễn giải</Label>
-            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={type === "in" ? "Nhập kho hàng từ NCC..." : "Xuất kho cho..."} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">{type === "in" ? "Nhà cung cấp" : "Khách hàng"}</Label>
+              <Select
+                value={form.party_id}
+                onValueChange={(v) => {
+                  const list = (type === "in" ? suppliers : customers) ?? [];
+                  const p = (list as any[]).find((x) => x.id === v);
+                  setForm({ ...form, party_id: v, party_name: p?.name ?? "" });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder={type === "in" ? "Chọn nhà cung cấp..." : "Chọn khách hàng..."} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">(Không chọn)</SelectItem>
+                  {(((type === "in" ? suppliers : customers) ?? []) as any[])
+                    .filter((p) => p.is_active !== false)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.code ? `${p.code} · ` : ""}{p.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Lý do / diễn giải</Label>
+              <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={type === "in" ? "Nhập kho hàng từ NCC..." : "Xuất kho cho..."} />
+            </div>
           </div>
+
 
           <div className="rounded-md border">
             <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs uppercase">
