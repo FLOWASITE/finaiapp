@@ -1056,6 +1056,8 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
         voucher_date: form.voucher_date,
         warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
         counter_account: form.counter_account,
+        party_id: form.party_id === "none" ? null : form.party_id,
+        party_name: form.party_name || null,
         reason: form.reason || undefined,
         lines: form.lines.filter((l) => l.product_id && l.qty > 0).map((l) => ({
           product_id: l.product_id,
