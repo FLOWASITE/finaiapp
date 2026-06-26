@@ -1805,15 +1805,25 @@ function VoucherDialog({
                           }
                         />
                       </td>
-                      <td className="px-1 py-1 w-[80px]">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={l.vat_rate || ""}
-                          onChange={(e) =>
-                            updateLine(i, { vat_rate: Number(e.target.value || 0) })
-                          }
-                        />
+                      <td className="px-1 py-1 w-[130px]">
+                        <Select
+                          value={l.vat_code}
+                          onValueChange={(v) => {
+                            const code = v as VatCode;
+                            updateLine(i, { vat_code: code, vat_rate: vatRate(code) });
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VAT_CODES.map((v) => (
+                              <SelectItem key={v.code} value={v.code}>
+                                {v.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
                         {fmtMoney(l.vat_amount)}
