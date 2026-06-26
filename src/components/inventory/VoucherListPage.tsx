@@ -122,14 +122,23 @@ export function VoucherListPage({ type }: Props) {
   };
 
   const exportCsv = () => {
-    const head = ["Ngày", "Số phiếu", "Loại", "Kho", "Đối tượng", "Diễn giải", "TK đối ứng", "Chứng từ gốc", "Số dòng", "Tổng giá trị", "Trạng thái"];
-    const lines = (filtered as any[]).map((r) => [
-      r.voucher_date, r.voucher_no,
-      r.voucher_type === "in" ? "Nhập" : r.voucher_type === "out" ? "Xuất" : "Chuyển",
-      r.warehouses?.name ?? "", r.party_name ?? "", (r.reason ?? "").replace(/\n/g, " "),
-      r.counter_account ?? "", r.source_doc_no ?? "", r.line_count, r.total_value,
-      r.journal_entry_id ? "Đã ghi sổ" : "Chưa ghi sổ",
-    ]);
+    const head = ["Ngày CT", "Ngày ghi sổ", "Số phiếu", "Loại", "Kho", "Đối tượng", "Diễn giải", "TK Nợ", "TK Có", "Chứng từ gốc", "Số dòng", "Tổng SL", "Tổng giá trị", "Trạng thái"];
+    const lines = (filtered as any[]).map((r) => {
+      const acc = derivedAccounts(r);
+      return [
+        r.voucher_date,
+        r.posting_date ?? r.posted_at ?? "",
+        r.voucher_no,
+        r.voucher_type === "in" ? "Nhập" : r.voucher_type === "out" ? "Xuất" : "Chuyển",
+        r.warehouses?.name ?? "",
+        r.party_name ?? "",
+        (r.reason ?? "").replace(/\n/g, " "),
+        acc.debit, acc.credit,
+        r.source_doc_no ?? "",
+        r.line_count, r.total_qty ?? "", r.total_value,
+        r.journal_entry_id ? "Đã ghi sổ" : "Chưa ghi sổ",
+      ];
+    });
     const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
