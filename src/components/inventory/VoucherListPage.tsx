@@ -5,6 +5,8 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts, createStockVoucher } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
+import { listSuppliers } from "@/lib/purchases.functions";
+import { listCustomers } from "@/lib/customers.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1005,16 +1007,22 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
   const createFn = useServerFn(createStockVoucher);
   const whsFn = useServerFn(listWarehouses);
   const productsFn = useServerFn(listProducts);
+  const suppliersFn = useServerFn(listSuppliers);
+  const customersFn = useServerFn(listCustomers);
   const qc = useQueryClient();
 
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
   const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
+  const { data: suppliers } = useQuery({ queryKey: ["suppliers"], queryFn: () => suppliersFn({}), ...QUERY_PRESETS.REFERENCE, enabled: type === "in" });
+  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => customersFn({}), ...QUERY_PRESETS.REFERENCE, enabled: type === "out" });
 
   const defaultCounter = type === "in" ? "331" : "632";
   const [form, setForm] = useState({
     voucher_date: today(),
     warehouse_id: "none",
     counter_account: defaultCounter,
+    party_id: "none",
+    party_name: "",
     reason: "",
     lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }] as { product_id: string; qty: number; unit_cost: number; note: string }[],
   });
@@ -1028,6 +1036,8 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
       voucher_date: today(),
       warehouse_id: defaultWhId,
       counter_account: type === "in" ? "331" : "632",
+      party_id: "none",
+      party_name: "",
       reason: "",
       lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }],
     });
@@ -1046,6 +1056,8 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
         voucher_date: form.voucher_date,
         warehouse_id: form.warehouse_id === "none" ? null : form.warehouse_id,
         counter_account: form.counter_account,
+        party_id: form.party_id === "none" ? null : form.party_id,
+        party_name: form.party_name || null,
         reason: form.reason || undefined,
         lines: form.lines.filter((l) => l.product_id && l.qty > 0).map((l) => ({
           product_id: l.product_id,
@@ -1104,10 +1116,36 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Lý do / diễn giải</Label>
-            <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={type === "in" ? "Nhập kho hàng từ NCC..." : "Xuất kho cho..."} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">{type === "in" ? "Nhà cung cấp" : "Khách hàng"}</Label>
+              <Select
+                value={form.party_id}
+                onValueChange={(v) => {
+                  const list = (type === "in" ? suppliers : customers) ?? [];
+                  const p = (list as any[]).find((x) => x.id === v);
+                  setForm({ ...form, party_id: v, party_name: p?.name ?? "" });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder={type === "in" ? "Chọn nhà cung cấp..." : "Chọn khách hàng..."} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">(Không chọn)</SelectItem>
+                  {(((type === "in" ? suppliers : customers) ?? []) as any[])
+                    .filter((p) => p.is_active !== false)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.code ? `${p.code} · ` : ""}{p.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Lý do / diễn giải</Label>
+              <Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={type === "in" ? "Nhập kho hàng từ NCC..." : "Xuất kho cho..."} />
+            </div>
           </div>
+
 
           <div className="rounded-md border">
             <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs uppercase">
