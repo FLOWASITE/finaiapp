@@ -138,10 +138,10 @@ export function VoucherListPage({ type }: Props) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Kpi label="Số phiếu" value={String(totals.count)} />
-        <Kpi label="Tổng số dòng" value={fmt(totals.lines)} />
-        <Kpi label="Tổng giá trị" value={fmt(totals.value)} />
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <Kpi label="Số phiếu" value={String(totals.count)} icon={Warehouse} tone="primary" />
+        <Kpi label="Tổng số dòng" value={fmt(totals.lines)} icon={ArrowDownToLine} tone="emerald" />
+        <Kpi label="Tổng giá trị" value={fmt(totals.value)} icon={ArrowUpFromLine} tone="orange" suffix="₫" />
       </div>
 
       <Card>
@@ -230,12 +230,25 @@ export function VoucherListPage({ type }: Props) {
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, icon: Icon, tone = "primary", suffix }: { label: string; value: string; icon?: any; tone?: "primary" | "emerald" | "orange"; suffix?: string }) {
+  const toneCls =
+    tone === "emerald" ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+    : tone === "orange" ? "text-orange-600 bg-orange-50 dark:bg-orange-950/30"
+    : "text-primary bg-primary/10";
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="mt-1 text-xl font-semibold">{value}</div>
+    <Card className="overflow-hidden">
+      <CardContent className="flex items-center gap-3 p-3 md:p-4">
+        {Icon && (
+          <div className={`hidden sm:flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${toneCls}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
+          <div className="mt-0.5 text-base md:text-lg font-semibold tabular-nums truncate">
+            {value}{suffix ? <span className="ml-1 text-xs text-muted-foreground font-normal">{suffix}</span> : null}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
