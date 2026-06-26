@@ -1,56 +1,75 @@
 ## Mục tiêu
-Đưa màn hình **Phiếu nhập/xuất kho** (`src/components/inventory/VoucherListPage.tsx`) về đúng chuẩn phần mềm kế toán (MISA/Fast): bộ lọc gọn, KPI súc tích, bảng dữ liệu dày đặc nhưng dễ đọc, đủ cột nghiệp vụ, có hành động hàng loạt.
-
-## Thay đổi chính
-
-### 1. Header / Toolbar
-- Tiêu đề + mô tả thu nhỏ 1 dòng.
-- Hàng nút bên phải: **Tạo phiếu nhập / Tạo phiếu xuất** (giữ), thêm **Xuất Excel**, **In danh sách**, **Làm mới**.
-- Toolbar lọc dồn vào 1 thanh ngang (sticky) thay vì Card lớn: `[Kỳ] [Kho] [Loại] [Trạng thái] [Tìm kiếm] [Bộ lọc nâng cao ▾]`.
-  - Bộ lọc nâng cao (popover): Chi nhánh, TK đối ứng, Đối tượng (party), Khoảng giá trị.
-
-### 2. KPI rút gọn (1 hàng, nhỏ)
-3 thẻ phẳng, mỗi thẻ 1 dòng `label — value`: Số phiếu · Tổng số dòng · Tổng giá trị. Bỏ icon hộp lớn.
-Thêm so sánh "Nhập: x phiếu / Xuất: y phiếu" ở dòng phụ khi `type="all"`.
-
-### 3. Bảng chuẩn kế toán
-Cột (theo thứ tự, mật độ cao — `text-sm`, row height ~36px, zebra rows, sticky header):
-
-```
-[☐] | Ngày | Số phiếu | Loại | Kho | Đối tượng | Lý do/Diễn giải | TK đối ứng | Chứng từ gốc | SL dòng | Tổng giá trị | Trạng thái | …
-```
-
-- **Checkbox cột đầu** → chọn nhiều phiếu.
-- **Số phiếu** click vào mở Chi tiết (thay cho icon mắt).
-- **Loại**: badge Nhập (xanh) / Xuất (cam) / Chuyển kho (tím).
-- **Đối tượng** (`party_name`) — cột mới, thường thấy trong PM kế toán.
-- **TK đối ứng** (`counter_account`) hiển thị font mono.
-- **Chứng từ gốc** (`source_doc_no` + `source_doc_date`) — cột mới.
-- **Tổng giá trị** căn phải, tabular-nums, in đậm; tổng cột ở footer (`tfoot`) cộng dồn theo trang.
-- **Trạng thái**: badge Đã ghi sổ (xanh đậm) / Chưa ghi sổ (xám viền) + icon đính kèm nếu `attachments_count > 0`.
-- **Cột hành động** gom vào menu `⋯`: Xem · Sửa · In · Ghi sổ / Huỷ ghi sổ · Xoá.
-
-### 4. Hàng loạt (bulk actions)
-Khi chọn ≥ 1 phiếu, hiện thanh action nổi phía dưới:
-`Đã chọn N phiếu  ·  [Ghi sổ] [Huỷ ghi sổ] [In hàng loạt] [Xoá]`.
-(Frontend wiring; gọi server fn hiện có theo từng id, hiện toast tổng kết.)
-
-### 5. Trạng thái rỗng & loading
-- Rỗng: dùng `EmptyState` với mascot, mô tả + nút "Tạo phiếu nhập" / "Tạo phiếu xuất".
-- Loading: skeleton rows thay vì text "Đang tải…".
-
-### 6. Mobile
-Dưới `md`: bảng chuyển sang danh sách card 2 dòng (số phiếu + loại + ngày | đối tượng + tổng giá trị + trạng thái), tap mở chi tiết.
-
-### 7. Phân trang
-Giữ `TablePagination`, thêm tuỳ chọn 20/50/100/200 dòng.
+Áp dụng đúng chuẩn phần mềm kế toán cho trang **`/inventory/transfers` — Phiếu chuyển kho**, đồng bộ với layout đã làm cho Phiếu nhập/xuất kho (`/inventory/vouchers`).
 
 ## Phạm vi
-- Chỉ sửa frontend: `src/components/inventory/VoucherListPage.tsx` (+ tách 1–2 component con nếu file vượt 800 dòng: `VoucherTable`, `VoucherFilters`, `VoucherBulkBar`).
-- Không đổi schema, không đổi server fn (`listStockVouchers` đã trả đủ trường cần dùng — chỉ thêm select `party_name, source_doc_no, source_doc_date, attachments_count, counter_account` nếu hiện tại chưa select).
-- Nếu `listStockVouchers` chưa trả các cột mới, cập nhật `SELECT` trong `src/lib/inventory.functions.ts` (chỉ thêm trường, không đổi chữ ký).
+Chỉ sửa frontend trong `src/routes/_app/inventory/transfers.tsx`. Không đổi server function, schema, business logic.
 
-## Ngoài phạm vi
-- Không đổi luồng tạo/sửa phiếu (Dialog hiện tại giữ nguyên).
-- Không thêm route mới.
-- Không đụng tới phiếu chuyển kho riêng (sẽ làm sau).
+## Thay đổi
+
+### 1. Header gọn, có toolbar hành động
+- Tiêu đề + mô tả ngắn (giữ icon `ArrowRightLeft`).
+- Nhóm nút bên phải: **Làm mới**, **Xuất CSV**, **Tạo phiếu chuyển kho**.
+- Dùng grid responsive `grid-cols-[minmax(0,1fr)_auto]` → `sm:flex` để không vỡ ở mobile.
+
+### 2. Toolbar lọc dạng card
+1 hàng grid 12-col:
+- Kỳ (DateRangeFilter) — 4 col
+- Kho xuất (Select, có "Tất cả") — 2 col
+- Kho nhập (Select, có "Tất cả") — 2 col
+- Trạng thái (Tất cả / Đã ghi sổ / Chưa ghi sổ) — 2 col
+- Tìm kiếm (số phiếu, lý do) — 2 col
+
+### 3. KPI 1 hàng (3 thẻ)
+- **Số phiếu** (icon `FileText`, tone primary)
+- **Tổng số dòng** (icon `Layers`, tone emerald)
+- **Tổng giá trị** (icon `Coins`, tone orange, suffix ₫)
+
+Dùng component `Kpi` cùng style với VoucherListPage (height nhỏ, label 11px uppercase).
+
+### 4. Bulk action bar
+- Checkbox chọn từng dòng + chọn cả trang.
+- Khi `selected.size > 0` hiện thanh nổi: "X phiếu đang chọn" + nút **Bỏ chọn** + **Huỷ phiếu** (AlertDialog xác nhận, gọi `cancelStockTransfer` song song).
+
+### 5. Bảng density cao (desktop)
+Sticky header, text-sm, hover, zebra nhẹ. Cột:
+- Checkbox
+- Ngày (tabular-nums)
+- Số phiếu (mono, click mở chi tiết — tạm reuse dialog hiện có hoặc giữ inline)
+- Kho xuất → mũi tên → Kho nhập (gộp 1 cột "Luồng chuyển" cho gọn, có icon ArrowRight)
+- Diễn giải / Lý do (truncate)
+- SL dòng (text-right)
+- Tổng SL (text-right)
+- Tổng giá trị (text-right, font-medium)
+- Trạng thái ghi sổ (Badge "Đã ghi sổ" emerald / "Chưa ghi sổ" outline)
+- Menu `⋯` (Xem, In, Huỷ)
+
+Footer: tổng giá trị của trang hiện tại.
+
+### 6. Mobile card view (`md:hidden`)
+Mỗi phiếu render thành card:
+- Dòng trên: checkbox + số phiếu (mono primary) + badge "Chuyển" + ngày
+- Dòng giữa: `Kho xuất → Kho nhập` (icon ArrowRight)
+- Dòng dưới: lý do (truncate) + tổng giá trị (font-semibold tabular-nums)
+- Badge trạng thái ghi sổ bên trái
+
+### 7. Phân trang + Empty/Loading
+- Dùng `usePagination` + `TablePagination` (20/trang) như VoucherListPage.
+- Skeleton 5 dòng khi loading.
+- `EmptyState` khi không có dữ liệu, có CTA "Tạo phiếu chuyển kho".
+
+### 8. Export CSV
+Cùng pattern với VoucherListPage: BOM UTF-8, cột Ngày / Số phiếu / Kho xuất / Kho nhập / Số dòng / Tổng SL / Tổng giá trị / Lý do / Trạng thái.
+
+### 9. Refresh tay
+Nút `RefreshCw` gọi `refetch()`, spin khi `isFetching`.
+
+## Không động vào
+- `TransferFormDialog` (form tạo phiếu) — giữ nguyên.
+- Server functions `listStockTransfers`, `createStockTransfer`, `cancelStockTransfer`.
+- Trạng thái ghi sổ: dựa trên field hiện có (`journal_entry_id` nếu listStockTransfers trả về; nếu chưa có sẽ chỉ hiện cột nhưng để trống — không sửa BE).
+
+## Files
+- `src/routes/_app/inventory/transfers.tsx` — refactor toàn bộ phần list (giữ phần dialog tạo phiếu).
+
+## Token & style
+Dùng semantic tokens (`bg-card`, `text-primary`, `bg-muted/40`, `text-emerald-600`...). Không hardcode màu, dark mode tự chạy.
