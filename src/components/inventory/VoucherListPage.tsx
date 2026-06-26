@@ -312,13 +312,16 @@ export function VoucherListPage({ type }: Props) {
                   <th className="px-2 py-2 w-8">
                     <Checkbox checked={allPageSelected} onCheckedChange={togglePage} aria-label="Chọn tất cả" />
                   </th>
-                  <th className="px-3 py-2 whitespace-nowrap">Ngày</th>
+                  <th className="px-1 py-2 w-7"></th>
+                  <th className="px-3 py-2 whitespace-nowrap">Ngày CT</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Ngày GS</th>
                   <th className="px-3 py-2 whitespace-nowrap">Số phiếu</th>
                   {type === "all" && <th className="px-3 py-2">Loại</th>}
                   <th className="px-3 py-2">Kho</th>
                   <th className="px-3 py-2">Đối tượng</th>
                   <th className="px-3 py-2">Diễn giải</th>
-                  <th className="px-3 py-2 whitespace-nowrap">TK đối ứng</th>
+                  <th className="px-3 py-2 whitespace-nowrap">TK Nợ / Có</th>
+                  <th className="px-3 py-2 whitespace-nowrap">CT gốc</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">SL dòng</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">Tổng giá trị</th>
                   <th className="px-3 py-2">Trạng thái</th>
