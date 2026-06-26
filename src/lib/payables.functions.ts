@@ -308,10 +308,12 @@ async function buildApSummary(
     supabase
       .from("invoices")
       .select("id, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .in("id", iIds),
     supabase
       .from("supplier_payments")
       .select("journal_entry_id, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .in("journal_entry_id", eIds),
   ]);
 
