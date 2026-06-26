@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus, MoreHorizontal, Paperclip, FileText, RefreshCw, X } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
@@ -23,8 +27,6 @@ const fmt = (n: number) => Number(n || 0).toLocaleString("vi-VN");
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => {
   const d = new Date();
-  // Mặc định lấy từ đầu năm để không bỏ sót phiếu kho được tạo từ
-  // chứng từ mua/bán có ngày khác tháng hiện tại.
   return new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10);
 };
 
@@ -35,21 +37,25 @@ interface Props {
 export function VoucherListPage({ type }: Props) {
   const list = useServerFn(listStockVouchers);
   const getStockVoucherFn = useServerFn(getStockVoucher);
+  const cancelFn = useServerFn(cancelStockVoucher);
   const whs = useServerFn(listWarehouses);
+  const qc = useQueryClient();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
   const [warehouseId, setWarehouseId] = useState("all");
   const [status, setStatus] = useState<"all" | "posted" | "unposted">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [createType, setCreateType] = useState<"in" | "out" | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs(),
- ...QUERY_PRESETS.TRANSACTIONAL,
-});
-  const { data: rows, isLoading } = useQuery({
-    queryKey: ["vouchers-list", type, from, to, warehouseId, status],
-    queryFn: () => list({ data: { type, from, to, warehouse_id: warehouseId, status } }),
+  const effectiveType = type === "all" ? typeFilter : type;
+
+  const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whs(), ...QUERY_PRESETS.TRANSACTIONAL });
+  const { data: rows, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["vouchers-list", effectiveType, from, to, warehouseId, status],
+    queryFn: () => list({ data: { type: effectiveType, from, to, warehouse_id: warehouseId, status } }),
     ...QUERY_PRESETS.TRANSACTIONAL,
   });
 
@@ -57,7 +63,7 @@ export function VoucherListPage({ type }: Props) {
     const s = search.trim().toLowerCase();
     if (!s) return rows ?? [];
     return (rows ?? []).filter((r: any) =>
-      [r.voucher_no, r.reason, r.warehouses?.name].some((v) => v?.toLowerCase().includes(s))
+      [r.voucher_no, r.reason, r.warehouses?.name, r.party_name, r.source_doc_no, r.counter_account].some((v) => v?.toLowerCase().includes(s))
     );
   }, [rows, search]);
 
@@ -67,50 +73,115 @@ export function VoucherListPage({ type }: Props) {
       count: arr.length,
       lines: arr.reduce((s, r) => s + Number(r.line_count || 0), 0),
       value: arr.reduce((s, r) => s + Number(r.total_value || 0), 0),
+      countIn: arr.filter((r) => r.voucher_type === "in").length,
+      countOut: arr.filter((r) => r.voucher_type === "out").length,
     };
   }, [filtered]);
 
-  const pagination = usePagination(filtered as any[], 20, `${type}|${from}|${to}|${warehouseId}|${status}|${search}`);
+  const pagination = usePagination(filtered as any[], 20, `${type}|${effectiveType}|${from}|${to}|${warehouseId}|${status}|${search}`);
 
-  const title = type === "in" ? "Phiếu nhập kho" : type === "out" ? "Phiếu xuất kho" : "Phiếu nhập/xuất kho";
+  useEffect(() => { setSelected(new Set()); }, [effectiveType, from, to, warehouseId, status, search]);
+
+  const pageIds = pagination.pageRows.map((r: any) => r.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const togglePage = () => {
+    const next = new Set(selected);
+    if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+    else pageIds.forEach((id) => next.add(id));
+    setSelected(next);
+  };
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const exportCsv = () => {
+    const head = ["Ngày", "Số phiếu", "Loại", "Kho", "Đối tượng", "Diễn giải", "TK đối ứng", "Chứng từ gốc", "Số dòng", "Tổng giá trị", "Trạng thái"];
+    const lines = (filtered as any[]).map((r) => [
+      r.voucher_date, r.voucher_no,
+      r.voucher_type === "in" ? "Nhập" : r.voucher_type === "out" ? "Xuất" : "Chuyển",
+      r.warehouses?.name ?? "", r.party_name ?? "", (r.reason ?? "").replace(/\n/g, " "),
+      r.counter_account ?? "", r.source_doc_no ?? "", r.line_count, r.total_value,
+      r.journal_entry_id ? "Đã ghi sổ" : "Chưa ghi sổ",
+    ]);
+    const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `phieu-kho_${from}_${to}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const bulkCancel = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      const results = await Promise.allSettled(ids.map((id) => cancelFn({ data: { id } })));
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      return { ok, fail };
+    },
+    onSuccess: ({ ok, fail }) => {
+      toast.success(`Đã huỷ ${ok} phiếu${fail ? ` · ${fail} lỗi` : ""}`);
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["vouchers-list"] });
+      qc.invalidateQueries({ queryKey: ["stock-report"] });
+      qc.invalidateQueries({ queryKey: ["inv-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+
+  const title = type === "in" ? "Phiếu nhập kho" : type === "out" ? "Phiếu xuất kho" : "Phiếu nhập / xuất kho";
   const Icon = type === "out" ? ArrowUpFromLine : ArrowDownToLine;
   const accent = type === "in" ? "text-emerald-600" : type === "out" ? "text-orange-600" : "text-primary";
 
+  const pageTotal = pagination.pageRows.reduce((s: number, r: any) => s + Number(r.total_value || 0), 0);
+  const colCount = (type === "all" ? 11 : 10);
+
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Icon className={`h-6 w-6 ${accent}`} /> {title}
+    <div className="p-4 md:p-6 space-y-4">
+      {/* Header */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Icon className={`h-5 w-5 md:h-6 md:w-6 shrink-0 ${accent}`} />
+            <span className="truncate">{title}</span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Mỗi phiếu nhiều dòng. Bạn có thể tạo phiếu trực tiếp tại đây.
+          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+            Quản lý chứng từ nhập / xuất kho, ghi sổ kế toán và đối chiếu tồn kho.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} className="h-8">
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportCsv} className="h-8">
+            <FileText className="h-3.5 w-3.5 mr-1" /> Xuất CSV
+          </Button>
           {(type === "in" || type === "all") && (
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setCreateType("in")}>
-              <Plus className="h-4 w-4 mr-1" /> <ArrowDownToLine className="h-4 w-4 mr-1" /> Phiếu nhập
+            <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setCreateType("in")}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Phiếu nhập
             </Button>
           )}
           {(type === "out" || type === "all") && (
-            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCreateType("out")}>
-              <Plus className="h-4 w-4 mr-1" /> <ArrowUpFromLine className="h-4 w-4 mr-1" /> Phiếu xuất
+            <Button size="sm" className="h-8 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCreateType("out")}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Phiếu xuất
             </Button>
           )}
         </div>
       </div>
 
-      <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-6">
-          <div className="space-y-1 md:col-span-2">
-            <Label className="text-xs">Kỳ</Label>
-            <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} className="w-full justify-start" />
+      {/* Filter toolbar */}
+      <Card className="border-border/60">
+        <CardContent className="grid gap-2 p-3 md:grid-cols-12 md:gap-3">
+          <div className="md:col-span-4">
+            <Label className="text-[11px] uppercase text-muted-foreground">Kỳ</Label>
+            <DateRangeFilter from={from} to={to} onChange={(r) => { setFrom(r.from); setTo(r.to); }} className="w-full justify-start h-9 mt-0.5" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Kho</Label>
+          <div className="md:col-span-2">
+            <Label className="text-[11px] uppercase text-muted-foreground">Kho</Label>
             <Select value={warehouseId} onValueChange={setWarehouseId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 mt-0.5"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả kho</SelectItem>
                 <SelectItem value="none">(Chưa gán kho)</SelectItem>
@@ -120,10 +191,23 @@ export function VoucherListPage({ type }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Trạng thái</Label>
+          {type === "all" && (
+            <div className="md:col-span-2">
+              <Label className="text-[11px] uppercase text-muted-foreground">Loại</Label>
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                <SelectTrigger className="h-9 mt-0.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="in">Nhập</SelectItem>
+                  <SelectItem value="out">Xuất</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className={type === "all" ? "md:col-span-2" : "md:col-span-2"}>
+            <Label className="text-[11px] uppercase text-muted-foreground">Trạng thái</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 mt-0.5"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="posted">Đã ghi sổ</SelectItem>
@@ -131,95 +215,274 @@ export function VoucherListPage({ type }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 md:col-span-2">
-            <Label className="text-xs">Tìm số phiếu / lý do</Label>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PN202605/00001..." />
+          <div className={type === "all" ? "md:col-span-2" : "md:col-span-4"}>
+            <Label className="text-[11px] uppercase text-muted-foreground">Tìm kiếm</Label>
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Số phiếu, đối tượng, lý do..." className="h-9 mt-0.5" />
           </div>
         </CardContent>
       </Card>
 
+      {/* KPIs */}
       <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <Kpi label="Số phiếu" value={String(totals.count)} icon={Warehouse} tone="primary" />
+        <Kpi label="Số phiếu" value={String(totals.count)} icon={FileText} tone="primary"
+          sub={type === "all" ? `Nhập ${totals.countIn} · Xuất ${totals.countOut}` : undefined} />
         <Kpi label="Tổng số dòng" value={fmt(totals.lines)} icon={ArrowDownToLine} tone="emerald" />
         <Kpi label="Tổng giá trị" value={fmt(totals.value)} icon={ArrowUpFromLine} tone="orange" suffix="₫" />
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{selected.size} phiếu</Badge>
+            <span className="text-muted-foreground">đang được chọn</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Set())}>
+              <X className="h-3.5 w-3.5 mr-1" /> Bỏ chọn
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="destructive" className="h-7">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Huỷ phiếu
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Huỷ {selected.size} phiếu đã chọn?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Toàn bộ phiếu sẽ bị xoá, bút toán đảo và tồn kho tính lại. Hành động không thể hoàn tác.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Đóng</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => bulkCancel.mutate()}>Xác nhận huỷ</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      )}
+
+      {/* Table / List */}
       <Card>
-        <CardHeader><CardTitle>Danh sách</CardTitle></CardHeader>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">Danh sách phiếu</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground sticky top-0 z-10">
                 <tr>
-                  <th className="p-3">Ngày</th>
-                  <th className="p-3">Số phiếu</th>
-                  {type === "all" && <th className="p-3">Loại</th>}
-                  <th className="p-3">Kho</th>
-                  <th className="p-3">Lý do</th>
-                  <th className="p-3 text-right">Số dòng</th>
-                  <th className="p-3 text-right">Tổng giá trị</th>
-                  <th className="p-3">Trạng thái</th>
-                  <th className="p-3"></th>
+                  <th className="px-2 py-2 w-8">
+                    <Checkbox checked={allPageSelected} onCheckedChange={togglePage} aria-label="Chọn tất cả" />
+                  </th>
+                  <th className="px-3 py-2 whitespace-nowrap">Ngày</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Số phiếu</th>
+                  {type === "all" && <th className="px-3 py-2">Loại</th>}
+                  <th className="px-3 py-2">Kho</th>
+                  <th className="px-3 py-2">Đối tượng</th>
+                  <th className="px-3 py-2">Diễn giải</th>
+                  <th className="px-3 py-2 whitespace-nowrap">TK đối ứng</th>
+                  <th className="px-3 py-2 text-right whitespace-nowrap">SL dòng</th>
+                  <th className="px-3 py-2 text-right whitespace-nowrap">Tổng giá trị</th>
+                  <th className="px-3 py-2">Trạng thái</th>
+                  <th className="px-3 py-2 w-12"></th>
                 </tr>
               </thead>
               <tbody>
-                {isLoading && <tr><td colSpan={type === "all" ? 9 : 8} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>}
-                {!isLoading && filtered.length === 0 && (
-                  <tr><td colSpan={type === "all" ? 9 : 8} className="p-6 text-center text-muted-foreground">Không có phiếu phù hợp</td></tr>
-                )}
-                {pagination.pageRows.map((r: any) => (
-                  <tr key={r.id} className="border-t hover:bg-muted/30">
-                    <td className="p-3 whitespace-nowrap">{r.voucher_date}</td>
-                    <td className="p-3 font-mono text-xs">{r.voucher_no}</td>
-                    {type === "all" && (
-                      <td className="p-3">
-                        {r.voucher_type === "in" ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                            <ArrowDownToLine className="h-3 w-3 mr-1" /> Nhập
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
-                            <ArrowUpFromLine className="h-3 w-3 mr-1" /> Xuất
-                          </Badge>
-                        )}
-                      </td>
-                    )}
-                    <td className="p-3">
-                      {r.warehouses ? (
-                        <span className="inline-flex items-center gap-1 text-xs">
-                          <Warehouse className="h-3 w-3" /> {r.warehouses.name}
-                        </span>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
-                    </td>
-                    <td className="p-3 text-xs">{r.reason || "—"}</td>
-                    <td className="p-3 text-right">{r.line_count}</td>
-                    <td className="p-3 text-right font-medium">{fmt(r.total_value)}</td>
-                    <td className="p-3">
-                      {r.journal_entry_id
-                        ? <Badge variant="secondary">Đã ghi sổ</Badge>
-                        : <Badge variant="outline">Chưa ghi sổ</Badge>}
-                    </td>
-                    <td className="p-3 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setOpenId(r.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={async () => {
-                        const full = await getStockVoucherFn({ data: { id: r.id } });
-                        printVoucher({
-                          voucher: full.voucher as any,
-                          lines: full.lines as any,
-                          journal_lines: full.journal_lines as any,
-                          type: (r.voucher_type === "out" ? "out" : "in"),
-                        });
-                      }}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </td>
+                {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-t">
+                    {Array.from({ length: colCount + 1 }).map((_, j) => (
+                      <td key={j} className="px-3 py-2"><Skeleton className="h-4 w-full" /></td>
+                    ))}
                   </tr>
                 ))}
+                {!isLoading && filtered.length === 0 && (
+                  <tr><td colSpan={colCount + 1} className="p-0">
+                    <EmptyState
+                      size="sm"
+                      bordered={false}
+                      title="Không có phiếu phù hợp"
+                      description="Thử mở rộng kỳ, đổi kho hoặc bỏ bộ lọc."
+                      cta={(type === "in" || type === "all") ? (
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setCreateType("in")}>
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Phiếu nhập
+                        </Button>
+                      ) : undefined}
+                      secondary={(type === "out" || type === "all") ? (
+                        <Button size="sm" variant="outline" onClick={() => setCreateType("out")}>
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Phiếu xuất
+                        </Button>
+                      ) : undefined}
+                    />
+                  </td></tr>
+                )}
+                {!isLoading && pagination.pageRows.map((r: any) => {
+                  const isSel = selected.has(r.id);
+                  return (
+                    <tr key={r.id} className={`border-t hover:bg-muted/40 ${isSel ? "bg-primary/5" : ""}`}>
+                      <td className="px-2 py-2">
+                        <Checkbox checked={isSel} onCheckedChange={() => toggleOne(r.id)} aria-label="Chọn phiếu" />
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.voucher_date}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          className="font-mono text-xs font-medium text-primary hover:underline"
+                          onClick={() => setOpenId(r.id)}
+                        >
+                          {r.voucher_no}
+                        </button>
+                        {r.source_doc_no && (
+                          <div className="text-[11px] text-muted-foreground mt-0.5">CT gốc: {r.source_doc_no}</div>
+                        )}
+                      </td>
+                      {type === "all" && (
+                        <td className="px-3 py-2">
+                          {r.voucher_type === "in" ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">
+                              <ArrowDownToLine className="h-3 w-3 mr-1" /> Nhập
+                            </Badge>
+                          ) : r.voucher_type === "out" ? (
+                            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0">
+                              <ArrowUpFromLine className="h-3 w-3 mr-1" /> Xuất
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-0">Chuyển</Badge>
+                          )}
+                        </td>
+                      )}
+                      <td className="px-3 py-2">
+                        {r.warehouses ? (
+                          <span className="inline-flex items-center gap-1 text-xs">
+                            <Warehouse className="h-3 w-3 text-muted-foreground" /> {r.warehouses.name}
+                          </span>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs max-w-[180px] truncate" title={r.party_name || ""}>
+                        {r.party_name || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs max-w-[260px] truncate" title={r.reason || ""}>
+                        {r.reason || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs">{r.counter_account || "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{r.line_count}</td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums">{fmt(r.total_value)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {r.journal_entry_id
+                            ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20">Đã ghi sổ</Badge>
+                            : <Badge variant="outline" className="text-muted-foreground">Chưa ghi sổ</Badge>}
+                          {Number(r.attachments_count) > 0 && (
+                            <span title={`${r.attachments_count} đính kèm`} className="text-muted-foreground">
+                              <Paperclip className="h-3 w-3" />
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setOpenId(r.id)}>
+                              <Eye className="h-3.5 w-3.5 mr-2" /> Xem chi tiết
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setOpenId(r.id)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Sửa phiếu
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              const full = await getStockVoucherFn({ data: { id: r.id } });
+                              printVoucher({
+                                voucher: full.voucher as any,
+                                lines: full.lines as any,
+                                journal_lines: full.journal_lines as any,
+                                type: (r.voucher_type === "out" ? "out" : "in"),
+                              });
+                            }}>
+                              <Printer className="h-3.5 w-3.5 mr-2" /> In phiếu
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => { setSelected(new Set([r.id])); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Chọn để huỷ
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              {!isLoading && filtered.length > 0 && (
+                <tfoot>
+                  <tr className="border-t bg-muted/40 text-xs">
+                    <td colSpan={type === "all" ? 9 : 8} className="px-3 py-2 text-right uppercase tracking-wide text-muted-foreground">
+                      Tổng trang ({pagination.pageRows.length} phiếu)
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(pageTotal)}</td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y">
+            {isLoading && Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-3 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-3/4" /></div>
+            ))}
+            {!isLoading && filtered.length === 0 && (
+              <EmptyState
+                size="sm"
+                bordered={false}
+                title="Không có phiếu phù hợp"
+                description="Thử mở rộng kỳ hoặc bỏ bộ lọc."
+              />
+            )}
+            {!isLoading && pagination.pageRows.map((r: any) => (
+              <div
+                key={r.id}
+                className={`p-3 ${selected.has(r.id) ? "bg-primary/5" : ""}`}
+                onClick={() => setOpenId(r.id)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Checkbox
+                      checked={selected.has(r.id)}
+                      onCheckedChange={() => toggleOne(r.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="font-mono text-xs font-medium text-primary truncate">{r.voucher_no}</span>
+                    {r.voucher_type === "in"
+                      ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-[10px]"><ArrowDownToLine className="h-2.5 w-2.5 mr-0.5" />Nhập</Badge>
+                      : <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-[10px]"><ArrowUpFromLine className="h-2.5 w-2.5 mr-0.5" />Xuất</Badge>}
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">{r.voucher_date}</span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground truncate">
+                  {r.warehouses?.name || "Chưa gán kho"} · TK {r.counter_account || "—"}
+                </div>
+                {r.reason && <div className="mt-0.5 text-xs truncate">{r.reason}</div>}
+                <div className="mt-1.5 flex items-center justify-between">
+                  <div>
+                    {r.journal_entry_id
+                      ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20 text-[10px]">Đã ghi sổ</Badge>
+                      : <Badge variant="outline" className="text-muted-foreground text-[10px]">Chưa ghi sổ</Badge>}
+                  </div>
+                  <div className="text-sm font-semibold tabular-nums">{fmt(r.total_value)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <TablePagination {...pagination} />
         </CardContent>
       </Card>
@@ -230,7 +493,7 @@ export function VoucherListPage({ type }: Props) {
   );
 }
 
-function Kpi({ label, value, icon: Icon, tone = "primary", suffix }: { label: string; value: string; icon?: any; tone?: "primary" | "emerald" | "orange"; suffix?: string }) {
+function Kpi({ label, value, icon: Icon, tone = "primary", suffix, sub }: { label: string; value: string; icon?: any; tone?: "primary" | "emerald" | "orange"; suffix?: string; sub?: string }) {
   const toneCls =
     tone === "emerald" ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
     : tone === "orange" ? "text-orange-600 bg-orange-50 dark:bg-orange-950/30"
@@ -248,11 +511,13 @@ function Kpi({ label, value, icon: Icon, tone = "primary", suffix }: { label: st
           <div className="mt-0.5 text-base md:text-lg font-semibold tabular-nums truncate">
             {value}{suffix ? <span className="ml-1 text-xs text-muted-foreground font-normal">{suffix}</span> : null}
           </div>
+          {sub && <div className="text-[11px] text-muted-foreground truncate">{sub}</div>}
         </div>
       </CardContent>
     </Card>
   );
 }
+
 
 function VoucherDetailDialog({ id, onClose, type }: { id: string | null; onClose: () => void; type: "in" | "out" }) {
   const get = useServerFn(getStockVoucher);
