@@ -478,7 +478,7 @@ export const exportApSummaryXlsx = createServerFn({ method: "POST" })
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("CongNoPhaiTra");
 
-    ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
+    ws.getCell("A1").value = companyName;
     ws.getCell("A1").font = { bold: true, size: 13 };
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
