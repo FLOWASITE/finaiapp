@@ -1,34 +1,26 @@
 ## Mục tiêu
-Seed thêm các dịch vụ phổ biến vào **thư viện toàn cục** (`tenant_product_catalog` với `is_global = true`), thuộc 4 nhóm: Chi phí văn phòng, Vận chuyển & giao nhận, Dịch vụ chuyên môn, Marketing & quảng cáo.
+Trên màn **Phiếu bán hàng** (`src/routes/_app/sales/vouchers.tsx`), đổi ô **Thuế GTGT(%)** ở từng dòng từ Input số sang **Select** chọn loại thuế GTGT theo chuẩn VN.
 
-Sau khi seed, mọi tổ chức (kể cả tổ chức mới tạo như "Linh kiện Tân Phú") sẽ thấy ngay các mục này trong tab **Thư viện** của trang Hàng hóa & dịch vụ. Người dùng bấm **Thêm** để đưa vào tab **Của tôi** (cơ chế hiện có — không cần code mới).
+## Các loại thuế trong select
+Lấy từ `src/lib/vat-codes.ts` (đã có sẵn):
+- `0%` — Xuất khẩu, vận tải QT
+- `5%`
+- `8%` — Giảm thuế
+- `10%` — Thông thường (mặc định)
+- `KCT` — Không chịu thuế (rate 0, không tính VAT)
+- `KKKNT` — Không kê khai, không nộp (rate 0, không tính VAT)
 
-Lưu ý về câu hỏi: bạn chọn "thêm vào Của tôi" + phạm vi "Mọi tổ chức". Cách an toàn nhất là seed vào **thư viện toàn cục** (1 lần, dùng cho mọi tenant) thay vì insert hàng loạt vào bảng `products` của từng tenant (sẽ tạo rác ở các tenant không cần và khó rollback). Nếu bạn thực sự muốn auto-promote vào "Của tôi" cho tenant đang active, nói thêm và tôi sẽ bổ sung bước đó.
+## Thay đổi
+1. **`src/routes/_app/sales/vouchers.tsx`**
+   - Import `Select, SelectTrigger, SelectValue, SelectContent, SelectItem` và `VAT_CODES, vatRate, vatHasOutputTax` từ `@/lib/vat-codes`.
+   - Thêm field `vat_code` vào type `Line` (default `"10"`); giữ `vat_rate` để các phép tính/lưu DB hiện tại không vỡ.
+   - Tại cell "Thuế GTGT(%)" (dòng ~1803–1812): thay `<Input type="number">` bằng `<Select>` hiển thị label ngắn (vd "10%", "KCT"). 
+   - Khi chọn: cập nhật cả `vat_code` và `vat_rate` (KCT/KKKNT → `vat_rate = 0`); hàm `recompute` hiện đã tính `vat_amount` từ `vat_rate` nên tự động ra 0 cho 2 mã không thuế.
+   - Mở rộng cột header sang `w-[110px]` để chứa select gọn.
+   - Khi load phiếu cũ chưa có `vat_code`: suy ra từ `vat_rate` (10→"10", 8→"8", 5→"5", 0→"0", còn lại "10").
 
-## Danh sách dịch vụ sẽ thêm (~28 mục)
+2. Không đổi schema DB, không đổi `sales-vouchers.functions.ts` — chỉ tinh chỉnh UI dòng phiếu.
 
-**Chi phí văn phòng** (`item_type=service`, `default_account=642`, VAT 8–10%)
-- Tiền điện, Tiền nước, Cước internet, Cước điện thoại cố định, Cước điện thoại di động, Thuê văn phòng, Phí quản lý tòa nhà, Văn phòng phẩm (dịch vụ), Dịch vụ vệ sinh văn phòng, Dịch vụ bảo vệ
-
-**Vận chuyển & giao nhận** (`item_type=service`, `default_account=641` cho bán / `642` mặc định)
-- Cước vận chuyển nội địa, Phí giao hàng nhanh (ship), Phí bốc xếp, Phí lưu kho/kho bãi, Cước vận tải đường bộ, Phí hải quan & thông quan
-
-**Dịch vụ chuyên môn** (`item_type=service`, `default_account=642`)
-- Dịch vụ kế toán thuê ngoài, Dịch vụ tư vấn thuế, Phí kiểm toán, Dịch vụ tư vấn pháp lý, Phí công chứng, Dịch vụ dịch thuật, Phí dịch vụ ngân hàng
-
-**Marketing & quảng cáo** (`item_type=service`, `default_account=641`)
-- Quảng cáo Facebook Ads, Quảng cáo Google Ads, Quảng cáo TikTok Ads, Dịch vụ thiết kế đồ họa, Chi phí in ấn (catalog, brochure, name card), Tổ chức sự kiện, Quà tặng khách hàng
-
-## Triển khai kỹ thuật
-1. Một lệnh `INSERT ... ON CONFLICT (tenant_id, name_norm) DO NOTHING` vào `public.tenant_product_catalog` với:
-   - `tenant_id = NULL`, `is_global = true`
-   - `name_norm` chuẩn hoá đúng quy ước `normalizeLineName` (lowercase, bỏ dấu, trim) để index `tenant_product_catalog_unique` và mapper hiện tại nhận diện được.
-   - `category` map sang các code đang dùng trong `adapt.ts`: `VAN_PHONG`, `RETAIL`/`MANUFACTURING`-không phù hợp → dùng `VAN_PHONG` cho vận chuyển/marketing, `CHUYEN_MON` cho chuyên môn. (Adapter sẽ tự rơi về `VAN_PHONG` nếu không khớp — chấp nhận được.)
-   - `item_type = 'service'`, `default_account` & `vat_rate` như trên.
-2. Idempotent: chạy lại nhiều lần không tạo trùng nhờ unique `(tenant_id, name_norm)`.
-3. Không sửa schema, không đổi RLS, không sửa code frontend.
-
-## Kiểm thử sau seed
-- Vào trang `/items`, tab **Thư viện**: thấy 28 mục mới ở 4 nhóm.
-- Bấm **Thêm** trên một mục → xuất hiện trong tab **Của tôi** của tenant hiện tại.
-- Tạo tenant mới → tab **Thư viện** vẫn có đầy đủ 28 mục.
+## Phạm vi không động đến
+- Cột "TK thuế GTGT" giữ nguyên.
+- Phiếu mua hàng (`purchases/vouchers.tsx`) — chỉ áp dụng cho Phiếu bán hàng theo yêu cầu.

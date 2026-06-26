@@ -31,6 +31,7 @@ import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { MoneyInput } from "@/components/ui/money-input";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { invalidateLedgers } from "@/lib/query-invalidation";
+import { VAT_CODES, vatRate, type VatCode } from "@/lib/vat-codes";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,6 +163,7 @@ type Line = {
   discount_pct: number;
   discount_amount: number;
   vat_rate: number;
+  vat_code: VatCode;
   vat_amount: number;
   amount: number;
   total: number;
@@ -182,6 +184,7 @@ const emptyLine = (): Line => ({
   discount_pct: 0,
   discount_amount: 0,
   vat_rate: 0,
+  vat_code: "10",
   vat_amount: 0,
   amount: 0,
   total: 0,
@@ -494,6 +497,7 @@ function SalesVouchersPage() {
             discount_pct: Number(l.discount_pct),
             discount_amount: Number(l.discount_amount),
             vat_rate: Number(l.vat_rate),
+            vat_code: (l.vat_code as VatCode) ?? (Number(l.vat_rate) === 10 ? "10" : Number(l.vat_rate) === 8 ? "8" : Number(l.vat_rate) === 5 ? "5" : Number(l.vat_rate) === 0 ? "0" : "10"),
             vat_amount: Number(l.vat_amount),
             amount: Number(l.amount),
             total: Number(l.total),
@@ -1692,7 +1696,7 @@ function VoucherDialog({
                     <th className="px-2 py-1.5 text-left w-28">
                       TK thuế GTGT <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-right w-20">Thuế GTGT(%)</th>
+                    <th className="px-2 py-1.5 text-left w-[130px]">Thuế GTGT</th>
                     <th className="px-2 py-1.5 text-right w-32">Tiền thuế</th>
                     <th className="px-2 py-1.5 text-right w-32">Thành tiền</th>
                     <th className="w-10"></th>
@@ -1723,6 +1727,7 @@ function VoucherDialog({
                               unit: p.unit ?? "",
                               unit_price: Number(p.unit_price ?? 0),
                               vat_rate: Number(p.vat_rate ?? 10),
+                              vat_code: (Number(p.vat_rate ?? 10) === 8 ? "8" : Number(p.vat_rate ?? 10) === 5 ? "5" : Number(p.vat_rate ?? 10) === 0 ? "0" : "10") as VatCode,
                               credit_account: p.revenue_account ?? l.credit_account,
                               line_type: p.item_type === "service" ? "service" : "goods",
                             });
@@ -1800,15 +1805,25 @@ function VoucherDialog({
                           }
                         />
                       </td>
-                      <td className="px-1 py-1 w-[80px]">
-                        <Input
-                          type="number"
-                          className="h-8 text-right"
-                          value={l.vat_rate || ""}
-                          onChange={(e) =>
-                            updateLine(i, { vat_rate: Number(e.target.value || 0) })
-                          }
-                        />
+                      <td className="px-1 py-1 w-[130px]">
+                        <Select
+                          value={l.vat_code}
+                          onValueChange={(v) => {
+                            const code = v as VatCode;
+                            updateLine(i, { vat_code: code, vat_rate: vatRate(code) });
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VAT_CODES.map((v) => (
+                              <SelectItem key={v.code} value={v.code}>
+                                {v.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
                         {fmtMoney(l.vat_amount)}
