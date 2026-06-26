@@ -7,14 +7,16 @@ import { withLatency } from "@/lib/with-latency";
 export const listPayables = createServerFn({ method: "GET" })
   .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: invoices } = await supabase
       .from("invoices")
       .select("id, supplier_id, supplier_name, invoice_no, issue_date, total, status")
+      .eq("tenant_id", tenantId)
       .order("issue_date", { ascending: false });
     const { data: payments } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
 
     const paidByInv = new Map<string, number>();
     (payments ?? []).forEach((p) => {
