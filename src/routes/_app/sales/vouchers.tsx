@@ -184,6 +184,7 @@ const emptyLine = (): Line => ({
   discount_pct: 0,
   discount_amount: 0,
   vat_rate: 0,
+  vat_code: "10",
   vat_amount: 0,
   amount: 0,
   total: 0,
