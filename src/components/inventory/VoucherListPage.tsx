@@ -138,10 +138,10 @@ export function VoucherListPage({ type }: Props) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Kpi label="Số phiếu" value={String(totals.count)} />
-        <Kpi label="Tổng số dòng" value={fmt(totals.lines)} />
-        <Kpi label="Tổng giá trị" value={fmt(totals.value)} />
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <Kpi label="Số phiếu" value={String(totals.count)} icon={Warehouse} tone="primary" />
+        <Kpi label="Tổng số dòng" value={fmt(totals.lines)} icon={ArrowDownToLine} tone="emerald" />
+        <Kpi label="Tổng giá trị" value={fmt(totals.value)} icon={ArrowUpFromLine} tone="orange" suffix="₫" />
       </div>
 
       <Card>
