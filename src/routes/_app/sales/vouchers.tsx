@@ -1696,7 +1696,7 @@ function VoucherDialog({
                     <th className="px-2 py-1.5 text-left w-28">
                       TK thuế GTGT <span className="text-destructive">(*)</span>
                     </th>
-                    <th className="px-2 py-1.5 text-right w-20">Thuế GTGT(%)</th>
+                    <th className="px-2 py-1.5 text-left w-[130px]">Thuế GTGT</th>
                     <th className="px-2 py-1.5 text-right w-32">Tiền thuế</th>
                     <th className="px-2 py-1.5 text-right w-32">Thành tiền</th>
                     <th className="w-10"></th>
