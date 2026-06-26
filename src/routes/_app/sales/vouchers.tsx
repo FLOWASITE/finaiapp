@@ -163,6 +163,7 @@ type Line = {
   discount_pct: number;
   discount_amount: number;
   vat_rate: number;
+  vat_code: VatCode;
   vat_amount: number;
   amount: number;
   total: number;
