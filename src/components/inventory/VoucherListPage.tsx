@@ -66,6 +66,14 @@ export function VoucherListPage({ type }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [createType, setCreateType] = useState<"in" | "out" | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   const effectiveType = type === "all" ? typeFilter : type;
 
