@@ -5,6 +5,8 @@ import { QUERY_PRESETS } from "@/lib/query-presets";
 import { useServerFn } from "@tanstack/react-start";
 import { listStockVouchers, getStockVoucher, cancelStockVoucher, updateStockVoucher, listProducts, createStockVoucher } from "@/lib/inventory.functions";
 import { listWarehouses } from "@/lib/warehouses.functions";
+import { listSuppliers } from "@/lib/purchases.functions";
+import { listCustomers } from "@/lib/customers.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
