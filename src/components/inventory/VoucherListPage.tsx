@@ -1021,6 +1021,8 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
     voucher_date: today(),
     warehouse_id: "none",
     counter_account: defaultCounter,
+    party_id: "none",
+    party_name: "",
     reason: "",
     lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }] as { product_id: string; qty: number; unit_cost: number; note: string }[],
   });
@@ -1034,6 +1036,8 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
       voucher_date: today(),
       warehouse_id: defaultWhId,
       counter_account: type === "in" ? "331" : "632",
+      party_id: "none",
+      party_name: "",
       reason: "",
       lines: [{ product_id: "", qty: 0, unit_cost: 0, note: "" }],
     });
