@@ -31,6 +31,7 @@ import { listPartyGroups } from "@/lib/partyGroups.functions";
 import { MoneyInput } from "@/components/ui/money-input";
 import { QUERY_PRESETS } from "@/lib/query-presets";
 import { invalidateLedgers } from "@/lib/query-invalidation";
+import { VAT_CODES, vatRate, type VatCode } from "@/lib/vat-codes";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
