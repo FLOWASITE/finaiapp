@@ -1727,6 +1727,7 @@ function VoucherDialog({
                               unit: p.unit ?? "",
                               unit_price: Number(p.unit_price ?? 0),
                               vat_rate: Number(p.vat_rate ?? 10),
+                              vat_code: (Number(p.vat_rate ?? 10) === 8 ? "8" : Number(p.vat_rate ?? 10) === 5 ? "5" : Number(p.vat_rate ?? 10) === 0 ? "0" : "10") as VatCode,
                               credit_account: p.revenue_account ?? l.credit_account,
                               line_type: p.item_type === "service" ? "service" : "goods",
                             });
