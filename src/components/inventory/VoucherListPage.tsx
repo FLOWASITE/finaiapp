@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_PRESETS } from "@/lib/query-presets";
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus, MoreHorizontal, Paperclip, FileText, RefreshCw, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, Pencil, Printer, Trash2, Warehouse, Plus, MoreHorizontal, Paperclip, FileText, RefreshCw, X, ChevronDown, ChevronRight } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { printVoucher } from "@/lib/printVoucher";
 import { toast } from "sonner";
@@ -28,6 +28,23 @@ const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => {
   const d = new Date();
   return new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10);
+};
+
+/** Suy ra cặp TK Nợ / TK Có cho phiếu nhập/xuất. */
+function derivedAccounts(r: any): { debit: string; credit: string } {
+  const stockAcc =
+    r?.stock_movements?.[0]?.products?.stock_account ||
+    r?.stock_account ||
+    "152";
+  const counter = r?.counter_account || "—";
+  if (r?.voucher_type === "in") return { debit: stockAcc, credit: counter };
+  if (r?.voucher_type === "out") return { debit: counter, credit: stockAcc };
+  return { debit: stockAcc, credit: stockAcc };
+}
+
+const fmtDate = (s?: string | null) => {
+  if (!s) return "—";
+  return String(s).slice(0, 10);
 };
 
 interface Props {
@@ -49,6 +66,14 @@ export function VoucherListPage({ type }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [createType, setCreateType] = useState<"in" | "out" | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   const effectiveType = type === "all" ? typeFilter : type;
 
@@ -97,14 +122,23 @@ export function VoucherListPage({ type }: Props) {
   };
 
   const exportCsv = () => {
-    const head = ["Ngày", "Số phiếu", "Loại", "Kho", "Đối tượng", "Diễn giải", "TK đối ứng", "Chứng từ gốc", "Số dòng", "Tổng giá trị", "Trạng thái"];
-    const lines = (filtered as any[]).map((r) => [
-      r.voucher_date, r.voucher_no,
-      r.voucher_type === "in" ? "Nhập" : r.voucher_type === "out" ? "Xuất" : "Chuyển",
-      r.warehouses?.name ?? "", r.party_name ?? "", (r.reason ?? "").replace(/\n/g, " "),
-      r.counter_account ?? "", r.source_doc_no ?? "", r.line_count, r.total_value,
-      r.journal_entry_id ? "Đã ghi sổ" : "Chưa ghi sổ",
-    ]);
+    const head = ["Ngày CT", "Ngày ghi sổ", "Số phiếu", "Loại", "Kho", "Đối tượng", "Diễn giải", "TK Nợ", "TK Có", "Chứng từ gốc", "Số dòng", "Tổng SL", "Tổng giá trị", "Trạng thái"];
+    const lines = (filtered as any[]).map((r) => {
+      const acc = derivedAccounts(r);
+      return [
+        r.voucher_date,
+        r.posting_date ?? r.posted_at ?? "",
+        r.voucher_no,
+        r.voucher_type === "in" ? "Nhập" : r.voucher_type === "out" ? "Xuất" : "Chuyển",
+        r.warehouses?.name ?? "",
+        r.party_name ?? "",
+        (r.reason ?? "").replace(/\n/g, " "),
+        acc.debit, acc.credit,
+        r.source_doc_no ?? "",
+        r.line_count, r.total_qty ?? "", r.total_value,
+        r.journal_entry_id ? "Đã ghi sổ" : "Chưa ghi sổ",
+      ];
+    });
     const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -136,7 +170,7 @@ export function VoucherListPage({ type }: Props) {
   const accent = type === "in" ? "text-emerald-600" : type === "out" ? "text-orange-600" : "text-primary";
 
   const pageTotal = pagination.pageRows.reduce((s: number, r: any) => s + Number(r.total_value || 0), 0);
-  const colCount = (type === "all" ? 11 : 10);
+  const colCount = (type === "all" ? 14 : 13);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -278,13 +312,16 @@ export function VoucherListPage({ type }: Props) {
                   <th className="px-2 py-2 w-8">
                     <Checkbox checked={allPageSelected} onCheckedChange={togglePage} aria-label="Chọn tất cả" />
                   </th>
-                  <th className="px-3 py-2 whitespace-nowrap">Ngày</th>
+                  <th className="px-1 py-2 w-7"></th>
+                  <th className="px-3 py-2 whitespace-nowrap">Ngày CT</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Ngày GS</th>
                   <th className="px-3 py-2 whitespace-nowrap">Số phiếu</th>
                   {type === "all" && <th className="px-3 py-2">Loại</th>}
                   <th className="px-3 py-2">Kho</th>
                   <th className="px-3 py-2">Đối tượng</th>
                   <th className="px-3 py-2">Diễn giải</th>
-                  <th className="px-3 py-2 whitespace-nowrap">TK đối ứng</th>
+                  <th className="px-3 py-2 whitespace-nowrap">TK Nợ / Có</th>
+                  <th className="px-3 py-2 whitespace-nowrap">CT gốc</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">SL dòng</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">Tổng giá trị</th>
                   <th className="px-3 py-2">Trạng thái</th>
@@ -321,12 +358,24 @@ export function VoucherListPage({ type }: Props) {
                 )}
                 {!isLoading && pagination.pageRows.map((r: any) => {
                   const isSel = selected.has(r.id);
+                  const isExp = expanded.has(r.id);
+                  const acc = derivedAccounts(r);
+                  const movs = (r.stock_movements ?? []) as any[];
                   return (
-                    <tr key={r.id} className={`border-t hover:bg-muted/40 ${isSel ? "bg-primary/5" : ""}`}>
+                    <Fragment key={r.id}>
+                    <tr className={`border-t hover:bg-muted/40 ${isSel ? "bg-primary/5" : ""}`}>
                       <td className="px-2 py-2">
                         <Checkbox checked={isSel} onCheckedChange={() => toggleOne(r.id)} aria-label="Chọn phiếu" />
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.voucher_date}</td>
+                      <td className="px-1 py-2">
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => toggleExpand(r.id)} aria-label="Mở rộng">
+                          {isExp ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                        </Button>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{fmtDate(r.voucher_date)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                        {fmtDate(r.posting_date ?? r.posted_at)}
+                      </td>
                       <td className="px-3 py-2">
                         <button
                           className="font-mono text-xs font-medium text-primary hover:underline"
@@ -334,9 +383,6 @@ export function VoucherListPage({ type }: Props) {
                         >
                           {r.voucher_no}
                         </button>
-                        {r.source_doc_no && (
-                          <div className="text-[11px] text-muted-foreground mt-0.5">CT gốc: {r.source_doc_no}</div>
-                        )}
                       </td>
                       {type === "all" && (
                         <td className="px-3 py-2">
@@ -366,7 +412,14 @@ export function VoucherListPage({ type }: Props) {
                       <td className="px-3 py-2 text-xs max-w-[260px] truncate" title={r.reason || ""}>
                         {r.reason || <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">{r.counter_account || "—"}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] whitespace-nowrap">
+                        <span className="text-emerald-700">N {acc.debit}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-orange-700">C {acc.credit}</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                        {r.source_doc_no || "—"}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.line_count}</td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">{fmt(r.total_value)}</td>
                       <td className="px-3 py-2">
@@ -417,13 +470,63 @@ export function VoucherListPage({ type }: Props) {
                         </DropdownMenu>
                       </td>
                     </tr>
+                    {isExp && (
+                      <tr className="border-t bg-muted/20">
+                        <td colSpan={colCount + 1} className="px-4 py-3">
+                          {movs.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">Phiếu chưa có dòng chi tiết.</div>
+                          ) : (
+                            <div className="rounded-md border bg-card overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/50 text-[10px] uppercase text-muted-foreground">
+                                  <tr>
+                                    <th className="px-2 py-1.5 text-left w-8">#</th>
+                                    <th className="px-2 py-1.5 text-left">Mã</th>
+                                    <th className="px-2 py-1.5 text-left">Tên mặt hàng</th>
+                                    <th className="px-2 py-1.5 text-left">ĐVT</th>
+                                    <th className="px-2 py-1.5 text-right">Số lượng</th>
+                                    <th className="px-2 py-1.5 text-right">Đơn giá</th>
+                                    <th className="px-2 py-1.5 text-right">Thành tiền</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {movs.map((m, i) => {
+                                    const amount = Number(m.qty || 0) * Number(m.unit_cost || 0);
+                                    return (
+                                      <tr key={i} className="border-t">
+                                        <td className="px-2 py-1.5 text-muted-foreground">{i + 1}</td>
+                                        <td className="px-2 py-1.5 font-mono">{m.products?.code || "—"}</td>
+                                        <td className="px-2 py-1.5">{m.products?.name || "—"}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{m.products?.unit || "—"}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.qty || 0))}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.unit_cost || 0))}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums font-medium">{fmt(amount)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="border-t bg-muted/30">
+                                    <td colSpan={4} className="px-2 py-1.5 text-right uppercase text-[10px] text-muted-foreground">Cộng</td>
+                                    <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(r.total_qty || 0))}</td>
+                                    <td></td>
+                                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{fmt(Number(r.total_value || 0))}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
               {!isLoading && filtered.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-muted/40 text-xs">
-                    <td colSpan={type === "all" ? 9 : 8} className="px-3 py-2 text-right uppercase tracking-wide text-muted-foreground">
+                    <td colSpan={type === "all" ? 12 : 11} className="px-3 py-2 text-right uppercase tracking-wide text-muted-foreground">
                       Tổng trang ({pagination.pageRows.length} phiếu)
                     </td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(pageTotal)}</td>
@@ -447,40 +550,130 @@ export function VoucherListPage({ type }: Props) {
                 description="Thử mở rộng kỳ hoặc bỏ bộ lọc."
               />
             )}
-            {!isLoading && pagination.pageRows.map((r: any) => (
-              <div
-                key={r.id}
-                className={`p-3 ${selected.has(r.id) ? "bg-primary/5" : ""}`}
-                onClick={() => setOpenId(r.id)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Checkbox
-                      checked={selected.has(r.id)}
-                      onCheckedChange={() => toggleOne(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <span className="font-mono text-xs font-medium text-primary truncate">{r.voucher_no}</span>
-                    {r.voucher_type === "in"
-                      ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-[10px]"><ArrowDownToLine className="h-2.5 w-2.5 mr-0.5" />Nhập</Badge>
-                      : <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-[10px]"><ArrowUpFromLine className="h-2.5 w-2.5 mr-0.5" />Xuất</Badge>}
+            {!isLoading && pagination.pageRows.map((r: any) => {
+              const isSel = selected.has(r.id);
+              const isExp = expanded.has(r.id);
+              const acc = derivedAccounts(r);
+              const movs = (r.stock_movements ?? []) as any[];
+              const postedDate = fmtDate(r.posting_date ?? r.posted_at);
+              const sameDates = postedDate === fmtDate(r.voucher_date) || postedDate === "—";
+              return (
+                <div key={r.id} className={`p-3 ${isSel ? "bg-primary/5" : ""}`}>
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Checkbox
+                        checked={isSel}
+                        onCheckedChange={() => toggleOne(r.id)}
+                      />
+                      <button
+                        className="font-mono text-xs font-semibold text-primary truncate hover:underline"
+                        onClick={() => setOpenId(r.id)}
+                      >
+                        {r.voucher_no}
+                      </button>
+                      {r.voucher_type === "in"
+                        ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-[10px] shrink-0"><ArrowDownToLine className="h-2.5 w-2.5 mr-0.5" />Nhập</Badge>
+                        : <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-[10px] shrink-0"><ArrowUpFromLine className="h-2.5 w-2.5 mr-0.5" />Xuất</Badge>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[11px] text-muted-foreground tabular-nums">CT: {fmtDate(r.voucher_date)}</div>
+                      {!sameDates && <div className="text-[10px] text-muted-foreground tabular-nums">GS: {postedDate}</div>}
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">{r.voucher_date}</span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground truncate">
-                  {r.warehouses?.name || "Chưa gán kho"} · TK {r.counter_account || "—"}
-                </div>
-                {r.reason && <div className="mt-0.5 text-xs truncate">{r.reason}</div>}
-                <div className="mt-1.5 flex items-center justify-between">
-                  <div>
-                    {r.journal_entry_id
-                      ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20 text-[10px]">Đã ghi sổ</Badge>
-                      : <Badge variant="outline" className="text-muted-foreground text-[10px]">Chưa ghi sổ</Badge>}
+
+                  {/* Detail grid */}
+                  <dl className="mt-2 grid grid-cols-[88px_minmax(0,1fr)] gap-x-2 gap-y-1 text-[12px]">
+                    <dt className="text-muted-foreground">Kho</dt>
+                    <dd className="truncate">
+                      {r.warehouses ? `${r.warehouses.code ?? ""} · ${r.warehouses.name}`.replace(/^· /, "") : <span className="text-muted-foreground">Chưa gán</span>}
+                    </dd>
+
+                    <dt className="text-muted-foreground">Đối tượng</dt>
+                    <dd className="truncate">{r.party_name || <span className="text-muted-foreground">—</span>}</dd>
+
+                    <dt className="text-muted-foreground">Định khoản</dt>
+                    <dd className="font-mono text-[11px]">
+                      <span className="text-emerald-700">Nợ {acc.debit}</span>
+                      <span className="text-muted-foreground"> / </span>
+                      <span className="text-orange-700">Có {acc.credit}</span>
+                    </dd>
+
+                    {r.source_doc_no && (<>
+                      <dt className="text-muted-foreground">CT gốc</dt>
+                      <dd className="truncate">{r.source_doc_no}</dd>
+                    </>)}
+
+                    {r.reason && (<>
+                      <dt className="text-muted-foreground">Diễn giải</dt>
+                      <dd className="line-clamp-2">{r.reason}</dd>
+                    </>)}
+                  </dl>
+
+                  {/* Summary row */}
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed pt-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {r.journal_entry_id
+                        ? <Badge className="bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/10 border-emerald-600/20 text-[10px]">Đã ghi sổ</Badge>
+                        : <Badge variant="outline" className="text-muted-foreground text-[10px]">Chưa ghi sổ</Badge>}
+                      <span className="text-[11px] text-muted-foreground">
+                        {r.line_count} dòng · SL {fmt(Number(r.total_qty || 0))}
+                      </span>
+                      {Number(r.attachments_count) > 0 && (
+                        <span className="text-[11px] text-muted-foreground inline-flex items-center gap-0.5">
+                          <Paperclip className="h-3 w-3" /> {r.attachments_count}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums">{fmt(r.total_value)} ₫</div>
                   </div>
-                  <div className="text-sm font-semibold tabular-nums">{fmt(r.total_value)}</div>
+
+                  {/* Expand button + sub-table */}
+                  <button
+                    className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                    onClick={() => toggleExpand(r.id)}
+                  >
+                    {isExp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {isExp ? "Ẩn chi tiết mặt hàng" : `Xem ${movs.length} mặt hàng`}
+                  </button>
+                  {isExp && (
+                    <div className="mt-2 rounded-md border bg-muted/20 overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead className="bg-muted/50 text-[10px] uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left">Mã · Tên</th>
+                            <th className="px-2 py-1.5 text-right">SL</th>
+                            <th className="px-2 py-1.5 text-right">Đơn giá</th>
+                            <th className="px-2 py-1.5 text-right">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {movs.length === 0 && (
+                            <tr><td colSpan={4} className="px-2 py-2 text-center text-muted-foreground">Không có dòng.</td></tr>
+                          )}
+                          {movs.map((m, i) => {
+                            const amount = Number(m.qty || 0) * Number(m.unit_cost || 0);
+                            return (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1.5">
+                                  <div className="font-mono text-[10px] text-muted-foreground">{m.products?.code || "—"}</div>
+                                  <div className="truncate">{m.products?.name || "—"}</div>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">
+                                  {fmt(Number(m.qty || 0))} <span className="text-[10px] text-muted-foreground">{m.products?.unit || ""}</span>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.unit_cost || 0))}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-medium">{fmt(amount)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <TablePagination {...pagination} />
