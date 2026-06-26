@@ -358,12 +358,24 @@ export function VoucherListPage({ type }: Props) {
                 )}
                 {!isLoading && pagination.pageRows.map((r: any) => {
                   const isSel = selected.has(r.id);
+                  const isExp = expanded.has(r.id);
+                  const acc = derivedAccounts(r);
+                  const movs = (r.stock_movements ?? []) as any[];
                   return (
-                    <tr key={r.id} className={`border-t hover:bg-muted/40 ${isSel ? "bg-primary/5" : ""}`}>
+                    <Fragment key={r.id}>
+                    <tr className={`border-t hover:bg-muted/40 ${isSel ? "bg-primary/5" : ""}`}>
                       <td className="px-2 py-2">
                         <Checkbox checked={isSel} onCheckedChange={() => toggleOne(r.id)} aria-label="Chọn phiếu" />
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.voucher_date}</td>
+                      <td className="px-1 py-2">
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => toggleExpand(r.id)} aria-label="Mở rộng">
+                          {isExp ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                        </Button>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">{fmtDate(r.voucher_date)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                        {fmtDate(r.posting_date ?? r.posted_at)}
+                      </td>
                       <td className="px-3 py-2">
                         <button
                           className="font-mono text-xs font-medium text-primary hover:underline"
@@ -371,9 +383,6 @@ export function VoucherListPage({ type }: Props) {
                         >
                           {r.voucher_no}
                         </button>
-                        {r.source_doc_no && (
-                          <div className="text-[11px] text-muted-foreground mt-0.5">CT gốc: {r.source_doc_no}</div>
-                        )}
                       </td>
                       {type === "all" && (
                         <td className="px-3 py-2">
@@ -403,7 +412,14 @@ export function VoucherListPage({ type }: Props) {
                       <td className="px-3 py-2 text-xs max-w-[260px] truncate" title={r.reason || ""}>
                         {r.reason || <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">{r.counter_account || "—"}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] whitespace-nowrap">
+                        <span className="text-emerald-700">N {acc.debit}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-orange-700">C {acc.credit}</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                        {r.source_doc_no || "—"}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.line_count}</td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">{fmt(r.total_value)}</td>
                       <td className="px-3 py-2">
@@ -454,13 +470,63 @@ export function VoucherListPage({ type }: Props) {
                         </DropdownMenu>
                       </td>
                     </tr>
+                    {isExp && (
+                      <tr className="border-t bg-muted/20">
+                        <td colSpan={colCount + 1} className="px-4 py-3">
+                          {movs.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">Phiếu chưa có dòng chi tiết.</div>
+                          ) : (
+                            <div className="rounded-md border bg-card overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/50 text-[10px] uppercase text-muted-foreground">
+                                  <tr>
+                                    <th className="px-2 py-1.5 text-left w-8">#</th>
+                                    <th className="px-2 py-1.5 text-left">Mã</th>
+                                    <th className="px-2 py-1.5 text-left">Tên mặt hàng</th>
+                                    <th className="px-2 py-1.5 text-left">ĐVT</th>
+                                    <th className="px-2 py-1.5 text-right">Số lượng</th>
+                                    <th className="px-2 py-1.5 text-right">Đơn giá</th>
+                                    <th className="px-2 py-1.5 text-right">Thành tiền</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {movs.map((m, i) => {
+                                    const amount = Number(m.qty || 0) * Number(m.unit_cost || 0);
+                                    return (
+                                      <tr key={i} className="border-t">
+                                        <td className="px-2 py-1.5 text-muted-foreground">{i + 1}</td>
+                                        <td className="px-2 py-1.5 font-mono">{m.products?.code || "—"}</td>
+                                        <td className="px-2 py-1.5">{m.products?.name || "—"}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{m.products?.unit || "—"}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.qty || 0))}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(m.unit_cost || 0))}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums font-medium">{fmt(amount)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="border-t bg-muted/30">
+                                    <td colSpan={4} className="px-2 py-1.5 text-right uppercase text-[10px] text-muted-foreground">Cộng</td>
+                                    <td className="px-2 py-1.5 text-right tabular-nums">{fmt(Number(r.total_qty || 0))}</td>
+                                    <td></td>
+                                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{fmt(Number(r.total_value || 0))}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
               {!isLoading && filtered.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-muted/40 text-xs">
-                    <td colSpan={type === "all" ? 9 : 8} className="px-3 py-2 text-right uppercase tracking-wide text-muted-foreground">
+                    <td colSpan={type === "all" ? 12 : 11} className="px-3 py-2 text-right uppercase tracking-wide text-muted-foreground">
                       Tổng trang ({pagination.pageRows.length} phiếu)
                     </td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(pageTotal)}</td>
