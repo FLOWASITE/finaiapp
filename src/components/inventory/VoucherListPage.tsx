@@ -170,7 +170,7 @@ export function VoucherListPage({ type }: Props) {
   const accent = type === "in" ? "text-emerald-600" : type === "out" ? "text-orange-600" : "text-primary";
 
   const pageTotal = pagination.pageRows.reduce((s: number, r: any) => s + Number(r.total_value || 0), 0);
-  const colCount = (type === "all" ? 11 : 10);
+  const colCount = (type === "all" ? 14 : 13);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
