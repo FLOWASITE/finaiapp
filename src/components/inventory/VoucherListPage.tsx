@@ -1007,10 +1007,14 @@ function VoucherCreateDialog({ type, onClose }: { type: "in" | "out" | null; onC
   const createFn = useServerFn(createStockVoucher);
   const whsFn = useServerFn(listWarehouses);
   const productsFn = useServerFn(listProducts);
+  const suppliersFn = useServerFn(listSuppliers);
+  const customersFn = useServerFn(listCustomers);
   const qc = useQueryClient();
 
   const { data: warehouses } = useQuery({ queryKey: ["warehouses"], queryFn: () => whsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
   const { data: products } = useQuery({ queryKey: ["products"], queryFn: () => productsFn(), ...QUERY_PRESETS.TRANSACTIONAL });
+  const { data: suppliers } = useQuery({ queryKey: ["suppliers"], queryFn: () => suppliersFn({}), ...QUERY_PRESETS.REFERENCE, enabled: type === "in" });
+  const { data: customers } = useQuery({ queryKey: ["customers"], queryFn: () => customersFn({}), ...QUERY_PRESETS.REFERENCE, enabled: type === "out" });
 
   const defaultCounter = type === "in" ? "331" : "632";
   const [form, setForm] = useState({
