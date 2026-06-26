@@ -432,8 +432,8 @@ export const getApSummary = createServerFn({ method: "POST" })
   )
   .handler(
     withLatency("getApSummary", async ({ data, context }) => {
-      const { supabase, userId } = context;
-      return buildApSummary(supabase, userId, data);
+      const { supabase, tenantId } = context;
+      return buildApSummary(supabase, tenantId, data);
     }),
   );
 
