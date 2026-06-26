@@ -55,7 +55,7 @@ export const recordPayment = createServerFn({ method: "POST" })
   .middleware([withTenant])
   .inputValidator((i: unknown) => PaymentSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
 
     // Resolve supplier name from invoice if needed
     let supplierId = data.supplier_id ?? null;
@@ -65,6 +65,7 @@ export const recordPayment = createServerFn({ method: "POST" })
         .from("invoices")
         .select("supplier_id, supplier_name, total")
         .eq("id", data.invoice_id)
+        .eq("tenant_id", tenantId)
         .single();
       if (inv) {
         supplierId = supplierId ?? inv.supplier_id ?? null;
@@ -78,6 +79,7 @@ export const recordPayment = createServerFn({ method: "POST" })
       .from("journal_entries")
       .insert({
         user_id: userId,
+        tenant_id: tenantId,
         entry_date: data.pay_date,
         description: `Chi trả NCC — ${supplierName ?? ""}`,
       })
@@ -92,6 +94,7 @@ export const recordPayment = createServerFn({ method: "POST" })
 
     const { error } = await supabase.from("supplier_payments").insert({
       user_id: userId,
+      tenant_id: tenantId,
       invoice_id: data.invoice_id ?? null,
       supplier_id: supplierId,
       supplier_name: supplierName,
