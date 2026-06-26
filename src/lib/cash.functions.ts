@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { resolveActiveTenantId } from "@/lib/auth/active-tenant.server";
 
 const VoucherSchema = z.object({
   voucher_no: z.string().min(1).max(50),
@@ -16,18 +17,24 @@ const VoucherSchema = z.object({
   cost_center_id: z.string().uuid().nullable().optional(),
 });
 
+const getTenant = (supabase: any, userId: string) =>
+  resolveActiveTenantId(supabase, userId);
+
 export const nextVoucherNo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { voucher_type: "receipt" | "payment"; year_month: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
     const prefix = data.voucher_type === "receipt" ? "PT" : "PC";
     const pattern = `${prefix}${data.year_month}/%`;
-    const { data: rows, error } = await supabase
+    let q = supabase
       .from("cash_vouchers")
       .select("voucher_no")
-      .eq("user_id", userId)
       .like("voucher_no", pattern);
+    if (tenantId) q = q.eq("tenant_id", tenantId);
+    else q = q.eq("user_id", userId);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     let max = 0;
     for (const r of rows ?? []) {
@@ -41,12 +48,16 @@ export const nextVoucherNo = createServerFn({ method: "POST" })
 export const listCashVouchers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase
+    const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
+    let q = supabase
       .from("cash_vouchers")
       .select("*")
       .order("voucher_date", { ascending: false })
       .limit(200);
+    if (tenantId) q = q.eq("tenant_id", tenantId);
+    else q = q.eq("user_id", userId);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     const ids = rows.map((r: any) => r.id);
@@ -70,12 +81,15 @@ export const deleteCashVoucher = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { id: string }) => i)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: v } = await supabase
+    const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
+    let q = supabase
       .from("cash_vouchers")
-      .select("journal_entry_id")
-      .eq("id", data.id)
-      .single();
+      .select("journal_entry_id, tenant_id, user_id")
+      .eq("id", data.id);
+    if (tenantId) q = q.eq("tenant_id", tenantId);
+    else q = q.eq("user_id", userId);
+    const { data: v } = await q.single();
     if (!v) throw new Error("Không tìm thấy phiếu");
     await supabase.from("cash_vouchers").delete().eq("id", data.id);
     if (v.journal_entry_id) {
@@ -90,6 +104,7 @@ export const createCashVoucher = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => VoucherSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
 
     // Auto-journal: receipt → Nợ cash / Có counter ; payment → Nợ counter / Có cash
     const debitAccount = data.voucher_type === "receipt" ? data.cash_account : data.counter_account;
@@ -103,6 +118,7 @@ export const createCashVoucher = createServerFn({ method: "POST" })
       .from("journal_entries")
       .insert({
         user_id: userId,
+        tenant_id: tenantId,
         entry_date: data.voucher_date,
         description: desc,
       })
@@ -117,7 +133,7 @@ export const createCashVoucher = createServerFn({ method: "POST" })
 
     const { data: voucher, error: vErr } = await supabase
       .from("cash_vouchers")
-      .insert({ ...data, user_id: userId, journal_entry_id: entry.id })
+      .insert({ ...data, user_id: userId, tenant_id: tenantId, journal_entry_id: entry.id })
       .select("id")
       .single();
     if (vErr) throw new Error(vErr.message);
@@ -130,15 +146,18 @@ export const getCashBook = createServerFn({ method: "POST" })
   .inputValidator((i: { from: string; to: string; account?: string }) => i)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const tenantId = await getTenant(supabase, userId);
     const account = data.account ?? "1111";
-    const { data: rows, error } = await supabase
+    let q = supabase
       .from("journal_lines")
-      .select("debit, credit, entry_id, journal_entries!inner(user_id, entry_date, description)")
+      .select("debit, credit, entry_id, journal_entries!inner(user_id, tenant_id, entry_date, description)")
       .eq("account_code", account)
-      .eq("journal_entries.user_id", userId)
       .gte("journal_entries.entry_date", data.from)
       .lte("journal_entries.entry_date", data.to)
       .order("entry_id");
+    if (tenantId) q = q.eq("journal_entries.tenant_id", tenantId);
+    else q = q.eq("journal_entries.user_id", userId);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     let balance = 0;
     return (rows ?? []).map((r) => {
