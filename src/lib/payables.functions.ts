@@ -1,20 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withTenant } from "@/integrations/supabase/with-tenant";
 import { withLatency } from "@/lib/with-latency";
 
 // ============ AGING LIST (existing) ============
 export const listPayables = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: invoices } = await supabase
       .from("invoices")
       .select("id, supplier_id, supplier_name, invoice_no, issue_date, total, status")
+      .eq("tenant_id", tenantId)
       .order("issue_date", { ascending: false });
     const { data: payments } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
 
     const paidByInv = new Map<string, number>();
     (payments ?? []).forEach((p) => {
@@ -50,10 +52,10 @@ const PaymentSchema = z.object({
 });
 
 export const recordPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => PaymentSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
 
     // Resolve supplier name from invoice if needed
     let supplierId = data.supplier_id ?? null;
@@ -63,6 +65,7 @@ export const recordPayment = createServerFn({ method: "POST" })
         .from("invoices")
         .select("supplier_id, supplier_name, total")
         .eq("id", data.invoice_id)
+        .eq("tenant_id", tenantId)
         .single();
       if (inv) {
         supplierId = supplierId ?? inv.supplier_id ?? null;
@@ -76,6 +79,7 @@ export const recordPayment = createServerFn({ method: "POST" })
       .from("journal_entries")
       .insert({
         user_id: userId,
+        tenant_id: tenantId,
         entry_date: data.pay_date,
         description: `Chi trả NCC — ${supplierName ?? ""}`,
       })
@@ -90,6 +94,7 @@ export const recordPayment = createServerFn({ method: "POST" })
 
     const { error } = await supabase.from("supplier_payments").insert({
       user_id: userId,
+      tenant_id: tenantId,
       invoice_id: data.invoice_id ?? null,
       supplier_id: supplierId,
       supplier_name: supplierName,
@@ -105,16 +110,17 @@ export const recordPayment = createServerFn({ method: "POST" })
 
 // ============ DELETE PAYMENT (reverse journal) ============
 export const deleteSupplierPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { id: string }) =>
     z.object({ id: z.string().uuid() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, tenantId } = context;
     const { data: p } = await supabase
       .from("supplier_payments")
       .select("id, journal_entry_id, supplier_name")
       .eq("id", data.id)
+      .eq("tenant_id", tenantId)
       .single();
     if (!p) throw new Error("Không tìm thấy phiếu chi");
     if (p.journal_entry_id) {
@@ -126,6 +132,7 @@ export const deleteSupplierPayment = createServerFn({ method: "POST" })
         .from("journal_entries")
         .insert({
           user_id: userId,
+          tenant_id: tenantId,
           entry_date: new Date().toISOString().slice(0, 10),
           description: `Hủy phiếu chi — ${p.supplier_name ?? ""}`,
         })
@@ -133,7 +140,7 @@ export const deleteSupplierPayment = createServerFn({ method: "POST" })
         .single();
       if (re && orig) {
         await supabase.from("journal_lines").insert(
-          orig.map((l, i) => ({
+          (orig as any[]).map((l: any, i: number) => ({
             entry_id: re.id,
             account_code: l.account_code,
             debit: Number(l.credit),
@@ -143,7 +150,7 @@ export const deleteSupplierPayment = createServerFn({ method: "POST" })
         );
       }
     }
-    await supabase.from("supplier_payments").delete().eq("id", data.id);
+    await supabase.from("supplier_payments").delete().eq("id", data.id).eq("tenant_id", tenantId);
     return { ok: true };
   });
 
@@ -155,15 +162,16 @@ const ListPaymentsSchema = z.object({
 });
 
 export const listSupplierPayments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: unknown) => ListPaymentsSchema.parse(i ?? {}))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     let q = supabase
       .from("supplier_payments")
       .select(
         "id, pay_date, supplier_id, supplier_name, invoice_id, amount, method, reference, invoices(invoice_no, payment_status)",
       )
+      .eq("tenant_id", tenantId)
       .order("pay_date", { ascending: false })
       .limit(500);
     if (data.from) q = q.gte("pay_date", data.from);
@@ -175,34 +183,36 @@ export const listSupplierPayments = createServerFn({ method: "POST" })
   });
 
 export const payablesStats = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator((i: { from?: string; to?: string }) =>
     z.object({ from: z.string().optional(), to: z.string().optional() }).parse(i ?? {}),
   )
   .handler(withLatency("payablesStats", async ({ data, context }) => {
-    const { supabase } = context;
-    let q = supabase.from("supplier_payments").select("amount, method");
+    const { supabase, tenantId } = context;
+    let q = supabase.from("supplier_payments").select("amount, method").eq("tenant_id", tenantId);
     if (data.from) q = q.gte("pay_date", data.from);
     if (data.to) q = q.lte("pay_date", data.to);
     const { data: rows } = await q;
-    const total = (rows ?? []).reduce((s, r) => s + Number(r.amount || 0), 0);
-    const cash = (rows ?? []).filter((r) => r.method === "cash").reduce((s, r) => s + Number(r.amount || 0), 0);
-    const bank = (rows ?? []).filter((r) => r.method === "bank").reduce((s, r) => s + Number(r.amount || 0), 0);
+    const total = ((rows ?? []) as any[]).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const cash = ((rows ?? []) as any[]).filter((r: any) => r.method === "cash").reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const bank = ((rows ?? []) as any[]).filter((r: any) => r.method === "bank").reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
     // Outstanding = sum of (invoice.total - sum payments)
     const { data: invs } = await supabase
       .from("invoices")
-      .select("id, total");
+      .select("id, total")
+      .eq("tenant_id", tenantId);
     const { data: pays } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
     const paidMap = new Map<string, number>();
-    for (const p of pays ?? []) {
+    for (const p of (pays ?? []) as any[]) {
       if (p.invoice_id)
         paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
     }
     let outstanding = 0;
-    for (const i of invs ?? []) {
+    for (const i of (invs ?? []) as any[]) {
       outstanding += Math.max(0, Number(i.total || 0) - (paidMap.get(i.id) ?? 0));
     }
 
@@ -211,29 +221,31 @@ export const payablesStats = createServerFn({ method: "POST" })
 
 
 export const listOutstandingPurchaseInvoices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, tenantId } = context;
     const { data: invs } = await supabase
       .from("invoices")
       .select("id, invoice_no, supplier_id, supplier_name, issue_date, total")
+      .eq("tenant_id", tenantId)
       .order("issue_date", { ascending: false })
       .limit(500);
     const { data: pays } = await supabase
       .from("supplier_payments")
-      .select("invoice_id, amount");
+      .select("invoice_id, amount")
+      .eq("tenant_id", tenantId);
     const paidMap = new Map<string, number>();
-    for (const p of pays ?? []) {
+    for (const p of (pays ?? []) as any[]) {
       if (p.invoice_id)
         paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
     }
-    return (invs ?? [])
-      .map((i) => ({
+    return ((invs ?? []) as any[])
+      .map((i: any) => ({
         ...i,
         paid_amount: paidMap.get(i.id) ?? 0,
         remaining: Number(i.total || 0) - (paidMap.get(i.id) ?? 0),
       }))
-      .filter((i) => i.remaining > 0.5);
+      .filter((i: any) => i.remaining > 0.5);
   });
 
 // ============ Bảng tổng hợp công nợ phải trả (TK 331) ============
@@ -258,17 +270,17 @@ export type ApSummaryRow = {
 
 async function buildApSummary(
   supabase: any,
-  userId: string,
+  tenantId: string,
   data: { from: string; to: string; dims?: ApDimFilter; account?: string },
 ): Promise<ApSummaryRow[]> {
   const account = data.account ?? "331";
   let q = supabase
     .from("journal_lines")
     .select(
-      "debit, credit, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(user_id, entry_date, description, invoice_id)",
+      "debit, credit, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(tenant_id, entry_date, description, invoice_id)",
     )
     .like("account_code", `${account}%`)
-    .eq("journal_entries.user_id", userId)
+    .eq("journal_entries.tenant_id", tenantId)
     .lte("journal_entries.entry_date", data.to);
 
   const d = data.dims;
@@ -296,10 +308,12 @@ async function buildApSummary(
     supabase
       .from("invoices")
       .select("id, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .in("id", iIds),
     supabase
       .from("supplier_payments")
       .select("journal_entry_id, supplier_id, supplier_name")
+      .eq("tenant_id", tenantId)
       .in("journal_entry_id", eIds),
   ]);
 
@@ -330,6 +344,7 @@ async function buildApSummary(
     const { data: sups } = await supabase
       .from("suppliers")
       .select("id, code, name")
+      .eq("tenant_id", tenantId)
       .in("id", supIds);
     for (const s of (sups ?? []) as any[]) {
       if (s.code) codeMap.set(s.id, s.code);
@@ -411,25 +426,25 @@ async function buildApSummary(
 }
 
 export const getApSummary = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator(
     (i: { from: string; to: string; dims?: ApDimFilter; account?: string }) => i,
   )
   .handler(
     withLatency("getApSummary", async ({ data, context }) => {
-      const { supabase, userId } = context;
-      return buildApSummary(supabase, userId, data);
+      const { supabase, tenantId } = context;
+      return buildApSummary(supabase, tenantId, data);
     }),
   );
 
 export const exportApSummaryXlsx = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withTenant])
   .inputValidator(
     (i: { from: string; to: string; dims?: ApDimFilter; account?: string }) => i,
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const rows = await buildApSummary(supabase, userId, data);
+    const { supabase, tenantId } = context;
+    const rows = await buildApSummary(supabase, tenantId, data);
 
     const totals = rows.reduce(
       (s, r) => ({
@@ -452,17 +467,18 @@ export const exportApSummaryXlsx = createServerFn({ method: "POST" })
 
     const profile = (
       await supabase
-        .from("profiles")
-        .select("company_name, tax_id, address")
-        .eq("id", userId)
+        .from("tenants")
+        .select("name, tax_id, address")
+        .eq("id", tenantId)
         .maybeSingle()
-    ).data;
+    ).data as any;
+    const companyName = profile?.name ?? "DOANH NGHIỆP";
 
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("CongNoPhaiTra");
 
-    ws.getCell("A1").value = profile?.company_name ?? "DOANH NGHIỆP";
+    ws.getCell("A1").value = companyName;
     ws.getCell("A1").font = { bold: true, size: 13 };
     ws.getCell("A2").value = `MST: ${profile?.tax_id ?? ""}`;
     ws.getCell("A3").value = profile?.address ?? "";
