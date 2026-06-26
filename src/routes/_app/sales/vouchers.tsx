@@ -497,6 +497,7 @@ function SalesVouchersPage() {
             discount_pct: Number(l.discount_pct),
             discount_amount: Number(l.discount_amount),
             vat_rate: Number(l.vat_rate),
+            vat_code: (l.vat_code as VatCode) ?? (Number(l.vat_rate) === 10 ? "10" : Number(l.vat_rate) === 8 ? "8" : Number(l.vat_rate) === 5 ? "5" : Number(l.vat_rate) === 0 ? "0" : "10"),
             vat_amount: Number(l.vat_amount),
             amount: Number(l.amount),
             total: Number(l.total),
