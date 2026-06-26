@@ -270,17 +270,17 @@ export type ApSummaryRow = {
 
 async function buildApSummary(
   supabase: any,
-  userId: string,
+  tenantId: string,
   data: { from: string; to: string; dims?: ApDimFilter; account?: string },
 ): Promise<ApSummaryRow[]> {
   const account = data.account ?? "331";
   let q = supabase
     .from("journal_lines")
     .select(
-      "debit, credit, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(user_id, entry_date, description, invoice_id)",
+      "debit, credit, entry_id, branch_id, department_id, project_id, cost_center_id, journal_entries!inner(tenant_id, entry_date, description, invoice_id)",
     )
     .like("account_code", `${account}%`)
-    .eq("journal_entries.user_id", userId)
+    .eq("journal_entries.tenant_id", tenantId)
     .lte("journal_entries.entry_date", data.to);
 
   const d = data.dims;
